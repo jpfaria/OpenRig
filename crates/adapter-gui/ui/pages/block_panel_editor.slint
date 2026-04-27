@@ -1,5 +1,6 @@
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
+import { ModelSelectWithSearch } from "../components/model_select_with_search.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
@@ -16,145 +17,15 @@ import "../fonts/DancingScript.ttf";
 import "../fonts/PermanentMarker.ttf";
 import "../fonts/Orbitron.ttf";
 
-// Beautiful dark model selector with popup
-component ModelSelector inherits Rectangle {
-    in property <[string]> labels;
-    in property <[BlockModelPickerItem]> models;
-    in-out property <int> current-index: 0;
-    callback selected(int);
-
-    height: 34px;
-    background: #060610;
-    border-width: 1px;
-    border-color: #252538;
-    border-radius: 6px;
-
-    Text {
-        x: 12px; y: 0;
-        width: parent.width - 34px;
-        height: parent.height;
-        text: root.current-index >= 0 && root.current-index < root.labels.length
-            ? root.labels[root.current-index]
-            : "";
-        color: #d8e0ff;
-        font-size: 13px;
-        font-weight: 700;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-
-    // Chevron
-    Text {
-        x: parent.width - 22px; y: 0;
-        width: 18px;
-        height: parent.height;
-        text: "▼";
-        color: #ffffff;
-        font-size: 11px;
-        vertical-alignment: center;
-        horizontal-alignment: center;
-    }
-
-    ta-open := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { popup.show(); }
-    }
-
-    popup := PopupWindow {
-        property <length> list-height: Math.min(root.labels.length * 24px + 8px, 200px);
-        x: 0;
-        y: root.height + 4px;
-        width: root.width;
-        height: self.list-height;
-
-        Rectangle {
-            width: 100%;
-            height: 100%;
-            background: #08080e;
-            border-width: 1px;
-            border-color: #2a2a40;
-            border-radius: 6px;
-            drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
-            drop-shadow-offset-x: 0px;
-            drop-shadow-offset-y: 6px;
-            clip: true;
-
-            Flickable {
-                x: 0; y: 0;
-                width: parent.width;
-                height: parent.height;
-                viewport-height: root.labels.length * 24px + 8px;
-
-            for label[i] in root.labels : Rectangle {
-                x: 4px;
-                y: 4px + i * 24px;
-                width: parent.width - 8px;
-                height: 24px;
-                border-radius: 5px;
-                background: i == root.current-index ? #14142a : transparent;
-
-                Text {
-                    x: 12px; y: 0;
-                    width: parent.width - 70px;
-                    height: parent.height;
-                    text: label;
-                    color: i == root.current-index ? #7788ff : #b0bce0;
-                    font-size: 11px;
-                    font-weight: i == root.current-index ? 700 : 400;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
-
-                if i < root.models.length && root.models[i].type_label != "" : Rectangle {
-                    x: parent.width - 54px;
-                    y: (parent.height - 18px) / 2;
-                    width: 42px;
-                    height: 18px;
-                    border-radius: 3px;
-                    background: root.models[i].type_label == "NATIVE" ? #0d2a0d
-                        : root.models[i].type_label == "NAM" ? #0d1a2e
-                        : #2e1a0d;
-                    border-width: 1px;
-                    border-color: root.models[i].type_label == "NATIVE" ? #1a6b1a
-                        : root.models[i].type_label == "NAM" ? #1a4488
-                        : #883300;
-
-                    Text {
-                        width: parent.width;
-                        height: parent.height;
-                        text: root.models[i].type_label;
-                        color: root.models[i].type_label == "NATIVE" ? #33bb33
-                            : root.models[i].type_label == "NAM" ? #4499ff
-                            : #ff8833;
-                        font-size: 7px;
-                        font-weight: 800;
-                        letter-spacing: 0.5px;
-                        vertical-alignment: center;
-                        horizontal-alignment: center;
-                    }
-                }
-
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.current-index = i;
-                        root.selected(i);
-                    }
-                }
-            }
-            }
-        }
-    }
-}
-
 // Full visual amp head editor window content
 export component BlockPanelEditor inherits Rectangle {
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
     in property <[string]> block-model-option-labels;
     in property <int> block-drawer-selected-type-index: -1;
     in-out property <int> block-drawer-selected-model-index: -1;
+    in-out property <string> block-model-search-text;
     in property <bool> block-drawer-edit-mode: true;
     in property <bool> block-drawer-enabled: true;
     in property <[BlockKnobOverlay]> block-knob-overlays;
@@ -167,6 +38,8 @@ export component BlockPanelEditor inherits Rectangle {
     in property <BlockStreamData> block-stream-data;
 
     callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
@@ -287,15 +160,19 @@ export component BlockPanelEditor inherits Rectangle {
             letter-spacing: 1.5px;
         }
 
-        // Model selector (fills middle)
-        ModelSelector {
+        // Model selector with embedded search (fills middle)
+        ModelSelectWithSearch {
             x: 100px;
             y: (parent.height - 34px) / 2;
             width: parent.width - 100px - root.badge-width - (root.block-drawer-edit-mode ? 80px : 48px);
-            labels: root.block-model-option-labels;
-            models: root.block-model-options;
-            current-index <=> root.block-drawer-selected-model-index;
-            selected(i) => { root.choose-block-model(i); }
+            filtered-models: root.filtered-block-model-options;
+            selected-model: root.block-drawer-selected-model-index >= 0
+                && root.block-drawer-selected-model-index < root.block-model-options.length
+                ? root.block-model-options[root.block-drawer-selected-model-index]
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+            search-text <=> root.block-model-search-text;
+            select(model-id) => { root.choose-block-model-by-id(model-id); }
+            search-text-changed(text) => { root.search-block-model(text); }
         }
 
         // Type badge

@@ -102,7 +102,7 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N` em commits** — GitHub auto-fecha issues.
 7. **Merge policy**: bugfix/hotfix mergeia imediato; feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase** — sempre `git merge`, nunca `git pull --rebase`.
-9. **NUNCA fechar issues** — só quando o usuário pedir.
+9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao milestone aberto vigente** (`gh api repos/<owner>/<repo>/milestones --jq '.[] | select(.state=="open") | .title'` para descobrir; `gh issue edit <N> --milestone "<title>"` para atribuir antes do `gh issue close <N>`). Issue fechada sem milestone não aparece nos relatórios de release.
 10. **Push imediato após cada commit.**
 
 ### Workspace isolado (.solvers/)

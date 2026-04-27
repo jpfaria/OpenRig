@@ -6,6 +6,7 @@ import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
+import { ModelSelectWithSearch } from "../components/model_select_with_search.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -1757,6 +1758,7 @@ component ChainRow inherits Rectangle {
 export component BlockEditorPanel inherits Rectangle {
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
     in property <[string]> block-model-option-labels;
     in property <string> block-drawer-title;
     in property <string> block-drawer-confirm-label;
@@ -1764,6 +1766,7 @@ export component BlockEditorPanel inherits Rectangle {
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
     in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
@@ -1771,6 +1774,8 @@ export component BlockEditorPanel inherits Rectangle {
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
     callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
@@ -1869,14 +1874,18 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── AMP HEAD: seletor de modelo + imagem do painel + parâmetros ───────
-        if root.is-preamp : ComboBox {
+        if root.is-preamp : ModelSelectWithSearch {
             x: 20px;
             y: 74px;
             width: parent.width - 40px;
-            height: 34px;
-            model: root.block-model-option-labels;
-            current-index <=> root.block-drawer-selected-model-index;
-            selected(_) => { root.choose-block-model(self.current-index); }
+            filtered-models: root.filtered-block-model-options;
+            selected-model: root.block-drawer-selected-model-index >= 0
+                && root.block-drawer-selected-model-index < root.block-model-options.length
+                ? root.block-model-options[root.block-drawer-selected-model-index]
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+            search-text <=> root.block-model-search-text;
+            select(model-id) => { root.choose-block-model-by-id(model-id); }
+            search-text-changed(text) => { root.search-block-model(text); }
         }
 
         if root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
@@ -1915,14 +1924,18 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original ───────────────────────
-        if !root.is-preamp : ComboBox {
+        if !root.is-preamp : ModelSelectWithSearch {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
-            height: 34px;
-            model: root.block-model-option-labels;
-            current-index <=> root.block-drawer-selected-model-index;
-            selected(_) => { root.choose-block-model(self.current-index); }
+            filtered-models: root.filtered-block-model-options;
+            selected-model: root.block-drawer-selected-model-index >= 0
+                && root.block-drawer-selected-model-index < root.block-model-options.length
+                ? root.block-model-options[root.block-drawer-selected-model-index]
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+            search-text <=> root.block-model-search-text;
+            select(model-id) => { root.choose-block-model-by-id(model-id); }
+            search-text-changed(text) => { root.search-block-model(text); }
         }
 
         if !root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
@@ -2097,6 +2110,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <int> selected-chain-block-index;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
     in property <[string]> block-model-option-labels;
     in property <bool> show-block-type-picker;
     in property <bool> show-block-drawer;
@@ -2107,6 +2121,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
     in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
@@ -2141,6 +2156,8 @@ export component ProjectChainsPage inherits Rectangle {
     callback reorder-chain-block(int, int, int);
     callback choose-block-type(int);
     callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
     callback cancel-block-picker();
     callback close-block-drawer();
     callback save-block-drawer();
@@ -2377,7 +2394,9 @@ export component ProjectChainsPage inherits Rectangle {
             height: parent.panel-height;
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;
+            filtered-block-model-options: root.filtered-block-model-options;
             block-model-option-labels: root.block-model-option-labels;
+            block-model-search-text <=> root.block-model-search-text;
             block-drawer-selected-type-index: root.block-drawer-selected-type-index;
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-edit-mode: root.block-drawer-edit-mode;
@@ -2391,6 +2410,8 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-confirm-label: root.block-drawer-confirm-label;
             block-stream-data: root.block-stream-data;
             choose-block-model(i) => { root.choose-block-model(i); }
+            choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+            search-block-model(text) => { root.search-block-model(text); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }
@@ -2410,7 +2431,9 @@ export component ProjectChainsPage inherits Rectangle {
             height: parent.height;
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;
+            filtered-block-model-options: root.filtered-block-model-options;
             block-model-option-labels: root.block-model-option-labels;
+            block-model-search-text <=> root.block-model-search-text;
             block-drawer-title: root.block-drawer-title;
             block-drawer-confirm-label: root.block-drawer-confirm-label;
             block-drawer-status-message: root.block-drawer-status-message;
@@ -2425,6 +2448,8 @@ export component ProjectChainsPage inherits Rectangle {
             eq-band-curves: root.eq-band-curves;
             block-stream-data: root.block-stream-data;
             choose-block-model(index) => { root.choose-block-model(index); }
+            choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+            search-block-model(text) => { root.search-block-model(text); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }

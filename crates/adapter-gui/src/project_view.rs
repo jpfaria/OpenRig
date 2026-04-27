@@ -289,6 +289,16 @@ pub(crate) fn build_compact_blocks(
                     let items = block_model_picker_items(&effect_type, instrument);
                     items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
                 },
+                models: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    ModelRc::from(Rc::new(VecModel::from(items)))
+                },
+                filtered_models: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    ModelRc::from(Rc::new(VecModel::from(items)))
+                },
                 stream_data: Default::default(),
                 has_external_gui: project::catalog::block_has_external_gui(&effect_type),
             })

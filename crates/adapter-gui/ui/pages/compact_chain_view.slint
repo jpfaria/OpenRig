@@ -1,7 +1,8 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
+import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
+import { ModelSelectWithSearch } from "../components/model_select_with_search.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
@@ -18,7 +19,9 @@ component CompactBlockRow inherits Rectangle {
     callback update-parameter-number(int, int, string, float);
     callback update-parameter-bool(int, int, string, bool);
     callback select-parameter-option(int, int, string, int);
-    callback choose-model(int, int, int); // chain_index, block_index, model_index
+    callback choose-model(int, int, int); // chain_index, block_index, model_index (legacy)
+    callback choose-model-by-id(int, int, string); // chain_index, block_index, model_id
+    callback search-model(int, int, string); // chain_index, block_index, search_text
     callback open-block-detail(int, int);
     callback remove-block(int, int);
     callback open-plugin(string); // model-id, for VST3 blocks
@@ -74,96 +77,21 @@ component CompactBlockRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ── 4. Model selector dropdown (after type label) ──
-    Rectangle {
+    // ── 4. Model selector with embedded search (after type label) ──
+    ModelSelectWithSearch {
         x: 158px;
-        y: (parent.height - 32px) / 2;
+        y: (parent.height - 34px) / 2;
         width: 260px;
-        height: 32px;
-        background: #060610;
-        border-width: 1px;
-        border-color: #252538;
-        border-radius: 5px;
-
-        Text {
-            x: 8px; y: 0;
-            width: parent.width - 28px;
-            height: parent.height;
-            text: root.block-data.display-name;
-            color: #d8e0ff;
-            font-size: 12px;
-            font-weight: 700;
-            vertical-alignment: center;
-            overflow: elide;
+        filtered-models: root.block-data.filtered-models;
+        selected-model: root.block-data.model-selected-index >= 0
+            && root.block-data.model-selected-index < root.block-data.models.length
+            ? root.block-data.models[root.block-data.model-selected-index]
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+        select(model-id) => {
+            root.choose-model-by-id(root.block-data.chain-index, root.block-data.block-index, model-id);
         }
-
-        Text {
-            x: parent.width - 20px; y: 0;
-            width: 16px; height: parent.height;
-            text: "\u{25BC}";
-            color: #8090a0;
-            font-size: 9px;
-            vertical-alignment: center;
-            horizontal-alignment: center;
-        }
-
-        if root.block-data.type-label != "" : Rectangle {
-            x: parent.width - 64px;
-            y: (parent.height - 16px) / 2;
-            width: 36px; height: 16px;
-            border-radius: 3px;
-            background: root.block-data.type-label == "NATIVE" ? #0d2a0d
-                : root.block-data.type-label == "NAM" ? #0d1a2e : #2e1a0d;
-            border-width: 1px;
-            border-color: root.block-data.type-label == "NATIVE" ? #1a6b1a
-                : root.block-data.type-label == "NAM" ? #1a4488 : #883300;
-            Text {
-                width: 100%; height: 100%;
-                text: root.block-data.type-label;
-                color: root.block-data.type-label == "NATIVE" ? #33bb33
-                    : root.block-data.type-label == "NAM" ? #4499ff : #ff8833;
-                font-size: 7px; font-weight: 800;
-                horizontal-alignment: center; vertical-alignment: center;
-            }
-        }
-
-        model-select-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { model-select-popup.show(); }
-        }
-
-        model-select-popup := PopupWindow {
-            property <length> list-h: Math.min(root.block-data.model-labels.length * 32px + 6px, 300px);
-            x: 0; y: parent.height + 4px;
-            width: parent.width; height: self.list-h;
-            Rectangle {
-                width: 100%; height: 100%;
-                background: #08080e; border-width: 1px; border-color: #2a2a40;
-                border-radius: 5px; clip: true;
-                drop-shadow-blur: 16px; drop-shadow-color: #000000c0;
-                Flickable {
-                    width: parent.width; height: parent.height;
-                    viewport-height: root.block-data.model-labels.length * 32px + 6px;
-                    for label[mi] in root.block-data.model-labels : Rectangle {
-                        x: 3px; y: 3px + mi * 32px;
-                        width: parent.width - 6px; height: 30px;
-                        border-radius: 4px;
-                        background: mi == root.block-data.model-selected-index ? #14142a : (ml-sel-ta.has-hover ? #ffffff08 : transparent);
-                        Text {
-                            x: 8px; width: parent.width - 16px; height: parent.height;
-                            text: label;
-                            color: mi == root.block-data.model-selected-index ? #7788ff : #b0bce0;
-                            font-size: 11px;
-                            font-weight: mi == root.block-data.model-selected-index ? 700 : 400;
-                            vertical-alignment: center; overflow: elide;
-                        }
-                        ml-sel-ta := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.choose-model(root.block-data.chain-index, root.block-data.block-index, mi); }
-                        }
-                    }
-                }
-            }
+        search-text-changed(text) => {
+            root.search-model(root.block-data.chain-index, root.block-data.block-index, text);
         }
     }
 
@@ -667,6 +595,8 @@ export component CompactChainViewPage inherits Rectangle {
     callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
+    callback choose-block-model-by-id(int, int, string);
+    callback search-block-model(int, int, string);
     callback insert-block(int, int); // chain_index, before_index
     callback reorder-block(int, int, int); // chain_index, from_index, before_index
     callback open-block-detail(int, int);
@@ -828,6 +758,8 @@ export component CompactChainViewPage inherits Rectangle {
                 update-parameter-bool(ci, bi2, p, v) => { root.update-block-parameter-bool(ci, bi2, p, v); }
                 select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
+                choose-model-by-id(ci, bi2, mid) => { root.choose-block-model-by-id(ci, bi2, mid); }
+                search-model(ci, bi2, text) => { root.search-block-model(ci, bi2, text); }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
                 remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
                 open-plugin(model-id) => { root.open-plugin(model-id); }
