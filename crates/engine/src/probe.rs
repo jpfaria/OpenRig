@@ -26,10 +26,6 @@ use crate::runtime::{
 use project::chain::Chain;
 use std::sync::Arc;
 
-/// Number of frames in the probe pulse buffer. One callback's worth at
-/// 48 kHz is enough to exercise every block in the chain at least once.
-const PROBE_BUFFER_FRAMES: usize = 256;
-
 /// Channel count for the probe input. Mono is sufficient — every chain
 /// has a primary input on channel 0, and the chain's own routing handles
 /// the mono → stereo upsample if any block needs stereo.
@@ -38,16 +34,28 @@ const PROBE_BUFFER_CHANNELS: usize = 1;
 /// Build a temporary runtime for `chain`, run a 1 kHz pulse through it,
 /// and return the elapsed DSP time in milliseconds.
 ///
-/// Returns `0.0` on any build error (the UI treats zero as "not measured"
-/// and hides the badge).
-pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32) -> f32 {
+/// `buffer_frames` MUST match the device buffer size the user has
+/// configured — chain DSP per call scales with buffer size, so probing
+/// at the wrong frame count gives a value that does not reflect the
+/// real audio path (e.g. always ~1 ms regardless of the device).
+///
+/// Returns `0.0` on any build error (the UI treats zero as "not
+/// measured" and hides the badge).
+pub fn measure_chain_dsp_latency_ms(
+    chain: &Chain,
+    sample_rate: f32,
+    buffer_frames: usize,
+) -> f32 {
+    if buffer_frames == 0 {
+        return 0.0;
+    }
     let runtime = match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET]) {
         Ok(rt) => Arc::new(rt),
         Err(_) => return 0.0,
     };
 
-    let mut data = vec![0.0_f32; PROBE_BUFFER_FRAMES * PROBE_BUFFER_CHANNELS];
-    let beep_frames = PROBE_BEEP_FRAMES.min(PROBE_BUFFER_FRAMES);
+    let mut data = vec![0.0_f32; buffer_frames * PROBE_BUFFER_CHANNELS];
+    let beep_frames = PROBE_BEEP_FRAMES.min(buffer_frames);
     let nominal_sr = 48_000.0_f32;
     for f in 0..beep_frames {
         let t = f as f32 / nominal_sr;
