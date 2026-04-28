@@ -9,15 +9,18 @@ pub const MODEL_ID: &str = "orange_2x12_v30";
 pub const DISPLAY_NAME: &str = "Orange 2x12 V30";
 const BRAND: &str = "orange";
 
+// Two-axis pack: mic × position. Position letters (A/C/D/E) follow the
+// original capture pack convention (off-axis spacing/angle variants).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("c414_e", "Orange 2x12 V30 C414 E", "cabs/orange_2x12_v30/orange_2x12_v30_c414_e_3.wav"),
-    ("e906_c", "Orange 2x12 V30 e906 C", "cabs/orange_2x12_v30/orange_2x12_v30_e906_c_3.wav"),
-    ("sm57_a", "Orange 2x12 V30 SM57 A", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_a_3.wav"),
-    ("rm700_c", "Orange 2x12 V30 RM700 C", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_c_3.wav"),
-    ("rm700_e", "Orange 2x12 V30 RM700 E", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_e_3.wav"),
-    ("sm57_c", "Orange 2x12 V30 SM57 C", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_c_3.wav"),
-    ("sm57_e", "Orange 2x12 V30 SM57 E", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_e_3.wav"),
-    ("c414_d", "Orange 2x12 V30 C414 D", "cabs/orange_2x12_v30/orange_2x12_v30_c414_d_3.wav"),
+    // (mic, position, file)
+    ("c414",  "d", "cabs/orange_2x12_v30/orange_2x12_v30_c414_d_3.wav"),
+    ("c414",  "e", "cabs/orange_2x12_v30/orange_2x12_v30_c414_e_3.wav"),
+    ("e906",  "c", "cabs/orange_2x12_v30/orange_2x12_v30_e906_c_3.wav"),
+    ("rm700", "c", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_c_3.wav"),
+    ("rm700", "e", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_e_3.wav"),
+    ("sm57",  "a", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_a_3.wav"),
+    ("sm57",  "c", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_c_3.wav"),
+    ("sm57",  "e", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_e_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,22 +29,32 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("c414_e"),
-            &[
-            ("c414_e", "Orange 2x12 V30 C414 E"),
-            ("e906_c", "Orange 2x12 V30 e906 C"),
-            ("sm57_a", "Orange 2x12 V30 SM57 A"),
-            ("rm700_c", "Orange 2x12 V30 RM700 C"),
-            ("rm700_e", "Orange 2x12 V30 RM700 E"),
-            ("sm57_c", "Orange 2x12 V30 SM57 C"),
-            ("sm57_e", "Orange 2x12 V30 SM57 E"),
-            ("c414_d", "Orange 2x12 V30 C414 D"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic",
+                "Mic",
+                Some("Cab"),
+                Some("sm57"),
+                &[
+                    ("c414",  "AKG C414"),
+                    ("e906",  "Sennheiser e906"),
+                    ("rm700", "Royer R-700"),
+                    ("sm57",  "SM57"),
+                ],
+            ),
+            enum_parameter(
+                "position",
+                "Position",
+                Some("Cab"),
+                Some("c"),
+                &[
+                    ("a", "Position A"),
+                    ("c", "Position C"),
+                    ("d", "Position D"),
+                    ("e", "Position E"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -73,12 +86,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
+    let position = required_string(params, "position").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(m, p, _)| *m == mic && *p == position)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic={} position={}",
+                MODEL_ID, mic, position
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
