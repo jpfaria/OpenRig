@@ -14,14 +14,14 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("black_album", "Black Album", "amps/mesa_dual_rectifier_rev_f/black_album.nam"),
-    ("satan", "SATAN", "amps/mesa_dual_rectifier_rev_f/satan.nam"),
-    ("chainsaw", "CHAINSAW", "amps/mesa_dual_rectifier_rev_f/chainsaw.nam"),
-    ("hellbert", "HELLBERT", "amps/mesa_dual_rectifier_rev_f/hellbert.nam"),
-    ("stealth", "STEALTH", "amps/mesa_dual_rectifier_rev_f/stealth.nam"),
-    ("slaughter", "SLAUGHTER", "amps/mesa_dual_rectifier_rev_f/slaughter.nam"),
-    ("far_beyond_driven", "Far beyond Driven", "amps/mesa_dual_rectifier_rev_f/far_beyond_driven.nam"),
-    ("raw_gxx", "Raw GXX", "amps/mesa_dual_rectifier_rev_f/raw_gxx.nam"),
+    ("black_album", "Black Album", "amps/mesa_dual_rectifier_rev_f/black_album_2.nam"),
+    ("satan", "SATAN", "amps/mesa_dual_rectifier_rev_f/satan_2.nam"),
+    ("chainsaw", "CHAINSAW", "amps/mesa_dual_rectifier_rev_f/chainsaw_2.nam"),
+    ("hellbert", "HELLBERT", "amps/mesa_dual_rectifier_rev_f/hellbert_2.nam"),
+    ("stealth", "STEALTH", "amps/mesa_dual_rectifier_rev_f/stealth_2.nam"),
+    ("slaughter", "SLAUGHTER", "amps/mesa_dual_rectifier_rev_f/slaughter_2.nam"),
+    ("far_beyond_driven", "Far beyond Driven", "amps/mesa_dual_rectifier_rev_f/far_beyond_driven_2.nam"),
+    ("raw_gxx", "Raw GXX", "amps/mesa_dual_rectifier_rev_f/raw_gxx_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

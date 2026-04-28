@@ -14,10 +14,10 @@ const BRAND: &str = "sunn";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cathedral_stmn", "Cathedral STMN", "amps/sunn_model_t/cathedral_stmn.nam"),
-    ("dde_thronolith_only_pedal", "DDE - Thronolith (Only Pedal)", "amps/sunn_model_t/dde_thronolith_only_pedal.nam"),
-    ("dde_life_droner_nocab", "DDE - Life Droner (NoCab)", "amps/sunn_model_t/dde_life_droner_nocab.nam"),
-    ("dde_hyper_droner_nocab", "DDE - Hyper Droner (NoCab)", "amps/sunn_model_t/dde_hyper_droner_nocab.nam"),
+    ("cathedral_stmn", "Cathedral STMN", "amps/sunn_model_t/cathedral_stmn_2.nam"),
+    ("dde_thronolith_only_pedal", "DDE - Thronolith (Only Pedal)", "amps/sunn_model_t/dde_thronolith_only_pedal_2.nam"),
+    ("dde_life_droner_nocab", "DDE - Life Droner (NoCab)", "amps/sunn_model_t/dde_life_droner_nocab_2.nam"),
+    ("dde_hyper_droner_nocab", "DDE - Hyper Droner (NoCab)", "amps/sunn_model_t/dde_hyper_droner_nocab_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

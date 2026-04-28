@@ -10,14 +10,14 @@ pub const DISPLAY_NAME: &str = "SVT 4x10/8x10";
 const BRAND: &str = "ampeg";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ampeg_8x10_d6_ah", "Ampeg 8x10 D6 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_d6_ah.wav"),
-    ("ampeg_8x10_4033_ah", "Ampeg 8x10 4033 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_ah.wav"),
-    ("ampeg_svt_beta52", "Ampeg SVT Beta52", "cabs/ampeg_svt_8x10/ampeg_svt_beta52.wav"),
-    ("ampeg_8x10_e602_a107", "Ampeg 8x10 e602 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_e602_a107.wav"),
-    ("ampeg_8x10_57_ah", "Ampeg 8x10 57 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_57_ah.wav"),
-    ("ampeg_svt_bright_neumann", "Ampeg SVT Bright Neumann", "cabs/ampeg_svt_8x10/ampeg_svt_bright_neumann.wav"),
-    ("ampeg_8x10_4033_a107", "Ampeg 8x10 4033 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_a107.wav"),
-    ("ampeg_svt_d_i_out", "Ampeg SVT D-I-Out", "cabs/ampeg_svt_8x10/ampeg_svt_d_i_out.wav"),
+    ("8x10_d6_ah", "Ampeg 8x10 D6 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_d6_ah_3.wav"),
+    ("8x10_4033_ah", "Ampeg 8x10 4033 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_ah_3.wav"),
+    ("svt_beta52", "Ampeg SVT Beta52", "cabs/ampeg_svt_8x10/ampeg_svt_beta52_3.wav"),
+    ("8x10_e602_a107", "Ampeg 8x10 e602 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_e602_a107_3.wav"),
+    ("8x10_57_ah", "Ampeg 8x10 57 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_57_ah_3.wav"),
+    ("svt_bright_neumann", "Ampeg SVT Bright Neumann", "cabs/ampeg_svt_8x10/ampeg_svt_bright_neumann_3.wav"),
+    ("8x10_4033_a107", "Ampeg 8x10 4033 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_a107_3.wav"),
+    ("svt_d_i_out", "Ampeg SVT D-I-Out", "cabs/ampeg_svt_8x10/ampeg_svt_d_i_out_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("ampeg_8x10_d6_ah"),
+            Some("8x10_d6_ah"),
             &[
-            ("ampeg_8x10_d6_ah", "Ampeg 8x10 D6 AH"),
-            ("ampeg_8x10_4033_ah", "Ampeg 8x10 4033 AH"),
-            ("ampeg_svt_beta52", "Ampeg SVT Beta52"),
-            ("ampeg_8x10_e602_a107", "Ampeg 8x10 e602 A107"),
-            ("ampeg_8x10_57_ah", "Ampeg 8x10 57 AH"),
-            ("ampeg_svt_bright_neumann", "Ampeg SVT Bright Neumann"),
-            ("ampeg_8x10_4033_a107", "Ampeg 8x10 4033 A107"),
-            ("ampeg_svt_d_i_out", "Ampeg SVT D-I-Out"),
+            ("8x10_d6_ah", "Ampeg 8x10 D6 AH"),
+            ("8x10_4033_ah", "Ampeg 8x10 4033 AH"),
+            ("svt_beta52", "Ampeg SVT Beta52"),
+            ("8x10_e602_a107", "Ampeg 8x10 e602 A107"),
+            ("8x10_57_ah", "Ampeg 8x10 57 AH"),
+            ("svt_bright_neumann", "Ampeg SVT Bright Neumann"),
+            ("8x10_4033_a107", "Ampeg 8x10 4033 A107"),
+            ("svt_d_i_out", "Ampeg SVT D-I-Out"),
             ],
         )],
     }

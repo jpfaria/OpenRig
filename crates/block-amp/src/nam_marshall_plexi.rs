@@ -14,7 +14,7 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("angus_nano", "Angus", "amps/marshall_plexi/angus_nano.nam"),
+    ("angus_nano", "Angus", "amps/marshall_plexi/angus_nano_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

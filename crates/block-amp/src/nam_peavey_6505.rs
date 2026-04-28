@@ -14,14 +14,14 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("app_6505plus_clean_gain_06", "APP-6505Plus-Clean-Gain-06", "amps/peavey_6505/app_6505plus_clean_gain_06.nam"),
-    ("app_6505plus_clean_gain_07", "APP-6505Plus-Clean-Gain-07", "amps/peavey_6505/app_6505plus_clean_gain_07.nam"),
-    ("app_6505plus_clean_gain_08", "APP-6505Plus-Clean-Gain-08", "amps/peavey_6505/app_6505plus_clean_gain_08.nam"),
-    ("app_6505plus_clean_gain_02", "APP-6505Plus-Clean-Gain-02", "amps/peavey_6505/app_6505plus_clean_gain_02.nam"),
-    ("app_6505plus_midforward_gain_07", "APP-6505Plus-MidForward-Gain-07", "amps/peavey_6505/app_6505plus_midforward_gain_07.nam"),
-    ("app_6505plus_scooped_gain_06", "APP-6505Plus-Scooped-Gain-06", "amps/peavey_6505/app_6505plus_scooped_gain_06.nam"),
-    ("app_6505plus_clean_gain_09", "APP-6505Plus-Clean-Gain-09", "amps/peavey_6505/app_6505plus_clean_gain_09.nam"),
-    ("app_6505plus_clean_gain_04", "APP-6505Plus-Clean-Gain-04", "amps/peavey_6505/app_6505plus_clean_gain_04.nam"),
+    ("app_6505plus_clean_gain_06", "APP-6505Plus-Clean-Gain-06", "amps/peavey_6505/app_6505plus_clean_gain_06_2.nam"),
+    ("app_6505plus_clean_gain_07", "APP-6505Plus-Clean-Gain-07", "amps/peavey_6505/app_6505plus_clean_gain_07_2.nam"),
+    ("app_6505plus_clean_gain_08", "APP-6505Plus-Clean-Gain-08", "amps/peavey_6505/app_6505plus_clean_gain_08_2.nam"),
+    ("app_6505plus_clean_gain_02", "APP-6505Plus-Clean-Gain-02", "amps/peavey_6505/app_6505plus_clean_gain_02_2.nam"),
+    ("app_6505plus_midforward_gain_07", "APP-6505Plus-MidForward-Gain-07", "amps/peavey_6505/app_6505plus_midforward_gain_07_2.nam"),
+    ("app_6505plus_scooped_gain_06", "APP-6505Plus-Scooped-Gain-06", "amps/peavey_6505/app_6505plus_scooped_gain_06_2.nam"),
+    ("app_6505plus_clean_gain_09", "APP-6505Plus-Clean-Gain-09", "amps/peavey_6505/app_6505plus_clean_gain_09_2.nam"),
+    ("app_6505plus_clean_gain_04", "APP-6505Plus-Clean-Gain-04", "amps/peavey_6505/app_6505plus_clean_gain_04_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

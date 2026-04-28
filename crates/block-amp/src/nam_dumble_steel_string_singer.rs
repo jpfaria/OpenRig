@@ -14,11 +14,11 @@ const BRAND: &str = "dumble";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("dumble_steel_ss_clean", "Dumble Steel SS Clean", "amps/dumble_steel_string_singer/dumble_steel_ss_clean.nam"),
-    ("dumble_steel_ss_drive_1", "Dumble Steel SS Drive 1", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1.nam"),
-    ("dumble_steel_ss_drive_2", "Dumble Steel SS Drive 2", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2.nam"),
-    ("dumble_steel_ss_clean_full", "Dumble Steel SS Clean Full", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full.nam"),
-    ("dumble_steel_ss_drive_full", "Dumble Steel SS Drive Full", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full.nam"),
+    ("clean", "Dumble Steel SS Clean", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_2.nam"),
+    ("drive_1", "Dumble Steel SS Drive 1", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1_2.nam"),
+    ("drive_2", "Dumble Steel SS Drive 2", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2_2.nam"),
+    ("clean_full", "Dumble Steel SS Clean Full", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full_2.nam"),
+    ("drive_full", "Dumble Steel SS Drive Full", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("dumble_steel_ss_clean"),
+        Some("clean"),
         &[
-            ("dumble_steel_ss_clean", "Dumble Steel SS Clean"),
-            ("dumble_steel_ss_drive_1", "Dumble Steel SS Drive 1"),
-            ("dumble_steel_ss_drive_2", "Dumble Steel SS Drive 2"),
-            ("dumble_steel_ss_clean_full", "Dumble Steel SS Clean Full"),
-            ("dumble_steel_ss_drive_full", "Dumble Steel SS Drive Full"),
+            ("clean", "Dumble Steel SS Clean"),
+            ("drive_1", "Dumble Steel SS Drive 1"),
+            ("drive_2", "Dumble Steel SS Drive 2"),
+            ("clean_full", "Dumble Steel SS Clean Full"),
+            ("drive_full", "Dumble Steel SS Drive Full"),
         ],
     )];
     schema

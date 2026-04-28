@@ -10,14 +10,14 @@ pub const DISPLAY_NAME: &str = "1960BV 4x12";
 const BRAND: &str = "marshall";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_g12_4_sm57_3", "Marshall G12 4 SM57 3", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_3.wav"),
-    ("marshall_g12_1_sm57_2", "Marshall G12 1 SM57 2", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm57_2.wav"),
-    ("marshall_g12_1_sm58_5", "Marshall G12 1 SM58 5", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm58_5.wav"),
-    ("marshall_g12_4_sm58_4", "Marshall G12 4 SM58 4", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm58_4.wav"),
-    ("marshall_v30_3_sm57_1", "Marshall V30 3 SM57 1", "cabs/marshall_1960bv_4x12/marshall_v30_3_sm57_1.wav"),
-    ("marshall_v30_2_sm58_6", "Marshall V30 2 SM58 6", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_6.wav"),
-    ("marshall_g12_4_sm57_8", "Marshall G12 4 SM57 8", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_8.wav"),
-    ("marshall_v30_2_sm58_1", "Marshall V30 2 SM58 1", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_1.wav"),
+    ("g12_4_sm57_3", "Marshall G12 4 SM57 3", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_3_3.wav"),
+    ("g12_1_sm57_2", "Marshall G12 1 SM57 2", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm57_2_3.wav"),
+    ("g12_1_sm58_5", "Marshall G12 1 SM58 5", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm58_5_3.wav"),
+    ("g12_4_sm58_4", "Marshall G12 4 SM58 4", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm58_4_3.wav"),
+    ("v30_3_sm57_1", "Marshall V30 3 SM57 1", "cabs/marshall_1960bv_4x12/marshall_v30_3_sm57_1_3.wav"),
+    ("v30_2_sm58_6", "Marshall V30 2 SM58 6", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_6_3.wav"),
+    ("g12_4_sm57_8", "Marshall G12 4 SM57 8", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_8_3.wav"),
+    ("v30_2_sm58_1", "Marshall V30 2 SM58 1", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_1_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("marshall_g12_4_sm57_3"),
+            Some("g12_4_sm57_3"),
             &[
-            ("marshall_g12_4_sm57_3", "Marshall G12 4 SM57 3"),
-            ("marshall_g12_1_sm57_2", "Marshall G12 1 SM57 2"),
-            ("marshall_g12_1_sm58_5", "Marshall G12 1 SM58 5"),
-            ("marshall_g12_4_sm58_4", "Marshall G12 4 SM58 4"),
-            ("marshall_v30_3_sm57_1", "Marshall V30 3 SM57 1"),
-            ("marshall_v30_2_sm58_6", "Marshall V30 2 SM58 6"),
-            ("marshall_g12_4_sm57_8", "Marshall G12 4 SM57 8"),
-            ("marshall_v30_2_sm58_1", "Marshall V30 2 SM58 1"),
+            ("g12_4_sm57_3", "Marshall G12 4 SM57 3"),
+            ("g12_1_sm57_2", "Marshall G12 1 SM57 2"),
+            ("g12_1_sm58_5", "Marshall G12 1 SM58 5"),
+            ("g12_4_sm58_4", "Marshall G12 4 SM58 4"),
+            ("v30_3_sm57_1", "Marshall V30 3 SM57 1"),
+            ("v30_2_sm58_6", "Marshall V30 2 SM58 6"),
+            ("g12_4_sm57_8", "Marshall G12 4 SM57 8"),
+            ("v30_2_sm58_1", "Marshall V30 2 SM58 1"),
             ],
         )],
     }

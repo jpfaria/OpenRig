@@ -14,14 +14,14 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("kdm_slammin_mkiv_28_tight_iic_rh", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_28_tight_iic_rhythm_1_s.nam"),
-    ("kdm_slammin_mkiv_31_fat_iic_rhyt", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_31_fat_iic_rhythm_1_s.nam"),
-    ("kdm_slammin_mkiv_37_metallica_85", "KDM-Slammin_MKIV_37 Metallica '85 Notes S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_37_metallica_85_notes_s.nam"),
-    ("kdm_slammin_mkiv_29_tight_iic_rh", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_29_tight_iic_rhythm_2_s.nam"),
-    ("kdm_slammin_mkiv_32_fat_iic_rhyt", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_32_fat_iic_rhythm_2_s.nam"),
-    ("kdm_slammin_mkiv_39_metallica_tb", "KDM-Slammin_MKIV_39 Metallica TBA  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_39_metallica_tba_s.nam"),
-    ("kdm_slammin_mkiv_34_petrucci_mar", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_34_petrucci_mark_iv_crunch_s.nam"),
-    ("kdm_slammin_mkiv_41_log_sacramen", "KDM-Slammin_MKIV_41 LOG Sacrament S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_41_log_sacrament_s.nam"),
+    ("kdm_slammin_mkiv_28_tight_iic_rhythm_1", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_28_tight_iic_rhythm_1_s_2.nam"),
+    ("kdm_slammin_mkiv_31_fat_iic_rhythm_1", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_31_fat_iic_rhythm_1_s_2.nam"),
+    ("kdm_slammin_mkiv_37_metallica_85_notes", "KDM-Slammin_MKIV_37 Metallica '85 Notes S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_37_metallica_85_notes_s_2.nam"),
+    ("kdm_slammin_mkiv_29_tight_iic_rhythm_2", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_29_tight_iic_rhythm_2_s_2.nam"),
+    ("kdm_slammin_mkiv_32_fat_iic_rhythm_2", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_32_fat_iic_rhythm_2_s_2.nam"),
+    ("kdm_slammin_mkiv_39_metallica_tba", "KDM-Slammin_MKIV_39 Metallica TBA  S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_39_metallica_tba_s_2.nam"),
+    ("kdm_slammin_mkiv_34_petrucci_mark_iv_cru", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_34_petrucci_mark_iv_crunch_s_2.nam"),
+    ("kdm_slammin_mkiv_41_log_sacrament", "KDM-Slammin_MKIV_41 LOG Sacrament S", "amps/mesa_boogie_mark_iv/kdm_slammin_mkiv_41_log_sacrament_s_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("kdm_slammin_mkiv_28_tight_iic_rh"),
+        Some("kdm_slammin_mkiv_28_tight_iic_rhythm_1"),
         &[
-            ("kdm_slammin_mkiv_28_tight_iic_rh", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S"),
-            ("kdm_slammin_mkiv_31_fat_iic_rhyt", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S"),
-            ("kdm_slammin_mkiv_37_metallica_85", "KDM-Slammin_MKIV_37 Metallica '85 Notes S"),
-            ("kdm_slammin_mkiv_29_tight_iic_rh", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S"),
-            ("kdm_slammin_mkiv_32_fat_iic_rhyt", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S"),
-            ("kdm_slammin_mkiv_39_metallica_tb", "KDM-Slammin_MKIV_39 Metallica TBA  S"),
-            ("kdm_slammin_mkiv_34_petrucci_mar", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S"),
-            ("kdm_slammin_mkiv_41_log_sacramen", "KDM-Slammin_MKIV_41 LOG Sacrament S"),
+            ("kdm_slammin_mkiv_28_tight_iic_rhythm_1", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S"),
+            ("kdm_slammin_mkiv_31_fat_iic_rhythm_1", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S"),
+            ("kdm_slammin_mkiv_37_metallica_85_notes", "KDM-Slammin_MKIV_37 Metallica '85 Notes S"),
+            ("kdm_slammin_mkiv_29_tight_iic_rhythm_2", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S"),
+            ("kdm_slammin_mkiv_32_fat_iic_rhythm_2", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S"),
+            ("kdm_slammin_mkiv_39_metallica_tba", "KDM-Slammin_MKIV_39 Metallica TBA  S"),
+            ("kdm_slammin_mkiv_34_petrucci_mark_iv_cru", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S"),
+            ("kdm_slammin_mkiv_41_log_sacrament", "KDM-Slammin_MKIV_41 LOG Sacrament S"),
         ],
     )];
     schema

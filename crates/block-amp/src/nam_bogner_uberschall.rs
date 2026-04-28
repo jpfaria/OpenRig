@@ -14,16 +14,16 @@ const BRAND: &str = "bogner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("uberschall_capture_5_emil_settin", "Uberschall Capture 5 Emil settings G6 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_5_emil_settings_g6_emil_rohbe.nam"),
-    ("uberschall_capture_8_emil_settin", "Uberschall Capture 8 Emil Settings Hi P - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_8_emil_settings_hi_p_emil_rohbe.nam"),
-    ("uberschall_capture_2_g7_emil_roh", "Uberschall Capture 2 G7 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_2_g7_emil_rohbe.nam"),
-    ("uberschall_capture_9_g6_boosted_", "Uberschall Capture 9 G6 Boosted - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_9_g6_boosted_emil_rohbe.nam"),
-    ("uberschall_capture_13_new_settin", "Uberschall Capture 13 New Settings 2 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_13_new_settings_2_emil_rohbe.nam"),
-    ("uberschall_capture_14_new_settin", "Uberschall Capture 14 New Settings 3 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_14_new_settings_3_emil_rohbe.nam"),
-    ("uberschall_capture_7_emil_settin", "Uberschall Capture 7 Emil Settings Lo - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_7_emil_settings_lo_emil_rohbe.nam"),
-    ("uberschall_capture_4_emil_rohbe", "Uberschall Capture 4 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_4_emil_rohbe.nam"),
-    ("uberschall_capture_17_clean_2_em", "Uberschall Capture 17 Clean 2 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_17_clean_2_emil_rohbe.nam"),
-    ("uberschall_capture_15_new_settin", "Uberschall Capture 15 New Settings Boosted - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_15_new_settings_boosted_emil_rohbe.nam"),
+    ("5_settings_g6", "Uberschall Capture 5 Emil settings G6 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_5_emil_settings_g6_emil_rohbe_2.nam"),
+    ("8_settings_hi_p", "Uberschall Capture 8 Emil Settings Hi P - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_8_emil_settings_hi_p_emil_rohbe_2.nam"),
+    ("2_g7", "Uberschall Capture 2 G7 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_2_g7_emil_rohbe_2.nam"),
+    ("9_g6_boosted", "Uberschall Capture 9 G6 Boosted - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_9_g6_boosted_emil_rohbe_2.nam"),
+    ("13_new_settings_2", "Uberschall Capture 13 New Settings 2 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_13_new_settings_2_emil_rohbe_2.nam"),
+    ("14_new_settings_3", "Uberschall Capture 14 New Settings 3 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_14_new_settings_3_emil_rohbe_2.nam"),
+    ("7_settings_lo", "Uberschall Capture 7 Emil Settings Lo - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_7_emil_settings_lo_emil_rohbe_2.nam"),
+    ("4", "Uberschall Capture 4 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_4_emil_rohbe_2.nam"),
+    ("17_clean_2", "Uberschall Capture 17 Clean 2 - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_17_clean_2_emil_rohbe_2.nam"),
+    ("15_new_settings_boosted", "Uberschall Capture 15 New Settings Boosted - Emil Rohbe", "amps/bogner_uberschall/uberschall_capture_15_new_settings_boosted_emil_rohbe_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -32,18 +32,18 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("uberschall_capture_5_emil_settin"),
+        Some("5_settings_g6"),
         &[
-            ("uberschall_capture_5_emil_settin", "Uberschall Capture 5 Emil settings G6 - Emil Rohbe"),
-            ("uberschall_capture_8_emil_settin", "Uberschall Capture 8 Emil Settings Hi P - Emil Rohbe"),
-            ("uberschall_capture_2_g7_emil_roh", "Uberschall Capture 2 G7 - Emil Rohbe"),
-            ("uberschall_capture_9_g6_boosted_", "Uberschall Capture 9 G6 Boosted - Emil Rohbe"),
-            ("uberschall_capture_13_new_settin", "Uberschall Capture 13 New Settings 2 - Emil Rohbe"),
-            ("uberschall_capture_14_new_settin", "Uberschall Capture 14 New Settings 3 - Emil Rohbe"),
-            ("uberschall_capture_7_emil_settin", "Uberschall Capture 7 Emil Settings Lo - Emil Rohbe"),
-            ("uberschall_capture_4_emil_rohbe", "Uberschall Capture 4 - Emil Rohbe"),
-            ("uberschall_capture_17_clean_2_em", "Uberschall Capture 17 Clean 2 - Emil Rohbe"),
-            ("uberschall_capture_15_new_settin", "Uberschall Capture 15 New Settings Boosted - Emil Rohbe"),
+            ("5_settings_g6", "Uberschall Capture 5 Emil settings G6 - Emil Rohbe"),
+            ("8_settings_hi_p", "Uberschall Capture 8 Emil Settings Hi P - Emil Rohbe"),
+            ("2_g7", "Uberschall Capture 2 G7 - Emil Rohbe"),
+            ("9_g6_boosted", "Uberschall Capture 9 G6 Boosted - Emil Rohbe"),
+            ("13_new_settings_2", "Uberschall Capture 13 New Settings 2 - Emil Rohbe"),
+            ("14_new_settings_3", "Uberschall Capture 14 New Settings 3 - Emil Rohbe"),
+            ("7_settings_lo", "Uberschall Capture 7 Emil Settings Lo - Emil Rohbe"),
+            ("4", "Uberschall Capture 4 - Emil Rohbe"),
+            ("17_clean_2", "Uberschall Capture 17 Clean 2 - Emil Rohbe"),
+            ("15_new_settings_boosted", "Uberschall Capture 15 New Settings Boosted - Emil Rohbe"),
         ],
     )];
     schema

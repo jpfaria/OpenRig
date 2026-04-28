@@ -10,9 +10,9 @@ pub const DISPLAY_NAME: &str = "Twin Reverb 2x12";
 const BRAND: &str = "fender";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("twin_reverb_clean", "TWIN REVERB __ CLEAN", "cabs/fender_twin_reverb_2x12/twin_reverb_clean.wav"),
-    ("twin_reverb_balanced", "TWIN REVERB __ BALANCED", "cabs/fender_twin_reverb_2x12/twin_reverb_balanced.wav"),
-    ("twin_reverb_mids", "TWIN REVERB __ MIDS", "cabs/fender_twin_reverb_2x12/twin_reverb_mids.wav"),
+    ("clean", "TWIN REVERB __ CLEAN", "cabs/fender_twin_reverb_2x12/twin_reverb_clean_3.wav"),
+    ("balanced", "TWIN REVERB __ BALANCED", "cabs/fender_twin_reverb_2x12/twin_reverb_balanced_3.wav"),
+    ("mids", "TWIN REVERB __ MIDS", "cabs/fender_twin_reverb_2x12/twin_reverb_mids_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("twin_reverb_clean"),
+            Some("clean"),
             &[
-            ("twin_reverb_clean", "TWIN REVERB __ CLEAN"),
-            ("twin_reverb_balanced", "TWIN REVERB __ BALANCED"),
-            ("twin_reverb_mids", "TWIN REVERB __ MIDS"),
+            ("clean", "TWIN REVERB __ CLEAN"),
+            ("balanced", "TWIN REVERB __ BALANCED"),
+            ("mids", "TWIN REVERB __ MIDS"),
             ],
         )],
     }

@@ -14,13 +14,13 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fender_drri_clean_sm57_royer_r_1", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_no_room_full_rig.nam"),
-    ("fender_drri_clean_room_only_full", "Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_room_only_full_rig.nam"),
-    ("fender_drri_clean_sm57_royer_r_1_287453", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
-    ("new_version_fender_drri_clean_ro", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_room_only_full_rig.nam"),
-    ("new_version_fender_drri_clean_sm", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
-    ("new_version_fender_drri_clean_sm_289461", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_no_room_full_.nam"),
-    ("fender_drri_clean_di_capture_no_", "Fender DRRI | Clean | DI Capture (No Cab)", "amps/fender_deluxe_reverb/fender_drri_clean_di_capture_no_cab.nam"),
+    ("sm57_royer_r_121_no_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_no_room_full_rig_2.nam"),
+    ("room_only_full_rig", "Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_room_only_full_rig_2.nam"),
+    ("sm57_royer_r_121_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_room_full_rig_2.nam"),
+    ("new_version_room_only_full_rig", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_room_only_full_rig_2.nam"),
+    ("new_version_sm57_royer_r_121_room_full_r", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_room_full_rig_2.nam"),
+    ("new_version_sm57_royer_r_121_no_room_ful", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_no_room_full__2.nam"),
+    ("di_capture_no_cab", "Fender DRRI | Clean | DI Capture (No Cab)", "amps/fender_deluxe_reverb/fender_drri_clean_di_capture_no_cab_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -29,15 +29,15 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("fender_drri_clean_sm57_royer_r_1"),
+        Some("sm57_royer_r_121_no_room_full_rig"),
         &[
-            ("fender_drri_clean_sm57_royer_r_1", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri"),
-            ("fender_drri_clean_room_only_full", "Fender DRRI | Clean | Room Only | Full Rig"),
-            ("fender_drri_clean_sm57_royer_r_1_287453", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig"),
-            ("new_version_fender_drri_clean_ro", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig"),
-            ("new_version_fender_drri_clean_sm", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo"),
-            ("new_version_fender_drri_clean_sm_289461", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R"),
-            ("fender_drri_clean_di_capture_no_", "Fender DRRI | Clean | DI Capture (No Cab)"),
+            ("sm57_royer_r_121_no_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri"),
+            ("room_only_full_rig", "Fender DRRI | Clean | Room Only | Full Rig"),
+            ("sm57_royer_r_121_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig"),
+            ("new_version_room_only_full_rig", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig"),
+            ("new_version_sm57_royer_r_121_room_full_r", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo"),
+            ("new_version_sm57_royer_r_121_no_room_ful", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R"),
+            ("di_capture_no_cab", "Fender DRRI | Clean | DI Capture (No Cab)"),
         ],
     )];
     schema

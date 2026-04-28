@@ -14,9 +14,9 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jp2c_yellow_od808_marshall_full_", "JP2C Yellow OD808 Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_yellow_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
-    ("jp2c_red_od808_marshall_full_rig", "JP2C Red OD808 Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_red_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
-    ("jp2c_red_marshall_full_rig_jp_is", "JP2C Red Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_red_marshall_full_rig_jp_is_out_of_tune.nam"),
+    ("yellow_od808", "JP2C Yellow OD808 Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_yellow_od808_marshall_full_rig_jp_is_out_of_tune_2.nam"),
+    ("red_od808", "JP2C Red OD808 Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_red_od808_marshall_full_rig_jp_is_out_of_tune_2.nam"),
+    ("red", "JP2C Red Marshall Full Rig - jp_is_out_of_tune", "amps/mesa_boogie_jp2c/jp2c_red_marshall_full_rig_jp_is_out_of_tune_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("jp2c_yellow_od808_marshall_full_"),
+        Some("yellow_od808"),
         &[
-            ("jp2c_yellow_od808_marshall_full_", "JP2C Yellow OD808 Marshall Full Rig - jp_is_out_of_tune"),
-            ("jp2c_red_od808_marshall_full_rig", "JP2C Red OD808 Marshall Full Rig - jp_is_out_of_tune"),
-            ("jp2c_red_marshall_full_rig_jp_is", "JP2C Red Marshall Full Rig - jp_is_out_of_tune"),
+            ("yellow_od808", "JP2C Yellow OD808 Marshall Full Rig - jp_is_out_of_tune"),
+            ("red_od808", "JP2C Red OD808 Marshall Full Rig - jp_is_out_of_tune"),
+            ("red", "JP2C Red Marshall Full Rig - jp_is_out_of_tune"),
         ],
     )];
     schema

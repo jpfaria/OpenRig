@@ -14,14 +14,14 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_engl_iron_lead_scoop_sol", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_scoop_solo_s.nam"),
-    ("slammin_engl_iron_lead_balanced_", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_balanced_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_bright_rh", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_bright_so", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_solo_s.nam"),
-    ("slammin_engl_iron_lead_chunky_rh", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_slightsco", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_slightscoop_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_mids_solo", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_mids_solo_s.nam"),
-    ("slammin_engl_iron_lead_chunky_so", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_solo_s.nam"),
+    ("slammin_engl_iron_lead_scoop_solo_s", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_scoop_solo_s_2.nam"),
+    ("slammin_engl_iron_lead_balanced_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_balanced_rhythm_s_2.nam"),
+    ("slammin_engl_iron_lead_bright_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_rhythm_s_2.nam"),
+    ("slammin_engl_iron_lead_bright_solo_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_solo_s_2.nam"),
+    ("slammin_engl_iron_lead_chunky_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_rhythm_s_2.nam"),
+    ("slammin_engl_iron_lead_slightscoop_rhyth", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_slightscoop_rhythm_s_2.nam"),
+    ("slammin_engl_iron_lead_mids_solo_s", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_mids_solo_s_2.nam"),
+    ("slammin_engl_iron_lead_chunky_solo_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_solo_s_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("slammin_engl_iron_lead_scoop_sol"),
+        Some("slammin_engl_iron_lead_scoop_solo_s"),
         &[
-            ("slammin_engl_iron_lead_scoop_sol", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S"),
-            ("slammin_engl_iron_lead_balanced_", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S"),
-            ("slammin_engl_iron_lead_bright_rh", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S"),
-            ("slammin_engl_iron_lead_bright_so", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S"),
-            ("slammin_engl_iron_lead_chunky_rh", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S"),
-            ("slammin_engl_iron_lead_slightsco", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S"),
-            ("slammin_engl_iron_lead_mids_solo", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S"),
-            ("slammin_engl_iron_lead_chunky_so", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S"),
+            ("slammin_engl_iron_lead_scoop_solo_s", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S"),
+            ("slammin_engl_iron_lead_balanced_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S"),
+            ("slammin_engl_iron_lead_bright_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S"),
+            ("slammin_engl_iron_lead_bright_solo_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S"),
+            ("slammin_engl_iron_lead_chunky_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S"),
+            ("slammin_engl_iron_lead_slightscoop_rhyth", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S"),
+            ("slammin_engl_iron_lead_mids_solo_s", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S"),
+            ("slammin_engl_iron_lead_chunky_solo_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S"),
         ],
     )];
     schema

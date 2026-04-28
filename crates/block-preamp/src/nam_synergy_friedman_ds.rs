@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("syn20ir_ds_c1_a_2_g37_b68_m51_t4", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c1_a_2_g37_b68_m51_t40_v51_r51_m32.nam"),
-    ("syn20ir_ds_c2_b_2_g37_b68_m51_t4", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_2_g37_b68_m51_t40_v45_r51_m32.nam"),
-    ("syn20ir_ds_c2_c_brt_3_g44_b50_m6", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_c_brt_3_g44_b50_m61_t48_v37_r51_m32.nam"),
-    ("syn20ir_ds_c2_b_brt_2_g37_b68_m5", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_brt_2_g37_b68_m51_t40_v45_r51_m32.nam"),
+    ("c1_a_2_g37_b68_m51_t40_v51", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c1_a_2_g37_b68_m51_t40_v51_r51_m32_2.nam"),
+    ("c2_b_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_2_g37_b68_m51_t40_v45_r51_m32_2.nam"),
+    ("c2_c_brt_3_g44_b50_m61_t48_v37", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_c_brt_3_g44_b50_m61_t48_v37_r51_m32_2.nam"),
+    ("c2_b_brt_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_brt_2_g37_b68_m51_t40_v45_r51_m32_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -37,12 +37,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("syn20ir_ds_c1_a_2_g37_b68_m51_t4"),
+        Some("c1_a_2_g37_b68_m51_t40_v51"),
         &[
-            ("syn20ir_ds_c1_a_2_g37_b68_m51_t4", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32"),
-            ("syn20ir_ds_c2_b_2_g37_b68_m51_t4", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32"),
-            ("syn20ir_ds_c2_c_brt_3_g44_b50_m6", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32"),
-            ("syn20ir_ds_c2_b_brt_2_g37_b68_m5", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32"),
+            ("c1_a_2_g37_b68_m51_t40_v51", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32"),
+            ("c2_b_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32"),
+            ("c2_c_brt_3_g44_b50_m61_t48_v37", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32"),
+            ("c2_b_brt_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32"),
         ],
     )];
     schema

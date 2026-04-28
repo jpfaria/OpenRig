@@ -14,10 +14,10 @@ const BRAND: &str = "ceriatone";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("reactir2_kk100_jose_09", "[ReactIR2] KK100 Jose #09", "amps/ceriatone_king_kong/reactir2_kk100_jose_09.nam"),
-    ("reactir2_kk100_jose_07", "[ReactIR2] KK100 Jose #07", "amps/ceriatone_king_kong/reactir2_kk100_jose_07.nam"),
-    ("reactir2_kk100_jose_04", "[ReactIR2] KK100 Jose #04", "amps/ceriatone_king_kong/reactir2_kk100_jose_04.nam"),
-    ("reactir2_kk100_jose_06", "[ReactIR2] KK100 Jose #06", "amps/ceriatone_king_kong/reactir2_kk100_jose_06.nam"),
+    ("09", "[ReactIR2] KK100 Jose #09", "amps/ceriatone_king_kong/reactir2_kk100_jose_09_2.nam"),
+    ("07", "[ReactIR2] KK100 Jose #07", "amps/ceriatone_king_kong/reactir2_kk100_jose_07_2.nam"),
+    ("04", "[ReactIR2] KK100 Jose #04", "amps/ceriatone_king_kong/reactir2_kk100_jose_04_2.nam"),
+    ("06", "[ReactIR2] KK100 Jose #06", "amps/ceriatone_king_kong/reactir2_kk100_jose_06_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("reactir2_kk100_jose_09"),
+        Some("09"),
         &[
-            ("reactir2_kk100_jose_09", "[ReactIR2] KK100 Jose #09"),
-            ("reactir2_kk100_jose_07", "[ReactIR2] KK100 Jose #07"),
-            ("reactir2_kk100_jose_04", "[ReactIR2] KK100 Jose #04"),
-            ("reactir2_kk100_jose_06", "[ReactIR2] KK100 Jose #06"),
+            ("09", "[ReactIR2] KK100 Jose #09"),
+            ("07", "[ReactIR2] KK100 Jose #07"),
+            ("04", "[ReactIR2] KK100 Jose #04"),
+            ("06", "[ReactIR2] KK100 Jose #06"),
         ],
     )];
     schema

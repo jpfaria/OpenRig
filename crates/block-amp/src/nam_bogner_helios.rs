@@ -14,8 +14,8 @@ const BRAND: &str = "bogner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fig_h_lios_80s_hot_mg_212", "Fig H-Lios 80s Hot MG 212", "amps/bogner_helios/fig_h_lios_80s_hot_mg_212.nam"),
-    ("fig_h_lios_70s_plex_mg_412", "Fig H-Lios 70s Plex MG 412", "amps/bogner_helios/fig_h_lios_70s_plex_mg_412.nam"),
+    ("80s_hot_212", "Fig H-Lios 80s Hot MG 212", "amps/bogner_helios/fig_h_lios_80s_hot_mg_212_2.nam"),
+    ("70s_plex_412", "Fig H-Lios 70s Plex MG 412", "amps/bogner_helios/fig_h_lios_70s_plex_mg_412_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("fig_h_lios_80s_hot_mg_212"),
+        Some("80s_hot_212"),
         &[
-            ("fig_h_lios_80s_hot_mg_212", "Fig H-Lios 80s Hot MG 212"),
-            ("fig_h_lios_70s_plex_mg_412", "Fig H-Lios 70s Plex MG 412"),
+            ("80s_hot_212", "Fig H-Lios 80s Hot MG 212"),
+            ("70s_plex_412", "Fig H-Lios 70s Plex MG 412"),
         ],
     )];
     schema

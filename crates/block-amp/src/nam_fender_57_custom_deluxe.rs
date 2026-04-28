@@ -14,12 +14,12 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fender_57customdeluxe_od_in1_130", "Fender_57CustomDeluxe_od_in1_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in1_1300epochs.nam"),
-    ("fender_57customdeluxe_clean_in1_", "Fender_57CustomDeluxe_clean_in1_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in1_700epochs.nam"),
-    ("fender_57customdeluxe_crunch_in1", "Fender_57CustomDeluxe_crunch_in1_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in1_1000epochs.nam"),
-    ("fender_57customdeluxe_clean_in2_", "Fender_57CustomDeluxe_clean_in2_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in2_700epochs.nam"),
-    ("fender_57customdeluxe_crunch_in2", "Fender_57CustomDeluxe_crunch_in2_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in2_1000epochs.nam"),
-    ("fender_57customdeluxe_od_in2_130", "Fender_57CustomDeluxe_od_in2_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in2_1300epochs.nam"),
+    ("fender_57customdeluxe_od_in1_1300epochs", "Fender_57CustomDeluxe_od_in1_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in1_1300epochs_2.nam"),
+    ("fender_57customdeluxe_clean_in1_700epoch", "Fender_57CustomDeluxe_clean_in1_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in1_700epochs_2.nam"),
+    ("fender_57customdeluxe_crunch_in1_1000epo", "Fender_57CustomDeluxe_crunch_in1_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in1_1000epochs_2.nam"),
+    ("fender_57customdeluxe_clean_in2_700epoch", "Fender_57CustomDeluxe_clean_in2_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in2_700epochs_2.nam"),
+    ("fender_57customdeluxe_crunch_in2_1000epo", "Fender_57CustomDeluxe_crunch_in2_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in2_1000epochs_2.nam"),
+    ("fender_57customdeluxe_od_in2_1300epochs", "Fender_57CustomDeluxe_od_in2_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in2_1300epochs_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("fender_57customdeluxe_od_in1_130"),
+        Some("fender_57customdeluxe_od_in1_1300epochs"),
         &[
-            ("fender_57customdeluxe_od_in1_130", "Fender_57CustomDeluxe_od_in1_1300epochs"),
-            ("fender_57customdeluxe_clean_in1_", "Fender_57CustomDeluxe_clean_in1_700epochs"),
-            ("fender_57customdeluxe_crunch_in1", "Fender_57CustomDeluxe_crunch_in1_1000epochs"),
-            ("fender_57customdeluxe_clean_in2_", "Fender_57CustomDeluxe_clean_in2_700epochs"),
-            ("fender_57customdeluxe_crunch_in2", "Fender_57CustomDeluxe_crunch_in2_1000epochs"),
-            ("fender_57customdeluxe_od_in2_130", "Fender_57CustomDeluxe_od_in2_1300epochs"),
+            ("fender_57customdeluxe_od_in1_1300epochs", "Fender_57CustomDeluxe_od_in1_1300epochs"),
+            ("fender_57customdeluxe_clean_in1_700epoch", "Fender_57CustomDeluxe_clean_in1_700epochs"),
+            ("fender_57customdeluxe_crunch_in1_1000epo", "Fender_57CustomDeluxe_crunch_in1_1000epochs"),
+            ("fender_57customdeluxe_clean_in2_700epoch", "Fender_57CustomDeluxe_clean_in2_700epochs"),
+            ("fender_57customdeluxe_crunch_in2_1000epo", "Fender_57CustomDeluxe_crunch_in2_1000epochs"),
+            ("fender_57customdeluxe_od_in2_1300epochs", "Fender_57CustomDeluxe_od_in2_1300epochs"),
         ],
     )];
     schema

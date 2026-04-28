@@ -24,11 +24,11 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cali_axis_justice", "Cali Axis - Justice", "preamp/mesa_triaxis/cali_axis_justice.nam"),
-    ("caliaxis_puppet", "CaliAxis - Puppet", "preamp/mesa_triaxis/caliaxis_puppet.nam"),
-    ("caliaxis_black", "CaliAxis - Black", "preamp/mesa_triaxis/caliaxis_black.nam"),
-    ("caliaxis_killem", "CaliAxis - Killem", "preamp/mesa_triaxis/caliaxis_killem.nam"),
-    ("caliaxis_ride", "CaliAxis - Ride", "preamp/mesa_triaxis/caliaxis_ride.nam"),
+    ("cali_axis_justice", "Cali Axis - Justice", "preamp/mesa_triaxis/cali_axis_justice_2.nam"),
+    ("caliaxis_puppet", "CaliAxis - Puppet", "preamp/mesa_triaxis/caliaxis_puppet_2.nam"),
+    ("caliaxis_black", "CaliAxis - Black", "preamp/mesa_triaxis/caliaxis_black_2.nam"),
+    ("caliaxis_killem", "CaliAxis - Killem", "preamp/mesa_triaxis/caliaxis_killem_2.nam"),
+    ("caliaxis_ride", "CaliAxis - Ride", "preamp/mesa_triaxis/caliaxis_ride_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

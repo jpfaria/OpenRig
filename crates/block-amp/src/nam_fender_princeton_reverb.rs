@@ -14,14 +14,14 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fender_princeton_eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_m160.nam"),
-    ("fender_princeton_eob_vol_5_sum_m", "Fender - Princeton EOB Vol 5 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sum_m160_sm57.nam"),
-    ("fender_princeton_crunch_vol_7_sm", "Fender - Princeton Crunch Vol 7 SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_vol_7_sm57.nam"),
-    ("fender_princeton_crunch_7_sum_m1", "Fender - Princeton Crunch 7 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_7_sum_m160_sm57.nam"),
-    ("fender_princeton_eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sm57.nam"),
-    ("fender_princeton_clean_3_m160", "Fender - Princeton Clean 3 M160", "amps/fender_princeton_reverb/fender_princeton_clean_3_m160.nam"),
-    ("fender_princeton_clean_3_sm57", "Fender - Princeton Clean 3 SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sm57.nam"),
-    ("fender_princeton_clean_3_sum_m16", "Fender - Princeton Clean 3 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sum_m160_sm57.nam"),
+    ("eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_m160_2.nam"),
+    ("eob_vol_5_sum_m160_sm57", "Fender - Princeton EOB Vol 5 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sum_m160_sm57_2.nam"),
+    ("crunch_vol_7_sm57", "Fender - Princeton Crunch Vol 7 SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_vol_7_sm57_2.nam"),
+    ("crunch_7_sum_m160_sm57", "Fender - Princeton Crunch 7 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_7_sum_m160_sm57_2.nam"),
+    ("eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sm57_2.nam"),
+    ("clean_3_m160", "Fender - Princeton Clean 3 M160", "amps/fender_princeton_reverb/fender_princeton_clean_3_m160_2.nam"),
+    ("clean_3_sm57", "Fender - Princeton Clean 3 SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sm57_2.nam"),
+    ("clean_3_sum_m160_sm57", "Fender - Princeton Clean 3 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sum_m160_sm57_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("fender_princeton_eob_vol_5_m160"),
+        Some("eob_vol_5_m160"),
         &[
-            ("fender_princeton_eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160"),
-            ("fender_princeton_eob_vol_5_sum_m", "Fender - Princeton EOB Vol 5 SUM M160 + SM57"),
-            ("fender_princeton_crunch_vol_7_sm", "Fender - Princeton Crunch Vol 7 SM57"),
-            ("fender_princeton_crunch_7_sum_m1", "Fender - Princeton Crunch 7 SUM M160 + SM57"),
-            ("fender_princeton_eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57"),
-            ("fender_princeton_clean_3_m160", "Fender - Princeton Clean 3 M160"),
-            ("fender_princeton_clean_3_sm57", "Fender - Princeton Clean 3 SM57"),
-            ("fender_princeton_clean_3_sum_m16", "Fender - Princeton Clean 3 SUM M160 + SM57"),
+            ("eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160"),
+            ("eob_vol_5_sum_m160_sm57", "Fender - Princeton EOB Vol 5 SUM M160 + SM57"),
+            ("crunch_vol_7_sm57", "Fender - Princeton Crunch Vol 7 SM57"),
+            ("crunch_7_sum_m160_sm57", "Fender - Princeton Crunch 7 SUM M160 + SM57"),
+            ("eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57"),
+            ("clean_3_m160", "Fender - Princeton Clean 3 M160"),
+            ("clean_3_sm57", "Fender - Princeton Clean 3 SM57"),
+            ("clean_3_sum_m160_sm57", "Fender - Princeton Clean 3 SUM M160 + SM57"),
         ],
     )];
     schema

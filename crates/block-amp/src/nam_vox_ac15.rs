@@ -14,14 +14,14 @@ const BRAND: &str = "vox";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("vox_ac15ch_edge_of_breakup_norma", "Vox AC15CH Edge of Breakup Normal", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_normal.nam"),
-    ("vox_ac15ch_crunch_normal", "Vox AC15CH Crunch Normal", "amps/vox_ac15/vox_ac15ch_crunch_normal.nam"),
-    ("vox_ac15ch_overdriven_normal", "Vox AC15CH Overdriven Normal", "amps/vox_ac15/vox_ac15ch_overdriven_normal.nam"),
-    ("vox_ac15ch_crystal_clean_normal", "Vox AC15CH Crystal Clean Normal", "amps/vox_ac15/vox_ac15ch_crystal_clean_normal.nam"),
-    ("vox_ac15ch_edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_tb.nam"),
-    ("vox_ac15ch_crunch_tb", "Vox AC15CH Crunch TB", "amps/vox_ac15/vox_ac15ch_crunch_tb.nam"),
-    ("vox_ac15ch_crystal_clean_tb", "Vox AC15CH Crystal Clean TB", "amps/vox_ac15/vox_ac15ch_crystal_clean_tb.nam"),
-    ("vox_ac15ch_overdriven_tb", "Vox AC15CH Overdriven TB", "amps/vox_ac15/vox_ac15ch_overdriven_tb.nam"),
+    ("edge_of_breakup_normal", "Vox AC15CH Edge of Breakup Normal", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_normal_2.nam"),
+    ("crunch_normal", "Vox AC15CH Crunch Normal", "amps/vox_ac15/vox_ac15ch_crunch_normal_2.nam"),
+    ("overdriven_normal", "Vox AC15CH Overdriven Normal", "amps/vox_ac15/vox_ac15ch_overdriven_normal_2.nam"),
+    ("crystal_clean_normal", "Vox AC15CH Crystal Clean Normal", "amps/vox_ac15/vox_ac15ch_crystal_clean_normal_2.nam"),
+    ("edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_tb_2.nam"),
+    ("crunch_tb", "Vox AC15CH Crunch TB", "amps/vox_ac15/vox_ac15ch_crunch_tb_2.nam"),
+    ("crystal_clean_tb", "Vox AC15CH Crystal Clean TB", "amps/vox_ac15/vox_ac15ch_crystal_clean_tb_2.nam"),
+    ("overdriven_tb", "Vox AC15CH Overdriven TB", "amps/vox_ac15/vox_ac15ch_overdriven_tb_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("vox_ac15ch_edge_of_breakup_norma"),
+        Some("edge_of_breakup_normal"),
         &[
-            ("vox_ac15ch_edge_of_breakup_norma", "Vox AC15CH Edge of Breakup Normal"),
-            ("vox_ac15ch_crunch_normal", "Vox AC15CH Crunch Normal"),
-            ("vox_ac15ch_overdriven_normal", "Vox AC15CH Overdriven Normal"),
-            ("vox_ac15ch_crystal_clean_normal", "Vox AC15CH Crystal Clean Normal"),
-            ("vox_ac15ch_edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB"),
-            ("vox_ac15ch_crunch_tb", "Vox AC15CH Crunch TB"),
-            ("vox_ac15ch_crystal_clean_tb", "Vox AC15CH Crystal Clean TB"),
-            ("vox_ac15ch_overdriven_tb", "Vox AC15CH Overdriven TB"),
+            ("edge_of_breakup_normal", "Vox AC15CH Edge of Breakup Normal"),
+            ("crunch_normal", "Vox AC15CH Crunch Normal"),
+            ("overdriven_normal", "Vox AC15CH Overdriven Normal"),
+            ("crystal_clean_normal", "Vox AC15CH Crystal Clean Normal"),
+            ("edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB"),
+            ("crunch_tb", "Vox AC15CH Crunch TB"),
+            ("crystal_clean_tb", "Vox AC15CH Crystal Clean TB"),
+            ("overdriven_tb", "Vox AC15CH Overdriven TB"),
         ],
     )];
     schema

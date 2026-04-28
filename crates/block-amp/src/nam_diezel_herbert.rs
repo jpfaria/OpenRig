@@ -14,14 +14,14 @@ const BRAND: &str = "diezel";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("black_album", "Black Album", "amps/diezel_herbert/black_album.nam"),
-    ("satan", "SATAN", "amps/diezel_herbert/satan.nam"),
-    ("chainsaw", "CHAINSAW", "amps/diezel_herbert/chainsaw.nam"),
-    ("hellbert", "HELLBERT", "amps/diezel_herbert/hellbert.nam"),
-    ("stealth", "STEALTH", "amps/diezel_herbert/stealth.nam"),
-    ("slaughter", "SLAUGHTER", "amps/diezel_herbert/slaughter.nam"),
-    ("far_beyond_driven", "Far beyond Driven", "amps/diezel_herbert/far_beyond_driven.nam"),
-    ("raw_gxx", "Raw GXX", "amps/diezel_herbert/raw_gxx.nam"),
+    ("black_album", "Black Album", "amps/diezel_herbert/black_album_2.nam"),
+    ("satan", "SATAN", "amps/diezel_herbert/satan_2.nam"),
+    ("chainsaw", "CHAINSAW", "amps/diezel_herbert/chainsaw_2.nam"),
+    ("hellbert", "HELLBERT", "amps/diezel_herbert/hellbert_2.nam"),
+    ("stealth", "STEALTH", "amps/diezel_herbert/stealth_2.nam"),
+    ("slaughter", "SLAUGHTER", "amps/diezel_herbert/slaughter_2.nam"),
+    ("far_beyond_driven", "Far beyond Driven", "amps/diezel_herbert/far_beyond_driven_2.nam"),
+    ("raw_gxx", "Raw GXX", "amps/diezel_herbert/raw_gxx_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

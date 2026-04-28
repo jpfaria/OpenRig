@@ -14,7 +14,7 @@ const BRAND: &str = "evh";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("5153_red_dailydriver", "5153-Red-DailyDriver", "amps/evh_5150_iii_50w_red_channel/5153_red_dailydriver.nam"),
+    ("5153_red_dailydriver", "5153-Red-DailyDriver", "amps/evh_5150_iii_50w_red_channel/5153_red_dailydriver_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

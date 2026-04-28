@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("syn20ir_k_kali_red", "Syn20IR - K.Kali - Red", "preamp/synergy_syn1/syn20ir_k_kali_red.nam"),
-    ("syn20ir_k_kali_loomis", "Syn20IR - K.Kali - Loomis", "preamp/synergy_syn1/syn20ir_k_kali_loomis.nam"),
-    ("syn20ir_k_kali_green", "Syn20IR - K.Kali - Green", "preamp/synergy_syn1/syn20ir_k_kali_green.nam"),
-    ("syn20ir_k_kali_red_v2", "Syn20IR - K.Kali - Red v2", "preamp/synergy_syn1/syn20ir_k_kali_red_v2.nam"),
+    ("red", "Syn20IR - K.Kali - Red", "preamp/synergy_syn1/syn20ir_k_kali_red_2.nam"),
+    ("loomis", "Syn20IR - K.Kali - Loomis", "preamp/synergy_syn1/syn20ir_k_kali_loomis_2.nam"),
+    ("green", "Syn20IR - K.Kali - Green", "preamp/synergy_syn1/syn20ir_k_kali_green_2.nam"),
+    ("red_v2", "Syn20IR - K.Kali - Red v2", "preamp/synergy_syn1/syn20ir_k_kali_red_v2_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -37,12 +37,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("syn20ir_k_kali_red"),
+        Some("red"),
         &[
-            ("syn20ir_k_kali_red", "Syn20IR - K.Kali - Red"),
-            ("syn20ir_k_kali_loomis", "Syn20IR - K.Kali - Loomis"),
-            ("syn20ir_k_kali_green", "Syn20IR - K.Kali - Green"),
-            ("syn20ir_k_kali_red_v2", "Syn20IR - K.Kali - Red v2"),
+            ("red", "Syn20IR - K.Kali - Red"),
+            ("loomis", "Syn20IR - K.Kali - Loomis"),
+            ("green", "Syn20IR - K.Kali - Green"),
+            ("red_v2", "Syn20IR - K.Kali - Red v2"),
         ],
     )];
     schema

@@ -14,8 +14,8 @@ const BRAND: &str = "soldano";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slo_30_crunch_gain_3_bmt_466_pre", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5.nam"),
-    ("slo_30_lead_gain_5_bmt_466_pres_", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5.nam"),
+    ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5_2.nam"),
+    ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("slo_30_crunch_gain_3_bmt_466_pre"),
+        Some("crunch_3"),
         &[
-            ("slo_30_crunch_gain_3_bmt_466_pre", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5"),
-            ("slo_30_lead_gain_5_bmt_466_pres_", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5"),
+            ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5"),
+            ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5"),
         ],
     )];
     schema

@@ -14,10 +14,10 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("peavey_6505_red_ch_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w", "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w.nam"),
-    ("peavey_6505_red_ch_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro.nam"),
-    ("peavey_6505_green_ch_maxon_st9pr", "Peavey 6505+ Green ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro.nam"),
-    ("peavey_6505_red_ch", "Peavey 6505+ Red ch.", "amps/peavey_6505_plus/peavey_6505_red_ch.nam"),
+    ("red_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w", "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w_2.nam"),
+    ("red_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro_2.nam"),
+    ("green_maxon_st9pro", "Peavey 6505+ Green ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro_2.nam"),
+    ("red", "Peavey 6505+ Red ch.", "amps/peavey_6505_plus/peavey_6505_red_ch_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("peavey_6505_red_ch_boss_hm_2w"),
+        Some("red_boss_hm_2w"),
         &[
-            ("peavey_6505_red_ch_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w"),
-            ("peavey_6505_red_ch_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+"),
-            ("peavey_6505_green_ch_maxon_st9pr", "Peavey 6505+ Green ch. + Maxon ST9Pro+"),
-            ("peavey_6505_red_ch", "Peavey 6505+ Red ch."),
+            ("red_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w"),
+            ("red_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+"),
+            ("green_maxon_st9pro", "Peavey 6505+ Green ch. + Maxon ST9Pro+"),
+            ("red", "Peavey 6505+ Red ch."),
         ],
     )];
     schema

@@ -14,7 +14,7 @@ const BRAND: &str = "evh";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("va_5153r_gold_01_3", "VA 5153R Gold 01.3", "amps/evh_5150iiis_el34_100w/va_5153r_gold_01_3.nam"),
+    ("va_5153r_gold_01_3", "VA 5153R Gold 01.3", "amps/evh_5150iiis_el34_100w/va_5153r_gold_01_3_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

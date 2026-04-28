@@ -14,14 +14,14 @@ const BRAND: &str = "laney";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("vh100r_channel_2_hi_neutral_g7", "VH100R - Channel 2 Hi - Neutral G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g7.nam"),
-    ("vh100r_channel_2_hi_neutral_g8", "VH100R - Channel 2 Hi - Neutral G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g8.nam"),
-    ("vh100r_channel_2_hi_treble_g8", "VH100R - Channel 2 Hi - Treble G8", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g8.nam"),
-    ("vh100r_channel_2_hi_treble_g10", "VH100R - Channel 2 Hi - Treble G10", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g10.nam"),
-    ("vh100r_channel_2_hi_neutral_driv", "VH100R - Channel 2 Hi - Neutral Drive G10", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g10.nam"),
-    ("vh100r_channel_2_hi_neutral_g5", "VH100R - Channel 2 Hi - Neutral G5", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g5.nam"),
-    ("vh100r_channel_2_hi_neutral_driv_241115", "VH100R - Channel 2 Hi - Neutral Drive G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g8.nam"),
-    ("vh100r_channel_2_hi_neutral_driv_241116", "VH100R - Channel 2 Hi - Neutral Drive G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g7.nam"),
+    ("neutral_g7", "VH100R - Channel 2 Hi - Neutral G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g7_2.nam"),
+    ("neutral_g8", "VH100R - Channel 2 Hi - Neutral G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g8_2.nam"),
+    ("treble_g8", "VH100R - Channel 2 Hi - Treble G8", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g8_2.nam"),
+    ("treble_g10", "VH100R - Channel 2 Hi - Treble G10", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g10_2.nam"),
+    ("neutral_drive_g10", "VH100R - Channel 2 Hi - Neutral Drive G10", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g10_2.nam"),
+    ("neutral_g5", "VH100R - Channel 2 Hi - Neutral G5", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g5_2.nam"),
+    ("neutral_drive_g8", "VH100R - Channel 2 Hi - Neutral Drive G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g8_2.nam"),
+    ("neutral_drive_g7", "VH100R - Channel 2 Hi - Neutral Drive G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g7_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("vh100r_channel_2_hi_neutral_g7"),
+        Some("neutral_g7"),
         &[
-            ("vh100r_channel_2_hi_neutral_g7", "VH100R - Channel 2 Hi - Neutral G7"),
-            ("vh100r_channel_2_hi_neutral_g8", "VH100R - Channel 2 Hi - Neutral G8"),
-            ("vh100r_channel_2_hi_treble_g8", "VH100R - Channel 2 Hi - Treble G8"),
-            ("vh100r_channel_2_hi_treble_g10", "VH100R - Channel 2 Hi - Treble G10"),
-            ("vh100r_channel_2_hi_neutral_driv", "VH100R - Channel 2 Hi - Neutral Drive G10"),
-            ("vh100r_channel_2_hi_neutral_g5", "VH100R - Channel 2 Hi - Neutral G5"),
-            ("vh100r_channel_2_hi_neutral_driv_241115", "VH100R - Channel 2 Hi - Neutral Drive G8"),
-            ("vh100r_channel_2_hi_neutral_driv_241116", "VH100R - Channel 2 Hi - Neutral Drive G7"),
+            ("neutral_g7", "VH100R - Channel 2 Hi - Neutral G7"),
+            ("neutral_g8", "VH100R - Channel 2 Hi - Neutral G8"),
+            ("treble_g8", "VH100R - Channel 2 Hi - Treble G8"),
+            ("treble_g10", "VH100R - Channel 2 Hi - Treble G10"),
+            ("neutral_drive_g10", "VH100R - Channel 2 Hi - Neutral Drive G10"),
+            ("neutral_g5", "VH100R - Channel 2 Hi - Neutral G5"),
+            ("neutral_drive_g8", "VH100R - Channel 2 Hi - Neutral Drive G8"),
+            ("neutral_drive_g7", "VH100R - Channel 2 Hi - Neutral Drive G7"),
         ],
     )];
     schema

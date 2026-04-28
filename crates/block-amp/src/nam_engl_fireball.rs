@@ -14,14 +14,14 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_fireball_presence_0", "ENGL Fireball presence 0", "amps/engl_fireball/engl_fireball_presence_0.nam"),
-    ("engl_fireball_ts9", "ENGL Fireball+Ts9", "amps/engl_fireball/engl_fireball_ts9.nam"),
-    ("engl_fireball_line_driver", "ENGL Fireball +line driver", "amps/engl_fireball/engl_fireball_line_driver.nam"),
-    ("engl_fireball", "ENGL Fireball", "amps/engl_fireball/engl_fireball.nam"),
-    ("engl_fireball_mid", "ENGL Fireball mid", "amps/engl_fireball/engl_fireball_mid.nam"),
-    ("engl_fireball_ts808", "ENGL Fireball + Ts808", "amps/engl_fireball/engl_fireball_ts808.nam"),
-    ("engl_fireball_precision_drive_3", "ENGL Fireball+precision drive 3", "amps/engl_fireball/engl_fireball_precision_drive_3.nam"),
-    ("engl_fireball_presence_9h", "ENGL Fireball presence 9h", "amps/engl_fireball/engl_fireball_presence_9h.nam"),
+    ("fireball_presence_0", "ENGL Fireball presence 0", "amps/engl_fireball/engl_fireball_presence_0_2.nam"),
+    ("fireball_ts9", "ENGL Fireball+Ts9", "amps/engl_fireball/engl_fireball_ts9_2.nam"),
+    ("fireball_line_driver", "ENGL Fireball +line driver", "amps/engl_fireball/engl_fireball_line_driver_2.nam"),
+    ("fireball", "ENGL Fireball", "amps/engl_fireball/engl_fireball_2.nam"),
+    ("fireball_mid", "ENGL Fireball mid", "amps/engl_fireball/engl_fireball_mid_2.nam"),
+    ("fireball_ts808", "ENGL Fireball + Ts808", "amps/engl_fireball/engl_fireball_ts808_2.nam"),
+    ("fireball_precision_drive_3", "ENGL Fireball+precision drive 3", "amps/engl_fireball/engl_fireball_precision_drive_3_2.nam"),
+    ("fireball_presence_9h", "ENGL Fireball presence 9h", "amps/engl_fireball/engl_fireball_presence_9h_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("engl_fireball_presence_0"),
+        Some("fireball_presence_0"),
         &[
-            ("engl_fireball_presence_0", "ENGL Fireball presence 0"),
-            ("engl_fireball_ts9", "ENGL Fireball+Ts9"),
-            ("engl_fireball_line_driver", "ENGL Fireball +line driver"),
-            ("engl_fireball", "ENGL Fireball"),
-            ("engl_fireball_mid", "ENGL Fireball mid"),
-            ("engl_fireball_ts808", "ENGL Fireball + Ts808"),
-            ("engl_fireball_precision_drive_3", "ENGL Fireball+precision drive 3"),
-            ("engl_fireball_presence_9h", "ENGL Fireball presence 9h"),
+            ("fireball_presence_0", "ENGL Fireball presence 0"),
+            ("fireball_ts9", "ENGL Fireball+Ts9"),
+            ("fireball_line_driver", "ENGL Fireball +line driver"),
+            ("fireball", "ENGL Fireball"),
+            ("fireball_mid", "ENGL Fireball mid"),
+            ("fireball_ts808", "ENGL Fireball + Ts808"),
+            ("fireball_precision_drive_3", "ENGL Fireball+precision drive 3"),
+            ("fireball_presence_9h", "ENGL Fireball presence 9h"),
         ],
     )];
     schema

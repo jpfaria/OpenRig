@@ -537,7 +537,7 @@ KIND_CONFIG = {
 }
 
 
-def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) -> dict[str, Any]:
+def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False, regen_only: bool = False) -> dict[str, Any]:
     make = spec["make"]
     kind = spec["kind"]            # "amp" | "preamp" | "cab"
     slug = spec["slug"]            # e.g. "fender_hot_rod_deluxe"
@@ -615,18 +615,40 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
     # re-import, delete the directory and the matching .rs file first.
     rs_crate = cfg["crate"]
     rs_existing = repo_root / "crates" / rs_crate / "src" / f"{rs_prefix}{slug}.rs"
-    if captures_dir.exists() and any(captures_dir.glob(f"*{cfg['ext']}")) and rs_existing.exists():
+    if not regen_only and captures_dir.exists() and any(captures_dir.glob(f"*{cfg['ext']}")) and rs_existing.exists():
         print(f"  ↷ already imported (captures dir + .rs exist) — skipping")
         return {"skipped": True, "reason": "already imported"}
 
     captures_dir.mkdir(parents=True, exist_ok=True)
 
+    # --- key derivation: drop tokens that appear in EVERY name ---
+    # Tone3000 curators repeat the same boring stuff in every capture
+    # name ("M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73" has 6 tokens
+    # identical across 8 captures). Naive slug + truncate produces opaque
+    # keys. We tokenise on whitespace, find the case-insensitive token
+    # set that appears in *every* name, and drop those — leaving only the
+    # distinguishing pieces. Order is preserved per-name so the result
+    # is still readable.
+    raw_names = [m.get("name") or m["model_url"].rsplit("/", 1)[-1]
+                 for (_, m) in selected_models]
+    token_lists = [n.split() for n in raw_names]
+
+    common_tokens: set[str] = set()
+    if len(token_lists) > 1:
+        common_tokens = set(t.lower() for t in token_lists[0])
+        for tl in token_lists[1:]:
+            common_tokens &= set(t.lower() for t in tl)
+        # Don't strip *everything* — need at least one distinguishing
+        # token left in each name. Bail if any name would be fully
+        # consumed.
+        if any(all(t.lower() in common_tokens for t in tl) for tl in token_lists):
+            common_tokens = set()
+
     capture_entries: list[tuple[str, str, str]] = []
     seen_keys: set[str] = set()
 
-    for tone, model in selected_models:
+    for (tone, model), raw_name, tokens in zip(selected_models, raw_names, token_lists):
         url = model["model_url"]
-        raw_name = model.get("name") or model["model_url"].rsplit("/", 1)[-1]
         size = (model.get("size") or "standard").lower()
         # short, stable, filesystem-safe filename
         base = slugify(raw_name)[:60] or f"capture_{model['id']}"
@@ -641,21 +663,31 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
             idx += 1
         target = captures_dir / filename
 
-        if not dry_run:
+        if not dry_run and not regen_only:
             print(f"  ↓ {filename}  ({raw_name[:50]})")
             data = http_get_bytes(url)
             target.write_bytes(data)
             time.sleep(SLEEP_BETWEEN)
+        elif regen_only and not target.exists():
+            # Regen mode: bytes should already be on disk. If a file is
+            # missing for whatever reason (rare), fall back to download.
+            print(f"  ↓ {filename}  (regen-only fallback download)")
+            data = http_get_bytes(url)
+            target.write_bytes(data)
+            time.sleep(SLEEP_BETWEEN)
 
-        # enum key — short, stable across re-runs
-        key = slugify(raw_name)[:32] or f"c{model['id']}"
+        # enum key — slug only the *distinguishing* tokens
+        core_tokens = [t for t in tokens if t.lower() not in common_tokens] if common_tokens else tokens
+        if not core_tokens:
+            core_tokens = tokens
+        key = slugify(" ".join(core_tokens))[:40] or slugify(raw_name)[:40] or f"c{model['id']}"
         if size != "standard":
             key = f"{key}_{size}"
         if key in seen_keys:
             key = f"{key}_{model['id']}"
         seen_keys.add(key)
 
-        # human label — keep original casing/spacing
+        # human label — keep original casing/spacing of the full name
         label = (raw_name or filename)[:60].strip() or "Capture"
         rel_path = f"{cfg['asset_subpath']}/{slug}/{filename}"
         capture_entries.append((key, label, rel_path))
@@ -694,6 +726,8 @@ def main() -> int:
     parser.add_argument("--repo-root", default=".",
                         help="Path to repo root (default: cwd)")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--regen-only", action="store_true",
+                        help="Only regenerate .rs files; skip downloads if bytes already on disk")
     parser.add_argument("--only",
                         help="Comma-separated slugs to process; default: all")
     args = parser.parse_args()
@@ -708,7 +742,7 @@ def main() -> int:
     summary = []
     for spec in specs:
         try:
-            result = import_one(spec, repo_root, dry_run=args.dry_run)
+            result = import_one(spec, repo_root, dry_run=args.dry_run, regen_only=args.regen_only)
         except Exception as e:
             print(f"  !! error on {spec.get('slug')}: {e}")
             result = {"error": str(e)}

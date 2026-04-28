@@ -14,16 +14,16 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("s_pre_divine_sheep_07_artist", "S-[PRE] Divine Sheep #07 (Artist)", "amps/mesa_badlander/s_pre_divine_sheep_07_artist.nam"),
-    ("s_amp_020w_bold_clean_clean_blue", "S-[AMP] 020W BOLD CLEAN Clean-Blues #02 (Factory)", "amps/mesa_badlander/s_amp_020w_bold_clean_clean_blues_02_factory.nam"),
-    ("s_pre_divine_sheep_04_artist", "S-[PRE] Divine Sheep #04 (Artist)", "amps/mesa_badlander/s_pre_divine_sheep_04_artist.nam"),
-    ("s_pre_noon_07_author", "S-[PRE] Noon #07 (Author)", "amps/mesa_badlander/s_pre_noon_07_author.nam"),
-    ("s_pre_astro_horsey_02_ts_artist", "S-[PRE] Astro Horsey #02 TS (Artist)", "amps/mesa_badlander/s_pre_astro_horsey_02_ts_artist.nam"),
-    ("s_amp_100w_bold_clean_scoopy_dew", "S-[AMP] 100W BOLD CLEAN Scoopy Dew #02 (Author)", "amps/mesa_badlander/s_amp_100w_bold_clean_scoopy_dew_02_author.nam"),
-    ("s_amp_100w_bold_crush_murder_ton", "S-[AMP] 100W BOLD CRUSH Murder Tones #01 (Reviewer)", "amps/mesa_badlander/s_amp_100w_bold_crush_murder_tones_01_reviewer.nam"),
-    ("s_amp_100w_bold_crush_mrscary_bu", "S-[AMP] 100W BOLD CRUSH MrScary Bull #04 (Reviewer)", "amps/mesa_badlander/s_amp_100w_bold_crush_mrscary_bull_04_reviewer.nam"),
-    ("s_amp_100w_bold_crush_divine_she", "S-[AMP] 100W BOLD CRUSH Divine Sheep #01 (Artist)", "amps/mesa_badlander/s_amp_100w_bold_crush_divine_sheep_01_artist.nam"),
-    ("s_pow_100w_bold_clean_pushed_02_", "S-[POW] 100W BOLD Clean-Pushed #02 (Factory)", "amps/mesa_badlander/s_pow_100w_bold_clean_pushed_02_factory.nam"),
+    ("s_pre_divine_sheep_07_artist", "S-[PRE] Divine Sheep #07 (Artist)", "amps/mesa_badlander/s_pre_divine_sheep_07_artist_2.nam"),
+    ("s_amp_020w_bold_clean_clean_blues_02_fac", "S-[AMP] 020W BOLD CLEAN Clean-Blues #02 (Factory)", "amps/mesa_badlander/s_amp_020w_bold_clean_clean_blues_02_factory_2.nam"),
+    ("s_pre_divine_sheep_04_artist", "S-[PRE] Divine Sheep #04 (Artist)", "amps/mesa_badlander/s_pre_divine_sheep_04_artist_2.nam"),
+    ("s_pre_noon_07_author", "S-[PRE] Noon #07 (Author)", "amps/mesa_badlander/s_pre_noon_07_author_2.nam"),
+    ("s_pre_astro_horsey_02_ts_artist", "S-[PRE] Astro Horsey #02 TS (Artist)", "amps/mesa_badlander/s_pre_astro_horsey_02_ts_artist_2.nam"),
+    ("s_amp_100w_bold_clean_scoopy_dew_02_auth", "S-[AMP] 100W BOLD CLEAN Scoopy Dew #02 (Author)", "amps/mesa_badlander/s_amp_100w_bold_clean_scoopy_dew_02_author_2.nam"),
+    ("s_amp_100w_bold_crush_murder_tones_01_re", "S-[AMP] 100W BOLD CRUSH Murder Tones #01 (Reviewer)", "amps/mesa_badlander/s_amp_100w_bold_crush_murder_tones_01_reviewer_2.nam"),
+    ("s_amp_100w_bold_crush_mrscary_bull_04_re", "S-[AMP] 100W BOLD CRUSH MrScary Bull #04 (Reviewer)", "amps/mesa_badlander/s_amp_100w_bold_crush_mrscary_bull_04_reviewer_2.nam"),
+    ("s_amp_100w_bold_crush_divine_sheep_01_ar", "S-[AMP] 100W BOLD CRUSH Divine Sheep #01 (Artist)", "amps/mesa_badlander/s_amp_100w_bold_crush_divine_sheep_01_artist_2.nam"),
+    ("s_pow_100w_bold_clean_pushed_02_factory", "S-[POW] 100W BOLD Clean-Pushed #02 (Factory)", "amps/mesa_badlander/s_pow_100w_bold_clean_pushed_02_factory_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -35,15 +35,15 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("s_pre_divine_sheep_07_artist"),
         &[
             ("s_pre_divine_sheep_07_artist", "S-[PRE] Divine Sheep #07 (Artist)"),
-            ("s_amp_020w_bold_clean_clean_blue", "S-[AMP] 020W BOLD CLEAN Clean-Blues #02 (Factory)"),
+            ("s_amp_020w_bold_clean_clean_blues_02_fac", "S-[AMP] 020W BOLD CLEAN Clean-Blues #02 (Factory)"),
             ("s_pre_divine_sheep_04_artist", "S-[PRE] Divine Sheep #04 (Artist)"),
             ("s_pre_noon_07_author", "S-[PRE] Noon #07 (Author)"),
             ("s_pre_astro_horsey_02_ts_artist", "S-[PRE] Astro Horsey #02 TS (Artist)"),
-            ("s_amp_100w_bold_clean_scoopy_dew", "S-[AMP] 100W BOLD CLEAN Scoopy Dew #02 (Author)"),
-            ("s_amp_100w_bold_crush_murder_ton", "S-[AMP] 100W BOLD CRUSH Murder Tones #01 (Reviewer)"),
-            ("s_amp_100w_bold_crush_mrscary_bu", "S-[AMP] 100W BOLD CRUSH MrScary Bull #04 (Reviewer)"),
-            ("s_amp_100w_bold_crush_divine_she", "S-[AMP] 100W BOLD CRUSH Divine Sheep #01 (Artist)"),
-            ("s_pow_100w_bold_clean_pushed_02_", "S-[POW] 100W BOLD Clean-Pushed #02 (Factory)"),
+            ("s_amp_100w_bold_clean_scoopy_dew_02_auth", "S-[AMP] 100W BOLD CLEAN Scoopy Dew #02 (Author)"),
+            ("s_amp_100w_bold_crush_murder_tones_01_re", "S-[AMP] 100W BOLD CRUSH Murder Tones #01 (Reviewer)"),
+            ("s_amp_100w_bold_crush_mrscary_bull_04_re", "S-[AMP] 100W BOLD CRUSH MrScary Bull #04 (Reviewer)"),
+            ("s_amp_100w_bold_crush_divine_sheep_01_ar", "S-[AMP] 100W BOLD CRUSH Divine Sheep #01 (Artist)"),
+            ("s_pow_100w_bold_clean_pushed_02_factory", "S-[POW] 100W BOLD Clean-Pushed #02 (Factory)"),
         ],
     )];
     schema

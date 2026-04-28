@@ -10,12 +10,12 @@ pub const DISPLAY_NAME: &str = "Super Reverb 4x10";
 const BRAND: &str = "fender";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("p10r_ur_4x10_bu87ic_2_00in_1_0in", "P10R UR 4x10 BU87IC 2.00in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_00in_1_0in.wav"),
-    ("p10r_ur_4x10_bu87ic_2_75in_1_0in", "P10R UR 4x10 BU87IC 2.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_75in_1_0in.wav"),
-    ("p10r_ur_4x10_bu87ic_2_25in_1_0in", "P10R UR 4x10 BU87IC 2.25in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_25in_1_0in.wav"),
-    ("p10r_ur_4x10_bu87ic_2_50in_1_0in", "P10R UR 4x10 BU87IC 2.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_50in_1_0in.wav"),
-    ("p10r_ur_4x10_bu87ic_1_75in_1_0in", "P10R UR 4x10 BU87IC 1.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_1_75in_1_0in.wav"),
-    ("p10r_ur_4x10_bu87ic_3_50in_1_0in", "P10R UR 4x10 BU87IC 3.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_3_50in_1_0in.wav"),
+    ("2_00in", "P10R UR 4x10 BU87IC 2.00in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_00in_1_0in_3.wav"),
+    ("2_75in", "P10R UR 4x10 BU87IC 2.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_75in_1_0in_3.wav"),
+    ("2_25in", "P10R UR 4x10 BU87IC 2.25in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_25in_1_0in_3.wav"),
+    ("2_50in", "P10R UR 4x10 BU87IC 2.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_50in_1_0in_3.wav"),
+    ("1_75in", "P10R UR 4x10 BU87IC 1.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_1_75in_1_0in_3.wav"),
+    ("3_50in", "P10R UR 4x10 BU87IC 3.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_3_50in_1_0in_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("p10r_ur_4x10_bu87ic_2_00in_1_0in"),
+            Some("2_00in"),
             &[
-            ("p10r_ur_4x10_bu87ic_2_00in_1_0in", "P10R UR 4x10 BU87IC 2.00in 1.0in"),
-            ("p10r_ur_4x10_bu87ic_2_75in_1_0in", "P10R UR 4x10 BU87IC 2.75in 1.0in"),
-            ("p10r_ur_4x10_bu87ic_2_25in_1_0in", "P10R UR 4x10 BU87IC 2.25in 1.0in"),
-            ("p10r_ur_4x10_bu87ic_2_50in_1_0in", "P10R UR 4x10 BU87IC 2.50in 1.0in"),
-            ("p10r_ur_4x10_bu87ic_1_75in_1_0in", "P10R UR 4x10 BU87IC 1.75in 1.0in"),
-            ("p10r_ur_4x10_bu87ic_3_50in_1_0in", "P10R UR 4x10 BU87IC 3.50in 1.0in"),
+            ("2_00in", "P10R UR 4x10 BU87IC 2.00in 1.0in"),
+            ("2_75in", "P10R UR 4x10 BU87IC 2.75in 1.0in"),
+            ("2_25in", "P10R UR 4x10 BU87IC 2.25in 1.0in"),
+            ("2_50in", "P10R UR 4x10 BU87IC 2.50in 1.0in"),
+            ("1_75in", "P10R UR 4x10 BU87IC 1.75in 1.0in"),
+            ("3_50in", "P10R UR 4x10 BU87IC 3.50in 1.0in"),
             ],
         )],
     }

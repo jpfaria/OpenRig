@@ -10,14 +10,14 @@ pub const DISPLAY_NAME: &str = "Orange 2x12 V30";
 const BRAND: &str = "orange";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("orange_2x12_v30_c414_e", "Orange 2x12 V30 C414 E", "cabs/orange_2x12_v30/orange_2x12_v30_c414_e.wav"),
-    ("orange_2x12_v30_e906_c", "Orange 2x12 V30 e906 C", "cabs/orange_2x12_v30/orange_2x12_v30_e906_c.wav"),
-    ("orange_2x12_v30_sm57_a", "Orange 2x12 V30 SM57 A", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_a.wav"),
-    ("orange_2x12_v30_rm700_c", "Orange 2x12 V30 RM700 C", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_c.wav"),
-    ("orange_2x12_v30_rm700_e", "Orange 2x12 V30 RM700 E", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_e.wav"),
-    ("orange_2x12_v30_sm57_c", "Orange 2x12 V30 SM57 C", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_c.wav"),
-    ("orange_2x12_v30_sm57_e", "Orange 2x12 V30 SM57 E", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_e.wav"),
-    ("orange_2x12_v30_c414_d", "Orange 2x12 V30 C414 D", "cabs/orange_2x12_v30/orange_2x12_v30_c414_d.wav"),
+    ("c414_e", "Orange 2x12 V30 C414 E", "cabs/orange_2x12_v30/orange_2x12_v30_c414_e_3.wav"),
+    ("e906_c", "Orange 2x12 V30 e906 C", "cabs/orange_2x12_v30/orange_2x12_v30_e906_c_3.wav"),
+    ("sm57_a", "Orange 2x12 V30 SM57 A", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_a_3.wav"),
+    ("rm700_c", "Orange 2x12 V30 RM700 C", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_c_3.wav"),
+    ("rm700_e", "Orange 2x12 V30 RM700 E", "cabs/orange_2x12_v30/orange_2x12_v30_rm700_e_3.wav"),
+    ("sm57_c", "Orange 2x12 V30 SM57 C", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_c_3.wav"),
+    ("sm57_e", "Orange 2x12 V30 SM57 E", "cabs/orange_2x12_v30/orange_2x12_v30_sm57_e_3.wav"),
+    ("c414_d", "Orange 2x12 V30 C414 D", "cabs/orange_2x12_v30/orange_2x12_v30_c414_d_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("orange_2x12_v30_c414_e"),
+            Some("c414_e"),
             &[
-            ("orange_2x12_v30_c414_e", "Orange 2x12 V30 C414 E"),
-            ("orange_2x12_v30_e906_c", "Orange 2x12 V30 e906 C"),
-            ("orange_2x12_v30_sm57_a", "Orange 2x12 V30 SM57 A"),
-            ("orange_2x12_v30_rm700_c", "Orange 2x12 V30 RM700 C"),
-            ("orange_2x12_v30_rm700_e", "Orange 2x12 V30 RM700 E"),
-            ("orange_2x12_v30_sm57_c", "Orange 2x12 V30 SM57 C"),
-            ("orange_2x12_v30_sm57_e", "Orange 2x12 V30 SM57 E"),
-            ("orange_2x12_v30_c414_d", "Orange 2x12 V30 C414 D"),
+            ("c414_e", "Orange 2x12 V30 C414 E"),
+            ("e906_c", "Orange 2x12 V30 e906 C"),
+            ("sm57_a", "Orange 2x12 V30 SM57 A"),
+            ("rm700_c", "Orange 2x12 V30 RM700 C"),
+            ("rm700_e", "Orange 2x12 V30 RM700 E"),
+            ("sm57_c", "Orange 2x12 V30 SM57 C"),
+            ("sm57_e", "Orange 2x12 V30 SM57 E"),
+            ("c414_d", "Orange 2x12 V30 C414 D"),
             ],
         )],
     }

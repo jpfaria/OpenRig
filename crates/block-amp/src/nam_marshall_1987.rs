@@ -14,8 +14,8 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("01_fr_marshall_1987x_hi_input_cr", "01 FR Marshall 1987X HI Input Crunch BAL CAB", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab.nam"),
-    ("01_fr_marshall_1987x_hi_input_cr_270770", "01 FR Marshall 1987X HI Input Crunch BAL DI", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di.nam"),
+    ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab_2.nam"),
+    ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("01_fr_marshall_1987x_hi_input_cr"),
+        Some("cab"),
         &[
-            ("01_fr_marshall_1987x_hi_input_cr", "01 FR Marshall 1987X HI Input Crunch BAL CAB"),
-            ("01_fr_marshall_1987x_hi_input_cr_270770", "01 FR Marshall 1987X HI Input Crunch BAL DI"),
+            ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB"),
+            ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI"),
         ],
     )];
     schema

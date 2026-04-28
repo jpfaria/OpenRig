@@ -14,16 +14,16 @@ const BRAND: &str = "prs";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("amp_prs_mt100_overdrive_dime_it_", "[AMP] PRS-MT100 OVERDRIVE Dime it SM57", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_dime_it_sm57.nam"),
-    ("amp_prs_mt100_clean_live_2023_di", "[AMP] PRS-MT100 CLEAN Live-2023 DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_live_2023_di_std.nam"),
-    ("amp_prs_mt100_overdrive_bitey_di", "[AMP] PRS-MT100 OVERDRIVE Bitey DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_bitey_di_std.nam"),
-    ("amp_prs_mt100_overdrive_sin_afte", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_sin_after_sin_sm57_std.nam"),
-    ("amp_prs_mt100_overdrive_sin_afte_187606", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_sin_after_sin_di_std.nam"),
-    ("amp_prs_mt100_clean_cleanly_di_s", "[AMP] PRS-MT100 CLEAN Cleanly DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_cleanly_di_std.nam"),
-    ("amp_prs_mt100_overdrive_single_c", "[AMP] PRS-MT100 OVERDRIVE Single Coil Leads SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_single_coil_leads_sm57_std.nam"),
-    ("amp_prs_mt100_clean_live_2023_sm", "[AMP] PRS-MT100 CLEAN Live-2023 SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_live_2023_sm57_std.nam"),
-    ("amp_prs_mt100_clean_noon_sm57_st", "[AMP] PRS-MT100 CLEAN Noon SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_noon_sm57_std.nam"),
-    ("amp_prs_mt100_clean_noon_di_std", "[AMP] PRS-MT100 CLEAN Noon DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_noon_di_std.nam"),
+    ("overdrive_dime_it_sm57", "[AMP] PRS-MT100 OVERDRIVE Dime it SM57", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_dime_it_sm57_2.nam"),
+    ("clean_live_2023_di_std", "[AMP] PRS-MT100 CLEAN Live-2023 DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_live_2023_di_std_2.nam"),
+    ("overdrive_bitey_di_std", "[AMP] PRS-MT100 OVERDRIVE Bitey DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_bitey_di_std_2.nam"),
+    ("overdrive_sin_after_sin_sm57_std", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_sin_after_sin_sm57_std_2.nam"),
+    ("overdrive_sin_after_sin_di_std", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_sin_after_sin_di_std_2.nam"),
+    ("clean_cleanly_di_std", "[AMP] PRS-MT100 CLEAN Cleanly DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_cleanly_di_std_2.nam"),
+    ("overdrive_single_coil_leads_sm57_std", "[AMP] PRS-MT100 OVERDRIVE Single Coil Leads SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_overdrive_single_coil_leads_sm57_std_2.nam"),
+    ("clean_live_2023_sm57_std", "[AMP] PRS-MT100 CLEAN Live-2023 SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_live_2023_sm57_std_2.nam"),
+    ("clean_noon_sm57_std", "[AMP] PRS-MT100 CLEAN Noon SM57 - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_noon_sm57_std_2.nam"),
+    ("clean_noon_di_std", "[AMP] PRS-MT100 CLEAN Noon DI - STD", "amps/prs_mt100_tremonti/amp_prs_mt100_clean_noon_di_std_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -32,18 +32,18 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("amp_prs_mt100_overdrive_dime_it_"),
+        Some("overdrive_dime_it_sm57"),
         &[
-            ("amp_prs_mt100_overdrive_dime_it_", "[AMP] PRS-MT100 OVERDRIVE Dime it SM57"),
-            ("amp_prs_mt100_clean_live_2023_di", "[AMP] PRS-MT100 CLEAN Live-2023 DI - STD"),
-            ("amp_prs_mt100_overdrive_bitey_di", "[AMP] PRS-MT100 OVERDRIVE Bitey DI - STD"),
-            ("amp_prs_mt100_overdrive_sin_afte", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin SM57 - STD"),
-            ("amp_prs_mt100_overdrive_sin_afte_187606", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin DI - STD"),
-            ("amp_prs_mt100_clean_cleanly_di_s", "[AMP] PRS-MT100 CLEAN Cleanly DI - STD"),
-            ("amp_prs_mt100_overdrive_single_c", "[AMP] PRS-MT100 OVERDRIVE Single Coil Leads SM57 - STD"),
-            ("amp_prs_mt100_clean_live_2023_sm", "[AMP] PRS-MT100 CLEAN Live-2023 SM57 - STD"),
-            ("amp_prs_mt100_clean_noon_sm57_st", "[AMP] PRS-MT100 CLEAN Noon SM57 - STD"),
-            ("amp_prs_mt100_clean_noon_di_std", "[AMP] PRS-MT100 CLEAN Noon DI - STD"),
+            ("overdrive_dime_it_sm57", "[AMP] PRS-MT100 OVERDRIVE Dime it SM57"),
+            ("clean_live_2023_di_std", "[AMP] PRS-MT100 CLEAN Live-2023 DI - STD"),
+            ("overdrive_bitey_di_std", "[AMP] PRS-MT100 OVERDRIVE Bitey DI - STD"),
+            ("overdrive_sin_after_sin_sm57_std", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin SM57 - STD"),
+            ("overdrive_sin_after_sin_di_std", "[AMP] PRS-MT100 OVERDRIVE Sin after Sin DI - STD"),
+            ("clean_cleanly_di_std", "[AMP] PRS-MT100 CLEAN Cleanly DI - STD"),
+            ("overdrive_single_coil_leads_sm57_std", "[AMP] PRS-MT100 OVERDRIVE Single Coil Leads SM57 - STD"),
+            ("clean_live_2023_sm57_std", "[AMP] PRS-MT100 CLEAN Live-2023 SM57 - STD"),
+            ("clean_noon_sm57_std", "[AMP] PRS-MT100 CLEAN Noon SM57 - STD"),
+            ("clean_noon_di_std", "[AMP] PRS-MT100 CLEAN Noon DI - STD"),
         ],
     )];
     schema

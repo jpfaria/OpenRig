@@ -14,14 +14,14 @@ const BRAND: &str = "bogner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("bogner_ecstasy_channel_2_warm_ro", "Bogner Ecstasy - Channel 2 Warm Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone.nam"),
-    ("bogner_ecstasy_vai_ftlog_tone_b_", "Bogner Ecstasy - Vai FTLOG Tone (B off)", "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off.nam"),
-    ("bogner_ecstasy_fender_clean", "Bogner Ecstasy - Fender Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean.nam"),
-    ("bogner_ecstasy_dumble_crunch", "Bogner Ecstasy - Dumble Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch.nam"),
-    ("bogner_ecstasy_plexi_crunch", "Bogner Ecstasy - Plexi Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch.nam"),
-    ("bogner_ecstasy_basic_clean", "Bogner Ecstasy - Basic Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean.nam"),
-    ("bogner_ecstasy_crunchier_rock_to", "Bogner Ecstasy - Crunchier Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone.nam"),
-    ("bogner_ecstasy_bright_crunchy_ro", "Bogner Ecstasy - Bright Crunchy Rock", "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock.nam"),
+    ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone_2.nam"),
+    ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)", "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off_2.nam"),
+    ("fender_clean", "Bogner Ecstasy - Fender Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean_2.nam"),
+    ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch_2.nam"),
+    ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch_2.nam"),
+    ("basic_clean", "Bogner Ecstasy - Basic Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean_2.nam"),
+    ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone_2.nam"),
+    ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock", "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("bogner_ecstasy_channel_2_warm_ro"),
+        Some("channel_2_warm_rock_tone"),
         &[
-            ("bogner_ecstasy_channel_2_warm_ro", "Bogner Ecstasy - Channel 2 Warm Rock Tone"),
-            ("bogner_ecstasy_vai_ftlog_tone_b_", "Bogner Ecstasy - Vai FTLOG Tone (B off)"),
-            ("bogner_ecstasy_fender_clean", "Bogner Ecstasy - Fender Clean"),
-            ("bogner_ecstasy_dumble_crunch", "Bogner Ecstasy - Dumble Crunch"),
-            ("bogner_ecstasy_plexi_crunch", "Bogner Ecstasy - Plexi Crunch"),
-            ("bogner_ecstasy_basic_clean", "Bogner Ecstasy - Basic Clean"),
-            ("bogner_ecstasy_crunchier_rock_to", "Bogner Ecstasy - Crunchier Rock Tone"),
-            ("bogner_ecstasy_bright_crunchy_ro", "Bogner Ecstasy - Bright Crunchy Rock"),
+            ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone"),
+            ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)"),
+            ("fender_clean", "Bogner Ecstasy - Fender Clean"),
+            ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch"),
+            ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch"),
+            ("basic_clean", "Bogner Ecstasy - Basic Clean"),
+            ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone"),
+            ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock"),
         ],
     )];
     schema

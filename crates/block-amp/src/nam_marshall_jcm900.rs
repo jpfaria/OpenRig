@@ -14,13 +14,13 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("vox_ac15_crsh_2", "Vox AC15 Crsh 2", "amps/marshall_jcm900/vox_ac15_crsh_2.nam"),
-    ("jtm_45_crsh", "JTM 45 CRSH", "amps/marshall_jcm900/jtm_45_crsh.nam"),
-    ("vox_ac15_crunsh", "Vox AC15 Crunsh", "amps/marshall_jcm900/vox_ac15_crunsh.nam"),
-    ("vox_ac15_clean", "Vox AC15 Clean", "amps/marshall_jcm900/vox_ac15_clean.nam"),
-    ("marshall_jtm_45_clean", "Marshall JTM 45 Clean", "amps/marshall_jcm900/marshall_jtm_45_clean.nam"),
-    ("ods_dumble_clean", "ODS Dumble clean", "amps/marshall_jcm900/ods_dumble_clean.nam"),
-    ("marshall_jcm_900_higain", "Marshall JCM 900 higain", "amps/marshall_jcm900/marshall_jcm_900_higain.nam"),
+    ("vox_ac15_crsh_2", "Vox AC15 Crsh 2", "amps/marshall_jcm900/vox_ac15_crsh_2_2.nam"),
+    ("jtm_45_crsh", "JTM 45 CRSH", "amps/marshall_jcm900/jtm_45_crsh_2.nam"),
+    ("vox_ac15_crunsh", "Vox AC15 Crunsh", "amps/marshall_jcm900/vox_ac15_crunsh_2.nam"),
+    ("vox_ac15_clean", "Vox AC15 Clean", "amps/marshall_jcm900/vox_ac15_clean_2.nam"),
+    ("marshall_jtm_45_clean", "Marshall JTM 45 Clean", "amps/marshall_jcm900/marshall_jtm_45_clean_2.nam"),
+    ("ods_dumble_clean", "ODS Dumble clean", "amps/marshall_jcm900/ods_dumble_clean_2.nam"),
+    ("marshall_jcm_900_higain", "Marshall JCM 900 higain", "amps/marshall_jcm900/marshall_jcm_900_higain_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

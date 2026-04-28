@@ -24,14 +24,14 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pre_unnamed_lo_down_02_std", "[PRE] UNNAMED Lo-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_02_std.nam"),
-    ("pre_unnamed_hi_up_04_std", "[PRE] UNNAMED Hi-Up #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_04_std.nam"),
-    ("pre_unnamed_lo_down_03_std", "[PRE] UNNAMED Lo-Down #03 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_03_std.nam"),
-    ("pre_unnamed_hi_down_02_std", "[PRE] UNNAMED Hi-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_02_std.nam"),
-    ("pre_unnamed_lo_down_04_std", "[PRE] UNNAMED Lo-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_04_std.nam"),
-    ("pre_unnamed_hi_up_01_std", "[PRE] UNNAMED Hi-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_01_std.nam"),
-    ("pre_unnamed_hi_down_04_std", "[PRE] UNNAMED Hi-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_04_std.nam"),
-    ("pre_unnamed_lo_up_01_std", "[PRE] UNNAMED Lo-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_up_01_std.nam"),
+    ("lo_down_02", "[PRE] UNNAMED Lo-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_02_std_2.nam"),
+    ("hi_up_04", "[PRE] UNNAMED Hi-Up #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_04_std_2.nam"),
+    ("lo_down_03", "[PRE] UNNAMED Lo-Down #03 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_03_std_2.nam"),
+    ("hi_down_02", "[PRE] UNNAMED Hi-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_02_std_2.nam"),
+    ("lo_down_04", "[PRE] UNNAMED Lo-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_04_std_2.nam"),
+    ("hi_up_01", "[PRE] UNNAMED Hi-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_01_std_2.nam"),
+    ("hi_down_04", "[PRE] UNNAMED Hi-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_04_std_2.nam"),
+    ("lo_up_01", "[PRE] UNNAMED Lo-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_up_01_std_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -41,16 +41,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("pre_unnamed_lo_down_02_std"),
+        Some("lo_down_02"),
         &[
-            ("pre_unnamed_lo_down_02_std", "[PRE] UNNAMED Lo-Down #02 - STD"),
-            ("pre_unnamed_hi_up_04_std", "[PRE] UNNAMED Hi-Up #04 - STD"),
-            ("pre_unnamed_lo_down_03_std", "[PRE] UNNAMED Lo-Down #03 - STD"),
-            ("pre_unnamed_hi_down_02_std", "[PRE] UNNAMED Hi-Down #02 - STD"),
-            ("pre_unnamed_lo_down_04_std", "[PRE] UNNAMED Lo-Down #04 - STD"),
-            ("pre_unnamed_hi_up_01_std", "[PRE] UNNAMED Hi-Up #01 - STD"),
-            ("pre_unnamed_hi_down_04_std", "[PRE] UNNAMED Hi-Down #04 - STD"),
-            ("pre_unnamed_lo_up_01_std", "[PRE] UNNAMED Lo-Up #01 - STD"),
+            ("lo_down_02", "[PRE] UNNAMED Lo-Down #02 - STD"),
+            ("hi_up_04", "[PRE] UNNAMED Hi-Up #04 - STD"),
+            ("lo_down_03", "[PRE] UNNAMED Lo-Down #03 - STD"),
+            ("hi_down_02", "[PRE] UNNAMED Hi-Down #02 - STD"),
+            ("lo_down_04", "[PRE] UNNAMED Lo-Down #04 - STD"),
+            ("hi_up_01", "[PRE] UNNAMED Hi-Up #01 - STD"),
+            ("hi_down_04", "[PRE] UNNAMED Hi-Down #04 - STD"),
+            ("lo_up_01", "[PRE] UNNAMED Lo-Up #01 - STD"),
         ],
     )];
     schema

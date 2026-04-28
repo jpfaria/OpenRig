@@ -14,9 +14,9 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("badlander_crush", "badlander-crush", "amps/mesa_boogie_badlander_50/badlander_crush.nam"),
-    ("badlander_clean", "badlander-clean", "amps/mesa_boogie_badlander_50/badlander_clean.nam"),
-    ("badlander_crunch", "badlander-crunch", "amps/mesa_boogie_badlander_50/badlander_crunch.nam"),
+    ("badlander_crush", "badlander-crush", "amps/mesa_boogie_badlander_50/badlander_crush_2.nam"),
+    ("badlander_clean", "badlander-clean", "amps/mesa_boogie_badlander_50/badlander_clean_2.nam"),
+    ("badlander_crunch", "badlander-crunch", "amps/mesa_boogie_badlander_50/badlander_crunch_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

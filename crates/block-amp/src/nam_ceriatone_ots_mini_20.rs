@@ -14,11 +14,11 @@ const BRAND: &str = "ceriatone";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ceriatone_ots_mini_20_clean_jazz", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright_midboost.nam"),
-    ("ceriatone_ots_mini_20_clean_jazz_325795", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_midboost.nam"),
-    ("ceriatone_ots_mini_20_clean_jazz_325794", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost.nam"),
-    ("ceriatone_ots_mini_20_clean_jazz_325799", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright.nam"),
-    ("ceriatone_ots_mini_20_clean_jazz_325798", "Ceriatone OTS Mini 20 - Clean Jazz Normal", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_normal.nam"),
+    ("pre_boost_bright_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright_midboost_2.nam"),
+    ("pre_boost_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_midboost_2.nam"),
+    ("pre_boost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_2.nam"),
+    ("pre_boost_bright", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright_2.nam"),
+    ("normal", "Ceriatone OTS Mini 20 - Clean Jazz Normal", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_normal_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("ceriatone_ots_mini_20_clean_jazz"),
+        Some("pre_boost_bright_midboost"),
         &[
-            ("ceriatone_ots_mini_20_clean_jazz", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost"),
-            ("ceriatone_ots_mini_20_clean_jazz_325795", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost"),
-            ("ceriatone_ots_mini_20_clean_jazz_325794", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost"),
-            ("ceriatone_ots_mini_20_clean_jazz_325799", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright"),
-            ("ceriatone_ots_mini_20_clean_jazz_325798", "Ceriatone OTS Mini 20 - Clean Jazz Normal"),
+            ("pre_boost_bright_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost"),
+            ("pre_boost_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost"),
+            ("pre_boost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost"),
+            ("pre_boost_bright", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright"),
+            ("normal", "Ceriatone OTS Mini 20 - Clean Jazz Normal"),
         ],
     )];
     schema

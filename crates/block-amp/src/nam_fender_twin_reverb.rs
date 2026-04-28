@@ -14,8 +14,8 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("tim_r_fender_twinverb_vibrato_br", "Tim R Fender TwinVerb Vibrato Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_vibrato_bright.nam"),
-    ("tim_r_fender_twinverb_norm_brigh", "Tim R Fender TwinVerb Norm Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_norm_bright.nam"),
+    ("vibrato", "Tim R Fender TwinVerb Vibrato Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_vibrato_bright_2.nam"),
+    ("norm", "Tim R Fender TwinVerb Norm Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_norm_bright_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("tim_r_fender_twinverb_vibrato_br"),
+        Some("vibrato"),
         &[
-            ("tim_r_fender_twinverb_vibrato_br", "Tim R Fender TwinVerb Vibrato Bright"),
-            ("tim_r_fender_twinverb_norm_brigh", "Tim R Fender TwinVerb Norm Bright"),
+            ("vibrato", "Tim R Fender TwinVerb Vibrato Bright"),
+            ("norm", "Tim R Fender TwinVerb Norm Bright"),
         ],
     )];
     schema

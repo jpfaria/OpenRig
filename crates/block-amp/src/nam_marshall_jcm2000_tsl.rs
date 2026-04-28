@@ -14,12 +14,12 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("tsl100_crunch_g9", "TSL100 Crunch - G9", "amps/marshall_jcm2000_tsl/tsl100_crunch_g9.nam"),
-    ("tsl100_crunch_g2", "TSL100 Crunch - G2", "amps/marshall_jcm2000_tsl/tsl100_crunch_g2.nam"),
-    ("tsl100_lead_g9", "TSL100 Lead - G9", "amps/marshall_jcm2000_tsl/tsl100_lead_g9.nam"),
-    ("tsl100_crunch_g6", "TSL100 Crunch - G6", "amps/marshall_jcm2000_tsl/tsl100_crunch_g6.nam"),
-    ("tsl100_lead_g7", "TSL100 Lead - G7", "amps/marshall_jcm2000_tsl/tsl100_lead_g7.nam"),
-    ("tsl100_clean_g3_5", "TSL100 Clean - G3.5", "amps/marshall_jcm2000_tsl/tsl100_clean_g3_5.nam"),
+    ("crunch_g9", "TSL100 Crunch - G9", "amps/marshall_jcm2000_tsl/tsl100_crunch_g9_2.nam"),
+    ("crunch_g2", "TSL100 Crunch - G2", "amps/marshall_jcm2000_tsl/tsl100_crunch_g2_2.nam"),
+    ("lead_g9", "TSL100 Lead - G9", "amps/marshall_jcm2000_tsl/tsl100_lead_g9_2.nam"),
+    ("crunch_g6", "TSL100 Crunch - G6", "amps/marshall_jcm2000_tsl/tsl100_crunch_g6_2.nam"),
+    ("lead_g7", "TSL100 Lead - G7", "amps/marshall_jcm2000_tsl/tsl100_lead_g7_2.nam"),
+    ("clean_g3_5", "TSL100 Clean - G3.5", "amps/marshall_jcm2000_tsl/tsl100_clean_g3_5_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("tsl100_crunch_g9"),
+        Some("crunch_g9"),
         &[
-            ("tsl100_crunch_g9", "TSL100 Crunch - G9"),
-            ("tsl100_crunch_g2", "TSL100 Crunch - G2"),
-            ("tsl100_lead_g9", "TSL100 Lead - G9"),
-            ("tsl100_crunch_g6", "TSL100 Crunch - G6"),
-            ("tsl100_lead_g7", "TSL100 Lead - G7"),
-            ("tsl100_clean_g3_5", "TSL100 Clean - G3.5"),
+            ("crunch_g9", "TSL100 Crunch - G9"),
+            ("crunch_g2", "TSL100 Crunch - G2"),
+            ("lead_g9", "TSL100 Lead - G9"),
+            ("crunch_g6", "TSL100 Crunch - G6"),
+            ("lead_g7", "TSL100 Lead - G7"),
+            ("clean_g3_5", "TSL100 Clean - G3.5"),
         ],
     )];
     schema

@@ -14,12 +14,12 @@ const BRAND: &str = "friedman";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("amp_be100dlx_hbe_mammoth_di_std", "[AMP] BE100DLX-HBE Mammoth DI - STD", "amps/friedman_be100/amp_be100dlx_hbe_mammoth_di_std.nam"),
-    ("amp_be100dlx_cln_tender_clean_di", "[AMP] BE100DLX-CLN Tender Clean DI - STD", "amps/friedman_be100/amp_be100dlx_cln_tender_clean_di_std.nam"),
-    ("amp_be100dlx_hbe_tallica_di_std", "[AMP] BE100DLX-HBE Tallica DI - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_di_std.nam"),
-    ("amp_be100dlx_hbe_tallica_sm57_st", "[AMP] BE100DLX-HBE Tallica SM57 - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_sm57_std.nam"),
-    ("amp_be100dlx_hbe_tallica_sm58_st", "[AMP] BE100DLX-HBE Tallica SM58 - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_sm58_std.nam"),
-    ("amp_be100dlx_cln_tender_clean_sm", "[AMP] BE100DLX-CLN Tender Clean SM57 - STD", "amps/friedman_be100/amp_be100dlx_cln_tender_clean_sm57_std.nam"),
+    ("be100dlx_hbe_mammoth_di", "[AMP] BE100DLX-HBE Mammoth DI - STD", "amps/friedman_be100/amp_be100dlx_hbe_mammoth_di_std_2.nam"),
+    ("be100dlx_cln_tender_clean_di", "[AMP] BE100DLX-CLN Tender Clean DI - STD", "amps/friedman_be100/amp_be100dlx_cln_tender_clean_di_std_2.nam"),
+    ("be100dlx_hbe_tallica_di", "[AMP] BE100DLX-HBE Tallica DI - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_di_std_2.nam"),
+    ("be100dlx_hbe_tallica_sm57", "[AMP] BE100DLX-HBE Tallica SM57 - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_sm57_std_2.nam"),
+    ("be100dlx_hbe_tallica_sm58", "[AMP] BE100DLX-HBE Tallica SM58 - STD", "amps/friedman_be100/amp_be100dlx_hbe_tallica_sm58_std_2.nam"),
+    ("be100dlx_cln_tender_clean_sm57", "[AMP] BE100DLX-CLN Tender Clean SM57 - STD", "amps/friedman_be100/amp_be100dlx_cln_tender_clean_sm57_std_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("amp_be100dlx_hbe_mammoth_di_std"),
+        Some("be100dlx_hbe_mammoth_di"),
         &[
-            ("amp_be100dlx_hbe_mammoth_di_std", "[AMP] BE100DLX-HBE Mammoth DI - STD"),
-            ("amp_be100dlx_cln_tender_clean_di", "[AMP] BE100DLX-CLN Tender Clean DI - STD"),
-            ("amp_be100dlx_hbe_tallica_di_std", "[AMP] BE100DLX-HBE Tallica DI - STD"),
-            ("amp_be100dlx_hbe_tallica_sm57_st", "[AMP] BE100DLX-HBE Tallica SM57 - STD"),
-            ("amp_be100dlx_hbe_tallica_sm58_st", "[AMP] BE100DLX-HBE Tallica SM58 - STD"),
-            ("amp_be100dlx_cln_tender_clean_sm", "[AMP] BE100DLX-CLN Tender Clean SM57 - STD"),
+            ("be100dlx_hbe_mammoth_di", "[AMP] BE100DLX-HBE Mammoth DI - STD"),
+            ("be100dlx_cln_tender_clean_di", "[AMP] BE100DLX-CLN Tender Clean DI - STD"),
+            ("be100dlx_hbe_tallica_di", "[AMP] BE100DLX-HBE Tallica DI - STD"),
+            ("be100dlx_hbe_tallica_sm57", "[AMP] BE100DLX-HBE Tallica SM57 - STD"),
+            ("be100dlx_hbe_tallica_sm58", "[AMP] BE100DLX-HBE Tallica SM58 - STD"),
+            ("be100dlx_cln_tender_clean_sm57", "[AMP] BE100DLX-CLN Tender Clean SM57 - STD"),
         ],
     )];
     schema

@@ -14,12 +14,12 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pre_mesa_mkvii_90w_ch3_mkiic_eet", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ", "amps/mesa_boogie_mark_vii/pre_mesa_mkvii_90w_ch3_mkiic_eet_faq.nam"),
-    ("amp_mesa_mkvii_90w_ch1_cln_facto", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2", "amps/mesa_boogie_mark_vii/amp_mesa_mkvii_90w_ch1_cln_factory_bright_clean_blend_2.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5_", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm58.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5__366955", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_2.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5__366951", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm57.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5__366952", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_3.nam"),
+    ("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ", "amps/mesa_boogie_mark_vii/pre_mesa_mkvii_90w_ch3_mkiic_eet_faq_2.nam"),
+    ("amp_mesa_mkvii_90w_ch1_cln_factory_brigh", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2", "amps/mesa_boogie_mark_vii/amp_mesa_mkvii_90w_ch1_cln_factory_bright_clean_blend_2_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5_sm58", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm58_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_2", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_2_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5_sm57", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm57_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_3", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_3_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("pre_mesa_mkvii_90w_ch3_mkiic_eet"),
+        Some("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq"),
         &[
-            ("pre_mesa_mkvii_90w_ch3_mkiic_eet", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ"),
-            ("amp_mesa_mkvii_90w_ch1_cln_facto", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5_", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5__366955", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5__366951", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5__366952", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3"),
+            ("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ"),
+            ("amp_mesa_mkvii_90w_ch1_cln_factory_brigh", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5_sm58", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_2", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5_sm57", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_3", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3"),
         ],
     )];
     schema

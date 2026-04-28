@@ -14,7 +14,7 @@ const BRAND: &str = "tone_king";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("tj_empire_7v2", "TJ-Empire-7v2", "amps/tone_king_imperial/tj_empire_7v2.nam"),
+    ("tj_empire_7v2", "TJ-Empire-7v2", "amps/tone_king_imperial/tj_empire_7v2_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

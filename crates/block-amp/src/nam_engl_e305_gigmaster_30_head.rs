@@ -14,11 +14,11 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("e305_clean_lead_ch_gain_boost_ib", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_6.nam"),
-    ("e305_clean_lead_ch_gain_boost_ib_247944", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_8.nam"),
-    ("e305_clean_lead_ch_gain_boost_ib_247940", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_2.nam"),
-    ("e305_clean_lead_ch_gain_boost_ib_247947", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_11.nam"),
-    ("e305_clean_lead_ch_gain_boost_ib_247946", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_10.nam"),
+    ("gain_6", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_6_2.nam"),
+    ("gain_8", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_8_2.nam"),
+    ("gain_2", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_2_2.nam"),
+    ("gain_11", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_11_2.nam"),
+    ("gain_10", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-", "amps/engl_e305_gigmaster_30_head/e305_clean_lead_ch_gain_boost_ibanez_tube_screamer_gain_10_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("e305_clean_lead_ch_gain_boost_ib"),
+        Some("gain_6"),
         &[
-            ("e305_clean_lead_ch_gain_boost_ib", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
-            ("e305_clean_lead_ch_gain_boost_ib_247944", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
-            ("e305_clean_lead_ch_gain_boost_ib_247940", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
-            ("e305_clean_lead_ch_gain_boost_ib_247947", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
-            ("e305_clean_lead_ch_gain_boost_ib_247946", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
+            ("gain_6", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
+            ("gain_8", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
+            ("gain_2", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
+            ("gain_11", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
+            ("gain_10", "E305 Clean Lead Ch + Gain Boost + Ibanez Tube Screamer GAIN-"),
         ],
     )];
     schema

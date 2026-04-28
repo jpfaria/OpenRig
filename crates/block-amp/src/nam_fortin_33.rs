@@ -14,12 +14,12 @@ const BRAND: &str = "fortin";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ob1_evh_blue_fortin_33_full_rig", "OB1 EVH Blue Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_blue_fortin_33_full_rig.nam"),
-    ("ob1_evh_blue_805_full_rig", "OB1 EVH Blue 805 - Full Rig", "amps/fortin_33/ob1_evh_blue_805_full_rig.nam"),
-    ("ob1_evh_red_tc_spark_full_rig", "OB1 EVH Red TC Spark - Full Rig", "amps/fortin_33/ob1_evh_red_tc_spark_full_rig.nam"),
-    ("ob1_evh_red_fortin_33_full_rig", "OB1 EVH Red Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_red_fortin_33_full_rig.nam"),
-    ("ob1_evh_red_precision_drive_full", "OB1 EVH Red Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_red_precision_drive_full_rig.nam"),
-    ("ob1_evh_blue_precision_drive_ful", "OB1 EVH Blue Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_blue_precision_drive_full_rig.nam"),
+    ("blue_fortin_33", "OB1 EVH Blue Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_blue_fortin_33_full_rig_2.nam"),
+    ("blue_805", "OB1 EVH Blue 805 - Full Rig", "amps/fortin_33/ob1_evh_blue_805_full_rig_2.nam"),
+    ("red_tc_spark", "OB1 EVH Red TC Spark - Full Rig", "amps/fortin_33/ob1_evh_red_tc_spark_full_rig_2.nam"),
+    ("red_fortin_33", "OB1 EVH Red Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_red_fortin_33_full_rig_2.nam"),
+    ("red_precision_drive", "OB1 EVH Red Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_red_precision_drive_full_rig_2.nam"),
+    ("blue_precision_drive", "OB1 EVH Blue Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_blue_precision_drive_full_rig_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("ob1_evh_blue_fortin_33_full_rig"),
+        Some("blue_fortin_33"),
         &[
-            ("ob1_evh_blue_fortin_33_full_rig", "OB1 EVH Blue Fortin 33 - Full Rig"),
-            ("ob1_evh_blue_805_full_rig", "OB1 EVH Blue 805 - Full Rig"),
-            ("ob1_evh_red_tc_spark_full_rig", "OB1 EVH Red TC Spark - Full Rig"),
-            ("ob1_evh_red_fortin_33_full_rig", "OB1 EVH Red Fortin 33 - Full Rig"),
-            ("ob1_evh_red_precision_drive_full", "OB1 EVH Red Precision Drive - Full Rig"),
-            ("ob1_evh_blue_precision_drive_ful", "OB1 EVH Blue Precision Drive - Full Rig"),
+            ("blue_fortin_33", "OB1 EVH Blue Fortin 33 - Full Rig"),
+            ("blue_805", "OB1 EVH Blue 805 - Full Rig"),
+            ("red_tc_spark", "OB1 EVH Red TC Spark - Full Rig"),
+            ("red_fortin_33", "OB1 EVH Red Fortin 33 - Full Rig"),
+            ("red_precision_drive", "OB1 EVH Red Precision Drive - Full Rig"),
+            ("blue_precision_drive", "OB1 EVH Blue Precision Drive - Full Rig"),
         ],
     )];
     schema

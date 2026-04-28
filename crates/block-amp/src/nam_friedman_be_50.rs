@@ -14,7 +14,7 @@ const BRAND: &str = "friedman";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mbfriedman4atampcab", "MBFriedMan4ATAmpCab", "amps/friedman_be_50/mbfriedman4atampcab.nam"),
+    ("mbfriedman4atampcab", "MBFriedMan4ATAmpCab", "amps/friedman_be_50/mbfriedman4atampcab_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

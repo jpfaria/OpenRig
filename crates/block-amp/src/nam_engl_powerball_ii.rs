@@ -14,7 +14,7 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_powerball_deimos", "ENGL Powerball Deimos", "amps/engl_powerball_ii/engl_powerball_deimos.nam"),
+    ("engl_powerball_deimos", "ENGL Powerball Deimos", "amps/engl_powerball_ii/engl_powerball_deimos_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

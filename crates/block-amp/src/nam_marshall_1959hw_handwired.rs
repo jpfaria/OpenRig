@@ -14,10 +14,10 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_plexi_cranked_7_1500e_st", "Slammin_Plexi_Cranked_7_1500E_Standard", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_1500e_standard.nam"),
-    ("slammin_plexi_cranked_7_2000e_st", "Slammin_Plexi_Cranked_7_2000E_Standard", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_2000e_standard.nam"),
-    ("slammin_plexi_cranked_6_1700e_co_custom", "Slammin_Plexi_Cranked_6_1700E_Complex", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_6_1700e_complex_custom.nam"),
-    ("slammin_plexi_cranked_7_2000e_co_custom", "Slammin_Plexi_Cranked_7_2000E_Complex", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_2000e_complex_custom.nam"),
+    ("slammin_plexi_cranked_7_1500e_standard", "Slammin_Plexi_Cranked_7_1500E_Standard", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_1500e_standard_2.nam"),
+    ("slammin_plexi_cranked_7_2000e_standard", "Slammin_Plexi_Cranked_7_2000E_Standard", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_2000e_standard_2.nam"),
+    ("slammin_plexi_cranked_6_1700e_complex_custom", "Slammin_Plexi_Cranked_6_1700E_Complex", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_6_1700e_complex_custom_2.nam"),
+    ("slammin_plexi_cranked_7_2000e_complex_custom", "Slammin_Plexi_Cranked_7_2000E_Complex", "amps/marshall_1959hw_handwired/slammin_plexi_cranked_7_2000e_complex_custom_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("slammin_plexi_cranked_7_1500e_st"),
+        Some("slammin_plexi_cranked_7_1500e_standard"),
         &[
-            ("slammin_plexi_cranked_7_1500e_st", "Slammin_Plexi_Cranked_7_1500E_Standard"),
-            ("slammin_plexi_cranked_7_2000e_st", "Slammin_Plexi_Cranked_7_2000E_Standard"),
-            ("slammin_plexi_cranked_6_1700e_co_custom", "Slammin_Plexi_Cranked_6_1700E_Complex"),
-            ("slammin_plexi_cranked_7_2000e_co_custom", "Slammin_Plexi_Cranked_7_2000E_Complex"),
+            ("slammin_plexi_cranked_7_1500e_standard", "Slammin_Plexi_Cranked_7_1500E_Standard"),
+            ("slammin_plexi_cranked_7_2000e_standard", "Slammin_Plexi_Cranked_7_2000E_Standard"),
+            ("slammin_plexi_cranked_6_1700e_complex_custom", "Slammin_Plexi_Cranked_6_1700E_Complex"),
+            ("slammin_plexi_cranked_7_2000e_complex_custom", "Slammin_Plexi_Cranked_7_2000E_Complex"),
         ],
     )];
     schema

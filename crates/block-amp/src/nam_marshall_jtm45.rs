@@ -14,12 +14,12 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_jtm45_jtm45_blend_treb5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb5_norm5_jtm45_t5n5.nam"),
-    ("marshall_jtm45_jtm45_normal10_jt", "Marshall JTM45/JTM45 Normal10/JTM45 N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal10_jtm45_n10.nam"),
-    ("marshall_jtm45_jtm45_normal5_jtm", "Marshall JTM45/JTM45 Normal5/JTM45 N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal5_jtm45_n5.nam"),
-    ("marshall_jtm45_jtm45_treble5_jtm", "Marshall JTM45/JTM45 Treble5/JTM45 T5", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble5_jtm45_t5.nam"),
-    ("marshall_jtm45_jtm45_blend_treb1", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb10_norm10_jtm45_t10n10.nam"),
-    ("marshall_jtm45_jtm45_treble10_jt", "Marshall JTM45/JTM45 Treble10/JTM45 T10", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble10_jtm45_t10.nam"),
+    ("blend_treb5_norm5_jtm45_t5n5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb5_norm5_jtm45_t5n5_2.nam"),
+    ("normal10_jtm45_n10", "Marshall JTM45/JTM45 Normal10/JTM45 N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal10_jtm45_n10_2.nam"),
+    ("normal5_jtm45_n5", "Marshall JTM45/JTM45 Normal5/JTM45 N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal5_jtm45_n5_2.nam"),
+    ("treble5_jtm45_t5", "Marshall JTM45/JTM45 Treble5/JTM45 T5", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble5_jtm45_t5_2.nam"),
+    ("blend_treb10_norm10_jtm45_t10n10", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb10_norm10_jtm45_t10n10_2.nam"),
+    ("treble10_jtm45_t10", "Marshall JTM45/JTM45 Treble10/JTM45 T10", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble10_jtm45_t10_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("marshall_jtm45_jtm45_blend_treb5"),
+        Some("blend_treb5_norm5_jtm45_t5n5"),
         &[
-            ("marshall_jtm45_jtm45_blend_treb5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5"),
-            ("marshall_jtm45_jtm45_normal10_jt", "Marshall JTM45/JTM45 Normal10/JTM45 N10"),
-            ("marshall_jtm45_jtm45_normal5_jtm", "Marshall JTM45/JTM45 Normal5/JTM45 N5"),
-            ("marshall_jtm45_jtm45_treble5_jtm", "Marshall JTM45/JTM45 Treble5/JTM45 T5"),
-            ("marshall_jtm45_jtm45_blend_treb1", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10"),
-            ("marshall_jtm45_jtm45_treble10_jt", "Marshall JTM45/JTM45 Treble10/JTM45 T10"),
+            ("blend_treb5_norm5_jtm45_t5n5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5"),
+            ("normal10_jtm45_n10", "Marshall JTM45/JTM45 Normal10/JTM45 N10"),
+            ("normal5_jtm45_n5", "Marshall JTM45/JTM45 Normal5/JTM45 N5"),
+            ("treble5_jtm45_t5", "Marshall JTM45/JTM45 Treble5/JTM45 T5"),
+            ("blend_treb10_norm10_jtm45_t10n10", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10"),
+            ("treble10_jtm45_t10", "Marshall JTM45/JTM45 Treble10/JTM45 T10"),
         ],
     )];
     schema

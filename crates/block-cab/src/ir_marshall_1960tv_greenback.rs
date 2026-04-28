@@ -10,14 +10,14 @@ pub const DISPLAY_NAME: &str = "1960TV Greenback";
 const BRAND: &str = "marshall";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("m25_ll_1960tv_4x12_sm57_1_50in_0", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73", "cabs/marshall_1960tv_greenback/m25_ll_1960tv_4x12_sm57_1_50in_0_0in_oa30_sa73.wav"),
-    ("m25_lr_1960tv_4x12_sm57_1_00in_0", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_00in_0_0in_7603.wav"),
-    ("m25_lr_1960tv_4x12_sm57_1_50in_0", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_50in_0_0in_oa30_7603.wav"),
-    ("m25_ul_1960tv_4x12_sm57_1_25in_0", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_1_25in_0_0in_7603.wav"),
-    ("m25_ul_1960tv_4x12_sm57_2_00in_0", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_00in_0_0in_7603.wav"),
-    ("m25_ul_1960tv_4x12_sm57_2_25in_0", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_25in_0_0in_vp28.wav"),
-    ("m25_ur_1960tv_4x12_sm57_1_00in_0", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_1_00in_0_0in_vp28.wav"),
-    ("m25_ur_1960tv_4x12_sm57_2_00in_0", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_2_00in_0_0in_vp28.wav"),
+    ("ll_1_50in_oa30_sa73", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73", "cabs/marshall_1960tv_greenback/m25_ll_1960tv_4x12_sm57_1_50in_0_0in_oa30_sa73_3.wav"),
+    ("lr_1_00in_7603", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_00in_0_0in_7603_3.wav"),
+    ("lr_1_50in_oa30_7603", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_50in_0_0in_oa30_7603_3.wav"),
+    ("ul_1_25in_7603", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_1_25in_0_0in_7603_3.wav"),
+    ("ul_2_00in_7603", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_00in_0_0in_7603_3.wav"),
+    ("ul_2_25in_vp28", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
+    ("ur_1_00in_vp28", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_1_00in_0_0in_vp28_3.wav"),
+    ("ur_2_00in_vp28", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_2_00in_0_0in_vp28_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("m25_ll_1960tv_4x12_sm57_1_50in_0"),
+            Some("ll_1_50in_oa30_sa73"),
             &[
-            ("m25_ll_1960tv_4x12_sm57_1_50in_0", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73"),
-            ("m25_lr_1960tv_4x12_sm57_1_00in_0", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603"),
-            ("m25_lr_1960tv_4x12_sm57_1_50in_0", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603"),
-            ("m25_ul_1960tv_4x12_sm57_1_25in_0", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603"),
-            ("m25_ul_1960tv_4x12_sm57_2_00in_0", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603"),
-            ("m25_ul_1960tv_4x12_sm57_2_25in_0", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28"),
-            ("m25_ur_1960tv_4x12_sm57_1_00in_0", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28"),
-            ("m25_ur_1960tv_4x12_sm57_2_00in_0", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28"),
+            ("ll_1_50in_oa30_sa73", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73"),
+            ("lr_1_00in_7603", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603"),
+            ("lr_1_50in_oa30_7603", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603"),
+            ("ul_1_25in_7603", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603"),
+            ("ul_2_00in_7603", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603"),
+            ("ul_2_25in_vp28", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28"),
+            ("ur_1_00in_vp28", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28"),
+            ("ur_2_00in_vp28", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28"),
             ],
         )],
     }

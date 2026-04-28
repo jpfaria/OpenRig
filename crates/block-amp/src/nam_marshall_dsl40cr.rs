@@ -14,10 +14,10 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_dsl_40_c_crunch", "Marshall DSL 40 C Crunch", "amps/marshall_dsl40cr/marshall_dsl_40_c_crunch.nam"),
-    ("marshall_dsl_40_c_lead_1", "Marshall DSL 40 C Lead 1", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_1.nam"),
-    ("marshall_dsl_40_c_lead_2", "Marshall DSL 40 C Lead 2", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_2.nam"),
-    ("marshall_dsl_40_c_clean", "Marshall DSL 40 C Clean", "amps/marshall_dsl40cr/marshall_dsl_40_c_clean.nam"),
+    ("crunch", "Marshall DSL 40 C Crunch", "amps/marshall_dsl40cr/marshall_dsl_40_c_crunch_2.nam"),
+    ("lead_1", "Marshall DSL 40 C Lead 1", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_1_2.nam"),
+    ("lead_2", "Marshall DSL 40 C Lead 2", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_2_2.nam"),
+    ("clean", "Marshall DSL 40 C Clean", "amps/marshall_dsl40cr/marshall_dsl_40_c_clean_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("marshall_dsl_40_c_crunch"),
+        Some("crunch"),
         &[
-            ("marshall_dsl_40_c_crunch", "Marshall DSL 40 C Crunch"),
-            ("marshall_dsl_40_c_lead_1", "Marshall DSL 40 C Lead 1"),
-            ("marshall_dsl_40_c_lead_2", "Marshall DSL 40 C Lead 2"),
-            ("marshall_dsl_40_c_clean", "Marshall DSL 40 C Clean"),
+            ("crunch", "Marshall DSL 40 C Crunch"),
+            ("lead_1", "Marshall DSL 40 C Lead 1"),
+            ("lead_2", "Marshall DSL 40 C Lead 2"),
+            ("clean", "Marshall DSL 40 C Clean"),
         ],
     )];
     schema

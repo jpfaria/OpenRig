@@ -14,14 +14,14 @@ const BRAND: &str = "hiwatt";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("amp_hwat_superhi50_noon_04_blend", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_1.nam"),
-    ("amp_hwat_superhi50_noon_04_blend_296719", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_3.nam"),
-    ("amp_hwat_superhi50_noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_di.nam"),
-    ("amp_hwat_superhi50_bright_overdr", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_sm57.nam"),
-    ("amp_hwat_superhi50_bright_overdr_296769", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_di.nam"),
-    ("amp_hwat_superhi50_bright_overdr_296752", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_1.nam"),
-    ("amp_hwat_superhi50_bright_overdr_296749", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_3.nam"),
-    ("amp_hwat_superhi50_bright_overdr_296771", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_2.nam"),
+    ("noon_04_blend_1", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_1_2.nam"),
+    ("noon_04_blend_3", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_3_2.nam"),
+    ("noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_di_2.nam"),
+    ("bright_overdrive_sm57", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_sm57_2.nam"),
+    ("bright_overdrive_di", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_di_2.nam"),
+    ("bright_overdrive_blend_1", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_1_2.nam"),
+    ("bright_overdrive_blend_3", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_3_2.nam"),
+    ("bright_overdrive_blend_2", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_2_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("amp_hwat_superhi50_noon_04_blend"),
+        Some("noon_04_blend_1"),
         &[
-            ("amp_hwat_superhi50_noon_04_blend", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1"),
-            ("amp_hwat_superhi50_noon_04_blend_296719", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3"),
-            ("amp_hwat_superhi50_noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI"),
-            ("amp_hwat_superhi50_bright_overdr", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57"),
-            ("amp_hwat_superhi50_bright_overdr_296769", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI"),
-            ("amp_hwat_superhi50_bright_overdr_296752", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1"),
-            ("amp_hwat_superhi50_bright_overdr_296749", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3"),
-            ("amp_hwat_superhi50_bright_overdr_296771", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2"),
+            ("noon_04_blend_1", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1"),
+            ("noon_04_blend_3", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3"),
+            ("noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI"),
+            ("bright_overdrive_sm57", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57"),
+            ("bright_overdrive_di", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI"),
+            ("bright_overdrive_blend_1", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1"),
+            ("bright_overdrive_blend_3", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3"),
+            ("bright_overdrive_blend_2", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2"),
         ],
     )];
     schema

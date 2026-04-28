@@ -14,10 +14,10 @@ const BRAND: &str = "randall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("x2_dimezone_v30_tlm102", "X2-DimeZone-v30-tlm102", "amps/randall_warhead/x2_dimezone_v30_tlm102.nam"),
-    ("x2_dimezone_jaguar_mixed", "X2-DimeZone-jaguar-mixed", "amps/randall_warhead/x2_dimezone_jaguar_mixed.nam"),
-    ("x2_dimezone_v30_sm57", "X2-DimeZone-v30-sm57", "amps/randall_warhead/x2_dimezone_v30_sm57.nam"),
-    ("x2_dimezone_jaguar_tlm102", "X2-DimeZone-jaguar-tlm102", "amps/randall_warhead/x2_dimezone_jaguar_tlm102.nam"),
+    ("x2_dimezone_v30_tlm102", "X2-DimeZone-v30-tlm102", "amps/randall_warhead/x2_dimezone_v30_tlm102_2.nam"),
+    ("x2_dimezone_jaguar_mixed", "X2-DimeZone-jaguar-mixed", "amps/randall_warhead/x2_dimezone_jaguar_mixed_2.nam"),
+    ("x2_dimezone_v30_sm57", "X2-DimeZone-v30-sm57", "amps/randall_warhead/x2_dimezone_v30_sm57_2.nam"),
+    ("x2_dimezone_jaguar_tlm102", "X2-DimeZone-jaguar-tlm102", "amps/randall_warhead/x2_dimezone_jaguar_tlm102_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

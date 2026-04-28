@@ -24,14 +24,14 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jmp_crunch_breakup", "JMP CRUNCH BREAKUP", "preamp/marshall_jmp1/jmp_crunch_breakup.nam"),
-    ("jmp_rhythm_deftoned", "JMP RHYTHM DEFTONED", "preamp/marshall_jmp1/jmp_rhythm_deftoned.nam"),
-    ("jmp_clean", "JMP CLEAN", "preamp/marshall_jmp1/jmp_clean.nam"),
-    ("jmp_rhythm_overdrive808", "JMP RHYTHM OVERDRIVE808", "preamp/marshall_jmp1/jmp_rhythm_overdrive808.nam"),
-    ("jmp_rhythm_3", "JMP RHYTHM 3", "preamp/marshall_jmp1/jmp_rhythm_3.nam"),
-    ("jmp_rhythm_2", "JMP RHYTHM 2", "preamp/marshall_jmp1/jmp_rhythm_2.nam"),
-    ("jmp_rhythm_1", "JMP RHYTHM 1", "preamp/marshall_jmp1/jmp_rhythm_1.nam"),
-    ("jmp_lead_creamy", "JMP LEAD CREAMY", "preamp/marshall_jmp1/jmp_lead_creamy.nam"),
+    ("crunch_breakup", "JMP CRUNCH BREAKUP", "preamp/marshall_jmp1/jmp_crunch_breakup_2.nam"),
+    ("rhythm_deftoned", "JMP RHYTHM DEFTONED", "preamp/marshall_jmp1/jmp_rhythm_deftoned_2.nam"),
+    ("clean", "JMP CLEAN", "preamp/marshall_jmp1/jmp_clean_2.nam"),
+    ("rhythm_overdrive808", "JMP RHYTHM OVERDRIVE808", "preamp/marshall_jmp1/jmp_rhythm_overdrive808.nam"),
+    ("rhythm_3", "JMP RHYTHM 3", "preamp/marshall_jmp1/jmp_rhythm_3.nam"),
+    ("rhythm_2", "JMP RHYTHM 2", "preamp/marshall_jmp1/jmp_rhythm_2.nam"),
+    ("rhythm_1", "JMP RHYTHM 1", "preamp/marshall_jmp1/jmp_rhythm_1.nam"),
+    ("lead_creamy", "JMP LEAD CREAMY", "preamp/marshall_jmp1/jmp_lead_creamy.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -41,16 +41,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("jmp_crunch_breakup"),
+        Some("crunch_breakup"),
         &[
-            ("jmp_crunch_breakup", "JMP CRUNCH BREAKUP"),
-            ("jmp_rhythm_deftoned", "JMP RHYTHM DEFTONED"),
-            ("jmp_clean", "JMP CLEAN"),
-            ("jmp_rhythm_overdrive808", "JMP RHYTHM OVERDRIVE808"),
-            ("jmp_rhythm_3", "JMP RHYTHM 3"),
-            ("jmp_rhythm_2", "JMP RHYTHM 2"),
-            ("jmp_rhythm_1", "JMP RHYTHM 1"),
-            ("jmp_lead_creamy", "JMP LEAD CREAMY"),
+            ("crunch_breakup", "JMP CRUNCH BREAKUP"),
+            ("rhythm_deftoned", "JMP RHYTHM DEFTONED"),
+            ("clean", "JMP CLEAN"),
+            ("rhythm_overdrive808", "JMP RHYTHM OVERDRIVE808"),
+            ("rhythm_3", "JMP RHYTHM 3"),
+            ("rhythm_2", "JMP RHYTHM 2"),
+            ("rhythm_1", "JMP RHYTHM 1"),
+            ("lead_creamy", "JMP LEAD CREAMY"),
         ],
     )];
     schema

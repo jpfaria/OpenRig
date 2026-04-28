@@ -14,10 +14,10 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("12_peavey_xxx_ch2_kt_77_unbooste", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain", "amps/peavey_xxx/12_peavey_xxx_ch2_kt_77_unboosted_b_higain.nam"),
-    ("28_peavey_xxx_ch2_kt_77_weeping_", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz", "amps/peavey_xxx/28_peavey_xxx_ch2_kt_77_weeping_chaos_fuzz.nam"),
-    ("20_peavey_xxx_ch2_kt_77_tall_fon", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz", "amps/peavey_xxx/20_peavey_xxx_ch2_kt_77_tall_font_d_fuzz.nam"),
-    ("31_peavey_xxx_ch2_kt_77_os_2_dis", "31. Peavey XXX CH2 KT-77 OS-2-Distortion", "amps/peavey_xxx/31_peavey_xxx_ch2_kt_77_os_2_distortion.nam"),
+    ("12_unboosted_b_higain", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain", "amps/peavey_xxx/12_peavey_xxx_ch2_kt_77_unboosted_b_higain_2.nam"),
+    ("28_weeping_chaos_fuzz", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz", "amps/peavey_xxx/28_peavey_xxx_ch2_kt_77_weeping_chaos_fuzz_2.nam"),
+    ("20_tall_font_d_fuzz", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz", "amps/peavey_xxx/20_peavey_xxx_ch2_kt_77_tall_font_d_fuzz_2.nam"),
+    ("31_os_2_distortion", "31. Peavey XXX CH2 KT-77 OS-2-Distortion", "amps/peavey_xxx/31_peavey_xxx_ch2_kt_77_os_2_distortion_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("12_peavey_xxx_ch2_kt_77_unbooste"),
+        Some("12_unboosted_b_higain"),
         &[
-            ("12_peavey_xxx_ch2_kt_77_unbooste", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain"),
-            ("28_peavey_xxx_ch2_kt_77_weeping_", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz"),
-            ("20_peavey_xxx_ch2_kt_77_tall_fon", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz"),
-            ("31_peavey_xxx_ch2_kt_77_os_2_dis", "31. Peavey XXX CH2 KT-77 OS-2-Distortion"),
+            ("12_unboosted_b_higain", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain"),
+            ("28_weeping_chaos_fuzz", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz"),
+            ("20_tall_font_d_fuzz", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz"),
+            ("31_os_2_distortion", "31. Peavey XXX CH2 KT-77 OS-2-Distortion"),
         ],
     )];
     schema

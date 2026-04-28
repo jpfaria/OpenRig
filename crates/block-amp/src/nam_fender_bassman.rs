@@ -14,14 +14,14 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fender_bassman_50_normal_channel", "Fender Bassman 50 - Normal Channel - Bright Off - G1", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g1.nam"),
-    ("fender_bassman_50_normal_channel_79200", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g2_5.nam"),
-    ("fender_bassman_50_jumped_d0_b1_g", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5.nam"),
-    ("fender_bassman_50_jumped_d0_b1_g_79230", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5_5.nam"),
-    ("fender_bassman_50_jumped_d1_b1_g", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g2_5.nam"),
-    ("fender_bassman_50_jumped_do_bo_g", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3", "amps/fender_bassman/fender_bassman_50_jumped_do_bo_g3.nam"),
-    ("fender_bassman_50_jumped_d1_b1_g_79273", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g9_5.nam"),
-    ("fender_bassman_50_bass_channel_d", "Fender Bassman 50 - Bass Channel - Deep Off - G1", "amps/fender_bassman/fender_bassman_50_bass_channel_deep_off_g1.nam"),
+    ("normal_channel_bright_off_g1", "Fender Bassman 50 - Normal Channel - Bright Off - G1", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g1_2.nam"),
+    ("normal_channel_bright_off_g2_5", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g2_5_2.nam"),
+    ("jumped_d0_b1_g5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5_2.nam"),
+    ("jumped_d0_b1_g5_5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5_5_2.nam"),
+    ("jumped_d1_b1_g2_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g2_5_2.nam"),
+    ("jumped_do_bo_g3", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3", "amps/fender_bassman/fender_bassman_50_jumped_do_bo_g3_2.nam"),
+    ("jumped_d1_b1_g9_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g9_5_2.nam"),
+    ("bass_channel_deep_off_g1", "Fender Bassman 50 - Bass Channel - Deep Off - G1", "amps/fender_bassman/fender_bassman_50_bass_channel_deep_off_g1_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("fender_bassman_50_normal_channel"),
+        Some("normal_channel_bright_off_g1"),
         &[
-            ("fender_bassman_50_normal_channel", "Fender Bassman 50 - Normal Channel - Bright Off - G1"),
-            ("fender_bassman_50_normal_channel_79200", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5"),
-            ("fender_bassman_50_jumped_d0_b1_g", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5"),
-            ("fender_bassman_50_jumped_d0_b1_g_79230", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5"),
-            ("fender_bassman_50_jumped_d1_b1_g", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5"),
-            ("fender_bassman_50_jumped_do_bo_g", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3"),
-            ("fender_bassman_50_jumped_d1_b1_g_79273", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5"),
-            ("fender_bassman_50_bass_channel_d", "Fender Bassman 50 - Bass Channel - Deep Off - G1"),
+            ("normal_channel_bright_off_g1", "Fender Bassman 50 - Normal Channel - Bright Off - G1"),
+            ("normal_channel_bright_off_g2_5", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5"),
+            ("jumped_d0_b1_g5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5"),
+            ("jumped_d0_b1_g5_5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5"),
+            ("jumped_d1_b1_g2_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5"),
+            ("jumped_do_bo_g3", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3"),
+            ("jumped_d1_b1_g9_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5"),
+            ("bass_channel_deep_off_g1", "Fender Bassman 50 - Bass Channel - Deep Off - G1"),
         ],
     )];
     schema

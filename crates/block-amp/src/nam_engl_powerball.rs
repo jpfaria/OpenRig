@@ -14,10 +14,10 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_powerball_clean", "ENGL Powerball Clean", "amps/engl_powerball/engl_powerball_clean.nam"),
-    ("engl_powerball_overdrive_2", "ENGL Powerball Overdrive 2", "amps/engl_powerball/engl_powerball_overdrive_2.nam"),
-    ("engl_powerball_overdrive_1", "ENGL Powerball Overdrive 1", "amps/engl_powerball/engl_powerball_overdrive_1.nam"),
-    ("engl_powerball_crunch", "ENGL Powerball Crunch", "amps/engl_powerball/engl_powerball_crunch.nam"),
+    ("clean", "ENGL Powerball Clean", "amps/engl_powerball/engl_powerball_clean_2.nam"),
+    ("overdrive_2", "ENGL Powerball Overdrive 2", "amps/engl_powerball/engl_powerball_overdrive_2_2.nam"),
+    ("overdrive_1", "ENGL Powerball Overdrive 1", "amps/engl_powerball/engl_powerball_overdrive_1_2.nam"),
+    ("crunch", "ENGL Powerball Crunch", "amps/engl_powerball/engl_powerball_crunch_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("engl_powerball_clean"),
+        Some("clean"),
         &[
-            ("engl_powerball_clean", "ENGL Powerball Clean"),
-            ("engl_powerball_overdrive_2", "ENGL Powerball Overdrive 2"),
-            ("engl_powerball_overdrive_1", "ENGL Powerball Overdrive 1"),
-            ("engl_powerball_crunch", "ENGL Powerball Crunch"),
+            ("clean", "ENGL Powerball Clean"),
+            ("overdrive_2", "ENGL Powerball Overdrive 2"),
+            ("overdrive_1", "ENGL Powerball Overdrive 1"),
+            ("crunch", "ENGL Powerball Crunch"),
         ],
     )];
     schema

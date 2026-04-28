@@ -14,11 +14,11 @@ const BRAND: &str = "jet";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jet_city_jca22h_crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g4_5.nam"),
-    ("jet_city_jca22h_crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g2_0.nam"),
-    ("jet_city_jca22h_crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g7_0.nam"),
-    ("jet_city_jca22h_overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g2_0.nam"),
-    ("jet_city_jca22h_overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g5_5.nam"),
+    ("crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g4_5_2.nam"),
+    ("crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g2_0_2.nam"),
+    ("crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g7_0_2.nam"),
+    ("overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g2_0_2.nam"),
+    ("overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g5_5_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("jet_city_jca22h_crunch_g4_5"),
+        Some("crunch_g4_5"),
         &[
-            ("jet_city_jca22h_crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5"),
-            ("jet_city_jca22h_crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0"),
-            ("jet_city_jca22h_crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0"),
-            ("jet_city_jca22h_overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0"),
-            ("jet_city_jca22h_overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5"),
+            ("crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5"),
+            ("crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0"),
+            ("crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0"),
+            ("overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0"),
+            ("overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5"),
         ],
     )];
     schema

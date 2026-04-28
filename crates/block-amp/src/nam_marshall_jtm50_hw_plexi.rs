@@ -14,12 +14,12 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jtm50_replica_angus_tone_v5", "JTM50 Replica - Angus Tone V5", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5.nam"),
-    ("jtm50_replica_angus_tone_v6", "JTM50 Replica - Angus Tone V6", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6.nam"),
-    ("jtm50_replica_angus_tone_v7", "JTM50 Replica - Angus Tone V7", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7.nam"),
-    ("jtm50_replica_angus_tone_v5_brig", "JTM50 Replica - Angus Tone V5 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright.nam"),
-    ("jtm50_replica_angus_tone_v6_brig", "JTM50 Replica - Angus Tone V6 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright.nam"),
-    ("jtm50_replica_angus_tone_v7_brig", "JTM50 Replica - Angus Tone V7 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright.nam"),
+    ("v5", "JTM50 Replica - Angus Tone V5", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_2.nam"),
+    ("v6", "JTM50 Replica - Angus Tone V6", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_2.nam"),
+    ("v7", "JTM50 Replica - Angus Tone V7", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_2.nam"),
+    ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright_2.nam"),
+    ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright_2.nam"),
+    ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("jtm50_replica_angus_tone_v5"),
+        Some("v5"),
         &[
-            ("jtm50_replica_angus_tone_v5", "JTM50 Replica - Angus Tone V5"),
-            ("jtm50_replica_angus_tone_v6", "JTM50 Replica - Angus Tone V6"),
-            ("jtm50_replica_angus_tone_v7", "JTM50 Replica - Angus Tone V7"),
-            ("jtm50_replica_angus_tone_v5_brig", "JTM50 Replica - Angus Tone V5 Bright"),
-            ("jtm50_replica_angus_tone_v6_brig", "JTM50 Replica - Angus Tone V6 Bright"),
-            ("jtm50_replica_angus_tone_v7_brig", "JTM50 Replica - Angus Tone V7 Bright"),
+            ("v5", "JTM50 Replica - Angus Tone V5"),
+            ("v6", "JTM50 Replica - Angus Tone V6"),
+            ("v7", "JTM50 Replica - Angus Tone V7"),
+            ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright"),
+            ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright"),
+            ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright"),
         ],
     )];
     schema

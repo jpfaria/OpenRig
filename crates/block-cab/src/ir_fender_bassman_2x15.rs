@@ -10,12 +10,12 @@ pub const DISPLAY_NAME: &str = "Bassman 2x15 CTS";
 const BRAND: &str = "fender";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("1970_bassman_cabinet_cts_121_low", "1970 Bassman Cabinet CTS - 121 Lower - Cap", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap.wav"),
-    ("1970_bassman_cabinet_cts_121_low_352789", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_edge.wav"),
-    ("1970_bassman_cabinet_cts_121_low_352790", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_edge.wav"),
-    ("1970_bassman_cabinet_cts_121_upp", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_upper_cap_edge.wav"),
-    ("1970_bassman_cabinet_cts_121_low_352792", "1970 Bassman Cabinet CTS - 121 Lower - Cone", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone.wav"),
-    ("1970_bassman_cabinet_cts_c414_di", "1970 Bassman Cabinet CTS - C414 - Distant 12In", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_c414_distant_12in.wav"),
+    ("121_lower_cap", "1970 Bassman Cabinet CTS - 121 Lower - Cap", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_3.wav"),
+    ("121_lower_cap_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_edge_3.wav"),
+    ("121_lower_cone_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_edge_3.wav"),
+    ("121_upper_cap_edge", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_upper_cap_edge_3.wav"),
+    ("121_lower_cone", "1970 Bassman Cabinet CTS - 121 Lower - Cone", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_3.wav"),
+    ("c414_distant_12in", "1970 Bassman Cabinet CTS - C414 - Distant 12In", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_c414_distant_12in_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("1970_bassman_cabinet_cts_121_low"),
+            Some("121_lower_cap"),
             &[
-            ("1970_bassman_cabinet_cts_121_low", "1970 Bassman Cabinet CTS - 121 Lower - Cap"),
-            ("1970_bassman_cabinet_cts_121_low_352789", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge"),
-            ("1970_bassman_cabinet_cts_121_low_352790", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge"),
-            ("1970_bassman_cabinet_cts_121_upp", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge"),
-            ("1970_bassman_cabinet_cts_121_low_352792", "1970 Bassman Cabinet CTS - 121 Lower - Cone"),
-            ("1970_bassman_cabinet_cts_c414_di", "1970 Bassman Cabinet CTS - C414 - Distant 12In"),
+            ("121_lower_cap", "1970 Bassman Cabinet CTS - 121 Lower - Cap"),
+            ("121_lower_cap_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge"),
+            ("121_lower_cone_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge"),
+            ("121_upper_cap_edge", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge"),
+            ("121_lower_cone", "1970 Bassman Cabinet CTS - 121 Lower - Cone"),
+            ("c414_distant_12in", "1970 Bassman Cabinet CTS - C414 - Distant 12In"),
             ],
         )],
     }

@@ -14,8 +14,8 @@ const BRAND: &str = "rocktron";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("piranha_ch3_mid_750_el34ab", "piranha ch3 mid 750 el34ab", "amps/rocktron/piranha_ch3_mid_750_el34ab.nam"),
-    ("piranha_ch3_mid_850_el34ab", "piranha ch3 mid 850 el34ab", "amps/rocktron/piranha_ch3_mid_850_el34ab.nam"),
+    ("750", "piranha ch3 mid 750 el34ab", "amps/rocktron/piranha_ch3_mid_750_el34ab_2.nam"),
+    ("850", "piranha ch3 mid 850 el34ab", "amps/rocktron/piranha_ch3_mid_850_el34ab_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("piranha_ch3_mid_750_el34ab"),
+        Some("750"),
         &[
-            ("piranha_ch3_mid_750_el34ab", "piranha ch3 mid 750 el34ab"),
-            ("piranha_ch3_mid_850_el34ab", "piranha ch3 mid 850 el34ab"),
+            ("750", "piranha ch3 mid 750 el34ab"),
+            ("850", "piranha ch3 mid 850 el34ab"),
         ],
     )];
     schema

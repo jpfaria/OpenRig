@@ -14,9 +14,9 @@ const BRAND: &str = "laney";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("laney_lead_top_boosted_bright_sw", "Laney Lead Top, Boosted, Bright Switch On", "amps/laney/laney_lead_top_boosted_bright_switch_on.nam"),
-    ("laney_lead_top_boosted", "Laney Lead Top, Boosted", "amps/laney/laney_lead_top_boosted.nam"),
-    ("laney_lead_top", "Laney Lead Top", "amps/laney/laney_lead_top.nam"),
+    ("top_boosted_bright_switch_on", "Laney Lead Top, Boosted, Bright Switch On", "amps/laney/laney_lead_top_boosted_bright_switch_on_2.nam"),
+    ("top_boosted", "Laney Lead Top, Boosted", "amps/laney/laney_lead_top_boosted_2.nam"),
+    ("top", "Laney Lead Top", "amps/laney/laney_lead_top_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("laney_lead_top_boosted_bright_sw"),
+        Some("top_boosted_bright_switch_on"),
         &[
-            ("laney_lead_top_boosted_bright_sw", "Laney Lead Top, Boosted, Bright Switch On"),
-            ("laney_lead_top_boosted", "Laney Lead Top, Boosted"),
-            ("laney_lead_top", "Laney Lead Top"),
+            ("top_boosted_bright_switch_on", "Laney Lead Top, Boosted, Bright Switch On"),
+            ("top_boosted", "Laney Lead Top, Boosted"),
+            ("top", "Laney Lead Top"),
         ],
     )];
     schema

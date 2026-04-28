@@ -14,10 +14,10 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("dsl800_clean", "DSL800 Clean", "amps/marshall_dsl_20_hr/dsl800_clean.nam"),
-    ("dsl800_crunch", "DSL800 - Crunch", "amps/marshall_dsl_20_hr/dsl800_crunch.nam"),
-    ("dsl800_crunch_bad_horse", "DSL800 - Crunch + Bad Horse", "amps/marshall_dsl_20_hr/dsl800_crunch_bad_horse.nam"),
-    ("dsl800_lead", "DSL800 - Lead", "amps/marshall_dsl_20_hr/dsl800_lead.nam"),
+    ("clean", "DSL800 Clean", "amps/marshall_dsl_20_hr/dsl800_clean_2.nam"),
+    ("crunch", "DSL800 - Crunch", "amps/marshall_dsl_20_hr/dsl800_crunch_2.nam"),
+    ("crunch_bad_horse", "DSL800 - Crunch + Bad Horse", "amps/marshall_dsl_20_hr/dsl800_crunch_bad_horse_2.nam"),
+    ("lead", "DSL800 - Lead", "amps/marshall_dsl_20_hr/dsl800_lead_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("dsl800_clean"),
+        Some("clean"),
         &[
-            ("dsl800_clean", "DSL800 Clean"),
-            ("dsl800_crunch", "DSL800 - Crunch"),
-            ("dsl800_crunch_bad_horse", "DSL800 - Crunch + Bad Horse"),
-            ("dsl800_lead", "DSL800 - Lead"),
+            ("clean", "DSL800 Clean"),
+            ("crunch", "DSL800 - Crunch"),
+            ("crunch_bad_horse", "DSL800 - Crunch + Bad Horse"),
+            ("lead", "DSL800 - Lead"),
         ],
     )];
     schema

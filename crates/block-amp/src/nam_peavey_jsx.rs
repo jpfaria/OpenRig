@@ -14,10 +14,10 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("peavey_jsx_crunch_mid", "Peavey JSX_Crunch_Mid", "amps/peavey_jsx/peavey_jsx_crunch_mid.nam"),
-    ("peavey_jsx_ultra_mid", "Peavey JSX_Ultra_Mid", "amps/peavey_jsx/peavey_jsx_ultra_mid.nam"),
-    ("peavey_jsx_crunch_high", "Peavey JSX_Crunch_High", "amps/peavey_jsx/peavey_jsx_crunch_high.nam"),
-    ("peavey_jsx_ultra_high", "Peavey JSX_Ultra_High", "amps/peavey_jsx/peavey_jsx_ultra_high.nam"),
+    ("jsx_crunch_mid", "Peavey JSX_Crunch_Mid", "amps/peavey_jsx/peavey_jsx_crunch_mid_2.nam"),
+    ("jsx_ultra_mid", "Peavey JSX_Ultra_Mid", "amps/peavey_jsx/peavey_jsx_ultra_mid_2.nam"),
+    ("jsx_crunch_high", "Peavey JSX_Crunch_High", "amps/peavey_jsx/peavey_jsx_crunch_high_2.nam"),
+    ("jsx_ultra_high", "Peavey JSX_Ultra_High", "amps/peavey_jsx/peavey_jsx_ultra_high_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +26,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("peavey_jsx_crunch_mid"),
+        Some("jsx_crunch_mid"),
         &[
-            ("peavey_jsx_crunch_mid", "Peavey JSX_Crunch_Mid"),
-            ("peavey_jsx_ultra_mid", "Peavey JSX_Ultra_Mid"),
-            ("peavey_jsx_crunch_high", "Peavey JSX_Crunch_High"),
-            ("peavey_jsx_ultra_high", "Peavey JSX_Ultra_High"),
+            ("jsx_crunch_mid", "Peavey JSX_Crunch_Mid"),
+            ("jsx_ultra_mid", "Peavey JSX_Ultra_Mid"),
+            ("jsx_crunch_high", "Peavey JSX_Crunch_High"),
+            ("jsx_ultra_high", "Peavey JSX_Ultra_High"),
         ],
     )];
     schema

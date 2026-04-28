@@ -24,7 +24,7 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("studiopreclean_b4_m4_t6_bright_v", "StudioPreClean_B4_M4_T6_Bright V2 ESR 0.008", "preamp/mesa_studio_preamp/studiopreclean_b4_m4_t6_bright_v2_esr_0_008.nam"),
+    ("studiopreclean_b4_m4_t6_bright_v2_esr_0_", "StudioPreClean_B4_M4_T6_Bright V2 ESR 0.008", "preamp/mesa_studio_preamp/studiopreclean_b4_m4_t6_bright_v2_esr_0_008.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -34,9 +34,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("studiopreclean_b4_m4_t6_bright_v"),
+        Some("studiopreclean_b4_m4_t6_bright_v2_esr_0_"),
         &[
-            ("studiopreclean_b4_m4_t6_bright_v", "StudioPreClean_B4_M4_T6_Bright V2 ESR 0.008"),
+            ("studiopreclean_b4_m4_t6_bright_v2_esr_0_", "StudioPreClean_B4_M4_T6_Bright V2 ESR 0.008"),
         ],
     )];
     schema

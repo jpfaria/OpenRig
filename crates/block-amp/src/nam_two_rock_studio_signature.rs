@@ -14,9 +14,9 @@ const BRAND: &str = "two";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("bmd_g3_t5m5b5_vol7_p5_bf", "BMD G3 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/bmd_g3_t5m5b5_vol7_p5_bf.nam"),
-    ("b_g3_t5m5b5_vol7_p5_bf", "B G3 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/b_g3_t5m5b5_vol7_p5_bf.nam"),
-    ("bmd_g5_t5m5b5_vol7_p5_bf", "BMD G5 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/bmd_g5_t5m5b5_vol7_p5_bf.nam"),
+    ("bmd_g3", "BMD G3 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/bmd_g3_t5m5b5_vol7_p5_bf_2.nam"),
+    ("b_g3", "B G3 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/b_g3_t5m5b5_vol7_p5_bf_2.nam"),
+    ("bmd_g5", "BMD G5 T5M5B5 Vol7 P5 BF", "amps/two_rock_studio_signature/bmd_g5_t5m5b5_vol7_p5_bf_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("bmd_g3_t5m5b5_vol7_p5_bf"),
+        Some("bmd_g3"),
         &[
-            ("bmd_g3_t5m5b5_vol7_p5_bf", "BMD G3 T5M5B5 Vol7 P5 BF"),
-            ("b_g3_t5m5b5_vol7_p5_bf", "B G3 T5M5B5 Vol7 P5 BF"),
-            ("bmd_g5_t5m5b5_vol7_p5_bf", "BMD G5 T5M5B5 Vol7 P5 BF"),
+            ("bmd_g3", "BMD G3 T5M5B5 Vol7 P5 BF"),
+            ("b_g3", "B G3 T5M5B5 Vol7 P5 BF"),
+            ("bmd_g5", "BMD G5 T5M5B5 Vol7 P5 BF"),
         ],
     )];
     schema

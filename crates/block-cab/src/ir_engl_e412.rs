@@ -10,12 +10,12 @@ pub const DISPLAY_NAME: &str = "E412 Karnivore";
 const BRAND: &str = "engl";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_sm57", "Engl_SM57", "cabs/engl_e412/engl_sm57.wav"),
-    ("engl_md421_edgedustcap", "Engl_MD421_EdgeDustCap", "cabs/engl_e412/engl_md421_edgedustcap.wav"),
-    ("engl_m160_cone", "Engl_M160_Cone", "cabs/engl_e412/engl_m160_cone.wav"),
-    ("engl_md421_center", "Engl_MD421_Center", "cabs/engl_e412/engl_md421_center.wav"),
-    ("engl_m160_center", "Engl_M160_Center", "cabs/engl_e412/engl_m160_center.wav"),
-    ("engl_md421_cone", "Engl_MD421_Cone", "cabs/engl_e412/engl_md421_cone.wav"),
+    ("engl_sm57", "Engl_SM57", "cabs/engl_e412/engl_sm57_3.wav"),
+    ("engl_md421_edgedustcap", "Engl_MD421_EdgeDustCap", "cabs/engl_e412/engl_md421_edgedustcap_3.wav"),
+    ("engl_m160_cone", "Engl_M160_Cone", "cabs/engl_e412/engl_m160_cone_3.wav"),
+    ("engl_md421_center", "Engl_MD421_Center", "cabs/engl_e412/engl_md421_center_3.wav"),
+    ("engl_m160_center", "Engl_M160_Center", "cabs/engl_e412/engl_m160_center_3.wav"),
+    ("engl_md421_cone", "Engl_MD421_Cone", "cabs/engl_e412/engl_md421_cone_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,9 +14,9 @@ const BRAND: &str = "driftwood";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("va_nightmare_md_and_evh_5150iii_", "VA Nightmare (MD and EVH 5150III 412)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412.nam"),
-    ("va_nightmare_md_and_mesa_traditi", "VA Nightmare (MD and Mesa Traditional)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional.nam"),
-    ("va_nightmare_md_and_mesa_oversiz", "VA Nightmare (MD and Mesa Oversized)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized.nam"),
+    ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412_2.nam"),
+    ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional_2.nam"),
+    ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("va_nightmare_md_and_evh_5150iii_"),
+        Some("evh_5150iii_412"),
         &[
-            ("va_nightmare_md_and_evh_5150iii_", "VA Nightmare (MD and EVH 5150III 412)"),
-            ("va_nightmare_md_and_mesa_traditi", "VA Nightmare (MD and Mesa Traditional)"),
-            ("va_nightmare_md_and_mesa_oversiz", "VA Nightmare (MD and Mesa Oversized)"),
+            ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)"),
+            ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)"),
+            ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)"),
         ],
     )];
     schema

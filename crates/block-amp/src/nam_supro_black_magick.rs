@@ -14,11 +14,11 @@ const BRAND: &str = "supro";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("di_supro_1695tj_in1_2_v1_5_v2_0_", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_3_srl.nam"),
-    ("di_supro_1695tj_in1_2_v1_5_v2_0__300456", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_6_srl.nam"),
-    ("di_supro_1695tj_in1_2_v1_5_v2_0__300457", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_p12q.nam"),
-    ("di_supro_1695tj_in1_2_v1_5_v2_0__300458", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_4_srl.nam"),
-    ("di_supro_1695tj_in1_2_v1_5_v2_0__300459", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_srl.nam"),
+    ("t_3_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_3_srl_2.nam"),
+    ("t_6_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_6_srl_2.nam"),
+    ("t_5_p12q", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_p12q_2.nam"),
+    ("t_4_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_4_srl_2.nam"),
+    ("t_5_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_srl_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("di_supro_1695tj_in1_2_v1_5_v2_0_"),
+        Some("t_3_srl"),
         &[
-            ("di_supro_1695tj_in1_2_v1_5_v2_0_", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL"),
-            ("di_supro_1695tj_in1_2_v1_5_v2_0__300456", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL"),
-            ("di_supro_1695tj_in1_2_v1_5_v2_0__300457", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q"),
-            ("di_supro_1695tj_in1_2_v1_5_v2_0__300458", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL"),
-            ("di_supro_1695tj_in1_2_v1_5_v2_0__300459", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL"),
+            ("t_3_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL"),
+            ("t_6_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL"),
+            ("t_5_p12q", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q"),
+            ("t_4_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL"),
+            ("t_5_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL"),
         ],
     )];
     schema

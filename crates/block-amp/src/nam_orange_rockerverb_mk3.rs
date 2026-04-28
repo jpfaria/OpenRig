@@ -14,8 +14,8 @@ const BRAND: &str = "orange";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("rockerverb_mk3_hi_gain", "Rockerverb MK3 Hi-Gain", "amps/orange_rockerverb_mk3/rockerverb_mk3_hi_gain.nam"),
-    ("rockerverb_mk3_crunch", "Rockerverb MK3 Crunch", "amps/orange_rockerverb_mk3/rockerverb_mk3_crunch.nam"),
+    ("hi_gain", "Rockerverb MK3 Hi-Gain", "amps/orange_rockerverb_mk3/rockerverb_mk3_hi_gain_2.nam"),
+    ("crunch", "Rockerverb MK3 Crunch", "amps/orange_rockerverb_mk3/rockerverb_mk3_crunch_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +24,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("rockerverb_mk3_hi_gain"),
+        Some("hi_gain"),
         &[
-            ("rockerverb_mk3_hi_gain", "Rockerverb MK3 Hi-Gain"),
-            ("rockerverb_mk3_crunch", "Rockerverb MK3 Crunch"),
+            ("hi_gain", "Rockerverb MK3 Hi-Gain"),
+            ("crunch", "Rockerverb MK3 Crunch"),
         ],
     )];
     schema

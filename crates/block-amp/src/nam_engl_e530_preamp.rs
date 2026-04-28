@@ -14,12 +14,12 @@ const BRAND: &str = "engl";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_e530_modern_ts1", "ENGL E530 MODERN TS1", "amps/engl_e530_preamp/engl_e530_modern_ts1.nam"),
-    ("engl_e530_modern", "ENGL E530 MODERN", "amps/engl_e530_preamp/engl_e530_modern.nam"),
-    ("e530_2_di", "E530 2 DI", "amps/engl_e530_preamp/e530_2_di.nam"),
-    ("e530_2_di_ctr", "E530 2 DI CTR", "amps/engl_e530_preamp/e530_2_di_ctr.nam"),
-    ("e530_1_di_ctr", "E530 1 DI CTR", "amps/engl_e530_preamp/e530_1_di_ctr.nam"),
-    ("e530_1", "E530 1", "amps/engl_e530_preamp/e530_1.nam"),
+    ("engl_modern_ts1", "ENGL E530 MODERN TS1", "amps/engl_e530_preamp/engl_e530_modern_ts1_2.nam"),
+    ("engl_modern", "ENGL E530 MODERN", "amps/engl_e530_preamp/engl_e530_modern_2.nam"),
+    ("2_di", "E530 2 DI", "amps/engl_e530_preamp/e530_2_di_2.nam"),
+    ("2_di_ctr", "E530 2 DI CTR", "amps/engl_e530_preamp/e530_2_di_ctr_2.nam"),
+    ("1_di_ctr", "E530 1 DI CTR", "amps/engl_e530_preamp/e530_1_di_ctr_2.nam"),
+    ("1", "E530 1", "amps/engl_e530_preamp/e530_1_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("engl_e530_modern_ts1"),
+        Some("engl_modern_ts1"),
         &[
-            ("engl_e530_modern_ts1", "ENGL E530 MODERN TS1"),
-            ("engl_e530_modern", "ENGL E530 MODERN"),
-            ("e530_2_di", "E530 2 DI"),
-            ("e530_2_di_ctr", "E530 2 DI CTR"),
-            ("e530_1_di_ctr", "E530 1 DI CTR"),
-            ("e530_1", "E530 1"),
+            ("engl_modern_ts1", "ENGL E530 MODERN TS1"),
+            ("engl_modern", "ENGL E530 MODERN"),
+            ("2_di", "E530 2 DI"),
+            ("2_di_ctr", "E530 2 DI CTR"),
+            ("1_di_ctr", "E530 1 DI CTR"),
+            ("1", "E530 1"),
         ],
     )];
     schema

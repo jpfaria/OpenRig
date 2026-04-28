@@ -10,7 +10,7 @@ pub const DISPLAY_NAME: &str = "Recto V30";
 const BRAND: &str = "mesa";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mesa_recto_v30", "MESA RECTO V30", "cabs/mesa_recto_v30/mesa_recto_v30.wav"),
+    ("mesa_recto_v30", "MESA RECTO V30", "cabs/mesa_recto_v30/mesa_recto_v30_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

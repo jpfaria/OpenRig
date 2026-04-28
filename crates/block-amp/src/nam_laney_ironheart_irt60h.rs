@@ -14,11 +14,11 @@ const BRAND: &str = "laney";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("lead_poweramp", "Lead PowerAmp", "amps/laney_ironheart_irt60h/lead_poweramp.nam"),
-    ("lead_preamp", "Lead PreAmp", "amps/laney_ironheart_irt60h/lead_preamp.nam"),
-    ("lead_boosted_poweramp", "Lead Boosted PowerAmp", "amps/laney_ironheart_irt60h/lead_boosted_poweramp.nam"),
-    ("lead_boosted_preamp", "Lead Boosted PreAmp", "amps/laney_ironheart_irt60h/lead_boosted_preamp.nam"),
-    ("laney_irt60_lead_pre_b1_8_m_1_t2", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1", "amps/laney_ironheart_irt60h/laney_irt60_lead_pre_b1_8_m_1_t2_g10_d60_tn1.nam"),
+    ("poweramp", "Lead PowerAmp", "amps/laney_ironheart_irt60h/lead_poweramp_2.nam"),
+    ("preamp", "Lead PreAmp", "amps/laney_ironheart_irt60h/lead_preamp_2.nam"),
+    ("boosted_poweramp", "Lead Boosted PowerAmp", "amps/laney_ironheart_irt60h/lead_boosted_poweramp_2.nam"),
+    ("boosted_preamp", "Lead Boosted PreAmp", "amps/laney_ironheart_irt60h/lead_boosted_preamp_2.nam"),
+    ("laney_irt60_pre_b1_8_m_1_t2_g10_d60_tn1", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1", "amps/laney_ironheart_irt60h/laney_irt60_lead_pre_b1_8_m_1_t2_g10_d60_tn1_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +27,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("lead_poweramp"),
+        Some("poweramp"),
         &[
-            ("lead_poweramp", "Lead PowerAmp"),
-            ("lead_preamp", "Lead PreAmp"),
-            ("lead_boosted_poweramp", "Lead Boosted PowerAmp"),
-            ("lead_boosted_preamp", "Lead Boosted PreAmp"),
-            ("laney_irt60_lead_pre_b1_8_m_1_t2", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1"),
+            ("poweramp", "Lead PowerAmp"),
+            ("preamp", "Lead PreAmp"),
+            ("boosted_poweramp", "Lead Boosted PowerAmp"),
+            ("boosted_preamp", "Lead Boosted PreAmp"),
+            ("laney_irt60_pre_b1_8_m_1_t2_g10_d60_tn1", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1"),
         ],
     )];
     schema

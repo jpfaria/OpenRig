@@ -10,10 +10,10 @@ pub const DISPLAY_NAME: &str = "1960AV 4x12";
 const BRAND: &str = "marshall";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("v7x_dc", "V7X_dc", "cabs/marshall_1960av_4x12/v7x_dc.wav"),
-    ("sc1100_dc", "SC1100_dc", "cabs/marshall_1960av_4x12/sc1100_dc.wav"),
-    ("rb500_dc", "RB500_dc", "cabs/marshall_1960av_4x12/rb500_dc.wav"),
-    ("blendofall_dc", "BlendOfAll_dc", "cabs/marshall_1960av_4x12/blendofall_dc.wav"),
+    ("v7x_dc", "V7X_dc", "cabs/marshall_1960av_4x12/v7x_dc_3.wav"),
+    ("sc1100_dc", "SC1100_dc", "cabs/marshall_1960av_4x12/sc1100_dc_3.wav"),
+    ("rb500_dc", "RB500_dc", "cabs/marshall_1960av_4x12/rb500_dc_3.wav"),
+    ("blendofall_dc", "BlendOfAll_dc", "cabs/marshall_1960av_4x12/blendofall_dc_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

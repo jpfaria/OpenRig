@@ -14,12 +14,12 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mark_iic_hetfield_rhythm", "Mark IIC+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
-    ("mark_iic_fast_lead", "Mark IIC+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
-    ("mark_iic_creamy_lead", "Mark IIC+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
-    ("mark_iic_tight_rhythm", "Mark IIC+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
-    ("mark_iic_phat_rhythm", "Mark IIC+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
-    ("mark_iic_yummy_clean", "Mark IIC+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
+    ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm_2.nam"),
+    ("fast_lead", "Mark IIC+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead_2.nam"),
+    ("creamy_lead", "Mark IIC+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead_2.nam"),
+    ("tight_rhythm", "Mark IIC+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm_2.nam"),
+    ("phat_rhythm", "Mark IIC+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm_2.nam"),
+    ("yummy_clean", "Mark IIC+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +28,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("mark_iic_hetfield_rhythm"),
+        Some("hetfield_rhythm"),
         &[
-            ("mark_iic_hetfield_rhythm", "Mark IIC+ Hetfield Rhythm"),
-            ("mark_iic_fast_lead", "Mark IIC+ Fast Lead"),
-            ("mark_iic_creamy_lead", "Mark IIC+ Creamy Lead"),
-            ("mark_iic_tight_rhythm", "Mark IIC+ Tight Rhythm"),
-            ("mark_iic_phat_rhythm", "Mark IIC+ Phat Rhythm"),
-            ("mark_iic_yummy_clean", "Mark IIC+ Yummy Clean"),
+            ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm"),
+            ("fast_lead", "Mark IIC+ Fast Lead"),
+            ("creamy_lead", "Mark IIC+ Creamy Lead"),
+            ("tight_rhythm", "Mark IIC+ Tight Rhythm"),
+            ("phat_rhythm", "Mark IIC+ Phat Rhythm"),
+            ("yummy_clean", "Mark IIC+ Yummy Clean"),
         ],
     )];
     schema

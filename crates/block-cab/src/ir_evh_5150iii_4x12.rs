@@ -10,14 +10,14 @@ pub const DISPLAY_NAME: &str = "5150III 4x12 G12-EVH";
 const BRAND: &str = "evh";
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("g12_evh_ll_5150iii_4x12_sm57_1_5", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_50in_0_0in_vp28.wav"),
-    ("g12_evh_lr_5150iii_4x12_sm57_1_0", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603.wav"),
-    ("g12_evh_lr_5150iii_4x12_sm57_2_2", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_2_25in_0_0in_vp28.wav"),
-    ("g12_evh_ul_5150iii_4x12_sm57_2_0", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ul_5150iii_4x12_sm57_2_00in_0_0in_oa30_cl7603.wav"),
-    ("g12_evh_ur_5150iii_4x12_sm57_1_5", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_1_50in_0_0in_vp28.wav"),
-    ("g12_evh_ur_5150iii_4x12_sm57_2_2", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_2_25in_0_0in_vp28.wav"),
-    ("g12_evh_ll_5150iii_4x12_sm57_1_0", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603.wav"),
-    ("g12_evh_ll_5150iii_4x12_sm57_1_0_201389", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_cl7603.wav"),
+    ("ll_1_50in_vp28", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
+    ("lr_1_00in_oa30_cl7603", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
+    ("lr_2_25in_vp28", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
+    ("ul_2_00in_oa30_cl7603", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ul_5150iii_4x12_sm57_2_00in_0_0in_oa30_cl7603_3.wav"),
+    ("ur_1_50in_vp28", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
+    ("ur_2_25in_vp28", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
+    ("ll_1_00in_oa30_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
+    ("ll_1_00in_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_cl7603_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,16 +30,16 @@ pub fn model_schema() -> ModelParameterSchema {
             "capture",
             "Capture",
             Some("Cab"),
-            Some("g12_evh_ll_5150iii_4x12_sm57_1_5"),
+            Some("ll_1_50in_vp28"),
             &[
-            ("g12_evh_ll_5150iii_4x12_sm57_1_5", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28"),
-            ("g12_evh_lr_5150iii_4x12_sm57_1_0", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
-            ("g12_evh_lr_5150iii_4x12_sm57_2_2", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28"),
-            ("g12_evh_ul_5150iii_4x12_sm57_2_0", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603"),
-            ("g12_evh_ur_5150iii_4x12_sm57_1_5", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28"),
-            ("g12_evh_ur_5150iii_4x12_sm57_2_2", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28"),
-            ("g12_evh_ll_5150iii_4x12_sm57_1_0", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
-            ("g12_evh_ll_5150iii_4x12_sm57_1_0_201389", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603"),
+            ("ll_1_50in_vp28", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28"),
+            ("lr_1_00in_oa30_cl7603", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
+            ("lr_2_25in_vp28", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28"),
+            ("ul_2_00in_oa30_cl7603", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603"),
+            ("ur_1_50in_vp28", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28"),
+            ("ur_2_25in_vp28", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28"),
+            ("ll_1_00in_oa30_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
+            ("ll_1_00in_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603"),
             ],
         )],
     }

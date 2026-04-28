@@ -14,9 +14,9 @@ const BRAND: &str = "hiwatt";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hiwatt_dr_103_edgy_bridged", "Hiwatt DR 103 Edgy Bridged", "amps/hiwatt_dr103/hiwatt_dr_103_edgy_bridged.nam"),
-    ("hiwatt_dr_103_ts808_archer_klon_", "Hiwatt DR 103 TS808_Archer Klon high gain", "amps/hiwatt_dr103/hiwatt_dr_103_ts808_archer_klon_high_gain.nam"),
-    ("hiwatt_dr103_bridged", "Hiwatt DR103 Bridged", "amps/hiwatt_dr103/hiwatt_dr103_bridged.nam"),
+    ("dr_103_edgy_bridged", "Hiwatt DR 103 Edgy Bridged", "amps/hiwatt_dr103/hiwatt_dr_103_edgy_bridged_2.nam"),
+    ("dr_103_ts808_archer_klon_high_gain", "Hiwatt DR 103 TS808_Archer Klon high gain", "amps/hiwatt_dr103/hiwatt_dr_103_ts808_archer_klon_high_gain_2.nam"),
+    ("dr103_bridged", "Hiwatt DR103 Bridged", "amps/hiwatt_dr103/hiwatt_dr103_bridged_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +25,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("hiwatt_dr_103_edgy_bridged"),
+        Some("dr_103_edgy_bridged"),
         &[
-            ("hiwatt_dr_103_edgy_bridged", "Hiwatt DR 103 Edgy Bridged"),
-            ("hiwatt_dr_103_ts808_archer_klon_", "Hiwatt DR 103 TS808_Archer Klon high gain"),
-            ("hiwatt_dr103_bridged", "Hiwatt DR103 Bridged"),
+            ("dr_103_edgy_bridged", "Hiwatt DR 103 Edgy Bridged"),
+            ("dr_103_ts808_archer_klon_high_gain", "Hiwatt DR 103 TS808_Archer Klon high gain"),
+            ("dr103_bridged", "Hiwatt DR103 Bridged"),
         ],
     )];
     schema

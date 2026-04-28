@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ada_mp_1_3tm_cleanss", "ADA MP-1 3TM CleanSS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss.nam"),
-    ("ada_mp_1_3tm_od2", "ADA MP-1 3TM OD2", "preamp/ada_mp_1/ada_mp_1_3tm_od2.nam"),
-    ("ada_mp_1_3tm_mod1", "ADA MP-1 3TM MOD1", "preamp/ada_mp_1/ada_mp_1_3tm_mod1.nam"),
-    ("ada_mp_1_3tm_od1", "ADA MP-1 3TM OD1", "preamp/ada_mp_1/ada_mp_1_3tm_od1.nam"),
+    ("cleanss", "ADA MP-1 3TM CleanSS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss_2.nam"),
+    ("od2", "ADA MP-1 3TM OD2", "preamp/ada_mp_1/ada_mp_1_3tm_od2_2.nam"),
+    ("mod1", "ADA MP-1 3TM MOD1", "preamp/ada_mp_1/ada_mp_1_3tm_mod1_2.nam"),
+    ("od1", "ADA MP-1 3TM OD1", "preamp/ada_mp_1/ada_mp_1_3tm_od1_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -37,12 +37,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "capture",
         "Capture",
         Some("Amp"),
-        Some("ada_mp_1_3tm_cleanss"),
+        Some("cleanss"),
         &[
-            ("ada_mp_1_3tm_cleanss", "ADA MP-1 3TM CleanSS"),
-            ("ada_mp_1_3tm_od2", "ADA MP-1 3TM OD2"),
-            ("ada_mp_1_3tm_mod1", "ADA MP-1 3TM MOD1"),
-            ("ada_mp_1_3tm_od1", "ADA MP-1 3TM OD1"),
+            ("cleanss", "ADA MP-1 3TM CleanSS"),
+            ("od2", "ADA MP-1 3TM OD2"),
+            ("mod1", "ADA MP-1 3TM MOD1"),
+            ("od1", "ADA MP-1 3TM OD1"),
         ],
     )];
     schema
