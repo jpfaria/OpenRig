@@ -13,14 +13,16 @@ const BRAND: &str = "splawn";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 7 voicings on Quickrod's gain channels — varying gain step
+// (3/5), mids (3/5), and HG/HGt modes. Sparse — does not decompose cleanly.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("splawn_hg3g7m_mids5", "HG3G7M mids5", "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
-    ("splawn5g7m_mids_5", "5G7M mids 5", "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
-    ("splawn_hg5g7m_mids5", "HG5G7M mids5", "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
-    ("splawn3g7m_mids_3", "3G7M mids 3", "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
-    ("splawn3g7m_mids_5", "3G7M mids 5", "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
-    ("splawnhgt5g7m", "HGt5G7M", "amps/splawn_quickrod/splawnhgt5g7m.nam"),
-    ("splawnhgt3g7m", "HGt3G7M", "amps/splawn_quickrod/splawnhgt3g7m.nam"),
+    ("g3_mids3",     "G3 Mids3",     "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
+    ("g3_mids5",     "G3 Mids5",     "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
+    ("g5_mids5",     "G5 Mids5",     "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
+    ("hg_g3_mids5",  "HG G3 Mids5",  "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
+    ("hg_g5_mids5",  "HG G5 Mids5",  "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
+    ("hgt_g3",       "HGt G3",       "amps/splawn_quickrod/splawnhgt3g7m.nam"),
+    ("hgt_g5",       "HGt G5",       "amps/splawn_quickrod/splawnhgt5g7m.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -29,16 +31,15 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("splawn_hg3g7m_mids5"),
+        Some("g3_mids3"),
         &[
-            ("splawn_hg3g7m_mids5", "HG3G7M mids5"),
-            ("splawn5g7m_mids_5", "5G7M mids 5"),
-            ("splawn_hg5g7m_mids5", "HG5G7M mids5"),
-            ("splawn3g7m_mids_3", "3G7M mids 3"),
-            ("splawn3g7m_mids_5", "3G7M mids 5"),
-            ("splawnhgt5g7m", "HGt5G7M"),
-            ("splawnhgt3g7m", "HGt3G7M"),
-        
+            ("g3_mids3",     "G3 Mids3"),
+            ("g3_mids5",     "G3 Mids5"),
+            ("g5_mids5",     "G5 Mids5"),
+            ("hg_g3_mids5",  "HG G3 Mids5"),
+            ("hg_g5_mids5",  "HG G5 Mids5"),
+            ("hgt_g3",       "HGt G3"),
+            ("hgt_g5",       "HGt G5"),
         ],
     )];
     schema
