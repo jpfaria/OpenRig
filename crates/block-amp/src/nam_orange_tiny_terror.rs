@@ -13,8 +13,9 @@ const BRAND: &str = "orange";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: model-track reference capture.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("tiny_terror_model_track", "model track", "amps/orange_tiny_terror/tiny_terror_model_track.nam"),
+    ("model_track", "Model Track", "amps/orange_tiny_terror/tiny_terror_model_track.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("tiny_terror_model_track"),
+        Some("model_track"),
         &[
-            ("tiny_terror_model_track", "model track"),
-        
+            ("model_track", "Model Track"),
         ],
     )];
     schema
