@@ -13,31 +13,44 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × volume.
+// Channels: Normal, Treble, Blend (jumped Normal+Treble).
+// Volume value (5 / 10) corresponds to the original front-panel knob.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("blend_treb5_norm5_jtm45_t5n5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb5_norm5_jtm45_t5n5.nam"),
-    ("normal10_jtm45_n10", "Marshall JTM45/JTM45 Normal10/JTM45 N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal10_jtm45_n10.nam"),
-    ("normal5_jtm45_n5", "Marshall JTM45/JTM45 Normal5/JTM45 N5", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal5_jtm45_n5.nam"),
-    ("treble5_jtm45_t5", "Marshall JTM45/JTM45 Treble5/JTM45 T5", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble5_jtm45_t5.nam"),
-    ("blend_treb10_norm10_jtm45_t10n10", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb10_norm10_jtm45_t10n10.nam"),
-    ("treble10_jtm45_t10", "Marshall JTM45/JTM45 Treble10/JTM45 T10", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble10_jtm45_t10.nam"),
+    // (channel, volume, file)
+    ("normal", "5",  "amps/marshall_jtm45/marshall_jtm45_jtm45_normal5_jtm45_n5.nam"),
+    ("normal", "10", "amps/marshall_jtm45/marshall_jtm45_jtm45_normal10_jtm45_n10.nam"),
+    ("treble", "5",  "amps/marshall_jtm45/marshall_jtm45_jtm45_treble5_jtm45_t5.nam"),
+    ("treble", "10", "amps/marshall_jtm45/marshall_jtm45_jtm45_treble10_jtm45_t10.nam"),
+    ("blend",  "5",  "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb5_norm5_jtm45_t5n5.nam"),
+    ("blend",  "10", "amps/marshall_jtm45/marshall_jtm45_jtm45_blend_treb10_norm10_jtm45_t10n10.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("blend_treb5_norm5_jtm45_t5n5"),
-        &[
-            ("blend_treb5_norm5_jtm45_t5n5", "Marshall JTM45/JTM45 BLEND Treb5 Norm5/JTM45 T5N5"),
-            ("normal10_jtm45_n10", "Marshall JTM45/JTM45 Normal10/JTM45 N10"),
-            ("normal5_jtm45_n5", "Marshall JTM45/JTM45 Normal5/JTM45 N5"),
-            ("treble5_jtm45_t5", "Marshall JTM45/JTM45 Treble5/JTM45 T5"),
-            ("blend_treb10_norm10_jtm45_t10n10", "Marshall JTM45/JTM45 BLEND Treb10 Norm10/JTM45 T10N10"),
-            ("treble10_jtm45_t10", "Marshall JTM45/JTM45 Treble10/JTM45 T10"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("blend"),
+            &[
+                ("normal", "Normal"),
+                ("treble", "Treble"),
+                ("blend",  "Blend"),
+            ],
+        ),
+        enum_parameter(
+            "volume",
+            "Volume",
+            Some("Amp"),
+            Some("5"),
+            &[
+                ("5",  "5"),
+                ("10", "10"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +70,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let volume = required_string(params, "volume").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, v, _)| *c == channel && *v == volume)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} volume={}",
+                MODEL_ID, channel, volume
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
