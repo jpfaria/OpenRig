@@ -13,35 +13,51 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × take.
+// Mirrors the Mark IV captures alternative path; same source pack.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("kdm_slammin_mkiv_28_tight_iic_rhythm_1", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S", "amps/mesa_mark_iv/kdm_slammin_mkiv_28_tight_iic_rhythm_1_s.nam"),
-    ("kdm_slammin_mkiv_31_fat_iic_rhythm_1", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S", "amps/mesa_mark_iv/kdm_slammin_mkiv_31_fat_iic_rhythm_1_s.nam"),
-    ("kdm_slammin_mkiv_37_metallica_85_notes", "KDM-Slammin_MKIV_37 Metallica '85 Notes S", "amps/mesa_mark_iv/kdm_slammin_mkiv_37_metallica_85_notes_s.nam"),
-    ("kdm_slammin_mkiv_29_tight_iic_rhythm_2", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S", "amps/mesa_mark_iv/kdm_slammin_mkiv_29_tight_iic_rhythm_2_s.nam"),
-    ("kdm_slammin_mkiv_32_fat_iic_rhythm_2", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S", "amps/mesa_mark_iv/kdm_slammin_mkiv_32_fat_iic_rhythm_2_s.nam"),
-    ("kdm_slammin_mkiv_39_metallica_tba", "KDM-Slammin_MKIV_39 Metallica TBA  S", "amps/mesa_mark_iv/kdm_slammin_mkiv_39_metallica_tba_s.nam"),
-    ("kdm_slammin_mkiv_34_petrucci_mark_iv_cru", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S", "amps/mesa_mark_iv/kdm_slammin_mkiv_34_petrucci_mark_iv_crunch_s.nam"),
-    ("kdm_slammin_mkiv_41_log_sacrament", "KDM-Slammin_MKIV_41 LOG Sacrament S", "amps/mesa_mark_iv/kdm_slammin_mkiv_41_log_sacrament_s.nam"),
+    // (voicing, take, file)
+    ("tight_iic",      "rhythm_1", "amps/mesa_mark_iv/kdm_slammin_mkiv_28_tight_iic_rhythm_1_s.nam"),
+    ("tight_iic",      "rhythm_2", "amps/mesa_mark_iv/kdm_slammin_mkiv_29_tight_iic_rhythm_2_s.nam"),
+    ("fat_iic",        "rhythm_1", "amps/mesa_mark_iv/kdm_slammin_mkiv_31_fat_iic_rhythm_1_s.nam"),
+    ("fat_iic",        "rhythm_2", "amps/mesa_mark_iv/kdm_slammin_mkiv_32_fat_iic_rhythm_2_s.nam"),
+    ("petrucci",       "crunch",   "amps/mesa_mark_iv/kdm_slammin_mkiv_34_petrucci_mark_iv_crunch_s.nam"),
+    ("metallica_85",   "notes",    "amps/mesa_mark_iv/kdm_slammin_mkiv_37_metallica_85_notes_s.nam"),
+    ("metallica_tba",  "default",  "amps/mesa_mark_iv/kdm_slammin_mkiv_39_metallica_tba_s.nam"),
+    ("log_sacrament",  "default",  "amps/mesa_mark_iv/kdm_slammin_mkiv_41_log_sacrament_s.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("kdm_slammin_mkiv_28_tight_iic_rhythm_1"),
-        &[
-            ("kdm_slammin_mkiv_28_tight_iic_rhythm_1", "KDM-Slammin_MKIV_28 Tight IIC+ Rhythm 1 S"),
-            ("kdm_slammin_mkiv_31_fat_iic_rhythm_1", "KDM-Slammin_MKIV_31 Fat IIC+ Rhythm 1  S"),
-            ("kdm_slammin_mkiv_37_metallica_85_notes", "KDM-Slammin_MKIV_37 Metallica '85 Notes S"),
-            ("kdm_slammin_mkiv_29_tight_iic_rhythm_2", "KDM-Slammin_MKIV_29 Tight IIC+ Rhythm 2  S"),
-            ("kdm_slammin_mkiv_32_fat_iic_rhythm_2", "KDM-Slammin_MKIV_32 Fat IIC+ Rhythm 2  S"),
-            ("kdm_slammin_mkiv_39_metallica_tba", "KDM-Slammin_MKIV_39 Metallica TBA  S"),
-            ("kdm_slammin_mkiv_34_petrucci_mark_iv_cru", "KDM-Slammin_MKIV_34 Petrucci Mark IV Crunch S"),
-            ("kdm_slammin_mkiv_41_log_sacrament", "KDM-Slammin_MKIV_41 LOG Sacrament S"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("tight_iic"),
+            &[
+                ("tight_iic",     "Tight IIC+"),
+                ("fat_iic",       "Fat IIC+"),
+                ("petrucci",      "Petrucci"),
+                ("metallica_85",  "Metallica '85"),
+                ("metallica_tba", "Metallica TBA"),
+                ("log_sacrament", "LOG Sacrament"),
+            ],
+        ),
+        enum_parameter(
+            "take",
+            "Take",
+            Some("Amp"),
+            Some("rhythm_1"),
+            &[
+                ("rhythm_1", "Rhythm 1"),
+                ("rhythm_2", "Rhythm 2"),
+                ("crunch",   "Crunch"),
+                ("notes",    "Notes"),
+                ("default",  "Default"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +77,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let take = required_string(params, "take").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, t, _)| *v == voicing && *t == take)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} take={}",
+                MODEL_ID, voicing, take
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
