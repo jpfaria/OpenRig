@@ -430,6 +430,16 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
 
     bucket = "amps" if kind == "amp" else "preamp"
     captures_dir = repo_root / "captures" / "nam" / bucket / slug
+
+    # Skip if a previous run already produced captures for this slug — re-running
+    # the pipeline must NOT pollute the directory with `_2.nam` duplicates. To
+    # re-import, delete the directory and the matching .rs file first.
+    rs_crate = "block-amp" if kind == "amp" else "block-preamp"
+    rs_existing = repo_root / "crates" / rs_crate / "src" / f"nam_{slug}.rs"
+    if captures_dir.exists() and any(captures_dir.glob("*.nam")) and rs_existing.exists():
+        print(f"  ↷ already imported (captures dir + .rs exist) — skipping")
+        return {"skipped": True, "reason": "already imported"}
+
     captures_dir.mkdir(parents=True, exist_ok=True)
 
     capture_entries: list[tuple[str, str, str]] = []

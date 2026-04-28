@@ -212,8 +212,8 @@ Parsing em `adapter-gui/src/{main,lib}.rs`. Auto-save em `sync_project_dirty()`.
 
 | Tipo | O que faz | Total | Modelos (resumo) |
 |------|-----------|-------|-----------------|
-| **Preamp** | Pré-amp, gain, EQ | 26 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Thunder 50, '57 Champ/Deluxe, Frontman 15G, PA100, Bantamp Meteor, AVT50H, YJM100, Mark III, Micro Terror, Shaman, Classic 30, MIG-100, VX Kraken, MIG-50, 22 Caliber, Blues Baby 22, Fly, Multitone 50, L2, Lunchbox Jr (NAM) |
-| **Amp** | Preamp + power amp + cab | 29 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100, Marshall JCM800/JVM/JMP-1, Mesa Mark V/Rectifier, Peavey 5150, Ampeg SVT, Fender Bassman/Deluxe Reverb/Super Reverb, Roland JC-120B, Vox AC30/Fawn (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
+| **Preamp** | Pré-amp, gain, EQ | 31 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Thunder 50, '57 Champ/Deluxe, Frontman 15G, PA100, Bantamp Meteor, AVT50H, YJM100, Mark III, Micro Terror, Shaman, Classic 30, MIG-100, VX Kraken, MIG-50, 22 Caliber, Blues Baby 22, Fly, Multitone 50, L2, Lunchbox Jr, ADA MP-1, Mesa Triaxis, Marshall JMP-1, ENGL E530, Mesa Studio Preamp (NAM, #345) |
+| **Amp** | Preamp + power amp + cab | 57 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva/Uberschall/Helios/Goldfinger, Dumble ODS, EVH 5150, Friedman BE100/BE-50/Dirty Shirley, Marshall JCM800/JVM/JMP-1/Plexi/Super Lead/JCM2000 TSL/JCM2000 DSL, Mesa Mark V/Rectifier/Mark IV/Triple Rectifier, Peavey 5150, Ampeg SVT, Fender Bassman/Deluxe Reverb/Super Reverb/Hot Rod Deluxe/Twin Reverb/Princeton Reverb/Blues Junior, Roland JC-120B, Vox AC30/Fawn/AC15, Diezel Herbert/Hagen, ENGL Ironball/Powerball/Fireball, Orange OR15/Rockerverb/Tiny Terror, PRS Archon, Tone King Imperial, Driftwood Purple Nightmare, Splawn Quickrod (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
 | **Cab** | Caixa/falante | 17 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream, Fender Deluxe, Greenback, G12T-75, Marshall 4x12 V30, Mesa OS/Standard 4x12, Roland JC-120, Vox AC30 Blue, Vox AC50 (IR); GxUltraCab (LV2) |
 | **Gain** | Overdrive, distortion, fuzz, boost | 91 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS, OJD, Wolf Shaper, MDA (LV2) |
 | **Delay** | Eco | 14 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage (native); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay (LV2) |
@@ -227,7 +227,7 @@ Parsing em `adapter-gui/src/{main,lib}.rs`. Auto-save em `sync_project_dirty()`.
 | **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, generic_nam |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
 
-**Total: 360+ modelos em 16 tipos (5 backends: Native 33, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 393+ modelos em 16 tipos (5 backends: Native 33, NAM 122, IR 127, LV2 105, VST3 6).**
 
 `Utility` está vazio (Tuner e Spectrum viraram features de toolbar). `Full Rig` reservado para futuras capturas com cadeia completa.
 
