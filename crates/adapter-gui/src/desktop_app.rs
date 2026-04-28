@@ -27,17 +27,14 @@ use crate::audio_devices::{
 use crate::project_ops::{
     load_and_sync_app_config, recent_project_items, resolve_project_paths,
 };
-use crate::project_view::block_type_picker_items;
 use crate::state::{
     AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft,
     IoBlockInsertDraft, ProjectSession, SelectedBlock,
 };
 use crate::{
-    latency_probe, AppWindow, BlockEditorWindow, BlockModelPickerItem,
-    BlockParameterItem, ChainEditorWindow, ChainInputGroupsWindow,
+    latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInputGroupsWindow,
     ChainInputWindow, ChainInsertWindow, ChainOutputGroupsWindow, ChainOutputWindow,
-    ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
-    MultiSliderPoint, PluginInfoWindow, ProjectChainItem, ProjectSettingsWindow,
+    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectChainItem, ProjectSettingsWindow,
     SpectrumWindow, TunerWindow,
 };
 
@@ -234,15 +231,16 @@ pub fn run_desktop_app(
     window.set_chain_draft_name("".into());
     project_settings_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
-    let block_type_options = Rc::new(VecModel::from(block_type_picker_items(block_core::INST_GENERIC)));
-    let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
-    let filtered_block_model_options =
-        Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
-    let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
-    let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
-    let multi_slider_points = Rc::new(VecModel::from(Vec::<MultiSliderPoint>::new()));
-    let curve_editor_points = Rc::new(VecModel::from(Vec::<CurveEditorPoint>::new()));
-    let eq_band_curves = Rc::new(VecModel::from(Vec::<SharedString>::new()));
+    let crate::desktop_app_block_models::BlockEditorModels {
+        block_type_options,
+        block_model_options,
+        filtered_block_model_options,
+        block_model_option_labels,
+        block_parameter_items,
+        multi_slider_points,
+        curve_editor_points,
+        eq_band_curves,
+    } = crate::desktop_app_block_models::init(&window, &block_editor_window);
     let block_editor_persist_timer = Rc::new(Timer::default());
     let toast_timer = Rc::new(Timer::default());
     window.set_toast_message("".into());
@@ -256,31 +254,6 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
-    window.set_block_type_options(ModelRc::from(block_type_options.clone()));
-    window.set_block_model_options(ModelRc::from(block_model_options.clone()));
-    window.set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
-    window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
-    window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
-    window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
-    window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
-    window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
-    block_editor_window.set_block_type_options(ModelRc::from(block_type_options.clone()));
-    block_editor_window.set_block_model_options(ModelRc::from(block_model_options.clone()));
-    block_editor_window
-        .set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
-    block_editor_window
-        .set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
-    block_editor_window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
-    block_editor_window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
-    block_editor_window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
-    block_editor_window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
-    block_editor_window.set_block_drawer_title("".into());
-    block_editor_window.set_block_drawer_confirm_label("Adicionar".into());
-    block_editor_window.set_block_drawer_status_message("".into());
-    block_editor_window.set_block_drawer_edit_mode(false);
-    block_editor_window.set_block_drawer_selected_type_index(-1);
-    block_editor_window.set_block_drawer_selected_model_index(-1);
-    block_editor_window.set_block_drawer_enabled(true);
     // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
     crate::block_editor_window_wiring::wire(
         &window,

@@ -89,6 +89,7 @@ const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
 mod desktop_app;
 mod desktop_app_polling;
 mod desktop_app_cli_open;
+mod desktop_app_block_models;
 pub use desktop_app::run_desktop_app;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
