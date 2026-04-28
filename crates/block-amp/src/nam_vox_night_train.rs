@@ -13,9 +13,10 @@ const BRAND: &str = "vox";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 NT15H voicings boosted by TS9 (Boost ch and Overdrive ch low gain).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("overdrive_low_boosted", "NT15H Overdrive TS9 Low Boosted", "amps/vox_night_train/vox_night_train_nt15h_overdrive_ts9_low_boosted.nam"),
-    ("boost", "NT15H Boost TS9", "amps/vox_night_train/vox_night_train_nt15h_boost_ts9.nam"),
+    ("boost_ts9",         "Boost + TS9",          "amps/vox_night_train/vox_night_train_nt15h_boost_ts9.nam"),
+    ("od_low_ts9",        "OD Low + TS9",         "amps/vox_night_train/vox_night_train_nt15h_overdrive_ts9_low_boosted.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,11 +25,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("overdrive_low_boosted"),
+        Some("boost_ts9"),
         &[
-            ("overdrive_low_boosted", "NT15H Overdrive TS9 Low Boosted"),
-            ("boost", "NT15H Boost TS9"),
-        
+            ("boost_ts9",  "Boost + TS9"),
+            ("od_low_ts9", "OD Low + TS9"),
         ],
     )];
     schema
