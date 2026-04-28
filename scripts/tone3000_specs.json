@@ -1,0 +1,50 @@
+[
+  {"make":"Fender Hot Rod Deluxe","kind":"amp","slug":"fender_hot_rod_deluxe","display":"Hot Rod Deluxe","brand":"fender","tone_ids":[6023]},
+  {"make":"Fender Twin Reverb","kind":"amp","slug":"fender_twin_reverb","display":"Twin Reverb","brand":"fender","tone_ids":[246]},
+  {"make":"Fender Princeton Reverb","kind":"amp","slug":"fender_princeton_reverb","display":"Princeton Reverb",  "brand":"fender","tone_ids":[42319]},
+  {"make":"Fender Blues Junior","kind":"amp","slug":"fender_blues_junior","display":"Blues Junior","brand":"fender","tone_ids":[27135]},
+
+  {"make":"Marshall Plexi","kind":"amp","slug":"marshall_plexi","display":"Plexi","brand":"marshall","tone_ids":[2717]},
+  {"make":"Marshall Super Lead","kind":"amp","slug":"marshall_super_lead","display":"Super Lead","brand":"marshall","tone_ids":[1058]},
+  {"make":"Marshall JCM2000","kind":"amp","slug":"marshall_jcm2000_tsl","display":"JCM2000 TSL","brand":"marshall","tone_ids":[5769]},
+  {"make":"Marshall JCM2000","kind":"amp","slug":"marshall_jcm2000_dsl","display":"JCM2000 DSL","brand":"marshall","tone_ids":[1895]},
+  {"make":"Marshall Silver Jubilee","kind":"amp","slug":"marshall_silver_jubilee","display":"Silver Jubilee","brand":"marshall"},
+
+  {"make":"VOX AC15","kind":"amp","slug":"vox_ac15","display":"AC15","brand":"vox","tone_ids":[1080]},
+
+  {"make":"Mesa Boogie Mark IV","kind":"amp","slug":"mesa_mark_iv","display":"Mark IV","brand":"mesa","tone_ids":[6405,6406]},
+  {"make":"Mesa Boogie Triple Rectifier","kind":"amp","slug":"mesa_triple_rectifier","display":"Triple Rectifier","brand":"mesa","tone_ids":[52642],"max_captures":12},
+  {"make":"Mesa Boogie Lone Star","kind":"amp","slug":"mesa_lone_star","display":"Lone Star","brand":"mesa"},
+
+  {"make":"Bogner Uberschall","kind":"amp","slug":"bogner_uberschall","display":"Uberschall","brand":"bogner","tone_ids":[1628],"max_captures":10},
+  {"make":"Bogner Helios","kind":"amp","slug":"bogner_helios","display":"Helios","brand":"bogner","tone_ids":[6304]},
+  {"make":"Bogner Goldfinger","kind":"amp","slug":"bogner_goldfinger","display":"Goldfinger","brand":"bogner","tone_ids":[35435]},
+
+  {"make":"Diezel Herbert","kind":"amp","slug":"diezel_herbert","display":"Herbert","brand":"diezel","tone_ids":[28241]},
+  {"make":"Diezel Hagen","kind":"amp","slug":"diezel_hagen","display":"Hagen","brand":"diezel","tone_ids":[36683]},
+
+  {"make":"PRS Archon","kind":"amp","slug":"prs_archon","display":"Archon","brand":"prs","tone_ids":[30381],"max_captures":12},
+
+  {"make":"ENGL Ironball","kind":"amp","slug":"engl_ironball","display":"Ironball","brand":"engl","tone_ids":[30522]},
+  {"make":"ENGL Powerball","kind":"amp","slug":"engl_powerball","display":"Powerball","brand":"engl","tone_ids":[29603]},
+  {"make":"ENGL Fireball","kind":"amp","slug":"engl_fireball","display":"Fireball","brand":"engl","tone_ids":[2214]},
+
+  {"make":"Orange OR15","kind":"amp","slug":"orange_or15","display":"OR15","brand":"orange","tone_ids":[6624]},
+  {"make":"Orange Rockerverb","kind":"amp","slug":"orange_rockerverb","display":"Rockerverb","brand":"orange","tone_ids":[1844]},
+  {"make":"Orange Tiny Terror","kind":"amp","slug":"orange_tiny_terror","display":"Tiny Terror","brand":"orange","tone_ids":[36288]},
+
+  {"make":"Friedman Dirty Shirley","kind":"amp","slug":"friedman_dirty_shirley","display":"Dirty Shirley","brand":"friedman","tone_ids":[32259]},
+  {"make":"Friedman BE-50","kind":"amp","slug":"friedman_be_50","display":"BE-50","brand":"friedman","tone_ids":[4665]},
+
+  {"make":"Tone King Imperial","kind":"amp","slug":"tone_king_imperial","display":"Imperial","brand":"tone_king","tone_ids":[190]},
+
+  {"make":"Driftwood Purple Nightmare","kind":"amp","slug":"driftwood_purple_nightmare","display":"Purple Nightmare","brand":"driftwood","tone_ids":[61258]},
+
+  {"make":"Splawn Quickrod","kind":"amp","slug":"splawn_quickrod","display":"Quickrod","brand":"splawn","tone_ids":[5169]},
+
+  {"make":"ADA MP-1","kind":"preamp","slug":"ada_mp_1","display":"MP-1","brand":"ada","tone_ids":[6463]},
+  {"make":"Mesa Boogie Triaxis","kind":"preamp","slug":"mesa_triaxis","display":"Triaxis","brand":"mesa","tone_ids":[45358]},
+  {"make":"Marshall JMP-1","kind":"preamp","slug":"marshall_jmp1","display":"JMP-1","brand":"marshall","tone_ids":[45918]},
+  {"make":"ENGL E530","kind":"preamp","slug":"engl_e530","display":"E530","brand":"engl","tone_ids":[43]},
+  {"make":"Mesa Boogie Studio Preamp","kind":"preamp","slug":"mesa_studio_preamp","display":"Studio Preamp","brand":"mesa","tone_ids":[5944]}
+]
