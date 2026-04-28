@@ -13,35 +13,47 @@ const BRAND: &str = "friedman";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × mic.
+// Voicings: Mesa 4x12 V.Pres @5, Marshall 4x12 N.Pres @5, Marshall Hotrod.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pow_fman_jose_mes4x12_v_pres_pres_5_blen", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_blend_1.nam"),
-    ("pow_fman_jose_mes4x12_v_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_sm57.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_sm57.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_di", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - DI", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_di.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_blen", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_blend_1.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #1", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_1.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen_336414", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #3", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_3.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_sm57", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - SM57", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_sm57.nam"),
+    // (voicing, mic, file)
+    ("mesa_v_pres",   "sm57",   "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_sm57.nam"),
+    ("mesa_v_pres",   "blend1", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_blend_1.nam"),
+    ("mar_n_pres",    "sm57",   "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_sm57.nam"),
+    ("mar_n_pres",    "di",     "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_di.nam"),
+    ("mar_n_pres",    "blend1", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_blend_1.nam"),
+    ("mar_hotrod",    "sm57",   "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_sm57.nam"),
+    ("mar_hotrod",    "blend1", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_1.nam"),
+    ("mar_hotrod",    "blend3", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("pow_fman_jose_mes4x12_v_pres_pres_5_blen"),
-        &[
-            ("pow_fman_jose_mes4x12_v_pres_pres_5_blen", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - BLEND #1"),
-            ("pow_fman_jose_mes4x12_v_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - SM57"),
-            ("pow_fman_jose_mar4x12_n_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - SM57"),
-            ("pow_fman_jose_mar4x12_n_pres_pres_5_di", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - DI"),
-            ("pow_fman_jose_mar4x12_n_pres_pres_5_blen", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - BLEND #1"),
-            ("amp_fman_jose_mar4x12_n_pres_hotrod_blen", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #1"),
-            ("amp_fman_jose_mar4x12_n_pres_hotrod_blen_336414", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #3"),
-            ("amp_fman_jose_mar4x12_n_pres_hotrod_sm57", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - SM57"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("mar_n_pres"),
+            &[
+                ("mesa_v_pres", "Mesa 4x12 V.Pres"),
+                ("mar_n_pres",  "Marshall 4x12 N.Pres"),
+                ("mar_hotrod",  "Marshall Hotrod"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Amp"),
+            Some("sm57"),
+            &[
+                ("sm57",   "SM57"),
+                ("di",     "DI (No Cab)"),
+                ("blend1", "Blend #1"),
+                ("blend3", "Blend #3"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +73,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, m, _)| *v == voicing && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} mic={}",
+                MODEL_ID, voicing, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
