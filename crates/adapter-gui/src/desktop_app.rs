@@ -22,8 +22,7 @@ use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 use crate::audio_devices::{
-    build_project_device_rows, default_device_settings, mark_unselected_devices,
-    normalize_device_settings,
+    build_device_selection_items, build_project_device_rows, mark_unselected_devices,
 };
 use crate::project_ops::{
     load_and_sync_app_config, recent_project_items, resolve_project_paths,
@@ -37,7 +36,7 @@ use crate::{
     latency_probe, AppWindow, BlockEditorWindow, BlockModelPickerItem,
     BlockParameterItem, ChainEditorWindow, ChainInputGroupsWindow,
     ChainInputWindow, ChainInsertWindow, ChainOutputGroupsWindow, ChainOutputWindow,
-    ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint, DeviceSelectionItem,
+    ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
     MultiSliderPoint, PluginInfoWindow, ProjectChainItem, ProjectSettingsWindow,
     SpectrumWindow, TunerWindow,
 };
@@ -160,57 +159,15 @@ pub fn run_desktop_app(
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
-    let input_devices = Rc::new(VecModel::from(
-        input_chain_devices
-            .borrow()
-            .iter()
-            .map(|device| {
-                let device_id = device.id.clone();
-                let name = device.name.clone();
-                let config = settings
-                    .input_devices
-                    .iter()
-                    .find(|saved| saved.device_id == device_id)
-                    .cloned()
-                    .map(normalize_device_settings)
-                    .unwrap_or_else(|| default_device_settings(device_id.clone(), name.clone()));
-                DeviceSelectionItem {
-                    device_id: config.device_id.into(),
-                    name: config.name.into(),
-                    selected: true,
-                    sample_rate_text: config.sample_rate.to_string().into(),
-                    buffer_size_text: config.buffer_size_frames.to_string().into(),
-                    bit_depth_text: config.bit_depth.to_string().into(),
-                }
-            })
-            .collect::<Vec<_>>(),
-    ));
+    let input_devices = Rc::new(VecModel::from(build_device_selection_items(
+        &*input_chain_devices.borrow(),
+        &settings.input_devices,
+    )));
     mark_unselected_devices(&input_devices, &settings.input_devices);
-    let output_devices = Rc::new(VecModel::from(
-        output_chain_devices
-            .borrow()
-            .iter()
-            .map(|device| {
-                let device_id = device.id.clone();
-                let name = device.name.clone();
-                let config = settings
-                    .output_devices
-                    .iter()
-                    .find(|saved| saved.device_id == device_id)
-                    .cloned()
-                    .map(normalize_device_settings)
-                    .unwrap_or_else(|| default_device_settings(device_id.clone(), name.clone()));
-                DeviceSelectionItem {
-                    device_id: config.device_id.into(),
-                    name: config.name.into(),
-                    selected: true,
-                    sample_rate_text: config.sample_rate.to_string().into(),
-                    buffer_size_text: config.buffer_size_frames.to_string().into(),
-                    bit_depth_text: config.bit_depth.to_string().into(),
-                }
-            })
-            .collect::<Vec<_>>(),
-    ));
+    let output_devices = Rc::new(VecModel::from(build_device_selection_items(
+        &*output_chain_devices.borrow(),
+        &settings.output_devices,
+    )));
     mark_unselected_devices(&output_devices, &settings.output_devices);
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
         &*input_chain_devices.borrow(),
