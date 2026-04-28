@@ -23,36 +23,46 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("08_lead_g9", "AP 08 Imperial Lead G9", "preamp/tone_king_imperial_preamp/ap_08_imperial_lead_g9.nam"),
-    ("03_clean_g7", "AP 03 Imperial Clean G7", "preamp/tone_king_imperial_preamp/ap_03_imperial_clean_g7.nam"),
-    ("07_lead_g7", "AP 07 Imperial Lead G7", "preamp/tone_king_imperial_preamp/ap_07_imperial_lead_g7.nam"),
-    ("01_clean_g3", "AP 01 Imperial Clean G3", "preamp/tone_king_imperial_preamp/ap_01_imperial_clean_g3.nam"),
-    ("04_clean_g9", "AP 04 Imperial Clean G9", "preamp/tone_king_imperial_preamp/ap_04_imperial_clean_g9.nam"),
-    ("02_clean_g5", "AP 02  Imperial Clean G5", "preamp/tone_king_imperial_preamp/ap_02_imperial_clean_g5.nam"),
-    ("06_lead_g5", "AP 06 Imperial Lead G5", "preamp/tone_king_imperial_preamp/ap_06_imperial_lead_g5.nam"),
-    ("05_lead_g3", "AP 05 Imperial Lead G3", "preamp/tone_king_imperial_preamp/ap_05_imperial_lead_g3.nam"),
+// 2-axis preset pack: channel (clean/lead) × gain step (3/5/7/9). Full 4x2 grid.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (channel, gain, _, file)
+    ("clean", "3", "", "preamp/tone_king_imperial_preamp/ap_01_imperial_clean_g3.nam"),
+    ("clean", "5", "", "preamp/tone_king_imperial_preamp/ap_02_imperial_clean_g5.nam"),
+    ("clean", "7", "", "preamp/tone_king_imperial_preamp/ap_03_imperial_clean_g7.nam"),
+    ("clean", "9", "", "preamp/tone_king_imperial_preamp/ap_04_imperial_clean_g9.nam"),
+    ("lead",  "3", "", "preamp/tone_king_imperial_preamp/ap_05_imperial_lead_g3.nam"),
+    ("lead",  "5", "", "preamp/tone_king_imperial_preamp/ap_06_imperial_lead_g5.nam"),
+    ("lead",  "7", "", "preamp/tone_king_imperial_preamp/ap_07_imperial_lead_g7.nam"),
+    ("lead",  "9", "", "preamp/tone_king_imperial_preamp/ap_08_imperial_lead_g9.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("08_lead_g9"),
-        &[
-            ("08_lead_g9", "AP 08 Imperial Lead G9"),
-            ("03_clean_g7", "AP 03 Imperial Clean G7"),
-            ("07_lead_g7", "AP 07 Imperial Lead G7"),
-            ("01_clean_g3", "AP 01 Imperial Clean G3"),
-            ("04_clean_g9", "AP 04 Imperial Clean G9"),
-            ("02_clean_g5", "AP 02  Imperial Clean G5"),
-            ("06_lead_g5", "AP 06 Imperial Lead G5"),
-            ("05_lead_g3", "AP 05 Imperial Lead G3"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean", "Clean"),
+                ("lead",  "Lead"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("5"),
+            &[
+                ("3", "3"),
+                ("5", "5"),
+                ("7", "7"),
+                ("9", "9"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -68,12 +78,16 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(c, g, _, _)| *c == channel && *g == gain)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| anyhow!(
+            "preamp '{}' has no capture for channel='{}' gain='{}'",
+            MODEL_ID, channel, gain
+        ))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
