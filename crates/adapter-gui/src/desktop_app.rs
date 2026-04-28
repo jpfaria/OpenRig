@@ -15,17 +15,17 @@
 use anyhow::{anyhow, Result};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::FilesystemStorage;
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 use crate::audio_devices::{
-    build_device_selection_items, build_project_device_rows, mark_unselected_devices,
+    build_device_selection_items, mark_unselected_devices,
 };
 use crate::project_ops::{
-    load_and_sync_app_config, recent_project_items, resolve_project_paths,
+    load_and_sync_app_config, resolve_project_paths,
 };
 use crate::state::{
     AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft,
@@ -34,7 +34,7 @@ use crate::state::{
 use crate::{
     latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInputGroupsWindow,
     ChainInputWindow, ChainInsertWindow, ChainOutputGroupsWindow, ChainOutputWindow,
-    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectChainItem, ProjectSettingsWindow,
+    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow,
     SpectrumWindow, TunerWindow,
 };
 
@@ -132,30 +132,6 @@ pub fn run_desktop_app(
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
-    window.set_app_version(env!("CARGO_PKG_VERSION").into());
-    window.set_show_project_launcher(true);
-    window.set_show_project_setup(false);
-    window.set_show_project_chains(false);
-    window.set_show_chain_editor(false);
-    window.set_show_project_settings(false);
-    window.set_project_dirty(false);
-    window.set_project_path_label("".into());
-    window.set_project_title("Projeto".into());
-    window.set_project_name_draft("".into());
-    window.set_recent_project_search("".into());
-    window.set_chain_editor_title("Nova chain".into());
-    window.set_chain_editor_save_label("Criar chain".into());
-    window.set_runtime_mode_label(context.runtime_mode.label().into());
-    window.set_interaction_mode_label(context.interaction_mode.label().into());
-    window.set_touch_optimized(context.capabilities.touch_optimized);
-    window.set_auto_save(auto_save);
-    window.set_fullscreen(fullscreen);
-    if fullscreen {
-        window.window().set_fullscreen(true);
-    }
-    window.set_show_audio_settings(needs_audio_settings);
-    window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
-    window.set_status_message("".into());
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
         &settings.input_devices,
@@ -166,20 +142,32 @@ pub fn run_desktop_app(
         &settings.output_devices,
     )));
     mark_unselected_devices(&output_devices, &settings.output_devices);
-    let project_devices = Rc::new(VecModel::from(build_project_device_rows(
-        &*input_chain_devices.borrow(),
-        &*output_chain_devices.borrow(),
-        &[],
-    )));
-    window.set_input_devices(ModelRc::from(input_devices.clone()));
-    window.set_output_devices(ModelRc::from(output_devices.clone()));
-    let project_chains = Rc::new(VecModel::from(Vec::<ProjectChainItem>::new()));
-    window.set_project_chains(ModelRc::from(project_chains.clone()));
-    let recent_projects = Rc::new(VecModel::from(recent_project_items(
-        &app_config.borrow().recent_projects,
-        "",
-    )));
-    window.set_recent_projects(ModelRc::from(recent_projects.clone()));
+
+    // Initial AppWindow + ProjectSettingsWindow state + project-row VecModels
+    // (extracted to desktop_app_init)
+    let crate::desktop_app_init::InitialState {
+        project_devices,
+        project_chains,
+        recent_projects,
+        chain_input_device_options,
+        chain_output_device_options,
+        chain_input_channels,
+        chain_output_channels,
+    } = crate::desktop_app_init::populate_initial_window_state(
+        &window,
+        &project_settings_window,
+        &context,
+        &settings,
+        auto_save,
+        fullscreen,
+        needs_audio_settings,
+        &input_chain_devices,
+        &output_chain_devices,
+        &app_config,
+        &input_devices,
+        &output_devices,
+    );
+
     // CLI auto-open (extracted to desktop_app_cli_open)
     crate::desktop_app_cli_open::try_auto_open(
         cli_project_path.as_ref(),
@@ -193,44 +181,6 @@ pub fn run_desktop_app(
         &app_config,
         &recent_projects,
     );
-    let chain_input_device_options = Rc::new(VecModel::from(
-        input_chain_devices
-            .borrow()
-            .iter()
-            .map(|device| SharedString::from(device.name.clone()))
-            .collect::<Vec<_>>(),
-    ));
-    let chain_output_device_options = Rc::new(VecModel::from(
-        output_chain_devices
-            .borrow()
-            .iter()
-            .map(|device| SharedString::from(device.name.clone()))
-            .collect::<Vec<_>>(),
-    ));
-    let chain_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    let chain_output_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    window.set_chain_input_device_options(ModelRc::from(chain_input_device_options.clone()));
-    window.set_chain_output_device_options(ModelRc::from(chain_output_device_options.clone()));
-    window.set_chain_input_channels(ModelRc::from(chain_input_channels.clone()));
-    window.set_chain_output_channels(ModelRc::from(chain_output_channels.clone()));
-    window.set_selected_chain_input_device_index(-1);
-    window.set_selected_chain_output_device_index(-1);
-    window.set_selected_chain_block_chain_index(-1);
-    window.set_selected_chain_block_index(-1);
-    window.set_show_block_type_picker(false);
-    window.set_show_block_model_picker(false);
-    window.set_block_picker_title("".into());
-    window.set_show_block_drawer(false);
-    window.set_block_drawer_title("".into());
-    window.set_block_drawer_confirm_label("Adicionar".into());
-    window.set_block_drawer_status_message("".into());
-    window.set_block_drawer_edit_mode(false);
-    window.set_block_drawer_selected_type_index(-1);
-    window.set_block_drawer_selected_model_index(-1);
-    window.set_block_drawer_enabled(true);
-    window.set_chain_draft_name("".into());
-    project_settings_window.set_status_message("".into());
-    project_settings_window.set_project_name_draft("".into());
     let crate::desktop_app_block_models::BlockEditorModels {
         block_type_options,
         block_model_options,
