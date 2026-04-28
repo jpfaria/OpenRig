@@ -13,12 +13,14 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 5 progressive rhythm-channel preset levels. #1 crunch through
+// #4 increasing gain, #5 with TS808 boost on top.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("1_crunch_1", "1. CRUNCH #1", "amps/mesa_boogie_dual_rectifier/1_mesa_dual_rectifier_2025_crunch_rhythm_1_2.nam"),
-    ("2_2", "2. #2", "amps/mesa_boogie_dual_rectifier/2_mesa_dual_rectifier_2025_rhythm_2_2.nam"),
-    ("3_3", "3. #3", "amps/mesa_boogie_dual_rectifier/3_mesa_dual_rectifier_2025_rhythm_3_2.nam"),
-    ("4_4", "4. #4", "amps/mesa_boogie_dual_rectifier/4_mesa_dual_rectifier_2025_rhythm_4_2.nam"),
-    ("5_ts808_boost_5", "5. TS808 BOOST #5", "amps/mesa_boogie_dual_rectifier/5_mesa_dual_rectifier_2025_ts808_boost_rhythm_5_2.nam"),
+    ("crunch",      "Crunch",         "amps/mesa_boogie_dual_rectifier/1_mesa_dual_rectifier_2025_crunch_rhythm_1_2.nam"),
+    ("rhythm_2",    "Rhythm 2",       "amps/mesa_boogie_dual_rectifier/2_mesa_dual_rectifier_2025_rhythm_2_2.nam"),
+    ("rhythm_3",    "Rhythm 3",       "amps/mesa_boogie_dual_rectifier/3_mesa_dual_rectifier_2025_rhythm_3_2.nam"),
+    ("rhythm_4",    "Rhythm 4",       "amps/mesa_boogie_dual_rectifier/4_mesa_dual_rectifier_2025_rhythm_4_2.nam"),
+    ("ts808_boost", "TS808 Boost",    "amps/mesa_boogie_dual_rectifier/5_mesa_dual_rectifier_2025_ts808_boost_rhythm_5_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -27,13 +29,13 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("1_crunch_1"),
+        Some("crunch"),
         &[
-            ("1_crunch_1", "1. CRUNCH #1"),
-            ("2_2", "2. #2"),
-            ("3_3", "3. #3"),
-            ("4_4", "4. #4"),
-            ("5_ts808_boost_5", "5. TS808 BOOST #5"),
+            ("crunch",      "Crunch"),
+            ("rhythm_2",    "Rhythm 2"),
+            ("rhythm_3",    "Rhythm 3"),
+            ("rhythm_4",    "Rhythm 4"),
+            ("ts808_boost", "TS808 Boost"),
         ],
     )];
     schema
