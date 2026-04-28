@@ -13,27 +13,39 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-// Single-axis: 3 channel/boost combos (Yellow+OD808, Red+OD808, Red) on the
-// same Marshall Full Rig signal chain.
+// Two-axis pack: channel × boost. Sparse — Yellow only with OD808; Red with
+// or without OD808. resolve_capture rejects the missing combination.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("yellow_od808", "Yellow + OD808", "amps/mesa_boogie_jp2c/jp2c_yellow_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
-    ("red_od808",    "Red + OD808",    "amps/mesa_boogie_jp2c/jp2c_red_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
-    ("red",          "Red",            "amps/mesa_boogie_jp2c/jp2c_red_marshall_full_rig_jp_is_out_of_tune.nam"),
+    // (channel, boost, file)
+    ("yellow", "od808", "amps/mesa_boogie_jp2c/jp2c_yellow_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
+    ("red",    "od808", "amps/mesa_boogie_jp2c/jp2c_red_od808_marshall_full_rig_jp_is_out_of_tune.nam"),
+    ("red",    "off",   "amps/mesa_boogie_jp2c/jp2c_red_marshall_full_rig_jp_is_out_of_tune.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("yellow_od808"),
-        &[
-            ("yellow_od808", "Yellow + OD808"),
-            ("red_od808",    "Red + OD808"),
-            ("red",          "Red"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("red"),
+            &[
+                ("yellow", "Yellow"),
+                ("red",    "Red"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("off"),
+            &[
+                ("off",   "Off"),
+                ("od808", "OD808"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -53,12 +65,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, b, _)| *c == channel && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} boost={}",
+                MODEL_ID, channel, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

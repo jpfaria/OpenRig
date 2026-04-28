@@ -13,28 +13,39 @@ const BRAND: &str = "peavey";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × eq. Full 2×2 grid.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jsx_crunch_mid", "Crunch_Mid", "amps/peavey_jsx/peavey_jsx_crunch_mid.nam"),
-    ("jsx_ultra_mid", "Ultra_Mid", "amps/peavey_jsx/peavey_jsx_ultra_mid.nam"),
-    ("jsx_crunch_high", "Crunch_High", "amps/peavey_jsx/peavey_jsx_crunch_high.nam"),
-    ("jsx_ultra_high", "Ultra_High", "amps/peavey_jsx/peavey_jsx_ultra_high.nam"),
+    // (channel, eq, file)
+    ("crunch", "mid",  "amps/peavey_jsx/peavey_jsx_crunch_mid.nam"),
+    ("crunch", "high", "amps/peavey_jsx/peavey_jsx_crunch_high.nam"),
+    ("ultra",  "mid",  "amps/peavey_jsx/peavey_jsx_ultra_mid.nam"),
+    ("ultra",  "high", "amps/peavey_jsx/peavey_jsx_ultra_high.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("jsx_crunch_mid"),
-        &[
-            ("jsx_crunch_mid", "Crunch_Mid"),
-            ("jsx_ultra_mid", "Ultra_Mid"),
-            ("jsx_crunch_high", "Crunch_High"),
-            ("jsx_ultra_high", "Ultra_High"),
-        
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("crunch"),
+            &[
+                ("crunch", "Crunch"),
+                ("ultra",  "Ultra"),
+            ],
+        ),
+        enum_parameter(
+            "eq",
+            "EQ",
+            Some("Amp"),
+            Some("mid"),
+            &[
+                ("mid",  "Mid"),
+                ("high", "High"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -54,12 +65,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let eq = required_string(params, "eq").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, e, _)| *c == channel && *e == eq)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} eq={}",
+                MODEL_ID, channel, eq
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

@@ -13,29 +13,43 @@ const BRAND: &str = "dumble";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × variant. Sparse — clean has Default+Full, drive
+// has 1/2/Full. resolve_capture rejects missing combos.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "Dumble Steel SS Clean", "amps/dumble_steel_string_singer/dumble_steel_ss_clean.nam"),
-    ("drive_1", "Dumble Steel SS Drive 1", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1.nam"),
-    ("drive_2", "Dumble Steel SS Drive 2", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2.nam"),
-    ("clean_full", "Dumble Steel SS Clean Full", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full.nam"),
-    ("drive_full", "Dumble Steel SS Drive Full", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full.nam"),
+    // (channel, variant, file)
+    ("clean", "default", "amps/dumble_steel_string_singer/dumble_steel_ss_clean.nam"),
+    ("clean", "full",    "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full.nam"),
+    ("drive", "1",       "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1.nam"),
+    ("drive", "2",       "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2.nam"),
+    ("drive", "full",    "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("clean"),
-        &[
-            ("clean",      "Clean"),
-            ("clean_full", "Clean Full"),
-            ("drive_1",    "Drive 1"),
-            ("drive_2",    "Drive 2"),
-            ("drive_full", "Drive Full"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean", "Clean"),
+                ("drive", "Drive"),
+            ],
+        ),
+        enum_parameter(
+            "variant",
+            "Variant",
+            Some("Amp"),
+            Some("default"),
+            &[
+                ("default", "Default"),
+                ("1",       "1"),
+                ("2",       "2"),
+                ("full",    "Full"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +69,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let variant = required_string(params, "variant").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, v, _)| *c == channel && *v == variant)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} variant={}",
+                MODEL_ID, channel, variant
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
