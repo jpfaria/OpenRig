@@ -399,6 +399,7 @@ export component BlockEditorWindow inherits Window {
     default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
     in property <[string]> block-model-option-labels;
     in property <string> block-drawer-title;
     in property <string> block-drawer-confirm-label;
@@ -406,6 +407,7 @@ export component BlockEditorWindow inherits Window {
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
     in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
@@ -415,6 +417,8 @@ export component BlockEditorWindow inherits Window {
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
@@ -478,7 +482,9 @@ export component BlockEditorWindow inherits Window {
         height: parent.height;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
         block-model-option-labels: root.block-model-option-labels;
+        block-model-search-text <=> root.block-model-search-text;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-edit-mode: root.block-drawer-edit-mode;
@@ -492,6 +498,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
@@ -509,7 +517,9 @@ export component BlockEditorWindow inherits Window {
         height: parent.height;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
         block-model-option-labels: root.block-model-option-labels;
+        block-model-search-text <=> root.block-model-search-text;
         block-drawer-title: root.block-drawer-title;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-drawer-status-message: root.block-drawer-status-message;
@@ -522,6 +532,8 @@ export component BlockEditorWindow inherits Window {
         curve-editor-points: root.curve-editor-points;
         block-stream-data: root.block-stream-data;
         choose-block-model(index) => { root.choose-block-model(index); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
@@ -574,6 +586,8 @@ export component CompactChainViewWindow inherits Window {
     callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
+    callback choose-block-model-by-id(int, int, string);
+    callback search-block-model(int, int, string);
     callback insert-block(int, int);
     callback reorder-block(int, int, int);
     callback open-block-detail(int, int);
@@ -597,6 +611,8 @@ export component CompactChainViewWindow inherits Window {
         update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
         choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
+        choose-block-model-by-id(ci, bi, mid) => { root.choose-block-model-by-id(ci, bi, mid); }
+        search-block-model(ci, bi, text) => { root.search-block-model(ci, bi, text); }
         insert-block(ci, before) => { root.insert-block(ci, before); }
         reorder-block(ci, from, before) => { root.reorder-block(ci, from, before); }
         open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
@@ -647,6 +663,7 @@ export component AppWindow inherits Window {
     in property <int> selected-chain-block-index;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
     in property <[string]> block-model-option-labels;
     in property <string> block-picker-title;
     in property <bool> show-block-type-picker;
@@ -658,6 +675,7 @@ export component AppWindow inherits Window {
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
     in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
@@ -749,6 +767,8 @@ export component AppWindow inherits Window {
     callback reorder-chain-block(int, int, int);
     callback choose-block-type(int);
     callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
     callback cancel-block-picker();
     callback close-block-drawer();
     callback save-block-drawer();
@@ -852,6 +872,7 @@ export component AppWindow inherits Window {
         selected-chain-block-index: root.selected-chain-block-index;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
         block-model-option-labels: root.block-model-option-labels;
         block-picker-title: root.block-picker-title;
         show-block-type-picker: root.show-block-type-picker;
@@ -863,6 +884,7 @@ export component AppWindow inherits Window {
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-model-search-text <=> root.block-model-search-text;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
@@ -968,6 +990,8 @@ export component AppWindow inherits Window {
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
         choose-block-type(index) => { root.choose-block-type(index); }
         choose-block-model(index) => { root.choose-block-model(index); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
         cancel-block-picker => { root.cancel-block-picker(); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
@@ -1033,6 +1057,7 @@ export component AppWindow inherits Window {
         selected-chain-block-index: root.selected-chain-block-index;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
         block-model-option-labels: root.block-model-option-labels;
         block-picker-title: root.block-picker-title;
         show-block-type-picker: root.show-block-type-picker;
@@ -1044,6 +1069,7 @@ export component AppWindow inherits Window {
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-model-search-text <=> root.block-model-search-text;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
@@ -1115,6 +1141,8 @@ export component AppWindow inherits Window {
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
         choose-block-type(index) => { root.choose-block-type(index); }
         choose-block-model(index) => { root.choose-block-model(index); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
         cancel-block-picker => { root.cancel-block-picker(); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }

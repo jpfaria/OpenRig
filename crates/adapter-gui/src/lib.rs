@@ -37,6 +37,8 @@ mod latency_probe;
 mod project_ops;
 mod project_view;
 mod state;
+mod model_search;
+mod model_search_wiring;
 mod ui_state;
 mod visual_config;
 slint::include_modules!();
@@ -379,6 +381,8 @@ pub fn run_desktop_app(
     project_settings_window.set_project_name_draft("".into());
     let block_type_options = Rc::new(VecModel::from(block_type_picker_items(block_core::INST_GENERIC)));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
+    let filtered_block_model_options =
+        Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
     let multi_slider_points = Rc::new(VecModel::from(Vec::<MultiSliderPoint>::new()));
@@ -481,6 +485,7 @@ pub fn run_desktop_app(
 
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
+    window.set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
     window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
     window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
@@ -488,6 +493,8 @@ pub fn run_desktop_app(
     window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
     block_editor_window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     block_editor_window.set_block_model_options(ModelRc::from(block_model_options.clone()));
+    block_editor_window
+        .set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
     block_editor_window
         .set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
     block_editor_window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
@@ -2512,10 +2519,46 @@ pub fn run_desktop_app(
             ))));
 
             let blocks = build_compact_blocks(&session.project, ci);
-            compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+            let compact_blocks = Rc::new(VecModel::from(blocks));
+            compact_win.set_compact_blocks(ModelRc::from(compact_blocks.clone()));
 
             // Store weak ref for refresh after block insert/save
             *open_compact_window.borrow_mut() = Some((ci, compact_win.as_weak()));
+
+            // Wire search-block-model: update filtered_models inside the
+            // CompactBlockItem at (ci, bi).
+            {
+                let compact_blocks = compact_blocks.clone();
+                compact_win.on_search_block_model(move |ci, bi, text| {
+                    crate::model_search_wiring::refilter_compact_block(
+                        &compact_blocks,
+                        ci,
+                        bi,
+                        text.as_str(),
+                    );
+                });
+            }
+
+            // Wire choose-block-model-by-id: resolve model_id to its index
+            // within the block's full models list, then forward to the
+            // existing index-based handler.
+            {
+                let compact_blocks = compact_blocks.clone();
+                let weak_compact = compact_win.as_weak();
+                compact_win.on_choose_block_model_by_id(move |ci, bi, model_id| {
+                    let Some(idx) = crate::model_search_wiring::resolve_model_id_in_compact_block(
+                        &compact_blocks,
+                        ci,
+                        bi,
+                        model_id.as_str(),
+                    ) else {
+                        return;
+                    };
+                    if let Some(cw) = weak_compact.upgrade() {
+                        cw.invoke_choose_block_model(ci, bi, idx);
+                    }
+                });
+            }
 
             // Wire toggle-enabled callback
             {
@@ -4178,6 +4221,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -4350,7 +4394,8 @@ pub fn run_desktop_app(
                 log::trace!("[select_chain_block]   model='{}'", item.model_id);
             }
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
-            block_model_options.set_vec(items);
+            block_model_options.set_vec(items.clone());
+            filtered_block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
             multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
             curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
@@ -4467,6 +4512,12 @@ pub fn run_desktop_app(
                 let win_model_options = Rc::new(VecModel::from(
                     block_model_picker_items(&effect_type, &instrument)
                 ));
+                // Filtered list starts as a copy of the full list so the
+                // popup shows everything when first opened. The search
+                // callback below replaces it on every keystroke.
+                let win_filtered_model_options = Rc::new(VecModel::from(
+                    block_model_picker_items(&effect_type, &instrument)
+                ));
                 let win_model_labels = Rc::new(VecModel::from(
                     block_model_picker_labels(&block_model_picker_items(&effect_type, &instrument))
                 ));
@@ -4491,7 +4542,13 @@ pub fn run_desktop_app(
                 let model_index = block_model_index_from_items(&win_model_options, &model_id);
                 win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items(&instrument)))));
                 win.set_block_model_options(ModelRc::from(win_model_options.clone()));
+                win.set_filtered_block_model_options(ModelRc::from(win_filtered_model_options.clone()));
                 win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
+                crate::model_search_wiring::wire_standalone_block_editor_window(
+                    &win,
+                    win_model_options.clone(),
+                    win_filtered_model_options.clone(),
+                );
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
                 let win_multi_slider_pts = Rc::new(VecModel::from(
@@ -5141,6 +5198,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -5154,6 +5212,7 @@ pub fn run_desktop_app(
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
@@ -5317,6 +5376,7 @@ pub fn run_desktop_app(
         let block_editor_draft = block_editor_draft.clone();
         let block_type_options = block_type_options.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -5360,6 +5420,7 @@ pub fn run_desktop_app(
             });
             block_type_options.set_vec(block_type_picker_items(&instrument));
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
@@ -5379,6 +5440,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -5580,7 +5642,8 @@ pub fn run_desktop_app(
             }
             let items = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
-            block_model_options.set_vec(items);
+            block_model_options.set_vec(items.clone());
+            filtered_block_model_options.set_vec(items);
             let new_params = block_parameter_items_for_model(
                 &model.effect_type,
                 &model.model_id,
@@ -5612,6 +5675,67 @@ pub fn run_desktop_app(
                     sync_block_editor_window(&window, &block_editor_window);
                     show_child_window(window.window(), block_editor_window.window());
                 }
+            }
+        });
+    }
+    // Block model search wiring: refilter the filtered_block_model_options
+    // VecModel on every keystroke; resolve clicked model_id back to its
+    // index in the full list and forward to the existing on_choose_block_model.
+    {
+        let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
+        window.on_search_block_model(move |text| {
+            crate::model_search_wiring::refilter_block_model_options(
+                &block_model_options,
+                &filtered_block_model_options,
+                text.as_str(),
+            );
+        });
+    }
+    {
+        let block_model_options = block_model_options.clone();
+        let weak_window = window.as_weak();
+        window.on_choose_block_model_by_id(move |model_id| {
+            let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
+                &block_model_options,
+                model_id.as_str(),
+            ) else {
+                log::warn!("[search] model_id '{}' not found in main window list", model_id);
+                return;
+            };
+            log::info!("[search] main window: resolved '{}' → idx {}", model_id, idx);
+            if let Some(win) = weak_window.upgrade() {
+                win.set_block_drawer_selected_model_index(idx);
+                win.invoke_choose_block_model(idx);
+            }
+        });
+    }
+    {
+        let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
+        block_editor_window.on_search_block_model(move |text| {
+            crate::model_search_wiring::refilter_block_model_options(
+                &block_model_options,
+                &filtered_block_model_options,
+                text.as_str(),
+            );
+        });
+    }
+    {
+        let block_model_options = block_model_options.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
+        block_editor_window.on_choose_block_model_by_id(move |model_id| {
+            let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
+                &block_model_options,
+                model_id.as_str(),
+            ) else {
+                log::warn!("[search] model_id '{}' not found in always-open block_editor_window list", model_id);
+                return;
+            };
+            log::info!("[search] block_editor_window: resolved '{}' → idx {}", model_id, idx);
+            if let Some(win) = weak_block_editor_window.upgrade() {
+                win.set_block_drawer_selected_model_index(idx);
+                win.invoke_choose_block_model(idx);
             }
         });
     }
@@ -5689,6 +5813,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -5703,6 +5828,7 @@ pub fn run_desktop_app(
             block_editor_persist_timer.stop();
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
@@ -5724,6 +5850,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -5741,6 +5868,7 @@ pub fn run_desktop_app(
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
@@ -6140,6 +6268,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -6186,6 +6315,7 @@ pub fn run_desktop_app(
             set_selected_block(&window, None, None);
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
@@ -6231,6 +6361,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
+        let filtered_block_model_options = filtered_block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let multi_slider_points = multi_slider_points.clone();
@@ -6287,6 +6418,7 @@ pub fn run_desktop_app(
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
+            filtered_block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
             multi_slider_points.set_vec(Vec::new());
