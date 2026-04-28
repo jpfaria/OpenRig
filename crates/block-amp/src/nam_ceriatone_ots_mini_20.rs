@@ -13,29 +13,44 @@ const BRAND: &str = "ceriatone";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: boost × switch.
+// All captures are Clean Jazz channel. Boost = pre_boost vs normal.
+// Switch encodes the front-panel Bright/MidBoost toggles.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pre_boost_bright_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright_midboost.nam"),
-    ("pre_boost_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_midboost.nam"),
-    ("pre_boost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost.nam"),
-    ("pre_boost_bright", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright.nam"),
-    ("normal", "Ceriatone OTS Mini 20 - Clean Jazz Normal", "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_normal.nam"),
+    // (boost, switch, file)
+    ("normal",    "neither",       "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_normal.nam"),
+    ("pre_boost", "neither",       "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost.nam"),
+    ("pre_boost", "bright",        "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright.nam"),
+    ("pre_boost", "midboost",      "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_midboost.nam"),
+    ("pre_boost", "bright_mid",    "amps/ceriatone_ots_mini_20/ceriatone_ots_mini_20_clean_jazz_pre_boost_bright_midboost.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("pre_boost_bright_midboost"),
-        &[
-            ("pre_boost_bright_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright MidBoost"),
-            ("pre_boost_midboost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost MidBoost"),
-            ("pre_boost", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost"),
-            ("pre_boost_bright", "Ceriatone OTS Mini 20 - Clean Jazz Pre-Boost Bright"),
-            ("normal", "Ceriatone OTS Mini 20 - Clean Jazz Normal"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("pre_boost"),
+            &[
+                ("normal",    "Normal"),
+                ("pre_boost", "Pre-Boost"),
+            ],
+        ),
+        enum_parameter(
+            "switch",
+            "Switch",
+            Some("Amp"),
+            Some("neither"),
+            &[
+                ("neither",    "Neither"),
+                ("bright",     "Bright"),
+                ("midboost",   "MidBoost"),
+                ("bright_mid", "Bright + Mid"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +70,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
+    let switch = required_string(params, "switch").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(b, s, _)| *b == boost && *s == switch)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for boost={} switch={}",
+                MODEL_ID, boost, switch
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
