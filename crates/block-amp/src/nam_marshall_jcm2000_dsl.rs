@@ -13,31 +13,44 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × style. BMR captures.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("od2_altrock_esr0_0050", "BMR - Marshall JCM2000 OD2 AltRock - ESR0-0050", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_altrock_esr0_0050.nam"),
-    ("clean_esr0_0020", "BMR - Marshall JCM2000 Clean - ESR0-0020", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_clean_esr0_0020.nam"),
-    ("od2_dimed_esr0_0813", "BMR - Marshall JCM2000 OD2 DIMED - ESR0-0813", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_dimed_esr0_0813.nam"),
-    ("od1_dimed_esr0_0357", "BMR - Marshall JCM2000 OD1 DIMED - ESR0-0357", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_dimed_esr0_0357.nam"),
-    ("od1_altrock_esr0_0055", "BMR - Marshall JCM2000 OD1 AltRock - ESR0-0055", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_altrock_esr0_0055.nam"),
-    ("crunch_esr0_0021", "BMR - Marshall JCM2000 Crunch - ESR0-0021", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_crunch_esr0_0021.nam"),
+    // (channel, style, file)
+    ("clean",  "default", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_clean_esr0_0020.nam"),
+    ("crunch", "default", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_crunch_esr0_0021.nam"),
+    ("od1",    "altrock", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_altrock_esr0_0055.nam"),
+    ("od1",    "dimed",   "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_dimed_esr0_0357.nam"),
+    ("od2",    "altrock", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_altrock_esr0_0050.nam"),
+    ("od2",    "dimed",   "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_dimed_esr0_0813.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("od2_altrock_esr0_0050"),
-        &[
-            ("od2_altrock_esr0_0050", "BMR - Marshall JCM2000 OD2 AltRock - ESR0-0050"),
-            ("clean_esr0_0020", "BMR - Marshall JCM2000 Clean - ESR0-0020"),
-            ("od2_dimed_esr0_0813", "BMR - Marshall JCM2000 OD2 DIMED - ESR0-0813"),
-            ("od1_dimed_esr0_0357", "BMR - Marshall JCM2000 OD1 DIMED - ESR0-0357"),
-            ("od1_altrock_esr0_0055", "BMR - Marshall JCM2000 OD1 AltRock - ESR0-0055"),
-            ("crunch_esr0_0021", "BMR - Marshall JCM2000 Crunch - ESR0-0021"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("od2"),
+            &[
+                ("clean",  "Clean"),
+                ("crunch", "Crunch"),
+                ("od1",    "OD1"),
+                ("od2",    "OD2"),
+            ],
+        ),
+        enum_parameter(
+            "style",
+            "Style",
+            Some("Amp"),
+            Some("altrock"),
+            &[
+                ("default", "Default"),
+                ("altrock", "AltRock"),
+                ("dimed",   "Dimed"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +70,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let style = required_string(params, "style").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, s, _)| *c == channel && *s == style)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} style={}",
+                MODEL_ID, channel, style
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
