@@ -25,7 +25,6 @@ use crate::audio_devices::{
     build_project_device_rows, default_device_settings, mark_unselected_devices,
     normalize_device_settings,
 };
-use crate::helpers::{set_status_error, set_status_info, set_status_warning};
 use crate::project_ops::{
     canonical_project_path, load_and_sync_app_config, open_cli_project, project_display_name,
     project_session_snapshot, project_title_for_path, recent_project_items,
@@ -320,95 +319,13 @@ pub fn run_desktop_app(
     window.set_toast_message("".into());
     window.set_toast_level("info".into());
 
-    // Error polling timer — drains block errors from the audio engine and shows toasts
-    {
-        let weak_window = window.as_weak();
-        let toast_timer_for_errors = toast_timer.clone();
-        let project_runtime_for_errors = project_runtime.clone();
-        let error_poll_timer = Timer::default();
-        error_poll_timer.start(
-            slint::TimerMode::Repeated,
-            std::time::Duration::from_millis(200),
-            move || {
-                let Some(win) = weak_window.upgrade() else { return; };
-                let rt_borrow = project_runtime_for_errors.borrow();
-                let Some(rt) = rt_borrow.as_ref() else { return; };
-                let errors = rt.poll_errors();
-                if let Some(first) = errors.first() {
-                    set_status_error(&win, &toast_timer_for_errors, &format!("Plugin error: {}", first.message));
-                }
-            },
-        );
-        std::mem::forget(error_poll_timer);
-    }
-
-    // Audio health check timer — detects device disconnects (JACK server
-    // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
-    // when the backend becomes available again.
-    {
-        let weak_window = window.as_weak();
-        let toast_timer_health = toast_timer.clone();
-        let runtime_health = project_runtime.clone();
-        let session_health = project_session.clone();
-        let disconnected = Rc::new(RefCell::new(false));
-        let _input_opts_health = chain_input_device_options.clone();
-        let _output_opts_health = chain_output_device_options.clone();
-        let health_timer = Timer::default();
-        health_timer.start(
-            slint::TimerMode::Repeated,
-            std::time::Duration::from_secs(2),
-            move || {
-                let Some(win) = weak_window.upgrade() else { return; };
-
-                // NOTE: device hot-plug detection moved OUT of the health timer.
-                // Periodically polling /proc/asound/cards while the Scarlett 4th Gen
-                // is on the USB-C OTG port triggers scarlett2_notify 0x20000000 and
-                // freezes the device. The device list now refreshes only when the
-                // user enters a UI surface that needs it (chain I/O editor, Settings,
-                // configure-project) — see the refresh_input_devices call sites.
-                let mut rt_borrow = runtime_health.borrow_mut();
-                let Some(rt) = rt_borrow.as_mut() else { return; };
-                if !rt.is_running() {
-                    return;
-                }
-                let mut is_disconnected = disconnected.borrow_mut();
-
-                if rt.is_healthy() {
-                    if *is_disconnected {
-                        // Was disconnected, now healthy again — nothing to do,
-                        // reconnection already happened
-                        *is_disconnected = false;
-                    }
-                    return;
-                }
-
-                // Backend is unhealthy
-                if !*is_disconnected {
-                    *is_disconnected = true;
-                    set_status_warning(&win, &toast_timer_health, "Audio device disconnected — reconnecting...");
-                    log::warn!("health check: audio backend unhealthy, will attempt reconnection");
-                }
-
-                // Try to reconnect
-                let session_borrow = session_health.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
-                match rt.try_reconnect(&session.project) {
-                    Ok(true) => {
-                        *is_disconnected = false;
-                        set_status_info(&win, &toast_timer_health, "Audio device reconnected");
-                        log::info!("health check: successfully reconnected");
-                    }
-                    Ok(false) => {
-                        log::debug!("health check: backend not ready yet, will retry");
-                    }
-                    Err(e) => {
-                        log::warn!("health check: reconnection attempt failed: {}", e);
-                    }
-                }
-            },
-        );
-        std::mem::forget(health_timer);
-    }
+    // Background polling timers (extracted to desktop_app_polling)
+    crate::desktop_app_polling::start(
+        &window,
+        toast_timer.clone(),
+        project_runtime.clone(),
+        project_session.clone(),
+    );
 
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));

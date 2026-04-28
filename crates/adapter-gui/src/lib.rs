@@ -87,6 +87,7 @@ const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
 
 mod desktop_app;
+mod desktop_app_polling;
 pub use desktop_app::run_desktop_app;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
