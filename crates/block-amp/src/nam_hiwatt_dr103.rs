@@ -13,10 +13,12 @@ const BRAND: &str = "hiwatt";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 3 voicings — clean Bridged, Edgy Bridged, TS808+Archer/Klon
+// stacked-boost high-gain.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("dr_103_edgy_bridged", "DR 103 Edgy Bridged", "amps/hiwatt_dr103/hiwatt_dr_103_edgy_bridged.nam"),
-    ("dr_103_ts808_archer_klon_high_gain", "DR 103 TS808_Archer Klon high gain", "amps/hiwatt_dr103/hiwatt_dr_103_ts808_archer_klon_high_gain.nam"),
-    ("dr103_bridged", "Bridged", "amps/hiwatt_dr103/hiwatt_dr103_bridged.nam"),
+    ("bridged",       "Bridged",            "amps/hiwatt_dr103/hiwatt_dr103_bridged.nam"),
+    ("edgy_bridged",  "Edgy Bridged",       "amps/hiwatt_dr103/hiwatt_dr_103_edgy_bridged.nam"),
+    ("ts808_klon",    "TS808 + Klon",       "amps/hiwatt_dr103/hiwatt_dr_103_ts808_archer_klon_high_gain.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,12 +27,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("dr_103_edgy_bridged"),
+        Some("bridged"),
         &[
-            ("dr_103_edgy_bridged", "DR 103 Edgy Bridged"),
-            ("dr_103_ts808_archer_klon_high_gain", "DR 103 TS808_Archer Klon high gain"),
-            ("dr103_bridged", "Bridged"),
-        
+            ("bridged",       "Bridged"),
+            ("edgy_bridged",  "Edgy Bridged"),
+            ("ts808_klon",    "TS808 + Klon"),
         ],
     )];
     schema
