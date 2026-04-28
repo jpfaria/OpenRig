@@ -13,8 +13,9 @@ const BRAND: &str = "evh";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: VA 5153R Gold preset 01.3 (Red channel).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("va_5153r_gold_01_3", "VA 5153R Gold 01.3", "amps/evh_5150iiis_el34_100w/va_5153r_gold_01_3.nam"),
+    ("red_gold", "Red (Gold)", "amps/evh_5150iiis_el34_100w/va_5153r_gold_01_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("va_5153r_gold_01_3"),
+        Some("red_gold"),
         &[
-            ("va_5153r_gold_01_3", "VA 5153R Gold 01.3"),
+            ("red_gold", "Red (Gold)"),
         ],
     )];
     schema
