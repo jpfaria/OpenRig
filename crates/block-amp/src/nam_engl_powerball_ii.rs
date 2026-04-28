@@ -13,8 +13,9 @@ const BRAND: &str = "engl";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: Deimos preset.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_powerball_deimos", "Powerball Deimos", "amps/engl_powerball_ii/engl_powerball_deimos.nam"),
+    ("deimos", "Deimos", "amps/engl_powerball_ii/engl_powerball_deimos.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("engl_powerball_deimos"),
+        Some("deimos"),
         &[
-            ("engl_powerball_deimos", "Powerball Deimos"),
-        
+            ("deimos", "Deimos"),
         ],
     )];
     schema
