@@ -9,15 +9,19 @@ pub const MODEL_ID: &str = "marshall_1960bv_4x12";
 pub const DISPLAY_NAME: &str = "1960BV 4x12";
 const BRAND: &str = "marshall";
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("g12_4_sm57_3", "Marshall G12 4 SM57 3", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_3_3.wav"),
-    ("g12_1_sm57_2", "Marshall G12 1 SM57 2", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm57_2_3.wav"),
-    ("g12_1_sm58_5", "Marshall G12 1 SM58 5", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm58_5_3.wav"),
-    ("g12_4_sm58_4", "Marshall G12 4 SM58 4", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm58_4_3.wav"),
-    ("v30_3_sm57_1", "Marshall V30 3 SM57 1", "cabs/marshall_1960bv_4x12/marshall_v30_3_sm57_1_3.wav"),
-    ("v30_2_sm58_6", "Marshall V30 2 SM58 6", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_6_3.wav"),
-    ("g12_4_sm57_8", "Marshall G12 4 SM57 8", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_8_3.wav"),
-    ("v30_2_sm58_1", "Marshall V30 2 SM58 1", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_1_3.wav"),
+// Three-axis pack: speaker × mic × take.
+// Speaker = which of the 4 cones in the 1960BV is being captured.
+// Holes return Err so the UI flags missing combinations.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (speaker, mic, take, file)
+    ("g12_1", "sm57", "take_2", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm57_2_3.wav"),
+    ("g12_1", "sm58", "take_5", "cabs/marshall_1960bv_4x12/marshall_g12_1_sm58_5_3.wav"),
+    ("g12_4", "sm57", "take_3", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_3_3.wav"),
+    ("g12_4", "sm57", "take_8", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm57_8_3.wav"),
+    ("g12_4", "sm58", "take_4", "cabs/marshall_1960bv_4x12/marshall_g12_4_sm58_4_3.wav"),
+    ("v30_2", "sm58", "take_1", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_1_3.wav"),
+    ("v30_2", "sm58", "take_6", "cabs/marshall_1960bv_4x12/marshall_v30_2_sm58_6_3.wav"),
+    ("v30_3", "sm57", "take_1", "cabs/marshall_1960bv_4x12/marshall_v30_3_sm57_1_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,22 +30,45 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("g12_4_sm57_3"),
-            &[
-            ("g12_4_sm57_3", "Marshall G12 4 SM57 3"),
-            ("g12_1_sm57_2", "Marshall G12 1 SM57 2"),
-            ("g12_1_sm58_5", "Marshall G12 1 SM58 5"),
-            ("g12_4_sm58_4", "Marshall G12 4 SM58 4"),
-            ("v30_3_sm57_1", "Marshall V30 3 SM57 1"),
-            ("v30_2_sm58_6", "Marshall V30 2 SM58 6"),
-            ("g12_4_sm57_8", "Marshall G12 4 SM57 8"),
-            ("v30_2_sm58_1", "Marshall V30 2 SM58 1"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "speaker",
+                "Speaker",
+                Some("Cab"),
+                Some("g12_4"),
+                &[
+                    ("g12_1", "G12 (Speaker 1)"),
+                    ("g12_4", "G12 (Speaker 4)"),
+                    ("v30_2", "V30 (Speaker 2)"),
+                    ("v30_3", "V30 (Speaker 3)"),
+                ],
+            ),
+            enum_parameter(
+                "mic",
+                "Mic",
+                Some("Cab"),
+                Some("sm57"),
+                &[
+                    ("sm57", "SM57"),
+                    ("sm58", "SM58"),
+                ],
+            ),
+            enum_parameter(
+                "take",
+                "Take",
+                Some("Cab"),
+                Some("take_3"),
+                &[
+                    ("take_1", "Take 1"),
+                    ("take_2", "Take 2"),
+                    ("take_3", "Take 3"),
+                    ("take_4", "Take 4"),
+                    ("take_5", "Take 5"),
+                    ("take_6", "Take 6"),
+                    ("take_8", "Take 8"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -73,12 +100,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let speaker = required_string(params, "speaker").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
+    let take = required_string(params, "take").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(s, m, t, _)| *s == speaker && *m == mic && *t == take)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for speaker={} mic={} take={}",
+                MODEL_ID, speaker, mic, take
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
