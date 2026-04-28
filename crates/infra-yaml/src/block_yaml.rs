@@ -14,14 +14,14 @@ use project::param::ParameterSet;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
+use crate::chain_yaml::{default_io_yaml_model, ChainInputEntryYaml, ChainOutputEntryYaml};
 use crate::{
     default_amp_model, default_body_model, default_cab_model, default_delay_model,
     default_drive_model, default_dynamics_model, default_enabled, default_filter_model,
-    default_full_rig_model, default_io_yaml_model, default_ir_model, default_modulation_model,
+    default_full_rig_model, default_ir_model, default_modulation_model,
     default_nam_model, default_pitch_model, default_preamp_model, default_reverb_model,
     default_utility_model, default_wah_model, flatten_parameter_set, generated_block_id,
-    parameter_set_to_yaml_value, yaml_scalar_to_parameter_value,
-    ChainInputEntryYaml, ChainOutputEntryYaml,
+    parameter_set_to_yaml_value,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
