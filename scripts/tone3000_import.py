@@ -1,24 +1,43 @@
 #!/usr/bin/env python3
-"""Bulk-import Tone3000 NAM amp/preamp captures into the OpenRig catalog.
+"""Tone3000 download + metadata dump.
+
+Scope is intentionally limited: this script ONLY fetches assets and
+captures metadata from Tone3000. It does NOT generate the final Rust
+model files — those require per-pack semantic analysis (axes vary
+across packs: mic position × distance × preamp, channel × gain knob,
+voicing × cab-load, etc) and are written by hand via IA review.
 
 For each target spec (make_name + dest_kind + slug + display_name + brand)
 the script:
-  1. Calls Tone3000 `search_tones_a2` and picks the top tone(s) by
-     downloads_count (filters: platform=nam, has_model_with_url=true,
-     gear matches dest_kind).
-  2. Fetches `/tones?id=eq.<id>&select=*,models(*)` to get the .nam
-     files in the pack.
-  3. Downloads each .nam to `captures/nam/{amps,preamp}/<slug>/`.
-     De-duplicates by `(name+size)` and caps at MAX_CAPTURES_PER_MODEL
-     to keep the catalog manageable.
-  4. Codegens `crates/block-{amp,preamp}/src/nam_<slug>.rs` with a single
-     `enum_parameter("capture", ...)` that lists every downloaded file.
+  1. Resolves the source tone(s) via Tone3000 RPC (`search_tones_a2`)
+     OR by explicit `tone_ids` list in the spec.
+  2. Fetches `/tones?id=eq.<id>&select=*,models(*)` to enumerate the
+     .nam / .wav models in each pack.
+  3. Downloads files to `captures/nam/{amps,preamp}/<slug>/` or
+     `captures/ir/cabs/<slug>/`. Skips bytes already on disk.
+  4. Writes a metadata dump alongside each pack (`_metadata.json`) so
+     the IA review step has the original capture names + sizes available
+     when crafting the .rs file.
+  5. Emits a stub `nam_<slug>.rs` / `ir_<slug>.rs` with a single
+     `enum_parameter("capture", ...)` as a STARTING POINT only. The
+     stub WILL need manual restructuring per pack — usually splitting
+     into 2-3 `enum_parameter`s once the axes are clear from the names.
 
 The script does NOT touch the build registry — `build.rs` auto-detects
 new modules with `MODEL_DEFINITION`.
 
+Per-pack manual review checklist:
+  • Open the `.rs` stub the script produced
+  • Open the `_metadata.json` next to the .nam/.wav files
+  • Identify the axes by inspecting the capture names
+  • Rewrite CAPTURES tuple as (axis1, axis2, ..., file_path)
+  • Replace the single `enum_parameter("capture", ...)` with one per axis
+  • Update resolve_capture lookup accordingly
+  • See `ir_marshall_1960tv_greenback.rs` for a 3-axis canonical example
+
 Usage:
     python3 scripts/tone3000_import.py specs.json
+    python3 scripts/tone3000_import.py specs.json --regen-only   # refresh stubs without re-downloading
 """
 
 from __future__ import annotations
@@ -687,13 +706,50 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False, 
             key = f"{key}_{model['id']}"
         seen_keys.add(key)
 
-        # human label — keep original casing/spacing of the full name
-        label = (raw_name or filename)[:60].strip() or "Capture"
+        # human label — show only the distinguishing tokens (in original
+        # casing). Falls back to the full raw_name when no common tokens
+        # were found. This mirrors the key-derivation logic so the UI's
+        # dropdown shows short, scannable options instead of repeating
+        # the brand/model in every row.
+        if common_tokens:
+            label_tokens = [t for t in tokens if t.lower() not in common_tokens]
+            label = " ".join(label_tokens) if label_tokens else raw_name
+        else:
+            label = raw_name
+        label = (label or filename)[:48].strip() or "Capture"
         rel_path = f"{cfg['asset_subpath']}/{slug}/{filename}"
         capture_entries.append((key, label, rel_path))
 
     if not capture_entries:
         return {"skipped": True, "reason": "no downloads"}
+
+    # Dump per-pack metadata for the IA review step. Includes raw_name +
+    # size so the human/IA reviewing the .rs has the original capture
+    # info (Tone3000 names like "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73"
+    # are how axes are recovered).
+    metadata = {
+        "slug": slug,
+        "kind": kind,
+        "display": display,
+        "brand": brand,
+        "tone_ids": [t["id"] for t in tones],
+        "captures": [
+            {
+                "key": k,
+                "label": lbl,
+                "rel_path": p,
+                "raw_name": rn,
+                "size": (m.get("size") or "standard"),
+            }
+            for ((k, lbl, p), rn, (_, m)) in zip(
+                capture_entries, raw_names, selected_models
+            )
+        ],
+    }
+    if not dry_run:
+        (captures_dir / "_metadata.json").write_text(
+            json.dumps(metadata, indent=2)
+        )
 
     # codegen
     crate = cfg["crate"]
@@ -707,10 +763,15 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False, 
         brand=brand,
         captures=capture_entries,
     )
-    if not dry_run:
+    if not dry_run and not rs_path.exists():
+        # Only write the stub when there isn't already a hand-tuned file
+        # at this path. The pipeline must NOT clobber a manual multi-axis
+        # rewrite — that's the whole point of the per-pack IA review.
         rs_path.write_text(src)
+    elif not dry_run and rs_path.exists():
+        print(f"  ⓘ {rs_path.relative_to(repo_root)} exists — preserving (likely IA-tuned)")
 
-    print(f"  ✓ wrote {len(capture_entries)} captures + {rs_path.relative_to(repo_root)}")
+    print(f"  ✓ {len(capture_entries)} captures + metadata at {captures_dir.relative_to(repo_root)}/_metadata.json")
     return {
         "ok": True,
         "captures": len(capture_entries),
