@@ -13,29 +13,44 @@ const BRAND: &str = "matchless";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × input.
+// SSR = Standard Switch position; Bright = bright channel.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ssr_lead_2_hi_v03_b10_t12_br10_ma12", "Clubman SSR Lead 2 Hi v03 b10  t12 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_2_hi_v03_b10_t12_br10_ma12.nam"),
-    ("ssr_lead_lo_v04_b09_t11_br10_ma12", "Clubman SSR Lead Lo v04 b09  t11 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_lo_v04_b09_t11_br10_ma12.nam"),
-    ("ssr_push_lo_v12_b10_5_t12_br11_ma12", "Clubman SSR Push Lo v12 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_push_lo_v12_b10_5_t12_br11_ma12.nam"),
-    ("ssr_eob_lo_v10_b10_5_t12_br11_ma12", "Clubman SSR EoB Lo v10 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_eob_lo_v10_b10_5_t12_br11_ma12.nam"),
-    ("bright_push_lo_v12_b10_t12_br01_m12", "Clubman bright Push Lo v12 b10 t12 br01 m12", "amps/matchless_clubman_35_head/clubman_bright_push_lo_v12_b10_t12_br01_m12.nam"),
+    // (voicing, input, file)
+    ("ssr_lead_2",   "hi", "amps/matchless_clubman_35_head/clubman_ssr_lead_2_hi_v03_b10_t12_br10_ma12.nam"),
+    ("ssr_lead",     "lo", "amps/matchless_clubman_35_head/clubman_ssr_lead_lo_v04_b09_t11_br10_ma12.nam"),
+    ("ssr_push",     "lo", "amps/matchless_clubman_35_head/clubman_ssr_push_lo_v12_b10_5_t12_br11_ma12.nam"),
+    ("ssr_eob",      "lo", "amps/matchless_clubman_35_head/clubman_ssr_eob_lo_v10_b10_5_t12_br11_ma12.nam"),
+    ("bright_push",  "lo", "amps/matchless_clubman_35_head/clubman_bright_push_lo_v12_b10_t12_br01_m12.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("ssr_lead_2_hi_v03_b10_t12_br10_ma12"),
-        &[
-            ("ssr_lead_2_hi_v03_b10_t12_br10_ma12", "Clubman SSR Lead 2 Hi v03 b10  t12 br10 ma12"),
-            ("ssr_lead_lo_v04_b09_t11_br10_ma12", "Clubman SSR Lead Lo v04 b09  t11 br10 ma12"),
-            ("ssr_push_lo_v12_b10_5_t12_br11_ma12", "Clubman SSR Push Lo v12 b10.5 t12 br11 ma12"),
-            ("ssr_eob_lo_v10_b10_5_t12_br11_ma12", "Clubman SSR EoB Lo v10 b10.5 t12 br11 ma12"),
-            ("bright_push_lo_v12_b10_t12_br01_m12", "Clubman bright Push Lo v12 b10 t12 br01 m12"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("ssr_lead"),
+            &[
+                ("ssr_lead",    "SSR Lead"),
+                ("ssr_lead_2",  "SSR Lead 2"),
+                ("ssr_push",    "SSR Push"),
+                ("ssr_eob",     "SSR EoB"),
+                ("bright_push", "Bright Push"),
+            ],
+        ),
+        enum_parameter(
+            "input",
+            "Input",
+            Some("Amp"),
+            Some("lo"),
+            &[
+                ("lo", "Lo"),
+                ("hi", "Hi"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +70,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let input = required_string(params, "input").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, i, _)| *v == voicing && *i == input)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} input={}",
+                MODEL_ID, voicing, input
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
