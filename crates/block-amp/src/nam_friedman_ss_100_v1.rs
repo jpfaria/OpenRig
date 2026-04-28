@@ -13,11 +13,12 @@ const BRAND: &str = "friedman";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 named voicings (Slammin captures, Scoop / Sam / Magic7 / Steve2).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_fman_ss_scoop_new_s", "SLAMMIN_FMAN_SS_SCOOP_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_scoop_new_s.nam"),
-    ("slammin_fman_ss_sam_new_s", "SLAMMIN_FMAN_SS_SAM_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_sam_new_s.nam"),
-    ("slammin_fman_ss_magic7_new_s", "SLAMMIN_FMAN_SS_MAGIC7_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_magic7_new_s.nam"),
-    ("slammin_fman_ss_steve2_new_s", "SLAMMIN_FMAN_SS_STEVE2_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_steve2_new_s.nam"),
+    ("scoop",  "Scoop",  "amps/friedman_ss_100_v1/slammin_fman_ss_scoop_new_s.nam"),
+    ("sam",    "Sam",    "amps/friedman_ss_100_v1/slammin_fman_ss_sam_new_s.nam"),
+    ("magic7", "Magic7", "amps/friedman_ss_100_v1/slammin_fman_ss_magic7_new_s.nam"),
+    ("steve2", "Steve2", "amps/friedman_ss_100_v1/slammin_fman_ss_steve2_new_s.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +27,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("slammin_fman_ss_scoop_new_s"),
+        Some("scoop"),
         &[
-            ("slammin_fman_ss_scoop_new_s", "SLAMMIN_FMAN_SS_SCOOP_NEW_S"),
-            ("slammin_fman_ss_sam_new_s", "SLAMMIN_FMAN_SS_SAM_NEW_S"),
-            ("slammin_fman_ss_magic7_new_s", "SLAMMIN_FMAN_SS_MAGIC7_NEW_S"),
-            ("slammin_fman_ss_steve2_new_s", "SLAMMIN_FMAN_SS_STEVE2_NEW_S"),
+            ("scoop",  "Scoop"),
+            ("sam",    "Sam"),
+            ("magic7", "Magic7"),
+            ("steve2", "Steve2"),
         ],
     )];
     schema
