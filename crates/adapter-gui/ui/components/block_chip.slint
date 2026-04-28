@@ -1,0 +1,137 @@
+// A single block tile inside a ChainRow's block strip. Renders the block
+// icon, brand logo, name, and the short parameter summary chips beneath.
+// Click selects the block.
+
+import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
+import { EffectTypeIcon } from "./effect_type_icon.slint";
+import { BrandLogo } from "./brand_logo.slint";
+import { PowerSwitch } from "./power_switch.slint";
+
+export component BlockChip inherits Rectangle {
+    in property <ChainBlockItem> block;
+    in property <bool> selected: false;
+    in property <bool> dragging: false;
+    property <color> accent-color: root.block.accent-color;
+    property <string> block-type-label: root.block.type_label;
+    callback clicked();
+    callback drag-moved(float, float);
+    callback drag-finished(float, float);
+    callback hover-state-changed(bool);
+    out property <bool> hovered: hover-area.has-hover;
+    // The tooltip itself is rendered by ChainRow (declared AFTER all
+    // BlockChips so it paints on top of every sibling), not by this chip.
+    // We just emit the hover state so the row knows which block is
+    // active and where to anchor the tooltip card.
+    changed hovered => { root.hover-state-changed(self.hovered); }
+    property <bool> did-drag: false;
+    property <bool> drag-origin-set: false;
+    property <float> drag-origin-x: 0;
+    property <float> drag-origin-y: 0;
+
+    width: 100px;
+    height: 100px;
+    background: transparent;
+    border-width: 0px;
+    border-radius: 6px;
+
+    // Type label on top
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 14px;
+        text: root.block-type-label;
+        color: root.block.enabled ? root.accent-color : #5c6678;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // Block icon area — base size at rest. On hover the artwork grows
+    // (replaces the old white outline as the hover affordance) by
+    // expanding upward over the type label and downward toward the
+    // LED. Animated so the change feels intentional, not a teleport.
+    if root.block.has-thumbnail : Image {
+        x: 0px;
+        y: hover-area.has-hover ? 4px : 14px;
+        width: parent.width;
+        height: hover-area.has-hover ? 90px : 78px;
+        source: root.block.thumbnail;
+        image-fit: contain;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
+    }
+
+    if !root.block.has-thumbnail : EffectTypeIcon {
+        x: 0px;
+        y: hover-area.has-hover ? 4px : 14px;
+        width: parent.width;
+        height: hover-area.has-hover ? 90px : 78px;
+        icon-kind: root.block.icon-kind;
+        tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
+    }
+
+    // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
+    Rectangle {
+        x: (parent.width - 12px) / 2;
+        y: parent.height - 10px;
+        width: 12px;
+        height: 12px;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.block.enabled ? 0px : -12px;
+            y: 0;
+            width: 24px;
+            height: 12px;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        moved => {
+            if self.pressed {
+                let pointer-x = (self.mouse-x + root.x) / 1px;
+                let pointer-y = (self.mouse-y + root.y) / 1px;
+                if !root.drag-origin-set {
+                    root.drag-origin-set = true;
+                    root.drag-origin-x = pointer-x;
+                    root.drag-origin-y = pointer-y;
+                } else {
+                    let delta-x = pointer-x - root.drag-origin-x;
+                    let delta-y = pointer-y - root.drag-origin-y;
+                    let distance = (delta-x < 0 ? -delta-x : delta-x) + (delta-y < 0 ? -delta-y : delta-y);
+                    if distance > 8 {
+                        root.did-drag = true;
+                        root.drag-moved(pointer-x, pointer-y);
+                    }
+                }
+            }
+        }
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.up {
+                let pointer-x = (self.mouse-x + root.x) / 1px;
+                let pointer-y = (self.mouse-y + root.y) / 1px;
+                if root.did-drag {
+                    root.drag-finished(pointer-x, pointer-y);
+                } else {
+                    root.clicked();
+                }
+                root.did-drag = false;
+                root.drag-origin-set = false;
+            }
+        }
+    }
+}
+

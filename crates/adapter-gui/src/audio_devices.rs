@@ -334,6 +334,41 @@ pub(crate) fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) ->
     settings
 }
 
+/// Build the `DeviceSelectionItem` rows shown in the project Settings panel.
+///
+/// Each descriptor is matched against the user's saved per-device config —
+/// when present it's normalized (sample rate / buffer / bit-depth clamped to
+/// supported values), otherwise it falls back to defaults. `selected = true`
+/// here means "currently visible in the descriptor list"; the caller pairs
+/// this with [`mark_unselected_devices`] to flip rows the user has explicitly
+/// turned off in `gui-settings.yaml`.
+pub(crate) fn build_device_selection_items(
+    descriptors: &[AudioDeviceDescriptor],
+    saved: &[GuiAudioDeviceSettings],
+) -> Vec<DeviceSelectionItem> {
+    descriptors
+        .iter()
+        .map(|device| {
+            let device_id = device.id.clone();
+            let name = device.name.clone();
+            let config = saved
+                .iter()
+                .find(|s| s.device_id == device_id)
+                .cloned()
+                .map(normalize_device_settings)
+                .unwrap_or_else(|| default_device_settings(device_id.clone(), name.clone()));
+            DeviceSelectionItem {
+                device_id: config.device_id.into(),
+                name: config.name.into(),
+                selected: true,
+                sample_rate_text: config.sample_rate.to_string().into(),
+                buffer_size_text: config.buffer_size_frames.to_string().into(),
+                bit_depth_text: config.bit_depth.to_string().into(),
+            }
+        })
+        .collect()
+}
+
 pub(crate) fn mark_unselected_devices(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     selected_devices: &[GuiAudioDeviceSettings],

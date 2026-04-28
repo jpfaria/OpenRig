@@ -450,7 +450,6 @@ mod tests {
             ("wah", block_wah::supported_models()[0]),
             ("pitch", block_pitch::supported_models()[0]),
             ("modulation", block_mod::supported_models()[0]),
-            ("utility", block_util::supported_models()[0]),
             ("amp", block_amp::supported_models()[0]),
             ("cab", block_cab::supported_models()[0]),
             ("body", block_body::supported_models()[0]),
@@ -493,7 +492,6 @@ mod tests {
             ("wah", block_wah::supported_models()[0]),
             ("pitch", block_pitch::supported_models()[0]),
             ("modulation", block_mod::supported_models()[0]),
-            ("utility", block_util::supported_models()[0]),
             ("amp", block_amp::supported_models()[0]),
             ("cab", block_cab::supported_models()[0]),
             ("body", block_body::supported_models()[0]),
@@ -532,7 +530,6 @@ mod tests {
             ("wah", block_wah::supported_models()[0]),
             ("pitch", block_pitch::supported_models()[0]),
             ("modulation", block_mod::supported_models()[0]),
-            ("utility", block_util::supported_models()[0]),
             ("amp", block_amp::supported_models()[0]),
             ("cab", block_cab::supported_models()[0]),
             ("body", block_body::supported_models()[0]),
@@ -636,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
     fn model_stream_kind_utility_returns_value() {
         let model = block_util::supported_models()[0];
         // Should not panic; may return empty or a stream kind string

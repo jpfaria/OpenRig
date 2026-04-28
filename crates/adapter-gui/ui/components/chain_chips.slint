@@ -1,0 +1,244 @@
+// Small, reusable chips that decorate a ChainRow header and inline action
+// surfaces — endpoint summary chips, the chain power toggle, header icons.
+// Pure visual primitives.
+
+export component ChainActionIcon inherits Rectangle {
+    in property <image> icon;
+    in property <string> tooltip;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: hover-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: hover-area.has-hover ? #ffffff : #8a94a2;
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Tooltip below the icon — anything above is covered by the project
+    // header, which paints last over the chain content. Issue #329.
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -26px;
+        y: 28px;
+        width: 76px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+
+export component ChainEndpointChip inherits Rectangle {
+    in property <string> label;
+    in property <string> tooltip;
+    in property <bool> is-input: true;
+    callback clicked();
+    out property <bool> is-hovered: hover-area.has-hover;
+
+    width: root.is-input ? 72px : 90px;
+    height: 72px;
+    background: transparent;
+
+    Image {
+        x: (parent.width - 48px) / 2;
+        y: 4px;
+        width: 48px;
+        height: 48px;
+        source: root.is-input
+            ? @image-url("../assets/connector-input.png")
+            : @image-url("../assets/connector-output.png");
+        image-fit: contain;
+        opacity: hover-area.has-hover ? 1.0 : 0.7;
+    }
+
+    // Label
+    Text {
+        x: 4px;
+        y: 54px;
+        width: parent.width - 8px;
+        height: 16px;
+        text: root.label;
+        color: hover-area.has-hover ? #d0e4f8 : #8aaac8;
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    hover-area := TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => {
+            debug("ChainEndpointChip clicked", root.is-input, root.label);
+            root.clicked();
+        }
+    }
+}
+
+
+export component ChainPowerToggle inherits Rectangle {
+    in property <bool> enabled: false;
+    in property <string> tooltip;
+    callback clicked();
+
+    width: 28px;
+    height: 28px;
+    background: hover-area.has-hover ? #ffffff08 : transparent;
+
+    Rectangle {
+        x: 4px;
+        y: 4px;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.enabled ? #29df85 : #6a7483;
+        border-radius: 10px;
+    }
+
+    Rectangle {
+        x: 13px;
+        y: 3px;
+        width: 2px;
+        height: 10px;
+        background: root.enabled ? #29df85 : #6a7483;
+        border-radius: 1px;
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Tooltip below — anything above is covered by the project header (#329).
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -24px;
+        y: 32px;
+        width: 76px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+
+export component HeaderIconAction inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active: false;
+    in property <color> tint: root.active ? #188cff : #eef2f8;
+    in property <string> tooltip;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: action-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.tint;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    action-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Tooltip below — header icons sit at the top of the page, tooltip
+    // above would be clipped by the window edge (#329).
+    if action-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -30px;
+        y: 28px;
+        width: 84px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
