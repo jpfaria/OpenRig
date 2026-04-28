@@ -13,35 +13,50 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: EQ setting × cab+mic.
+// All captures are Red channel, Modern mode, G7 / Master 2.
+// EQ encodes Presence/Treble/Mid/Bass: balanced (P2/T5/M4/B2),
+// mid_cut (P3/T6/M4/B3), or scoop (P4/T4/M3/B4).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fr_p_2_t_5_m_4_b_2_v30_sm57c", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57c", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57c.nam"),
-    ("di_p_2_t_5_m_4_b_2", "DI MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2", "amps/mesa_dual_rectifier_multiwatt/di_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2.nam"),
-    ("fr_p_2_t_5_m_4_b_2_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_m65_sm57b.nam"),
-    ("fr_p_3_t_6_m_4_b_3_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-3 T-6 M-4 B-3 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_3_t_6_m_4_b_3_m65_sm57b.nam"),
-    ("fr_p_4_t_4_m_3_b_4_m65_sm57a", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57a", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57a.nam"),
-    ("fr_p_4_t_4_m_3_b_4_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_v30_sm57b.nam"),
-    ("fr_p_2_t_5_m_4_b_2_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57b.nam"),
-    ("fr_p_4_t_4_m_3_b_4_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57b.nam"),
+    // (eq, cab_mic, file)
+    ("balanced", "di",        "amps/mesa_dual_rectifier_multiwatt/di_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2.nam"),
+    ("balanced", "v30_sm57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57b.nam"),
+    ("balanced", "v30_sm57c", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57c.nam"),
+    ("balanced", "m65_sm57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_m65_sm57b.nam"),
+    ("mid_cut",  "m65_sm57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_3_t_6_m_4_b_3_m65_sm57b.nam"),
+    ("scoop",    "v30_sm57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_v30_sm57b.nam"),
+    ("scoop",    "m65_sm57a", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57a.nam"),
+    ("scoop",    "m65_sm57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57b.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("fr_p_2_t_5_m_4_b_2_v30_sm57c"),
-        &[
-            ("fr_p_2_t_5_m_4_b_2_v30_sm57c", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57c"),
-            ("di_p_2_t_5_m_4_b_2", "DI MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2"),
-            ("fr_p_2_t_5_m_4_b_2_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 M65 SM57b"),
-            ("fr_p_3_t_6_m_4_b_3_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-3 T-6 M-4 B-3 M65 SM57b"),
-            ("fr_p_4_t_4_m_3_b_4_m65_sm57a", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57a"),
-            ("fr_p_4_t_4_m_3_b_4_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 V30 SM57b"),
-            ("fr_p_2_t_5_m_4_b_2_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57b"),
-            ("fr_p_4_t_4_m_3_b_4_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57b"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "eq",
+            "EQ",
+            Some("Amp"),
+            Some("balanced"),
+            &[
+                ("balanced", "Balanced"),
+                ("mid_cut",  "Mid Cut"),
+                ("scoop",    "Scoop"),
+            ],
+        ),
+        enum_parameter(
+            "cab_mic",
+            "Cab + Mic",
+            Some("Amp"),
+            Some("v30_sm57b"),
+            &[
+                ("di",        "DI (No Cab)"),
+                ("v30_sm57b", "V30 + SM57 (B)"),
+                ("v30_sm57c", "V30 + SM57 (C)"),
+                ("m65_sm57a", "M65 + SM57 (A)"),
+                ("m65_sm57b", "M65 + SM57 (B)"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +76,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let eq = required_string(params, "eq").map_err(anyhow::Error::msg)?;
+    let cab_mic = required_string(params, "cab_mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(e, c, _)| *e == eq && *c == cab_mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for eq={} cab_mic={}",
+                MODEL_ID, eq, cab_mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
