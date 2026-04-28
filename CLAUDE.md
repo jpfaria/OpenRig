@@ -35,10 +35,17 @@ OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latênci
 1. **Latência round-trip**
 2. **Qualidade de áudio** (ruído, aliasing, THD, resposta em frequência)
 3. **Estabilidade do stream** — zero xruns, dropouts, cliques, glitches, pops
-4. **Jitter do callback** — tempo de processamento estável
-5. **Custo de CPU no audio thread** — regressão de CPU vira xrun
-6. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
-7. **Determinismo numérico** — golden samples passam dentro da tolerância
+4. **Isolation entre streams** — cada `InputBlock` é um stream paralelo TOTALMENTE isolado. NUNCA um stream pode impactar outro. Sem buffer compartilhado, sem lock compartilhado, sem cache line contestada, sem CPU spike de um afetando outro. "Chain" no YAML é só agrupamento lógico — no runtime são N runtimes paralelos. Mixing entre streams (se necessário) acontece no backend (cpal/JACK), nunca no nosso código. Violação = regressão crítica, igual a perder áudio.
+5. **Stream é SEMPRE estéreo internamente** — o bus de processamento de TODO stream é estéreo, regardless de input mode:
+   - Mono input → upmix broadcast: `Stereo([s, s])` (mesmo sinal nos 2 canais — centrado).
+   - DualMono input → `Stereo([L, R])` com L/R processados independentemente pelo `AudioProcessor::DualMono`.
+   - Stereo input → `Stereo([L, R])` direto.
+   - 1 InputBlock com `mode: mono, channels: [0, 1]` (duas guitarras na mesma input) → 2 streams estéreo INDEPENDENTES (cada um broadcast pra ambos os canais), somados com escala 1/N (auto-mix sem saturar).
+   - Saída final pro device só vira mono se o `OutputBlock` for `mode: mono` — aí o `apply_mixdown` faz Stereo→Mono pelo método configurado (Average / Sum / Left / Right). NUNCA forçar bus Mono no segment quando output é estéreo. NUNCA auto-pan: cada stream sempre presente em AMBOS os canais. Violação = regressão crítica.
+5. **Jitter do callback** — tempo de processamento estável
+6. **Custo de CPU no audio thread** — regressão de CPU vira xrun
+7. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
+8. **Determinismo numérico** — golden samples passam dentro da tolerância
 
 ### Checklist obrigatório antes do PR/merge
 
@@ -48,6 +55,7 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - [ ] Afeta latência? Qual o delta em ms? Justificado?
 - [ ] Afeta o som de algum bloco? Golden tests passando? Fiz A/B auditivo?
 - [ ] Introduz alocação, lock, syscall ou lazy init no hot path? Se sim, reverter.
+- [ ] **Isolation entre streams preservada?** Testei com 2+ inputs paralelos? Glitch num NÃO afeta outro? CPU spike num NÃO afeta callback do outro? Existe algum buffer/lock/route/tap compartilhado entre streams? Se sim → regressão crítica, reverter.
 
 ### Red flags — PARAR e reportar
 
@@ -57,10 +65,11 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - Pico de callback acima do buffer period
 - Necessidade de `Mutex`/`RwLock`/`Arc::clone`/log/print/file I/O no processamento
 - "Em macOS/Windows/Linux o som mudou" → é regressão, não compatibilidade
+- **Buffer / runtime state / tap / route / scratch compartilhado entre 2+ streams** — viola isolation, é regressão crítica
 
 ### Hierarquia de trade-offs
 
-1. Qualidade do som **e** estabilidade do stream (empate no topo)
+1. Qualidade do som **e** estabilidade do stream **e** isolation entre streams (empate no topo)
 2. Latência
 3. Custo de CPU no audio thread
 4. Compatibilidade cross-platform
