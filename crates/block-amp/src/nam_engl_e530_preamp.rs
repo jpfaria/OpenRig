@@ -13,13 +13,15 @@ const BRAND: &str = "engl";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 6 voicings — Channel 1 (clean) and 2 (modern), DI vs CTR'd,
+// optional TS1 boost on Modern.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_modern_ts1", "E530 MODERN TS1", "amps/engl_e530_preamp/engl_e530_modern_ts1.nam"),
-    ("engl_modern", "E530 MODERN", "amps/engl_e530_preamp/engl_e530_modern.nam"),
-    ("2_di", "E530 2 DI", "amps/engl_e530_preamp/e530_2_di.nam"),
-    ("2_di_ctr", "E530 2 DI CTR", "amps/engl_e530_preamp/e530_2_di_ctr.nam"),
-    ("1_di_ctr", "E530 1 DI CTR", "amps/engl_e530_preamp/e530_1_di_ctr.nam"),
-    ("1", "E530 1", "amps/engl_e530_preamp/e530_1.nam"),
+    ("ch1",            "Ch1",             "amps/engl_e530_preamp/e530_1.nam"),
+    ("ch1_ctr",        "Ch1 CTR",         "amps/engl_e530_preamp/e530_1_di_ctr.nam"),
+    ("ch2_di",         "Ch2 DI",          "amps/engl_e530_preamp/e530_2_di.nam"),
+    ("ch2_ctr",        "Ch2 CTR",         "amps/engl_e530_preamp/e530_2_di_ctr.nam"),
+    ("modern",         "Modern",          "amps/engl_e530_preamp/engl_e530_modern.nam"),
+    ("modern_ts1",     "Modern + TS1",    "amps/engl_e530_preamp/engl_e530_modern_ts1.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,15 +30,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("engl_modern_ts1"),
+        Some("ch1"),
         &[
-            ("engl_modern_ts1", "E530 MODERN TS1"),
-            ("engl_modern", "E530 MODERN"),
-            ("2_di", "E530 2 DI"),
-            ("2_di_ctr", "E530 2 DI CTR"),
-            ("1_di_ctr", "E530 1 DI CTR"),
-            ("1", "E530 1"),
-        
+            ("ch1",        "Ch1"),
+            ("ch1_ctr",    "Ch1 CTR"),
+            ("ch2_di",     "Ch2 DI"),
+            ("ch2_ctr",    "Ch2 CTR"),
+            ("modern",     "Modern"),
+            ("modern_ts1", "Modern + TS1"),
         ],
     )];
     schema
