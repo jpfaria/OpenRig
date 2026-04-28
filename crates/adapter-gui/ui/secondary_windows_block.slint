@@ -1,0 +1,233 @@
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem } from "models.slint";
+import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
+import { Toast } from "components/toast.slint";
+
+export component BlockEditorWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <string> block-window-title: "OpenRig · Block";
+    callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback show-plugin-info(string, string);
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
+
+    // Realtime data stream from engine (tuner, meter, analyzer, etc.)
+    in property <BlockStreamData> block-stream-data;
+
+    // Computed: should this block type use the visual panel editor?
+    private property <bool> use-panel-editor:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
+
+    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
+    property <int> param-count: root.block-parameter-items.length;
+    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+    private property <bool> has-eq-widget:
+        root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
+    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
+    private property <length> eq-panel-width:
+        multi-slider-points.length > 0 ?
+            Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
+        curve-editor-points.length > 0 ?
+            Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
+            600px;
+    property <length> panel-width:
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+            520px;
+    // EQ widget heights: CurveEditor = 200px, MultiSlider = 180px.
+    // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
+    private property <length> eq-widget-height:
+        root.curve-editor-points.length > 0 ? 200px :
+        root.multi-slider-points.length > 0 ? 180px : 0px;
+    // EQ blocks: compact 60px panel (just POWER button, no brand strip).
+    private property <length> eq-extra-height:
+        has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+
+    title: root.block-window-title;
+    min-width: panel-width;
+    min-height: root.use-panel-editor ? eq-extra-height : 640px;
+    max-width: panel-width;
+    max-height: root.use-panel-editor ? eq-extra-height : 640px;
+    preferred-width: panel-width;
+    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
+    background: #040708;
+
+    // Amp head: visual panel editor
+    if root.use-panel-editor : BlockPanelEditor {
+        width: parent.width;
+        height: parent.height;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-model-search-text <=> root.block-model-search-text;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-knob-overlays: root.block-knob-overlays;
+        block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-stream-data: root.block-stream-data;
+        choose-block-model(i) => { root.choose-block-model(i); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+    }
+
+    // Other block types: existing form-based editor
+    if !root.use-panel-editor : BlockEditorPanel {
+        width: parent.width;
+        height: parent.height;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        filtered-block-model-options: root.filtered-block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-model-search-text <=> root.block-model-search-text;
+        block-drawer-title: root.block-drawer-title;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-drawer-status-message: root.block-drawer-status-message;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        block-stream-data: root.block-stream-data;
+        choose-block-model(index) => { root.choose-block-model(index); }
+        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
+        search-block-model(text) => { root.search-block-model(text); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+    }
+
+    in-out property <string> toast-message;
+    in-out property <string> toast-level: "info";
+
+    Toast {
+        message: root.toast-message;
+        level: root.toast-level;
+        container-width: root.width;
+        container-height: root.height;
+    }
+}
+
+export component CompactChainViewWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    title: "OpenRig \u{00B7} Chain";
+    min-width: 800px;
+    min-height: 260px;
+    preferred-width: 1000px;
+    preferred-height: 460px;
+    background: #0a0c10;
+
+    in property <string> chain-title;
+    in property <int> chain-index;
+    in property <bool> chain-enabled;
+    in property <[CompactBlockItem]> compact-blocks;
+    in property <[BlockTypePickerItem]> block-type-options;
+
+    // I/O device configuration
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
+
+    callback toggle-chain-enabled(int);
+    callback toggle-block-enabled(int, int);
+    callback update-block-parameter-number(int, int, string, float);
+    callback update-block-parameter-bool(int, int, string, bool);
+    callback select-block-parameter-option(int, int, string, int);
+    callback choose-block-model(int, int, int);
+    callback choose-block-model-by-id(int, int, string);
+    callback search-block-model(int, int, string);
+    callback insert-block(int, int);
+    callback reorder-block(int, int, int);
+    callback open-block-detail(int, int);
+    callback close-compact-view();
+    callback choose-block-type(int, int, int);
+    callback remove-block(int, int);
+    callback open-plugin(string); // model-id, for VST3 blocks
+
+    CompactChainViewPage {
+        width: parent.width; height: parent.height;
+        chain-title: root.chain-title;
+        chain-index: root.chain-index;
+        chain-enabled: root.chain-enabled;
+        compact-blocks: root.compact-blocks;
+        block-type-options: root.block-type-options;
+        configure-input(ci) => { root.configure-input(ci); }
+        configure-output(ci) => { root.configure-output(ci); }
+        toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
+        toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
+        update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
+        update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
+        select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
+        choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
+        choose-block-model-by-id(ci, bi, mid) => { root.choose-block-model-by-id(ci, bi, mid); }
+        search-block-model(ci, bi, text) => { root.search-block-model(ci, bi, text); }
+        insert-block(ci, before) => { root.insert-block(ci, before); }
+        reorder-block(ci, from, before) => { root.reorder-block(ci, from, before); }
+        open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
+        close-compact-view => { root.close-compact-view(); }
+        choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
+        remove-block(ci, bi) => { root.remove-block(ci, bi); }
+        open-plugin(model-id) => { root.open-plugin(model-id); }
+    }
+}

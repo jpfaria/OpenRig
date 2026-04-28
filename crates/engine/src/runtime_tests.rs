@@ -705,9 +705,9 @@ fn segments_split_by_output_position() {
         ],
     };
 
-    let (eff_inputs, eff_cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, eff_cpal_indices, eff_split_positions) = effective_inputs(&chain);
     let eff_outputs = effective_outputs(&chain);
-    let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_cpal_indices, &eff_outputs);
+    let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_cpal_indices, &eff_split_positions, &eff_outputs);
 
     // Should have 2 segments (1 input × 2 outputs)
     assert_eq!(segments.len(), 2, "expected 2 segments, got {}", segments.len());
@@ -1552,7 +1552,7 @@ fn insert_chain() -> Chain {
 #[test]
 fn effective_inputs_includes_insert_return() {
     let chain = insert_chain();
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     // Should have: 1 regular input + 1 insert return = 2
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(cpal_indices.len(), 2);
@@ -1570,9 +1570,9 @@ fn effective_outputs_includes_insert_send() {
 #[test]
 fn split_chain_with_insert_produces_two_segments() {
     let chain = insert_chain();
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     let eff_outputs = effective_outputs(&chain);
-    let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &eff_outputs);
+    let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &split_positions, &eff_outputs);
 
     // Should have 2 segments: before insert and after insert
     assert_eq!(segments.len(), 2, "insert should split chain into 2 segments");
@@ -1591,9 +1591,9 @@ fn split_chain_with_disabled_insert_produces_one_segment() {
     let mut chain = insert_chain();
     // Disable the insert block
     chain.blocks[2].enabled = false;
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     let eff_outputs = effective_outputs(&chain);
-    let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &eff_outputs);
+    let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &split_positions, &eff_outputs);
 
     // Disabled insert should not split the chain
     assert_eq!(segments.len(), 1, "disabled insert should not split the chain");
@@ -1621,7 +1621,7 @@ fn effective_inputs_splits_mono_multichannel_entry() {
             }),
         }],
     };
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 3, "mono entry with 3 channels should split into 3 entries");
     assert_eq!(eff_inputs[0].channels, vec![0]);
     assert_eq!(eff_inputs[1].channels, vec![1]);
@@ -1642,7 +1642,7 @@ fn effective_inputs_fallback_when_no_input_blocks() {
         enabled: true,
         blocks: vec![],
     };
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 1, "fallback should produce exactly 1 input");
     assert_eq!(cpal_indices, vec![0]);
 }
@@ -2248,7 +2248,7 @@ fn effective_inputs_stereo_entry_not_split() {
             }),
         }],
     };
-    let (eff_inputs, _) = effective_inputs(&chain);
+    let (eff_inputs, _, _) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 1, "stereo entry should not be split");
     assert_eq!(eff_inputs[0].channels, vec![0, 1]);
 }
@@ -2289,7 +2289,7 @@ fn effective_inputs_ignores_disabled_blocks() {
             },
         ],
     };
-    let (eff_inputs, _) = effective_inputs(&chain);
+    let (eff_inputs, _, _) = effective_inputs(&chain);
     // Disabled input block is ignored, so fallback
     assert_eq!(eff_inputs.len(), 1);
     assert_eq!(eff_inputs[0].device_id.0, "", "should fall back to default input");
@@ -2358,7 +2358,7 @@ fn effective_inputs_multiple_input_blocks() {
             },
         ],
     };
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(eff_inputs[0].device_id.0, "dev1");
     assert_eq!(eff_inputs[1].device_id.0, "dev2");
@@ -2395,7 +2395,7 @@ fn effective_inputs_same_device_shares_cpal_index() {
             }),
         }],
     };
-    let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+    let (eff_inputs, cpal_indices, split_positions) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(cpal_indices[0], cpal_indices[1], "same device should share CPAL index");
 }

@@ -1,0 +1,120 @@
+import { BlockStreamData } from "../models.slint";
+
+// Compact stream display rendered inside CompactBlockRow.
+//
+// Shows either:
+//   - tuner-style readouts (pitch / note / cents) when stream-kind != "spectrum"
+//   - mini bar-graph (spectrum analyzer) when stream-kind == "spectrum"
+//
+// Caller positions and sizes the component; geometry inside is fluid.
+export component BlockStreamMiniDisplay inherits Rectangle {
+    in property <BlockStreamData> stream-data;
+    in property <color> panel-text;
+
+    background: transparent;
+
+    // ── Tuner-style readouts ────────────────────────────────────────────
+    if stream-data.stream-kind != "" && stream-data.stream-kind != "spectrum" : Rectangle {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+
+        // Waiting for signal — shown until pitch is detected
+        if !stream-data.active : Text {
+            x: 0; y: 0; width: parent.width; height: parent.height;
+            text: "–";
+            color: #3a4050;
+            font-size: 28px; font-weight: 900;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        for entry[ei] in stream-data.entries : Rectangle {
+            property <length> slot-w: parent.width / stream-data.entries.length;
+            x: ei * slot-w;
+            y: 0;
+            width: slot-w;
+            height: parent.height;
+
+            Text {
+                x: 0; y: 2px; width: parent.width; height: 12px;
+                text: entry.key;
+                color: #506070;
+                font-size: 7px; font-weight: 700; letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                x: 0; y: 14px; width: parent.width; height: parent.height - 32px;
+                text: entry.text;
+                color: entry.value > 0.5 ? #29df85 : root.panel-text;
+                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if entry.key == "cents" : Rectangle {
+                x: 8px; y: parent.height - 14px;
+                width: parent.width - 16px; height: 6px;
+                background: #1a1e28;
+                border-radius: 3px;
+
+                Rectangle {
+                    x: (parent.width - 1px) / 2;
+                    y: 0; width: 1px; height: parent.height;
+                    background: #405060;
+                }
+
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
+                    y: 0; width: 6px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 3px;
+                }
+            }
+        }
+    }
+
+    // ── Spectrum analyzer mini bars ─────────────────────────────────────
+    if stream-data.active && stream-data.stream-kind == "spectrum" : Rectangle {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+        background: #06060e;
+        border-radius: 3px;
+        clip: true;
+
+        for entry[ei] in stream-data.entries : Rectangle {
+            property <length> bar-slot-w: parent.width / stream-data.entries.length;
+            x: ei * self.bar-slot-w;
+            y: 0;
+            width: self.bar-slot-w;
+            height: parent.height;
+            background: transparent;
+
+            Rectangle {
+                property <length> bar-h: Math.max(1px, entry.value * parent.height);
+                x: 1px;
+                y: parent.height - self.bar-h;
+                width: parent.width - 2px;
+                height: self.bar-h;
+                background: entry.value > 0.85 ? #ff4433
+                    : entry.value > 0.65 ? #ffaa22
+                    : entry.value > 0.3 ? #44cc88
+                    : #4488ff;
+                border-radius: 1px;
+            }
+
+            // Peak hold line
+            Rectangle {
+                x: 1px;
+                y: Math.max(0px, parent.height - entry.peak * parent.height - 1px);
+                width: parent.width - 2px;
+                height: 2px;
+                background: entry.peak > 0.85 ? #ff8877
+                    : entry.peak > 0.65 ? #ffcc66
+                    : entry.peak > 0.3 ? #88ffcc
+                    : #88bbff;
+                opacity: entry.peak > 0.01 ? 1.0 : 0.0;
+            }
+        }
+    }
+}

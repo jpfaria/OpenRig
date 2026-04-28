@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn main() {
     let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
@@ -20,13 +20,12 @@ fn main() {
     let prebuilt_lib = project_root.join("libs/nam").join(platform_dir);
 
     let lib_name = lib_filename();
-    let lib_source_dir;
 
     // Try prebuilt lib first
-    if prebuilt_lib.exists() && has_lib(&prebuilt_lib) {
+    let lib_source_dir = if prebuilt_lib.exists() && has_lib(&prebuilt_lib) {
         println!("cargo:rustc-link-search=native={}", prebuilt_lib.display());
         println!("cargo:warning=Using prebuilt NeuralAudioCAPI from {}", prebuilt_lib.display());
-        lib_source_dir = prebuilt_lib.clone();
+        prebuilt_lib.clone()
     } else {
         // Compile from source
         println!("cargo:warning=Building NeuralAudioCAPI from source...");
@@ -57,12 +56,12 @@ fn main() {
         // Copy compiled lib to libs/nam/ for future use
         copy_compiled_lib(&dst, &prebuilt_lib);
 
-        lib_source_dir = if lib_path.join(lib_name).exists() {
+        if lib_path.join(lib_name).exists() {
             lib_path
         } else {
             install_lib
-        };
-    }
+        }
+    };
 
     // On Windows the extern block uses raw-dylib, so no link directive is needed.
     // On other platforms we emit the standard dylib directive.
@@ -94,11 +93,11 @@ fn lib_filename() -> &'static str {
     }
 }
 
-fn has_lib(dir: &PathBuf) -> bool {
+fn has_lib(dir: &Path) -> bool {
     dir.join(lib_filename()).exists()
 }
 
-fn copy_lib_to_target(lib_dir: &PathBuf, lib_name: &str) {
+fn copy_lib_to_target(lib_dir: &Path, lib_name: &str) {
     let src = lib_dir.join(lib_name);
     if !src.exists() {
         println!("cargo:warning=Cannot copy {} to target dir: source not found at {}", lib_name, src.display());
@@ -129,7 +128,7 @@ fn copy_lib_to_target(lib_dir: &PathBuf, lib_name: &str) {
     let _ = std::fs::copy(&src, &deps_dst);
 }
 
-fn copy_compiled_lib(build_dir: &PathBuf, target_dir: &PathBuf) {
+fn copy_compiled_lib(build_dir: &Path, target_dir: &Path) {
     let src = build_dir.join("build/src/NeuralAudio/NeuralAudioCAPI");
     let lib_name = lib_filename();
     let src_file = src.join(lib_name);
