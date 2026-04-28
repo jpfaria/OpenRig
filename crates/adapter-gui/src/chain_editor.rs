@@ -18,16 +18,18 @@ const INSTRUMENT_KEYS: &[&str] = &[
 
 pub(crate) fn create_chain_draft(
     project: &Project,
-    input_devices: &[AudioDeviceDescriptor],
-    output_devices: &[AudioDeviceDescriptor],
+    _input_devices: &[AudioDeviceDescriptor],
+    _output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
+    // Empty I/O fields force the user to consciously pick the device + channels
+    // for the chain instead of accepting whichever device happens to be first.
     let default_input = InputGroupDraft {
-        device_id: input_devices.first().map(|device| device.id.clone()),
+        device_id: None,
         channels: Vec::new(),
         mode: ChainInputMode::Mono,
     };
     let default_output = OutputGroupDraft {
-        device_id: output_devices.first().map(|device| device.id.clone()),
+        device_id: None,
         channels: Vec::new(),
         mode: ChainOutputMode::Stereo,
     };
