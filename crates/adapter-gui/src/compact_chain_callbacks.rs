@@ -119,6 +119,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         {
             let compact_blocks = compact_blocks.clone();
             compact_win.on_search_block_model(move |ci, bi, text| {
+                log::info!(
+                    "[search-compact] callback received: ci={} bi={} text={:?}",
+                    ci,
+                    bi,
+                    text
+                );
                 crate::model_search_wiring::refilter_compact_block(
                     &compact_blocks,
                     ci,
