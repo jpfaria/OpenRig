@@ -14,7 +14,7 @@ const BRAND: &str = "wizard";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("wizard_hellrazor_3", "3", "amps/wizard_hellrazor/wizard_hellrazor_3.nam"),
+    ("preset_3", "Preset 3", "amps/wizard_hellrazor/wizard_hellrazor_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +23,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("wizard_hellrazor_3"),
+        Some("preset_3"),
         &[
-            ("wizard_hellrazor_3", "3"),
-        
+            ("preset_3", "Preset 3"),
         ],
     )];
     schema

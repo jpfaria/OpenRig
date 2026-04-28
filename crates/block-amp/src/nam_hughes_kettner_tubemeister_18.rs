@@ -13,8 +13,9 @@ const BRAND: &str = "hughes";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: clean channel.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hughes_kettner_clean", "& Kettner clean", "amps/hughes_kettner_tubemeister_18/hughes_kettner_clean.nam"),
+    ("clean", "Clean", "amps/hughes_kettner_tubemeister_18/hughes_kettner_clean.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("hughes_kettner_clean"),
+        Some("clean"),
         &[
-            ("hughes_kettner_clean", "& Kettner clean"),
-        
+            ("clean", "Clean"),
         ],
     )];
     schema
