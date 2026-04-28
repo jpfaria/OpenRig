@@ -91,6 +91,7 @@ mod desktop_app_polling;
 mod desktop_app_cli_open;
 mod desktop_app_block_models;
 mod desktop_app_init;
+mod desktop_app_block_wiring;
 pub use desktop_app::run_desktop_app;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
