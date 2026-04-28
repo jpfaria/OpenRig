@@ -9,15 +9,20 @@ pub const MODEL_ID: &str = "marshall_1960tv_greenback";
 pub const DISPLAY_NAME: &str = "1960TV Greenback";
 const BRAND: &str = "marshall";
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ll_1_50in_oa30_sa73", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73", "cabs/marshall_1960tv_greenback/m25_ll_1960tv_4x12_sm57_1_50in_0_0in_oa30_sa73_3.wav"),
-    ("lr_1_00in_7603", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_00in_0_0in_7603_3.wav"),
-    ("lr_1_50in_oa30_7603", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603", "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_50in_0_0in_oa30_7603_3.wav"),
-    ("ul_1_25in_7603", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_1_25in_0_0in_7603_3.wav"),
-    ("ul_2_00in_7603", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_00in_0_0in_7603_3.wav"),
-    ("ul_2_25in_vp28", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
-    ("ur_1_00in_vp28", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_1_00in_0_0in_vp28_3.wav"),
-    ("ur_2_00in_vp28", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28", "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_2_00in_0_0in_vp28_3.wav"),
+// Three-axis pack: mic position × distance × preamp.
+// Only 8 of the 4×5×4 = 80 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI can still expose
+// all three knobs as independent controls.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (mic_pos, distance, preamp, file)
+    ("ll", "1.50", "oa30_sa73",  "cabs/marshall_1960tv_greenback/m25_ll_1960tv_4x12_sm57_1_50in_0_0in_oa30_sa73.wav"),
+    ("lr", "1.00", "neve_7603",  "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_00in_0_0in_7603.wav"),
+    ("lr", "1.50", "oa30_7603",  "cabs/marshall_1960tv_greenback/m25_lr_1960tv_4x12_sm57_1_50in_0_0in_oa30_7603.wav"),
+    ("ul", "1.25", "neve_7603",  "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_1_25in_0_0in_7603.wav"),
+    ("ul", "2.00", "neve_7603",  "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_00in_0_0in_7603.wav"),
+    ("ul", "2.25", "vp28",       "cabs/marshall_1960tv_greenback/m25_ul_1960tv_4x12_sm57_2_25in_0_0in_vp28.wav"),
+    ("ur", "1.00", "vp28",       "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_1_00in_0_0in_vp28.wav"),
+    ("ur", "2.00", "vp28",       "cabs/marshall_1960tv_greenback/m25_ur_1960tv_4x12_sm57_2_00in_0_0in_vp28.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,22 +31,45 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("ll_1_50in_oa30_sa73"),
-            &[
-            ("ll_1_50in_oa30_sa73", "M25 LL 1960TV 4x12 SM57 1.50in 0.0in OA30 SA73"),
-            ("lr_1_00in_7603", "M25 LR 1960TV 4x12 SM57 1.00in 0.0in 7603"),
-            ("lr_1_50in_oa30_7603", "M25 LR 1960TV 4x12 SM57 1.50in 0.0in OA30 7603"),
-            ("ul_1_25in_7603", "M25 UL 1960TV 4x12 SM57 1.25in 0.0in 7603"),
-            ("ul_2_00in_7603", "M25 UL 1960TV 4x12 SM57 2.00in 0.0in 7603"),
-            ("ul_2_25in_vp28", "M25 UL 1960TV 4x12 SM57 2.25in 0.0in VP28"),
-            ("ur_1_00in_vp28", "M25 UR 1960TV 4x12 SM57 1.00in 0.0in VP28"),
-            ("ur_2_00in_vp28", "M25 UR 1960TV 4x12 SM57 2.00in 0.0in VP28"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic_position",
+                "Mic Position",
+                Some("Cab"),
+                Some("ll"),
+                &[
+                    ("ll", "Lower Left"),
+                    ("lr", "Lower Right"),
+                    ("ul", "Upper Left"),
+                    ("ur", "Upper Right"),
+                ],
+            ),
+            enum_parameter(
+                "distance",
+                "Distance",
+                Some("Cab"),
+                Some("1.50"),
+                &[
+                    ("1.00", "1.00 in"),
+                    ("1.25", "1.25 in"),
+                    ("1.50", "1.50 in"),
+                    ("2.00", "2.00 in"),
+                    ("2.25", "2.25 in"),
+                ],
+            ),
+            enum_parameter(
+                "preamp",
+                "Mic Preamp",
+                Some("Cab"),
+                Some("oa30_sa73"),
+                &[
+                    ("oa30_sa73", "OA30 + SA73"),
+                    ("oa30_7603", "OA30 + Neve 7603"),
+                    ("neve_7603", "Neve 7603"),
+                    ("vp28",      "VP28"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -73,12 +101,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic_position").map_err(anyhow::Error::msg)?;
+    let dist = required_string(params, "distance").map_err(anyhow::Error::msg)?;
+    let pre = required_string(params, "preamp").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(m, d, p, _)| *m == mic && *d == dist && *p == pre)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic_position={} distance={} preamp={}",
+                MODEL_ID, mic, dist, pre
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
