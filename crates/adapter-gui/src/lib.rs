@@ -65,6 +65,10 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 
 mod audio_devices;
 mod block_editor;
+mod block_editor_param_items;
+mod block_editor_persist;
+mod block_editor_setters;
+mod block_editor_values;
 mod chain_editor;
 mod eq;
 mod helpers;
