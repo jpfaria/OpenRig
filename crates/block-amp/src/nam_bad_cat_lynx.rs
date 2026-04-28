@@ -13,20 +13,20 @@ const BRAND: &str = "bad_cat";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: paired with Marshall 1960A V30 4x12 cab IR.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("bad_cat_lynx_cab_marshall_1960a_v30_4", "+ cab marshall 1960a v30-4", "amps/bad_cat_lynx/bad_cat_lynx_cab_marshall_1960a_v30_4.nam"),
+    ("marshall_1960a_v30", "Marshall 1960A V30", "amps/bad_cat_lynx/bad_cat_lynx_cab_marshall_1960a_v30_4.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "cab",
+        "Cab",
         Some("Amp"),
-        Some("bad_cat_lynx_cab_marshall_1960a_v30_4"),
+        Some("marshall_1960a_v30"),
         &[
-            ("bad_cat_lynx_cab_marshall_1960a_v30_4", "+ cab marshall 1960a v30-4"),
-        
+            ("marshall_1960a_v30", "Marshall 1960A V30"),
         ],
     )];
     schema
@@ -48,12 +48,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "cab").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no cab '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
