@@ -422,109 +422,35 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    // --- Chain CRUD callbacks (extracted to chain_crud_wiring) ---
-    crate::chain_crud_wiring::wire(
-        &window,
-        &chain_input_window,
-        &chain_output_window,
-        crate::chain_crud_wiring::ChainCrudCtx {
-            project_session: project_session.clone(),
+    // --- Chain-level callback wirings (extracted to desktop_app_chain_wiring) ---
+    crate::desktop_app_chain_wiring::wire_all(
+        &crate::desktop_app_chain_wiring::ChainWiringDeps {
+            window: &window,
+            chain_input_window: &chain_input_window,
+            chain_output_window: &chain_output_window,
+            chain_input_groups_window: &chain_input_groups_window,
+            chain_output_groups_window: &chain_output_groups_window,
             chain_draft: chain_draft.clone(),
+            block_editor_draft: block_editor_draft.clone(),
+            io_block_insert_draft: io_block_insert_draft.clone(),
+            inline_io_groups_is_input: inline_io_groups_is_input.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
+            chain_input_device_options: chain_input_device_options.clone(),
+            chain_output_device_options: chain_output_device_options.clone(),
             chain_input_channels: chain_input_channels.clone(),
             chain_output_channels: chain_output_channels.clone(),
             chain_editor_window: chain_editor_window.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            io_block_insert_draft: io_block_insert_draft.clone(),
-            toast_timer: toast_timer.clone(),
-            auto_save,
-            fullscreen,
-        },
-    );
-    // --- on_open_compact_chain_view (extracted to compact_chain_callbacks) ---
-    crate::compact_chain_callbacks::wire(
-        &window,
-        crate::compact_chain_callbacks::CompactChainCallbacksCtx {
-            project_session: project_session.clone(),
-            project_runtime: project_runtime.clone(),
-            project_chains: project_chains.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            toast_timer: toast_timer.clone(),
             open_compact_window: open_compact_window.clone(),
             vst3_editor_handles: vst3_editor_handles.clone(),
-            block_editor_draft: block_editor_draft.clone(),
-            fullscreen,
-            auto_save,
-            vst3_sample_rate,
-        },
-    );
-    // --- Chain name edit callback (extracted to chain_name_wiring) ---
-    crate::chain_name_wiring::wire(&window, chain_draft.clone());
-    // --- Chain I/O main-window callbacks (extracted to chain_io_main_wiring) ---
-    crate::chain_io_main_wiring::wire(
-        &window,
-        &chain_input_window,
-        &chain_output_window,
-        &chain_input_groups_window,
-        &chain_output_groups_window,
-        crate::chain_io_main_wiring::ChainIoMainCtx {
-            chain_draft: chain_draft.clone(),
-            project_session: project_session.clone(),
-            chain_editor_window: chain_editor_window.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_input_channels: chain_input_channels.clone(),
-            chain_output_channels: chain_output_channels.clone(),
-            inline_io_groups_is_input: inline_io_groups_is_input.clone(),
             toast_timer: toast_timer.clone(),
-        },
-    );
-    // --- ChainInputGroupsWindow callbacks (extracted to chain_input_groups_wiring) ---
-    crate::chain_input_groups_wiring::wire(
-        &window,
-        &chain_input_window,
-        &chain_input_groups_window,
-        crate::chain_input_groups_wiring::ChainInputGroupsCtx {
-            chain_draft: chain_draft.clone(),
-            project_session: project_session.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_input_channels: chain_input_channels.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            auto_save,
-        },
-    );
-    // --- ChainOutputGroupsWindow callbacks (extracted to chain_output_groups_wiring) ---
-    crate::chain_output_groups_wiring::wire(
-        &window,
-        &chain_output_window,
-        &chain_output_groups_window,
-        crate::chain_output_groups_wiring::ChainOutputGroupsCtx {
-            chain_draft: chain_draft.clone(),
-            project_session: project_session.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_output_channels: chain_output_channels.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
+            vst3_sample_rate,
+            fullscreen,
             auto_save,
         },
     );
