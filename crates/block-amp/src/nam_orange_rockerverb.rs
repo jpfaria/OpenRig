@@ -13,33 +13,48 @@ const BRAND: &str = "orange";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × boost. All captures Canov+Arnold MK3.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("higain_g7", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g7_canov_arnold.nam"),
-    ("jim_root", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_jim_root_canov_arnold.nam"),
-    ("higain_g5_fortin_ts808", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g5_fortin_ts808_canov_arnold.nam"),
-    ("crunch_g5", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_crunch_g5_canov_arnold.nam"),
-    ("rock_g6", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_rock_g6_canov_arnold.nam"),
-    ("higain_g6_ti_boost", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g6_ti_boost_canov_arnold.nam"),
-    ("clean", "Orange Rockerverb MK3 - Clean - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_clean_canov_arnold.nam"),
+    // (voicing, boost, file)
+    ("clean",     "none",         "amps/orange_rockerverb/orange_rockerverb_mk3_clean_canov_arnold.nam"),
+    ("crunch_g5", "none",         "amps/orange_rockerverb/orange_rockerverb_mk3_crunch_g5_canov_arnold.nam"),
+    ("rock_g6",   "none",         "amps/orange_rockerverb/orange_rockerverb_mk3_rock_g6_canov_arnold.nam"),
+    ("higain_g5", "fortin_ts808", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g5_fortin_ts808_canov_arnold.nam"),
+    ("higain_g6", "ti_boost",     "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g6_ti_boost_canov_arnold.nam"),
+    ("higain_g7", "none",         "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g7_canov_arnold.nam"),
+    ("jim_root",  "none",         "amps/orange_rockerverb/orange_rockerverb_mk3_jim_root_canov_arnold.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("higain_g7"),
-        &[
-            ("higain_g7", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold"),
-            ("jim_root", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold"),
-            ("higain_g5_fortin_ts808", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn"),
-            ("crunch_g5", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold"),
-            ("rock_g6", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold"),
-            ("higain_g6_ti_boost", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold"),
-            ("clean", "Orange Rockerverb MK3 - Clean - Canov+Arnold"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("higain_g7"),
+            &[
+                ("clean",     "Clean"),
+                ("crunch_g5", "Crunch (G5)"),
+                ("rock_g6",   "Rock (G6)"),
+                ("higain_g5", "Hi-Gain (G5)"),
+                ("higain_g6", "Hi-Gain (G6)"),
+                ("higain_g7", "Hi-Gain (G7)"),
+                ("jim_root",  "Jim Root"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("none"),
+            &[
+                ("none",         "None"),
+                ("fortin_ts808", "Fortin TS808"),
+                ("ti_boost",     "TI Boost"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -59,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, b, _)| *v == voicing && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} boost={}",
+                MODEL_ID, voicing, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
