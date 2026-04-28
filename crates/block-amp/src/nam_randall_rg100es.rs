@@ -13,12 +13,13 @@ const BRAND: &str = "randall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 5 channel/sustain/gain combos on the 100W (1987) head.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "100W (1987) CH Clean", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean.nam"),
-    ("crunch", "100W (1987) CH Crunch", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch.nam"),
-    ("crunch_sustain_engaged_gain_8_5", "100W (1987) CH Crunch Sustain Engaged Gain 8", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5.nam"),
-    ("crunch_gain_8_5", "100W (1987) CH Crunch Gain 8.5", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5.nam"),
-    ("crunch_sustain_engaged", "100W (1987) CH Crunch Sustain Engaged", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged.nam"),
+    ("clean",                "Clean",                "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean.nam"),
+    ("crunch",               "Crunch",               "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch.nam"),
+    ("crunch_sustain",       "Crunch + Sustain",     "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged.nam"),
+    ("crunch_gain_85",       "Crunch G8.5",          "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5.nam"),
+    ("crunch_sustain_g85",   "Crunch + Sustain G8.5","amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -29,12 +30,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("clean"),
         &[
-            ("clean", "100W (1987) CH Clean"),
-            ("crunch", "100W (1987) CH Crunch"),
-            ("crunch_sustain_engaged_gain_8_5", "100W (1987) CH Crunch Sustain Engaged Gain 8"),
-            ("crunch_gain_8_5", "100W (1987) CH Crunch Gain 8.5"),
-            ("crunch_sustain_engaged", "100W (1987) CH Crunch Sustain Engaged"),
-        
+            ("clean",              "Clean"),
+            ("crunch",             "Crunch"),
+            ("crunch_sustain",     "Crunch + Sustain"),
+            ("crunch_gain_85",     "Crunch G8.5"),
+            ("crunch_sustain_g85", "Crunch + Sustain G8.5"),
         ],
     )];
     schema
