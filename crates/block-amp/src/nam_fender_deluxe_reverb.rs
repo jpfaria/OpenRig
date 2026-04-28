@@ -13,33 +13,45 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: version × mic-and-room.
+// "DI" capture only available on the original version (no cab).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("sm57_royer_r_121_no_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_no_room_full_rig.nam"),
-    ("room_only_full_rig", "Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_room_only_full_rig.nam"),
-    ("sm57_royer_r_121_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig", "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
-    ("new_version_room_only_full_rig", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_room_only_full_rig.nam"),
-    ("new_version_sm57_royer_r_121_room_full_r", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
-    ("new_version_sm57_royer_r_121_no_room_ful", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R", "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_no_room_full_.nam"),
-    ("di_capture_no_cab", "Fender DRRI | Clean | DI Capture (No Cab)", "amps/fender_deluxe_reverb/fender_drri_clean_di_capture_no_cab.nam"),
+    // (version, capture_kind, file)
+    ("original", "di_no_cab",        "amps/fender_deluxe_reverb/fender_drri_clean_di_capture_no_cab.nam"),
+    ("original", "room_only",        "amps/fender_deluxe_reverb/fender_drri_clean_room_only_full_rig.nam"),
+    ("original", "sm57_royer_dry",   "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_no_room_full_rig.nam"),
+    ("original", "sm57_royer_room",  "amps/fender_deluxe_reverb/fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
+    ("new",      "room_only",        "amps/fender_deluxe_reverb/new_version_fender_drri_clean_room_only_full_rig.nam"),
+    ("new",      "sm57_royer_dry",   "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_no_room_full_.nam"),
+    ("new",      "sm57_royer_room",  "amps/fender_deluxe_reverb/new_version_fender_drri_clean_sm57_royer_r_121_room_full_rig.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("sm57_royer_r_121_no_room_full_rig"),
-        &[
-            ("sm57_royer_r_121_no_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 (No Room) | Full Ri"),
-            ("room_only_full_rig", "Fender DRRI | Clean | Room Only | Full Rig"),
-            ("sm57_royer_r_121_room_full_rig", "Fender DRRI | Clean | SM57 + Royer R-121 + Room | Full Rig"),
-            ("new_version_room_only_full_rig", "NEW VERSION | Fender DRRI | Clean | Room Only | Full Rig"),
-            ("new_version_sm57_royer_r_121_room_full_r", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 + Roo"),
-            ("new_version_sm57_royer_r_121_no_room_ful", "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No R"),
-            ("di_capture_no_cab", "Fender DRRI | Clean | DI Capture (No Cab)"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "version",
+            "Version",
+            Some("Amp"),
+            Some("original"),
+            &[
+                ("original", "Original"),
+                ("new",      "New"),
+            ],
+        ),
+        enum_parameter(
+            "capture_kind",
+            "Capture Kind",
+            Some("Amp"),
+            Some("sm57_royer_dry"),
+            &[
+                ("di_no_cab",       "DI (No Cab)"),
+                ("room_only",       "Room Only"),
+                ("sm57_royer_dry",  "SM57 + Royer (Dry)"),
+                ("sm57_royer_room", "SM57 + Royer + Room"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -59,12 +71,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let version = required_string(params, "version").map_err(anyhow::Error::msg)?;
+    let kind = required_string(params, "capture_kind").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, k, _)| *v == version && *k == kind)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for version={} capture_kind={}",
+                MODEL_ID, version, kind
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
