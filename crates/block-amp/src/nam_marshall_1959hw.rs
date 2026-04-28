@@ -13,27 +13,40 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × tone. All Slammin' Plexi Cranked.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_plexi_cranked_7_1500e_standard", "Slammin_Plexi_Cranked_7_1500E_Standard", "amps/marshall_1959hw/slammin_plexi_cranked_7_1500e_standard.nam"),
-    ("slammin_plexi_cranked_7_2000e_standard", "Slammin_Plexi_Cranked_7_2000E_Standard", "amps/marshall_1959hw/slammin_plexi_cranked_7_2000e_standard.nam"),
-    ("slammin_plexi_cranked_6_1700e_complex_custom", "Slammin_Plexi_Cranked_6_1700E_Complex", "amps/marshall_1959hw/slammin_plexi_cranked_6_1700e_complex_custom.nam"),
-    ("slammin_plexi_cranked_7_2000e_complex_custom", "Slammin_Plexi_Cranked_7_2000E_Complex", "amps/marshall_1959hw/slammin_plexi_cranked_7_2000e_complex_custom.nam"),
+    // (gain, tone, file)
+    ("g6", "complex",  "amps/marshall_1959hw/slammin_plexi_cranked_6_1700e_complex_custom.nam"),
+    ("g7", "standard", "amps/marshall_1959hw/slammin_plexi_cranked_7_1500e_standard.nam"),
+    ("g7", "standard_2000e", "amps/marshall_1959hw/slammin_plexi_cranked_7_2000e_standard.nam"),
+    ("g7", "complex",  "amps/marshall_1959hw/slammin_plexi_cranked_7_2000e_complex_custom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("slammin_plexi_cranked_7_1500e_standard"),
-        &[
-            ("slammin_plexi_cranked_7_1500e_standard", "Slammin_Plexi_Cranked_7_1500E_Standard"),
-            ("slammin_plexi_cranked_7_2000e_standard", "Slammin_Plexi_Cranked_7_2000E_Standard"),
-            ("slammin_plexi_cranked_6_1700e_complex_custom", "Slammin_Plexi_Cranked_6_1700E_Complex"),
-            ("slammin_plexi_cranked_7_2000e_complex_custom", "Slammin_Plexi_Cranked_7_2000E_Complex"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g7"),
+            &[
+                ("g6", "Cranked 6"),
+                ("g7", "Cranked 7"),
+            ],
+        ),
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Amp"),
+            Some("standard"),
+            &[
+                ("standard",      "Standard"),
+                ("standard_2000e","Standard (2000E)"),
+                ("complex",       "Complex"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -53,12 +66,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, t, _)| *g == gain && *t == tone)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} tone={}",
+                MODEL_ID, gain, tone
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
