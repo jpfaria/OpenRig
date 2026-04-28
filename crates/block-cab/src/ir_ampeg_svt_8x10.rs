@@ -9,15 +9,19 @@ pub const MODEL_ID: &str = "ampeg_svt_8x10";
 pub const DISPLAY_NAME: &str = "SVT 4x10/8x10";
 const BRAND: &str = "ampeg";
 
+// Two-axis pack: mic × position.
+// 8x10 captures vary mic and position (AH = ah_3, A107 = a107_3).
+// "svt_di" position covers D-I and on-axis SVT-only captures.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("8x10_d6_ah", "Ampeg 8x10 D6 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_d6_ah_3.wav"),
-    ("8x10_4033_ah", "Ampeg 8x10 4033 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_ah_3.wav"),
-    ("svt_beta52", "Ampeg SVT Beta52", "cabs/ampeg_svt_8x10/ampeg_svt_beta52_3.wav"),
-    ("8x10_e602_a107", "Ampeg 8x10 e602 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_e602_a107_3.wav"),
-    ("8x10_57_ah", "Ampeg 8x10 57 AH", "cabs/ampeg_svt_8x10/ampeg_8x10_57_ah_3.wav"),
-    ("svt_bright_neumann", "Ampeg SVT Bright Neumann", "cabs/ampeg_svt_8x10/ampeg_svt_bright_neumann_3.wav"),
-    ("8x10_4033_a107", "Ampeg 8x10 4033 A107", "cabs/ampeg_svt_8x10/ampeg_8x10_4033_a107_3.wav"),
-    ("svt_d_i_out", "Ampeg SVT D-I-Out", "cabs/ampeg_svt_8x10/ampeg_svt_d_i_out_3.wav"),
+    // (mic, position, file)
+    ("d6",          "ah",     "cabs/ampeg_svt_8x10/ampeg_8x10_d6_ah_3.wav"),
+    ("57",          "ah",     "cabs/ampeg_svt_8x10/ampeg_8x10_57_ah_3.wav"),
+    ("4033",        "ah",     "cabs/ampeg_svt_8x10/ampeg_8x10_4033_ah_3.wav"),
+    ("4033",        "a107",   "cabs/ampeg_svt_8x10/ampeg_8x10_4033_a107_3.wav"),
+    ("e602",        "a107",   "cabs/ampeg_svt_8x10/ampeg_8x10_e602_a107_3.wav"),
+    ("beta52",      "svt_di", "cabs/ampeg_svt_8x10/ampeg_svt_beta52_3.wav"),
+    ("neumann",     "svt_di", "cabs/ampeg_svt_8x10/ampeg_svt_bright_neumann_3.wav"),
+    ("di_out",      "svt_di", "cabs/ampeg_svt_8x10/ampeg_svt_d_i_out_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,22 +30,34 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("8x10_d6_ah"),
-            &[
-            ("8x10_d6_ah", "Ampeg 8x10 D6 AH"),
-            ("8x10_4033_ah", "Ampeg 8x10 4033 AH"),
-            ("svt_beta52", "Ampeg SVT Beta52"),
-            ("8x10_e602_a107", "Ampeg 8x10 e602 A107"),
-            ("8x10_57_ah", "Ampeg 8x10 57 AH"),
-            ("svt_bright_neumann", "Ampeg SVT Bright Neumann"),
-            ("8x10_4033_a107", "Ampeg 8x10 4033 A107"),
-            ("svt_d_i_out", "Ampeg SVT D-I-Out"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic",
+                "Mic",
+                Some("Cab"),
+                Some("57"),
+                &[
+                    ("d6",      "AKG D6"),
+                    ("57",      "SM57"),
+                    ("4033",    "Audix 4033"),
+                    ("e602",    "Sennheiser e602"),
+                    ("beta52",  "Beta 52"),
+                    ("neumann", "Neumann (Bright)"),
+                    ("di_out",  "D-I Out"),
+                ],
+            ),
+            enum_parameter(
+                "position",
+                "Position",
+                Some("Cab"),
+                Some("ah"),
+                &[
+                    ("ah",     "AH (Cap Edge)"),
+                    ("a107",   "A107"),
+                    ("svt_di", "SVT (Direct)"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -73,12 +89,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
+    let position = required_string(params, "position").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(m, p, _)| *m == mic && *p == position)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic={} position={}",
+                MODEL_ID, mic, position
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
