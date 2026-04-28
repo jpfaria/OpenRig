@@ -13,8 +13,10 @@ const BRAND: &str = "lab_series";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture preset pack: B.B.King's tone with 4x12 Beatle Greenback IR,
+// High Input.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("b_b_king_lab_series_5_4x12_beatle_gb_ir_", "B.B.King Lab Series 5 - 4x12 Beatle GB IR - High Input", "amps/lab_series_l5/b_b_king_lab_series_5_4x12_beatle_gb_ir_high_input.nam"),
+    ("bb_king_high", "BB King (High In)", "amps/lab_series_l5/b_b_king_lab_series_5_4x12_beatle_gb_ir_high_input.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +25,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("b_b_king_lab_series_5_4x12_beatle_gb_ir_"),
+        Some("bb_king_high"),
         &[
-            ("b_b_king_lab_series_5_4x12_beatle_gb_ir_", "B.B.King Lab Series 5 - 4x12 Beatle GB IR - High Input"),
+            ("bb_king_high", "BB King (High In)"),
         ],
     )];
     schema
