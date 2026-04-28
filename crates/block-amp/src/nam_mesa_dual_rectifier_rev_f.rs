@@ -27,19 +27,19 @@ const CAPTURES: &[(&str, &str, &str)] = &[
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
         Some("black_album"),
         &[
-            ("black_album", "Black Album"),
-            ("satan", "SATAN"),
-            ("chainsaw", "CHAINSAW"),
-            ("hellbert", "HELLBERT"),
-            ("stealth", "STEALTH"),
-            ("slaughter", "SLAUGHTER"),
-            ("far_beyond_driven", "Far beyond Driven"),
-            ("raw_gxx", "Raw GXX"),
+            ("black_album",       "Black Album"),
+            ("satan",             "Satan"),
+            ("chainsaw",          "Chainsaw"),
+            ("hellbert",          "Hellbert"),
+            ("stealth",           "Stealth"),
+            ("slaughter",         "Slaughter"),
+            ("far_beyond_driven", "Far Beyond Driven"),
+            ("raw_gxx",           "Raw GXX"),
         ],
     )];
     schema
@@ -61,12 +61,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
