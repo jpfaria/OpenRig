@@ -13,9 +13,10 @@ const BRAND: &str = "bogner";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 voicings (70s Plexi-style 4x12, 80s Hot 2x12) with MG cab IRs.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("80s_hot_212", "Fig H-Lios 80s Hot MG 212", "amps/bogner_helios/fig_h_lios_80s_hot_mg_212.nam"),
-    ("70s_plex_412", "Fig H-Lios 70s Plex MG 412", "amps/bogner_helios/fig_h_lios_70s_plex_mg_412.nam"),
+    ("70s_plexi_412", "70s Plexi 4x12", "amps/bogner_helios/fig_h_lios_70s_plex_mg_412.nam"),
+    ("80s_hot_212",   "80s Hot 2x12",   "amps/bogner_helios/fig_h_lios_80s_hot_mg_212.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,10 +25,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("80s_hot_212"),
+        Some("70s_plexi_412"),
         &[
-            ("80s_hot_212", "Fig H-Lios 80s Hot MG 212"),
-            ("70s_plex_412", "Fig H-Lios 70s Plex MG 412"),
+            ("70s_plexi_412", "70s Plexi 4x12"),
+            ("80s_hot_212",   "80s Hot 2x12"),
         ],
     )];
     schema
