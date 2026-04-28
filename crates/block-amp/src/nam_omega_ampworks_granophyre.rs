@@ -13,8 +13,9 @@ const BRAND: &str = "omega";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: stock voicing.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("granophyre", "granophyre", "amps/omega_ampworks_granophyre/granophyre.nam"),
+    ("default", "Default", "amps/omega_ampworks_granophyre/granophyre.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("granophyre"),
+        Some("default"),
         &[
-            ("granophyre", "granophyre"),
+            ("default", "Default"),
         ],
     )];
     schema
