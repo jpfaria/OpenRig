@@ -404,6 +404,7 @@ pub fn text_parameter(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn multi_slider_parameter(
     path: &str,
     label: &str,
@@ -427,6 +428,7 @@ pub fn multi_slider_parameter(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn curve_editor_parameter(
     path: &str,
     label: &str,
