@@ -13,35 +13,46 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × mic.
+// Eight of nine cartesian cells captured (no crunch_vol_7 + m160).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_m160.nam"),
-    ("eob_vol_5_sum_m160_sm57", "Fender - Princeton EOB Vol 5 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sum_m160_sm57.nam"),
-    ("crunch_vol_7_sm57", "Fender - Princeton Crunch Vol 7 SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_vol_7_sm57.nam"),
-    ("crunch_7_sum_m160_sm57", "Fender - Princeton Crunch 7 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_crunch_7_sum_m160_sm57.nam"),
-    ("eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57", "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sm57.nam"),
-    ("clean_3_m160", "Fender - Princeton Clean 3 M160", "amps/fender_princeton_reverb/fender_princeton_clean_3_m160.nam"),
-    ("clean_3_sm57", "Fender - Princeton Clean 3 SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sm57.nam"),
-    ("clean_3_sum_m160_sm57", "Fender - Princeton Clean 3 SUM M160 + SM57", "amps/fender_princeton_reverb/fender_princeton_clean_3_sum_m160_sm57.nam"),
+    // (gain, mic, file)
+    ("clean_3",  "m160",       "amps/fender_princeton_reverb/fender_princeton_clean_3_m160.nam"),
+    ("clean_3",  "sm57",       "amps/fender_princeton_reverb/fender_princeton_clean_3_sm57.nam"),
+    ("clean_3",  "sum",        "amps/fender_princeton_reverb/fender_princeton_clean_3_sum_m160_sm57.nam"),
+    ("eob_5",    "m160",       "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_m160.nam"),
+    ("eob_5",    "sm57",       "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sm57.nam"),
+    ("eob_5",    "sum",        "amps/fender_princeton_reverb/fender_princeton_eob_vol_5_sum_m160_sm57.nam"),
+    ("crunch_7", "sm57",       "amps/fender_princeton_reverb/fender_princeton_crunch_vol_7_sm57.nam"),
+    ("crunch_7", "sum",        "amps/fender_princeton_reverb/fender_princeton_crunch_7_sum_m160_sm57.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("eob_vol_5_m160"),
-        &[
-            ("eob_vol_5_m160", "Fender - Princeton EOB Vol 5 M160"),
-            ("eob_vol_5_sum_m160_sm57", "Fender - Princeton EOB Vol 5 SUM M160 + SM57"),
-            ("crunch_vol_7_sm57", "Fender - Princeton Crunch Vol 7 SM57"),
-            ("crunch_7_sum_m160_sm57", "Fender - Princeton Crunch 7 SUM M160 + SM57"),
-            ("eob_vol_5_sm57", "Fender - Princeton EOB Vol 5 SM57"),
-            ("clean_3_m160", "Fender - Princeton Clean 3 M160"),
-            ("clean_3_sm57", "Fender - Princeton Clean 3 SM57"),
-            ("clean_3_sum_m160_sm57", "Fender - Princeton Clean 3 SUM M160 + SM57"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("clean_3"),
+            &[
+                ("clean_3",  "Clean (Vol 3)"),
+                ("eob_5",    "EOB (Vol 5)"),
+                ("crunch_7", "Crunch (Vol 7)"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Amp"),
+            Some("sm57"),
+            &[
+                ("m160", "Beyer M160"),
+                ("sm57", "SM57"),
+                ("sum",  "M160 + SM57 (Sum)"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +72,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, m, _)| *g == gain && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} mic={}",
+                MODEL_ID, gain, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
