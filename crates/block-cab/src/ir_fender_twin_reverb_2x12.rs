@@ -9,10 +9,11 @@ pub const MODEL_ID: &str = "fender_twin_reverb_2x12";
 pub const DISPLAY_NAME: &str = "Twin Reverb 2x12";
 const BRAND: &str = "fender";
 
+// Single-axis voicing pack: 3 mic-blend tones for the Twin Reverb 2x12.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "TWIN REVERB __ CLEAN", "cabs/fender_twin_reverb_2x12/twin_reverb_clean_3.wav"),
-    ("balanced", "TWIN REVERB __ BALANCED", "cabs/fender_twin_reverb_2x12/twin_reverb_balanced_3.wav"),
-    ("mids", "TWIN REVERB __ MIDS", "cabs/fender_twin_reverb_2x12/twin_reverb_mids_3.wav"),
+    ("clean",    "Clean",    "cabs/fender_twin_reverb_2x12/twin_reverb_clean_3.wav"),
+    ("balanced", "Balanced", "cabs/fender_twin_reverb_2x12/twin_reverb_balanced_3.wav"),
+    ("mids",     "Mids",     "cabs/fender_twin_reverb_2x12/twin_reverb_mids_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -22,14 +23,14 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
+            "voicing",
+            "Voicing",
             Some("Cab"),
-            Some("clean"),
+            Some("balanced"),
             &[
-            ("clean", "TWIN REVERB __ CLEAN"),
-            ("balanced", "TWIN REVERB __ BALANCED"),
-            ("mids", "TWIN REVERB __ MIDS"),
+                ("clean",    "Clean"),
+                ("balanced", "Balanced"),
+                ("mids",     "Mids"),
             ],
         )],
     }
@@ -63,12 +64,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("cab '{}' has no voicing '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
