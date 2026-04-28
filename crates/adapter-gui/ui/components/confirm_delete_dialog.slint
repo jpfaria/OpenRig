@@ -1,0 +1,81 @@
+// Modal dialog asking the user to confirm deletion of a block.
+// Used as an overlay inside AppWindow when `show-confirm-delete-block` is true.
+
+export component ConfirmDeleteBlockDialog inherits Rectangle {
+    in property <string> block-name;
+    callback cancel();
+    callback confirm();
+
+    background: #000000b0;
+    TouchArea { }
+
+    Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(root.width * 0.7, 400px);
+        height: 170px;
+        background: #1e1f22;
+        border-radius: 10px;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: #000000c0;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text {
+                text: "Excluir bloco";
+                font-size: 16px;
+                color: #ffffff;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: "Excluir \"" + root.block-name + "\"?";
+                font-size: 13px;
+                color: #aaaaaa;
+                horizontal-alignment: center;
+                overflow: elide;
+                wrap: no-wrap;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: "Cancelar";
+                        font-size: 13px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
+                    confirm-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.confirm(); }
+                    }
+                    Text {
+                        text: "Excluir";
+                        font-size: 13px;
+                        color: #ffffff;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
