@@ -13,8 +13,9 @@ const BRAND: &str = "dumble";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: John Mayer's clean tone reference.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("john_mayer_clean_001", "JOHN MAYER CLEAN-001", "amps/dumble_ods_100w/john_mayer_clean_001.nam"),
+    ("mayer_clean", "Mayer Clean", "amps/dumble_ods_100w/john_mayer_clean_001.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("john_mayer_clean_001"),
+        Some("mayer_clean"),
         &[
-            ("john_mayer_clean_001", "JOHN MAYER CLEAN-001"),
+            ("mayer_clean", "Mayer Clean"),
         ],
     )];
     schema
