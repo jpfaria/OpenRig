@@ -13,29 +13,42 @@ const BRAND: &str = "laney";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: stage × boost. All Lead channel.
+// "custom_eq" is a single curated EQ (B1.8/M-1/T2 G10 D60 TN1).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("poweramp", "Lead PowerAmp", "amps/laney_ironheart_irt60h/lead_poweramp.nam"),
-    ("preamp", "Lead PreAmp", "amps/laney_ironheart_irt60h/lead_preamp.nam"),
-    ("boosted_poweramp", "Lead Boosted PowerAmp", "amps/laney_ironheart_irt60h/lead_boosted_poweramp.nam"),
-    ("boosted_preamp", "Lead Boosted PreAmp", "amps/laney_ironheart_irt60h/lead_boosted_preamp.nam"),
-    ("laney_irt60_pre_b1_8_m_1_t2_g10_d60_tn1", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1", "amps/laney_ironheart_irt60h/laney_irt60_lead_pre_b1_8_m_1_t2_g10_d60_tn1.nam"),
+    // (stage, boost, file)
+    ("preamp",    "none",    "amps/laney_ironheart_irt60h/lead_preamp.nam"),
+    ("preamp",    "boosted", "amps/laney_ironheart_irt60h/lead_boosted_preamp.nam"),
+    ("preamp",    "custom",  "amps/laney_ironheart_irt60h/laney_irt60_lead_pre_b1_8_m_1_t2_g10_d60_tn1.nam"),
+    ("power_amp", "none",    "amps/laney_ironheart_irt60h/lead_poweramp.nam"),
+    ("power_amp", "boosted", "amps/laney_ironheart_irt60h/lead_boosted_poweramp.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("poweramp"),
-        &[
-            ("poweramp", "Lead PowerAmp"),
-            ("preamp", "Lead PreAmp"),
-            ("boosted_poweramp", "Lead Boosted PowerAmp"),
-            ("boosted_preamp", "Lead Boosted PreAmp"),
-            ("laney_irt60_pre_b1_8_m_1_t2_g10_d60_tn1", "Laney IRT60 Lead PRE | B1.8 M-1 T2 | G10 D60% TN1"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "stage",
+            "Stage",
+            Some("Amp"),
+            Some("preamp"),
+            &[
+                ("preamp",    "Preamp"),
+                ("power_amp", "Power Amp"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("none"),
+            &[
+                ("none",    "None"),
+                ("boosted", "Boosted"),
+                ("custom",  "Custom EQ"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +68,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let stage = required_string(params, "stage").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(s, b, _)| *s == stage && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for stage={} boost={}",
+                MODEL_ID, stage, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
