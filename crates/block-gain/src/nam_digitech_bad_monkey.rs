@@ -14,84 +14,76 @@ const BRAND: &str = "digitech";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "boost1_v10_b4_t6_g0_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_feather.nam" },
-    NamCapture { tone: "boost1_v10_b4_t6_g0_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_lite.nam" },
-    NamCapture { tone: "boost1_v10_b4_t6_g0_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_standard.nam" },
-    NamCapture { tone: "boost2_v10_b4_t6_g4_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_feather.nam" },
-    NamCapture { tone: "boost2_v10_b4_t6_g4_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_lite.nam" },
-    NamCapture { tone: "boost2_v10_b4_t6_g4_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_standard.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g0_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_feather.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g0_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_lite.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g0_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_standard.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g4_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_feather.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g4_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_lite.nam" },
-    NamCapture { tone: "boost3_v10_b7_t6_g4_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_standard.nam" },
-    NamCapture { tone: "fulltone_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_fulltone_feather.nam" },
-    NamCapture { tone: "fulltone_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_fulltone_lite.nam" },
-    NamCapture { tone: "fulltone_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_fulltone_standard.nam" },
-    NamCapture { tone: "glory_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_glory_feather.nam" },
-    NamCapture { tone: "glory_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_glory_lite.nam" },
-    NamCapture { tone: "glory_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_glory_standard.nam" },
-    NamCapture { tone: "klon_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_klon_feather.nam" },
-    NamCapture { tone: "klon_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_klon_lite.nam" },
-    NamCapture { tone: "klon_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_klon_standard.nam" },
-    NamCapture { tone: "noble_odr_1_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_feather.nam" },
-    NamCapture { tone: "noble_odr_1_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_lite.nam" },
-    NamCapture { tone: "noble_odr_1_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_standard.nam" },
-    NamCapture { tone: "ts10_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_ts10_feather.nam" },
-    NamCapture { tone: "ts10_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_ts10_lite.nam" },
-    NamCapture { tone: "ts10_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_ts10_standard.nam" },
-    NamCapture { tone: "zen_feather", model_path: "pedals/digitech_bad_monkey/badmonkey_zen_feather.nam" },
-    NamCapture { tone: "zen_lite", model_path: "pedals/digitech_bad_monkey/badmonkey_zen_lite.nam" },
-    NamCapture { tone: "zen_standard", model_path: "pedals/digitech_bad_monkey/badmonkey_zen_standard.nam" },
+// Two-axis pack: voicing × size.
+// 10 voicings (3 internal boost variants + 7 named overdrive emulations) ×
+// 3 model sizes (feather / lite / standard) = 30 captures, full grid.
+const CAPTURES: &[(&str, &str, &str)] = &[
+    // (voicing, size, file)
+    ("boost1",      "feather",  "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_feather.nam"),
+    ("boost1",      "lite",     "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_lite.nam"),
+    ("boost1",      "standard", "pedals/digitech_bad_monkey/badmonkey_boost1_v10_b4_t6_g0_standard.nam"),
+    ("boost2",      "feather",  "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_feather.nam"),
+    ("boost2",      "lite",     "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_lite.nam"),
+    ("boost2",      "standard", "pedals/digitech_bad_monkey/badmonkey_boost2_v10_b4_t6_g4_standard.nam"),
+    ("boost3_g0",   "feather",  "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_feather.nam"),
+    ("boost3_g0",   "lite",     "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_lite.nam"),
+    ("boost3_g0",   "standard", "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g0_standard.nam"),
+    ("boost3_g4",   "feather",  "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_feather.nam"),
+    ("boost3_g4",   "lite",     "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_lite.nam"),
+    ("boost3_g4",   "standard", "pedals/digitech_bad_monkey/badmonkey_boost3_v10_b7_t6_g4_standard.nam"),
+    ("fulltone",    "feather",  "pedals/digitech_bad_monkey/badmonkey_fulltone_feather.nam"),
+    ("fulltone",    "lite",     "pedals/digitech_bad_monkey/badmonkey_fulltone_lite.nam"),
+    ("fulltone",    "standard", "pedals/digitech_bad_monkey/badmonkey_fulltone_standard.nam"),
+    ("glory",       "feather",  "pedals/digitech_bad_monkey/badmonkey_glory_feather.nam"),
+    ("glory",       "lite",     "pedals/digitech_bad_monkey/badmonkey_glory_lite.nam"),
+    ("glory",       "standard", "pedals/digitech_bad_monkey/badmonkey_glory_standard.nam"),
+    ("klon",        "feather",  "pedals/digitech_bad_monkey/badmonkey_klon_feather.nam"),
+    ("klon",        "lite",     "pedals/digitech_bad_monkey/badmonkey_klon_lite.nam"),
+    ("klon",        "standard", "pedals/digitech_bad_monkey/badmonkey_klon_standard.nam"),
+    ("noble_odr_1", "feather",  "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_feather.nam"),
+    ("noble_odr_1", "lite",     "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_lite.nam"),
+    ("noble_odr_1", "standard", "pedals/digitech_bad_monkey/badmonkey_noble_odr_1_standard.nam"),
+    ("ts10",        "feather",  "pedals/digitech_bad_monkey/badmonkey_ts10_feather.nam"),
+    ("ts10",        "lite",     "pedals/digitech_bad_monkey/badmonkey_ts10_lite.nam"),
+    ("ts10",        "standard", "pedals/digitech_bad_monkey/badmonkey_ts10_standard.nam"),
+    ("zen",         "feather",  "pedals/digitech_bad_monkey/badmonkey_zen_feather.nam"),
+    ("zen",         "lite",     "pedals/digitech_bad_monkey/badmonkey_zen_lite.nam"),
+    ("zen",         "standard", "pedals/digitech_bad_monkey/badmonkey_zen_standard.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("boost1_v10_b4_t6_g0_feather"),
-        &[
-            ("boost1_v10_b4_t6_g0_feather", "Boost1 V10 B4 T6 G0 Feather"),
-            ("boost1_v10_b4_t6_g0_lite", "Boost1 V10 B4 T6 G0 Lite"),
-            ("boost1_v10_b4_t6_g0_standard", "Boost1 V10 B4 T6 G0 Standard"),
-            ("boost2_v10_b4_t6_g4_feather", "Boost2 V10 B4 T6 G4 Feather"),
-            ("boost2_v10_b4_t6_g4_lite", "Boost2 V10 B4 T6 G4 Lite"),
-            ("boost2_v10_b4_t6_g4_standard", "Boost2 V10 B4 T6 G4 Standard"),
-            ("boost3_v10_b7_t6_g0_feather", "Boost3 V10 B7 T6 G0 Feather"),
-            ("boost3_v10_b7_t6_g0_lite", "Boost3 V10 B7 T6 G0 Lite"),
-            ("boost3_v10_b7_t6_g0_standard", "Boost3 V10 B7 T6 G0 Standard"),
-            ("boost3_v10_b7_t6_g4_feather", "Boost3 V10 B7 T6 G4 Feather"),
-            ("boost3_v10_b7_t6_g4_lite", "Boost3 V10 B7 T6 G4 Lite"),
-            ("boost3_v10_b7_t6_g4_standard", "Boost3 V10 B7 T6 G4 Standard"),
-            ("fulltone_feather", "Fulltone Feather"),
-            ("fulltone_lite", "Fulltone Lite"),
-            ("fulltone_standard", "Fulltone Standard"),
-            ("glory_feather", "Glory Feather"),
-            ("glory_lite", "Glory Lite"),
-            ("glory_standard", "Glory Standard"),
-            ("klon_feather", "Klon Feather"),
-            ("klon_lite", "Klon Lite"),
-            ("klon_standard", "Klon Standard"),
-            ("noble_odr_1_feather", "Noble Odr 1 Feather"),
-            ("noble_odr_1_lite", "Noble Odr 1 Lite"),
-            ("noble_odr_1_standard", "Noble Odr 1 Standard"),
-            ("ts10_feather", "Ts10 Feather"),
-            ("ts10_lite", "Ts10 Lite"),
-            ("ts10_standard", "Ts10 Standard"),
-            ("zen_feather", "Zen Feather"),
-            ("zen_lite", "Zen Lite"),
-            ("zen_standard", "Zen Standard"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Pedal"),
+            Some("klon"),
+            &[
+                ("boost1",      "Boost (low gain)"),
+                ("boost2",      "Boost (mid gain)"),
+                ("boost3_g0",   "Boost Bright"),
+                ("boost3_g4",   "Boost Bright + Drive"),
+                ("fulltone",    "Fulltone OCD"),
+                ("glory",       "Morning Glory"),
+                ("klon",        "Klon Centaur"),
+                ("noble_odr_1", "Nobels ODR-1"),
+                ("ts10",        "Ibanez TS10"),
+                ("zen",         "Hermida Zendrive"),
+            ],
+        ),
+        enum_parameter(
+            "size",
+            "Model Size",
+            Some("Asset"),
+            Some("standard"),
+            &[
+                ("feather",  "Feather"),
+                ("lite",     "Lite"),
+                ("standard", "Standard"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -100,9 +92,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -115,16 +107,23 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let size = required_string(params, "size").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(v, s, _)| *v == voicing && *s == size)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for voicing={} size={}",
+                MODEL_ID, voicing, size
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

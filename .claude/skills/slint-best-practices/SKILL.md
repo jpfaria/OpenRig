@@ -12,6 +12,65 @@ Sources:
 
 ---
 
+# OpenRig — Slint Operational Rules
+
+Princípios gerais de UI (responsividade, separação business/presentation, zero coupling) vivem em `openrig-code-quality`. As regras Slint-específicas do projeto:
+
+## File Size — 500 lines per `.slint` (hard cap)
+
+`./scripts/validate.sh` enforces ≤ 500 lines for every `.slint`. Se um arquivo passa, **dividir** antes de adicionar mais qualquer coisa. Esta é a operacionalização Slint do princípio "one responsibility per file" do `openrig-code-quality`.
+
+## NUNCA `sed -i` em arquivos `.slint`
+
+`sed -i` em macOS/BSD pode **esvaziar** um `.slint` por causa de issues de encoding/locale (vimos isso quebrar arquivos de UI em outras issues). Use o Edit tool sempre.
+
+```
+❌ sed -i '' 's/old/new/g' app.slint
+   // PERIGO: pode esvaziar o arquivo
+
+✅ Edit tool com old_string/new_string
+```
+
+## `@image-url()` é compile-time — sem strings dinâmicas
+
+`@image-url()` resolve no momento da compilação Slint. Não aceita variável runtime. Para selecionar imagem por `model_id` ou `brand`, use ternary chain:
+
+```slint
+✅ Image {
+    source: root.brand == BRAND_MARSHALL
+        ? @image-url("../assets/brands/marshall/logo.svg")
+        : root.brand == BRAND_VOX
+        ? @image-url("../assets/brands/vox/logo.svg")
+        : @image-url("../assets/brands/openrig/logo.svg");
+}
+
+❌ Image {
+    source: @image-url("../assets/brands/" + root.brand + "/logo.svg");
+    // FALHA: @image-url precisa string literal compile-time
+}
+```
+
+A consequência prática para o catálogo OpenRig: cada novo brand exige tocar a chain de ternários nos componentes que renderizam a logo. Isso é uma **exceção autorizada** ao "zero coupling" — Slint não tem outra forma. Centralize a chain em UM componente (`BrandLogo.slint`) para minimizar pontos de toque.
+
+## Não hardcode cores/fontes por `model_id` em Slint
+
+Princípio em `openrig-code-quality` (separation of concerns). Operacionalização Slint:
+
+```slint
+❌ if root.model_id == "marshall_jcm_800": Rectangle { background: #6c2a1a; }
+   // WRONG: cor hardcoded no Slint por model_id
+
+✅ private property <color> panel-bg:
+       root.block-model-options[index].panel_bg;
+   // CORRETO: cor vem de visual_config (UI layer Rust), exposto como property Slint
+```
+
+## Painel editor genérico — sem lógica por effect_type
+
+O `BlockEditorPanel` deve renderizar qualquer effect_type baseado no schema, não em `if effect_type == "preamp"`. Adicionar um effect_type novo NÃO deve exigir mudança no Panel.
+
+---
+
 ## 1. Estrutura de Projeto
 
 Separar código, UI e assets em diretórios distintos:
