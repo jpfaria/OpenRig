@@ -13,31 +13,42 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: tone × bright switch. Full 3×2 cartesian (Angus Tone replica).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("v5", "JTM50 Replica - Angus Tone V5", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5.nam"),
-    ("v6", "JTM50 Replica - Angus Tone V6", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6.nam"),
-    ("v7", "JTM50 Replica - Angus Tone V7", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7.nam"),
-    ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright.nam"),
-    ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright.nam"),
-    ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright.nam"),
+    // (tone, bright, file)
+    ("v5", "off", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5.nam"),
+    ("v5", "on",  "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright.nam"),
+    ("v6", "off", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6.nam"),
+    ("v6", "on",  "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright.nam"),
+    ("v7", "off", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7.nam"),
+    ("v7", "on",  "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("v5"),
-        &[
-            ("v5", "JTM50 Replica - Angus Tone V5"),
-            ("v6", "JTM50 Replica - Angus Tone V6"),
-            ("v7", "JTM50 Replica - Angus Tone V7"),
-            ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright"),
-            ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright"),
-            ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Amp"),
+            Some("v6"),
+            &[
+                ("v5", "V5 (Lower)"),
+                ("v6", "V6"),
+                ("v7", "V7 (Higher)"),
+            ],
+        ),
+        enum_parameter(
+            "bright",
+            "Bright",
+            Some("Amp"),
+            Some("off"),
+            &[
+                ("off", "Off"),
+                ("on",  "On"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +68,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+    let bright = required_string(params, "bright").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(t, b, _)| *t == tone && *b == bright)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for tone={} bright={}",
+                MODEL_ID, tone, bright
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
