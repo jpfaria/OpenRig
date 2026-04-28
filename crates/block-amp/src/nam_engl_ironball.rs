@@ -13,35 +13,48 @@ const BRAND: &str = "engl";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × usage.
+// All captures are from the SLAMMIN ENGL Iron Lead pack. Holes return Err.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_engl_iron_lead_scoop_solo_s", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_scoop_solo_s.nam"),
-    ("slammin_engl_iron_lead_balanced_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_balanced_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_bright_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_bright_solo_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_solo_s.nam"),
-    ("slammin_engl_iron_lead_chunky_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_slightscoop_rhyth", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_slightscoop_rhythm_s.nam"),
-    ("slammin_engl_iron_lead_mids_solo_s", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_mids_solo_s.nam"),
-    ("slammin_engl_iron_lead_chunky_solo_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_solo_s.nam"),
+    // (voicing, usage, file)
+    ("scoop",       "solo",   "amps/engl_ironball/slammin_engl_iron_lead_scoop_solo_s.nam"),
+    ("balanced",    "rhythm", "amps/engl_ironball/slammin_engl_iron_lead_balanced_rhythm_s.nam"),
+    ("bright",      "rhythm", "amps/engl_ironball/slammin_engl_iron_lead_bright_rhythm_s.nam"),
+    ("bright",      "solo",   "amps/engl_ironball/slammin_engl_iron_lead_bright_solo_s.nam"),
+    ("chunky",      "rhythm", "amps/engl_ironball/slammin_engl_iron_lead_chunky_rhythm_s.nam"),
+    ("slight_scoop","rhythm", "amps/engl_ironball/slammin_engl_iron_lead_slightscoop_rhythm_s.nam"),
+    ("mids",        "solo",   "amps/engl_ironball/slammin_engl_iron_lead_mids_solo_s.nam"),
+    ("chunky",      "solo",   "amps/engl_ironball/slammin_engl_iron_lead_chunky_solo_s.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("slammin_engl_iron_lead_scoop_solo_s"),
-        &[
-            ("slammin_engl_iron_lead_scoop_solo_s", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S"),
-            ("slammin_engl_iron_lead_balanced_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S"),
-            ("slammin_engl_iron_lead_bright_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S"),
-            ("slammin_engl_iron_lead_bright_solo_s", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S"),
-            ("slammin_engl_iron_lead_chunky_rhythm_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S"),
-            ("slammin_engl_iron_lead_slightscoop_rhyth", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S"),
-            ("slammin_engl_iron_lead_mids_solo_s", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S"),
-            ("slammin_engl_iron_lead_chunky_solo_s", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("balanced"),
+            &[
+                ("balanced",     "Balanced"),
+                ("bright",       "Bright"),
+                ("chunky",       "Chunky"),
+                ("mids",         "Mids"),
+                ("scoop",        "Scoop"),
+                ("slight_scoop", "Slight Scoop"),
+            ],
+        ),
+        enum_parameter(
+            "usage",
+            "Usage",
+            Some("Amp"),
+            Some("rhythm"),
+            &[
+                ("rhythm", "Rhythm"),
+                ("solo",   "Solo"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let usage = required_string(params, "usage").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, u, _)| *v == voicing && *u == usage)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} usage={}",
+                MODEL_ID, voicing, usage
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
