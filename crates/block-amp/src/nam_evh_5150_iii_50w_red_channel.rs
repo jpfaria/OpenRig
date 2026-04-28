@@ -13,8 +13,9 @@ const BRAND: &str = "evh";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: Red channel daily-driver tone.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("5153_red_dailydriver", "5153-Red-DailyDriver", "amps/evh_5150_iii_50w_red_channel/5153_red_dailydriver.nam"),
+    ("daily_driver", "Daily Driver", "amps/evh_5150_iii_50w_red_channel/5153_red_dailydriver.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("5153_red_dailydriver"),
+        Some("daily_driver"),
         &[
-            ("5153_red_dailydriver", "5153-Red-DailyDriver"),
+            ("daily_driver", "Daily Driver"),
         ],
     )];
     schema
