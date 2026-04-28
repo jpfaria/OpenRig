@@ -102,7 +102,15 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N` em commits** — GitHub auto-fecha issues.
 7. **Merge policy**: bugfix/hotfix mergeia imediato; feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase** — sempre `git merge`, nunca `git pull --rebase`.
-9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone aberto antes do close** (`gh api "repos/<owner>/<repo>/milestones?state=open" --jq '.[].title'` para listar). Se houver só um aberto, é esse. Se houver mais de um, perguntar ao usuário qual deles é o "próximo". **Se nenhum estiver aberto, parar e perguntar** ao usuário qual deve ser o próximo (nome + descrição) — NUNCA criar milestone por conta própria. Comandos: `gh issue edit <N> --milestone "<title>"` para atribuir, `gh issue close <N>` para fechar. Issue fechada sem milestone não aparece nos relatórios de release.
+9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone antes do close.** Procedimento:
+   1. Listar releases publicadas: `gh release list --limit 20`. Identificar a última tag `vX.Y.Z-dev.N`.
+   2. Se há tags dev publicadas → o próximo milestone é `vX.Y.Z-dev.(N+1)` (somar +1 no último N).
+   3. Se esse milestone ainda não existe como milestone aberto, **criar**: `gh api repos/<owner>/<repo>/milestones -f title="vX.Y.Z-dev.(N+1)" -f state="open" -f description="Next dev release after dev.N."` — criação automática só vale neste caso (somar +1). Para qualquer outra criação de milestone, perguntar ao usuário primeiro.
+   4. Se NÃO há ciclo dev em curso (release final) → usar o próximo milestone aberto comum, perguntando ao usuário se houver mais de um.
+   5. Se nenhum milestone aberto E nem dev em curso → parar e perguntar (nome + descrição).
+   6. Atribuir: `gh issue edit <N> --milestone "<title>"`; depois fechar: `gh issue close <N>`.
+   - **NUNCA** atribuir ao milestone de release final (`vX.Y.Z` puro) enquanto o ciclo dev estiver ativo — o final só recebe issues quando virar a release de produção.
+   - Issue fechada sem milestone não aparece nos relatórios de release.
 10. **Push imediato após cada commit.**
 11. **Labels que excluem das release notes** — duas labels controlam o que sai do gerador automático em `.github/workflows/release.yml`:
     - **`duplicate`** — aplicar quando descobrir que a issue duplica outra existente (mesmo escopo, mesmo body). Cronologicamente: a duplicata é a mais nova; a original mantém o histórico. Se o trabalho foi entregue na duplicata por engano, marcar a duplicata com `duplicate` para sair do release notes; o trabalho aparece quando a original for fechada como `completed` no próximo ciclo.
