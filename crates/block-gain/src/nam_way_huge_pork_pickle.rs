@@ -14,48 +14,59 @@ const BRAND: &str = "way_huge";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "ickle_high_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pickle_high_drive_no_blend.nam" },
-    NamCapture { tone: "ickle_high_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pickle_high_drive_with_blend.nam" },
-    NamCapture { tone: "ickle_low_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pickle_low_drive_no_blend.nam" },
-    NamCapture { tone: "ickle_low_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pickle_low_drive_with_blend.nam" },
-    NamCapture { tone: "ickle_mid_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pickle_mid_drive_no_blend.nam" },
-    NamCapture { tone: "ickle_mid_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pickle_mid_drive_with_blend.nam" },
-    NamCapture { tone: "ork_high_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pork_high_drive_no_blend.nam" },
-    NamCapture { tone: "ork_high_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pork_high_drive_with_blend.nam" },
-    NamCapture { tone: "ork_low_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pork_low_drive_no_blend.nam" },
-    NamCapture { tone: "ork_low_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pork_low_drive_with_blend.nam" },
-    NamCapture { tone: "ork_mid_drive_no_blend", model_path: "pedals/way_huge_pork_pickle/pork_mid_drive_no_blend.nam" },
-    NamCapture { tone: "ork_mid_drive_with_blend", model_path: "pedals/way_huge_pork_pickle/pork_mid_drive_with_blend.nam" },
+// Three-axis pack: voice × drive × blend.
+// 2 voicings (Pork Loin / Swollen Brine) × 3 drive steps × 2 blend states = 12.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (voice, drive, blend, file)
+    ("pork", "low",  "no",   "pedals/way_huge_pork_pickle/pork_low_drive_no_blend.nam"),
+    ("pork", "low",  "with", "pedals/way_huge_pork_pickle/pork_low_drive_with_blend.nam"),
+    ("pork", "mid",  "no",   "pedals/way_huge_pork_pickle/pork_mid_drive_no_blend.nam"),
+    ("pork", "mid",  "with", "pedals/way_huge_pork_pickle/pork_mid_drive_with_blend.nam"),
+    ("pork", "high", "no",   "pedals/way_huge_pork_pickle/pork_high_drive_no_blend.nam"),
+    ("pork", "high", "with", "pedals/way_huge_pork_pickle/pork_high_drive_with_blend.nam"),
+    ("brine","low",  "no",   "pedals/way_huge_pork_pickle/pickle_low_drive_no_blend.nam"),
+    ("brine","low",  "with", "pedals/way_huge_pork_pickle/pickle_low_drive_with_blend.nam"),
+    ("brine","mid",  "no",   "pedals/way_huge_pork_pickle/pickle_mid_drive_no_blend.nam"),
+    ("brine","mid",  "with", "pedals/way_huge_pork_pickle/pickle_mid_drive_with_blend.nam"),
+    ("brine","high", "no",   "pedals/way_huge_pork_pickle/pickle_high_drive_no_blend.nam"),
+    ("brine","high", "with", "pedals/way_huge_pork_pickle/pickle_high_drive_with_blend.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("ickle_high_drive_no_blend"),
-        &[
-            ("ickle_high_drive_no_blend", "Ickle High Drive No Blend"),
-            ("ickle_high_drive_with_blend", "Ickle High Drive With Blend"),
-            ("ickle_low_drive_no_blend", "Ickle Low Drive No Blend"),
-            ("ickle_low_drive_with_blend", "Ickle Low Drive With Blend"),
-            ("ickle_mid_drive_no_blend", "Ickle Mid Drive No Blend"),
-            ("ickle_mid_drive_with_blend", "Ickle Mid Drive With Blend"),
-            ("ork_high_drive_no_blend", "Ork High Drive No Blend"),
-            ("ork_high_drive_with_blend", "Ork High Drive With Blend"),
-            ("ork_low_drive_no_blend", "Ork Low Drive No Blend"),
-            ("ork_low_drive_with_blend", "Ork Low Drive With Blend"),
-            ("ork_mid_drive_no_blend", "Ork Mid Drive No Blend"),
-            ("ork_mid_drive_with_blend", "Ork Mid Drive With Blend"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voice",
+            "Voice",
+            Some("Pedal"),
+            Some("pork"),
+            &[
+                ("pork",  "Pork Loin"),
+                ("brine", "Swollen Brine"),
+            ],
+        ),
+        enum_parameter(
+            "drive",
+            "Drive",
+            Some("Pedal"),
+            Some("mid"),
+            &[
+                ("low",  "Low"),
+                ("mid",  "Mid"),
+                ("high", "High"),
+            ],
+        ),
+        enum_parameter(
+            "blend",
+            "Clean Blend",
+            Some("Pedal"),
+            Some("with"),
+            &[
+                ("no",   "Off"),
+                ("with", "On"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -64,9 +75,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -79,16 +90,24 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let voice = required_string(params, "voice").map_err(anyhow::Error::msg)?;
+    let drive = required_string(params, "drive").map_err(anyhow::Error::msg)?;
+    let blend = required_string(params, "blend").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(v, d, b, _)| *v == voice && *d == drive && *b == blend)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for voice={} drive={} blend={}",
+                MODEL_ID, voice, drive, blend
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
