@@ -23,26 +23,29 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
+// Single-axis preset pack: 4 Friedman DS voicings with sparse, irregular knob
+// settings (channel × bright with gain/EQ varying per row — not a clean grid).
+// Keys/labels cleaned (was "Syn20IR DS ... r51 M32" prefix).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("c1_a_2_g37_b68_m51_t40_v51", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c1_a_2_g37_b68_m51_t40_v51_r51_m32.nam"),
-    ("c2_b_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_2_g37_b68_m51_t40_v45_r51_m32.nam"),
-    ("c2_c_brt_3_g44_b50_m61_t48_v37", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_c_brt_3_g44_b50_m61_t48_v37_r51_m32.nam"),
-    ("c2_b_brt_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32", "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_brt_2_g37_b68_m51_t40_v45_r51_m32.nam"),
+    ("ch1_a",      "Ch1 A",      "preamp/synergy_friedman_ds/syn20ir_ds_c1_a_2_g37_b68_m51_t40_v51_r51_m32.nam"),
+    ("ch2_b",      "Ch2 B",      "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_2_g37_b68_m51_t40_v45_r51_m32.nam"),
+    ("ch2_b_brt",  "Ch2 B Brt",  "preamp/synergy_friedman_ds/syn20ir_ds_c2_b_brt_2_g37_b68_m51_t40_v45_r51_m32.nam"),
+    ("ch2_c_brt",  "Ch2 C Brt",  "preamp/synergy_friedman_ds/syn20ir_ds_c2_c_brt_3_g44_b50_m61_t48_v37_r51_m32.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("c1_a_2_g37_b68_m51_t40_v51"),
+        Some("ch1_a"),
         &[
-            ("c1_a_2_g37_b68_m51_t40_v51", "Syn20IR DS C1 A 2-g37 b68 m51 t40 v51 r51 M32"),
-            ("c2_b_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B 2-g37 b68 m51 t40 v45 r51 M32"),
-            ("c2_c_brt_3_g44_b50_m61_t48_v37", "Syn20IR DS C2 C Brt 3-g44 b50 m61 t48 v37 r51 M32"),
-            ("c2_b_brt_2_g37_b68_m51_t40_v45", "Syn20IR DS C2 B Brt 2-g37 b68 m51 t40 v45 r51 M32"),
+            ("ch1_a",      "Ch1 A"),
+            ("ch2_b",      "Ch2 B"),
+            ("ch2_b_brt",  "Ch2 B Brt"),
+            ("ch2_c_brt",  "Ch2 C Brt"),
         ],
     )];
     schema
@@ -60,12 +63,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("preamp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
