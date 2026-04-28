@@ -119,7 +119,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         {
             let compact_blocks = compact_blocks.clone();
             compact_win.on_search_block_model(move |ci, bi, text| {
-                log::info!(
+                log::debug!(
                     "[search-compact] callback received: ci={} bi={} text={:?}",
                     ci,
                     bi,
@@ -204,7 +204,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         {
             let weak_main = window.as_weak();
             compact_win.on_choose_block_type(move |ci, before, type_index| {
-                log::info!("[compact] choose-block-type: chain={}, before={}, type_index={}", ci, before, type_index);
+                log::debug!("[compact] choose-block-type: chain={}, before={}, type_index={}", ci, before, type_index);
                 let Some(main_win) = weak_main.upgrade() else { return; };
                 // Trigger the full insert flow on the main window (sets up draft + opens editor)
                 main_win.invoke_start_block_insert(ci, before);

@@ -57,7 +57,7 @@ pub(crate) fn wire_standalone_block_editor_window(
             log::warn!("[search] model_id '{}' not found in standalone window list", model_id);
             return;
         };
-        log::info!("[search] standalone window: resolved '{}' → idx {}", model_id, idx);
+        log::debug!("[search] standalone window: resolved '{}' → idx {}", model_id, idx);
         if let Some(w) = weak_win.upgrade() {
             w.set_block_drawer_selected_model_index(idx);
             w.invoke_choose_block_model(idx);
@@ -74,7 +74,7 @@ pub(crate) fn refilter_compact_block(
     block_idx: i32,
     text: &str,
 ) {
-    log::info!(
+    log::debug!(
         "[search-compact] refilter chain_idx={} block_idx={} text={:?}",
         chain_idx,
         block_idx,
@@ -90,7 +90,7 @@ pub(crate) fn refilter_compact_block(
         }
         let all: Vec<BlockModelPickerItem> = item.models.iter().collect();
         let filtered = crate::model_search::filter_models(&all, text);
-        log::info!(
+        log::debug!(
             "[search-compact] match row {}: all={} filtered={}",
             i,
             all.len(),
@@ -99,7 +99,7 @@ pub(crate) fn refilter_compact_block(
         let mut new_item = item;
         new_item.filtered_models = ModelRc::from(Rc::new(VecModel::from(filtered)));
         compact_blocks.set_row_data(i, new_item);
-        log::info!("[search-compact] set_row_data done for row {}", i);
+        log::debug!("[search-compact] set_row_data done for row {}", i);
         return;
     }
     log::warn!(
