@@ -9,13 +9,15 @@ pub const MODEL_ID: &str = "fender_super_reverb_4x10";
 pub const DISPLAY_NAME: &str = "Super Reverb 4x10";
 const BRAND: &str = "fender";
 
+// Single-axis pack: P10R speakers + Brauner BU87IC mic, varying mic distance.
+// All captures share offset 1.0in. Only the on-axis distance varies.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("2_00in", "P10R UR 4x10 BU87IC 2.00in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_00in_1_0in_3.wav"),
-    ("2_75in", "P10R UR 4x10 BU87IC 2.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_75in_1_0in_3.wav"),
-    ("2_25in", "P10R UR 4x10 BU87IC 2.25in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_25in_1_0in_3.wav"),
-    ("2_50in", "P10R UR 4x10 BU87IC 2.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_50in_1_0in_3.wav"),
-    ("1_75in", "P10R UR 4x10 BU87IC 1.75in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_1_75in_1_0in_3.wav"),
-    ("3_50in", "P10R UR 4x10 BU87IC 3.50in 1.0in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_3_50in_1_0in_3.wav"),
+    ("1_75", "1.75 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_1_75in_1_0in_3.wav"),
+    ("2_00", "2.00 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_00in_1_0in_3.wav"),
+    ("2_25", "2.25 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_25in_1_0in_3.wav"),
+    ("2_50", "2.50 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_50in_1_0in_3.wav"),
+    ("2_75", "2.75 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_2_75in_1_0in_3.wav"),
+    ("3_50", "3.50 in", "cabs/fender_super_reverb_4x10/p10r_ur_4x10_bu87ic_3_50in_1_0in_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,17 +27,17 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
+            "distance",
+            "Mic Distance",
             Some("Cab"),
-            Some("2_00in"),
+            Some("2_00"),
             &[
-            ("2_00in", "P10R UR 4x10 BU87IC 2.00in 1.0in"),
-            ("2_75in", "P10R UR 4x10 BU87IC 2.75in 1.0in"),
-            ("2_25in", "P10R UR 4x10 BU87IC 2.25in 1.0in"),
-            ("2_50in", "P10R UR 4x10 BU87IC 2.50in 1.0in"),
-            ("1_75in", "P10R UR 4x10 BU87IC 1.75in 1.0in"),
-            ("3_50in", "P10R UR 4x10 BU87IC 3.50in 1.0in"),
+                ("1_75", "1.75 in"),
+                ("2_00", "2.00 in"),
+                ("2_25", "2.25 in"),
+                ("2_50", "2.50 in"),
+                ("2_75", "2.75 in"),
+                ("3_50", "3.50 in"),
             ],
         )],
     }
@@ -69,12 +71,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "distance").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("cab '{}' has no capture for distance '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
