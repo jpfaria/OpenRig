@@ -13,13 +13,15 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 6 voicings spanning preamp-only / amp+cab / power section with
+// SM58, SM57 or blend mics (sparse — pre/amp branches don't extend to mic axis).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ", "amps/mesa_boogie_mark_vii/pre_mesa_mkvii_90w_ch3_mkiic_eet_faq.nam"),
-    ("amp_mesa_mkvii_90w_ch1_cln_factory_brigh", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2", "amps/mesa_boogie_mark_vii/amp_mesa_mkvii_90w_ch1_cln_factory_bright_clean_blend_2.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5_sm58", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm58.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_2", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_2.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5_sm57", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm57.nam"),
-    ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_3", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_3.nam"),
+    ("pre_ch3",       "Pre Ch3 (MkIIC)",   "amps/mesa_boogie_mark_vii/pre_mesa_mkvii_90w_ch3_mkiic_eet_faq.nam"),
+    ("amp_ch1_clean", "Amp Ch1 Clean",     "amps/mesa_boogie_mark_vii/amp_mesa_mkvii_90w_ch1_cln_factory_bright_clean_blend_2.nam"),
+    ("pow_sm57",      "Power + SM57",      "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm57.nam"),
+    ("pow_sm58",      "Power + SM58",      "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm58.nam"),
+    ("pow_blend_2",   "Power + Blend 2",   "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_2.nam"),
+    ("pow_blend_3",   "Power + Blend 3",   "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,14 +30,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq"),
+        Some("pre_ch3"),
         &[
-            ("pre_mesa_mkvii_90w_ch3_mkiic_eet_faq", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ"),
-            ("amp_mesa_mkvii_90w_ch1_cln_factory_brigh", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5_sm58", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_2", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5_sm57", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57"),
-            ("pow_mesa_mkvii_90w_eq_on_pres_5_blend_3", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3"),
+            ("pre_ch3",       "Pre Ch3 (MkIIC)"),
+            ("amp_ch1_clean", "Amp Ch1 Clean"),
+            ("pow_sm57",      "Power + SM57"),
+            ("pow_sm58",      "Power + SM58"),
+            ("pow_blend_2",   "Power + Blend 2"),
+            ("pow_blend_3",   "Power + Blend 3"),
         ],
     )];
     schema
