@@ -13,35 +13,46 @@ const BRAND: &str = "hiwatt";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × mic.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("noon_04_blend_1", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_1.nam"),
-    ("noon_04_blend_3", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_3.nam"),
-    ("noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_di.nam"),
-    ("bright_overdrive_sm57", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_sm57.nam"),
-    ("bright_overdrive_di", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_di.nam"),
-    ("bright_overdrive_blend_1", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_1.nam"),
-    ("bright_overdrive_blend_3", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_3.nam"),
-    ("bright_overdrive_blend_2", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_2.nam"),
+    // (voicing, mic, file)
+    ("noon",     "di",     "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_di.nam"),
+    ("noon",     "blend1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_1.nam"),
+    ("noon",     "blend3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_noon_04_blend_3.nam"),
+    ("bright_od","sm57",   "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_sm57.nam"),
+    ("bright_od","di",     "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_di.nam"),
+    ("bright_od","blend1", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_1.nam"),
+    ("bright_od","blend2", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_2.nam"),
+    ("bright_od","blend3", "amps/hiwatt_super_hi_50/amp_hwat_superhi50_bright_overdrive_blend_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("noon_04_blend_1"),
-        &[
-            ("noon_04_blend_1", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #1"),
-            ("noon_04_blend_3", "[AMP] HWAT-SUPERHI50 Noon #04 - BLEND #3"),
-            ("noon_04_di", "[AMP] HWAT-SUPERHI50 Noon #04 - DI"),
-            ("bright_overdrive_sm57", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - SM57"),
-            ("bright_overdrive_di", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - DI"),
-            ("bright_overdrive_blend_1", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #1"),
-            ("bright_overdrive_blend_3", "[AMP] HWAT-SUPERHI50 Bright Overdrive+ - BLEND #3"),
-            ("bright_overdrive_blend_2", "[AMP] HWAT-SUPERHI50 Bright Overdrive - BLEND #2"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("noon"),
+            &[
+                ("noon",      "Noon"),
+                ("bright_od", "Bright Overdrive"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Amp"),
+            Some("blend1"),
+            &[
+                ("sm57",   "SM57"),
+                ("di",     "DI (No Cab)"),
+                ("blend1", "Blend #1"),
+                ("blend2", "Blend #2"),
+                ("blend3", "Blend #3"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +72,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, m, _)| *v == voicing && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} mic={}",
+                MODEL_ID, voicing, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
