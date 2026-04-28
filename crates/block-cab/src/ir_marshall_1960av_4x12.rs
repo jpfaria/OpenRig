@@ -9,11 +9,12 @@ pub const MODEL_ID: &str = "marshall_1960av_4x12";
 pub const DISPLAY_NAME: &str = "1960AV 4x12";
 const BRAND: &str = "marshall";
 
+// Single-axis pack: 4 dust-cap mic positions blended for the 1960AV.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("v7x_dc", "V7X_dc", "cabs/marshall_1960av_4x12/v7x_dc_3.wav"),
-    ("sc1100_dc", "SC1100_dc", "cabs/marshall_1960av_4x12/sc1100_dc_3.wav"),
-    ("rb500_dc", "RB500_dc", "cabs/marshall_1960av_4x12/rb500_dc_3.wav"),
-    ("blendofall_dc", "BlendOfAll_dc", "cabs/marshall_1960av_4x12/blendofall_dc_3.wav"),
+    ("v7x",        "V7X",          "cabs/marshall_1960av_4x12/v7x_dc_3.wav"),
+    ("sc1100",     "SC1100",       "cabs/marshall_1960av_4x12/sc1100_dc_3.wav"),
+    ("rb500",      "RB500",        "cabs/marshall_1960av_4x12/rb500_dc_3.wav"),
+    ("blend_all",  "Blend of All", "cabs/marshall_1960av_4x12/blendofall_dc_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,15 +24,15 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
+            "mic",
+            "Mic",
             Some("Cab"),
-            Some("v7x_dc"),
+            Some("v7x"),
             &[
-            ("v7x_dc", "V7X_dc"),
-            ("sc1100_dc", "SC1100_dc"),
-            ("rb500_dc", "RB500_dc"),
-            ("blendofall_dc", "BlendOfAll_dc"),
+                ("v7x",       "V7X"),
+                ("sc1100",    "SC1100"),
+                ("rb500",     "RB500"),
+                ("blend_all", "Blend of All"),
             ],
         )],
     }
@@ -65,12 +66,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("cab '{}' has no mic '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
