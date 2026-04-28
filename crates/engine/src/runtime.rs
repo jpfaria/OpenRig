@@ -2602,3 +2602,7 @@ fn next_block_instance_serial() -> u64 {
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "stream_isolation_tests.rs"]
+mod stream_isolation;
