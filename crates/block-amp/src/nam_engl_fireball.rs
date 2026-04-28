@@ -13,35 +13,49 @@ const BRAND: &str = "engl";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × boost pedal.
+// Holes (e.g. mid voicing has no boost variants) return Err.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fireball_presence_0", "ENGL Fireball presence 0", "amps/engl_fireball/engl_fireball_presence_0.nam"),
-    ("fireball_ts9", "ENGL Fireball+Ts9", "amps/engl_fireball/engl_fireball_ts9.nam"),
-    ("fireball_line_driver", "ENGL Fireball +line driver", "amps/engl_fireball/engl_fireball_line_driver.nam"),
-    ("fireball", "ENGL Fireball", "amps/engl_fireball/engl_fireball.nam"),
-    ("fireball_mid", "ENGL Fireball mid", "amps/engl_fireball/engl_fireball_mid.nam"),
-    ("fireball_ts808", "ENGL Fireball + Ts808", "amps/engl_fireball/engl_fireball_ts808.nam"),
-    ("fireball_precision_drive_3", "ENGL Fireball+precision drive 3", "amps/engl_fireball/engl_fireball_precision_drive_3.nam"),
-    ("fireball_presence_9h", "ENGL Fireball presence 9h", "amps/engl_fireball/engl_fireball_presence_9h.nam"),
+    // (voicing, boost, file)
+    ("default",     "none",            "amps/engl_fireball/engl_fireball.nam"),
+    ("default",     "ts9",             "amps/engl_fireball/engl_fireball_ts9.nam"),
+    ("default",     "ts808",           "amps/engl_fireball/engl_fireball_ts808.nam"),
+    ("default",     "line_driver",     "amps/engl_fireball/engl_fireball_line_driver.nam"),
+    ("default",     "precision_drive", "amps/engl_fireball/engl_fireball_precision_drive_3.nam"),
+    ("mid",         "none",            "amps/engl_fireball/engl_fireball_mid.nam"),
+    ("presence_0",  "none",            "amps/engl_fireball/engl_fireball_presence_0.nam"),
+    ("presence_9h", "none",            "amps/engl_fireball/engl_fireball_presence_9h.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("fireball_presence_0"),
-        &[
-            ("fireball_presence_0", "ENGL Fireball presence 0"),
-            ("fireball_ts9", "ENGL Fireball+Ts9"),
-            ("fireball_line_driver", "ENGL Fireball +line driver"),
-            ("fireball", "ENGL Fireball"),
-            ("fireball_mid", "ENGL Fireball mid"),
-            ("fireball_ts808", "ENGL Fireball + Ts808"),
-            ("fireball_precision_drive_3", "ENGL Fireball+precision drive 3"),
-            ("fireball_presence_9h", "ENGL Fireball presence 9h"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("default"),
+            &[
+                ("default",     "Default"),
+                ("mid",         "Mid"),
+                ("presence_0",  "Presence 0"),
+                ("presence_9h", "Presence 9h"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("none"),
+            &[
+                ("none",            "None"),
+                ("ts9",             "TS9"),
+                ("ts808",           "TS808"),
+                ("line_driver",     "Line Driver"),
+                ("precision_drive", "Precision Drive"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +75,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, b, _)| *v == voicing && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} boost={}",
+                MODEL_ID, voicing, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
