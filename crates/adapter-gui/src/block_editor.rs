@@ -1,3 +1,11 @@
+use crate::helpers::log_gui_error;
+use crate::project_ops::sync_project_dirty;
+use crate::project_view::replace_project_chains;
+use crate::state::{BlockEditorData, BlockEditorDraft, SelectOptionEditorItem};
+use crate::{
+    AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, ProjectChainItem,
+    SELECT_PATH_PREFIX, SELECT_SELECTED_BLOCK_ID,
+};
 use anyhow::{anyhow, Result};
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::{build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind};
@@ -6,16 +14,11 @@ use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
-use crate::{
-    AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem,
-    ProjectChainItem, SELECT_PATH_PREFIX, SELECT_SELECTED_BLOCK_ID,
-};
-use crate::state::{BlockEditorData, BlockEditorDraft, SelectOptionEditorItem};
-use crate::project_ops::sync_project_dirty;
-use crate::project_view::replace_project_chains;
-use crate::helpers::log_gui_error;
 
-pub(crate) fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
+pub(crate) fn build_knob_overlays(
+    knob_layout: &[block_core::KnobLayoutEntry],
+    param_items: &[BlockParameterItem],
+) -> Vec<BlockKnobOverlay> {
     knob_layout
         .iter()
         .map(|info| {
@@ -58,36 +61,40 @@ pub(crate) fn schedule_block_editor_persist(
     auto_save: bool,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let Some(draft) = block_editor_draft.borrow().clone() else {
-            return;
-        };
-        if draft.block_index.is_none() {
-            return;
-        }
-        let devs_in = input_chain_devices.borrow();
-        let devs_out = output_chain_devices.borrow();
-        if let Err(error) = persist_block_editor_draft(
-            &window,
-            &draft,
-            &block_parameter_items,
-            &project_session,
-            &project_chains,
-            &project_runtime,
-            &saved_project_snapshot,
-            &project_dirty,
-            &*devs_in,
-            &*devs_out,
-            false,
-            auto_save,
-        ) {
-            log::error!("[adapter-gui] {context}: {error}");
-            window.set_block_drawer_status_message(error.to_string().into());
-        }
-    });
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(30),
+        move || {
+            let Some(window) = window_weak.upgrade() else {
+                return;
+            };
+            let Some(draft) = block_editor_draft.borrow().clone() else {
+                return;
+            };
+            if draft.block_index.is_none() {
+                return;
+            }
+            let devs_in = input_chain_devices.borrow();
+            let devs_out = output_chain_devices.borrow();
+            if let Err(error) = persist_block_editor_draft(
+                &window,
+                &draft,
+                &block_parameter_items,
+                &project_session,
+                &project_chains,
+                &project_runtime,
+                &saved_project_snapshot,
+                &project_dirty,
+                &*devs_in,
+                &*devs_out,
+                false,
+                auto_save,
+            ) {
+                log::error!("[adapter-gui] {context}: {error}");
+                window.set_block_drawer_status_message(error.to_string().into());
+            }
+        },
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -108,40 +115,44 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
     auto_save: bool,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
-        // Only persist if the block window is still alive
-        if block_win_weak.upgrade().is_none() {
-            return;
-        }
-        let Some(main_window) = main_win_weak.upgrade() else {
-            return;
-        };
-        let Some(draft) = block_editor_draft.borrow().clone() else {
-            return;
-        };
-        if draft.block_index.is_none() {
-            return;
-        }
-        let devs_in = input_chain_devices.borrow();
-        let devs_out = output_chain_devices.borrow();
-        if let Err(error) = persist_block_editor_draft(
-            &main_window,
-            &draft,
-            &block_parameter_items,
-            &project_session,
-            &project_chains,
-            &project_runtime,
-            &saved_project_snapshot,
-            &project_dirty,
-            &*devs_in,
-            &*devs_out,
-            false,
-            auto_save,
-        ) {
-            log::error!("[adapter-gui] {context}: {error}");
-            main_window.set_block_drawer_status_message(error.to_string().into());
-        }
-    });
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(30),
+        move || {
+            // Only persist if the block window is still alive
+            if block_win_weak.upgrade().is_none() {
+                return;
+            }
+            let Some(main_window) = main_win_weak.upgrade() else {
+                return;
+            };
+            let Some(draft) = block_editor_draft.borrow().clone() else {
+                return;
+            };
+            if draft.block_index.is_none() {
+                return;
+            }
+            let devs_in = input_chain_devices.borrow();
+            let devs_out = output_chain_devices.borrow();
+            if let Err(error) = persist_block_editor_draft(
+                &main_window,
+                &draft,
+                &block_parameter_items,
+                &project_session,
+                &project_chains,
+                &project_runtime,
+                &saved_project_snapshot,
+                &project_dirty,
+                &*devs_in,
+                &*devs_out,
+                false,
+                auto_save,
+            ) {
+                log::error!("[adapter-gui] {context}: {error}");
+                main_window.set_block_drawer_status_message(error.to_string().into());
+            }
+        },
+    );
 }
 
 pub(crate) fn block_editor_data(block: &AudioBlock) -> Option<BlockEditorData> {
@@ -391,7 +402,11 @@ pub(crate) fn block_parameter_items_for_model(
         .collect()
 }
 
-pub(crate) fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: &str) {
+pub(crate) fn set_block_parameter_text(
+    model: &Rc<VecModel<BlockParameterItem>>,
+    path: &str,
+    value: &str,
+) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -403,7 +418,11 @@ pub(crate) fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>,
     }
 }
 
-pub(crate) fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: bool) {
+pub(crate) fn set_block_parameter_bool(
+    model: &Rc<VecModel<BlockParameterItem>>,
+    path: &str,
+    value: bool,
+) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -415,7 +434,11 @@ pub(crate) fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>,
     }
 }
 
-pub(crate) fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: f32) {
+pub(crate) fn set_block_parameter_number(
+    model: &Rc<VecModel<BlockParameterItem>>,
+    path: &str,
+    value: f32,
+) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -456,7 +479,12 @@ pub(crate) fn persist_block_editor_draft(
 ) -> Result<()> {
     let params =
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
-    log::info!("[persist] effect_type='{}', model_id='{}', close_after_save={}, params:", draft.effect_type, draft.model_id, close_after_save);
+    log::info!(
+        "[persist] effect_type='{}', model_id='{}', close_after_save={}, params:",
+        draft.effect_type,
+        draft.model_id,
+        close_after_save
+    );
     for (path, value) in params.values.iter() {
         log::info!("[persist]   {} = {:?}", path, value);
     }
@@ -494,7 +522,11 @@ pub(crate) fn persist_block_editor_draft(
                 let select_family = select
                     .options
                     .iter()
-                    .find_map(|option| option.model_ref().map(|model| model.effect_type.to_string()))
+                    .find_map(|option| {
+                        option
+                            .model_ref()
+                            .map(|model| model.effect_type.to_string())
+                    })
                     .ok_or_else(|| anyhow!("Select sem opções válidas."))?;
                 if select_family != draft.effect_type {
                     return Err(anyhow!(
@@ -524,7 +556,12 @@ pub(crate) fn persist_block_editor_draft(
             let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
                 .map_err(|error| anyhow!(error))?;
             let insert_index = draft.before_index.min(chain.blocks.len());
-            log::info!("[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'", insert_index, draft.effect_type, draft.model_id);
+            log::info!(
+                "[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'",
+                insert_index,
+                draft.effect_type,
+                draft.model_id
+            );
             chain.blocks.insert(
                 insert_index,
                 AudioBlock {
@@ -533,9 +570,19 @@ pub(crate) fn persist_block_editor_draft(
                     kind,
                 },
             );
-            log::info!("[persist] chain after insert has {} blocks:", chain.blocks.len());
+            log::info!(
+                "[persist] chain after insert has {} blocks:",
+                chain.blocks.len()
+            );
             for (i, b) in chain.blocks.iter().enumerate() {
-                log::info!("[persist]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+                log::info!(
+                    "[persist]   [{}] id='{}' kind={}",
+                    i,
+                    b.id.0,
+                    b.model_ref()
+                        .map(|m| format!("{}/{}", m.effect_type, m.model))
+                        .unwrap_or_else(|| "io/insert".to_string())
+                );
             }
         }
         chain.id.clone()
@@ -550,7 +597,13 @@ pub(crate) fn persist_block_editor_draft(
         input_chain_devices,
         output_chain_devices,
     );
-    sync_project_dirty(window, session, saved_project_snapshot, project_dirty, auto_save);
+    sync_project_dirty(
+        window,
+        session,
+        saved_project_snapshot,
+        project_dirty,
+        auto_save,
+    );
     if close_after_save {
         window.set_show_block_drawer(false);
         window.set_show_block_type_picker(false);
@@ -562,7 +615,13 @@ pub(crate) fn persist_block_editor_draft(
     Ok(())
 }
 
-pub(crate) fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bool) -> f32 {
+pub(crate) fn quantize_numeric_value(
+    value: f32,
+    min: f32,
+    max: f32,
+    step: f32,
+    integer: bool,
+) -> f32 {
     let mut clamped = value.clamp(min, max);
     if step > 0.0 {
         let snapped_steps = ((clamped - min) / step).round();
@@ -608,7 +667,10 @@ pub(crate) fn set_block_parameter_option(
     }
 }
 
-pub(crate) fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &str) -> Vec<String> {
+pub(crate) fn block_parameter_extensions(
+    model: &Rc<VecModel<BlockParameterItem>>,
+    path: &str,
+) -> Vec<String> {
     for index in 0..model.row_count() {
         if let Some(row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -699,7 +761,10 @@ pub(crate) fn internal_block_parameter_value(
             continue;
         }
         if row.selected_option_index >= 0 {
-            if let Some(value) = row.option_values.row_data(row.selected_option_index as usize) {
+            if let Some(value) = row
+                .option_values
+                .row_data(row.selected_option_index as usize)
+            {
                 return Some(value.to_string());
             }
         }
@@ -736,166 +801,5 @@ pub(crate) fn unit_label(unit: &ParameterUnit) -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        block_editor_data, block_parameter_items_for_editor,
-        numeric_widget_kind, quantize_numeric_value,
-    };
-    use crate::SELECT_SELECTED_BLOCK_ID;
-    use domain::ids::BlockId;
-    use project::catalog::supported_block_models;
-    use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
-    };
-    use project::param::ParameterSet;
-    use slint::Model;
-
-    #[test]
-    fn quantize_numeric_value_respects_float_step_and_bounds() {
-        assert_eq!(quantize_numeric_value(19.64, 0.0, 100.0, 0.5, false), 19.5);
-        assert_eq!(quantize_numeric_value(101.0, 0.0, 100.0, 0.5, false), 100.0);
-        assert_eq!(quantize_numeric_value(-1.0, 0.0, 100.0, 0.5, false), 0.0);
-    }
-
-    #[test]
-    fn quantize_numeric_value_respects_integer_step() {
-        assert_eq!(
-            quantize_numeric_value(243.0, 64.0, 1024.0, 64.0, true),
-            256.0
-        );
-        assert_eq!(
-            quantize_numeric_value(96.0, 64.0, 1024.0, 64.0, true),
-            128.0
-        );
-    }
-
-    #[test]
-    fn numeric_widget_kind_prefers_stepper_for_sparse_ranges() {
-        assert_eq!(numeric_widget_kind(50.0, 70.0, 10.0, false), "stepper");
-        assert_eq!(numeric_widget_kind(10.0, 100.0, 10.0, false), "stepper");
-    }
-
-    #[test]
-    fn numeric_widget_kind_uses_slider_for_dense_ranges() {
-        assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "slider");
-        assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "slider");
-    }
-
-    #[test]
-    fn numeric_widget_kind_prefers_slider_for_large_ranges() {
-        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "slider");
-        assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "slider");
-    }
-
-    #[test]
-    fn select_block_editor_uses_selected_option_model() {
-        let delay_models = delay_model_ids();
-        let first_model = delay_models.first().expect("delay catalog must not be empty");
-        let second_model = delay_models.get(1).unwrap_or(first_model);
-        let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-        let editor_data = block_editor_data(&block).expect("select should expose editor data");
-        assert!(editor_data.is_select);
-        assert_eq!(editor_data.effect_type, "delay");
-        assert_eq!(editor_data.model_id, second_model.as_str());
-        assert_eq!(editor_data.select_options.len(), 2);
-        assert_eq!(
-            editor_data.selected_select_option_block_id.as_deref(),
-            Some("chain:0:block:0::delay_b")
-        );
-    }
-
-    #[test]
-    fn select_block_editor_includes_active_option_picker() {
-        let delay_models = delay_model_ids();
-        let first_model = delay_models.first().expect("delay catalog must not be empty");
-        let second_model = delay_models.get(1).unwrap_or(first_model);
-        let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-        let editor_data = block_editor_data(&block).expect("select should expose editor data");
-        let items = block_parameter_items_for_editor(&editor_data);
-        let selector = items
-            .iter()
-            .find(|item| item.path.as_str() == SELECT_SELECTED_BLOCK_ID)
-            .expect("select editor should expose active option picker");
-        assert_eq!(selector.option_values.row_count(), 2);
-        assert_eq!(selector.selected_option_index, 1);
-    }
-
-    fn select_delay_block(id: &str, first_model: &str, second_model: &str) -> AudioBlock {
-        AudioBlock {
-            id: BlockId(id.into()),
-            enabled: true,
-            kind: AudioBlockKind::Select(SelectBlock {
-                selected_block_id: BlockId(format!("{id}::delay_b")),
-                options: vec![
-                    delay_block(format!("{id}::delay_a"), first_model, 120.0),
-                    delay_block(format!("{id}::delay_b"), second_model, 240.0),
-                ],
-            }),
-        }
-    }
-
-    fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
-        let mut params = ParameterSet::default();
-        params.insert("time_ms", domain::value_objects::ParameterValue::Float(time_ms));
-        AudioBlock {
-            id: BlockId(id.into()),
-            enabled: true,
-            kind: AudioBlockKind::Core(CoreBlock {
-                effect_type: "delay".to_string(),
-                model: model.to_string(),
-                params,
-            }),
-        }
-    }
-
-    fn delay_model_ids() -> Vec<String> {
-        supported_block_models("delay")
-            .expect("delay catalog should exist")
-            .into_iter()
-            .map(|entry| entry.model_id)
-            .collect()
-    }
-
-    // --- quantize_numeric_value edge cases ---
-
-    #[test]
-    fn quantize_numeric_value_zero_step_only_clamps() {
-        assert_eq!(quantize_numeric_value(50.0, 0.0, 100.0, 0.0, false), 50.0);
-        assert_eq!(quantize_numeric_value(150.0, 0.0, 100.0, 0.0, false), 100.0);
-    }
-
-    #[test]
-    fn quantize_numeric_value_exact_boundary_stays() {
-        assert_eq!(quantize_numeric_value(0.0, 0.0, 100.0, 10.0, false), 0.0);
-        assert_eq!(quantize_numeric_value(100.0, 0.0, 100.0, 10.0, false), 100.0);
-    }
-
-    #[test]
-    fn quantize_numeric_value_integer_flag_rounds() {
-        assert_eq!(quantize_numeric_value(3.7, 0.0, 10.0, 0.0, true), 4.0);
-        assert_eq!(quantize_numeric_value(3.2, 0.0, 10.0, 0.0, true), 3.0);
-    }
-
-    // --- numeric_widget_kind edge cases ---
-
-    #[test]
-    fn numeric_widget_kind_step_zero_returns_slider() {
-        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.0, false), "slider");
-    }
-
-    #[test]
-    fn numeric_widget_kind_boundary_24_steps_is_stepper() {
-        // exactly 24 steps: (24.0 - 0.0) / 1.0 = 24
-        assert_eq!(numeric_widget_kind(0.0, 24.0, 1.0, false), "stepper");
-    }
-
-    #[test]
-    fn numeric_widget_kind_25_steps_is_slider() {
-        assert_eq!(numeric_widget_kind(0.0, 25.0, 1.0, false), "slider");
-    }
-
-    #[test]
-    fn numeric_widget_kind_equal_min_max_returns_slider() {
-        assert_eq!(numeric_widget_kind(5.0, 5.0, 1.0, false), "slider");
-    }
-}
+#[path = "block_editor_tests.rs"]
+mod tests;

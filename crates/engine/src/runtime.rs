@@ -569,6 +569,17 @@ pub(crate) struct InputProcessingState {
     /// Which output route indices this input/segment should push frames to.
     /// Empty means push to ALL output routes (legacy behaviour).
     output_route_indices: Vec<usize>,
+    /// When this segment originated from a split-mono entry (one
+    /// `InputBlock` with `mode: mono` and N channels), this stores N —
+    /// the total number of split siblings sharing the same original entry.
+    /// The fan-out then scales this segment's contribution by 1/N before
+    /// summing into `mixed_per_route`, preventing the unity-gain sum of N
+    /// loud streams from saturating the output limiter. The mono→stereo
+    /// upmix stays the historical broadcast (`Stereo([s, s])`) — the rule
+    /// "mono in → stereo out is broadcast to both channels" is preserved.
+    /// `None` for stereo / single-channel mono / dual-mono / Insert
+    /// returns — they contribute at unity gain. (Issue #350.)
+    split_mono_sibling_count: Option<usize>,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -728,7 +739,7 @@ pub fn build_chain_runtime_state(
     sample_rate: f32,
     elastic_targets: &[usize],
 ) -> Result<ChainRuntimeState> {
-    let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
@@ -739,7 +750,13 @@ pub fn build_chain_runtime_state(
     for (i, out) in eff_outputs.iter().enumerate() {
         log::info!("    output[{}]: 'output #{}' dev='{}' ch={:?}", i, i, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
     }
-    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
+    let segments = split_chain_into_segments(
+        chain,
+        &eff_inputs,
+        &eff_input_cpal_indices,
+        &eff_split_positions,
+        &eff_outputs,
+    );
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
         let block_names: Vec<String> = seg.block_indices.iter()
@@ -769,6 +786,7 @@ pub fn build_chain_runtime_state(
             None,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
+            segment.split_mono_sibling_count,
         )?;
         input_states.push(input_state);
     }
@@ -829,7 +847,7 @@ pub fn build_chain_runtime_state(
 /// cpal_stream_index maps each effective entry back to the CPAL stream
 /// that provides its audio data. Entries split from the same original
 /// entry share the same CPAL stream index.
-fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
+fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, Vec<Option<usize>>) {
     let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -840,13 +858,20 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         .collect();
 
     // Mono entries with multiple channels: split into one entry per channel
-    // so each channel gets its own isolated processing stream.
+    // so each channel gets its own isolated processing stream. The third
+    // returned vector records, per effective entry, which output-channel
+    // POSITION the split-mono stream owns (`Some(0)` for the first split,
+    // `Some(1)` for the second, …) so the engine can place that segment's
+    // mono signal in its dedicated stereo slot at fan-out time instead of
+    // broadcasting and summing on top of itself. `None` for non-split
+    // entries, which keep the historical layout-aware path.
     //
     // cpal_indices maps each effective entry to the CPAL stream index.
     // Entries sharing the same device get the same CPAL stream index
     // (infra-cpal deduplicates streams by device).
     let mut entries: Vec<InputEntry> = Vec::new();
     let mut cpal_indices: Vec<usize> = Vec::new();
+    let mut split_positions: Vec<Option<usize>> = Vec::new();
     let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
     let mut next_cpal_idx: usize = 0;
 
@@ -859,17 +884,26 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         });
 
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
-            for &ch in &entry.channels {
+            // All split siblings get the SAME sibling count (total number
+            // of channels split from the original mono entry). The runtime
+            // divides each segment's contribution by this count at fan-out
+            // time so N loud guitars do not saturate the output limiter.
+            // Mono→stereo upmix stays the historical broadcast — "mono in
+            // → stereo out is broadcast to both channels" is preserved.
+            let n = entry.channels.len();
+            for &ch in entry.channels.iter() {
                 entries.push(InputEntry {
                     device_id: entry.device_id.clone(),
                     mode: ChainInputMode::Mono,
                     channels: vec![ch],
                 });
                 cpal_indices.push(cpal_idx);
+                split_positions.push(Some(n));
             }
         } else {
             entries.push(entry.clone());
             cpal_indices.push(cpal_idx);
+            split_positions.push(None);
         }
     }
 
@@ -884,18 +918,23 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         .collect();
     for (i, ret) in insert_returns.into_iter().enumerate() {
         cpal_indices.push(insert_return_base + i);
+        split_positions.push(None);
         entries.push(ret);
     }
 
     if !entries.is_empty() {
-        return (entries, cpal_indices);
+        return (entries, cpal_indices, split_positions);
     }
     // Fallback — no InputBlocks defined
-    (vec![InputEntry {
-        device_id: domain::ids::DeviceId("".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![0],
-    }], vec![0])
+    (
+        vec![InputEntry {
+            device_id: domain::ids::DeviceId("".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![0],
+        }],
+        vec![0],
+        vec![None],
+    )
 }
 
 /// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
@@ -960,6 +999,12 @@ struct ChainSegment {
     cpal_input_index: usize,
     block_indices: Vec<usize>,
     output_route_indices: Vec<usize>,
+    /// Inherited from the originating effective input. `Some(N)` when this
+    /// segment came from a split-mono entry (one InputBlock with
+    /// `mode: mono` and >1 channel) and owns output channel position N.
+    /// `None` for stereo / dual-mono / single-channel-mono / Insert-return
+    /// segments — they keep the historical broadcast/sum behaviour.
+    split_mono_sibling_count: Option<usize>,
 }
 
 /// Split a chain into segments at enabled Insert block boundaries.
@@ -969,7 +1014,13 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_indices: &[usize], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(
+    chain: &Chain,
+    effective_ins: &[InputEntry],
+    cpal_indices: &[usize],
+    split_positions: &[Option<usize>],
+    _effective_outs: &[OutputEntry],
+) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
     let regular_input_count: usize = chain.blocks.iter()
         .filter(|b| b.enabled)
@@ -1031,6 +1082,10 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
                     cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
+                    split_mono_sibling_count: split_positions
+                        .get(in_idx)
+                        .copied()
+                        .unwrap_or(None),
                 });
             }
         }
@@ -1084,6 +1139,10 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
                     cpal_input_index: i,
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
+                    split_mono_sibling_count: split_positions
+                        .get(i)
+                        .copied()
+                        .unwrap_or(None),
                 });
             }
         } else {
@@ -1094,6 +1153,8 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
                 cpal_input_index: prev_return_idx,
                 block_indices,
                 output_route_indices: output_indices,
+                // Insert returns are not split-mono.
+                split_mono_sibling_count: None,
             });
         }
 
@@ -1140,6 +1201,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
         cpal_input_index: last_return_idx,
         block_indices,
         output_route_indices: output_indices,
+        split_mono_sibling_count: None,
     });
 
     segments
@@ -1153,6 +1215,7 @@ fn build_input_processing_state(
     existing_blocks: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
     output_route_indices: Vec<usize>,
+    split_mono_sibling_count: Option<usize>,
 ) -> Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
     // output channel count, matching `project::chain::processing_layout`:
@@ -1180,6 +1243,11 @@ fn build_input_processing_state(
         project::chain::ProcessingLayout::Stereo
         | project::chain::ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
     };
+    // Issue #350: split-mono segments respect the historical processing
+    // layout — mono input + stereo output still upmixes (broadcast to
+    // both channels) so the user hears each guitar centered. Isolation
+    // between siblings is enforced at fan-out via 1/N gain reduction
+    // (see `process_single_segment`), NOT by auto-panning.
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
@@ -1200,6 +1268,7 @@ fn build_input_processing_state(
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
+        split_mono_sibling_count,
     })
 }
 
@@ -1226,9 +1295,15 @@ pub fn update_chain_runtime_state(
     reset_output_queue: bool,
     elastic_targets: &[usize],
 ) -> Result<()> {
-    let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
+    let (effective_ins, eff_input_cpal_indices, effective_split_positions) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(chain, &effective_ins, &eff_input_cpal_indices, &effective_outs);
+    let segments = split_chain_into_segments(
+        chain,
+        &effective_ins,
+        &eff_input_cpal_indices,
+        &effective_split_positions,
+        &effective_outs,
+    );
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -1260,6 +1335,7 @@ pub fn update_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
+            segment.split_mono_sibling_count,
         ) {
             Ok(state) => state,
             Err(e) => {
@@ -2190,6 +2266,7 @@ fn process_single_segment(
         frame_buffer,
         fade_in_remaining,
         output_route_indices,
+        split_mono_sibling_count,
     } = input_state;
 
     frame_buffer.clear();
@@ -2258,17 +2335,43 @@ fn process_single_segment(
         }
     }
 
-    // Mix this segment's frame_buffer into scratch.mixed_per_route for each
-    // route this segment feeds. First segment into an empty bucket copies;
-    // subsequent segments sum.
+    // Mix this segment's frame_buffer into scratch.mixed_per_route for
+    // each route this segment feeds. Split-mono siblings (issue #350)
+    // share a route at unity gain → the unrestricted sum saturates the
+    // output limiter when both are loud. We pre-scale this segment's
+    // contribution by 1/N (where N = total siblings of the original
+    // mono multi-channel entry) so the unity sum equals the AVERAGE,
+    // staying in the limiter's transparent range. The mono→stereo upmix
+    // already produced `Stereo([s, s])` upstream, so each guitar still
+    // appears in BOTH output channels (centered). Non-split segments
+    // contribute at unity (None branch). First segment into an empty
+    // bucket copies; subsequent segments sum.
+    let split_scale: f32 = match *split_mono_sibling_count {
+        Some(n) if n >= 1 => 1.0 / n as f32,
+        _ => 1.0,
+    };
+    let scale_frame = |frame: AudioFrame| -> AudioFrame {
+        if (split_scale - 1.0).abs() < f32::EPSILON {
+            return frame;
+        }
+        match frame {
+            AudioFrame::Mono(s) => AudioFrame::Mono(s * split_scale),
+            AudioFrame::Stereo([l, r]) =>
+                AudioFrame::Stereo([l * split_scale, r * split_scale]),
+        }
+    };
+
     for &route_idx in output_route_indices.iter() {
         let buf = scratch.mixed_per_route.entry(route_idx).or_default();
         if buf.is_empty() {
-            buf.extend_from_slice(frame_buffer);
+            for &frame in frame_buffer.iter() {
+                buf.push(scale_frame(frame));
+            }
         } else {
             for (i, &frame) in frame_buffer.iter().enumerate() {
                 if i < buf.len() {
-                    buf[i] = match (buf[i], frame) {
+                    let to_add = scale_frame(frame);
+                    buf[i] = match (buf[i], to_add) {
                         (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
                             AudioFrame::Stereo([l1 + l2, r1 + r2]),
                         (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
@@ -2602,3 +2705,7 @@ fn next_block_instance_serial() -> u64 {
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "stream_isolation_tests.rs"]
+mod stream_isolation;

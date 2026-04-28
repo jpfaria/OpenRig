@@ -9,10 +9,17 @@ OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latênci
 1. **Latência round-trip**
 2. **Qualidade de áudio** (ruído, aliasing, THD, resposta em frequência)
 3. **Estabilidade do stream** — zero xruns, dropouts, cliques, glitches, pops
-4. **Jitter do callback** — tempo de processamento estável
-5. **Custo de CPU no audio thread** — regressão de CPU vira xrun
-6. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
-7. **Determinismo numérico** — golden samples passam dentro da tolerância
+4. **Isolation entre streams** — cada `InputBlock` é um stream paralelo TOTALMENTE isolado. NUNCA um stream pode impactar outro. Sem buffer compartilhado, sem lock compartilhado, sem cache line contestada, sem CPU spike de um afetando outro. "Chain" no YAML é só agrupamento lógico — no runtime são N runtimes paralelos. Mixing entre streams (se necessário) acontece no backend (cpal/JACK), nunca no nosso código. Violação = regressão crítica, igual a perder áudio.
+5. **Stream é SEMPRE estéreo internamente** — o bus de processamento de TODO stream é estéreo, regardless de input mode:
+   - Mono input → upmix broadcast: `Stereo([s, s])` (mesmo sinal nos 2 canais — centrado).
+   - DualMono input → `Stereo([L, R])` com L/R processados independentemente pelo `AudioProcessor::DualMono`.
+   - Stereo input → `Stereo([L, R])` direto.
+   - 1 InputBlock com `mode: mono, channels: [0, 1]` (duas guitarras na mesma input) → 2 streams estéreo INDEPENDENTES (cada um broadcast pra ambos os canais), somados com escala 1/N (auto-mix sem saturar).
+   - Saída final pro device só vira mono se o `OutputBlock` for `mode: mono` — aí o `apply_mixdown` faz Stereo→Mono pelo método configurado (Average / Sum / Left / Right). NUNCA forçar bus Mono no segment quando output é estéreo. NUNCA auto-pan: cada stream sempre presente em AMBOS os canais. Violação = regressão crítica.
+5. **Jitter do callback** — tempo de processamento estável
+6. **Custo de CPU no audio thread** — regressão de CPU vira xrun
+7. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
+8. **Determinismo numérico** — golden samples passam dentro da tolerância
 
 ### Checklist obrigatório antes do PR/merge
 
@@ -22,6 +29,7 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - [ ] Afeta latência? Qual o delta em ms? Justificado?
 - [ ] Afeta o som de algum bloco? Golden tests passando? Fiz A/B auditivo?
 - [ ] Introduz alocação, lock, syscall ou lazy init no hot path? Se sim, reverter.
+- [ ] **Isolation entre streams preservada?** Testei com 2+ inputs paralelos? Glitch num NÃO afeta outro? CPU spike num NÃO afeta callback do outro? Existe algum buffer/lock/route/tap compartilhado entre streams? Se sim → regressão crítica, reverter.
 
 ### Red flags — PARAR e reportar
 
@@ -31,10 +39,11 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - Pico de callback acima do buffer period
 - Necessidade de `Mutex`/`RwLock`/`Arc::clone`/log/print/file I/O no processamento
 - "Em macOS/Windows/Linux o som mudou" → é regressão, não compatibilidade
+- **Buffer / runtime state / tap / route / scratch compartilhado entre 2+ streams** — viola isolation, é regressão crítica
 
 ### Hierarquia de trade-offs
 
-1. Qualidade do som **e** estabilidade do stream (empate no topo)
+1. Qualidade do som **e** estabilidade do stream **e** isolation entre streams (empate no topo)
 2. Latência
 3. Custo de CPU no audio thread
 4. Compatibilidade cross-platform
@@ -76,7 +85,15 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N` em commits** — GitHub auto-fecha issues.
 7. **Merge policy**: bugfix/hotfix mergeia imediato; feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase** — sempre `git merge`, nunca `git pull --rebase`.
-9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone aberto antes do close** (`gh api "repos/<owner>/<repo>/milestones?state=open" --jq '.[].title'` para listar). Se houver só um aberto, é esse. Se houver mais de um, perguntar ao usuário qual deles é o "próximo". **Se nenhum estiver aberto, parar e perguntar** ao usuário qual deve ser o próximo (nome + descrição) — NUNCA criar milestone por conta própria. Comandos: `gh issue edit <N> --milestone "<title>"` para atribuir, `gh issue close <N>` para fechar. Issue fechada sem milestone não aparece nos relatórios de release.
+9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone antes do close.** Procedimento:
+   1. Listar releases publicadas: `gh release list --limit 20`. Identificar a última tag `vX.Y.Z-dev.N`.
+   2. Se há tags dev publicadas → o próximo milestone é `vX.Y.Z-dev.(N+1)` (somar +1 no último N).
+   3. Se esse milestone ainda não existe como milestone aberto, **criar**: `gh api repos/<owner>/<repo>/milestones -f title="vX.Y.Z-dev.(N+1)" -f state="open" -f description="Next dev release after dev.N."` — criação automática só vale neste caso (somar +1). Para qualquer outra criação de milestone, perguntar ao usuário primeiro.
+   4. Se NÃO há ciclo dev em curso (release final) → usar o próximo milestone aberto comum, perguntando ao usuário se houver mais de um.
+   5. Se nenhum milestone aberto E nem dev em curso → parar e perguntar (nome + descrição).
+   6. Atribuir: `gh issue edit <N> --milestone "<title>"`; depois fechar: `gh issue close <N>`.
+   - **NUNCA** atribuir ao milestone de release final (`vX.Y.Z` puro) enquanto o ciclo dev estiver ativo — o final só recebe issues quando virar a release de produção.
+   - Issue fechada sem milestone não aparece nos relatórios de release.
 10. **Push imediato após cada commit.**
 11. **Labels que excluem das release notes** — duas labels controlam o que sai do gerador automático em `.github/workflows/release.yml`:
     - **`duplicate`** — aplicar quando descobrir que a issue duplica outra existente (mesmo escopo, mesmo body). Cronologicamente: a duplicata é a mais nova; a original mantém o histórico. Se o trabalho foi entregue na duplicata por engano, marcar a duplicata com `duplicate` para sair do release notes; o trabalho aparece quando a original for fechada como `completed` no próximo ciclo.
