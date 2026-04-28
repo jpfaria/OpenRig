@@ -107,10 +107,39 @@ def search_make(make_name: str, page_size: int = 50) -> list[dict[str, Any]]:
 
 
 def fetch_tone(tone_id: int) -> dict[str, Any] | None:
+    """Fetch tone metadata + its models. Big packs (>300 models) cause
+    PostgREST to 500 on the embedded `select=*,models(*)`, so we fall
+    back to two slim queries."""
     qs = urllib.parse.urlencode({"id": f"eq.{tone_id}", "select": "*,models(*)"})
-    url = f"{TONES_URL}?{qs}"
-    data = http_get(url) or []
-    return data[0] if data else None
+    try:
+        data = http_get(f"{TONES_URL}?{qs}") or []
+        return data[0] if data else None
+    except urllib.error.HTTPError as e:
+        if e.code != 500:
+            raise
+        # Fallback: separate queries
+        tone_qs = urllib.parse.urlencode({"id": f"eq.{tone_id}", "select": "*"})
+        tones = http_get(f"{TONES_URL}?{tone_qs}") or []
+        if not tones:
+            return None
+        tone = tones[0]
+        # Fetch models in pages of 100, prefer standard size
+        models: list[dict[str, Any]] = []
+        for offset in range(0, 1000, 100):
+            mqs = urllib.parse.urlencode({
+                "tone_id": f"eq.{tone_id}",
+                "select": "id,name,size,model_url,position,is_deleted,tone_id",
+                "size": "eq.standard",
+                "order": "position.asc",
+                "limit": "100",
+                "offset": str(offset),
+            })
+            chunk = http_get(f"{API}/rest/v1/models?{mqs}") or []
+            models.extend(chunk)
+            if len(chunk) < 100:
+                break
+        tone["models"] = models
+        return tone
 
 
 # --- selection -------------------------------------------------------------
