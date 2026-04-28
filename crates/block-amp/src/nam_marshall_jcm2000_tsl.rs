@@ -13,31 +13,48 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × gain step.
+// Only 6 of the 3×5 = 15 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI exposes both
+// knobs as independent controls.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch_g9", "TSL100 Crunch - G9", "amps/marshall_jcm2000_tsl/tsl100_crunch_g9_2.nam"),
-    ("crunch_g2", "TSL100 Crunch - G2", "amps/marshall_jcm2000_tsl/tsl100_crunch_g2_2.nam"),
-    ("lead_g9", "TSL100 Lead - G9", "amps/marshall_jcm2000_tsl/tsl100_lead_g9_2.nam"),
-    ("crunch_g6", "TSL100 Crunch - G6", "amps/marshall_jcm2000_tsl/tsl100_crunch_g6_2.nam"),
-    ("lead_g7", "TSL100 Lead - G7", "amps/marshall_jcm2000_tsl/tsl100_lead_g7_2.nam"),
-    ("clean_g3_5", "TSL100 Clean - G3.5", "amps/marshall_jcm2000_tsl/tsl100_clean_g3_5_2.nam"),
+    // (channel, gain, file)
+    ("clean",  "g3_5", "amps/marshall_jcm2000_tsl/tsl100_clean_g3_5.nam"),
+    ("crunch", "g2",   "amps/marshall_jcm2000_tsl/tsl100_crunch_g2.nam"),
+    ("crunch", "g6",   "amps/marshall_jcm2000_tsl/tsl100_crunch_g6.nam"),
+    ("crunch", "g9",   "amps/marshall_jcm2000_tsl/tsl100_crunch_g9.nam"),
+    ("lead",   "g7",   "amps/marshall_jcm2000_tsl/tsl100_lead_g7.nam"),
+    ("lead",   "g9",   "amps/marshall_jcm2000_tsl/tsl100_lead_g9.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("crunch_g9"),
-        &[
-            ("crunch_g9", "TSL100 Crunch - G9"),
-            ("crunch_g2", "TSL100 Crunch - G2"),
-            ("lead_g9", "TSL100 Lead - G9"),
-            ("crunch_g6", "TSL100 Crunch - G6"),
-            ("lead_g7", "TSL100 Lead - G7"),
-            ("clean_g3_5", "TSL100 Clean - G3.5"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("crunch"),
+            &[
+                ("clean",  "Clean"),
+                ("crunch", "Crunch"),
+                ("lead",   "Lead"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g9"),
+            &[
+                ("g2",   "G2"),
+                ("g3_5", "G3.5"),
+                ("g6",   "G6"),
+                ("g7",   "G7"),
+                ("g9",   "G9"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, g, _)| *c == channel && *g == gain)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} gain={}",
+                MODEL_ID, channel, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
