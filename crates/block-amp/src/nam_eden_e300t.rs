@@ -13,29 +13,30 @@ const BRAND: &str = "eden";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis preset pack: voicing/EQ presets and DI variants.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("glowplug", "Glowplug", "amps/eden_e300t/glowplug.nam"),
-    ("e300t_flat_gain_6", "E300T Flat (Gain 6)", "amps/eden_e300t/e300t_flat_gain_6.nam"),
-    ("wtdi", "WTDI", "amps/eden_e300t/wtdi_3.nam"),
-    ("wtdi_2", "WTDI 2", "amps/eden_e300t/wtdi_2.nam"),
-    ("e300t_eq_1_gain_6_bass_2_mid_3_shift_on_", "E300T EQ 1 (Gain 6, Bass +2, Mid +3, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_1_gain_6_bass_2_mid_3_shift_on_treb_0.nam"),
-    ("e300t_eq_2_gain_6_bass_3_mid_2_shift_on_", "E300T EQ 2 (Gain 6, Bass +3, Mid +2, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_2_gain_6_bass_3_mid_2_shift_on_treb_0.nam"),
+    ("glowplug",   "Glowplug",     "amps/eden_e300t/glowplug.nam"),
+    ("flat_g6",    "Flat (Gain 6)","amps/eden_e300t/e300t_flat_gain_6.nam"),
+    ("eq_1_g6",    "EQ 1 (Gain 6)","amps/eden_e300t/e300t_eq_1_gain_6_bass_2_mid_3_shift_on_treb_0.nam"),
+    ("eq_2_g6",    "EQ 2 (Gain 6)","amps/eden_e300t/e300t_eq_2_gain_6_bass_3_mid_2_shift_on_treb_0.nam"),
+    ("wtdi",       "WTDI",         "amps/eden_e300t/wtdi_3.nam"),
+    ("wtdi_2",     "WTDI 2",       "amps/eden_e300t/wtdi_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
         Some("glowplug"),
         &[
             ("glowplug", "Glowplug"),
-            ("e300t_flat_gain_6", "E300T Flat (Gain 6)"),
-            ("wtdi", "WTDI"),
-            ("wtdi_2", "WTDI 2"),
-            ("e300t_eq_1_gain_6_bass_2_mid_3_shift_on_", "E300T EQ 1 (Gain 6, Bass +2, Mid +3, Shift ON, Treb 0)"),
-            ("e300t_eq_2_gain_6_bass_3_mid_2_shift_on_", "E300T EQ 2 (Gain 6, Bass +3, Mid +2, Shift ON, Treb 0)"),
+            ("flat_g6",  "Flat (Gain 6)"),
+            ("eq_1_g6",  "EQ 1 (Gain 6)"),
+            ("eq_2_g6",  "EQ 2 (Gain 6)"),
+            ("wtdi",     "WTDI"),
+            ("wtdi_2",   "WTDI 2"),
         ],
     )];
     schema
@@ -57,12 +58,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
