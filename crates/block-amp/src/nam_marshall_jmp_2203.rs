@@ -13,30 +13,58 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-// Single-axis pack: 5 voicings of the Slammin' Marshall 2203, MV varies per voicing.
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("noon_mv3",     "Noon (MV3)",      "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard.nam"),
-    ("scooped_mv4",  "Scooped (MV4)",   "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard.nam"),
-    ("dark_mv5",     "Dark (MV5)",      "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard.nam"),
-    ("wylde_sd1_mv6","Wylde + SD1 (MV6)","amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k.nam"),
-    ("rock_mv7",     "Rock (MV7)",      "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k.nam"),
+// Three-axis pack: voicing × master_volume × boost. Sparse — only 5 of the
+// 5×5×2 = 50 combinations were captured (each voicing was sampled at one MV).
+// resolve_capture rejects invalid combos so the UI keeps the knobs independent.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (voicing, master_volume, boost, file)
+    ("noon",    "3", "off", "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard.nam"),
+    ("scooped", "4", "off", "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard.nam"),
+    ("dark",    "5", "off", "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard.nam"),
+    ("wylde",   "6", "sd1", "amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k.nam"),
+    ("rock",    "7", "off", "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "voicing",
-        "Voicing",
-        Some("Amp"),
-        Some("rock_mv7"),
-        &[
-            ("noon_mv3",      "Noon (MV3)"),
-            ("scooped_mv4",   "Scooped (MV4)"),
-            ("dark_mv5",      "Dark (MV5)"),
-            ("wylde_sd1_mv6", "Wylde + SD1 (MV6)"),
-            ("rock_mv7",      "Rock (MV7)"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("noon"),
+            &[
+                ("noon",    "Noon"),
+                ("scooped", "Scooped"),
+                ("dark",    "Dark"),
+                ("wylde",   "Wylde"),
+                ("rock",    "Rock"),
+            ],
+        ),
+        enum_parameter(
+            "master_volume",
+            "Master Volume",
+            Some("Amp"),
+            Some("3"),
+            &[
+                ("3", "3"),
+                ("4", "4"),
+                ("5", "5"),
+                ("6", "6"),
+                ("7", "7"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("off"),
+            &[
+                ("off", "Off"),
+                ("sd1", "SD1"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -56,12 +84,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let mv = required_string(params, "master_volume").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no voicing '{}'", MODEL_ID, key))
+        .find(|(v, m, b, _)| *v == voicing && *m == mv && *b == boost)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} master_volume={} boost={}",
+                MODEL_ID, voicing, mv, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
