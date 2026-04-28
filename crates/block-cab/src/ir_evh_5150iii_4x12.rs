@@ -9,15 +9,20 @@ pub const MODEL_ID: &str = "evh_5150iii_4x12";
 pub const DISPLAY_NAME: &str = "5150III 4x12 G12-EVH";
 const BRAND: &str = "evh";
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ll_1_50in_vp28", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
-    ("lr_1_00in_oa30_cl7603", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
-    ("lr_2_25in_vp28", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
-    ("ul_2_00in_oa30_cl7603", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ul_5150iii_4x12_sm57_2_00in_0_0in_oa30_cl7603_3.wav"),
-    ("ur_1_50in_vp28", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
-    ("ur_2_25in_vp28", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28", "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
-    ("ll_1_00in_oa30_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
-    ("ll_1_00in_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_cl7603_3.wav"),
+// Three-axis pack: mic position × distance × preamp.
+// Only 8 of the 4×4×3 = 48 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI can still expose
+// all three knobs as independent controls.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (mic_pos, distance, preamp, file)
+    ("ll", "1.00", "cl7603",      "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_cl7603_3.wav"),
+    ("ll", "1.00", "oa30_cl7603", "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
+    ("ll", "1.50", "vp28",        "cabs/evh_5150iii_4x12/g12_evh_ll_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
+    ("lr", "1.00", "oa30_cl7603", "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_1_00in_0_0in_oa30_cl7603_3.wav"),
+    ("lr", "2.25", "vp28",        "cabs/evh_5150iii_4x12/g12_evh_lr_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
+    ("ul", "2.00", "oa30_cl7603", "cabs/evh_5150iii_4x12/g12_evh_ul_5150iii_4x12_sm57_2_00in_0_0in_oa30_cl7603_3.wav"),
+    ("ur", "1.50", "vp28",        "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_1_50in_0_0in_vp28_3.wav"),
+    ("ur", "2.25", "vp28",        "cabs/evh_5150iii_4x12/g12_evh_ur_5150iii_4x12_sm57_2_25in_0_0in_vp28_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,22 +31,43 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("ll_1_50in_vp28"),
-            &[
-            ("ll_1_50in_vp28", "G12-EVH LL 5150III 4x12 SM57 1.50in 0.0in VP28"),
-            ("lr_1_00in_oa30_cl7603", "G12-EVH LR 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
-            ("lr_2_25in_vp28", "G12-EVH LR 5150III 4x12 SM57 2.25in 0.0in VP28"),
-            ("ul_2_00in_oa30_cl7603", "G12-EVH UL 5150III 4x12 SM57 2.00in 0.0in OA30 CL7603"),
-            ("ur_1_50in_vp28", "G12-EVH UR 5150III 4x12 SM57 1.50in 0.0in VP28"),
-            ("ur_2_25in_vp28", "G12-EVH UR 5150III 4x12 SM57 2.25in 0.0in VP28"),
-            ("ll_1_00in_oa30_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in OA30 CL7603"),
-            ("ll_1_00in_cl7603", "G12-EVH LL 5150III 4x12 SM57 1.00in 0.0in CL7603"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic_position",
+                "Mic Position",
+                Some("Cab"),
+                Some("ll"),
+                &[
+                    ("ll", "Lower Left"),
+                    ("lr", "Lower Right"),
+                    ("ul", "Upper Left"),
+                    ("ur", "Upper Right"),
+                ],
+            ),
+            enum_parameter(
+                "distance",
+                "Distance",
+                Some("Cab"),
+                Some("1.00"),
+                &[
+                    ("1.00", "1.00 in"),
+                    ("1.50", "1.50 in"),
+                    ("2.00", "2.00 in"),
+                    ("2.25", "2.25 in"),
+                ],
+            ),
+            enum_parameter(
+                "preamp",
+                "Mic Preamp",
+                Some("Cab"),
+                Some("cl7603"),
+                &[
+                    ("cl7603",      "CL7603"),
+                    ("oa30_cl7603", "OA30 + CL7603"),
+                    ("vp28",        "VP28"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -73,12 +99,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic_position").map_err(anyhow::Error::msg)?;
+    let dist = required_string(params, "distance").map_err(anyhow::Error::msg)?;
+    let pre = required_string(params, "preamp").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(m, d, p, _)| *m == mic && *d == dist && *p == pre)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic_position={} distance={} preamp={}",
+                MODEL_ID, mic, dist, pre
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
