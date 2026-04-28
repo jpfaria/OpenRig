@@ -13,35 +13,50 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × gain.
+// "Jumped" mode bridges Normal+Bass channels; gain values are knob settings.
+// Holes return Err so the UI shows the exact missing combination.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("normal_channel_bright_off_g1", "Fender Bassman 50 - Normal Channel - Bright Off - G1", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g1.nam"),
-    ("normal_channel_bright_off_g2_5", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5", "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g2_5.nam"),
-    ("jumped_d0_b1_g5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5.nam"),
-    ("jumped_d0_b1_g5_5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5", "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5_5.nam"),
-    ("jumped_d1_b1_g2_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g2_5.nam"),
-    ("jumped_do_bo_g3", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3", "amps/fender_bassman/fender_bassman_50_jumped_do_bo_g3.nam"),
-    ("jumped_d1_b1_g9_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5", "amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g9_5.nam"),
-    ("bass_channel_deep_off_g1", "Fender Bassman 50 - Bass Channel - Deep Off - G1", "amps/fender_bassman/fender_bassman_50_bass_channel_deep_off_g1.nam"),
+    // (channel, gain, file)
+    ("normal", "g1",  "amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g1.nam"),
+    ("normal", "g2_5","amps/fender_bassman/fender_bassman_50_normal_channel_bright_off_g2_5.nam"),
+    ("bass",   "g1",  "amps/fender_bassman/fender_bassman_50_bass_channel_deep_off_g1.nam"),
+    ("jumped", "g2_5","amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g2_5.nam"),
+    ("jumped", "g3",  "amps/fender_bassman/fender_bassman_50_jumped_do_bo_g3.nam"),
+    ("jumped", "g5",  "amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5.nam"),
+    ("jumped", "g5_5","amps/fender_bassman/fender_bassman_50_jumped_d0_b1_g5_5.nam"),
+    ("jumped", "g9_5","amps/fender_bassman/fender_bassman_50_jumped_d1_b1_g9_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("normal_channel_bright_off_g1"),
-        &[
-            ("normal_channel_bright_off_g1", "Fender Bassman 50 - Normal Channel - Bright Off - G1"),
-            ("normal_channel_bright_off_g2_5", "Fender Bassman 50 - Normal Channel - Bright Off - G2.5"),
-            ("jumped_d0_b1_g5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5"),
-            ("jumped_d0_b1_g5_5", "FENDER BASSMAN 50 - JUMPED - D0 - B1 - G5.5"),
-            ("jumped_d1_b1_g2_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G2.5"),
-            ("jumped_do_bo_g3", "FENDER BASSMAN 50 - JUMPED - DO - BO - G3"),
-            ("jumped_d1_b1_g9_5", "FENDER BASSMAN 50 - JUMPED - D1 - B1 - G9.5"),
-            ("bass_channel_deep_off_g1", "Fender Bassman 50 - Bass Channel - Deep Off - G1"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("normal"),
+            &[
+                ("normal", "Normal"),
+                ("bass",   "Bass"),
+                ("jumped", "Jumped"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g1"),
+            &[
+                ("g1",   "G1"),
+                ("g2_5", "G2.5"),
+                ("g3",   "G3"),
+                ("g5",   "G5"),
+                ("g5_5", "G5.5"),
+                ("g9_5", "G9.5"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +76,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, g, _)| *c == channel && *g == gain)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} gain={}",
+                MODEL_ID, channel, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
