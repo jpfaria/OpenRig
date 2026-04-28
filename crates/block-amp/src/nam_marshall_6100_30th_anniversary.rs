@@ -13,29 +13,42 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × boost. All Channel 2 Crunch A.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_6100_channel2_crunch_a_high_gai", "marshall-6100--channel2-crunch-a--high-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_isocecles.nam"),
-    ("marshall_6100_channel2_crunch_a_high_gai_342326", "marshall-6100--channel2-crunch-a--high-gain--no-boost", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_no_boost.nam"),
-    ("marshall_6100_channel2_crunch_a_mid_gain", "marshall-6100--channel2-crunch-a--mid-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_mid_gain_isocecles.nam"),
-    ("marshall_6100_channel2_crunch_a_high_gai_342320", "marshall-6100--channel2-crunch-a--high-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_boss_sd1.nam"),
-    ("marshall_6100_channel2_crunch_a_low_gain", "marshall-6100--channel2-crunch-a--low-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_low_gain_boss_sd1.nam"),
+    // (gain, boost, file)
+    ("low",  "boss_sd1",  "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_low_gain_boss_sd1.nam"),
+    ("mid",  "isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_mid_gain_isocecles.nam"),
+    ("high", "isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_isocecles.nam"),
+    ("high", "boss_sd1",  "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_boss_sd1.nam"),
+    ("high", "none",      "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_no_boost.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("marshall_6100_channel2_crunch_a_high_gai"),
-        &[
-            ("marshall_6100_channel2_crunch_a_high_gai", "marshall-6100--channel2-crunch-a--high-gain--isocecles"),
-            ("marshall_6100_channel2_crunch_a_high_gai_342326", "marshall-6100--channel2-crunch-a--high-gain--no-boost"),
-            ("marshall_6100_channel2_crunch_a_mid_gain", "marshall-6100--channel2-crunch-a--mid-gain--isocecles"),
-            ("marshall_6100_channel2_crunch_a_high_gai_342320", "marshall-6100--channel2-crunch-a--high-gain--boss-sd1"),
-            ("marshall_6100_channel2_crunch_a_low_gain", "marshall-6100--channel2-crunch-a--low-gain--boss-sd1"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("high"),
+            &[
+                ("low",  "Low"),
+                ("mid",  "Mid"),
+                ("high", "High"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("isocecles"),
+            &[
+                ("none",      "None"),
+                ("isocecles", "Isocecles"),
+                ("boss_sd1",  "Boss SD-1"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +68,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, b, _)| *g == gain && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} boost={}",
+                MODEL_ID, gain, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
