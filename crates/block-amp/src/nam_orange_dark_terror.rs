@@ -13,8 +13,9 @@ const BRAND: &str = "orange";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: full-rig (head + cab) capture.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("orange_dark_terror_full_rig", "Full Rig", "amps/orange_dark_terror/orange_dark_terror_full_rig.nam"),
+    ("full_rig", "Full Rig", "amps/orange_dark_terror/orange_dark_terror_full_rig.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("orange_dark_terror_full_rig"),
+        Some("full_rig"),
         &[
-            ("orange_dark_terror_full_rig", "Full Rig"),
-        
+            ("full_rig", "Full Rig"),
         ],
     )];
     schema
