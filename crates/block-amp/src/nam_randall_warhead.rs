@@ -13,11 +13,12 @@ const BRAND: &str = "randall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 speaker+mic combos on the X2/DimeZone capture chain.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("x2_dimezone_v30_tlm102", "X2-DimeZone-v30-tlm102", "amps/randall_warhead/x2_dimezone_v30_tlm102.nam"),
-    ("x2_dimezone_jaguar_mixed", "X2-DimeZone-jaguar-mixed", "amps/randall_warhead/x2_dimezone_jaguar_mixed.nam"),
-    ("x2_dimezone_v30_sm57", "X2-DimeZone-v30-sm57", "amps/randall_warhead/x2_dimezone_v30_sm57.nam"),
-    ("x2_dimezone_jaguar_tlm102", "X2-DimeZone-jaguar-tlm102", "amps/randall_warhead/x2_dimezone_jaguar_tlm102.nam"),
+    ("v30_sm57",       "V30 + SM57",         "amps/randall_warhead/x2_dimezone_v30_sm57.nam"),
+    ("v30_tlm102",     "V30 + TLM102",       "amps/randall_warhead/x2_dimezone_v30_tlm102.nam"),
+    ("jaguar_tlm102",  "Jaguar + TLM102",    "amps/randall_warhead/x2_dimezone_jaguar_tlm102.nam"),
+    ("jaguar_mixed",   "Jaguar + Mixed",     "amps/randall_warhead/x2_dimezone_jaguar_mixed.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +27,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("x2_dimezone_v30_tlm102"),
+        Some("v30_sm57"),
         &[
-            ("x2_dimezone_v30_tlm102", "X2-DimeZone-v30-tlm102"),
-            ("x2_dimezone_jaguar_mixed", "X2-DimeZone-jaguar-mixed"),
-            ("x2_dimezone_v30_sm57", "X2-DimeZone-v30-sm57"),
-            ("x2_dimezone_jaguar_tlm102", "X2-DimeZone-jaguar-tlm102"),
+            ("v30_sm57",      "V30 + SM57"),
+            ("v30_tlm102",    "V30 + TLM102"),
+            ("jaguar_tlm102", "Jaguar + TLM102"),
+            ("jaguar_mixed",  "Jaguar + Mixed"),
         ],
     )];
     schema
