@@ -13,23 +13,25 @@ const BRAND: &str = "diezel";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 3 training-quality variants of the same rig (Maxon OD808 +
+// Hagen Ch2 + 4x12 V30 + SM57). Standard / Advanced / Advanced+CustomInput.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("001_maxon_standard_training", "001_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/001_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm.nam"),
-    ("002_maxon_advanced_training_custom", "002_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/002_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
-    ("003_maxon_advanced_training_custom_input_custom", "003_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/003_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
+    ("standard",         "Standard",          "amps/diezel_hagen/001_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm.nam"),
+    ("advanced",         "Advanced",          "amps/diezel_hagen/002_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
+    ("advanced_custom",  "Advanced+Custom",   "amps/diezel_hagen/003_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "training",
+        "Training",
         Some("Amp"),
-        Some("001_maxon_standard_training"),
+        Some("standard"),
         &[
-            ("001_maxon_standard_training", "001_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure"),
-            ("002_maxon_advanced_training_custom", "002_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure"),
-            ("003_maxon_advanced_training_custom_input_custom", "003_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure"),
+            ("standard",        "Standard"),
+            ("advanced",        "Advanced"),
+            ("advanced_custom", "Advanced+Custom"),
         ],
     )];
     schema
@@ -51,12 +53,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "training").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no training '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
