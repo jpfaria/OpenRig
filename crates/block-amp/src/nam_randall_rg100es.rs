@@ -13,30 +13,51 @@ const BRAND: &str = "randall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-// Single-axis: 5 channel/sustain/gain combos on the 100W (1987) head.
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean",                "Clean",                "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean.nam"),
-    ("crunch",               "Crunch",               "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch.nam"),
-    ("crunch_sustain",       "Crunch + Sustain",     "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged.nam"),
-    ("crunch_gain_85",       "Crunch G8.5",          "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5.nam"),
-    ("crunch_sustain_g85",   "Crunch + Sustain G8.5","amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5.nam"),
+// Three-axis pack: channel × gain × sustain. Sparse — only 5 of the 2×2×2 = 8
+// combinations were captured. resolve_capture rejects holes.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (channel, gain, sustain, file)
+    ("clean",  "default", "off", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean.nam"),
+    ("crunch", "default", "off", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch.nam"),
+    ("crunch", "default", "on",  "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged.nam"),
+    ("crunch", "8_5",     "off", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5.nam"),
+    ("crunch", "8_5",     "on",  "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("clean"),
-        &[
-            ("clean",              "Clean"),
-            ("crunch",             "Crunch"),
-            ("crunch_sustain",     "Crunch + Sustain"),
-            ("crunch_gain_85",     "Crunch G8.5"),
-            ("crunch_sustain_g85", "Crunch + Sustain G8.5"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean",  "Clean"),
+                ("crunch", "Crunch"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("default"),
+            &[
+                ("default", "Default"),
+                ("8_5",     "8.5"),
+            ],
+        ),
+        enum_parameter(
+            "sustain",
+            "Sustain",
+            Some("Amp"),
+            Some("off"),
+            &[
+                ("off", "Off"),
+                ("on",  "On"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -56,12 +77,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let sustain = required_string(params, "sustain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .find(|(c, g, s, _)| *c == channel && *g == gain && *s == sustain)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} gain={} sustain={}",
+                MODEL_ID, channel, gain, sustain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

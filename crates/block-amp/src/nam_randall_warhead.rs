@@ -13,28 +13,41 @@ const BRAND: &str = "randall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-// Single-axis: 4 speaker+mic combos on the X2/DimeZone capture chain.
+// Two-axis pack: speaker × mic. Sparse — only 4 of the 2×3 = 6 combinations
+// were captured. resolve_capture rejects holes.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("v30_sm57",       "V30 + SM57",         "amps/randall_warhead/x2_dimezone_v30_sm57.nam"),
-    ("v30_tlm102",     "V30 + TLM102",       "amps/randall_warhead/x2_dimezone_v30_tlm102.nam"),
-    ("jaguar_tlm102",  "Jaguar + TLM102",    "amps/randall_warhead/x2_dimezone_jaguar_tlm102.nam"),
-    ("jaguar_mixed",   "Jaguar + Mixed",     "amps/randall_warhead/x2_dimezone_jaguar_mixed.nam"),
+    // (speaker, mic, file)
+    ("v30",    "sm57",   "amps/randall_warhead/x2_dimezone_v30_sm57.nam"),
+    ("v30",    "tlm102", "amps/randall_warhead/x2_dimezone_v30_tlm102.nam"),
+    ("jaguar", "tlm102", "amps/randall_warhead/x2_dimezone_jaguar_tlm102.nam"),
+    ("jaguar", "mixed",  "amps/randall_warhead/x2_dimezone_jaguar_mixed.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("v30_sm57"),
-        &[
-            ("v30_sm57",      "V30 + SM57"),
-            ("v30_tlm102",    "V30 + TLM102"),
-            ("jaguar_tlm102", "Jaguar + TLM102"),
-            ("jaguar_mixed",  "Jaguar + Mixed"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "speaker",
+            "Speaker",
+            Some("Cab"),
+            Some("v30"),
+            &[
+                ("v30",    "Celestion V30"),
+                ("jaguar", "Eminence Jaguar"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Cab"),
+            Some("sm57"),
+            &[
+                ("sm57",   "SM57"),
+                ("tlm102", "TLM102"),
+                ("mixed",  "SM57 + TLM102"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -54,12 +67,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let speaker = required_string(params, "speaker").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(s, m, _)| *s == speaker && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for speaker={} mic={}",
+                MODEL_ID, speaker, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

@@ -13,35 +13,55 @@ const BRAND: &str = "splawn";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-// Single-axis: 7 voicings on Quickrod's gain channels — varying gain step
-// (3/5), mids (3/5), and HG/HGt modes. Sparse — does not decompose cleanly.
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("g3_mids3",     "G3 Mids3",     "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
-    ("g3_mids5",     "G3 Mids5",     "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
-    ("g5_mids5",     "G5 Mids5",     "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
-    ("hg_g3_mids5",  "HG G3 Mids5",  "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
-    ("hg_g5_mids5",  "HG G5 Mids5",  "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
-    ("hgt_g3",       "HGt G3",       "amps/splawn_quickrod/splawnhgt3g7m.nam"),
-    ("hgt_g5",       "HGt G5",       "amps/splawn_quickrod/splawnhgt5g7m.nam"),
+// Three-axis pack: voicing × gain × mids. Sparse — only 7 of the 3×2×2 = 12
+// combinations were captured. resolve_capture rejects holes so the UI keeps
+// the three knobs independent.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (voicing, gain, mids, file)
+    ("normal", "3", "3", "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
+    ("normal", "3", "5", "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
+    ("normal", "5", "5", "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
+    ("hg",     "3", "5", "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
+    ("hg",     "5", "5", "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
+    ("hgt",    "3", "5", "amps/splawn_quickrod/splawnhgt3g7m.nam"),
+    ("hgt",    "5", "5", "amps/splawn_quickrod/splawnhgt5g7m.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("g3_mids3"),
-        &[
-            ("g3_mids3",     "G3 Mids3"),
-            ("g3_mids5",     "G3 Mids5"),
-            ("g5_mids5",     "G5 Mids5"),
-            ("hg_g3_mids5",  "HG G3 Mids5"),
-            ("hg_g5_mids5",  "HG G5 Mids5"),
-            ("hgt_g3",       "HGt G3"),
-            ("hgt_g5",       "HGt G5"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("normal"),
+            &[
+                ("normal", "Normal"),
+                ("hg",     "Hot Gain"),
+                ("hgt",    "Hot Gain Tight"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("3"),
+            &[
+                ("3", "3"),
+                ("5", "5"),
+            ],
+        ),
+        enum_parameter(
+            "mids",
+            "Mids",
+            Some("Amp"),
+            Some("3"),
+            &[
+                ("3", "3"),
+                ("5", "5"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +81,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let mids = required_string(params, "mids").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .find(|(v, g, m, _)| *v == voicing && *g == gain && *m == mids)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} gain={} mids={}",
+                MODEL_ID, voicing, gain, mids
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
