@@ -13,31 +13,42 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × input. Full 3×2 cartesian.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fender_57customdeluxe_od_in1_1300epochs", "Fender_57CustomDeluxe_od_in1_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in1_1300epochs.nam"),
-    ("fender_57customdeluxe_clean_in1_700epoch", "Fender_57CustomDeluxe_clean_in1_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in1_700epochs.nam"),
-    ("fender_57customdeluxe_crunch_in1_1000epo", "Fender_57CustomDeluxe_crunch_in1_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in1_1000epochs.nam"),
-    ("fender_57customdeluxe_clean_in2_700epoch", "Fender_57CustomDeluxe_clean_in2_700epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in2_700epochs.nam"),
-    ("fender_57customdeluxe_crunch_in2_1000epo", "Fender_57CustomDeluxe_crunch_in2_1000epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in2_1000epochs.nam"),
-    ("fender_57customdeluxe_od_in2_1300epochs", "Fender_57CustomDeluxe_od_in2_1300epochs", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in2_1300epochs.nam"),
+    // (gain, input, file)
+    ("clean",  "in1", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in1_700epochs.nam"),
+    ("clean",  "in2", "amps/fender_57_custom_deluxe/fender_57customdeluxe_clean_in2_700epochs.nam"),
+    ("crunch", "in1", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in1_1000epochs.nam"),
+    ("crunch", "in2", "amps/fender_57_custom_deluxe/fender_57customdeluxe_crunch_in2_1000epochs.nam"),
+    ("od",     "in1", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in1_1300epochs.nam"),
+    ("od",     "in2", "amps/fender_57_custom_deluxe/fender_57customdeluxe_od_in2_1300epochs.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("fender_57customdeluxe_od_in1_1300epochs"),
-        &[
-            ("fender_57customdeluxe_od_in1_1300epochs", "Fender_57CustomDeluxe_od_in1_1300epochs"),
-            ("fender_57customdeluxe_clean_in1_700epoch", "Fender_57CustomDeluxe_clean_in1_700epochs"),
-            ("fender_57customdeluxe_crunch_in1_1000epo", "Fender_57CustomDeluxe_crunch_in1_1000epochs"),
-            ("fender_57customdeluxe_clean_in2_700epoch", "Fender_57CustomDeluxe_clean_in2_700epochs"),
-            ("fender_57customdeluxe_crunch_in2_1000epo", "Fender_57CustomDeluxe_crunch_in2_1000epochs"),
-            ("fender_57customdeluxe_od_in2_1300epochs", "Fender_57CustomDeluxe_od_in2_1300epochs"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean",  "Clean"),
+                ("crunch", "Crunch"),
+                ("od",     "Overdrive"),
+            ],
+        ),
+        enum_parameter(
+            "input",
+            "Input",
+            Some("Amp"),
+            Some("in1"),
+            &[
+                ("in1", "Input 1"),
+                ("in2", "Input 2"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +68,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let input = required_string(params, "input").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, i, _)| *g == gain && *i == input)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} input={}",
+                MODEL_ID, gain, input
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
