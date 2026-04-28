@@ -1,0 +1,437 @@
+// Compact value-editing widgets used by the block editor and chain row drawer.
+// Split out of pages/project_chains.slint to keep each Slint file under the
+// 500-line cap. Visual semantics unchanged — these are pure layout wrappers
+// over standard widgets and a few custom touch targets.
+
+import { ComboBox } from "std-widgets.slint";
+import { BlockTypePickerItem } from "../models.slint";
+import { EffectTypeIcon } from "./effect_type_icon.slint";
+
+export component ToolbarButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    width: primary ? 140px : 116px;
+    height: 40px;
+    background: primary ? #188cff : #2f3339;
+    border-width: 1px;
+    border-color: primary ? #45a7ff : #4c515b;
+    border-radius: 4px;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+
+export component ParamFieldBox inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+
+    background: #1a1e25;
+    border-width: 1px;
+    border-color: #3c4350;
+    border-radius: 4px;
+
+    TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+    }
+}
+
+
+export component BlockValueStepper inherits Rectangle {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> unit-text;
+    in property <float> numeric-value: 0;
+    in property <float> numeric-min: 0;
+    in property <float> numeric-max: 1;
+    in property <float> numeric-step: 1;
+    callback changed(float);
+    callback text-changed(string);
+
+    pure function previous-value() -> float {
+        let next = root.numeric-value - root.numeric-step;
+        return next < root.numeric-min ? root.numeric-min : next;
+    }
+
+    pure function next-value() -> float {
+        let next = root.numeric-value + root.numeric-step;
+        return next > root.numeric-max ? root.numeric-max : next;
+    }
+
+    width: 320px;
+    height: 58px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 24px;
+        width: parent.width;
+        height: 34px;
+        background: #1b2028;
+        border-width: 1px;
+        border-color: #414956;
+        border-radius: 6px;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: 42px;
+            height: parent.height;
+            background: dec-hover.has-hover ? #ffffff10 : transparent;
+            border-width: 0px;
+
+            Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: "−";
+                color: #f4f7fb;
+                font-size: 18px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            dec-hover := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.changed(root.previous-value()); }
+            }
+        }
+
+        Rectangle {
+            x: 42px;
+            y: 0px;
+            width: parent.width - 84px;
+            height: parent.height;
+            background: transparent;
+
+            TextInput {
+                x: 8px;
+                y: 1px;
+                width: parent.width - 16px;
+                height: 18px;
+                text: root.value-text;
+                color: #f5f7fb;
+                font-size: 16px;
+                font-weight: 800;
+                single-line: true;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                edited => { root.text-changed(self.text); }
+            }
+
+            if root.unit-text != "" : Text {
+                x: 0px;
+                y: 18px;
+                width: parent.width;
+                height: 12px;
+                text: root.unit-text;
+                color: #aab4c3;
+                font-size: 9px;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+        }
+
+        Rectangle {
+            x: parent.width - 42px;
+            y: 0px;
+            width: 42px;
+            height: parent.height;
+            background: inc-hover.has-hover ? #ffffff10 : transparent;
+            border-width: 0px;
+
+            Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: "+";
+                color: #f4f7fb;
+                font-size: 18px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            inc-hover := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.changed(root.next-value()); }
+            }
+        }
+    }
+}
+
+
+export component BlockValueSlider inherits Rectangle {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> unit-text;
+    in property <float> progress: 0;
+    callback moved(float);
+    callback text-changed(string);
+
+    width: 320px;
+    height: 78px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 34px;
+        width: parent.width - 112px;
+        height: 8px;
+        background: #3a404b;
+        border-radius: 4px;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: Math.max(10px, parent.width * root.progress);
+            height: parent.height;
+            background: #dce3ee;
+            border-radius: 4px;
+        }
+
+        Rectangle {
+            x: (parent.width * root.progress) - 8px;
+            y: -4px;
+            width: 16px;
+            height: 16px;
+            background: #eef2f8;
+            border-width: 1px;
+            border-color: #7b8595;
+            border-radius: 8px;
+        }
+
+        TouchArea {
+            x: 0px;
+            y: -8px;
+            width: parent.width;
+            height: 24px;
+            mouse-cursor: pointer;
+            moved => {
+                if self.pressed {
+                    let next = self.mouse-x / parent.width;
+                    root.moved(next < 0 ? 0 : next > 1 ? 1 : next);
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        x: parent.width - 92px;
+        y: 18px;
+        width: 92px;
+        height: 40px;
+        background: #1b2028;
+        border-width: 1px;
+        border-color: #414956;
+        border-radius: 6px;
+
+        TextInput {
+            x: 8px;
+            y: 4px;
+            width: parent.width - 16px;
+            height: 18px;
+            text: root.value-text;
+            color: #f5f7fb;
+            font-size: 15px;
+            font-weight: 800;
+            single-line: true;
+            horizontal-alignment: center;
+            edited => { root.text-changed(self.text); }
+        }
+
+        if root.unit-text != "" : Text {
+            x: 0px;
+            y: 21px;
+            width: parent.width;
+            height: 12px;
+            text: root.unit-text;
+            color: #aab4c3;
+            font-size: 9px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+
+export component BlockFootswitch inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    callback toggled(bool);
+
+    width: 160px;
+    height: 42px;
+    background: transparent;
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 160px;
+        height: 42px;
+        background: root.active ? #1d4d35 : #1b2028;
+        border-width: 1px;
+        border-color: root.active ? #29df85 : #414956;
+        border-radius: 6px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.label;
+            color: root.active ? #ecfff4 : #c4ccd8;
+            font-size: 13px;
+            font-weight: 800;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.toggled(!root.active); }
+        }
+    }
+}
+
+
+export component BlockTypeCard inherits Rectangle {
+    in property <BlockTypePickerItem> item;
+    in property <bool> selected: false;
+    property <color> accent-color: root.item.accent-color;
+    callback clicked();
+
+    width: 88px;
+    height: 88px;
+    background: #151920;
+    border-width: 1px;
+    border-color: root.accent-color;
+    border-radius: 4px;
+
+    Text {
+        x: 8px;
+        y: 5px;
+        width: parent.width - 16px;
+        height: 14px;
+        text: root.item.label;
+        color: #f3f6fb;
+        font-size: 10px;
+        font-weight: 900;
+        vertical-alignment: center;
+    }
+
+    if root.item.icon-kind == "vst3" : Image {
+        x: 14px;
+        y: 20px;
+        width: 60px;
+        height: 60px;
+        source: @image-url("../assets/vst3-logo.svg");
+        image-fit: contain;
+        colorize: root.accent-color;
+    }
+
+    if root.item.icon-kind != "vst3" : Image {
+        x: 14px;
+        y: 20px;
+        width: 60px;
+        height: 60px;
+        source: root.item.icon-kind == "input"        ? @image-url("../assets/input.svg")
+            : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
+            : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
+            : root.item.icon-kind == "preamp"         ? @image-url("../assets/amp-head.svg")
+            : root.item.icon-kind == "amp"            ? @image-url("../assets/amp-combo.svg")
+            : root.item.icon-kind == "cab"            ? @image-url("../assets/cab.svg")
+            : root.item.icon-kind == "body"           ? @image-url("../assets/body.svg")
+            : root.item.icon-kind == "ir"             ? @image-url("../assets/ir-loader.svg")
+            : root.item.icon-kind == "full_rig"       ? @image-url("../assets/full-rig.svg")
+            : root.item.icon-kind == "gain"           ? @image-url("../assets/gain.svg")
+            : root.item.icon-kind == "dynamics"       ? @image-url("../assets/dyn.svg")
+            : root.item.icon-kind == "filter"         ? @image-url("../assets/filter.svg")
+            : root.item.icon-kind == "wah"            ? @image-url("../assets/expression.svg")
+            : root.item.icon-kind == "modulation"     ? @image-url("../assets/mod.svg")
+            : root.item.icon-kind == "delay"          ? @image-url("../assets/delay.svg")
+            : root.item.icon-kind == "reverb"         ? @image-url("../assets/reverb.svg")
+            : root.item.icon-kind == "utility"        ? @image-url("../assets/util.svg")
+            : root.item.icon-kind == "nam"            ? @image-url("../assets/nam.svg")
+            : root.item.icon-kind == "pitch"          ? @image-url("../assets/pitch.svg")
+            : @image-url("../assets/gear.svg");
+        image-fit: contain;
+        colorize: root.accent-color;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+

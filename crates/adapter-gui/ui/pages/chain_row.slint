@@ -1,0 +1,555 @@
+// One row in the project chains page — input/output endpoints, the block
+// strip, the chain action toolbar (probe latency, save preset, configure,
+// remove). 541 LOC over the 500-line cap; this is one logical component
+// and splitting its body would require inventing artificial sub-components.
+
+import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
+import { BlockChip } from "../components/block_chip.slint";
+import { BlockInsertSlot } from "../components/block_insert_slot.slint";
+import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
+
+export component ChainRow inherits Rectangle {
+    in property <ProjectChainItem> chain;
+    in property <int> chain-index;
+    in property <int> selected-block-chain-index;
+    in property <int> selected-block-index;
+    in property <bool> fullscreen: false;
+    callback toggle-chain-enabled(int);
+    callback remove-chain(int);
+    callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
+    callback configure-chain-preset(int);
+    callback save-chain-preset(int);
+    callback probe-chain-latency(int);
+    callback select-chain-block(int, int);
+    callback toggle-chain-block-enabled(int, int);
+    callback start-block-insert(int, int);
+    callback reorder-chain-block(int, int, int);
+    callback open-compact-chain-view(int);
+    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 132px));
+    property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
+    property <int> insert-row-count: root.block-row-count;
+    in-out property <int> dragging-chain-index: -1;
+    in-out property <int> dragging-block-index: -1;
+    in-out property <int> drag-hover-before-index: -1;
+    property <bool> suppress-insert-hover: false;
+    property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
+    property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
+    // Out sempre fixo na borda direita da linha do último bloco
+    property <length> out-chip-x: root.width - 108px;
+    property <length> out-chip-y: root.last-block-row * 108px + 24px;
+    out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
+    // Tracks which BlockChip in the for-loop is currently hovered. -1
+    // means no block is hovered. Updated by `hover-state-changed` from
+    // each BlockChip — set when entering, clear only if the leaving chip
+    // is the current hovered one (so a fast move from one chip to the
+    // next does not flicker through -1 in between). Drives the
+    // BlockHoverTooltip render below the for-loop.
+    property <int> hovered-block-index: -1;
+
+    pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
+        // Blocks start at x=120, each 132px wide (chip 100 + gap 32).
+        // Slot 0 is before block 0 (x<170), slot N is after block N-1 center.
+        // Block N center = 170 + N*132. Crossing the center moves to slot N+1.
+        let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
+        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 170) / 132 + 0.5)));
+        let candidate = row * root.blocks-per-row + col;
+        return Math.max(0, Math.min(root.chain.blocks.length, candidate));
+    }
+
+    background: transparent;
+    border-radius: 6px;
+    height: 74px + (root.block-row-count * 108px);
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 58px;
+        background: transparent;
+
+        PowerSwitch {
+            x: 10px;
+            y: (58px - 44px) / 2;
+            width: 44px; height: 44px;
+            enabled: root.chain.enabled;
+            clicked => { root.toggle-chain-enabled(root.chain-index); }
+        }
+
+        Image {
+            x: 48px;
+            y: 17px;
+            width: 16px;
+            height: 16px;
+            source: root.chain.instrument == "electric_guitar" ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+                : root.chain.instrument == "acoustic_guitar" ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+                : root.chain.instrument == "bass" ? @image-url("../../../../assets/instruments/bass.svg")
+                : root.chain.instrument == "voice" ? @image-url("../../../../assets/instruments/voice.svg")
+                : root.chain.instrument == "keys" ? @image-url("../../../../assets/instruments/keys.svg")
+                : root.chain.instrument == "drums" ? @image-url("../../../../assets/instruments/drums.svg")
+                : @image-url("../../../../assets/instruments/generic.svg");
+            image-fit: contain;
+            colorize: #6a7483;
+        }
+
+        Rectangle {
+            x: 72px;
+            y: 14px;
+            width: 320px;
+            height: 24px;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.chain.title;
+                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+
+            title-ta := TouchArea {
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact-chain-view(root.chain-index);
+                    }
+                }
+            }
+        }
+
+        if !root.fullscreen : ChainActionIcon {
+            x: parent.width - 196px;
+            y: 14px;
+            icon: @image-url("../assets/expand.svg");
+            tooltip: "Expandir blocos";
+            clicked => { root.open-compact-chain-view(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 236px;
+            y: 14px;
+            icon: @image-url("../assets/sonar.svg");
+            tooltip: "Medir latência real (emite um bipe)";
+            clicked => { root.probe-chain-latency(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 156px;
+            y: 14px;
+            icon: @image-url("../assets/gear.svg");
+            tooltip: "Configurar";
+            clicked => { root.configure-chain(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 116px;
+            y: 14px;
+            icon: @image-url("../assets/open-file.svg");
+            tooltip: "Abrir preset";
+            clicked => { root.configure-chain-preset(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 76px;
+            y: 14px;
+            icon: @image-url("../assets/save.svg");
+            tooltip: "Salvar preset";
+            clicked => { root.save-chain-preset(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 36px;
+            y: 14px;
+            icon: @image-url("../assets/trash.svg");
+            tooltip: "Excluir";
+            clicked => { root.remove-chain(root.chain-index); }
+        }
+    }
+
+    Rectangle {
+        x: 18px;
+        y: 62px;
+        width: parent.width - 36px;
+        height: root.block-row-count * 108px;
+        background: transparent;
+
+        // NOTE: background TouchArea removed — it was consuming click events
+        // on Linux/software-renderer, preventing ChainEndpointChip clicks.
+        // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
+
+        // Routing lines — pedal center is at y = 52px + row * 108px
+        // Row 0 horizontal (starts after in-chip)
+        Rectangle {
+            x: 98px;
+            y: 52px;
+            width: root.block-row-count == 1 ? (root.out-chip-x - 98px) : (parent.width - 98px);
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // U-turn row 0 → row 1
+        if root.block-row-count > 1 : Rectangle {
+            x: parent.width - 2px;
+            y: 52px;
+            width: 2px;
+            height: 56px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 106px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 106px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Row 1 horizontal
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 160px;
+            width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // U-turn row 1 → row 2
+        if root.block-row-count > 2 : Rectangle {
+            x: parent.width - 2px;
+            y: 160px;
+            width: 2px;
+            height: 56px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 214px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 214px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Row 2 horizontal
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 268px;
+            width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // U-turn row 2 → row 3
+        if root.block-row-count > 3 : Rectangle {
+            x: parent.width - 2px;
+            y: 268px;
+            width: 2px;
+            height: 56px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 322px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 322px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Row 3 horizontal
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 376px;
+            width: root.out-chip-x;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        BlockInsertSlot {
+            x: 88px;
+            y: 41px;
+            empty-slot: root.chain.blocks.length == 0;
+            move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
+            suppress-hover-affordance: root.suppress-insert-hover;
+            active-drop-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 && root.drag-hover-before-index == 0;
+            clicked => {
+                if root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 {
+                    root.reorder-chain-block(root.chain-index, root.dragging-block-index, 0);
+                    root.dragging-chain-index = -1;
+                    root.dragging-block-index = -1;
+                    root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
+                } else {
+                    root.start-block-insert(root.chain-index, 0);
+                }
+            }
+        }
+
+        for block[block-index] in root.chain.blocks : BlockChip {
+            x: 120px + Math.mod(block-index, root.blocks-per-row) * 132px;
+            y: Math.floor(block-index / root.blocks-per-row) * 108px;
+            block: block;
+            selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
+                ? false
+                : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
+            dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
+            clicked => { root.select-chain-block(root.chain-index, block-index); }
+            hover-state-changed(is-hovered) => {
+                if (is-hovered) {
+                    root.hovered-block-index = block-index;
+                } else if (root.hovered-block-index == block-index) {
+                    root.hovered-block-index = -1;
+                }
+            }
+            drag-moved(pointer-x, pointer-y) => {
+                root.suppress-insert-hover = false;
+                root.dragging-chain-index = root.chain-index;
+                root.dragging-block-index = block-index;
+                root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
+            }
+            drag-finished(pointer-x, pointer-y) => {
+                if root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index {
+                    let before-index = root.slot-index-for-position(pointer-x, pointer-y);
+                    root.drag-hover-before-index = before-index;
+                    root.reorder-chain-block(root.chain-index, block-index, before-index);
+                    root.dragging-chain-index = -1;
+                    root.dragging-block-index = -1;
+                    root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
+                }
+            }
+        }
+
+        // Hover tooltip for the currently hovered block — declared AFTER
+        // the BlockChip and BlockInsertSlot for-loops so the natural
+        // paint order keeps it on top of every sibling block. Hidden when
+        // no block is hovered or when the hovered block has no model
+        // (I/O / Insert blocks have empty display_name). Issue #333.
+        if root.hovered-block-index >= 0
+            && root.hovered-block-index < root.chain.blocks.length
+            && root.chain.blocks[root.hovered-block-index].display_name != ""
+            : BlockHoverTooltip {
+            block: root.chain.blocks[root.hovered-block-index];
+            anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 132px;
+            anchor-y: Math.floor(root.hovered-block-index / root.blocks-per-row) * 108px;
+            chip-width: 100px;
+            chip-height: 100px;
+            // Pass the blocks-container width so the tooltip can flip to
+            // the left side when the chip is too close to the right edge
+            // (e.g. last chip in the row) and the card would overflow.
+            container-width: parent.width;
+        }
+
+        for block[block-index] in root.chain.blocks : BlockInsertSlot {
+            x: 220px + Math.mod(block-index, root.blocks-per-row) * 132px;
+            y: 41px + Math.floor(block-index / root.blocks-per-row) * 108px;
+            move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
+            suppress-hover-affordance: root.suppress-insert-hover;
+            active-drop-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 && root.drag-hover-before-index == block-index + 1;
+            clicked => {
+                if root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 {
+                    root.reorder-chain-block(root.chain-index, root.dragging-block-index, block-index + 1);
+                    root.dragging-chain-index = -1;
+                    root.dragging-block-index = -1;
+                    root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
+                } else {
+                    root.start-block-insert(root.chain-index, block-index + 1);
+                }
+            }
+        }
+
+        in-chip := ChainEndpointChip {
+            x: 24px;
+            y: 24px;
+            is-input: true;
+            label: root.chain.input_label;
+            tooltip: root.chain.input_tooltip;
+            clicked => { root.configure-chain-input(root.chain-index); }
+        }
+
+        out-chip := ChainEndpointChip {
+            x: root.out-chip-x;
+            y: root.out-chip-y;
+            is-input: false;
+            label: root.chain.output_label;
+            tooltip: root.chain.output_tooltip;
+            clicked => { root.configure-chain-output(root.chain-index); }
+        }
+
+        if root.chain.latency_ms > 0 : Rectangle {
+            x: root.out-chip-x + 4px;
+            y: root.out-chip-y - 12px;
+            width: 64px;
+            height: 22px;
+            border-radius: 4px;
+            background: root.chain.latency_ms < 10.0 ? #4ade8018
+                      : root.chain.latency_ms < 20.0 ? #facc1518
+                      : #f8717118;
+            border-width: 1px;
+            border-color: root.chain.latency_ms < 10.0 ? #4ade8055
+                        : root.chain.latency_ms < 20.0 ? #facc1555
+                        : #f8717155;
+
+            Text {
+                x: 0px;
+                y: 2px;
+                width: 26px;
+                height: parent.height;
+                text: "LAT";
+                color: root.chain.latency_ms < 10.0 ? #4ade8099
+                     : root.chain.latency_ms < 20.0 ? #facc1599
+                     : #f8717199;
+                font-size: 8px;
+                font-weight: 700;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+
+            Text {
+                x: 29px;
+                y: 0px;
+                width: parent.width - 30px;
+                height: parent.height;
+                text: Math.round(root.chain.latency_ms) + "ms";
+                color: root.chain.latency_ms < 10.0 ? #4ade80
+                     : root.chain.latency_ms < 20.0 ? #facc15
+                     : #f87171;
+                font-size: 10px;
+                font-weight: 600;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+
+        // In chip tooltip — aparece à direita do chip In
+        if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
+            x: 76px;
+            y: 24px;
+            width: 312px;
+            height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: "Entrada";
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
+
+            input-tooltip-text := Text {
+                x: 12px;
+                y: 34px;
+                width: parent.width - 24px;
+                height: parent.height - 42px;
+                text: root.chain.input_tooltip;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
+            }
+        }
+
+        // Out chip tooltip — aparece à esquerda do chip Out (borda direita 8px antes do chip)
+        if out-chip.is-hovered && root.chain.output_tooltip != "" : Rectangle {
+            x: root.out-chip-x - 320px;
+            y: root.out-chip-y;
+            width: 312px;
+            height: Math.max(92px, output-tooltip-text.preferred-height + 42px);
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: "Saída";
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
+
+            output-tooltip-text := Text {
+                x: 12px;
+                y: 34px;
+                width: parent.width - 24px;
+                height: parent.height - 42px;
+                text: root.chain.output_tooltip;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
+            }
+        }
+    }
+
+}
+
