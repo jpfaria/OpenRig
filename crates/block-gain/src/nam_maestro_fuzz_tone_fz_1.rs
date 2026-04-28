@@ -14,34 +14,43 @@ const BRAND: &str = "maestro";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "modern_high_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_high_gain.nam" },
-    NamCapture { tone: "modern_mid_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_mid_gain.nam" },
-    NamCapture { tone: "vintage_high_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_high_gain.nam" },
-    NamCapture { tone: "vintage_low_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_low_gain.nam" },
-    NamCapture { tone: "vintage_mid_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_mid_gain.nam" },
+// Two-axis pack: era × gain.
+// 5 captures with one hole at (era=modern, gain=low); resolve_capture
+// rejects that combination so both knobs stay independent in the UI.
+const CAPTURES: &[(&str, &str, &str)] = &[
+    // (era, gain, file)
+    ("vintage", "low",  "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_low_gain.nam"),
+    ("vintage", "mid",  "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_mid_gain.nam"),
+    ("vintage", "high", "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_high_gain.nam"),
+    ("modern",  "mid",  "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_mid_gain.nam"),
+    ("modern",  "high", "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_high_gain.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("modern_high_gain"),
-        &[
-            ("modern_high_gain", "Modern High Gain"),
-            ("modern_mid_gain", "Modern Mid Gain"),
-            ("vintage_high_gain", "Vintage High Gain"),
-            ("vintage_low_gain", "Vintage Low Gain"),
-            ("vintage_mid_gain", "Vintage Mid Gain"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "era",
+            "Era",
+            Some("Pedal"),
+            Some("vintage"),
+            &[
+                ("vintage", "Vintage (FZ-1)"),
+                ("modern",  "Modern (FZ-M)"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Pedal"),
+            Some("mid"),
+            &[
+                ("low",  "Low"),
+                ("mid",  "Mid"),
+                ("high", "High"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -50,9 +59,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -65,16 +74,23 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let era = required_string(params, "era").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(e, g, _)| *e == era && *g == gain)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for era={} gain={}",
+                MODEL_ID, era, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
