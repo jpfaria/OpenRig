@@ -13,8 +13,9 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: high-gain voicing on Super Lead.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_super_lead_gain", "Gain", "amps/marshall_super_lead/marshall_super_lead_gain.nam"),
+    ("gain", "Gain", "amps/marshall_super_lead/marshall_super_lead_gain.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("marshall_super_lead_gain"),
+        Some("gain"),
         &[
-            ("marshall_super_lead_gain", "Gain"),
-        
+            ("gain", "Gain"),
         ],
     )];
     schema
