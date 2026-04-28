@@ -839,25 +839,23 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
 
-    // Mono entries with multiple channels: split into one entry per channel
-    // so each channel gets its own isolated processing stream.
+    // Each effective entry gets a UNIQUE cpal_input_index (issue #350). We
+    // intentionally do NOT collapse multiple entries of the same device into
+    // a single CPAL stream, even when the underlying hardware would let us:
+    // sharing a stream means one callback processes every entry sequentially,
+    // which violates the project invariant that streams are 100% independent
+    // (one channel's spike must NEVER affect another's callback). Letting
+    // each entry own its own CPAL stream restores callback-level isolation
+    // — the OS/audio backend dispatches them in parallel.
     //
-    // cpal_indices maps each effective entry to the CPAL stream index.
-    // Entries sharing the same device get the same CPAL stream index
-    // (infra-cpal deduplicates streams by device).
+    // Mono entries with multiple channels are first split into one entry
+    // per channel so each channel gets its own pipeline; the per-channel
+    // unique cpal_index then fans out to its own CPAL stream.
     let mut entries: Vec<InputEntry> = Vec::new();
     let mut cpal_indices: Vec<usize> = Vec::new();
-    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
     let mut next_cpal_idx: usize = 0;
 
     for entry in raw_entries.iter() {
-        let device_key = entry.device_id.0.clone();
-        let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
-            let idx = next_cpal_idx;
-            next_cpal_idx += 1;
-            idx
-        });
-
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
             for &ch in &entry.channels {
                 entries.push(InputEntry {
@@ -865,11 +863,13 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
                     mode: ChainInputMode::Mono,
                     channels: vec![ch],
                 });
-                cpal_indices.push(cpal_idx);
+                cpal_indices.push(next_cpal_idx);
+                next_cpal_idx += 1;
             }
         } else {
             entries.push(entry.clone());
-            cpal_indices.push(cpal_idx);
+            cpal_indices.push(next_cpal_idx);
+            next_cpal_idx += 1;
         }
     }
 

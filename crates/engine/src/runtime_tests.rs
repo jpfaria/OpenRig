@@ -1626,9 +1626,13 @@ fn effective_inputs_splits_mono_multichannel_entry() {
     assert_eq!(eff_inputs[0].channels, vec![0]);
     assert_eq!(eff_inputs[1].channels, vec![1]);
     assert_eq!(eff_inputs[2].channels, vec![2]);
-    // All should share the same CPAL stream index
-    assert_eq!(cpal_indices[0], cpal_indices[1]);
-    assert_eq!(cpal_indices[1], cpal_indices[2]);
+    // Each split channel must own a UNIQUE cpal_input_index (issue #350) so
+    // its own CPAL stream is opened — sharing the index collapses them into
+    // one callback that processes both sequentially, violating stream
+    // isolation.
+    assert_ne!(cpal_indices[0], cpal_indices[1]);
+    assert_ne!(cpal_indices[1], cpal_indices[2]);
+    assert_ne!(cpal_indices[0], cpal_indices[2]);
 }
 
 // ── effective_inputs / outputs fallback ───────────────────────────────────
@@ -2366,10 +2370,10 @@ fn effective_inputs_multiple_input_blocks() {
     assert_ne!(cpal_indices[0], cpal_indices[1]);
 }
 
-// ── effective_inputs same device shares cpal index ──────────────────────
+// ── effective_inputs same device entries get unique cpal indices ─────────
 
 #[test]
-fn effective_inputs_same_device_shares_cpal_index() {
+fn effective_inputs_same_device_get_unique_cpal_indices() {
     let chain = Chain {
         id: ChainId("chain:same-dev".into()),
         description: None,
@@ -2397,7 +2401,14 @@ fn effective_inputs_same_device_shares_cpal_index() {
     };
     let (eff_inputs, cpal_indices) = effective_inputs(&chain);
     assert_eq!(eff_inputs.len(), 2);
-    assert_eq!(cpal_indices[0], cpal_indices[1], "same device should share CPAL index");
+    // Issue #350: even when two entries point to the same physical device,
+    // each gets its own cpal_input_index so infra-cpal opens a separate
+    // CPAL stream per entry. Sharing the index would collapse them into
+    // one callback and break stream isolation.
+    assert_ne!(
+        cpal_indices[0], cpal_indices[1],
+        "two entries on the same device must own distinct CPAL stream indices for isolation"
+    );
 }
 
 // ── build_chain_runtime_state with only effects (no I/O blocks) ─────────
