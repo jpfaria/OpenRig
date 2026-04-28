@@ -13,14 +13,16 @@ const BRAND: &str = "prs";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 7 voicings — Clean / Clean Breakup / Crunch / 4 Metal variants
+// (7W power, TS-boost, preamp-only, sweet spot).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("prs_mt15_clean", "MT15_Clean", "amps/prs_mt15/prs_mt15_clean.nam"),
-    ("prs_mt_15_clean_break_up", "MT_15_Clean_Break_Up", "amps/prs_mt15/prs_mt_15_clean_break_up.nam"),
-    ("prs_mt_15_crunch_red", "MT_15_Crunch_red", "amps/prs_mt15/prs_mt_15_crunch_red.nam"),
-    ("prs_mt_15_metal_7_watts", "MT_15_Metal_7_watts", "amps/prs_mt15/prs_mt_15_metal_7_watts.nam"),
-    ("prs_mt_15_metal_ts", "MT_15_Metal_TS", "amps/prs_mt15/prs_mt_15_metal_ts.nam"),
-    ("prs_mt_15_metal_pre_amp", "MT_15_Metal_Pre_Amp", "amps/prs_mt15/prs_mt_15_metal_pre_amp.nam"),
-    ("prs_mt_15_metal_sweet_spot", "MT_15_Metal_Sweet_Spot", "amps/prs_mt15/prs_mt_15_metal_sweet_spot.nam"),
+    ("clean",            "Clean",             "amps/prs_mt15/prs_mt15_clean.nam"),
+    ("clean_breakup",    "Clean Breakup",     "amps/prs_mt15/prs_mt_15_clean_break_up.nam"),
+    ("crunch_red",       "Crunch (Red)",      "amps/prs_mt15/prs_mt_15_crunch_red.nam"),
+    ("metal_7w",         "Metal 7W",          "amps/prs_mt15/prs_mt_15_metal_7_watts.nam"),
+    ("metal_ts",         "Metal + TS",        "amps/prs_mt15/prs_mt_15_metal_ts.nam"),
+    ("metal_pre",        "Metal Pre-Amp",     "amps/prs_mt15/prs_mt_15_metal_pre_amp.nam"),
+    ("metal_sweet_spot", "Metal Sweet Spot",  "amps/prs_mt15/prs_mt_15_metal_sweet_spot.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -29,16 +31,15 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("prs_mt15_clean"),
+        Some("clean"),
         &[
-            ("prs_mt15_clean", "MT15_Clean"),
-            ("prs_mt_15_clean_break_up", "MT_15_Clean_Break_Up"),
-            ("prs_mt_15_crunch_red", "MT_15_Crunch_red"),
-            ("prs_mt_15_metal_7_watts", "MT_15_Metal_7_watts"),
-            ("prs_mt_15_metal_ts", "MT_15_Metal_TS"),
-            ("prs_mt_15_metal_pre_amp", "MT_15_Metal_Pre_Amp"),
-            ("prs_mt_15_metal_sweet_spot", "MT_15_Metal_Sweet_Spot"),
-        
+            ("clean",            "Clean"),
+            ("clean_breakup",    "Clean Breakup"),
+            ("crunch_red",       "Crunch (Red)"),
+            ("metal_7w",         "Metal 7W"),
+            ("metal_ts",         "Metal + TS"),
+            ("metal_pre",        "Metal Pre-Amp"),
+            ("metal_sweet_spot", "Metal Sweet Spot"),
         ],
     )];
     schema
