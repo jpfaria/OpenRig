@@ -518,6 +518,7 @@ chains:
     }
 
     #[test]
+    #[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
     fn roundtrip_utility_block_preserves_type_and_model() {
         assert_core_roundtrip("utility", first_model(block_util::supported_models()));
     }

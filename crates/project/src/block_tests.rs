@@ -971,7 +971,6 @@ fn schema_covers_all_static_effect_types() {
         ("nam", block_nam::supported_models()),
         ("delay", block_delay::supported_models()),
         ("reverb", block_reverb::supported_models()),
-        ("utility", block_util::supported_models()),
         ("dynamics", block_dyn::supported_models()),
         ("filter", block_filter::supported_models()),
         ("wah", block_wah::supported_models()),
