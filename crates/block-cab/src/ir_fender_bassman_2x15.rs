@@ -9,13 +9,16 @@ pub const MODEL_ID: &str = "fender_bassman_2x15";
 pub const DISPLAY_NAME: &str = "Bassman 2x15 CTS";
 const BRAND: &str = "fender";
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("121_lower_cap", "1970 Bassman Cabinet CTS - 121 Lower - Cap", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_3.wav"),
-    ("121_lower_cap_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_edge_3.wav"),
-    ("121_lower_cone_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_edge_3.wav"),
-    ("121_upper_cap_edge", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_upper_cap_edge_3.wav"),
-    ("121_lower_cone", "1970 Bassman Cabinet CTS - 121 Lower - Cone", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_3.wav"),
-    ("c414_distant_12in", "1970 Bassman Cabinet CTS - C414 - Distant 12In", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_c414_distant_12in_3.wav"),
+// Three-axis pack: mic × speaker × position (1970 Bassman CTS).
+// 121 = Royer R-121 ribbon. Holes return Err.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (mic, speaker, position, file)
+    ("r121", "lower",   "cap",       "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_3.wav"),
+    ("r121", "lower",   "cap_edge",  "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cap_edge_3.wav"),
+    ("r121", "lower",   "cone",      "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_3.wav"),
+    ("r121", "lower",   "cone_edge", "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_lower_cone_edge_3.wav"),
+    ("r121", "upper",   "cap_edge",  "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_121_upper_cap_edge_3.wav"),
+    ("c414", "distant", "12_inch",   "cabs/fender_bassman_2x15/1970_bassman_cabinet_cts_c414_distant_12in_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,20 +27,42 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("121_lower_cap"),
-            &[
-            ("121_lower_cap", "1970 Bassman Cabinet CTS - 121 Lower - Cap"),
-            ("121_lower_cap_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cap Edge"),
-            ("121_lower_cone_edge", "1970 Bassman Cabinet CTS - 121 Lower - Cone Edge"),
-            ("121_upper_cap_edge", "1970 Bassman Cabinet CTS - 121 Upper - Cap Edge"),
-            ("121_lower_cone", "1970 Bassman Cabinet CTS - 121 Lower - Cone"),
-            ("c414_distant_12in", "1970 Bassman Cabinet CTS - C414 - Distant 12In"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic",
+                "Mic",
+                Some("Cab"),
+                Some("r121"),
+                &[
+                    ("r121", "Royer R-121"),
+                    ("c414", "AKG C414"),
+                ],
+            ),
+            enum_parameter(
+                "speaker",
+                "Speaker",
+                Some("Cab"),
+                Some("lower"),
+                &[
+                    ("lower",   "Lower 15\""),
+                    ("upper",   "Upper 15\""),
+                    ("distant", "Distant"),
+                ],
+            ),
+            enum_parameter(
+                "position",
+                "Position",
+                Some("Cab"),
+                Some("cap"),
+                &[
+                    ("cap",       "Cap"),
+                    ("cap_edge",  "Cap Edge"),
+                    ("cone",      "Cone"),
+                    ("cone_edge", "Cone Edge"),
+                    ("12_inch",   "12 inch (Distant)"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -69,12 +94,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
+    let speaker = required_string(params, "speaker").map_err(anyhow::Error::msg)?;
+    let position = required_string(params, "position").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(m, s, p, _)| *m == mic && *s == speaker && *p == position)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic={} speaker={} position={}",
+                MODEL_ID, mic, speaker, position
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
