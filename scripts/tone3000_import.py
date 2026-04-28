@@ -154,17 +154,28 @@ def is_preamp_pack(tone: dict[str, Any]) -> bool:
     return tone.get("gear") in ("preamp", "head") and tone.get("platform") == "nam"
 
 
-def select_models(models: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
-    """Keep `standard` size, drop duplicates (same name), cap at `limit`.
+def is_cab_pack(tone: dict[str, Any]) -> bool:
+    """IR cab pack."""
+    return tone.get("gear") == "ir" and tone.get("platform") == "ir"
 
-    `feather`, `lite`, `nano` sizes are quality-reduced versions of the
-    same capture for low-CPU setups — we ship `standard` and let users
-    choose the size at runtime via the NAM block size discovery (issue
-    #336 conventions). Also dedupes on lowercased name.
+
+def select_models(
+    models: list[dict[str, Any]],
+    limit: int,
+    *,
+    expected_ext: str = ".nam",
+) -> list[dict[str, Any]]:
+    """Keep preferred size, drop duplicates (same name), cap at `limit`.
+
+    For NAM packs: prefer `size=standard` (quality-reduced `feather`/
+    `lite`/`nano` sizes are low-CPU variants of the same capture).
+    For IR packs: `size` is None — order by `position`. Filters by
+    `expected_ext` so a `.nam` model in an IR pack (or vice-versa)
+    won't sneak in. Dedupes on lowercased name.
     """
     seen: set[str] = set()
     out: list[dict[str, Any]] = []
-    # Prefer standard size first
+    # Prefer standard size first (no-op for IRs where size is None)
     ordered = sorted(
         models,
         key=lambda m: (m.get("size") != "standard", m.get("position") or 9999),
@@ -173,7 +184,7 @@ def select_models(models: list[dict[str, Any]], limit: int) -> list[dict[str, An
         if m.get("is_deleted"):
             continue
         url = m.get("model_url")
-        if not url or not url.endswith(".nam"):
+        if not url or not url.endswith(expected_ext):
             continue
         key = slugify((m.get("name") or "").lower())
         if not key or key in seen:
@@ -280,6 +291,111 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {{
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {{
     let path = resolve_capture(params)?;
     Ok(format!("model='{{}}'", path))
+}}
+'''
+
+CAB_TEMPLATE = '''\
+use anyhow::{{anyhow, bail, Result}};
+use ir::{{build_mono_ir_processor_from_wav, IrAsset}};
+use crate::registry::CabModelDefinition;
+use crate::CabBackendKind;
+use block_core::param::{{enum_parameter, required_string, ModelParameterSchema, ParameterSet}};
+use block_core::{{AudioChannelLayout, ModelAudioMode, BlockProcessor}};
+
+pub const MODEL_ID: &str = "{model_id}";
+pub const DISPLAY_NAME: &str = "{display_name}";
+const BRAND: &str = "{brand}";
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+{capture_rows}
+];
+
+pub fn model_schema() -> ModelParameterSchema {{
+    ModelParameterSchema {{
+        effect_type: "cab".to_string(),
+        model: MODEL_ID.to_string(),
+        display_name: DISPLAY_NAME.to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters: vec![enum_parameter(
+            "capture",
+            "Capture",
+            Some("Cab"),
+            Some({default_key}),
+            &[
+{enum_options}
+            ],
+        )],
+    }}
+}}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {{
+    match layout {{
+        AudioChannelLayout::Mono => {{
+            let path = resolve_capture(params)?;
+            let wav_path = ir::resolve_ir_capture(path)?;
+            let ir = IrAsset::load_from_wav(&wav_path)?;
+            if ir.channel_count() != 1 {{
+                bail!(
+                    "cab model '{{}}' capture must be mono, got {{}} channels",
+                    MODEL_ID,
+                    ir.channel_count()
+                );
+            }}
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
+            Ok(BlockProcessor::Mono(processor))
+        }}
+        AudioChannelLayout::Stereo => bail!(
+            "cab model '{{}}' currently expects mono processor layout",
+            MODEL_ID
+        ),
+    }}
+}}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {{
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("cab '{{}}' has no capture '{{}}'", MODEL_ID, key))
+}}
+
+fn schema() -> Result<ModelParameterSchema> {{
+    Ok(model_schema())
+}}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {{
+    build_processor_for_model(params, sample_rate, layout)
+}}
+
+pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {{
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: CabBackendKind::Ir,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+}};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {{
+    resolve_capture(params).map(|_| ())
+}}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {{
+    let path = resolve_capture(params)?;
+    Ok(format!("asset_id='{{}}'", path))
 }}
 '''
 
@@ -414,26 +530,56 @@ def render_template(template: str, *, model_id: str, display_name: str, brand: s
 
 # --- main pipeline ---------------------------------------------------------
 
+KIND_CONFIG = {
+    "amp":    {"captures_root": "captures/nam/amps",    "crate": "block-amp",    "asset_subpath": "amps",   "ext": ".nam", "rs_prefix": "nam_"},
+    "preamp": {"captures_root": "captures/nam/preamp",  "crate": "block-preamp", "asset_subpath": "preamp", "ext": ".nam", "rs_prefix": "nam_"},
+    "cab":    {"captures_root": "captures/ir/cabs",     "crate": "block-cab",    "asset_subpath": "cabs",   "ext": ".wav", "rs_prefix": "ir_"},
+}
+
+
 def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) -> dict[str, Any]:
     make = spec["make"]
-    kind = spec["kind"]            # "amp" | "preamp"
+    kind = spec["kind"]            # "amp" | "preamp" | "cab"
     slug = spec["slug"]            # e.g. "fender_hot_rod_deluxe"
     display = spec["display"]
     brand = spec["brand"]
     pick_tone_ids = spec.get("tone_ids")  # explicit override; else top-by-downloads
     max_captures = spec.get("max_captures", MAX_CAPTURES_PER_MODEL)
 
-    print(f"\n=== {make}  →  nam_{slug}  ({kind}) ===")
+    if kind not in KIND_CONFIG:
+        return {"error": f"unknown kind '{kind}'"}
+    cfg = KIND_CONFIG[kind]
+    rs_prefix = cfg["rs_prefix"]
 
-    candidates = search_make(make)
+    print(f"\n=== {make}  →  {rs_prefix}{slug}  ({kind}) ===")
+
     if pick_tone_ids:
-        tones = [t for t in candidates if t["id"] in pick_tone_ids]
+        # Direct ID fetch — bypass make_names search entirely. The make
+        # field on the spec doesn't have to match a Tone3000 canonical
+        # make name when explicit tone_ids are supplied.
+        tones = []
+        for tid in pick_tone_ids:
+            t = fetch_tone(tid)
+            if t:
+                # Stub the fields used downstream by select_models / dedup
+                tones.append({
+                    "id": tid,
+                    "downloads_count": 0,
+                    "gear": t.get("gear"),
+                    "platform": t.get("platform"),
+                    "has_model_with_url": True,
+                    "_prefetched": t,
+                })
+            time.sleep(SLEEP_BETWEEN)
     else:
+        candidates = search_make(make)
         if kind == "amp":
             tones = [t for t in candidates if is_amp_pack(t) and t.get("has_model_with_url")]
-        else:
+        elif kind == "preamp":
             tones = [t for t in candidates
                      if (is_preamp_pack(t) or is_amp_pack(t)) and t.get("has_model_with_url")]
+        else:  # cab
+            tones = [t for t in candidates if is_cab_pack(t) and t.get("has_model_with_url")]
         tones.sort(key=lambda t: t.get("downloads_count") or 0, reverse=True)
         tones = tones[:1]  # default: just the top pack
 
@@ -443,29 +589,33 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
 
     selected_models: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for t in tones:
-        full = fetch_tone(t["id"])
+        full = t.get("_prefetched") or fetch_tone(t["id"])
         if not full:
             continue
-        kept = select_models(full.get("models") or [], max_captures - len(selected_models))
+        kept = select_models(
+            full.get("models") or [],
+            max_captures - len(selected_models),
+            expected_ext=cfg["ext"],
+        )
         for m in kept:
             selected_models.append((t, m))
         if len(selected_models) >= max_captures:
             break
-        time.sleep(SLEEP_BETWEEN)
+        if "_prefetched" not in t:
+            time.sleep(SLEEP_BETWEEN)
 
     if not selected_models:
         print("  ! no models in selected tone(s); skipping")
         return {"skipped": True, "reason": "no models"}
 
-    bucket = "amps" if kind == "amp" else "preamp"
-    captures_dir = repo_root / "captures" / "nam" / bucket / slug
+    captures_dir = repo_root / cfg["captures_root"] / slug
 
     # Skip if a previous run already produced captures for this slug — re-running
-    # the pipeline must NOT pollute the directory with `_2.nam` duplicates. To
+    # the pipeline must NOT pollute the directory with `_2.<ext>` duplicates. To
     # re-import, delete the directory and the matching .rs file first.
-    rs_crate = "block-amp" if kind == "amp" else "block-preamp"
-    rs_existing = repo_root / "crates" / rs_crate / "src" / f"nam_{slug}.rs"
-    if captures_dir.exists() and any(captures_dir.glob("*.nam")) and rs_existing.exists():
+    rs_crate = cfg["crate"]
+    rs_existing = repo_root / "crates" / rs_crate / "src" / f"{rs_prefix}{slug}.rs"
+    if captures_dir.exists() and any(captures_dir.glob(f"*{cfg['ext']}")) and rs_existing.exists():
         print(f"  ↷ already imported (captures dir + .rs exist) — skipping")
         return {"skipped": True, "reason": "already imported"}
 
@@ -483,10 +633,11 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
         if size != "standard":
             base = f"{base}_{size}"
         # avoid collisions on disk
-        filename = f"{base}.nam"
+        ext = cfg["ext"]
+        filename = f"{base}{ext}"
         idx = 2
         while (captures_dir / filename).exists():
-            filename = f"{base}_{idx}.nam"
+            filename = f"{base}_{idx}{ext}"
             idx += 1
         target = captures_dir / filename
 
@@ -506,19 +657,20 @@ def import_one(spec: dict[str, Any], repo_root: Path, *, dry_run: bool = False) 
 
         # human label — keep original casing/spacing
         label = (raw_name or filename)[:60].strip() or "Capture"
-        rel_path = f"{bucket}/{slug}/{filename}"
+        rel_path = f"{cfg['asset_subpath']}/{slug}/{filename}"
         capture_entries.append((key, label, rel_path))
 
     if not capture_entries:
         return {"skipped": True, "reason": "no downloads"}
 
     # codegen
-    crate = "block-amp" if kind == "amp" else "block-preamp"
-    rs_path = repo_root / "crates" / crate / "src" / f"nam_{slug}.rs"
-    template = AMP_TEMPLATE if kind == "amp" else PREAMP_TEMPLATE
+    crate = cfg["crate"]
+    rs_path = repo_root / "crates" / crate / "src" / f"{rs_prefix}{slug}.rs"
+    template_map = {"amp": AMP_TEMPLATE, "preamp": PREAMP_TEMPLATE, "cab": CAB_TEMPLATE}
+    template = template_map[kind]
     src = render_template(
         template,
-        model_id=f"nam_{slug}",
+        model_id=f"{rs_prefix}{slug}" if kind != "cab" else slug,
         display_name=display,
         brand=brand,
         captures=capture_entries,

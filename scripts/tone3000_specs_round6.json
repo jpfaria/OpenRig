@@ -1,0 +1,14 @@
+[
+  {"make":"Fender Twin Reverb","kind":"cab","slug":"fender_twin_reverb_2x12","display":"Twin Reverb 2x12","brand":"fender","tone_ids":[33532],"max_captures":3},
+  {"make":"Marshall 1960AV","kind":"cab","slug":"marshall_1960av_4x12","display":"1960AV 4x12","brand":"marshall","tone_ids":[27221],"max_captures":4},
+  {"make":"Marshall 1960BV","kind":"cab","slug":"marshall_1960bv_4x12","display":"1960BV 4x12","brand":"marshall","tone_ids":[51086],"max_captures":8},
+  {"make":"Mesa Boogie Traditional 4x12","kind":"cab","slug":"mesa_traditional_4x12_v30","display":"Traditional 4x12 V30","brand":"mesa","tone_ids":[45023],"max_captures":10},
+  {"make":"Mesa Recto","kind":"cab","slug":"mesa_recto_v30","display":"Recto V30","brand":"mesa","tone_ids":[44078],"max_captures":1},
+  {"make":"Orange 2x12","kind":"cab","slug":"orange_2x12_v30","display":"Orange 2x12 V30","brand":"orange","tone_ids":[29354],"max_captures":8},
+  {"make":"EVH 5150III 4x12","kind":"cab","slug":"evh_5150iii_4x12","display":"5150III 4x12 G12-EVH","brand":"evh","tone_ids":[40738],"max_captures":8},
+  {"make":"Engl E412","kind":"cab","slug":"engl_e412","display":"E412 Karnivore","brand":"engl","tone_ids":[39748],"max_captures":6},
+  {"make":"Ampeg SVT","kind":"cab","slug":"ampeg_svt_8x10","display":"SVT 4x10/8x10","brand":"ampeg","tone_ids":[45241],"max_captures":8},
+  {"make":"Marshall 1960TV","kind":"cab","slug":"marshall_1960tv_greenback","display":"1960TV Greenback","brand":"marshall","tone_ids":[45022],"max_captures":8},
+  {"make":"Fender '65 Super Reverb","kind":"cab","slug":"fender_super_reverb_4x10","display":"Super Reverb 4x10","brand":"fender","tone_ids":[61705],"max_captures":6},
+  {"make":"Fender Bassman 2x15","kind":"cab","slug":"fender_bassman_2x15","display":"Bassman 2x15 CTS","brand":"fender","tone_ids":[60274],"max_captures":6}
+]
