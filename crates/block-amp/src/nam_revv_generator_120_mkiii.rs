@@ -13,8 +13,9 @@ const BRAND: &str = "revv";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: Ch3 Aggressive 1, Gain 15, full EQ, Presence 13, Depth 11.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("revvg120_ch3a1_g15_t1330_m1130_b11_p13_d", "G120_CH3A1_G15_T1330_M1130_B11_P13_D11", "amps/revv_generator_120_mkiii/revvg120_ch3a1_g15_t1330_m1130_b11_p13_d11.nam"),
+    ("ch3_aggressive", "Ch3 Aggressive", "amps/revv_generator_120_mkiii/revvg120_ch3a1_g15_t1330_m1130_b11_p13_d11.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("revvg120_ch3a1_g15_t1330_m1130_b11_p13_d"),
+        Some("ch3_aggressive"),
         &[
-            ("revvg120_ch3a1_g15_t1330_m1130_b11_p13_d", "G120_CH3A1_G15_T1330_M1130_B11_P13_D11"),
-        
+            ("ch3_aggressive", "Ch3 Aggressive"),
         ],
     )];
     schema
