@@ -31,7 +31,7 @@ pub fn model_schema() -> ModelParameterSchema {
             "voicing",
             "Voicing",
             Some("Amp"),
-            Some("hbe_mammoth"),
+            Some("hbe_tallica"),
             &[
                 ("hbe_mammoth", "HBE Mammoth"),
                 ("hbe_tallica", "HBE Tallica"),
