@@ -13,35 +13,49 @@ const BRAND: &str = "bogner";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × variant.
+// Holes (e.g. midgain has no -4dB/IR/old variants) return Err so the UI
+// surfaces validation directly to the user.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "Bogner Goldfinger - Clean", "amps/bogner_goldfinger/bogner_goldfinger_clean.nam"),
-    ("discusting_midgain", "Bogner Goldfinger - discusting midgain", "amps/bogner_goldfinger/bogner_goldfinger_discusting_midgain.nam"),
-    ("crunch", "Bogner Goldfinger - crunch+", "amps/bogner_goldfinger/bogner_goldfinger_crunch.nam"),
-    ("higain", "Bogner Goldfinger - higain", "amps/bogner_goldfinger/bogner_goldfinger_higain.nam"),
-    ("higain_with_ir_sorry_my_falt", "Bogner Goldfinger - higain+ (with ir, sorry, my falt)", "amps/bogner_goldfinger/bogner_goldfinger_higain_with_ir_sorry_my_falt.nam"),
-    ("clean_4db_10k", "Bogner Goldfinger - clean (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_clean_4db_10k.nam"),
-    ("crunch_old_version_but_its_ok", "Bogner Goldfinger - crunch+ (old version, but its ok)", "amps/bogner_goldfinger/bogner_goldfinger_crunch_old_version_but_its_ok.nam"),
-    ("higain_4db_10k", "Bogner Goldfinger - higain (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_higain_4db_10k.nam"),
+    // (gain, variant, file)
+    ("clean",   "default",   "amps/bogner_goldfinger/bogner_goldfinger_clean.nam"),
+    ("clean",   "minus_4db", "amps/bogner_goldfinger/bogner_goldfinger_clean_4db_10k.nam"),
+    ("midgain", "default",   "amps/bogner_goldfinger/bogner_goldfinger_discusting_midgain.nam"),
+    ("crunch",  "default",   "amps/bogner_goldfinger/bogner_goldfinger_crunch.nam"),
+    ("crunch",  "old",       "amps/bogner_goldfinger/bogner_goldfinger_crunch_old_version_but_its_ok.nam"),
+    ("higain",  "default",   "amps/bogner_goldfinger/bogner_goldfinger_higain.nam"),
+    ("higain",  "minus_4db", "amps/bogner_goldfinger/bogner_goldfinger_higain_4db_10k.nam"),
+    ("higain",  "with_ir",   "amps/bogner_goldfinger/bogner_goldfinger_higain_with_ir_sorry_my_falt.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("clean"),
-        &[
-            ("clean", "Bogner Goldfinger - Clean"),
-            ("discusting_midgain", "Bogner Goldfinger - discusting midgain"),
-            ("crunch", "Bogner Goldfinger - crunch+"),
-            ("higain", "Bogner Goldfinger - higain"),
-            ("higain_with_ir_sorry_my_falt", "Bogner Goldfinger - higain+ (with ir, sorry, my falt)"),
-            ("clean_4db_10k", "Bogner Goldfinger - clean (-4db 10k)"),
-            ("crunch_old_version_but_its_ok", "Bogner Goldfinger - crunch+ (old version, but its ok)"),
-            ("higain_4db_10k", "Bogner Goldfinger - higain (-4db 10k)"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean",   "Clean"),
+                ("midgain", "Mid Gain"),
+                ("crunch",  "Crunch"),
+                ("higain",  "Hi Gain"),
+            ],
+        ),
+        enum_parameter(
+            "variant",
+            "Variant",
+            Some("Amp"),
+            Some("default"),
+            &[
+                ("default",   "Default"),
+                ("minus_4db", "-4 dB / 10k Cut"),
+                ("old",       "Old Version"),
+                ("with_ir",   "With IR"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +75,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let variant = required_string(params, "variant").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, v, _)| *g == gain && *v == variant)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} variant={}",
+                MODEL_ID, gain, variant
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
