@@ -13,26 +13,26 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 channels (Clean / Crunch / Lead 1 / Lead 2).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch", "DSL 40 C Crunch", "amps/marshall_dsl40cr/marshall_dsl_40_c_crunch.nam"),
-    ("lead_1", "DSL 40 C Lead 1", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_1.nam"),
-    ("lead_2", "DSL 40 C Lead 2", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_2.nam"),
-    ("clean", "DSL 40 C Clean", "amps/marshall_dsl40cr/marshall_dsl_40_c_clean.nam"),
+    ("clean",  "Clean",  "amps/marshall_dsl40cr/marshall_dsl_40_c_clean.nam"),
+    ("crunch", "Crunch", "amps/marshall_dsl40cr/marshall_dsl_40_c_crunch.nam"),
+    ("lead_1", "Lead 1", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_1.nam"),
+    ("lead_2", "Lead 2", "amps/marshall_dsl40cr/marshall_dsl_40_c_lead_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "channel",
+        "Channel",
         Some("Amp"),
-        Some("crunch"),
+        Some("clean"),
         &[
-            ("crunch", "DSL 40 C Crunch"),
-            ("lead_1", "DSL 40 C Lead 1"),
-            ("lead_2", "DSL 40 C Lead 2"),
-            ("clean", "DSL 40 C Clean"),
-        
+            ("clean",  "Clean"),
+            ("crunch", "Crunch"),
+            ("lead_1", "Lead 1"),
+            ("lead_2", "Lead 2"),
         ],
     )];
     schema
@@ -54,12 +54,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
