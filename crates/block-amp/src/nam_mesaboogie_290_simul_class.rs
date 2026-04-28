@@ -13,25 +13,26 @@ const BRAND: &str = "mesaboogie";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 6L6GC power-amp drive levels (Slammin captures).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_mb_290_6l6gc_8_5", "SLAMMIN_MB_290_6L6GC_8_5", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_5.nam"),
-    ("slammin_mb_290_6l6gc_8_2", "SLAMMIN_MB_290_6L6GC_8_2", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_2.nam"),
-    ("slammin_mb_290_6l6gc_d_6_0", "SLAMMIN_MB_290_6L6GC_D_6_0", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_d_6_0.nam"),
-    ("slammin_mb_290_6l6gc_13_8", "SLAMMIN_MB_290_6L6GC_13_8", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_13_8.nam"),
+    ("8_2",   "8.2",     "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_2.nam"),
+    ("8_5",   "8.5",     "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_5.nam"),
+    ("13_8",  "13.8",    "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_13_8.nam"),
+    ("d_6_0", "D 6.0",   "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_d_6_0.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "drive",
+        "Drive",
         Some("Amp"),
-        Some("slammin_mb_290_6l6gc_8_5"),
+        Some("8_5"),
         &[
-            ("slammin_mb_290_6l6gc_8_5", "SLAMMIN_MB_290_6L6GC_8_5"),
-            ("slammin_mb_290_6l6gc_8_2", "SLAMMIN_MB_290_6L6GC_8_2"),
-            ("slammin_mb_290_6l6gc_d_6_0", "SLAMMIN_MB_290_6L6GC_D_6_0"),
-            ("slammin_mb_290_6l6gc_13_8", "SLAMMIN_MB_290_6L6GC_13_8"),
+            ("8_2",   "8.2"),
+            ("8_5",   "8.5"),
+            ("13_8",  "13.8"),
+            ("d_6_0", "D 6.0"),
         ],
     )];
     schema
@@ -53,12 +54,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "drive").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no drive '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
