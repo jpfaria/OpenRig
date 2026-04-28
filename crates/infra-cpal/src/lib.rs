@@ -2654,15 +2654,40 @@ fn resolve_chain_inputs(
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
+    let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
             _ => None,
         })
-        .flat_map(|ib| ib.entries.iter())
+        .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
-    // Include Insert block return endpoints as input streams
+
+    // Mirror engine::effective_inputs: split mono entries with multiple
+    // channels into one entry per channel. Each split entry then resolves
+    // to its OWN ResolvedInputDevice and `build_chain_streams` opens its
+    // OWN CPAL stream — preserving the per-entry stream isolation that
+    // issue #350 requires. Without this split, two channels of the same
+    // device would still share a single CPAL stream and the engine's
+    // callback for input_index=1 would never fire (segment silent).
+    let mut split_entries: Vec<InputEntry> = Vec::new();
+    for entry in &raw_entries {
+        if matches!(entry.mode, project::chain::ChainInputMode::Mono)
+            && entry.channels.len() > 1
+        {
+            for &ch in &entry.channels {
+                split_entries.push(InputEntry {
+                    device_id: entry.device_id.clone(),
+                    mode: project::chain::ChainInputMode::Mono,
+                    channels: vec![ch],
+                });
+            }
+        } else {
+            split_entries.push(entry.clone());
+        }
+    }
+
+    // Insert block return endpoints (their own per-Insert input streams).
     let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -2670,12 +2695,12 @@ fn resolve_chain_inputs(
             _ => None,
         })
         .collect();
-    let insert_refs: Vec<&InputEntry> = insert_return_entries.iter().collect();
-    input_entries.extend(insert_refs);
-    if input_entries.is_empty() {
+    split_entries.extend(insert_return_entries);
+
+    if split_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
-    input_entries
+    split_entries
         .iter()
         .map(|input| resolve_input_device_for_chain_input(host, project, input, is_asio))
         .collect()
