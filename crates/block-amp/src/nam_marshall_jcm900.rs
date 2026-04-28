@@ -13,33 +13,48 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: amp model × tone.
+// JCM900 + JTM45 + Vox AC15 + Dumble ODS captures.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("vox_ac15_crsh_2", "Vox AC15 Crsh 2", "amps/marshall_jcm900/vox_ac15_crsh_2.nam"),
-    ("jtm_45_crsh", "JTM 45 CRSH", "amps/marshall_jcm900/jtm_45_crsh.nam"),
-    ("vox_ac15_crunsh", "Vox AC15 Crunsh", "amps/marshall_jcm900/vox_ac15_crunsh.nam"),
-    ("vox_ac15_clean", "Vox AC15 Clean", "amps/marshall_jcm900/vox_ac15_clean.nam"),
-    ("marshall_jtm_45_clean", "Marshall JTM 45 Clean", "amps/marshall_jcm900/marshall_jtm_45_clean.nam"),
-    ("ods_dumble_clean", "ODS Dumble clean", "amps/marshall_jcm900/ods_dumble_clean.nam"),
-    ("marshall_jcm_900_higain", "Marshall JCM 900 higain", "amps/marshall_jcm900/marshall_jcm_900_higain.nam"),
+    // (amp_model, tone, file)
+    ("vox_ac15", "clean",   "amps/marshall_jcm900/vox_ac15_clean.nam"),
+    ("vox_ac15", "crunch",  "amps/marshall_jcm900/vox_ac15_crunsh.nam"),
+    ("vox_ac15", "crsh_2",  "amps/marshall_jcm900/vox_ac15_crsh_2.nam"),
+    ("jtm_45",   "clean",   "amps/marshall_jcm900/marshall_jtm_45_clean.nam"),
+    ("jtm_45",   "crsh",    "amps/marshall_jcm900/jtm_45_crsh.nam"),
+    ("jcm_900",  "higain",  "amps/marshall_jcm900/marshall_jcm_900_higain.nam"),
+    ("dumble",   "clean",   "amps/marshall_jcm900/ods_dumble_clean.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("vox_ac15_crsh_2"),
-        &[
-            ("vox_ac15_crsh_2", "Vox AC15 Crsh 2"),
-            ("jtm_45_crsh", "JTM 45 CRSH"),
-            ("vox_ac15_crunsh", "Vox AC15 Crunsh"),
-            ("vox_ac15_clean", "Vox AC15 Clean"),
-            ("marshall_jtm_45_clean", "Marshall JTM 45 Clean"),
-            ("ods_dumble_clean", "ODS Dumble clean"),
-            ("marshall_jcm_900_higain", "Marshall JCM 900 higain"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "amp_model",
+            "Amp Model",
+            Some("Amp"),
+            Some("jcm_900"),
+            &[
+                ("vox_ac15", "Vox AC15"),
+                ("jtm_45",   "JTM 45"),
+                ("jcm_900",  "JCM 900"),
+                ("dumble",   "Dumble ODS"),
+            ],
+        ),
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Amp"),
+            Some("higain"),
+            &[
+                ("clean",   "Clean"),
+                ("crunch",  "Crunch"),
+                ("crsh_2",  "Crunch (Take 2)"),
+                ("crsh",    "Crsh"),
+                ("higain",  "Hi-Gain"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -59,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let amp_model = required_string(params, "amp_model").map_err(anyhow::Error::msg)?;
+    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(a, t, _)| *a == amp_model && *t == tone)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for amp_model={} tone={}",
+                MODEL_ID, amp_model, tone
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
