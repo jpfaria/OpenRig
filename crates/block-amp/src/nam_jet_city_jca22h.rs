@@ -13,29 +13,45 @@ const BRAND: &str = "jet";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × gain step.
+// Only 5 of the 2×5 = 10 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI exposes both
+// knobs as independent controls.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g4_5_2.nam"),
-    ("crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g2_0_2.nam"),
-    ("crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g7_0_2.nam"),
-    ("overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g2_0_2.nam"),
-    ("overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g5_5_2.nam"),
+    // (channel, gain, file)
+    ("crunch",    "g2_0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g2_0.nam"),
+    ("crunch",    "g4_5", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g4_5.nam"),
+    ("crunch",    "g7_0", "amps/jet_city_jca22h/jet_city_jca22h_crunch_g7_0.nam"),
+    ("overdrive", "g2_0", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g2_0.nam"),
+    ("overdrive", "g5_5", "amps/jet_city_jca22h/jet_city_jca22h_overdrive_g5_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("crunch_g4_5"),
-        &[
-            ("crunch_g4_5", "JET CITY - JCA22H - CRUNCH - G4.5"),
-            ("crunch_g2_0", "JET CITY - JCA22H - CRUNCH - G2.0"),
-            ("crunch_g7_0", "JET CITY - JCA22H - CRUNCH - G7.0"),
-            ("overdrive_g2_0", "JET CITY - JCA22H - OVERDRIVE - G2.0"),
-            ("overdrive_g5_5", "JET CITY - JCA22H - OVERDRIVE - G5.5"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("crunch"),
+            &[
+                ("crunch",    "Crunch"),
+                ("overdrive", "Overdrive"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g4_5"),
+            &[
+                ("g2_0", "G2.0"),
+                ("g4_5", "G4.5"),
+                ("g5_5", "G5.5"),
+                ("g7_0", "G7.0"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +71,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, g, _)| *c == channel && *g == gain)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} gain={}",
+                MODEL_ID, channel, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
