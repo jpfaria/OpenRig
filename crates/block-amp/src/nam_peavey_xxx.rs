@@ -13,25 +13,27 @@ const BRAND: &str = "peavey";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 boost variants on Ch2 + KT-77 power tubes (B-HiGain stock,
+// Weeping Chaos fuzz, Tall Font D-Fuzz, OS-2 distortion).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("12_unboosted_b_higain", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain", "amps/peavey_xxx/12_peavey_xxx_ch2_kt_77_unboosted_b_higain.nam"),
-    ("28_weeping_chaos_fuzz", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz", "amps/peavey_xxx/28_peavey_xxx_ch2_kt_77_weeping_chaos_fuzz.nam"),
-    ("20_tall_font_d_fuzz", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz", "amps/peavey_xxx/20_peavey_xxx_ch2_kt_77_tall_font_d_fuzz.nam"),
-    ("31_os_2_distortion", "31. Peavey XXX CH2 KT-77 OS-2-Distortion", "amps/peavey_xxx/31_peavey_xxx_ch2_kt_77_os_2_distortion.nam"),
+    ("b_higain",      "B-HiGain",       "amps/peavey_xxx/12_peavey_xxx_ch2_kt_77_unboosted_b_higain.nam"),
+    ("weeping_chaos", "Weeping Chaos",  "amps/peavey_xxx/28_peavey_xxx_ch2_kt_77_weeping_chaos_fuzz.nam"),
+    ("tall_font",     "Tall Font",      "amps/peavey_xxx/20_peavey_xxx_ch2_kt_77_tall_font_d_fuzz.nam"),
+    ("os2",           "OS-2",           "amps/peavey_xxx/31_peavey_xxx_ch2_kt_77_os_2_distortion.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "boost",
+        "Boost",
         Some("Amp"),
-        Some("12_unboosted_b_higain"),
+        Some("b_higain"),
         &[
-            ("12_unboosted_b_higain", "12. Peavey XXX CH2 KT-77 UnBoosted B-HiGain"),
-            ("28_weeping_chaos_fuzz", "28. Peavey XXX CH2 KT-77 Weeping Chaos-Fuzz"),
-            ("20_tall_font_d_fuzz", "20. Peavey XXX CH2 KT-77 Tall Font D-Fuzz"),
-            ("31_os_2_distortion", "31. Peavey XXX CH2 KT-77 OS-2-Distortion"),
+            ("b_higain",      "B-HiGain"),
+            ("weeping_chaos", "Weeping Chaos"),
+            ("tall_font",     "Tall Font"),
+            ("os2",           "OS-2"),
         ],
     )];
     schema
@@ -53,12 +55,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no boost '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
