@@ -1,19 +1,10 @@
 use anyhow::{anyhow, Result};
-use domain::ids::{BlockId, ChainId};
-use project::block::{
-    schema_for_block_model, AudioBlockKind, CoreBlock, InputEntry, InsertBlock, NamBlock, OutputEntry, SelectBlock,
-};
-use project::param::ParameterSet;
-use project::project::Project;
-use project::chain::{
-    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode,
-};
 use block_amp::build_amp_processor_for_layout;
-use block_preamp::build_preamp_processor_for_layout;
 use block_body::build_body_processor_for_layout;
 use block_cab::build_cab_processor_for_layout;
+use block_core::StreamHandle;
 use block_core::{
-    AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
 };
 use block_delay::build_delay_processor_for_layout;
 use block_dyn::build_dynamics_processor_for_layout;
@@ -24,10 +15,18 @@ use block_ir::build_ir_processor_for_layout;
 use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
 use block_pitch::build_pitch_processor_for_layout;
+use block_preamp::build_preamp_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
 use block_util::build_utility_processor_for_layout;
-use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
+use domain::ids::{BlockId, ChainId};
+use project::block::{
+    schema_for_block_model, AudioBlockKind, CoreBlock, InputEntry, InsertBlock, NamBlock,
+    OutputEntry, SelectBlock,
+};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
+use project::param::ParameterSet;
+use project::project::Project;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -37,8 +36,8 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use crate::input_tap::InputTap;
-use crate::stream_tap::StreamTap;
 use crate::spsc::SpscRing;
+use crate::stream_tap::StreamTap;
 
 /// Bounded capacity for the lock-free error queue. The audio thread drops
 /// new errors silently when the queue is full; the UI drains every 200 ms,
@@ -131,10 +130,7 @@ impl ElasticBuffer {
     fn pop(&self) -> AudioFrame {
         match self.ring.pop() {
             Some(frame) => frame,
-            None => bits_to_frame(
-                self.last_frame_bits.load(Ordering::Relaxed),
-                self.layout,
-            ),
+            None => bits_to_frame(self.last_frame_bits.load(Ordering::Relaxed), self.layout),
         }
     }
 
@@ -142,8 +138,10 @@ impl ElasticBuffer {
     /// Used during chain rebuild so that a brief underrun on the new buffer
     /// repeats the tail of the old buffer instead of jumping to silence.
     fn seed_last_frame_from(&self, other: &ElasticBuffer) {
-        self.last_frame_bits
-            .store(other.last_frame_bits.load(Ordering::Relaxed), Ordering::Relaxed);
+        self.last_frame_bits.store(
+            other.last_frame_bits.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
     }
 
     #[cfg(test)]
@@ -353,7 +351,8 @@ impl ChainRuntimeState {
     /// Signal the audio callback to stop processing blocks.
     /// Must be called before deactivating JACK or dropping block processors.
     pub fn set_draining(&self) {
-        self.draining.store(true, std::sync::atomic::Ordering::Release);
+        self.draining
+            .store(true, std::sync::atomic::Ordering::Release);
     }
 
     pub fn is_draining(&self) -> bool {
@@ -368,11 +367,14 @@ impl ChainRuntimeState {
     /// silence audio indefinitely until the chain is fully removed and
     /// re-added — issue #316.
     pub fn clear_draining(&self) {
-        self.draining.store(false, std::sync::atomic::Ordering::Release);
+        self.draining
+            .store(false, std::sync::atomic::Ordering::Release);
     }
 
     pub fn measured_latency_ms(&self) -> f32 {
-        let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
+        let nanos = self
+            .measured_latency_nanos
+            .load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
     }
 
@@ -400,12 +402,8 @@ impl ChainRuntimeState {
             subscribed_channels,
             capacity_per_channel,
         );
-        let mut new_taps: Vec<Arc<InputTap>> = self
-            .input_taps
-            .load_full()
-            .iter()
-            .cloned()
-            .collect();
+        let mut new_taps: Vec<Arc<InputTap>> =
+            self.input_taps.load_full().iter().cloned().collect();
         new_taps.push(Arc::new(tap));
         self.input_taps.store(Arc::new(new_taps));
         handles
@@ -415,7 +413,8 @@ impl ChainRuntimeState {
     /// zeros every output frame. Cheap (single atomic store) and safe
     /// to call from any thread.
     pub fn set_output_muted(&self, mute: bool) {
-        self.output_muted.store(mute, std::sync::atomic::Ordering::Relaxed);
+        self.output_muted
+            .store(mute, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn is_output_muted(&self) -> bool {
@@ -465,12 +464,8 @@ impl ChainRuntimeState {
         capacity_per_channel: usize,
     ) -> [Arc<SpscRing<f32>>; 2] {
         let (tap, handles) = StreamTap::new(stream_index, capacity_per_channel);
-        let mut new_taps: Vec<Arc<StreamTap>> = self
-            .stream_taps
-            .load_full()
-            .iter()
-            .cloned()
-            .collect();
+        let mut new_taps: Vec<Arc<StreamTap>> =
+            self.stream_taps.load_full().iter().cloned().collect();
         new_taps.push(Arc::new(tap));
         self.stream_taps.store(Arc::new(new_taps));
         handles
@@ -539,7 +534,11 @@ impl ChainRuntimeState {
         let handles = self.stream_handles.lock().ok()?;
         let handle = handles.get(block_id)?;
         let entries = handle.load();
-        if entries.is_empty() { None } else { Some((**entries).clone()) }
+        if entries.is_empty() {
+            None
+        } else {
+            Some((**entries).clone())
+        }
     }
 
     /// Drains and returns all block errors posted since the last call.
@@ -569,6 +568,10 @@ pub(crate) struct InputProcessingState {
     /// Which output route indices this input/segment should push frames to.
     /// Empty means push to ALL output routes (legacy behaviour).
     output_route_indices: Vec<usize>,
+    /// One buffer per entry of `output_route_indices`, in the same order.
+    /// Each buffer has THIS segment as its sole producer; the consumer is
+    /// the matching `OutputRoutingState.sources` entry. Restores SPSC.
+    output_buffers: Vec<Arc<SegmentOutputBuffer>>,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -614,10 +617,32 @@ impl InputCallbackScratch {
     }
 }
 
+/// One ElasticBuffer per (segment, output_route) pair. Owned jointly by:
+///   - the producer side: `InputProcessingState.output_buffers[i]` — the
+///     segment that processes audio and pushes frames here.
+///   - the consumer side: `OutputRoutingState.sources[k]` — the output
+///     callback iterates these and pops + sums.
+///
+/// Critically, every `SegmentOutputBuffer.buffer` has exactly ONE producer
+/// (the owning segment's `process_single_segment` call). This restores the
+/// SPSC contract that `ElasticBuffer` declares: when a chain has 2+
+/// InputBlocks targeting the same output, each gets its own buffer instead
+/// of all racing into a single shared `ElasticBuffer`. See issue #350.
+struct SegmentOutputBuffer {
+    buffer: ElasticBuffer,
+}
+
 struct OutputRoutingState {
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
-    buffer: ElasticBuffer,
+    /// Layout used to seed the per-frame summing accumulator in
+    /// `process_output_f32`.
+    output_layout: AudioChannelLayout,
+    /// Per-segment buffers feeding this output. `process_output_f32` pops
+    /// one frame from each source and sums them before writing the device
+    /// frame. Each source has exactly one producer (the segment that owns
+    /// the matching `Arc<SegmentOutputBuffer>` in its `output_buffers`).
+    sources: Vec<Arc<SegmentOutputBuffer>>,
 }
 
 pub(crate) enum RuntimeProcessor {
@@ -733,35 +758,97 @@ pub fn build_chain_runtime_state(
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}", i, i, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
+        log::info!(
+            "    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}",
+            i,
+            i,
+            inp.device_id.0.split(':').last().unwrap_or("?"),
+            inp.channels,
+            eff_input_cpal_indices[i]
+        );
     }
     log::info!("  outputs: {}", eff_outputs.len());
     for (i, out) in eff_outputs.iter().enumerate() {
-        log::info!("    output[{}]: 'output #{}' dev='{}' ch={:?}", i, i, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
+        log::info!(
+            "    output[{}]: 'output #{}' dev='{}' ch={:?}",
+            i,
+            i,
+            out.device_id.0.split(':').last().unwrap_or("?"),
+            out.channels
+        );
     }
-    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
+    let segments =
+        split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
-        let block_names: Vec<String> = seg.block_indices.iter()
+        let block_names: Vec<String> = seg
+            .block_indices
+            .iter()
             .filter_map(|&idx| chain.blocks.get(idx))
-            .map(|b| format!("{}({})", b.id.0, match &b.kind {
-                AudioBlockKind::Core(c) => c.effect_type.as_str(),
-                AudioBlockKind::Nam(_) => "nam",
-                _ => "?",
-            }))
+            .map(|b| {
+                format!(
+                    "{}({})",
+                    b.id.0,
+                    match &b.kind {
+                        AudioBlockKind::Core(c) => c.effect_type.as_str(),
+                        AudioBlockKind::Nam(_) => "nam",
+                        _ => "?",
+                    }
+                )
+            })
             .collect();
-        log::info!("    seg[{}]: input='input #{}' → blocks={:?} → output_routes={:?}", i, i, block_names, seg.output_route_indices);
+        log::info!(
+            "    seg[{}]: input='input #{}' → blocks={:?} → output_routes={:?}",
+            i,
+            i,
+            block_names,
+            seg.output_route_indices
+        );
     }
     log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
-    let mut input_states = Vec::with_capacity(segments.len());
+    // Per-output layout (used to size each segment's buffer for that output).
+    let output_layouts: Vec<AudioChannelLayout> =
+        eff_outputs.iter().map(output_layout_for_entry).collect();
+
+    // Allocate one SegmentOutputBuffer per (segment, route) pair. Each buffer
+    // has exactly one producer (the owning segment) and one consumer (the
+    // output_routes[route_idx].sources entry). Restores the SPSC contract
+    // that ElasticBuffer declares — see issue #350.
+    let mut sources_per_route: Vec<Vec<Arc<SegmentOutputBuffer>>> =
+        vec![Vec::new(); eff_outputs.len()];
+    let mut segment_output_buffers: Vec<Vec<Arc<SegmentOutputBuffer>>> =
+        Vec::with_capacity(segments.len());
     for segment in &segments {
+        let mut buffers_for_segment: Vec<Arc<SegmentOutputBuffer>> =
+            Vec::with_capacity(segment.output_route_indices.len());
+        for &route_idx in &segment.output_route_indices {
+            let layout = output_layouts
+                .get(route_idx)
+                .copied()
+                .unwrap_or(AudioChannelLayout::Mono);
+            let target = target_for_route(elastic_targets, route_idx);
+            let buf = Arc::new(SegmentOutputBuffer {
+                buffer: ElasticBuffer::new(target, layout),
+            });
+            buffers_for_segment.push(Arc::clone(&buf));
+            if let Some(slot) = sources_per_route.get_mut(route_idx) {
+                slot.push(buf);
+            }
+        }
+        segment_output_buffers.push(buffers_for_segment);
+    }
+
+    let mut input_states = Vec::with_capacity(segments.len());
+    for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
-        let segment_output_channels: Vec<usize> = segment.output_route_indices.iter()
+        let segment_output_channels: Vec<usize> = segment
+            .output_route_indices
+            .iter()
             .filter_map(|&idx| eff_outputs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
-        let input_state = build_input_processing_state(
+        let mut input_state = build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -770,11 +857,16 @@ pub fn build_chain_runtime_state(
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
         )?;
+        input_state.output_buffers = std::mem::take(&mut segment_output_buffers[seg_idx]);
         input_states.push(input_state);
     }
 
     // Build input_to_segments: CPAL input_index → which segments to process
-    let max_input_idx = segments.iter().map(|s| s.cpal_input_index).max().unwrap_or(0);
+    let max_input_idx = segments
+        .iter()
+        .map(|s| s.cpal_input_index)
+        .max()
+        .unwrap_or(0);
     let mut input_to_segments: Vec<Vec<usize>> = vec![Vec::new(); max_input_idx + 1];
     for (seg_idx, segment) in segments.iter().enumerate() {
         if segment.cpal_input_index < input_to_segments.len() {
@@ -784,8 +876,11 @@ pub fn build_chain_runtime_state(
 
     let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
     for (route_idx, output) in eff_outputs.iter().enumerate() {
-        let target = target_for_route(elastic_targets, route_idx);
-        output_routes.push(Arc::new(build_output_routing_state(output, target)));
+        let layout = output_layouts[route_idx];
+        let sources = std::mem::take(&mut sources_per_route[route_idx]);
+        output_routes.push(Arc::new(build_output_routing_state(
+            output, layout, sources,
+        )));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -830,7 +925,9 @@ pub fn build_chain_runtime_state(
 /// that provides its audio data. Entries split from the same original
 /// entry share the same CPAL stream index.
 fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
-    let raw_entries: Vec<InputEntry> = chain.blocks.iter()
+    let raw_entries: Vec<InputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -875,7 +972,9 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
 
     // Append Insert return entries (as inputs for segments after each Insert)
     let insert_return_base = raw_entries.len();
-    let insert_returns: Vec<InputEntry> = chain.blocks.iter()
+    let insert_returns: Vec<InputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
@@ -891,18 +990,23 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         return (entries, cpal_indices);
     }
     // Fallback — no InputBlocks defined
-    (vec![InputEntry {
-        device_id: domain::ids::DeviceId("".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![0],
-    }], vec![0])
+    (
+        vec![InputEntry {
+            device_id: domain::ids::DeviceId("".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![0],
+        }],
+        vec![0],
+    )
 }
 
 /// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
 /// Order: OutputBlock entries first, then Insert send entries (matches CPAL stream order).
 /// Falls back to a single mono output on channel 0 if no OutputBlocks exist and no Inserts.
 fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
-    let mut entries: Vec<OutputEntry> = chain.blocks.iter()
+    let mut entries: Vec<OutputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -912,7 +1016,9 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
         .collect();
 
     // Append Insert send entries (as outputs for segments before each Insert)
-    let insert_sends: Vec<OutputEntry> = chain.blocks.iter()
+    let insert_sends: Vec<OutputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
@@ -969,16 +1075,25 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_indices: &[usize], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(
+    chain: &Chain,
+    effective_ins: &[InputEntry],
+    cpal_indices: &[usize],
+    _effective_outs: &[OutputEntry],
+) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
-    let regular_input_count: usize = chain.blocks.iter()
+    let regular_input_count: usize = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib.entries.len()),
             _ => None,
         })
         .sum();
-    let regular_output_count: usize = chain.blocks.iter()
+    let regular_output_count: usize = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob.entries.len()),
@@ -987,7 +1102,9 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
         .sum();
 
     // Find positions of enabled Insert blocks in chain.blocks
-    let insert_positions: Vec<usize> = chain.blocks.iter()
+    let insert_positions: Vec<usize> = chain
+        .blocks
+        .iter()
         .enumerate()
         .filter(|(_, b)| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
         .map(|(i, _)| i)
@@ -1016,11 +1133,18 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
 
         for &(out_pos, out_entry_idx) in &output_positions {
             // Effect blocks from start up to this output position (not including I/O blocks)
-            let block_indices: Vec<usize> = chain.blocks.iter()
+            let block_indices: Vec<usize> = chain
+                .blocks
+                .iter()
                 .enumerate()
                 .filter(|(i, b)| {
                     *i < out_pos
-                    && !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+                        && !matches!(
+                            &b.kind,
+                            AudioBlockKind::Input(_)
+                                | AudioBlockKind::Output(_)
+                                | AudioBlockKind::Insert(_)
+                        )
                 })
                 .map(|(i, _)| i)
                 .collect();
@@ -1041,7 +1165,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
     // With inserts: split into segments
     let mut segments = Vec::new();
     let mut insert_return_idx = regular_input_count; // Insert return entries start after regular inputs
-    let mut insert_send_idx = regular_output_count;  // Insert send entries start after regular outputs
+    let mut insert_send_idx = regular_output_count; // Insert send entries start after regular outputs
 
     // Segment boundaries: [start_of_chain .. first_insert, first_insert .. second_insert, ...]
     let mut segment_start: usize = 0;
@@ -1051,7 +1175,12 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
         let block_indices: Vec<usize> = (segment_start..insert_pos)
             .filter(|&i| {
                 let b = &chain.blocks[i];
-                !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+                !matches!(
+                    &b.kind,
+                    AudioBlockKind::Input(_)
+                        | AudioBlockKind::Output(_)
+                        | AudioBlockKind::Insert(_)
+                )
             })
             .collect();
 
@@ -1077,7 +1206,11 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
 
         if insert_order == 0 {
             // First segment: use regular InputBlock entries
-            let input_count = if regular_input_count > 0 { regular_input_count } else { 1 };
+            let input_count = if regular_input_count > 0 {
+                regular_input_count
+            } else {
+                1
+            };
             for i in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[i].clone(),
@@ -1106,7 +1239,10 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
     let block_indices: Vec<usize> = (segment_start..chain.blocks.len())
         .filter(|&i| {
             let b = &chain.blocks[i];
-            !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+            !matches!(
+                &b.kind,
+                AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+            )
         })
         .collect();
 
@@ -1166,19 +1302,17 @@ fn build_input_processing_state(
     // DualMono is flattened to Stereo at the channel-layout level because
     // the runtime tracks the independent L/R pipelines inside the processor
     // itself; the buffer between blocks only needs two slots.
-    let proc_layout = project::chain::processing_layout(
-        &input.channels,
-        output_channels,
-        input.mode,
-    );
+    let proc_layout =
+        project::chain::processing_layout(&input.channels, output_channels, input.mode);
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
     let processing_layout_channel = match proc_layout {
         project::chain::ProcessingLayout::Mono => AudioChannelLayout::Mono,
-        project::chain::ProcessingLayout::Stereo
-        | project::chain::ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
+        project::chain::ProcessingLayout::Stereo | project::chain::ProcessingLayout::DualMono => {
+            AudioChannelLayout::Stereo
+        }
     };
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
@@ -1189,8 +1323,13 @@ fn build_input_processing_state(
         input.mode,
     );
     let had_existing = existing_blocks.is_some();
-    let (blocks, _output_layout) =
-        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks, block_indices)?;
+    let (blocks, _output_layout) = build_runtime_block_nodes(
+        chain,
+        processing_layout_channel,
+        sample_rate,
+        existing_blocks,
+        block_indices,
+    )?;
 
     Ok(InputProcessingState {
         input_read_layout,
@@ -1200,22 +1339,35 @@ fn build_input_processing_state(
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
+        output_buffers: Vec::new(),
     })
 }
 
-fn build_output_routing_state(output: &OutputEntry, elastic_target: usize) -> OutputRoutingState {
-    let output_layout = if output.channels.len() >= 2 {
+/// Resolve the audio frame layout (Mono / Stereo) for a single OutputEntry,
+/// matching the historical behaviour of `build_output_routing_state` so the
+/// per-segment ElasticBuffers (issue #350) and the OutputRoutingState are
+/// guaranteed to agree on layout.
+fn output_layout_for_entry(output: &OutputEntry) -> AudioChannelLayout {
+    if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
             ChainOutputMode::Mono => AudioChannelLayout::Mono,
         }
     } else {
         AudioChannelLayout::Mono
-    };
+    }
+}
+
+fn build_output_routing_state(
+    output: &OutputEntry,
+    output_layout: AudioChannelLayout,
+    sources: Vec<Arc<SegmentOutputBuffer>>,
+) -> OutputRoutingState {
     OutputRoutingState {
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        buffer: ElasticBuffer::new(elastic_target, output_layout),
+        output_layout,
+        sources,
     }
 }
 
@@ -1228,7 +1380,12 @@ pub fn update_chain_runtime_state(
 ) -> Result<()> {
     let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(chain, &effective_ins, &eff_input_cpal_indices, &effective_outs);
+    let segments = split_chain_into_segments(
+        chain,
+        &effective_ins,
+        &eff_input_cpal_indices,
+        &effective_outs,
+    );
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -1248,7 +1405,9 @@ pub fn update_chain_runtime_state(
         } else {
             None
         };
-        let segment_output_channels: Vec<usize> = segment.output_route_indices.iter()
+        let segment_output_channels: Vec<usize> = segment
+            .output_route_indices
+            .iter()
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
@@ -1264,9 +1423,16 @@ pub fn update_chain_runtime_state(
             Ok(state) => state,
             Err(e) => {
                 // Restore previously-extracted blocks so the chain keeps playing
-                log::error!("[engine] rebuild failed for chain '{}': {e} — restoring previous state", chain.id.0);
+                log::error!(
+                    "[engine] rebuild failed for chain '{}': {e} — restoring previous state",
+                    chain.id.0
+                );
                 let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
-                for (is, old_blocks) in processing.input_states.iter_mut().zip(existing_per_input.into_iter()) {
+                for (is, old_blocks) in processing
+                    .input_states
+                    .iter_mut()
+                    .zip(existing_per_input.into_iter())
+                {
                     if is.blocks.is_empty() {
                         is.blocks = old_blocks;
                     }
@@ -1277,20 +1443,54 @@ pub fn update_chain_runtime_state(
         new_input_states.push(input_state);
     }
 
+    // Allocate fresh per-segment SegmentOutputBuffers (issue #350) and wire
+    // them into the new input_states + new output_routes. Same pattern as
+    // build_chain_runtime_state — each buffer has exactly one producer (the
+    // owning segment) and one consumer (the route's `sources` entry).
+    let new_output_layouts: Vec<AudioChannelLayout> =
+        effective_outs.iter().map(output_layout_for_entry).collect();
+    let mut new_sources_per_route: Vec<Vec<Arc<SegmentOutputBuffer>>> =
+        vec![Vec::new(); effective_outs.len()];
+    for (seg_idx, segment) in segments.iter().enumerate() {
+        let mut seg_buffers: Vec<Arc<SegmentOutputBuffer>> =
+            Vec::with_capacity(segment.output_route_indices.len());
+        for &route_idx in &segment.output_route_indices {
+            let layout = new_output_layouts
+                .get(route_idx)
+                .copied()
+                .unwrap_or(AudioChannelLayout::Mono);
+            let target = target_for_route(elastic_targets, route_idx);
+            let buf = Arc::new(SegmentOutputBuffer {
+                buffer: ElasticBuffer::new(target, layout),
+            });
+            seg_buffers.push(Arc::clone(&buf));
+            if let Some(slot) = new_sources_per_route.get_mut(route_idx) {
+                slot.push(buf);
+            }
+        }
+        if let Some(input_state) = new_input_states.get_mut(seg_idx) {
+            input_state.output_buffers = seg_buffers;
+        }
+    }
+
     // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
         .map(|(route_idx, o)| {
-            let target = target_for_route(elastic_targets, route_idx);
-            Arc::new(build_output_routing_state(o, target))
+            let layout = new_output_layouts[route_idx];
+            let sources = std::mem::take(&mut new_sources_per_route[route_idx]);
+            Arc::new(build_output_routing_state(o, layout, sources))
         })
         .collect();
 
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
     // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
     {
-        let mut handles = runtime.stream_handles.lock().expect("stream_handles poisoned");
+        let mut handles = runtime
+            .stream_handles
+            .lock()
+            .expect("stream_handles poisoned");
         handles.clear();
         for input_state in &new_input_states {
             for block in &input_state.blocks {
@@ -1307,7 +1507,11 @@ pub fn update_chain_runtime_state(
         processing.input_states = new_input_states;
 
         // Rebuild input_to_segments mapping from current segments
-        let max_input_idx = segments.iter().map(|s| s.cpal_input_index).max().unwrap_or(0);
+        let max_input_idx = segments
+            .iter()
+            .map(|s| s.cpal_input_index)
+            .max()
+            .unwrap_or(0);
         let mut new_mapping: Vec<Vec<usize>> = vec![Vec::new(); max_input_idx + 1];
         for (seg_idx, segment) in segments.iter().enumerate() {
             if segment.cpal_input_index < new_mapping.len() {
@@ -1338,7 +1542,14 @@ pub fn update_chain_runtime_state(
     if !reset_output_queue {
         let old_routes = runtime.output_routes.load();
         for (new_route, old_route) in new_output_routes.iter().zip(old_routes.iter()) {
-            new_route.buffer.seed_last_frame_from(&old_route.buffer);
+            // Seed each new per-segment buffer from the matching old buffer
+            // (positional). When source counts differ across the rebuild, the
+            // surplus side is simply skipped — small audio glitch is
+            // acceptable on rebuild, queued frames cannot migrate without
+            // taking a lock.
+            for (new_src, old_src) in new_route.sources.iter().zip(old_route.sources.iter()) {
+                new_src.buffer.seed_last_frame_from(&old_src.buffer);
+            }
         }
     }
     runtime.output_routes.store(Arc::new(new_output_routes));
@@ -1355,7 +1566,13 @@ impl RuntimeGraph {
         elastic_targets: &[usize],
     ) -> Result<Arc<ChainRuntimeState>> {
         if let Some(runtime) = self.chains.get(&chain.id) {
-            update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue, elastic_targets)?;
+            update_chain_runtime_state(
+                runtime,
+                chain,
+                sample_rate,
+                reset_output_queue,
+                elastic_targets,
+            )?;
             return Ok(runtime.clone());
         }
 
@@ -1391,7 +1608,8 @@ fn build_runtime_block_nodes(
 
     // If block_indices is provided, iterate only those blocks; otherwise iterate all
     let block_iter: Vec<&project::block::AudioBlock> = match block_indices {
-        Some(indices) => indices.iter()
+        Some(indices) => indices
+            .iter()
             .filter_map(|&i| chain.blocks.get(i))
             .collect(),
         None => chain.blocks.iter().collect(),
@@ -1406,7 +1624,9 @@ fn build_runtime_block_nodes(
                 node.block_snapshot = block.clone();
                 // If block was just disabled, start a fade-out instead of hard-cutting
                 if was_enabled && !matches!(node.processor, RuntimeProcessor::Bypass) {
-                    node.fade_state = FadeState::FadingOut { frames_remaining: FADE_IN_FRAMES };
+                    node.fade_state = FadeState::FadingOut {
+                        frames_remaining: FADE_IN_FRAMES,
+                    };
                 }
                 blocks.push(node);
             } else {
@@ -1415,7 +1635,10 @@ fn build_runtime_block_nodes(
             continue;
         }
         // Input/Output/Insert blocks are routing metadata; skip them in the processing chain
-        if matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)) {
+        if matches!(
+            &block.kind,
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+        ) {
             continue;
         }
         if let AudioBlockKind::Select(select) = &block.kind {
@@ -1435,13 +1658,21 @@ fn build_runtime_block_nodes(
             continue;
         }
         if let Some(node) = try_reuse_block_node(&mut reusable_nodes, block, current_layout) {
-            log::info!("[engine] reuse block {:?} (id={})", block.model_ref().map(|m| m.model), block.id.0);
+            log::info!(
+                "[engine] reuse block {:?} (id={})",
+                block.model_ref().map(|m| m.model),
+                block.id.0
+            );
             current_layout = node.output_layout;
             blocks.push(node);
             continue;
         }
 
-        log::info!("[engine] rebuild block {:?} (id={}) with params:", block.model_ref().map(|m| m.model), block.id.0);
+        log::info!(
+            "[engine] rebuild block {:?} (id={}) with params:",
+            block.model_ref().map(|m| m.model),
+            block.id.0
+        );
         if let Some(model) = block.model_ref() {
             for (path, value) in model.params.values.iter() {
                 log::info!("[engine]   {} = {:?}", path, value);
@@ -1454,8 +1685,11 @@ fn build_runtime_block_nodes(
             }
             Err(e) => {
                 // Don't fail the whole chain — bypass this block and keep going
-                log::error!("[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
-                    block.model_ref().map(|m| m.model.to_string()), block.id.0);
+                log::error!(
+                    "[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    block.model_ref().map(|m| m.model.to_string()),
+                    block.id.0
+                );
                 let mut node = bypass_runtime_node(block, current_layout);
                 node.faulted = true;
                 blocks.push(node);
@@ -1473,8 +1707,12 @@ fn try_reuse_block_node(
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
     if node.input_layout != current_layout {
-        log::debug!("[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
-            block.id.0, node.input_layout, current_layout);
+        log::debug!(
+            "[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
+            block.id.0,
+            node.input_layout,
+            current_layout
+        );
         return None;
     }
     // Exact match — reuse as-is
@@ -1494,11 +1732,16 @@ fn try_reuse_block_node(
         node.block_snapshot = block.clone();
         // If block was just enabled, start a fade-in
         if was_disabled && block.enabled {
-            node.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
+            node.fade_state = FadeState::FadingIn {
+                frames_remaining: FADE_IN_FRAMES,
+            };
         }
         return Some(node);
     }
-    log::info!("[engine] cannot reuse block id={}: snapshot differs (params or kind changed)", block.id.0);
+    log::info!(
+        "[engine] cannot reuse block id={}: snapshot differs (params or kind changed)",
+        block.id.0
+    );
     None
 }
 
@@ -1515,12 +1758,16 @@ fn build_block_runtime_node(
             input_layout,
             build_nam_audio_processor(chain, stage, input_layout, sample_rate)?,
         ),
-        AudioBlockKind::Core(core) => build_core_block_runtime_node(chain, block, core, input_layout, sample_rate)?,
+        AudioBlockKind::Core(core) => {
+            build_core_block_runtime_node(chain, block, core, input_layout, sample_rate)?
+        }
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
         // Input/Output/Insert blocks are routing-only; they don't process audio in the block chain
-        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => bypass_runtime_node(block, input_layout),
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
+            bypass_runtime_node(block, input_layout)
+        }
     })
 }
 
@@ -1540,65 +1787,101 @@ fn build_core_block_runtime_node(
         EFFECT_TYPE_PREAMP => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_PREAMP, model, input_layout, |layout| {
-                build_preamp_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_PREAMP,
+                model,
+                input_layout,
+                |layout| build_preamp_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_AMP => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_AMP, model, input_layout, |layout| {
-                build_amp_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_AMP,
+                model,
+                input_layout,
+                |layout| build_amp_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_FULL_RIG => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_FULL_RIG, model, input_layout, |layout| {
-                build_full_rig_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_FULL_RIG,
+                model,
+                input_layout,
+                |layout| build_full_rig_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_CAB => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_CAB, model, input_layout, |layout| {
-                build_cab_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_CAB,
+                model,
+                input_layout,
+                |layout| build_cab_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_BODY => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_BODY, model, input_layout, |layout| {
-                build_body_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_BODY,
+                model,
+                input_layout,
+                |layout| build_body_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_IR => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_IR, model, input_layout, |layout| {
-                build_ir_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_IR,
+                model,
+                input_layout,
+                |layout| build_ir_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_GAIN => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_GAIN, model, input_layout, |layout| {
-                build_gain_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_GAIN,
+                model,
+                input_layout,
+                |layout| build_gain_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_DELAY => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_DELAY, model, input_layout, |layout| {
-                build_delay_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_DELAY,
+                model,
+                input_layout,
+                |layout| build_delay_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_REVERB => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_REVERB, model, input_layout, |layout| {
-                build_reverb_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_REVERB,
+                model,
+                input_layout,
+                |layout| build_reverb_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_UTILITY => {
             let mut captured_stream: Option<StreamHandle> = None;
@@ -1622,41 +1905,61 @@ fn build_core_block_runtime_node(
             )?;
             outcome.stream_handle = captured_stream;
             Ok(audio_block_runtime_node(block, input_layout, outcome))
-        },
+        }
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_DYNAMICS, model, input_layout, |layout| {
-                build_dynamics_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_DYNAMICS,
+                model,
+                input_layout,
+                |layout| build_dynamics_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_FILTER => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_FILTER, model, input_layout, |layout| {
-                build_filter_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_FILTER,
+                model,
+                input_layout,
+                |layout| build_filter_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_WAH => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_WAH, model, input_layout, |layout| {
-                build_wah_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_WAH,
+                model,
+                input_layout,
+                |layout| build_wah_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_MODULATION => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_MODULATION, model, input_layout, |layout| {
-                build_modulation_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_MODULATION,
+                model,
+                input_layout,
+                |layout| build_modulation_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         EFFECT_TYPE_PITCH => Ok(audio_block_runtime_node(
             block,
             input_layout,
-            build_audio_processor_for_model(chain, EFFECT_TYPE_PITCH, model, input_layout, |layout| {
-                build_pitch_processor_for_layout(model, params, sample_rate, layout)
-            })?,
+            build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_PITCH,
+                model,
+                input_layout,
+                |layout| build_pitch_processor_for_layout(model, params, sample_rate, layout),
+            )?,
         )),
         x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
@@ -1682,8 +1985,14 @@ fn build_core_block_runtime_node(
             // (which fails for plugins like ValhallaSupermassive).
             const VST3_BLOCK_SIZE: usize = 512;
             let plugin = vst3_host::Vst3Plugin::load(
-                &bundle_path, &uid, sample_rate as f64, 2, VST3_BLOCK_SIZE, &vst3_params,
-            ).map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
+                &bundle_path,
+                &uid,
+                sample_rate as f64,
+                2,
+                VST3_BLOCK_SIZE,
+                &vst3_params,
+            )
+            .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
             // Register GUI context: shared controller + library Arc + param channel.
             let param_channel = vst3_host::register_vst3_gui_context(
                 model,
@@ -1696,12 +2005,22 @@ fn build_core_block_runtime_node(
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
-                    let p = plugin_opt.take().ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
-                    Ok(vst3_host::build_vst3_processor_from_plugin(
-                        p, layout, param_channel.clone(),
-                    ))
-                })?,
+                build_audio_processor_for_model(
+                    chain,
+                    block_core::EFFECT_TYPE_VST3,
+                    model,
+                    input_layout,
+                    |layout| {
+                        let p = plugin_opt
+                            .take()
+                            .ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
+                        Ok(vst3_host::build_vst3_processor_from_plugin(
+                            p,
+                            layout,
+                            param_channel.clone(),
+                        ))
+                    },
+                )?,
             ))
         }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
@@ -1761,7 +2080,12 @@ fn build_select_runtime_node(
         .iter()
         .find(|option| option.block_id == select.selected_block_id)
         .map(|option| option.output_layout)
-        .ok_or_else(|| anyhow!("chain '{}' select block references unknown option", chain.id.0))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "chain '{}' select block references unknown option",
+                chain.id.0
+            )
+        })?;
 
     Ok(BlockRuntimeNode {
         instance_serial,
@@ -1776,7 +2100,9 @@ fn build_select_runtime_node(
         }),
         stream_handle: None,
         fade_state: if is_new {
-            FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES }
+            FadeState::FadingIn {
+                frames_remaining: FADE_IN_FRAMES,
+            }
         } else {
             FadeState::Active
         },
@@ -1817,7 +2143,9 @@ fn audio_block_runtime_node(
         scratch,
         processor: RuntimeProcessor::Audio(outcome.processor),
         stream_handle: outcome.stream_handle,
-        fade_state: FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES },
+        fade_state: FadeState::FadingIn {
+            frames_remaining: FADE_IN_FRAMES,
+        },
         faulted: false,
     }
 }
@@ -1871,14 +2199,12 @@ where
 
     let processor = match (schema.audio_mode, input_layout) {
         // MonoOnly: build mono processor — process_buffer handles stereo↔mono conversion
-        (ModelAudioMode::MonoOnly, _) => {
-            AudioProcessor::Mono(expect_mono_processor(
-                builder(AudioChannelLayout::Mono)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
+        (ModelAudioMode::MonoOnly, _) => AudioProcessor::Mono(expect_mono_processor(
+            builder(AudioChannelLayout::Mono)?,
+            chain,
+            effect_type,
+            model,
+        )?),
         (ModelAudioMode::DualMono, AudioChannelLayout::Mono) => {
             AudioProcessor::Mono(expect_mono_processor(
                 builder(AudioChannelLayout::Mono)?,
@@ -1954,9 +2280,13 @@ fn build_nam_audio_processor(
         optional_string(&stage.params, "ir_path"),
         required_string(&stage.params, "model_path")?,
     );
-    build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_NAM, &stage.model, input_layout, |layout| {
-        build_nam_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-    })
+    build_audio_processor_for_model(
+        chain,
+        block_core::EFFECT_TYPE_NAM,
+        &stage.model,
+        input_layout,
+        |layout| build_nam_processor_for_layout(&stage.model, &stage.params, sample_rate, layout),
+    )
 }
 
 fn expect_mono_processor(
@@ -2051,31 +2381,32 @@ pub fn process_input_f32(
     // callback's input with a short sine beep and record the injection
     // time. Only the primary input (index 0) probes so we measure the
     // round-trip of the user-visible signal path.
-    let probe_buf: Option<Vec<f32>> =
-        if input_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED {
-            runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
-            let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
-            runtime.last_input_nanos.store(injected_at, Ordering::Relaxed);
-            let mut buf = data.to_vec();
-            let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
-            // The audible pitch of the beep is approximate — we use the
-            // nominal 48 kHz for the sine step. The measurement itself
-            // does not depend on the beep's frequency.
-            let sr = 48_000.0_f32;
-            for f in 0..beep_frames {
-                let t = f as f32 / sr;
-                let envelope =
-                    (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
-                let sample =
-                    (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
-                for ch in 0..input_total_channels {
-                    buf[f * input_total_channels + ch] = sample;
-                }
+    let probe_buf: Option<Vec<f32>> = if input_index == 0
+        && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED
+    {
+        runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
+        let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
+        runtime
+            .last_input_nanos
+            .store(injected_at, Ordering::Relaxed);
+        let mut buf = data.to_vec();
+        let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
+        // The audible pitch of the beep is approximate — we use the
+        // nominal 48 kHz for the sine step. The measurement itself
+        // does not depend on the beep's frequency.
+        let sr = 48_000.0_f32;
+        for f in 0..beep_frames {
+            let t = f as f32 / sr;
+            let envelope = (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
+            let sample = (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
+            for ch in 0..input_total_channels {
+                buf[f * input_total_channels + ch] = sample;
             }
-            Some(buf)
-        } else {
-            None
-        };
+        }
+        Some(buf)
+    } else {
+        None
+    };
     let data: &[f32] = match probe_buf.as_ref() {
         Some(b) => b.as_slice(),
         None => data,
@@ -2145,22 +2476,11 @@ pub fn process_input_f32(
         );
     }
 
-    // Snapshot current output routes via ArcSwap — no lock.
-    let routes = runtime.output_routes.load();
-    for route_idx in scratch.mixed_per_route.keys() {
-        if let Some(arc) = routes.get(*route_idx) {
-            scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
-        }
-    }
-
-    // Push mixed frames to their output routes (lock-free via SPSC).
-    for (route_idx, route) in &scratch.route_arcs {
-        if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
-            for &frame in frames {
-                route.buffer.push(frame);
-            }
-        }
-    }
+    // Per-segment buffers are pushed inside `process_single_segment` itself
+    // (each segment writes to its OWN SegmentOutputBuffer — single producer,
+    // SPSC restored per issue #350). Nothing left to fan out here: no
+    // ArcSwap snapshot of output_routes, no Arc::clone per route, no shared
+    // ElasticBuffer write across input callbacks.
 
     if let Some(slot) = input_scratches.get_mut(input_index) {
         *slot = scratch;
@@ -2190,6 +2510,7 @@ fn process_single_segment(
         frame_buffer,
         fade_in_remaining,
         output_route_indices,
+        output_buffers,
     } = input_state;
 
     frame_buffer.clear();
@@ -2247,44 +2568,44 @@ fn process_single_segment(
     if *fade_in_remaining > 0 {
         let fade_total = FADE_IN_FRAMES as f32;
         for frame in frame_buffer.iter_mut() {
-            if *fade_in_remaining == 0 { break; }
+            if *fade_in_remaining == 0 {
+                break;
+            }
             let progress = 1.0 - (*fade_in_remaining as f32 / fade_total);
             let gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
             match frame {
                 AudioFrame::Mono(s) => *s *= gain,
-                AudioFrame::Stereo([l, r]) => { *l *= gain; *r *= gain; }
+                AudioFrame::Stereo([l, r]) => {
+                    *l *= gain;
+                    *r *= gain;
+                }
             }
             *fade_in_remaining -= 1;
         }
     }
 
-    // Mix this segment's frame_buffer into scratch.mixed_per_route for each
-    // route this segment feeds. First segment into an empty bucket copies;
-    // subsequent segments sum.
-    for &route_idx in output_route_indices.iter() {
-        let buf = scratch.mixed_per_route.entry(route_idx).or_default();
-        if buf.is_empty() {
-            buf.extend_from_slice(frame_buffer);
-        } else {
-            for (i, &frame) in frame_buffer.iter().enumerate() {
-                if i < buf.len() {
-                    buf[i] = match (buf[i], frame) {
-                        (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
-                            AudioFrame::Stereo([l1 + l2, r1 + r2]),
-                        (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
-                            AudioFrame::Mono(a + b),
-                        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
-                            AudioFrame::Stereo([l + m, r + m]),
-                        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
-                            AudioFrame::Stereo([m + l, m + r]),
-                    };
-                }
-            }
+    // Push this segment's frames directly into its OWN per-route buffers
+    // (issue #350). Each `output_buffers[i]` is a SegmentOutputBuffer whose
+    // sole producer is this segment — restoring SPSC for ElasticBuffer.
+    // Multiple segments feeding the same logical output each have their own
+    // buffer; `process_output_f32` sums one frame from each source per
+    // device frame.
+    let _ = scratch; // scratch's fan-out fields are unused in the per-segment model
+    for (i, _route_idx) in output_route_indices.iter().enumerate() {
+        let Some(out_buf) = output_buffers.get(i) else {
+            continue;
+        };
+        for &frame in frame_buffer.iter() {
+            out_buf.buffer.push(frame);
         }
     }
 }
 
-fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &ArrayQueue<BlockError>) {
+fn process_audio_block(
+    block: &mut BlockRuntimeNode,
+    frames: &mut [AudioFrame],
+    error_queue: &ArrayQueue<BlockError>,
+) {
     // Copy the fade state (it's Copy) so we can call apply_block_processor without
     // holding a borrow into block.fade_state at the same time.
     match block.fade_state {
@@ -2314,7 +2635,9 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], 
             block.fade_state = if new_remaining == 0 {
                 FadeState::Active
             } else {
-                FadeState::FadingIn { frames_remaining: new_remaining }
+                FadeState::FadingIn {
+                    frames_remaining: new_remaining,
+                }
             };
         }
         FadeState::FadingOut { frames_remaining } => {
@@ -2339,13 +2662,19 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], 
             block.fade_state = if new_remaining == 0 {
                 FadeState::Bypassed
             } else {
-                FadeState::FadingOut { frames_remaining: new_remaining }
+                FadeState::FadingOut {
+                    frames_remaining: new_remaining,
+                }
             };
         }
     }
 }
 
-fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &ArrayQueue<BlockError>) {
+fn apply_block_processor(
+    block: &mut BlockRuntimeNode,
+    frames: &mut [AudioFrame],
+    error_queue: &ArrayQueue<BlockError>,
+) {
     if block.faulted {
         return;
     }
@@ -2360,7 +2689,11 @@ fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]
                     *frame = AudioFrame::Stereo([0.0, 0.0]);
                 }
                 let msg = downcast_panic_message(payload);
-                log::error!("block '{}' panicked — permanently bypassed: {}", block.block_id.0, msg);
+                log::error!(
+                    "block '{}' panicked — permanently bypassed: {}",
+                    block.block_id.0,
+                    msg
+                );
                 // Lock-free push. If the queue is full (UI hasn't drained
                 // for a long time), the error is dropped silently — this
                 // path is only reached on processor panic, which already
@@ -2432,13 +2765,16 @@ pub fn process_output_f32(
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = route.buffer.pop();
-        write_output_frame(
-            processed,
-            &route.output_channels,
-            frame,
-            route.output_mixdown,
-        );
+        // Sum one popped frame from each per-segment source buffer (issue #350).
+        // Each source has exactly ONE producer (its owning segment) — no
+        // SPSC violation. With zero sources the output is silence; with one
+        // source this is identical to the pre-#350 single-buffer pop.
+        let mut summed = silent_frame(route.output_layout);
+        for source in route.sources.iter() {
+            let popped = source.buffer.pop();
+            summed = mix_frames(summed, popped);
+        }
+        write_output_frame(summed, &route.output_channels, frame, route.output_mixdown);
     }
 
     // Output mute: silence the entire output stage when toggled by any
@@ -2454,12 +2790,8 @@ pub fn process_output_f32(
     // When Fired, look for the leading edge of the injected beep. Measure
     // wall-clock nanos from injection to detection; that is the real
     // end-to-end latency of the signal path for the user.
-    if output_index == 0
-        && runtime.probe_state.load(Ordering::Acquire) == PROBE_FIRED
-    {
-        let detected_at_idx = out
-            .iter()
-            .position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
+    if output_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_FIRED {
+        let detected_at_idx = out.iter().position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
         if detected_at_idx.is_some() {
             let now = runtime.created_at.elapsed().as_nanos() as u64;
             let injected_at = runtime.last_input_nanos.load(Ordering::Relaxed);
@@ -2474,9 +2806,7 @@ pub fn process_output_f32(
             runtime
                 .measured_latency_nanos
                 .store(delta, Ordering::Relaxed);
-            runtime
-                .probe_state
-                .store(PROBE_IDLE, Ordering::Release);
+            runtime.probe_state.store(PROBE_IDLE, Ordering::Release);
         }
     }
 }
@@ -2507,19 +2837,14 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 }
 
 /// Sum two audio frames together (for mixing multiple input streams).
-#[allow(dead_code)]
 fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
     match (a, b) {
         (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
         (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) => {
             AudioFrame::Stereo([l1 + l2, r1 + r2])
         }
-        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) => {
-            AudioFrame::Stereo([m + l, m + r])
-        }
-        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) => {
-            AudioFrame::Stereo([l + m, r + m])
-        }
+        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) => AudioFrame::Stereo([m + l, m + r]),
+        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) => AudioFrame::Stereo([l + m, r + m]),
     }
 }
 
