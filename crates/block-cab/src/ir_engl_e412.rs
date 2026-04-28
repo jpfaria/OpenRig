@@ -9,13 +9,16 @@ pub const MODEL_ID: &str = "engl_e412";
 pub const DISPLAY_NAME: &str = "E412 Karnivore";
 const BRAND: &str = "engl";
 
+// Two-axis pack: mic × position.
+// Holes (e.g. SM57 only at default position) return Err.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_sm57", "Engl_SM57", "cabs/engl_e412/engl_sm57_3.wav"),
-    ("engl_md421_edgedustcap", "Engl_MD421_EdgeDustCap", "cabs/engl_e412/engl_md421_edgedustcap_3.wav"),
-    ("engl_m160_cone", "Engl_M160_Cone", "cabs/engl_e412/engl_m160_cone_3.wav"),
-    ("engl_md421_center", "Engl_MD421_Center", "cabs/engl_e412/engl_md421_center_3.wav"),
-    ("engl_m160_center", "Engl_M160_Center", "cabs/engl_e412/engl_m160_center_3.wav"),
-    ("engl_md421_cone", "Engl_MD421_Cone", "cabs/engl_e412/engl_md421_cone_3.wav"),
+    // (mic, position, file)
+    ("sm57",  "default",       "cabs/engl_e412/engl_sm57_3.wav"),
+    ("md421", "center",        "cabs/engl_e412/engl_md421_center_3.wav"),
+    ("md421", "cone",          "cabs/engl_e412/engl_md421_cone_3.wav"),
+    ("md421", "edge_dust_cap", "cabs/engl_e412/engl_md421_edgedustcap_3.wav"),
+    ("m160",  "center",        "cabs/engl_e412/engl_m160_center_3.wav"),
+    ("m160",  "cone",          "cabs/engl_e412/engl_m160_cone_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,20 +27,31 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("engl_sm57"),
-            &[
-            ("engl_sm57", "Engl_SM57"),
-            ("engl_md421_edgedustcap", "Engl_MD421_EdgeDustCap"),
-            ("engl_m160_cone", "Engl_M160_Cone"),
-            ("engl_md421_center", "Engl_MD421_Center"),
-            ("engl_m160_center", "Engl_M160_Center"),
-            ("engl_md421_cone", "Engl_MD421_Cone"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic",
+                "Mic",
+                Some("Cab"),
+                Some("sm57"),
+                &[
+                    ("sm57",  "SM57"),
+                    ("md421", "MD 421"),
+                    ("m160",  "Beyer M160"),
+                ],
+            ),
+            enum_parameter(
+                "position",
+                "Position",
+                Some("Cab"),
+                Some("default"),
+                &[
+                    ("default",       "Default"),
+                    ("center",        "Center"),
+                    ("cone",          "Cone"),
+                    ("edge_dust_cap", "Edge / Dust Cap"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -69,12 +83,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
+    let position = required_string(params, "position").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(m, p, _)| *m == mic && *p == position)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic={} position={}",
+                MODEL_ID, mic, position
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
