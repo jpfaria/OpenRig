@@ -13,35 +13,48 @@ const BRAND: &str = "ampeg";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain stage × mic.
+// "Ultra" controls the SVT's high/low frequency boost circuit.
+// Holes (e.g. "off" with sm75) return Err so the UI flags them.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ultra_hi_md_421", "Ampeg SVT - Ultra Hi MD 421", "amps/ampeg_svt/ampeg_svt_ultra_hi_md_421.nam"),
-    ("ultra_lo_sm57", "Ampeg SVT - Ultra Lo SM57", "amps/ampeg_svt/ampeg_svt_ultra_lo_sm57.nam"),
-    ("sm75", "Ampeg SVT - SM75", "amps/ampeg_svt/ampeg_svt_sm75.nam"),
-    ("ultra_lo_md_421", "Ampeg SVT - Ultra Lo MD 421", "amps/ampeg_svt/ampeg_svt_ultra_lo_md_421.nam"),
-    ("md_421", "Ampeg SVT - MD 421", "amps/ampeg_svt/ampeg_svt_md_421.nam"),
-    ("ultra_hi_sm57", "Ampeg SVT - Ultra Hi SM57", "amps/ampeg_svt/ampeg_svt_ultra_hi_sm57.nam"),
-    ("gain_10_ultra_lo_and_hi_sm57", "Ampeg SVT - Gain 10 Ultra Lo and Hi SM57", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_sm57.nam"),
-    ("gain_10_ultra_lo_and_hi_md_421", "Ampeg SVT - Gain 10 Ultra Lo and Hi MD 421", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_md_421.nam"),
+    // (ultra, mic, file)
+    ("hi",        "md_421", "amps/ampeg_svt/ampeg_svt_ultra_hi_md_421.nam"),
+    ("hi",        "sm57",   "amps/ampeg_svt/ampeg_svt_ultra_hi_sm57.nam"),
+    ("lo",        "md_421", "amps/ampeg_svt/ampeg_svt_ultra_lo_md_421.nam"),
+    ("lo",        "sm57",   "amps/ampeg_svt/ampeg_svt_ultra_lo_sm57.nam"),
+    ("off",       "md_421", "amps/ampeg_svt/ampeg_svt_md_421.nam"),
+    ("off",       "sm75",   "amps/ampeg_svt/ampeg_svt_sm75.nam"),
+    ("hi_lo_g10", "md_421", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_md_421.nam"),
+    ("hi_lo_g10", "sm57",   "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_sm57.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("ultra_hi_md_421"),
-        &[
-            ("ultra_hi_md_421", "Ampeg SVT - Ultra Hi MD 421"),
-            ("ultra_lo_sm57", "Ampeg SVT - Ultra Lo SM57"),
-            ("sm75", "Ampeg SVT - SM75"),
-            ("ultra_lo_md_421", "Ampeg SVT - Ultra Lo MD 421"),
-            ("md_421", "Ampeg SVT - MD 421"),
-            ("ultra_hi_sm57", "Ampeg SVT - Ultra Hi SM57"),
-            ("gain_10_ultra_lo_and_hi_sm57", "Ampeg SVT - Gain 10 Ultra Lo and Hi SM57"),
-            ("gain_10_ultra_lo_and_hi_md_421", "Ampeg SVT - Gain 10 Ultra Lo and Hi MD 421"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "ultra",
+            "Ultra Switch",
+            Some("Amp"),
+            Some("hi"),
+            &[
+                ("off",       "Off"),
+                ("hi",        "Hi"),
+                ("lo",        "Lo"),
+                ("hi_lo_g10", "Hi + Lo (Gain 10)"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Amp"),
+            Some("md_421"),
+            &[
+                ("md_421", "MD 421"),
+                ("sm57",   "SM57"),
+                ("sm75",   "SM75"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let ultra = required_string(params, "ultra").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(u, m, _)| *u == ultra && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for ultra={} mic={}",
+                MODEL_ID, ultra, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
