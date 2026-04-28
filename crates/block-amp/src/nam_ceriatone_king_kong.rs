@@ -13,11 +13,12 @@ const BRAND: &str = "ceriatone";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 4 KK100 Jose-mode preset numbers (ReactIR2 captures).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("09", "[ReactIR2] KK100 Jose #09", "amps/ceriatone_king_kong/reactir2_kk100_jose_09.nam"),
-    ("07", "[ReactIR2] KK100 Jose #07", "amps/ceriatone_king_kong/reactir2_kk100_jose_07.nam"),
-    ("04", "[ReactIR2] KK100 Jose #04", "amps/ceriatone_king_kong/reactir2_kk100_jose_04.nam"),
-    ("06", "[ReactIR2] KK100 Jose #06", "amps/ceriatone_king_kong/reactir2_kk100_jose_06.nam"),
+    ("jose_04", "Jose #04", "amps/ceriatone_king_kong/reactir2_kk100_jose_04.nam"),
+    ("jose_06", "Jose #06", "amps/ceriatone_king_kong/reactir2_kk100_jose_06.nam"),
+    ("jose_07", "Jose #07", "amps/ceriatone_king_kong/reactir2_kk100_jose_07.nam"),
+    ("jose_09", "Jose #09", "amps/ceriatone_king_kong/reactir2_kk100_jose_09.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,12 +27,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("09"),
+        Some("jose_04"),
         &[
-            ("09", "[ReactIR2] KK100 Jose #09"),
-            ("07", "[ReactIR2] KK100 Jose #07"),
-            ("04", "[ReactIR2] KK100 Jose #04"),
-            ("06", "[ReactIR2] KK100 Jose #06"),
+            ("jose_04", "Jose #04"),
+            ("jose_06", "Jose #06"),
+            ("jose_07", "Jose #07"),
+            ("jose_09", "Jose #09"),
         ],
     )];
     schema
