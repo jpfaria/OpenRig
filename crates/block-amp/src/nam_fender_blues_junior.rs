@@ -13,9 +13,11 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 EQ-setting voicings. III=stock III settings, scooped=
+// custom V7/B7/M4/T6/M4 scooped midrange.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("iii_5_8_5_5_feather", "III (Vol 5 Bass 6 Mids 8 Treble 5 Master", "amps/fender_blues_junior/fender_blues_junior_iii_vol_5_bass_6_mids_8_treble_5_master__feather.nam"),
-    ("7_7_4_4_feather", "(Vol 7 Bass 7 Mids 4 Treble 6 Master 4)", "amps/fender_blues_junior/fender_blues_junior_vol_7_bass_7_mids_4_treble_6_master_4_feather.nam"),
+    ("iii_stock", "III Stock",   "amps/fender_blues_junior/fender_blues_junior_iii_vol_5_bass_6_mids_8_treble_5_master__feather.nam"),
+    ("scooped",   "Scooped Mid", "amps/fender_blues_junior/fender_blues_junior_vol_7_bass_7_mids_4_treble_6_master_4_feather.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -24,11 +26,10 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("iii_5_8_5_5_feather"),
+        Some("iii_stock"),
         &[
-            ("iii_5_8_5_5_feather", "III (Vol 5 Bass 6 Mids 8 Treble 5 Master"),
-            ("7_7_4_4_feather", "(Vol 7 Bass 7 Mids 4 Treble 6 Master 4)"),
-        
+            ("iii_stock", "III Stock"),
+            ("scooped",   "Scooped Mid"),
         ],
     )];
     schema
