@@ -13,23 +13,24 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 3 channels (Clean / Crunch / Crush).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("badlander_crush", "badlander-crush", "amps/mesa_boogie_badlander_50/badlander_crush.nam"),
-    ("badlander_clean", "badlander-clean", "amps/mesa_boogie_badlander_50/badlander_clean.nam"),
-    ("badlander_crunch", "badlander-crunch", "amps/mesa_boogie_badlander_50/badlander_crunch.nam"),
+    ("clean",  "Clean",  "amps/mesa_boogie_badlander_50/badlander_clean.nam"),
+    ("crunch", "Crunch", "amps/mesa_boogie_badlander_50/badlander_crunch.nam"),
+    ("crush",  "Crush",  "amps/mesa_boogie_badlander_50/badlander_crush.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "channel",
+        "Channel",
         Some("Amp"),
-        Some("badlander_crush"),
+        Some("clean"),
         &[
-            ("badlander_crush", "badlander-crush"),
-            ("badlander_clean", "badlander-clean"),
-            ("badlander_crunch", "badlander-crunch"),
+            ("clean",  "Clean"),
+            ("crunch", "Crunch"),
+            ("crush",  "Crush"),
         ],
     )];
     schema
@@ -51,12 +52,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
