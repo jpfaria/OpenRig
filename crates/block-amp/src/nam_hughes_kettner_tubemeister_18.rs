@@ -14,7 +14,7 @@ const BRAND: &str = "hughes";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hughes_kettner_clean", "Hughes & Kettner clean", "amps/hughes_kettner_tubemeister_18/hughes_kettner_clean.nam"),
+    ("hughes_kettner_clean", "& Kettner clean", "amps/hughes_kettner_tubemeister_18/hughes_kettner_clean.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,7 +25,8 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("hughes_kettner_clean"),
         &[
-            ("hughes_kettner_clean", "Hughes & Kettner clean"),
+            ("hughes_kettner_clean", "& Kettner clean"),
+        
         ],
     )];
     schema

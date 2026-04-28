@@ -14,7 +14,7 @@ const BRAND: &str = "bad_cat";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("bad_cat_lynx_cab_marshall_1960a_v30_4", "bad cat lynx + cab marshall 1960a v30-4", "amps/bad_cat_lynx/bad_cat_lynx_cab_marshall_1960a_v30_4.nam"),
+    ("bad_cat_lynx_cab_marshall_1960a_v30_4", "+ cab marshall 1960a v30-4", "amps/bad_cat_lynx/bad_cat_lynx_cab_marshall_1960a_v30_4.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,7 +25,8 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("bad_cat_lynx_cab_marshall_1960a_v30_4"),
         &[
-            ("bad_cat_lynx_cab_marshall_1960a_v30_4", "bad cat lynx + cab marshall 1960a v30-4"),
+            ("bad_cat_lynx_cab_marshall_1960a_v30_4", "+ cab marshall 1960a v30-4"),
+        
         ],
     )];
     schema

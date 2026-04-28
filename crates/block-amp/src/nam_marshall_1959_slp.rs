@@ -13,21 +13,22 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis preset pack: clean (master 6, vol 8) and TS8-boosted variant.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_1959_slp_6_8", "Marshall 1959 SLP 6-8", "amps/marshall_1959_slp/marshall_1959_slp_6_8.nam"),
-    ("marshall_1959_slp_boosted_ts8_6_8", "Marshall 1959 SLP BOOSTED TS8 6-8", "amps/marshall_1959_slp/marshall_1959_slp_boosted_ts8_6_8.nam"),
+    ("off", "Off",     "amps/marshall_1959_slp/marshall_1959_slp_6_8.nam"),
+    ("ts8", "TS8",     "amps/marshall_1959_slp/marshall_1959_slp_boosted_ts8_6_8.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "boost",
+        "Boost",
         Some("Amp"),
-        Some("marshall_1959_slp_6_8"),
+        Some("off"),
         &[
-            ("marshall_1959_slp_6_8", "Marshall 1959 SLP 6-8"),
-            ("marshall_1959_slp_boosted_ts8_6_8", "Marshall 1959 SLP BOOSTED TS8 6-8"),
+            ("off", "Off"),
+            ("ts8", "TS8"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no boost '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

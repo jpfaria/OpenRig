@@ -14,13 +14,13 @@ const BRAND: &str = "prs";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("prs_mt15_clean", "PRS_MT15_Clean", "amps/prs_mt15/prs_mt15_clean.nam"),
-    ("prs_mt_15_clean_break_up", "PRS_MT_15_Clean_Break_Up", "amps/prs_mt15/prs_mt_15_clean_break_up.nam"),
-    ("prs_mt_15_crunch_red", "PRS_MT_15_Crunch_red", "amps/prs_mt15/prs_mt_15_crunch_red.nam"),
-    ("prs_mt_15_metal_7_watts", "PRS_MT_15_Metal_7_watts", "amps/prs_mt15/prs_mt_15_metal_7_watts.nam"),
-    ("prs_mt_15_metal_ts", "PRS_MT_15_Metal_TS", "amps/prs_mt15/prs_mt_15_metal_ts.nam"),
-    ("prs_mt_15_metal_pre_amp", "PRS_MT_15_Metal_Pre_Amp", "amps/prs_mt15/prs_mt_15_metal_pre_amp.nam"),
-    ("prs_mt_15_metal_sweet_spot", "PRS_MT_15_Metal_Sweet_Spot", "amps/prs_mt15/prs_mt_15_metal_sweet_spot.nam"),
+    ("prs_mt15_clean", "MT15_Clean", "amps/prs_mt15/prs_mt15_clean.nam"),
+    ("prs_mt_15_clean_break_up", "MT_15_Clean_Break_Up", "amps/prs_mt15/prs_mt_15_clean_break_up.nam"),
+    ("prs_mt_15_crunch_red", "MT_15_Crunch_red", "amps/prs_mt15/prs_mt_15_crunch_red.nam"),
+    ("prs_mt_15_metal_7_watts", "MT_15_Metal_7_watts", "amps/prs_mt15/prs_mt_15_metal_7_watts.nam"),
+    ("prs_mt_15_metal_ts", "MT_15_Metal_TS", "amps/prs_mt15/prs_mt_15_metal_ts.nam"),
+    ("prs_mt_15_metal_pre_amp", "MT_15_Metal_Pre_Amp", "amps/prs_mt15/prs_mt_15_metal_pre_amp.nam"),
+    ("prs_mt_15_metal_sweet_spot", "MT_15_Metal_Sweet_Spot", "amps/prs_mt15/prs_mt_15_metal_sweet_spot.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -31,13 +31,14 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("prs_mt15_clean"),
         &[
-            ("prs_mt15_clean", "PRS_MT15_Clean"),
-            ("prs_mt_15_clean_break_up", "PRS_MT_15_Clean_Break_Up"),
-            ("prs_mt_15_crunch_red", "PRS_MT_15_Crunch_red"),
-            ("prs_mt_15_metal_7_watts", "PRS_MT_15_Metal_7_watts"),
-            ("prs_mt_15_metal_ts", "PRS_MT_15_Metal_TS"),
-            ("prs_mt_15_metal_pre_amp", "PRS_MT_15_Metal_Pre_Amp"),
-            ("prs_mt_15_metal_sweet_spot", "PRS_MT_15_Metal_Sweet_Spot"),
+            ("prs_mt15_clean", "MT15_Clean"),
+            ("prs_mt_15_clean_break_up", "MT_15_Clean_Break_Up"),
+            ("prs_mt_15_crunch_red", "MT_15_Crunch_red"),
+            ("prs_mt_15_metal_7_watts", "MT_15_Metal_7_watts"),
+            ("prs_mt_15_metal_ts", "MT_15_Metal_TS"),
+            ("prs_mt_15_metal_pre_amp", "MT_15_Metal_Pre_Amp"),
+            ("prs_mt_15_metal_sweet_spot", "MT_15_Metal_Sweet_Spot"),
+        
         ],
     )];
     schema

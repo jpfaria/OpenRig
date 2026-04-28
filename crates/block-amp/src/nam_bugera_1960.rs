@@ -14,10 +14,10 @@ const BRAND: &str = "bugera";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("5", "BUGERA MESHUGGAH 5", "amps/bugera_1960/bugera_meshuggah_5.nam"),
-    ("3", "BUGERA MESHUGGAH 3", "amps/bugera_1960/bugera_meshuggah_3.nam"),
-    ("4", "BUGERA MESHUGGAH 4", "amps/bugera_1960/bugera_meshuggah_4.nam"),
-    ("2", "BUGERA MESHUGGAH 2", "amps/bugera_1960/bugera_meshuggah_2.nam"),
+    ("5", "MESHUGGAH 5", "amps/bugera_1960/bugera_meshuggah_5.nam"),
+    ("3", "MESHUGGAH 3", "amps/bugera_1960/bugera_meshuggah_3.nam"),
+    ("4", "MESHUGGAH 4", "amps/bugera_1960/bugera_meshuggah_4.nam"),
+    ("2", "MESHUGGAH 2", "amps/bugera_1960/bugera_meshuggah_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,10 +28,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("5"),
         &[
-            ("5", "BUGERA MESHUGGAH 5"),
-            ("3", "BUGERA MESHUGGAH 3"),
-            ("4", "BUGERA MESHUGGAH 4"),
-            ("2", "BUGERA MESHUGGAH 2"),
+            ("5", "MESHUGGAH 5"),
+            ("3", "MESHUGGAH 3"),
+            ("4", "MESHUGGAH 4"),
+            ("2", "MESHUGGAH 2"),
+        
         ],
     )];
     schema

@@ -14,12 +14,12 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
-    ("fast_lead", "Mark IIC+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
-    ("creamy_lead", "Mark IIC+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
-    ("tight_rhythm", "Mark IIC+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
-    ("phat_rhythm", "Mark IIC+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
-    ("yummy_clean", "Mark IIC+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
+    ("hetfield_rhythm", "+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
+    ("fast_lead", "+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
+    ("creamy_lead", "+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
+    ("tight_rhythm", "+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
+    ("phat_rhythm", "+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
+    ("yummy_clean", "+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -30,12 +30,13 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("hetfield_rhythm"),
         &[
-            ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm"),
-            ("fast_lead", "Mark IIC+ Fast Lead"),
-            ("creamy_lead", "Mark IIC+ Creamy Lead"),
-            ("tight_rhythm", "Mark IIC+ Tight Rhythm"),
-            ("phat_rhythm", "Mark IIC+ Phat Rhythm"),
-            ("yummy_clean", "Mark IIC+ Yummy Clean"),
+            ("hetfield_rhythm", "+ Hetfield Rhythm"),
+            ("fast_lead", "+ Fast Lead"),
+            ("creamy_lead", "+ Creamy Lead"),
+            ("tight_rhythm", "+ Tight Rhythm"),
+            ("phat_rhythm", "+ Phat Rhythm"),
+            ("yummy_clean", "+ Yummy Clean"),
+        
         ],
     )];
     schema

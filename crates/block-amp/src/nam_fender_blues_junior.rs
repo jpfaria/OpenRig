@@ -14,8 +14,8 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("iii_5_8_5_5_feather", "Fender Blues Junior III (Vol 5 Bass 6 Mids 8 Treble 5 Master", "amps/fender_blues_junior/fender_blues_junior_iii_vol_5_bass_6_mids_8_treble_5_master__feather.nam"),
-    ("7_7_4_4_feather", "Fender Blues Junior (Vol 7 Bass 7 Mids 4 Treble 6 Master 4)", "amps/fender_blues_junior/fender_blues_junior_vol_7_bass_7_mids_4_treble_6_master_4_feather.nam"),
+    ("iii_5_8_5_5_feather", "III (Vol 5 Bass 6 Mids 8 Treble 5 Master", "amps/fender_blues_junior/fender_blues_junior_iii_vol_5_bass_6_mids_8_treble_5_master__feather.nam"),
+    ("7_7_4_4_feather", "(Vol 7 Bass 7 Mids 4 Treble 6 Master 4)", "amps/fender_blues_junior/fender_blues_junior_vol_7_bass_7_mids_4_treble_6_master_4_feather.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,8 +26,9 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("iii_5_8_5_5_feather"),
         &[
-            ("iii_5_8_5_5_feather", "Fender Blues Junior III (Vol 5 Bass 6 Mids 8 Treble 5 Master"),
-            ("7_7_4_4_feather", "Fender Blues Junior (Vol 7 Bass 7 Mids 4 Treble 6 Master 4)"),
+            ("iii_5_8_5_5_feather", "III (Vol 5 Bass 6 Mids 8 Treble 5 Master"),
+            ("7_7_4_4_feather", "(Vol 7 Bass 7 Mids 4 Treble 6 Master 4)"),
+        
         ],
     )];
     schema

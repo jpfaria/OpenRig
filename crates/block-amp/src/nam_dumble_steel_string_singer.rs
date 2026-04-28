@@ -29,11 +29,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("clean"),
         &[
-            ("clean", "Dumble Steel SS Clean"),
-            ("drive_1", "Dumble Steel SS Drive 1"),
-            ("drive_2", "Dumble Steel SS Drive 2"),
-            ("clean_full", "Dumble Steel SS Clean Full"),
-            ("drive_full", "Dumble Steel SS Drive Full"),
+            ("clean",      "Clean"),
+            ("clean_full", "Clean Full"),
+            ("drive_1",    "Drive 1"),
+            ("drive_2",    "Drive 2"),
+            ("drive_full", "Drive Full"),
         ],
     )];
     schema

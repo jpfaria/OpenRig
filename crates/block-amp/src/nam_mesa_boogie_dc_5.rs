@@ -14,7 +14,7 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mesa_dc_5_black_shadow_sm57_fr", "Mesa DC-5 Black Shadow sm57 FR", "amps/mesa_boogie_dc_5/mesa_dc_5_black_shadow_sm57_fr.nam"),
+    ("mesa_dc_5_black_shadow_sm57_fr", "DC-5 Black Shadow sm57 FR", "amps/mesa_boogie_dc_5/mesa_dc_5_black_shadow_sm57_fr.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,7 +25,8 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("mesa_dc_5_black_shadow_sm57_fr"),
         &[
-            ("mesa_dc_5_black_shadow_sm57_fr", "Mesa DC-5 Black Shadow sm57 FR"),
+            ("mesa_dc_5_black_shadow_sm57_fr", "DC-5 Black Shadow sm57 FR"),
+        
         ],
     )];
     schema
