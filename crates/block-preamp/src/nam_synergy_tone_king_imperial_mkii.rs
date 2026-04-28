@@ -23,20 +23,21 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
+// Single-capture preset pack: Channel 2 with Greenback 2x12 cab capture.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fig_imperial_ch2_mg_212", "Fig Imperial Ch2 MG 212", "preamp/synergy_tone_king_imperial_mkii/fig_imperial_ch2_mg_212.nam"),
+    ("ch2_mg_212", "Ch2 MG 2x12", "preamp/synergy_tone_king_imperial_mkii/fig_imperial_ch2_mg_212.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("fig_imperial_ch2_mg_212"),
+        Some("ch2_mg_212"),
         &[
-            ("fig_imperial_ch2_mg_212", "Fig Imperial Ch2 MG 212"),
+            ("ch2_mg_212", "Ch2 MG 2x12"),
         ],
     )];
     schema
@@ -54,12 +55,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("preamp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
