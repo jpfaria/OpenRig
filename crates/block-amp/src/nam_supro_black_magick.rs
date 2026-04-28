@@ -13,29 +13,44 @@ const BRAND: &str = "supro";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("t_3_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_3_srl.nam"),
-    ("t_6_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_6_srl.nam"),
-    ("t_5_p12q", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_p12q.nam"),
-    ("t_4_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_4_srl.nam"),
-    ("t_5_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_srl.nam"),
+// 2-axis: tone setting (3-6) × speaker (SRL stock vs P12Q upgrade). Sparse:
+// only T5 has both speakers; other tone steps only with stock SRL. Knob layout
+// V1=5, V2=0, In 1-2 fixed.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (tone, speaker, _, file)
+    ("3", "srl",  "", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_3_srl.nam"),
+    ("4", "srl",  "", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_4_srl.nam"),
+    ("5", "srl",  "", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_srl.nam"),
+    ("5", "p12q", "", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_5_p12q.nam"),
+    ("6", "srl",  "", "amps/supro_black_magick/di_supro_1695tj_in1_2_v1_5_v2_0_t_6_srl.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Amp"),
-        Some("t_3_srl"),
-        &[
-            ("t_3_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-3 SRL"),
-            ("t_6_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-6 SRL"),
-            ("t_5_p12q", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 P12Q"),
-            ("t_4_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-4 SRL"),
-            ("t_5_srl", "DI Supro 1695TJ In1-2 V1-5 V2-0 T-5 SRL"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Amp"),
+            Some("5"),
+            &[
+                ("3", "3"),
+                ("4", "4"),
+                ("5", "5"),
+                ("6", "6"),
+            ],
+        ),
+        enum_parameter(
+            "speaker",
+            "Speaker",
+            Some("Amp"),
+            Some("srl"),
+            &[
+                ("srl",  "SRL (stock)"),
+                ("p12q", "P12Q"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -55,12 +70,16 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+    let speaker = required_string(params, "speaker").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .find(|(t, s, _, _)| *t == tone && *s == speaker)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| anyhow!(
+            "amp '{}' has no capture for tone='{}' speaker='{}'",
+            MODEL_ID, tone, speaker
+        ))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
