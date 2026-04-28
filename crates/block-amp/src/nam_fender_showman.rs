@@ -13,33 +13,34 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis preset pack: 8 voicings sharing the Showman amp tone family.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fuller_tone_comp_clean_std", "Fuller Tone Comp Clean std", "amps/fender_showman/fuller_tone_comp_clean_std.nam"),
-    ("fuller_tone_metal_std", "Fuller Tone Metal std", "amps/fender_showman/fuller_tone_metal_std.nam"),
-    ("dweezil_s_bassguy_ola_cab_custom", "Dweezil's Bassguy OLA cab", "amps/fender_showman/dweezil_s_bassguy_ola_cab_custom.nam"),
-    ("dweezil_s_bassguy_fuzz_1_custom", "Dweezil's Bassguy Fuzz 1", "amps/fender_showman/dweezil_s_bassguy_fuzz_1_custom.nam"),
-    ("jonesy_s_pretty_dark_custom", "Jonesy's Pretty Dark", "amps/fender_showman/jonesy_s_pretty_dark_custom.nam"),
-    ("super_6g4_comp_clean_custom", "Super 6G4 COMP clean", "amps/fender_showman/super_6g4_comp_clean_custom.nam"),
-    ("super_brownie_country_ab_custom", "Super Brownie Country AB", "amps/fender_showman/super_brownie_country_ab_custom.nam"),
-    ("super_verb_custom", "Super Verb", "amps/fender_showman/super_verb_custom.nam"),
+    ("fuller_clean",     "Fuller Tone Clean",   "amps/fender_showman/fuller_tone_comp_clean_std.nam"),
+    ("fuller_metal",     "Fuller Tone Metal",   "amps/fender_showman/fuller_tone_metal_std.nam"),
+    ("dweezil_ola",      "Dweezil Bassguy OLA", "amps/fender_showman/dweezil_s_bassguy_ola_cab_custom.nam"),
+    ("dweezil_fuzz",     "Dweezil Bassguy Fuzz","amps/fender_showman/dweezil_s_bassguy_fuzz_1_custom.nam"),
+    ("jonesy_dark",      "Jonesy Pretty Dark",  "amps/fender_showman/jonesy_s_pretty_dark_custom.nam"),
+    ("super_6g4_clean",  "Super 6G4 Clean",     "amps/fender_showman/super_6g4_comp_clean_custom.nam"),
+    ("super_brownie",    "Super Brownie",       "amps/fender_showman/super_brownie_country_ab_custom.nam"),
+    ("super_verb",       "Super Verb",          "amps/fender_showman/super_verb_custom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("fuller_tone_comp_clean_std"),
+        Some("fuller_clean"),
         &[
-            ("fuller_tone_comp_clean_std", "Fuller Tone Comp Clean std"),
-            ("fuller_tone_metal_std", "Fuller Tone Metal std"),
-            ("dweezil_s_bassguy_ola_cab_custom", "Dweezil's Bassguy OLA cab"),
-            ("dweezil_s_bassguy_fuzz_1_custom", "Dweezil's Bassguy Fuzz 1"),
-            ("jonesy_s_pretty_dark_custom", "Jonesy's Pretty Dark"),
-            ("super_6g4_comp_clean_custom", "Super 6G4 COMP clean"),
-            ("super_brownie_country_ab_custom", "Super Brownie Country AB"),
-            ("super_verb_custom", "Super Verb"),
+            ("fuller_clean",    "Fuller Tone Clean"),
+            ("fuller_metal",    "Fuller Tone Metal"),
+            ("dweezil_ola",     "Dweezil Bassguy OLA"),
+            ("dweezil_fuzz",    "Dweezil Bassguy Fuzz"),
+            ("jonesy_dark",     "Jonesy Pretty Dark"),
+            ("super_6g4_clean", "Super 6G4 Clean"),
+            ("super_brownie",   "Super Brownie"),
+            ("super_verb",      "Super Verb"),
         ],
     )];
     schema
@@ -61,12 +62,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
