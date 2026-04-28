@@ -26,6 +26,7 @@ OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latênci
 7. **Custo de CPU no audio thread** — regressão de CPU vira xrun
 8. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
 9. **Determinismo numérico** — golden samples passam dentro da tolerância
+10. **Volume por stream — IMUTÁVEL por qualquer mudança que não seja explicitamente um pedido de mudança de volume.** Refactor, fix, performance work, cleanup, split — NADA pode reduzir nem aumentar o nível de saída de um stream. Se um teste de \`volume_invariants_tests.rs\` quebra, **a fonte está errada, não o teste** — ajuste o código pra fazer o teste passar, NUNCA o contrário. Se você acredita que precisa mudar o volume, isso é uma feature explícita que exige issue dedicada e aprovação do usuário antes do código. Lição #355: o fix #350 reduziu volume "por design" em split-mono multi-channel sem o usuário ter pedido, causando regressão percebida no Mac. Pinned via tests em \`crates/engine/src/volume_invariants_tests.rs\`.
 
 ### Checklist obrigatório antes do PR/merge
 
@@ -36,6 +37,7 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - [ ] Afeta o som de algum bloco? Golden tests passando? Fiz A/B auditivo?
 - [ ] Introduz alocação, lock, syscall ou lazy init no hot path? Se sim, reverter.
 - [ ] **Isolation entre streams preservada?** Testei com 2+ inputs paralelos? Glitch num NÃO afeta outro? CPU spike num NÃO afeta callback do outro? Existe algum buffer/lock/route/tap compartilhado entre streams? Se sim → regressão crítica, reverter.
+- [ ] **Volume por stream preservado?** Rodei \`cargo test -p engine --lib volume_invariants\` e tudo passou? Setup single-input, split-mono solo, split-mono dual — todos saem no nível esperado? Se NÃO, o som mudou — investiga ANTES de mergear.
 
 ### Red flags — PARAR e reportar
 
@@ -45,6 +47,7 @@ Se a mudança toca audio thread, DSP, roteamento, I/O ou cadeia de blocos, respo
 - Pico de callback acima do buffer period
 - Necessidade de `Mutex`/`RwLock`/`Arc::clone`/log/print/file I/O no processamento
 - "Em macOS/Windows/Linux o som mudou" → é regressão, não compatibilidade
+- **"O volume ficou diferente"** → regressão. Volume nunca muda sem pedido explícito. Procure o commit que causou e corrija a fonte; NÃO ajuste o teste de invariância de volume.
 - **Buffer / runtime state / tap / route / scratch compartilhado entre 2+ streams** — viola isolation, é regressão crítica
 
 ### Hierarquia de trade-offs
