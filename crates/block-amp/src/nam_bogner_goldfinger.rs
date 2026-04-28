@@ -14,14 +14,14 @@ const BRAND: &str = "bogner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "Bogner Goldfinger - Clean", "amps/bogner_goldfinger/bogner_goldfinger_clean_2.nam"),
-    ("discusting_midgain", "Bogner Goldfinger - discusting midgain", "amps/bogner_goldfinger/bogner_goldfinger_discusting_midgain_2.nam"),
-    ("crunch", "Bogner Goldfinger - crunch+", "amps/bogner_goldfinger/bogner_goldfinger_crunch_2.nam"),
-    ("higain", "Bogner Goldfinger - higain", "amps/bogner_goldfinger/bogner_goldfinger_higain_2.nam"),
-    ("higain_with_ir_sorry_my_falt", "Bogner Goldfinger - higain+ (with ir, sorry, my falt)", "amps/bogner_goldfinger/bogner_goldfinger_higain_with_ir_sorry_my_falt_2.nam"),
-    ("clean_4db_10k", "Bogner Goldfinger - clean (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_clean_4db_10k_2.nam"),
-    ("crunch_old_version_but_its_ok", "Bogner Goldfinger - crunch+ (old version, but its ok)", "amps/bogner_goldfinger/bogner_goldfinger_crunch_old_version_but_its_ok_2.nam"),
-    ("higain_4db_10k", "Bogner Goldfinger - higain (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_higain_4db_10k_2.nam"),
+    ("clean", "Bogner Goldfinger - Clean", "amps/bogner_goldfinger/bogner_goldfinger_clean.nam"),
+    ("discusting_midgain", "Bogner Goldfinger - discusting midgain", "amps/bogner_goldfinger/bogner_goldfinger_discusting_midgain.nam"),
+    ("crunch", "Bogner Goldfinger - crunch+", "amps/bogner_goldfinger/bogner_goldfinger_crunch.nam"),
+    ("higain", "Bogner Goldfinger - higain", "amps/bogner_goldfinger/bogner_goldfinger_higain.nam"),
+    ("higain_with_ir_sorry_my_falt", "Bogner Goldfinger - higain+ (with ir, sorry, my falt)", "amps/bogner_goldfinger/bogner_goldfinger_higain_with_ir_sorry_my_falt.nam"),
+    ("clean_4db_10k", "Bogner Goldfinger - clean (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_clean_4db_10k.nam"),
+    ("crunch_old_version_but_its_ok", "Bogner Goldfinger - crunch+ (old version, but its ok)", "amps/bogner_goldfinger/bogner_goldfinger_crunch_old_version_but_its_ok.nam"),
+    ("higain_4db_10k", "Bogner Goldfinger - higain (-4db 10k)", "amps/bogner_goldfinger/bogner_goldfinger_higain_4db_10k.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

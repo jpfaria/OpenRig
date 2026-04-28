@@ -14,11 +14,11 @@ const BRAND: &str = "randall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "RANDALL RG100ES 100W (1987) CH Clean", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean_2.nam"),
-    ("crunch", "RANDALL RG100ES 100W (1987) CH Crunch", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_2.nam"),
-    ("crunch_sustain_engaged_gain_8_5", "RANDALL RG100ES 100W (1987) CH Crunch Sustain Engaged Gain 8", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5_2.nam"),
-    ("crunch_gain_8_5", "RANDALL RG100ES 100W (1987) CH Crunch Gain 8.5", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5_2.nam"),
-    ("crunch_sustain_engaged", "RANDALL RG100ES 100W (1987) CH Crunch Sustain Engaged", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_2.nam"),
+    ("clean", "RANDALL RG100ES 100W (1987) CH Clean", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_clean.nam"),
+    ("crunch", "RANDALL RG100ES 100W (1987) CH Crunch", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch.nam"),
+    ("crunch_sustain_engaged_gain_8_5", "RANDALL RG100ES 100W (1987) CH Crunch Sustain Engaged Gain 8", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged_gain_8_5.nam"),
+    ("crunch_gain_8_5", "RANDALL RG100ES 100W (1987) CH Crunch Gain 8.5", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_gain_8_5.nam"),
+    ("crunch_sustain_engaged", "RANDALL RG100ES 100W (1987) CH Crunch Sustain Engaged", "amps/randall_rg100es/randall_rg100es_100w_1987_ch_crunch_sustain_engaged.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

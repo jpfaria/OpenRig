@@ -14,12 +14,12 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("v5", "JTM50 Replica - Angus Tone V5", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_2.nam"),
-    ("v6", "JTM50 Replica - Angus Tone V6", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_2.nam"),
-    ("v7", "JTM50 Replica - Angus Tone V7", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_2.nam"),
-    ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright_2.nam"),
-    ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright_2.nam"),
-    ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright_2.nam"),
+    ("v5", "JTM50 Replica - Angus Tone V5", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5.nam"),
+    ("v6", "JTM50 Replica - Angus Tone V6", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6.nam"),
+    ("v7", "JTM50 Replica - Angus Tone V7", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7.nam"),
+    ("v5_bright", "JTM50 Replica - Angus Tone V5 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v5_bright.nam"),
+    ("v6_bright", "JTM50 Replica - Angus Tone V6 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v6_bright.nam"),
+    ("v7_bright", "JTM50 Replica - Angus Tone V7 Bright", "amps/marshall_jtm50_hw_plexi/jtm50_replica_angus_tone_v7_bright.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

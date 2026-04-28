@@ -14,10 +14,10 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("jsx_crunch_mid", "Peavey JSX_Crunch_Mid", "amps/peavey_jsx/peavey_jsx_crunch_mid_2.nam"),
-    ("jsx_ultra_mid", "Peavey JSX_Ultra_Mid", "amps/peavey_jsx/peavey_jsx_ultra_mid_2.nam"),
-    ("jsx_crunch_high", "Peavey JSX_Crunch_High", "amps/peavey_jsx/peavey_jsx_crunch_high_2.nam"),
-    ("jsx_ultra_high", "Peavey JSX_Ultra_High", "amps/peavey_jsx/peavey_jsx_ultra_high_2.nam"),
+    ("jsx_crunch_mid", "Peavey JSX_Crunch_Mid", "amps/peavey_jsx/peavey_jsx_crunch_mid.nam"),
+    ("jsx_ultra_mid", "Peavey JSX_Ultra_Mid", "amps/peavey_jsx/peavey_jsx_ultra_mid.nam"),
+    ("jsx_crunch_high", "Peavey JSX_Crunch_High", "amps/peavey_jsx/peavey_jsx_crunch_high.nam"),
+    ("jsx_ultra_high", "Peavey JSX_Ultra_High", "amps/peavey_jsx/peavey_jsx_ultra_high.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

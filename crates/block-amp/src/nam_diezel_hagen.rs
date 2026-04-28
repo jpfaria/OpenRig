@@ -14,9 +14,9 @@ const BRAND: &str = "diezel";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("001_maxon_standard_training", "001_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/001_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_2.nam"),
-    ("002_maxon_advanced_training_custom", "002_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/002_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom_2.nam"),
-    ("003_maxon_advanced_training_custom_input_custom", "003_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/003_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom_2.nam"),
+    ("001_maxon_standard_training", "001_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/001_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm.nam"),
+    ("002_maxon_advanced_training_custom", "002_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/002_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
+    ("003_maxon_advanced_training_custom_input_custom", "003_Maxon OD808, Diezel Hagen CH2, Diezel 4X12 FL V30, Shure", "amps/diezel_hagen/003_maxon_od808_diezel_hagen_ch2_diezel_4x12_fl_v30_shure_sm_custom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

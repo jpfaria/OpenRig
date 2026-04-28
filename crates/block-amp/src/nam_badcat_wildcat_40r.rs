@@ -14,8 +14,8 @@ const BRAND: &str = "bad_cat";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ef86", "EF86 - Marshall Cabinet", "amps/badcat_wildcat_40r/ef86_marshall_cabinet_2.nam"),
-    ("top_boost", "Top Boost - Marshall Cabinet", "amps/badcat_wildcat_40r/top_boost_marshall_cabinet_2.nam"),
+    ("ef86", "EF86 - Marshall Cabinet", "amps/badcat_wildcat_40r/ef86_marshall_cabinet.nam"),
+    ("top_boost", "Top Boost - Marshall Cabinet", "amps/badcat_wildcat_40r/top_boost_marshall_cabinet.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

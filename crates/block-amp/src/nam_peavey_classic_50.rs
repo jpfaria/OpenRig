@@ -14,7 +14,7 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("c50_clean_noon", "C50 clean noon", "amps/peavey_classic_50/c50_clean_noon_2.nam"),
+    ("c50_clean_noon", "C50 clean noon", "amps/peavey_classic_50/c50_clean_noon.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,14 +14,14 @@ const BRAND: &str = "friedman";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pow_fman_jose_mes4x12_v_pres_pres_5_blen", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_blend_1_2.nam"),
-    ("pow_fman_jose_mes4x12_v_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_sm57_2.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_sm57_2.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_di", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - DI", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_di_2.nam"),
-    ("pow_fman_jose_mar4x12_n_pres_pres_5_blen", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_blend_1_2.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #1", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_1_2.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen_336414", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #3", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_3_2.nam"),
-    ("amp_fman_jose_mar4x12_n_pres_hotrod_sm57", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - SM57", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_sm57_2.nam"),
+    ("pow_fman_jose_mes4x12_v_pres_pres_5_blen", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_blend_1.nam"),
+    ("pow_fman_jose_mes4x12_v_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mes4x12-V.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mes4x12_v_pres_pres_5_sm57.nam"),
+    ("pow_fman_jose_mar4x12_n_pres_pres_5_sm57", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - SM57", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_sm57.nam"),
+    ("pow_fman_jose_mar4x12_n_pres_pres_5_di", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - DI", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_di.nam"),
+    ("pow_fman_jose_mar4x12_n_pres_pres_5_blen", "[POW] FMAN.JOSE-Mar4x12-N.PRES Pres@5 - BLEND #1", "amps/friedman_jose_arredondo/pow_fman_jose_mar4x12_n_pres_pres_5_blend_1.nam"),
+    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #1", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_1.nam"),
+    ("amp_fman_jose_mar4x12_n_pres_hotrod_blen_336414", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - BLEND #3", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_blend_3.nam"),
+    ("amp_fman_jose_mar4x12_n_pres_hotrod_sm57", "[AMP] FMAN.JOSE-Mar4x12-N.PRES Hotrod - SM57", "amps/friedman_jose_arredondo/amp_fman_jose_mar4x12_n_pres_hotrod_sm57.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

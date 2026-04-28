@@ -14,14 +14,14 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fr_p_2_t_5_m_4_b_2_v30_sm57c", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57c", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57c_2.nam"),
-    ("di_p_2_t_5_m_4_b_2", "DI MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2", "amps/mesa_dual_rectifier_multiwatt/di_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_2.nam"),
-    ("fr_p_2_t_5_m_4_b_2_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_m65_sm57b_2.nam"),
-    ("fr_p_3_t_6_m_4_b_3_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-3 T-6 M-4 B-3 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_3_t_6_m_4_b_3_m65_sm57b_2.nam"),
-    ("fr_p_4_t_4_m_3_b_4_m65_sm57a", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57a", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57a_2.nam"),
-    ("fr_p_4_t_4_m_3_b_4_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_v30_sm57b_2.nam"),
-    ("fr_p_2_t_5_m_4_b_2_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57b_2.nam"),
-    ("fr_p_4_t_4_m_3_b_4_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57b_2.nam"),
+    ("fr_p_2_t_5_m_4_b_2_v30_sm57c", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57c", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57c.nam"),
+    ("di_p_2_t_5_m_4_b_2", "DI MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2", "amps/mesa_dual_rectifier_multiwatt/di_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2.nam"),
+    ("fr_p_2_t_5_m_4_b_2_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_m65_sm57b.nam"),
+    ("fr_p_3_t_6_m_4_b_3_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-3 T-6 M-4 B-3 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_3_t_6_m_4_b_3_m65_sm57b.nam"),
+    ("fr_p_4_t_4_m_3_b_4_m65_sm57a", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57a", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57a.nam"),
+    ("fr_p_4_t_4_m_3_b_4_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_v30_sm57b.nam"),
+    ("fr_p_2_t_5_m_4_b_2_v30_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-2 T-5 M-4 B-2 V30 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_2_t_5_m_4_b_2_v30_sm57b.nam"),
+    ("fr_p_4_t_4_m_3_b_4_m65_sm57b", "FR MBDR MW Red Mdn G-7 Ma-2 P-4 T-4 M-3 B-4 M65 SM57b", "amps/mesa_dual_rectifier_multiwatt/fr_mbdr_mw_red_mdn_g_7_ma_2_p_4_t_4_m_3_b_4_m65_sm57b.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

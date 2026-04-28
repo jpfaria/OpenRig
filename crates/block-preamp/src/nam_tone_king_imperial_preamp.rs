@@ -24,14 +24,14 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("08_lead_g9", "AP 08 Imperial Lead G9", "preamp/tone_king_imperial_preamp/ap_08_imperial_lead_g9_2.nam"),
-    ("03_clean_g7", "AP 03 Imperial Clean G7", "preamp/tone_king_imperial_preamp/ap_03_imperial_clean_g7_2.nam"),
-    ("07_lead_g7", "AP 07 Imperial Lead G7", "preamp/tone_king_imperial_preamp/ap_07_imperial_lead_g7_2.nam"),
-    ("01_clean_g3", "AP 01 Imperial Clean G3", "preamp/tone_king_imperial_preamp/ap_01_imperial_clean_g3_2.nam"),
-    ("04_clean_g9", "AP 04 Imperial Clean G9", "preamp/tone_king_imperial_preamp/ap_04_imperial_clean_g9_2.nam"),
-    ("02_clean_g5", "AP 02  Imperial Clean G5", "preamp/tone_king_imperial_preamp/ap_02_imperial_clean_g5_2.nam"),
-    ("06_lead_g5", "AP 06 Imperial Lead G5", "preamp/tone_king_imperial_preamp/ap_06_imperial_lead_g5_2.nam"),
-    ("05_lead_g3", "AP 05 Imperial Lead G3", "preamp/tone_king_imperial_preamp/ap_05_imperial_lead_g3_2.nam"),
+    ("08_lead_g9", "AP 08 Imperial Lead G9", "preamp/tone_king_imperial_preamp/ap_08_imperial_lead_g9.nam"),
+    ("03_clean_g7", "AP 03 Imperial Clean G7", "preamp/tone_king_imperial_preamp/ap_03_imperial_clean_g7.nam"),
+    ("07_lead_g7", "AP 07 Imperial Lead G7", "preamp/tone_king_imperial_preamp/ap_07_imperial_lead_g7.nam"),
+    ("01_clean_g3", "AP 01 Imperial Clean G3", "preamp/tone_king_imperial_preamp/ap_01_imperial_clean_g3.nam"),
+    ("04_clean_g9", "AP 04 Imperial Clean G9", "preamp/tone_king_imperial_preamp/ap_04_imperial_clean_g9.nam"),
+    ("02_clean_g5", "AP 02  Imperial Clean G5", "preamp/tone_king_imperial_preamp/ap_02_imperial_clean_g5.nam"),
+    ("06_lead_g5", "AP 06 Imperial Lead G5", "preamp/tone_king_imperial_preamp/ap_06_imperial_lead_g5.nam"),
+    ("05_lead_g3", "AP 05 Imperial Lead G3", "preamp/tone_king_imperial_preamp/ap_05_imperial_lead_g3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

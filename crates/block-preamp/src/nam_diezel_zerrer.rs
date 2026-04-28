@@ -24,14 +24,14 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("04_od_g12_t2_m10_b11_v12_p3_d11", "04 Zerrer OD G12 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/04_zerrer_od_g12_t2_m10_b11_v12_p3_d11_48hz_24bit_2.nam"),
-    ("05_od_g3_t2_m10_b11_v12_p3_d11", "05 Zerrer OD G3 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/05_zerrer_od_g3_t2_m10_b11_v12_p3_d11_48hz_24bit_2.nam"),
-    ("28_od_g10_t4_m12_b3_v2_p3_d11", "28 Zerrer OD G10 T4 M12 B3 V2 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/28_zerrer_od_g10_t4_m12_b3_v2_p3_d11_48hz_24bit_2.nam"),
-    ("06_od_g9_t2_m10_b11_v12_p3_d11", "06 Zerrer OD G9 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/06_zerrer_od_g9_t2_m10_b11_v12_p3_d11_48hz_24bit_2.nam"),
-    ("26_od_g3_t3_m12_b3_v1_p3_d11", "26 Zerrer OD G3 T3 M12 B3 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/26_zerrer_od_g3_t3_m12_b3_v1_p3_d11_48hz_24bit_2.nam"),
-    ("27_od_g11_t4_m3_b1_v1_p3_d11", "27 Zerrer OD G11 T4 M3 B1 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/27_zerrer_od_g11_t4_m3_b1_v1_p3_d11_48hz_24bit_2.nam"),
-    ("25_od_g4_t3_m7_b3_v1_p3_d11", "25 Zerrer OD G4 T3 M7 B3 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/25_zerrer_od_g4_t3_m7_b3_v1_p3_d11_48hz_24bit_2.nam"),
-    ("12_ch1_g10_t12_m2_b3", "12 Zerrer CH1 G10 T12 M2 B3 48hz 24Bit", "preamp/diezel_zerrer/12_zerrer_ch1_g10_t12_m2_b3_48hz_24bit_2.nam"),
+    ("04_od_g12_t2_m10_b11_v12_p3_d11", "04 Zerrer OD G12 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/04_zerrer_od_g12_t2_m10_b11_v12_p3_d11_48hz_24bit.nam"),
+    ("05_od_g3_t2_m10_b11_v12_p3_d11", "05 Zerrer OD G3 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/05_zerrer_od_g3_t2_m10_b11_v12_p3_d11_48hz_24bit.nam"),
+    ("28_od_g10_t4_m12_b3_v2_p3_d11", "28 Zerrer OD G10 T4 M12 B3 V2 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/28_zerrer_od_g10_t4_m12_b3_v2_p3_d11_48hz_24bit.nam"),
+    ("06_od_g9_t2_m10_b11_v12_p3_d11", "06 Zerrer OD G9 T2 M10 B11 V12 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/06_zerrer_od_g9_t2_m10_b11_v12_p3_d11_48hz_24bit.nam"),
+    ("26_od_g3_t3_m12_b3_v1_p3_d11", "26 Zerrer OD G3 T3 M12 B3 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/26_zerrer_od_g3_t3_m12_b3_v1_p3_d11_48hz_24bit.nam"),
+    ("27_od_g11_t4_m3_b1_v1_p3_d11", "27 Zerrer OD G11 T4 M3 B1 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/27_zerrer_od_g11_t4_m3_b1_v1_p3_d11_48hz_24bit.nam"),
+    ("25_od_g4_t3_m7_b3_v1_p3_d11", "25 Zerrer OD G4 T3 M7 B3 V1 P3 D11 48hz 24Bit", "preamp/diezel_zerrer/25_zerrer_od_g4_t3_m7_b3_v1_p3_d11_48hz_24bit.nam"),
+    ("12_ch1_g10_t12_m2_b3", "12 Zerrer CH1 G10 T12 M2 B3 48hz 24Bit", "preamp/diezel_zerrer/12_zerrer_ch1_g10_t12_m2_b3_48hz_24bit.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

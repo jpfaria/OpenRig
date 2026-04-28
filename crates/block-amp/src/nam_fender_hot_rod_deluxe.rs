@@ -14,14 +14,14 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("warm_lead", "15 Hot Rod Deluxe - Warm Lead", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_warm_lead_2.nam"),
-    ("vintage_sweet_spot", "15 Hot Rod Deluxe - Vintage Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_sweet_spot_2.nam"),
-    ("modern_overdrive", "15 Hot Rod Deluxe - Modern Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_modern_overdrive_2.nam"),
-    ("womanly", "15 Hot Rod Deluxe - Womanly", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_womanly_2.nam"),
-    ("vintage_overdrive", "15 Hot Rod Deluxe - Vintage Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_overdrive_2.nam"),
-    ("bright_sweet_spot", "15 Hot Rod Deluxe - Bright Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_sweet_spot_2.nam"),
-    ("bright_clean", "15 Hot Rod Deluxe - Bright Clean", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_clean_2.nam"),
-    ("southern_snap", "15 Hot Rod Deluxe - Southern Snap", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_southern_snap_2.nam"),
+    ("warm_lead", "15 Hot Rod Deluxe - Warm Lead", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_warm_lead.nam"),
+    ("vintage_sweet_spot", "15 Hot Rod Deluxe - Vintage Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_sweet_spot.nam"),
+    ("modern_overdrive", "15 Hot Rod Deluxe - Modern Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_modern_overdrive.nam"),
+    ("womanly", "15 Hot Rod Deluxe - Womanly", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_womanly.nam"),
+    ("vintage_overdrive", "15 Hot Rod Deluxe - Vintage Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_overdrive.nam"),
+    ("bright_sweet_spot", "15 Hot Rod Deluxe - Bright Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_sweet_spot.nam"),
+    ("bright_clean", "15 Hot Rod Deluxe - Bright Clean", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_clean.nam"),
+    ("southern_snap", "15 Hot Rod Deluxe - Southern Snap", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_southern_snap.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

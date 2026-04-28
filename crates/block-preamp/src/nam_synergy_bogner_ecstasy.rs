@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("blue_08", "[ReactEQ] Bogner Ecstasy Blue #08", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_blue_08_2.nam"),
-    ("red_03", "[ReactEQ] Bogner Ecstasy Red #03", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_03_2.nam"),
-    ("red_09", "[ReactEQ] Bogner Ecstasy Red #09", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_09_2.nam"),
-    ("red_07", "[ReactEQ] Bogner Ecstasy Red #07", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_07_2.nam"),
+    ("blue_08", "[ReactEQ] Bogner Ecstasy Blue #08", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_blue_08.nam"),
+    ("red_03", "[ReactEQ] Bogner Ecstasy Red #03", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_03.nam"),
+    ("red_09", "[ReactEQ] Bogner Ecstasy Red #09", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_09.nam"),
+    ("red_07", "[ReactEQ] Bogner Ecstasy Red #07", "preamp/synergy_bogner_ecstasy/reacteq_bogner_ecstasy_red_07.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

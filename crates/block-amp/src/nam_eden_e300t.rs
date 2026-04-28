@@ -14,12 +14,12 @@ const BRAND: &str = "eden";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("glowplug", "Glowplug", "amps/eden_e300t/glowplug_2.nam"),
-    ("e300t_flat_gain_6", "E300T Flat (Gain 6)", "amps/eden_e300t/e300t_flat_gain_6_2.nam"),
+    ("glowplug", "Glowplug", "amps/eden_e300t/glowplug.nam"),
+    ("e300t_flat_gain_6", "E300T Flat (Gain 6)", "amps/eden_e300t/e300t_flat_gain_6.nam"),
     ("wtdi", "WTDI", "amps/eden_e300t/wtdi_3.nam"),
-    ("wtdi_2", "WTDI 2", "amps/eden_e300t/wtdi_2_2.nam"),
-    ("e300t_eq_1_gain_6_bass_2_mid_3_shift_on_", "E300T EQ 1 (Gain 6, Bass +2, Mid +3, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_1_gain_6_bass_2_mid_3_shift_on_treb_0_2.nam"),
-    ("e300t_eq_2_gain_6_bass_3_mid_2_shift_on_", "E300T EQ 2 (Gain 6, Bass +3, Mid +2, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_2_gain_6_bass_3_mid_2_shift_on_treb_0_2.nam"),
+    ("wtdi_2", "WTDI 2", "amps/eden_e300t/wtdi_2.nam"),
+    ("e300t_eq_1_gain_6_bass_2_mid_3_shift_on_", "E300T EQ 1 (Gain 6, Bass +2, Mid +3, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_1_gain_6_bass_2_mid_3_shift_on_treb_0.nam"),
+    ("e300t_eq_2_gain_6_bass_3_mid_2_shift_on_", "E300T EQ 2 (Gain 6, Bass +3, Mid +2, Shift ON, Treb 0)", "amps/eden_e300t/e300t_eq_2_gain_6_bass_3_mid_2_shift_on_treb_0.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,10 +14,10 @@ const BRAND: &str = "mesaboogie";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_mb_290_6l6gc_8_5", "SLAMMIN_MB_290_6L6GC_8_5", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_5_2.nam"),
-    ("slammin_mb_290_6l6gc_8_2", "SLAMMIN_MB_290_6L6GC_8_2", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_2_2.nam"),
-    ("slammin_mb_290_6l6gc_d_6_0", "SLAMMIN_MB_290_6L6GC_D_6_0", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_d_6_0_2.nam"),
-    ("slammin_mb_290_6l6gc_13_8", "SLAMMIN_MB_290_6L6GC_13_8", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_13_8_2.nam"),
+    ("slammin_mb_290_6l6gc_8_5", "SLAMMIN_MB_290_6L6GC_8_5", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_5.nam"),
+    ("slammin_mb_290_6l6gc_8_2", "SLAMMIN_MB_290_6L6GC_8_2", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_8_2.nam"),
+    ("slammin_mb_290_6l6gc_d_6_0", "SLAMMIN_MB_290_6L6GC_D_6_0", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_d_6_0.nam"),
+    ("slammin_mb_290_6l6gc_13_8", "SLAMMIN_MB_290_6L6GC_13_8", "amps/mesaboogie_290_simul_class/slammin_mb_290_6l6gc_13_8.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,14 +14,14 @@ const BRAND: &str = "ampeg";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ultra_hi_md_421", "Ampeg SVT - Ultra Hi MD 421", "amps/ampeg_svt/ampeg_svt_ultra_hi_md_421_2.nam"),
-    ("ultra_lo_sm57", "Ampeg SVT - Ultra Lo SM57", "amps/ampeg_svt/ampeg_svt_ultra_lo_sm57_2.nam"),
-    ("sm75", "Ampeg SVT - SM75", "amps/ampeg_svt/ampeg_svt_sm75_2.nam"),
-    ("ultra_lo_md_421", "Ampeg SVT - Ultra Lo MD 421", "amps/ampeg_svt/ampeg_svt_ultra_lo_md_421_2.nam"),
-    ("md_421", "Ampeg SVT - MD 421", "amps/ampeg_svt/ampeg_svt_md_421_2.nam"),
-    ("ultra_hi_sm57", "Ampeg SVT - Ultra Hi SM57", "amps/ampeg_svt/ampeg_svt_ultra_hi_sm57_2.nam"),
-    ("gain_10_ultra_lo_and_hi_sm57", "Ampeg SVT - Gain 10 Ultra Lo and Hi SM57", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_sm57_2.nam"),
-    ("gain_10_ultra_lo_and_hi_md_421", "Ampeg SVT - Gain 10 Ultra Lo and Hi MD 421", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_md_421_2.nam"),
+    ("ultra_hi_md_421", "Ampeg SVT - Ultra Hi MD 421", "amps/ampeg_svt/ampeg_svt_ultra_hi_md_421.nam"),
+    ("ultra_lo_sm57", "Ampeg SVT - Ultra Lo SM57", "amps/ampeg_svt/ampeg_svt_ultra_lo_sm57.nam"),
+    ("sm75", "Ampeg SVT - SM75", "amps/ampeg_svt/ampeg_svt_sm75.nam"),
+    ("ultra_lo_md_421", "Ampeg SVT - Ultra Lo MD 421", "amps/ampeg_svt/ampeg_svt_ultra_lo_md_421.nam"),
+    ("md_421", "Ampeg SVT - MD 421", "amps/ampeg_svt/ampeg_svt_md_421.nam"),
+    ("ultra_hi_sm57", "Ampeg SVT - Ultra Hi SM57", "amps/ampeg_svt/ampeg_svt_ultra_hi_sm57.nam"),
+    ("gain_10_ultra_lo_and_hi_sm57", "Ampeg SVT - Gain 10 Ultra Lo and Hi SM57", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_sm57.nam"),
+    ("gain_10_ultra_lo_and_hi_md_421", "Ampeg SVT - Gain 10 Ultra Lo and Hi MD 421", "amps/ampeg_svt/ampeg_svt_gain_10_ultra_lo_and_hi_md_421.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,8 +14,8 @@ const BRAND: &str = "soldano";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5_2.nam"),
-    ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5_2.nam"),
+    ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5.nam"),
+    ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

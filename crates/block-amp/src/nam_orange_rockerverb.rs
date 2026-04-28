@@ -14,13 +14,13 @@ const BRAND: &str = "orange";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("higain_g7", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g7_canov_arnold_2.nam"),
-    ("jim_root", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_jim_root_canov_arnold_2.nam"),
-    ("higain_g5_fortin_ts808", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g5_fortin_ts808_canov_arnold_2.nam"),
-    ("crunch_g5", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_crunch_g5_canov_arnold_2.nam"),
-    ("rock_g6", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_rock_g6_canov_arnold_2.nam"),
-    ("higain_g6_ti_boost", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g6_ti_boost_canov_arnold_2.nam"),
-    ("clean", "Orange Rockerverb MK3 - Clean - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_clean_canov_arnold_2.nam"),
+    ("higain_g7", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g7_canov_arnold.nam"),
+    ("jim_root", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_jim_root_canov_arnold.nam"),
+    ("higain_g5_fortin_ts808", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g5_fortin_ts808_canov_arnold.nam"),
+    ("crunch_g5", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_crunch_g5_canov_arnold.nam"),
+    ("rock_g6", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_rock_g6_canov_arnold.nam"),
+    ("higain_g6_ti_boost", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g6_ti_boost_canov_arnold.nam"),
+    ("clean", "Orange Rockerverb MK3 - Clean - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_clean_canov_arnold.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

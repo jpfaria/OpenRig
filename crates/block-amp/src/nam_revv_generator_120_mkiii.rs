@@ -14,7 +14,7 @@ const BRAND: &str = "revv";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("revvg120_ch3a1_g15_t1330_m1130_b11_p13_d", "RevvG120_CH3A1_G15_T1330_M1130_B11_P13_D11", "amps/revv_generator_120_mkiii/revvg120_ch3a1_g15_t1330_m1130_b11_p13_d11_2.nam"),
+    ("revvg120_ch3a1_g15_t1330_m1130_b11_p13_d", "RevvG120_CH3A1_G15_T1330_M1130_B11_P13_D11", "amps/revv_generator_120_mkiii/revvg120_ch3a1_g15_t1330_m1130_b11_p13_d11.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

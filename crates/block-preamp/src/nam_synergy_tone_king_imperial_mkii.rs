@@ -24,7 +24,7 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fig_imperial_ch2_mg_212", "Fig Imperial Ch2 MG 212", "preamp/synergy_tone_king_imperial_mkii/fig_imperial_ch2_mg_212_2.nam"),
+    ("fig_imperial_ch2_mg_212", "Fig Imperial Ch2 MG 212", "preamp/synergy_tone_king_imperial_mkii/fig_imperial_ch2_mg_212.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

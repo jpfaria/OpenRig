@@ -14,14 +14,14 @@ const BRAND: &str = "bogner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone_2.nam"),
-    ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)", "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off_2.nam"),
-    ("fender_clean", "Bogner Ecstasy - Fender Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean_2.nam"),
-    ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch_2.nam"),
-    ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch_2.nam"),
-    ("basic_clean", "Bogner Ecstasy - Basic Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean_2.nam"),
-    ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone_2.nam"),
-    ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock", "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock_2.nam"),
+    ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone.nam"),
+    ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)", "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off.nam"),
+    ("fender_clean", "Bogner Ecstasy - Fender Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean.nam"),
+    ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch.nam"),
+    ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch.nam"),
+    ("basic_clean", "Bogner Ecstasy - Basic Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean.nam"),
+    ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone.nam"),
+    ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock", "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,8 +14,8 @@ const BRAND: &str = "hughes_kettner";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("rhythm", "HUGHES & KETTNER TM40 RHYTHM", "amps/hughes_and_kettner_tubemeister/hughes_kettner_tm40_rhythm_2.nam"),
-    ("crunch", "HUGHES & KETTNER TM40 CRUNCH", "amps/hughes_and_kettner_tubemeister/hughes_kettner_tm40_crunch_2.nam"),
+    ("rhythm", "HUGHES & KETTNER TM40 RHYTHM", "amps/hughes_and_kettner_tubemeister/hughes_kettner_tm40_rhythm.nam"),
+    ("crunch", "HUGHES & KETTNER TM40 CRUNCH", "amps/hughes_and_kettner_tubemeister/hughes_kettner_tm40_crunch.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

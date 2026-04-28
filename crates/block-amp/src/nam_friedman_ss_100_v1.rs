@@ -14,10 +14,10 @@ const BRAND: &str = "friedman";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_fman_ss_scoop_new_s", "SLAMMIN_FMAN_SS_SCOOP_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_scoop_new_s_2.nam"),
-    ("slammin_fman_ss_sam_new_s", "SLAMMIN_FMAN_SS_SAM_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_sam_new_s_2.nam"),
-    ("slammin_fman_ss_magic7_new_s", "SLAMMIN_FMAN_SS_MAGIC7_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_magic7_new_s_2.nam"),
-    ("slammin_fman_ss_steve2_new_s", "SLAMMIN_FMAN_SS_STEVE2_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_steve2_new_s_2.nam"),
+    ("slammin_fman_ss_scoop_new_s", "SLAMMIN_FMAN_SS_SCOOP_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_scoop_new_s.nam"),
+    ("slammin_fman_ss_sam_new_s", "SLAMMIN_FMAN_SS_SAM_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_sam_new_s.nam"),
+    ("slammin_fman_ss_magic7_new_s", "SLAMMIN_FMAN_SS_MAGIC7_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_magic7_new_s.nam"),
+    ("slammin_fman_ss_steve2_new_s", "SLAMMIN_FMAN_SS_STEVE2_NEW_S", "amps/friedman_ss_100_v1/slammin_fman_ss_steve2_new_s.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

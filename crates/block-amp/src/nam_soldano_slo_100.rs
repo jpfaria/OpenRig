@@ -14,14 +14,14 @@ const BRAND: &str = "soldano";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pre_slo100_ovd_lucky_7", "[PRE] SLO100-OVD Lucky 7", "amps/soldano_slo_100/pre_slo100_ovd_lucky_7_2.nam"),
-    ("pow_slo100_6l6_juice_13_sm58", "[POW] SLO100 6L6 Juice #13 - SM58", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_sm58_2.nam"),
-    ("amp_slo100_nrm_crn_thing_of_joy_01_sm57", "[AMP] SLO100-NRM-CRN Thing of Joy #01 - SM57", "amps/soldano_slo_100/amp_slo100_nrm_crn_thing_of_joy_01_sm57_2.nam"),
-    ("amp_slo100_nrm_crn_thing_of_joy_01_sm58", "[AMP] SLO100-NRM-CRN Thing of Joy #01 - SM58", "amps/soldano_slo_100/amp_slo100_nrm_crn_thing_of_joy_01_sm58_2.nam"),
-    ("amp_slo100_ovd_the_king_sm58", "[AMP] SLO100-OVD The King - SM58", "amps/soldano_slo_100/amp_slo100_ovd_the_king_sm58_2.nam"),
-    ("pow_slo100_6l6_juice_13_blend_1", "[POW] SLO100 6L6 Juice #13 - BLEND #1", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_blend_1_2.nam"),
-    ("amp_slo100_nrm_cln_journeyvan_di", "[AMP] SLO100-NRM-CLN Journeyvan - DI", "amps/soldano_slo_100/amp_slo100_nrm_cln_journeyvan_di_2.nam"),
-    ("pow_slo100_6l6_juice_13_blend_3", "[POW] SLO100 6L6 Juice #13 - BLEND #3", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_blend_3_2.nam"),
+    ("pre_slo100_ovd_lucky_7", "[PRE] SLO100-OVD Lucky 7", "amps/soldano_slo_100/pre_slo100_ovd_lucky_7.nam"),
+    ("pow_slo100_6l6_juice_13_sm58", "[POW] SLO100 6L6 Juice #13 - SM58", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_sm58.nam"),
+    ("amp_slo100_nrm_crn_thing_of_joy_01_sm57", "[AMP] SLO100-NRM-CRN Thing of Joy #01 - SM57", "amps/soldano_slo_100/amp_slo100_nrm_crn_thing_of_joy_01_sm57.nam"),
+    ("amp_slo100_nrm_crn_thing_of_joy_01_sm58", "[AMP] SLO100-NRM-CRN Thing of Joy #01 - SM58", "amps/soldano_slo_100/amp_slo100_nrm_crn_thing_of_joy_01_sm58.nam"),
+    ("amp_slo100_ovd_the_king_sm58", "[AMP] SLO100-OVD The King - SM58", "amps/soldano_slo_100/amp_slo100_ovd_the_king_sm58.nam"),
+    ("pow_slo100_6l6_juice_13_blend_1", "[POW] SLO100 6L6 Juice #13 - BLEND #1", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_blend_1.nam"),
+    ("amp_slo100_nrm_cln_journeyvan_di", "[AMP] SLO100-NRM-CLN Journeyvan - DI", "amps/soldano_slo_100/amp_slo100_nrm_cln_journeyvan_di.nam"),
+    ("pow_slo100_6l6_juice_13_blend_3", "[POW] SLO100 6L6 Juice #13 - BLEND #3", "amps/soldano_slo_100/pow_slo100_6l6_juice_13_blend_3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

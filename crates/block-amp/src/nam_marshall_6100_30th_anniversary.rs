@@ -14,11 +14,11 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_6100_channel2_crunch_a_high_gai", "marshall-6100--channel2-crunch-a--high-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_isocecles_2.nam"),
-    ("marshall_6100_channel2_crunch_a_high_gai_342326", "marshall-6100--channel2-crunch-a--high-gain--no-boost", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_no_boost_2.nam"),
-    ("marshall_6100_channel2_crunch_a_mid_gain", "marshall-6100--channel2-crunch-a--mid-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_mid_gain_isocecles_2.nam"),
-    ("marshall_6100_channel2_crunch_a_high_gai_342320", "marshall-6100--channel2-crunch-a--high-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_boss_sd1_2.nam"),
-    ("marshall_6100_channel2_crunch_a_low_gain", "marshall-6100--channel2-crunch-a--low-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_low_gain_boss_sd1_2.nam"),
+    ("marshall_6100_channel2_crunch_a_high_gai", "marshall-6100--channel2-crunch-a--high-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_isocecles.nam"),
+    ("marshall_6100_channel2_crunch_a_high_gai_342326", "marshall-6100--channel2-crunch-a--high-gain--no-boost", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_no_boost.nam"),
+    ("marshall_6100_channel2_crunch_a_mid_gain", "marshall-6100--channel2-crunch-a--mid-gain--isocecles", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_mid_gain_isocecles.nam"),
+    ("marshall_6100_channel2_crunch_a_high_gai_342320", "marshall-6100--channel2-crunch-a--high-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_high_gain_boss_sd1.nam"),
+    ("marshall_6100_channel2_crunch_a_low_gain", "marshall-6100--channel2-crunch-a--low-gain--boss-sd1", "amps/marshall_6100_30th_anniversary/marshall_6100_channel2_crunch_a_low_gain_boss_sd1.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

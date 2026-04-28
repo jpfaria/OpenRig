@@ -14,18 +14,18 @@ const BRAND: &str = "prs";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("amp_arc50c_lead_hippo", "[AMP] ARC50C-LEAD Hippo - STD", "amps/prs_archon/amp_arc50c_lead_hippo_std_2.nam"),
-    ("amp_arc50c_lead_roar", "[AMP] ARC50C-LEAD Roar - STD", "amps/prs_archon/amp_arc50c_lead_roar_std_2.nam"),
-    ("amp_arc50c_lead_rhino", "[AMP] ARC50C-LEAD Rhino - STD", "amps/prs_archon/amp_arc50c_lead_rhino_std_2.nam"),
-    ("amp_arc50c_lead_growl", "[AMP] ARC50C-LEAD Growl - STD", "amps/prs_archon/amp_arc50c_lead_growl_std_2.nam"),
-    ("amp_arc50c_lead_nessie", "[AMP] ARC50C-LEAD Nessie - STD", "amps/prs_archon/amp_arc50c_lead_nessie_std_2.nam"),
-    ("amp_arc50c_lead_kong", "[AMP] ARC50C-LEAD Kong - STD", "amps/prs_archon/amp_arc50c_lead_kong_std_2.nam"),
-    ("pow_arc50c_p5_d5_cl_mesa4x12", "[POW] ARC50C P5 D5 - CL (Mesa4x12) - STD", "amps/prs_archon/pow_arc50c_p5_d5_cl_mesa4x12_std_2.nam"),
-    ("pow_arc50c_p8_d2_rl", "[POW] ARC50C P8 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p8_d2_rl_std_2.nam"),
-    ("pow_arc50c_p6_d6_rl", "[POW] ARC50C P6 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p6_d6_rl_std_2.nam"),
-    ("pow_arc50c_p2_d6_rl", "[POW] ARC50C P2 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d6_rl_std_2.nam"),
-    ("pow_arc50c_p5_d2_rl", "[POW] ARC50C P5 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p5_d2_rl_std_2.nam"),
-    ("pow_arc50c_p2_d8_rl", "[POW] ARC50C P2 D8 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d8_rl_std_2.nam"),
+    ("amp_arc50c_lead_hippo", "[AMP] ARC50C-LEAD Hippo - STD", "amps/prs_archon/amp_arc50c_lead_hippo_std.nam"),
+    ("amp_arc50c_lead_roar", "[AMP] ARC50C-LEAD Roar - STD", "amps/prs_archon/amp_arc50c_lead_roar_std.nam"),
+    ("amp_arc50c_lead_rhino", "[AMP] ARC50C-LEAD Rhino - STD", "amps/prs_archon/amp_arc50c_lead_rhino_std.nam"),
+    ("amp_arc50c_lead_growl", "[AMP] ARC50C-LEAD Growl - STD", "amps/prs_archon/amp_arc50c_lead_growl_std.nam"),
+    ("amp_arc50c_lead_nessie", "[AMP] ARC50C-LEAD Nessie - STD", "amps/prs_archon/amp_arc50c_lead_nessie_std.nam"),
+    ("amp_arc50c_lead_kong", "[AMP] ARC50C-LEAD Kong - STD", "amps/prs_archon/amp_arc50c_lead_kong_std.nam"),
+    ("pow_arc50c_p5_d5_cl_mesa4x12", "[POW] ARC50C P5 D5 - CL (Mesa4x12) - STD", "amps/prs_archon/pow_arc50c_p5_d5_cl_mesa4x12_std.nam"),
+    ("pow_arc50c_p8_d2_rl", "[POW] ARC50C P8 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p8_d2_rl_std.nam"),
+    ("pow_arc50c_p6_d6_rl", "[POW] ARC50C P6 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p6_d6_rl_std.nam"),
+    ("pow_arc50c_p2_d6_rl", "[POW] ARC50C P2 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d6_rl_std.nam"),
+    ("pow_arc50c_p5_d2_rl", "[POW] ARC50C P5 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p5_d2_rl_std.nam"),
+    ("pow_arc50c_p2_d8_rl", "[POW] ARC50C P2 D8 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d8_rl_std.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

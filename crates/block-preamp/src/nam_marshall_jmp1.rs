@@ -24,9 +24,9 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch_breakup", "JMP CRUNCH BREAKUP", "preamp/marshall_jmp1/jmp_crunch_breakup_2.nam"),
-    ("rhythm_deftoned", "JMP RHYTHM DEFTONED", "preamp/marshall_jmp1/jmp_rhythm_deftoned_2.nam"),
-    ("clean", "JMP CLEAN", "preamp/marshall_jmp1/jmp_clean_2.nam"),
+    ("crunch_breakup", "JMP CRUNCH BREAKUP", "preamp/marshall_jmp1/jmp_crunch_breakup.nam"),
+    ("rhythm_deftoned", "JMP RHYTHM DEFTONED", "preamp/marshall_jmp1/jmp_rhythm_deftoned.nam"),
+    ("clean", "JMP CLEAN", "preamp/marshall_jmp1/jmp_clean.nam"),
     ("rhythm_overdrive808", "JMP RHYTHM OVERDRIVE808", "preamp/marshall_jmp1/jmp_rhythm_overdrive808.nam"),
     ("rhythm_3", "JMP RHYTHM 3", "preamp/marshall_jmp1/jmp_rhythm_3.nam"),
     ("rhythm_2", "JMP RHYTHM 2", "preamp/marshall_jmp1/jmp_rhythm_2.nam"),

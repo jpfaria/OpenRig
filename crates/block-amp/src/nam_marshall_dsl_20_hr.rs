@@ -14,10 +14,10 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "DSL800 Clean", "amps/marshall_dsl_20_hr/dsl800_clean_2.nam"),
-    ("crunch", "DSL800 - Crunch", "amps/marshall_dsl_20_hr/dsl800_crunch_2.nam"),
-    ("crunch_bad_horse", "DSL800 - Crunch + Bad Horse", "amps/marshall_dsl_20_hr/dsl800_crunch_bad_horse_2.nam"),
-    ("lead", "DSL800 - Lead", "amps/marshall_dsl_20_hr/dsl800_lead_2.nam"),
+    ("clean", "DSL800 Clean", "amps/marshall_dsl_20_hr/dsl800_clean.nam"),
+    ("crunch", "DSL800 - Crunch", "amps/marshall_dsl_20_hr/dsl800_crunch.nam"),
+    ("crunch_bad_horse", "DSL800 - Crunch + Bad Horse", "amps/marshall_dsl_20_hr/dsl800_crunch_bad_horse.nam"),
+    ("lead", "DSL800 - Lead", "amps/marshall_dsl_20_hr/dsl800_lead.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

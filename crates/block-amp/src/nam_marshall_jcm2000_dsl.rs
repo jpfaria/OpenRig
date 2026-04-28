@@ -14,12 +14,12 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("od2_altrock_esr0_0050", "BMR - Marshall JCM2000 OD2 AltRock - ESR0-0050", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_altrock_esr0_0050_2.nam"),
-    ("clean_esr0_0020", "BMR - Marshall JCM2000 Clean - ESR0-0020", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_clean_esr0_0020_2.nam"),
-    ("od2_dimed_esr0_0813", "BMR - Marshall JCM2000 OD2 DIMED - ESR0-0813", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_dimed_esr0_0813_2.nam"),
-    ("od1_dimed_esr0_0357", "BMR - Marshall JCM2000 OD1 DIMED - ESR0-0357", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_dimed_esr0_0357_2.nam"),
-    ("od1_altrock_esr0_0055", "BMR - Marshall JCM2000 OD1 AltRock - ESR0-0055", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_altrock_esr0_0055_2.nam"),
-    ("crunch_esr0_0021", "BMR - Marshall JCM2000 Crunch - ESR0-0021", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_crunch_esr0_0021_2.nam"),
+    ("od2_altrock_esr0_0050", "BMR - Marshall JCM2000 OD2 AltRock - ESR0-0050", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_altrock_esr0_0050.nam"),
+    ("clean_esr0_0020", "BMR - Marshall JCM2000 Clean - ESR0-0020", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_clean_esr0_0020.nam"),
+    ("od2_dimed_esr0_0813", "BMR - Marshall JCM2000 OD2 DIMED - ESR0-0813", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od2_dimed_esr0_0813.nam"),
+    ("od1_dimed_esr0_0357", "BMR - Marshall JCM2000 OD1 DIMED - ESR0-0357", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_dimed_esr0_0357.nam"),
+    ("od1_altrock_esr0_0055", "BMR - Marshall JCM2000 OD1 AltRock - ESR0-0055", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_od1_altrock_esr0_0055.nam"),
+    ("crunch_esr0_0021", "BMR - Marshall JCM2000 Crunch - ESR0-0021", "amps/marshall_jcm2000_dsl/bmr_marshall_jcm2000_crunch_esr0_0021.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

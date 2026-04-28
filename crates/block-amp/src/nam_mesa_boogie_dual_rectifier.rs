@@ -14,11 +14,11 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("1_crunch_1", "1. MESA DUAL RECTIFIER 2025 | CRUNCH | RHYTHM #1", "amps/mesa_boogie_dual_rectifier/1_mesa_dual_rectifier_2025_crunch_rhythm_1_2.nam"),
-    ("2_2", "2. MESA DUAL RECTIFIER 2025 | RHYTHM #2", "amps/mesa_boogie_dual_rectifier/2_mesa_dual_rectifier_2025_rhythm_2_2.nam"),
-    ("3_3", "3. MESA DUAL RECTIFIER 2025 | RHYTHM #3", "amps/mesa_boogie_dual_rectifier/3_mesa_dual_rectifier_2025_rhythm_3_2.nam"),
-    ("4_4", "4. MESA DUAL RECTIFIER 2025 | RHYTHM #4", "amps/mesa_boogie_dual_rectifier/4_mesa_dual_rectifier_2025_rhythm_4_2.nam"),
-    ("5_ts808_boost_5", "5. MESA DUAL RECTIFIER 2025 | TS808 BOOST | RHYTHM #5", "amps/mesa_boogie_dual_rectifier/5_mesa_dual_rectifier_2025_ts808_boost_rhythm_5_2.nam"),
+    ("1_crunch_1", "1. CRUNCH #1", "amps/mesa_boogie_dual_rectifier/1_mesa_dual_rectifier_2025_crunch_rhythm_1_2.nam"),
+    ("2_2", "2. #2", "amps/mesa_boogie_dual_rectifier/2_mesa_dual_rectifier_2025_rhythm_2_2.nam"),
+    ("3_3", "3. #3", "amps/mesa_boogie_dual_rectifier/3_mesa_dual_rectifier_2025_rhythm_3_2.nam"),
+    ("4_4", "4. #4", "amps/mesa_boogie_dual_rectifier/4_mesa_dual_rectifier_2025_rhythm_4_2.nam"),
+    ("5_ts808_boost_5", "5. TS808 BOOST #5", "amps/mesa_boogie_dual_rectifier/5_mesa_dual_rectifier_2025_ts808_boost_rhythm_5_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -29,11 +29,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Amp"),
         Some("1_crunch_1"),
         &[
-            ("1_crunch_1", "1. MESA DUAL RECTIFIER 2025 | CRUNCH | RHYTHM #1"),
-            ("2_2", "2. MESA DUAL RECTIFIER 2025 | RHYTHM #2"),
-            ("3_3", "3. MESA DUAL RECTIFIER 2025 | RHYTHM #3"),
-            ("4_4", "4. MESA DUAL RECTIFIER 2025 | RHYTHM #4"),
-            ("5_ts808_boost_5", "5. MESA DUAL RECTIFIER 2025 | TS808 BOOST | RHYTHM #5"),
+            ("1_crunch_1", "1. CRUNCH #1"),
+            ("2_2", "2. #2"),
+            ("3_3", "3. #3"),
+            ("4_4", "4. #4"),
+            ("5_ts808_boost_5", "5. TS808 BOOST #5"),
         ],
     )];
     schema

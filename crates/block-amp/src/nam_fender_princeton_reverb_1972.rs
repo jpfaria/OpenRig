@@ -14,12 +14,12 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("princ_v5_t7_b2_sm57_jensen_c10q", "Princ_v5-t7-b2 SM57 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_sm57_jensen_c10q_2.nam"),
-    ("princ_v5_t7_b2_heil_pr_30_jensen_c10q", "Princ_v5-t7-b2 Heil-PR-30 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_heil_pr_30_jensen_c10q_2.nam"),
-    ("princ_v3_t8_b2_sm57_orig_spkr", "Princ_v3_t8_b2 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_t8_b2_sm57_orig_spkr_2.nam"),
-    ("princ_v3_5_t6_b3_sm57_orig_spkr", "Princ_v3.5_t6_b3 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_5_t6_b3_sm57_orig_spkr_2.nam"),
-    ("princ_v4_t7_b2_sm57offcntr_jensen_c10q", "Princ_v4_t7_b2 SM57offcntr_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_sm57offcntr_jensen_c10q_2.nam"),
-    ("princ_v4_t7_b2_heil_pr30center_jensen_c1", "Princ_v4_t7_b2 Heil-PR30center_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_heil_pr30center_jensen_c10q_2.nam"),
+    ("princ_v5_t7_b2_sm57_jensen_c10q", "Princ_v5-t7-b2 SM57 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_sm57_jensen_c10q.nam"),
+    ("princ_v5_t7_b2_heil_pr_30_jensen_c10q", "Princ_v5-t7-b2 Heil-PR-30 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_heil_pr_30_jensen_c10q.nam"),
+    ("princ_v3_t8_b2_sm57_orig_spkr", "Princ_v3_t8_b2 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_t8_b2_sm57_orig_spkr.nam"),
+    ("princ_v3_5_t6_b3_sm57_orig_spkr", "Princ_v3.5_t6_b3 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_5_t6_b3_sm57_orig_spkr.nam"),
+    ("princ_v4_t7_b2_sm57offcntr_jensen_c10q", "Princ_v4_t7_b2 SM57offcntr_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_sm57offcntr_jensen_c10q.nam"),
+    ("princ_v4_t7_b2_heil_pr30center_jensen_c1", "Princ_v4_t7_b2 Heil-PR30center_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_heil_pr30center_jensen_c10q.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

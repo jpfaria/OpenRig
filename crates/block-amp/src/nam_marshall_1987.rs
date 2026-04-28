@@ -14,8 +14,8 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab_2.nam"),
-    ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di_2.nam"),
+    ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab.nam"),
+    ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

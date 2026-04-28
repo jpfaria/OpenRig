@@ -14,13 +14,13 @@ const BRAND: &str = "prs";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("prs_mt15_clean", "PRS_MT15_Clean", "amps/prs_mt15/prs_mt15_clean_2.nam"),
-    ("prs_mt_15_clean_break_up", "PRS_MT_15_Clean_Break_Up", "amps/prs_mt15/prs_mt_15_clean_break_up_2.nam"),
-    ("prs_mt_15_crunch_red", "PRS_MT_15_Crunch_red", "amps/prs_mt15/prs_mt_15_crunch_red_2.nam"),
-    ("prs_mt_15_metal_7_watts", "PRS_MT_15_Metal_7_watts", "amps/prs_mt15/prs_mt_15_metal_7_watts_2.nam"),
-    ("prs_mt_15_metal_ts", "PRS_MT_15_Metal_TS", "amps/prs_mt15/prs_mt_15_metal_ts_2.nam"),
-    ("prs_mt_15_metal_pre_amp", "PRS_MT_15_Metal_Pre_Amp", "amps/prs_mt15/prs_mt_15_metal_pre_amp_2.nam"),
-    ("prs_mt_15_metal_sweet_spot", "PRS_MT_15_Metal_Sweet_Spot", "amps/prs_mt15/prs_mt_15_metal_sweet_spot_2.nam"),
+    ("prs_mt15_clean", "PRS_MT15_Clean", "amps/prs_mt15/prs_mt15_clean.nam"),
+    ("prs_mt_15_clean_break_up", "PRS_MT_15_Clean_Break_Up", "amps/prs_mt15/prs_mt_15_clean_break_up.nam"),
+    ("prs_mt_15_crunch_red", "PRS_MT_15_Crunch_red", "amps/prs_mt15/prs_mt_15_crunch_red.nam"),
+    ("prs_mt_15_metal_7_watts", "PRS_MT_15_Metal_7_watts", "amps/prs_mt15/prs_mt_15_metal_7_watts.nam"),
+    ("prs_mt_15_metal_ts", "PRS_MT_15_Metal_TS", "amps/prs_mt15/prs_mt_15_metal_ts.nam"),
+    ("prs_mt_15_metal_pre_amp", "PRS_MT_15_Metal_Pre_Amp", "amps/prs_mt15/prs_mt_15_metal_pre_amp.nam"),
+    ("prs_mt_15_metal_sweet_spot", "PRS_MT_15_Metal_Sweet_Spot", "amps/prs_mt15/prs_mt_15_metal_sweet_spot.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,11 +14,11 @@ const BRAND: &str = "dumble";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean", "Dumble Steel SS Clean", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_2.nam"),
-    ("drive_1", "Dumble Steel SS Drive 1", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1_2.nam"),
-    ("drive_2", "Dumble Steel SS Drive 2", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2_2.nam"),
-    ("clean_full", "Dumble Steel SS Clean Full", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full_2.nam"),
-    ("drive_full", "Dumble Steel SS Drive Full", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full_2.nam"),
+    ("clean", "Dumble Steel SS Clean", "amps/dumble_steel_string_singer/dumble_steel_ss_clean.nam"),
+    ("drive_1", "Dumble Steel SS Drive 1", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_1.nam"),
+    ("drive_2", "Dumble Steel SS Drive 2", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_2.nam"),
+    ("clean_full", "Dumble Steel SS Clean Full", "amps/dumble_steel_string_singer/dumble_steel_ss_clean_full.nam"),
+    ("drive_full", "Dumble Steel SS Drive Full", "amps/dumble_steel_string_singer/dumble_steel_ss_drive_full.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

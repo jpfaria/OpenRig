@@ -14,8 +14,8 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("marshall_1959_slp_6_8", "Marshall 1959 SLP 6-8", "amps/marshall_1959_slp/marshall_1959_slp_6_8_2.nam"),
-    ("marshall_1959_slp_boosted_ts8_6_8", "Marshall 1959 SLP BOOSTED TS8 6-8", "amps/marshall_1959_slp/marshall_1959_slp_boosted_ts8_6_8_2.nam"),
+    ("marshall_1959_slp_6_8", "Marshall 1959 SLP 6-8", "amps/marshall_1959_slp/marshall_1959_slp_6_8.nam"),
+    ("marshall_1959_slp_boosted_ts8_6_8", "Marshall 1959 SLP BOOSTED TS8 6-8", "amps/marshall_1959_slp/marshall_1959_slp_boosted_ts8_6_8.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

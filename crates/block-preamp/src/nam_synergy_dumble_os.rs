@@ -24,8 +24,8 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ch1", "os ch1 el34ab 19-4", "preamp/synergy_dumble_os/os_ch1_el34ab_19_4_2.nam"),
-    ("ch2", "os ch2 el34ab 19-4", "preamp/synergy_dumble_os/os_ch2_el34ab_19_4_2.nam"),
+    ("ch1", "os ch1 el34ab 19-4", "preamp/synergy_dumble_os/os_ch1_el34ab_19_4.nam"),
+    ("ch2", "os ch2 el34ab 19-4", "preamp/synergy_dumble_os/os_ch2_el34ab_19_4.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

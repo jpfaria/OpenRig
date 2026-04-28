@@ -14,8 +14,8 @@ const BRAND: &str = "synergy";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ch1", "soldano ch1", "amps/synergy_soldano/soldano_ch1_2.nam"),
-    ("ch2", "soldano ch2", "amps/synergy_soldano/soldano_ch2_2.nam"),
+    ("ch1", "soldano ch1", "amps/synergy_soldano/soldano_ch1.nam"),
+    ("ch2", "soldano ch2", "amps/synergy_soldano/soldano_ch2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

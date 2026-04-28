@@ -14,9 +14,9 @@ const BRAND: &str = "driftwood";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412_2.nam"),
-    ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional_2.nam"),
-    ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized_2.nam"),
+    ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412.nam"),
+    ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional.nam"),
+    ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

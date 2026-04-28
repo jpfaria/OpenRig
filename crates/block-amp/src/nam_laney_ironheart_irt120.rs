@@ -14,10 +14,10 @@ const BRAND: &str = "laney";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("irt120_crunchy_red", "IRT120_crunchy_RED", "amps/laney_ironheart_irt120/irt120_crunchy_red_2.nam"),
-    ("irt120_lead_red", "IRT120_lead_RED", "amps/laney_ironheart_irt120/irt120_lead_red_2.nam"),
-    ("irt120_growl_red", "IRT120_growl_RED", "amps/laney_ironheart_irt120/irt120_growl_red_2.nam"),
-    ("irt120_doom", "IRT120_doom", "amps/laney_ironheart_irt120/irt120_doom_2.nam"),
+    ("irt120_crunchy_red", "IRT120_crunchy_RED", "amps/laney_ironheart_irt120/irt120_crunchy_red.nam"),
+    ("irt120_lead_red", "IRT120_lead_RED", "amps/laney_ironheart_irt120/irt120_lead_red.nam"),
+    ("irt120_growl_red", "IRT120_growl_RED", "amps/laney_ironheart_irt120/irt120_growl_red.nam"),
+    ("irt120_doom", "IRT120_doom", "amps/laney_ironheart_irt120/irt120_doom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

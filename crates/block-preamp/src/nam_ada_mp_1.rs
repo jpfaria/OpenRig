@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cleanss", "ADA MP-1 3TM CleanSS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss_2.nam"),
-    ("od2", "ADA MP-1 3TM OD2", "preamp/ada_mp_1/ada_mp_1_3tm_od2_2.nam"),
-    ("mod1", "ADA MP-1 3TM MOD1", "preamp/ada_mp_1/ada_mp_1_3tm_mod1_2.nam"),
-    ("od1", "ADA MP-1 3TM OD1", "preamp/ada_mp_1/ada_mp_1_3tm_od1_2.nam"),
+    ("cleanss", "ADA MP-1 3TM CleanSS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss.nam"),
+    ("od2", "ADA MP-1 3TM OD2", "preamp/ada_mp_1/ada_mp_1_3tm_od2.nam"),
+    ("mod1", "ADA MP-1 3TM MOD1", "preamp/ada_mp_1/ada_mp_1_3tm_mod1.nam"),
+    ("od1", "ADA MP-1 3TM OD1", "preamp/ada_mp_1/ada_mp_1_3tm_od1.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,10 +14,10 @@ const BRAND: &str = "peavey";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("red_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w", "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w_2.nam"),
-    ("red_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro_2.nam"),
-    ("green_maxon_st9pro", "Peavey 6505+ Green ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro_2.nam"),
-    ("red", "Peavey 6505+ Red ch.", "amps/peavey_6505_plus/peavey_6505_red_ch_2.nam"),
+    ("red_boss_hm_2w", "Peavey 6505+ Red ch. + Boss HM-2w", "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w.nam"),
+    ("red_maxon_st9pro", "Peavey 6505+ Red ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro.nam"),
+    ("green_maxon_st9pro", "Peavey 6505+ Green ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro.nam"),
+    ("red", "Peavey 6505+ Red ch.", "amps/peavey_6505_plus/peavey_6505_red_ch.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

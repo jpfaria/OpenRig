@@ -14,10 +14,10 @@ const BRAND: &str = "hotone";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("2_hotone_mesa_mackie", "2-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/2_hotone_mesa_mackie_2.nam"),
-    ("4_hotone_mesa_mackie", "4-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/4_hotone_mesa_mackie_2.nam"),
-    ("3_hotone_mesa_mackie", "3-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/3_hotone_mesa_mackie_2.nam"),
-    ("5_hotone_mesa_mackie", "5-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/5_hotone_mesa_mackie_2.nam"),
+    ("2_hotone_mesa_mackie", "2-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/2_hotone_mesa_mackie.nam"),
+    ("4_hotone_mesa_mackie", "4-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/4_hotone_mesa_mackie.nam"),
+    ("3_hotone_mesa_mackie", "3-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/3_hotone_mesa_mackie.nam"),
+    ("5_hotone_mesa_mackie", "5-Hotone_Mesa_Mackie", "amps/hotone_heart_attack/5_hotone_mesa_mackie.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

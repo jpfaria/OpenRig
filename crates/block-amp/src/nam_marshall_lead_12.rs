@@ -14,10 +14,10 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("low_g0_v5_t6_m5_feather", "Marshall Lead 12 Low Input (G0 V5 T6 M5 B7)", "amps/marshall_lead_12/marshall_lead_12_low_input_g0_v5_t6_m5_b7_feather_2.nam"),
-    ("low_g3_v5_t6_m5_feather", "Marshall Lead 12 Low Input (G3 V5 T6 M5 B7)", "amps/marshall_lead_12/marshall_lead_12_low_input_g3_v5_t6_m5_b7_feather_2.nam"),
-    ("high_g8_v5_t7_m4_feather", "Marshall Lead 12 High Input (G8 V5 T7 M4 B7)", "amps/marshall_lead_12/marshall_lead_12_high_input_g8_v5_t7_m4_b7_feather_2.nam"),
-    ("high_g4_v4_t7_m4_feather", "Marshall Lead 12 High Input (G4 V4 T7 M4 B7)", "amps/marshall_lead_12/marshall_lead_12_high_input_g4_v4_t7_m4_b7_feather_2.nam"),
+    ("low_g0_v5_t6_m5_feather", "Marshall Lead 12 Low Input (G0 V5 T6 M5 B7)", "amps/marshall_lead_12/marshall_lead_12_low_input_g0_v5_t6_m5_b7_feather.nam"),
+    ("low_g3_v5_t6_m5_feather", "Marshall Lead 12 Low Input (G3 V5 T6 M5 B7)", "amps/marshall_lead_12/marshall_lead_12_low_input_g3_v5_t6_m5_b7_feather.nam"),
+    ("high_g8_v5_t7_m4_feather", "Marshall Lead 12 High Input (G8 V5 T7 M4 B7)", "amps/marshall_lead_12/marshall_lead_12_high_input_g8_v5_t7_m4_b7_feather.nam"),
+    ("high_g4_v4_t7_m4_feather", "Marshall Lead 12 High Input (G4 V4 T7 M4 B7)", "amps/marshall_lead_12/marshall_lead_12_high_input_g4_v4_t7_m4_b7_feather.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

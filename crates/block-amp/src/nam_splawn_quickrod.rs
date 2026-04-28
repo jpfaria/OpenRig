@@ -14,13 +14,13 @@ const BRAND: &str = "splawn";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("splawn_hg3g7m_mids5", "Splawn HG3G7M mids5", "amps/splawn_quickrod/splawn_hg3g7m_mids5_2.nam"),
-    ("splawn5g7m_mids_5", "Splawn5G7M mids 5", "amps/splawn_quickrod/splawn5g7m_mids_5_2.nam"),
-    ("splawn_hg5g7m_mids5", "Splawn HG5G7M mids5", "amps/splawn_quickrod/splawn_hg5g7m_mids5_2.nam"),
-    ("splawn3g7m_mids_3", "Splawn3G7M mids 3", "amps/splawn_quickrod/splawn3g7m_mids_3_2.nam"),
-    ("splawn3g7m_mids_5", "Splawn3G7M mids 5", "amps/splawn_quickrod/splawn3g7m_mids_5_2.nam"),
-    ("splawnhgt5g7m", "SplawnHGt5G7M", "amps/splawn_quickrod/splawnhgt5g7m_2.nam"),
-    ("splawnhgt3g7m", "SplawnHGt3G7M", "amps/splawn_quickrod/splawnhgt3g7m_2.nam"),
+    ("splawn_hg3g7m_mids5", "Splawn HG3G7M mids5", "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
+    ("splawn5g7m_mids_5", "Splawn5G7M mids 5", "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
+    ("splawn_hg5g7m_mids5", "Splawn HG5G7M mids5", "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
+    ("splawn3g7m_mids_3", "Splawn3G7M mids 3", "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
+    ("splawn3g7m_mids_5", "Splawn3G7M mids 5", "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
+    ("splawnhgt5g7m", "SplawnHGt5G7M", "amps/splawn_quickrod/splawnhgt5g7m.nam"),
+    ("splawnhgt3g7m", "SplawnHGt3G7M", "amps/splawn_quickrod/splawnhgt3g7m.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

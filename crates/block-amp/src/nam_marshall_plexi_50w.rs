@@ -14,7 +14,7 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("boutiqueampdrive", "BoutiqueAmpDrive", "amps/marshall_plexi_50w/boutiqueampdrive_2.nam"),
+    ("boutiqueampdrive", "BoutiqueAmpDrive", "amps/marshall_plexi_50w/boutiqueampdrive.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,12 +14,12 @@ const BRAND: &str = "mesa";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm_2.nam"),
-    ("fast_lead", "Mark IIC+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead_2.nam"),
-    ("creamy_lead", "Mark IIC+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead_2.nam"),
-    ("tight_rhythm", "Mark IIC+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm_2.nam"),
-    ("phat_rhythm", "Mark IIC+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm_2.nam"),
-    ("yummy_clean", "Mark IIC+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean_2.nam"),
+    ("hetfield_rhythm", "Mark IIC+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
+    ("fast_lead", "Mark IIC+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
+    ("creamy_lead", "Mark IIC+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
+    ("tight_rhythm", "Mark IIC+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
+    ("phat_rhythm", "Mark IIC+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
+    ("yummy_clean", "Mark IIC+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

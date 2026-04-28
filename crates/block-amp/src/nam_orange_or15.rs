@@ -14,14 +14,14 @@ const BRAND: &str = "orange";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("clean_foxpedal_defector_fuzz_rasputin_mo_feather", "Orange OR15 (Clean with Foxpedal Defector Fuzz Rasputin Mode", "amps/orange_or15/orange_or15_clean_with_foxpedal_defector_fuzz_rasputin_mode_feather_2.nam"),
-    ("clean_boss_hm_2w_heavy_metal_pedal_feather", "Orange OR15 (Clean with Boss HM-2w Heavy Metal Pedal)", "amps/orange_or15/orange_or15_clean_with_boss_hm_2w_heavy_metal_pedal_feather_2.nam"),
-    ("clean_tc_electronic_eyemaster_feather", "Orange OR15 (Clean with TC Electronic Eyemaster)", "amps/orange_or15/orange_or15_clean_with_tc_electronic_eyemaster_feather_2.nam"),
-    ("crunch_eea_mud_killer_fat_boost_feather", "Orange OR15 (Crunch with EEA Mud Killer Fat Boost)", "amps/orange_or15/orange_or15_crunch_with_eea_mud_killer_fat_boost_feather_2.nam"),
-    ("crunch_eea_mudkiller_into_ehx_green_russ_feather", "Orange OR15 (Crunch with EEA Mudkiller into EHX Green Russia", "amps/orange_or15/orange_or15_crunch_with_eea_mudkiller_into_ehx_green_russian_feather_2.nam"),
-    ("clean_foxpedal_defector_fuzz_feather", "Orange OR15 (Clean with Foxpedal Defector Fuzz)", "amps/orange_or15/orange_or15_clean_with_foxpedal_defector_fuzz_feather_2.nam"),
-    ("clean_behringer_sf300_super_fuzz_mode_1__feather", "Orange OR15 (Clean with Behringer SF300 Super Fuzz Mode 1.5)", "amps/orange_or15/orange_or15_clean_with_behringer_sf300_super_fuzz_mode_1_5_1_feather_2.nam"),
-    ("clean_behringer_sf300_super_fuzz_mode_1__feather_50319", "Orange OR15 (Clean with Behringer SF300 Super Fuzz Mode 1.5)", "amps/orange_or15/orange_or15_clean_with_behringer_sf300_super_fuzz_mode_1_5_feather_2.nam"),
+    ("clean_foxpedal_defector_fuzz_rasputin_mo_feather", "Orange OR15 (Clean with Foxpedal Defector Fuzz Rasputin Mode", "amps/orange_or15/orange_or15_clean_with_foxpedal_defector_fuzz_rasputin_mode_feather.nam"),
+    ("clean_boss_hm_2w_heavy_metal_pedal_feather", "Orange OR15 (Clean with Boss HM-2w Heavy Metal Pedal)", "amps/orange_or15/orange_or15_clean_with_boss_hm_2w_heavy_metal_pedal_feather.nam"),
+    ("clean_tc_electronic_eyemaster_feather", "Orange OR15 (Clean with TC Electronic Eyemaster)", "amps/orange_or15/orange_or15_clean_with_tc_electronic_eyemaster_feather.nam"),
+    ("crunch_eea_mud_killer_fat_boost_feather", "Orange OR15 (Crunch with EEA Mud Killer Fat Boost)", "amps/orange_or15/orange_or15_crunch_with_eea_mud_killer_fat_boost_feather.nam"),
+    ("crunch_eea_mudkiller_into_ehx_green_russ_feather", "Orange OR15 (Crunch with EEA Mudkiller into EHX Green Russia", "amps/orange_or15/orange_or15_crunch_with_eea_mudkiller_into_ehx_green_russian_feather.nam"),
+    ("clean_foxpedal_defector_fuzz_feather", "Orange OR15 (Clean with Foxpedal Defector Fuzz)", "amps/orange_or15/orange_or15_clean_with_foxpedal_defector_fuzz_feather.nam"),
+    ("clean_behringer_sf300_super_fuzz_mode_1__feather", "Orange OR15 (Clean with Behringer SF300 Super Fuzz Mode 1.5)", "amps/orange_or15/orange_or15_clean_with_behringer_sf300_super_fuzz_mode_1_5_1_feather.nam"),
+    ("clean_behringer_sf300_super_fuzz_mode_1__feather_50319", "Orange OR15 (Clean with Behringer SF300 Super Fuzz Mode 1.5)", "amps/orange_or15/orange_or15_clean_with_behringer_sf300_super_fuzz_mode_1_5_feather.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

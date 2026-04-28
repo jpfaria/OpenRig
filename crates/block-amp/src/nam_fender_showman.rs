@@ -14,14 +14,14 @@ const BRAND: &str = "fender";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("fuller_tone_comp_clean_std", "Fuller Tone Comp Clean std", "amps/fender_showman/fuller_tone_comp_clean_std_2.nam"),
-    ("fuller_tone_metal_std", "Fuller Tone Metal std", "amps/fender_showman/fuller_tone_metal_std_2.nam"),
-    ("dweezil_s_bassguy_ola_cab_custom", "Dweezil's Bassguy OLA cab", "amps/fender_showman/dweezil_s_bassguy_ola_cab_custom_2.nam"),
-    ("dweezil_s_bassguy_fuzz_1_custom", "Dweezil's Bassguy Fuzz 1", "amps/fender_showman/dweezil_s_bassguy_fuzz_1_custom_2.nam"),
-    ("jonesy_s_pretty_dark_custom", "Jonesy's Pretty Dark", "amps/fender_showman/jonesy_s_pretty_dark_custom_2.nam"),
-    ("super_6g4_comp_clean_custom", "Super 6G4 COMP clean", "amps/fender_showman/super_6g4_comp_clean_custom_2.nam"),
-    ("super_brownie_country_ab_custom", "Super Brownie Country AB", "amps/fender_showman/super_brownie_country_ab_custom_2.nam"),
-    ("super_verb_custom", "Super Verb", "amps/fender_showman/super_verb_custom_2.nam"),
+    ("fuller_tone_comp_clean_std", "Fuller Tone Comp Clean std", "amps/fender_showman/fuller_tone_comp_clean_std.nam"),
+    ("fuller_tone_metal_std", "Fuller Tone Metal std", "amps/fender_showman/fuller_tone_metal_std.nam"),
+    ("dweezil_s_bassguy_ola_cab_custom", "Dweezil's Bassguy OLA cab", "amps/fender_showman/dweezil_s_bassguy_ola_cab_custom.nam"),
+    ("dweezil_s_bassguy_fuzz_1_custom", "Dweezil's Bassguy Fuzz 1", "amps/fender_showman/dweezil_s_bassguy_fuzz_1_custom.nam"),
+    ("jonesy_s_pretty_dark_custom", "Jonesy's Pretty Dark", "amps/fender_showman/jonesy_s_pretty_dark_custom.nam"),
+    ("super_6g4_comp_clean_custom", "Super 6G4 COMP clean", "amps/fender_showman/super_6g4_comp_clean_custom.nam"),
+    ("super_brownie_country_ab_custom", "Super Brownie Country AB", "amps/fender_showman/super_brownie_country_ab_custom.nam"),
+    ("super_verb_custom", "Super Verb", "amps/fender_showman/super_verb_custom.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

@@ -14,11 +14,11 @@ const BRAND: &str = "matchless";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ssr_lead_2_hi_v03_b10_t12_br10_ma12", "Clubman SSR Lead 2 Hi v03 b10  t12 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_2_hi_v03_b10_t12_br10_ma12_2.nam"),
-    ("ssr_lead_lo_v04_b09_t11_br10_ma12", "Clubman SSR Lead Lo v04 b09  t11 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_lo_v04_b09_t11_br10_ma12_2.nam"),
-    ("ssr_push_lo_v12_b10_5_t12_br11_ma12", "Clubman SSR Push Lo v12 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_push_lo_v12_b10_5_t12_br11_ma12_2.nam"),
-    ("ssr_eob_lo_v10_b10_5_t12_br11_ma12", "Clubman SSR EoB Lo v10 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_eob_lo_v10_b10_5_t12_br11_ma12_2.nam"),
-    ("bright_push_lo_v12_b10_t12_br01_m12", "Clubman bright Push Lo v12 b10 t12 br01 m12", "amps/matchless_clubman_35_head/clubman_bright_push_lo_v12_b10_t12_br01_m12_2.nam"),
+    ("ssr_lead_2_hi_v03_b10_t12_br10_ma12", "Clubman SSR Lead 2 Hi v03 b10  t12 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_2_hi_v03_b10_t12_br10_ma12.nam"),
+    ("ssr_lead_lo_v04_b09_t11_br10_ma12", "Clubman SSR Lead Lo v04 b09  t11 br10 ma12", "amps/matchless_clubman_35_head/clubman_ssr_lead_lo_v04_b09_t11_br10_ma12.nam"),
+    ("ssr_push_lo_v12_b10_5_t12_br11_ma12", "Clubman SSR Push Lo v12 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_push_lo_v12_b10_5_t12_br11_ma12.nam"),
+    ("ssr_eob_lo_v10_b10_5_t12_br11_ma12", "Clubman SSR EoB Lo v10 b10.5 t12 br11 ma12", "amps/matchless_clubman_35_head/clubman_ssr_eob_lo_v10_b10_5_t12_br11_ma12.nam"),
+    ("bright_push_lo_v12_b10_t12_br01_m12", "Clubman bright Push Lo v12 b10 t12 br01 m12", "amps/matchless_clubman_35_head/clubman_bright_push_lo_v12_b10_t12_br01_m12.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

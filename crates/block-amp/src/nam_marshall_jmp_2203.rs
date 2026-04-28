@@ -14,11 +14,11 @@ const BRAND: &str = "marshall";
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_marshall_2203_scooped_mv4_48k_st", "SLAMMIN_MARSHALL_2203_SCOOPED_MV4_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard_2.nam"),
-    ("slammin_marshall_2203_dark_mv5_48k_stand", "SLAMMIN_MARSHALL_2203_DARK_MV5_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard_2.nam"),
-    ("slammin_marshall_2203_noon_mv3_48k_stand", "SLAMMIN_MARSHALL_2203_NOON_MV3_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard_2.nam"),
-    ("slammin_marshall_2203_rock_mv7_48k", "SLAMMIN_MARSHALL_2203_ROCK_MV7_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k_2.nam"),
-    ("slammin_marshall_2203_wylde_sd1_mv6_48k", "SLAMMIN_MARSHALL_2203_WYLDE_SD1_MV6_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k_2.nam"),
+    ("slammin_marshall_2203_scooped_mv4_48k_st", "SLAMMIN_MARSHALL_2203_SCOOPED_MV4_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard.nam"),
+    ("slammin_marshall_2203_dark_mv5_48k_stand", "SLAMMIN_MARSHALL_2203_DARK_MV5_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard.nam"),
+    ("slammin_marshall_2203_noon_mv3_48k_stand", "SLAMMIN_MARSHALL_2203_NOON_MV3_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard.nam"),
+    ("slammin_marshall_2203_rock_mv7_48k", "SLAMMIN_MARSHALL_2203_ROCK_MV7_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k.nam"),
+    ("slammin_marshall_2203_wylde_sd1_mv6_48k", "SLAMMIN_MARSHALL_2203_WYLDE_SD1_MV6_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {

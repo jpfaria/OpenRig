@@ -24,10 +24,10 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("red", "Syn20IR - K.Kali - Red", "preamp/synergy_syn1/syn20ir_k_kali_red_2.nam"),
-    ("loomis", "Syn20IR - K.Kali - Loomis", "preamp/synergy_syn1/syn20ir_k_kali_loomis_2.nam"),
-    ("green", "Syn20IR - K.Kali - Green", "preamp/synergy_syn1/syn20ir_k_kali_green_2.nam"),
-    ("red_v2", "Syn20IR - K.Kali - Red v2", "preamp/synergy_syn1/syn20ir_k_kali_red_v2_2.nam"),
+    ("red", "Syn20IR - K.Kali - Red", "preamp/synergy_syn1/syn20ir_k_kali_red.nam"),
+    ("loomis", "Syn20IR - K.Kali - Loomis", "preamp/synergy_syn1/syn20ir_k_kali_loomis.nam"),
+    ("green", "Syn20IR - K.Kali - Green", "preamp/synergy_syn1/syn20ir_k_kali_green.nam"),
+    ("red_v2", "Syn20IR - K.Kali - Red v2", "preamp/synergy_syn1/syn20ir_k_kali_red_v2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
