@@ -13,21 +13,22 @@ const BRAND: &str = "soldano";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 channels (Crunch / Lead) at default BMT 466 / Pres 8 / Depth 5.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5.nam"),
-    ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5", "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5.nam"),
+    ("crunch", "Crunch", "amps/soldano_slo_30/slo_30_crunch_gain_3_bmt_466_pres_8_depth_5.nam"),
+    ("lead",   "Lead",   "amps/soldano_slo_30/slo_30_lead_gain_5_bmt_466_pres_8_depth_5.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "channel",
+        "Channel",
         Some("Amp"),
-        Some("crunch_3"),
+        Some("crunch"),
         &[
-            ("crunch_3", "SLO-30 - Crunch - Gain 3 BMT 466 Pres 8 Depth 5"),
-            ("lead", "SLO-30 - Lead - Gain 5 BMT 466 Pres 8 Depth 5"),
+            ("crunch", "Crunch"),
+            ("lead",   "Lead"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
