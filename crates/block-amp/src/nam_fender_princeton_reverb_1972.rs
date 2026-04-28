@@ -13,31 +13,46 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: EQ setting × mic+speaker.
+// EQ encodes Volume/Treble/Bass front-panel settings.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("princ_v5_t7_b2_sm57_jensen_c10q", "Princ_v5-t7-b2 SM57 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_sm57_jensen_c10q.nam"),
-    ("princ_v5_t7_b2_heil_pr_30_jensen_c10q", "Princ_v5-t7-b2 Heil-PR-30 Jensen-C10Q", "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_heil_pr_30_jensen_c10q.nam"),
-    ("princ_v3_t8_b2_sm57_orig_spkr", "Princ_v3_t8_b2 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_t8_b2_sm57_orig_spkr.nam"),
-    ("princ_v3_5_t6_b3_sm57_orig_spkr", "Princ_v3.5_t6_b3 SM57 orig spkr", "amps/fender_princeton_reverb_1972/princ_v3_5_t6_b3_sm57_orig_spkr.nam"),
-    ("princ_v4_t7_b2_sm57offcntr_jensen_c10q", "Princ_v4_t7_b2 SM57offcntr_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_sm57offcntr_jensen_c10q.nam"),
-    ("princ_v4_t7_b2_heil_pr30center_jensen_c1", "Princ_v4_t7_b2 Heil-PR30center_Jensen C10Q", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_heil_pr30center_jensen_c10q.nam"),
+    // (eq, mic_speaker, file)
+    ("v3_t8_b2",   "sm57_orig",       "amps/fender_princeton_reverb_1972/princ_v3_t8_b2_sm57_orig_spkr.nam"),
+    ("v3_5_t6_b3", "sm57_orig",       "amps/fender_princeton_reverb_1972/princ_v3_5_t6_b3_sm57_orig_spkr.nam"),
+    ("v4_t7_b2",   "sm57_off_jensen", "amps/fender_princeton_reverb_1972/princ_v4_t7_b2_sm57offcntr_jensen_c10q.nam"),
+    ("v4_t7_b2",   "heil_pr30_jensen","amps/fender_princeton_reverb_1972/princ_v4_t7_b2_heil_pr30center_jensen_c10q.nam"),
+    ("v5_t7_b2",   "sm57_jensen",     "amps/fender_princeton_reverb_1972/princ_v5_t7_b2_sm57_jensen_c10q.nam"),
+    ("v5_t7_b2",   "heil_pr30_jensen","amps/fender_princeton_reverb_1972/princ_v5_t7_b2_heil_pr_30_jensen_c10q.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("princ_v5_t7_b2_sm57_jensen_c10q"),
-        &[
-            ("princ_v5_t7_b2_sm57_jensen_c10q", "Princ_v5-t7-b2 SM57 Jensen-C10Q"),
-            ("princ_v5_t7_b2_heil_pr_30_jensen_c10q", "Princ_v5-t7-b2 Heil-PR-30 Jensen-C10Q"),
-            ("princ_v3_t8_b2_sm57_orig_spkr", "Princ_v3_t8_b2 SM57 orig spkr"),
-            ("princ_v3_5_t6_b3_sm57_orig_spkr", "Princ_v3.5_t6_b3 SM57 orig spkr"),
-            ("princ_v4_t7_b2_sm57offcntr_jensen_c10q", "Princ_v4_t7_b2 SM57offcntr_Jensen C10Q"),
-            ("princ_v4_t7_b2_heil_pr30center_jensen_c1", "Princ_v4_t7_b2 Heil-PR30center_Jensen C10Q"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "eq",
+            "EQ Setting",
+            Some("Amp"),
+            Some("v5_t7_b2"),
+            &[
+                ("v3_t8_b2",   "V3 / T8 / B2"),
+                ("v3_5_t6_b3", "V3.5 / T6 / B3"),
+                ("v4_t7_b2",   "V4 / T7 / B2"),
+                ("v5_t7_b2",   "V5 / T7 / B2"),
+            ],
+        ),
+        enum_parameter(
+            "mic_speaker",
+            "Mic + Speaker",
+            Some("Amp"),
+            Some("sm57_jensen"),
+            &[
+                ("sm57_orig",        "SM57 (Orig)"),
+                ("sm57_jensen",      "SM57 (Jensen)"),
+                ("sm57_off_jensen",  "SM57 Off (Jensen)"),
+                ("heil_pr30_jensen", "Heil PR30 (Jensen)"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +72,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let eq = required_string(params, "eq").map_err(anyhow::Error::msg)?;
+    let mic_speaker = required_string(params, "mic_speaker").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(e, m, _)| *e == eq && *m == mic_speaker)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for eq={} mic_speaker={}",
+                MODEL_ID, eq, mic_speaker
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
