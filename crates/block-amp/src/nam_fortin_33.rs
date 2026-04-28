@@ -13,31 +13,43 @@ const BRAND: &str = "fortin";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: channel × boost. EVH 5150 III through Fortin 33 modes.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("blue_fortin_33", "OB1 EVH Blue Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_blue_fortin_33_full_rig.nam"),
-    ("blue_805", "OB1 EVH Blue 805 - Full Rig", "amps/fortin_33/ob1_evh_blue_805_full_rig.nam"),
-    ("red_tc_spark", "OB1 EVH Red TC Spark - Full Rig", "amps/fortin_33/ob1_evh_red_tc_spark_full_rig.nam"),
-    ("red_fortin_33", "OB1 EVH Red Fortin 33 - Full Rig", "amps/fortin_33/ob1_evh_red_fortin_33_full_rig.nam"),
-    ("red_precision_drive", "OB1 EVH Red Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_red_precision_drive_full_rig.nam"),
-    ("blue_precision_drive", "OB1 EVH Blue Precision Drive - Full Rig", "amps/fortin_33/ob1_evh_blue_precision_drive_full_rig.nam"),
+    // (channel, boost, file)
+    ("blue", "fortin_33",       "amps/fortin_33/ob1_evh_blue_fortin_33_full_rig.nam"),
+    ("blue", "tc_805",          "amps/fortin_33/ob1_evh_blue_805_full_rig.nam"),
+    ("blue", "precision_drive", "amps/fortin_33/ob1_evh_blue_precision_drive_full_rig.nam"),
+    ("red",  "fortin_33",       "amps/fortin_33/ob1_evh_red_fortin_33_full_rig.nam"),
+    ("red",  "tc_spark",        "amps/fortin_33/ob1_evh_red_tc_spark_full_rig.nam"),
+    ("red",  "precision_drive", "amps/fortin_33/ob1_evh_red_precision_drive_full_rig.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("blue_fortin_33"),
-        &[
-            ("blue_fortin_33", "OB1 EVH Blue Fortin 33 - Full Rig"),
-            ("blue_805", "OB1 EVH Blue 805 - Full Rig"),
-            ("red_tc_spark", "OB1 EVH Red TC Spark - Full Rig"),
-            ("red_fortin_33", "OB1 EVH Red Fortin 33 - Full Rig"),
-            ("red_precision_drive", "OB1 EVH Red Precision Drive - Full Rig"),
-            ("blue_precision_drive", "OB1 EVH Blue Precision Drive - Full Rig"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("blue"),
+            &[
+                ("blue", "Blue (Crunch)"),
+                ("red",  "Red (Lead)"),
+            ],
+        ),
+        enum_parameter(
+            "boost",
+            "Boost",
+            Some("Amp"),
+            Some("fortin_33"),
+            &[
+                ("fortin_33",       "Fortin 33"),
+                ("tc_805",          "TC 805"),
+                ("tc_spark",        "TC Spark"),
+                ("precision_drive", "Precision Drive"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -57,12 +69,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(c, b, _)| *c == channel && *b == boost)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for channel={} boost={}",
+                MODEL_ID, channel, boost
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
