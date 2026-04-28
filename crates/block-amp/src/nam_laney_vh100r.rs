@@ -13,35 +13,49 @@ const BRAND: &str = "laney";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// All captures are Channel 2 Hi. Two-axis pack: voicing × gain step.
+// Only 8 of the 3×4 = 12 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI exposes both
+// knobs as independent controls.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("neutral_g7", "VH100R - Channel 2 Hi - Neutral G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g7_2.nam"),
-    ("neutral_g8", "VH100R - Channel 2 Hi - Neutral G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g8_2.nam"),
-    ("treble_g8", "VH100R - Channel 2 Hi - Treble G8", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g8_2.nam"),
-    ("treble_g10", "VH100R - Channel 2 Hi - Treble G10", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g10_2.nam"),
-    ("neutral_drive_g10", "VH100R - Channel 2 Hi - Neutral Drive G10", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g10_2.nam"),
-    ("neutral_g5", "VH100R - Channel 2 Hi - Neutral G5", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g5_2.nam"),
-    ("neutral_drive_g8", "VH100R - Channel 2 Hi - Neutral Drive G8", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g8_2.nam"),
-    ("neutral_drive_g7", "VH100R - Channel 2 Hi - Neutral Drive G7", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g7_2.nam"),
+    // (voicing, gain, file)
+    ("neutral",       "g5",  "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g5.nam"),
+    ("neutral",       "g7",  "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g7.nam"),
+    ("neutral",       "g8",  "amps/laney_vh100r/vh100r_channel_2_hi_neutral_g8.nam"),
+    ("treble",        "g8",  "amps/laney_vh100r/vh100r_channel_2_hi_treble_g8.nam"),
+    ("treble",        "g10", "amps/laney_vh100r/vh100r_channel_2_hi_treble_g10.nam"),
+    ("neutral_drive", "g7",  "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g7.nam"),
+    ("neutral_drive", "g8",  "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g8.nam"),
+    ("neutral_drive", "g10", "amps/laney_vh100r/vh100r_channel_2_hi_neutral_drive_g10.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("neutral_g7"),
-        &[
-            ("neutral_g7", "VH100R - Channel 2 Hi - Neutral G7"),
-            ("neutral_g8", "VH100R - Channel 2 Hi - Neutral G8"),
-            ("treble_g8", "VH100R - Channel 2 Hi - Treble G8"),
-            ("treble_g10", "VH100R - Channel 2 Hi - Treble G10"),
-            ("neutral_drive_g10", "VH100R - Channel 2 Hi - Neutral Drive G10"),
-            ("neutral_g5", "VH100R - Channel 2 Hi - Neutral G5"),
-            ("neutral_drive_g8", "VH100R - Channel 2 Hi - Neutral Drive G8"),
-            ("neutral_drive_g7", "VH100R - Channel 2 Hi - Neutral Drive G7"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("neutral"),
+            &[
+                ("neutral",       "Neutral"),
+                ("treble",        "Treble"),
+                ("neutral_drive", "Neutral Drive"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g7"),
+            &[
+                ("g5",  "G5"),
+                ("g7",  "G7"),
+                ("g8",  "G8"),
+                ("g10", "G10"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +75,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, g, _)| *v == voicing && *g == gain)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} gain={}",
+                MODEL_ID, voicing, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
