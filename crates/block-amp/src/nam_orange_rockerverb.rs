@@ -1,0 +1,102 @@
+use anyhow::{anyhow, Result};
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
+};
+use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_orange_rockerverb";
+pub const DISPLAY_NAME: &str = "Rockerverb";
+const BRAND: &str = "orange";
+
+pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+    ("orange_rockerverb_mk3_higain_g7_", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g7_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_jim_root_c", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_jim_root_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_higain_g5_", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g5_fortin_ts808_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_crunch_g5_", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_crunch_g5_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_rock_g6_ca", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_rock_g6_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_higain_g6_", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_higain_g6_ti_boost_canov_arnold.nam"),
+    ("orange_rockerverb_mk3_clean_cano", "Orange Rockerverb MK3 - Clean - Canov+Arnold", "amps/orange_rockerverb/orange_rockerverb_mk3_clean_canov_arnold.nam"),
+];
+
+pub fn model_schema() -> ModelParameterSchema {
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "capture",
+        "Capture",
+        Some("Amp"),
+        Some("orange_rockerverb_mk3_higain_g7_"),
+        &[
+            ("orange_rockerverb_mk3_higain_g7_", "Orange Rockerverb MK3 - Higain G7 - Canov+Arnold"),
+            ("orange_rockerverb_mk3_jim_root_c", "Orange Rockerverb MK3 - Jim-Root - Canov+Arnold"),
+            ("orange_rockerverb_mk3_higain_g5_", "Orange Rockerverb MK3 - Higain G5 + Fortin TS808 - Canov+Arn"),
+            ("orange_rockerverb_mk3_crunch_g5_", "Orange Rockerverb MK3 - Crunch G5 - Canov+Arnold"),
+            ("orange_rockerverb_mk3_rock_g6_ca", "Orange Rockerverb MK3 - Rock G6 - Canov+Arnold"),
+            ("orange_rockerverb_mk3_higain_g6_", "Orange Rockerverb MK3 - Higain G6 + TI Boost - Canov+Arnold"),
+            ("orange_rockerverb_mk3_clean_cano", "Orange Rockerverb MK3 - Clean - Canov+Arnold"),
+        ],
+    )];
+    schema
+}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let path = resolve_capture(params)?;
+    build_processor_with_assets_for_layout(
+        &nam::resolve_nam_capture(path)?,
+        None,
+        NAM_PLUGIN_FIXED_PARAMS,
+        sample_rate,
+        layout,
+    )
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: AmpBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
+}
