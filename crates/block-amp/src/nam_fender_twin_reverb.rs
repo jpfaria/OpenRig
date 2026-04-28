@@ -13,21 +13,22 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 channels (Norm / Vibrato), Bright switch ON.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("vibrato", "Tim R Fender TwinVerb Vibrato Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_vibrato_bright.nam"),
-    ("norm", "Tim R Fender TwinVerb Norm Bright", "amps/fender_twin_reverb/tim_r_fender_twinverb_norm_bright.nam"),
+    ("normal",  "Normal",  "amps/fender_twin_reverb/tim_r_fender_twinverb_norm_bright.nam"),
+    ("vibrato", "Vibrato", "amps/fender_twin_reverb/tim_r_fender_twinverb_vibrato_bright.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "channel",
+        "Channel",
         Some("Amp"),
-        Some("vibrato"),
+        Some("normal"),
         &[
-            ("vibrato", "Tim R Fender TwinVerb Vibrato Bright"),
-            ("norm", "Tim R Fender TwinVerb Norm Bright"),
+            ("normal",  "Normal"),
+            ("vibrato", "Vibrato"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
