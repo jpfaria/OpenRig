@@ -23,26 +23,28 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
+// Single-axis preset pack: 4 channel/mode voicings from the 3TM mod board.
+// Keys/labels cleaned (was "ADA MP-1 3TM ..." prefix).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cleanss", "ADA MP-1 3TM CleanSS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss.nam"),
-    ("od2", "ADA MP-1 3TM OD2", "preamp/ada_mp_1/ada_mp_1_3tm_od2.nam"),
-    ("mod1", "ADA MP-1 3TM MOD1", "preamp/ada_mp_1/ada_mp_1_3tm_mod1.nam"),
-    ("od1", "ADA MP-1 3TM OD1", "preamp/ada_mp_1/ada_mp_1_3tm_od1.nam"),
+    ("clean_ss", "Clean SS", "preamp/ada_mp_1/ada_mp_1_3tm_cleanss.nam"),
+    ("od1",      "OD1",      "preamp/ada_mp_1/ada_mp_1_3tm_od1.nam"),
+    ("od2",      "OD2",      "preamp/ada_mp_1/ada_mp_1_3tm_od2.nam"),
+    ("mod1",     "MOD1",     "preamp/ada_mp_1/ada_mp_1_3tm_mod1.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "channel",
+        "Channel",
         Some("Amp"),
-        Some("cleanss"),
+        Some("clean_ss"),
         &[
-            ("cleanss", "ADA MP-1 3TM CleanSS"),
-            ("od2", "ADA MP-1 3TM OD2"),
-            ("mod1", "ADA MP-1 3TM MOD1"),
-            ("od1", "ADA MP-1 3TM OD1"),
+            ("clean_ss", "Clean SS"),
+            ("od1",      "OD1"),
+            ("od2",      "OD2"),
+            ("mod1",     "MOD1"),
         ],
     )];
     schema
@@ -60,12 +62,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("preamp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
