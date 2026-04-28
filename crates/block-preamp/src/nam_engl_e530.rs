@@ -23,20 +23,21 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
+// Single-capture preset pack: only one E530 voicing available.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("engl_e530", "ENGL E530", "preamp/engl_e530/engl_e530.nam"),
+    ("default", "Default", "preamp/engl_e530/engl_e530.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("engl_e530"),
+        Some("default"),
         &[
-            ("engl_e530", "ENGL E530"),
+            ("default", "Default"),
         ],
     )];
     schema
@@ -54,12 +55,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("preamp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
