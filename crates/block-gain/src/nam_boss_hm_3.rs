@@ -14,40 +14,54 @@ const BRAND: &str = "boss";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "lows10_highs10_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs10_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs5_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs5_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs10_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs10_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs5_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs5_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist5_boss_hm3.nam" },
+// Three-axis pack: lows × highs × dist.
+// 2 × 2 × 2 = 8 captures, full grid.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (lows, highs, dist, file)
+    ("5",  "5",  "5",  "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist5_boss_hm3.nam"),
+    ("5",  "5",  "10", "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist10_boss_hm3.nam"),
+    ("5",  "10", "5",  "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist5_boss_hm3.nam"),
+    ("5",  "10", "10", "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist10_boss_hm3.nam"),
+    ("10", "5",  "5",  "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist5_boss_hm3.nam"),
+    ("10", "5",  "10", "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist10_boss_hm3.nam"),
+    ("10", "10", "5",  "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist5_boss_hm3.nam"),
+    ("10", "10", "10", "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist10_boss_hm3.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("lows10_highs10_dist10_boss_hm3"),
-        &[
-            ("lows10_highs10_dist10_boss_hm3", "Lows10 Highs10 Dist10 Boss Hm3"),
-            ("lows10_highs10_dist5_boss_hm3", "Lows10 Highs10 Dist5 Boss Hm3"),
-            ("lows10_highs5_dist10_boss_hm3", "Lows10 Highs5 Dist10 Boss Hm3"),
-            ("lows10_highs5_dist5_boss_hm3", "Lows10 Highs5 Dist5 Boss Hm3"),
-            ("lows5_highs10_dist10_boss_hm3", "Lows5 Highs10 Dist10 Boss Hm3"),
-            ("lows5_highs10_dist5_boss_hm3", "Lows5 Highs10 Dist5 Boss Hm3"),
-            ("lows5_highs5_dist10_boss_hm3", "Lows5 Highs5 Dist10 Boss Hm3"),
-            ("lows5_highs5_dist5_boss_hm3", "Lows5 Highs5 Dist5 Boss Hm3"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "lows",
+            "Lows",
+            Some("Pedal"),
+            Some("5"),
+            &[
+                ("5",  "5"),
+                ("10", "10"),
+            ],
+        ),
+        enum_parameter(
+            "highs",
+            "Highs",
+            Some("Pedal"),
+            Some("5"),
+            &[
+                ("5",  "5"),
+                ("10", "10"),
+            ],
+        ),
+        enum_parameter(
+            "dist",
+            "Distortion",
+            Some("Pedal"),
+            Some("5"),
+            &[
+                ("5",  "5"),
+                ("10", "10"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -56,9 +70,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -71,16 +85,24 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let lows = required_string(params, "lows").map_err(anyhow::Error::msg)?;
+    let highs = required_string(params, "highs").map_err(anyhow::Error::msg)?;
+    let dist = required_string(params, "dist").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(l, h, d, _)| *l == lows && *h == highs && *d == dist)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for lows={} highs={} dist={}",
+                MODEL_ID, lows, highs, dist
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

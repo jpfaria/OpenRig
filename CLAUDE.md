@@ -1,31 +1,5 @@
 # OpenRig — Contexto do Projeto para Claude Code
 
-## OBRIGATORIO — Skills
-
-**Antes de qualquer ação:** invocar `superpowers:using-superpowers`. Vale para todos os agentes (locais e GitHub Actions).
-
-**Ao tocar em código:**
-- Rust → `openrig-code-quality` + `rust-best-practices`
-- Slint (`.slint`) → `slint-best-practices`
-
-**Por situação (invocar antes de agir):**
-
-| Situação | Skill |
-|---|---|
-| Adicionando feature ou comportamento novo | `superpowers:brainstorming` |
-| Implementando feature ou bugfix | `superpowers:test-driven-development` |
-| Debugando bug ou falha de teste | `superpowers:systematic-debugging` |
-| Executando plano já escrito | `superpowers:executing-plans` |
-| Trabalho completo, prestes a declarar "done" | `superpowers:verification-before-completion` |
-| Recebendo feedback de code review | `superpowers:receiving-code-review` |
-| Finalizando branch, prestes a abrir PR | `superpowers:finishing-a-development-branch` |
-| Criando nova skill | `superpowers:writing-skills` |
-| 2+ tarefas independentes em paralelo | `superpowers:dispatching-parallel-agents` |
-
-Nenhuma é opcional.
-
----
-
 ## OBRIGATORIO — Prioridades de Produto (Non-Regression)
 
 OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança deve provar que não degrada nenhuma propriedade abaixo antes de mergear.
@@ -111,7 +85,15 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N` em commits** — GitHub auto-fecha issues.
 7. **Merge policy**: bugfix/hotfix mergeia imediato; feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase** — sempre `git merge`, nunca `git pull --rebase`.
-9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone aberto antes do close** (`gh api "repos/<owner>/<repo>/milestones?state=open" --jq '.[].title'` para listar). Se houver só um aberto, é esse. Se houver mais de um, perguntar ao usuário qual deles é o "próximo". **Se nenhum estiver aberto, parar e perguntar** ao usuário qual deve ser o próximo (nome + descrição) — NUNCA criar milestone por conta própria. Comandos: `gh issue edit <N> --milestone "<title>"` para atribuir, `gh issue close <N>` para fechar. Issue fechada sem milestone não aparece nos relatórios de release.
+9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone antes do close.** Procedimento:
+   1. Listar releases publicadas: `gh release list --limit 20`. Identificar a última tag `vX.Y.Z-dev.N`.
+   2. Se há tags dev publicadas → o próximo milestone é `vX.Y.Z-dev.(N+1)` (somar +1 no último N).
+   3. Se esse milestone ainda não existe como milestone aberto, **criar**: `gh api repos/<owner>/<repo>/milestones -f title="vX.Y.Z-dev.(N+1)" -f state="open" -f description="Next dev release after dev.N."` — criação automática só vale neste caso (somar +1). Para qualquer outra criação de milestone, perguntar ao usuário primeiro.
+   4. Se NÃO há ciclo dev em curso (release final) → usar o próximo milestone aberto comum, perguntando ao usuário se houver mais de um.
+   5. Se nenhum milestone aberto E nem dev em curso → parar e perguntar (nome + descrição).
+   6. Atribuir: `gh issue edit <N> --milestone "<title>"`; depois fechar: `gh issue close <N>`.
+   - **NUNCA** atribuir ao milestone de release final (`vX.Y.Z` puro) enquanto o ciclo dev estiver ativo — o final só recebe issues quando virar a release de produção.
+   - Issue fechada sem milestone não aparece nos relatórios de release.
 10. **Push imediato após cada commit.**
 11. **Labels que excluem das release notes** — duas labels controlam o que sai do gerador automático em `.github/workflows/release.yml`:
     - **`duplicate`** — aplicar quando descobrir que a issue duplica outra existente (mesmo escopo, mesmo body). Cronologicamente: a duplicata é a mais nova; a original mantém o histórico. Se o trabalho foi entregue na duplicata por engano, marcar a duplicata com `duplicate` para sair do release notes; o trabalho aparece quando a original for fechada como `completed` no próximo ciclo.
@@ -221,9 +203,9 @@ Parsing em `adapter-gui/src/{main,lib}.rs`. Auto-save em `sync_project_dirty()`.
 
 | Tipo | O que faz | Total | Modelos (resumo) |
 |------|-----------|-------|-----------------|
-| **Preamp** | Pré-amp, gain, EQ | 26 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Thunder 50, '57 Champ/Deluxe, Frontman 15G, PA100, Bantamp Meteor, AVT50H, YJM100, Mark III, Micro Terror, Shaman, Classic 30, MIG-100, VX Kraken, MIG-50, 22 Caliber, Blues Baby 22, Fly, Multitone 50, L2, Lunchbox Jr (NAM) |
-| **Amp** | Preamp + power amp + cab | 29 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100, Marshall JCM800/JVM/JMP-1, Mesa Mark V/Rectifier, Peavey 5150, Ampeg SVT, Fender Bassman/Deluxe Reverb/Super Reverb, Roland JC-120B, Vox AC30/Fawn (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
-| **Cab** | Caixa/falante | 17 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream, Fender Deluxe, Greenback, G12T-75, Marshall 4x12 V30, Mesa OS/Standard 4x12, Roland JC-120, Vox AC30 Blue, Vox AC50 (IR); GxUltraCab (LV2) |
+| **Preamp** | Pré-amp, gain, EQ | 39 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Thunder 50, '57 Champ/Deluxe, Frontman 15G, PA100, Bantamp Meteor, AVT50H, YJM100, Mark III, Micro Terror, Shaman, Classic 30, MIG-100, VX Kraken, MIG-50, 22 Caliber, Blues Baby 22, Fly, Multitone 50, L2, Lunchbox Jr, ADA MP-1, Mesa Triaxis, Marshall JMP-1, ENGL E530, Mesa Studio Preamp (NAM, #345) |
+| **Amp** | Preamp + power amp + cab | 142 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva/Uberschall/Helios/Goldfinger/Ecstasy 101B, Dumble ODS/Steel String Singer/ODS 100W, EVH 5150/5150 III/5150 III 50W Red, Friedman BE100/BE-50/BE 100/Dirty Shirley, Marshall JCM800/JVM/JMP-1/Plexi/Super Lead/JCM2000 TSL/DSL/JCM900/JTM45/1959HW/DSL40CR/Plexi 50W/6100 30th/1959 SLP, Mesa Mark V/Rectifier/Mark IV/Mark IIC/Mark VII/JP2C/Triple Rectifier/Dual Rectifier, Peavey 5150/6505/JSX, Ampeg SVT/SVT Classic, Fender Bassman/Deluxe Reverb/Super Reverb/Hot Rod Deluxe/Twin Reverb/Princeton Reverb/Princeton Reverb 1972/Blues Junior/Showman, Roland JC-120B, Vox AC30/Fawn/AC15, Diezel Herbert/Hagen, ENGL Ironball/Powerball/Fireball/Gigmaster 30/E530, Orange OR15/Rockerverb/Tiny Terror, PRS Archon/MT15, Tone King Imperial, Driftwood Purple Nightmare, Splawn Quickrod, Soldano SLO 100/SLO 30, Laney/VH100R/Ironheart, Bad Cat Lynx, Hughes & Kettner TubeMeister 18, Ceriatone OTS Mini 20, Matchless Clubman 35, Sunn Model T, Supro Black Magick, Jet City JCA22H, Randall RG100es (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
+| **Cab** | Caixa/falante | 29 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream, Fender Deluxe Reverb Oxford/Twin Reverb 2x12/Super Reverb 4x10/Bassman 2x15, Greenback, G12T-75, Marshall 4x12 V30/1960AV/1960BV/1960TV Greenback, Mesa OS/Standard/Traditional 4x12/Recto V30, Roland JC-120, Vox AC30 Blue, Vox AC50, Orange 2x12 V30, EVH 5150III 4x12 G12-EVH, ENGL E412 Karnivore, Ampeg SVT 4x10/8x10 (IR); GxUltraCab (LV2) |
 | **Gain** | Overdrive, distortion, fuzz, boost | 91 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS, OJD, Wolf Shaper, MDA (LV2) |
 | **Delay** | Eco | 14 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage (native); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay (LV2) |
 | **Reverb** | Ambiência | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
@@ -236,7 +218,7 @@ Parsing em `adapter-gui/src/{main,lib}.rs`. Auto-save em `sync_project_dirty()`.
 | **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, generic_nam |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
 
-**Total: 360+ modelos em 16 tipos (5 backends: Native 33, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 498+ modelos em 16 tipos (5 backends: Native 33, NAM 215, IR 139, LV2 105, VST3 6).**
 
 `Utility` está vazio (Tuner e Spectrum viraram features de toolbar). `Full Rig` reservado para futuras capturas com cadeia completa.
 
@@ -379,14 +361,3 @@ ssh root@192.168.15.145 "dpkg -i /tmp/openrig_0.0.0-dev_arm64.deb && systemctl r
 - **NAM/LV2/IR builds**: `#[ignore]` (assets externos).
 - **Registry tests** em block-* crates: iterar TODOS os modelos via registry.
 - **Total**: rodar `cargo test --workspace` (~1100 testes).
-
----
-
-## graphify
-
-Knowledge graph em `graphify-out/`.
-
-- Antes de responder pergunta sobre arquitetura/codebase, ler `graphify-out/GRAPH_REPORT.md`
-- Se `graphify-out/wiki/index.md` existe, navegar lá em vez de raw files
-- Cross-module ("como X relaciona com Y"): preferir `graphify query`, `graphify path`, `graphify explain` em vez de grep
-- Após modificar código, rodar `graphify update .` (AST-only, sem custo de API)

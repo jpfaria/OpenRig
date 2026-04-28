@@ -14,84 +14,82 @@ const BRAND: &str = "mxr";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "dist_color_vol_330_tone_1030_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_1030_drive_700.nam" },
-    NamCapture { tone: "dist_color_vol_330_tone_1200_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_1200_drive_700.nam" },
-    NamCapture { tone: "dist_color_vol_330_tone_230_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_230_drive_700.nam" },
-    NamCapture { tone: "dist_cranked_vol_330_tone_1030_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_1030_drive_500.nam" },
-    NamCapture { tone: "dist_cranked_vol_330_tone_1200_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_1200_drive_500.nam" },
-    NamCapture { tone: "dist_cranked_vol_330_tone_230_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_230_drive_500.nam" },
-    NamCapture { tone: "dist_high_vol_330_tone_1030_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_1030_drive_300.nam" },
-    NamCapture { tone: "dist_high_vol_330_tone_1200_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_1200_drive_300.nam" },
-    NamCapture { tone: "dist_high_vol_330_tone_230_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_230_drive_300.nam" },
-    NamCapture { tone: "dist_low_vol_330_tone_1030_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_1030_drive_900.nam" },
-    NamCapture { tone: "dist_low_vol_330_tone_1200_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_1200_drive_900.nam" },
-    NamCapture { tone: "dist_low_vol_330_tone_230_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_230_drive_900.nam" },
-    NamCapture { tone: "dist_med_vol_330_tone_1030_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_1030_drive_1200.nam" },
-    NamCapture { tone: "dist_med_vol_330_tone_1200_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_1200_drive_1200.nam" },
-    NamCapture { tone: "dist_med_vol_330_tone_230_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_230_drive_1200.nam" },
-    NamCapture { tone: "od_color_vol_330_tone_1030_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_1030_drive_700.nam" },
-    NamCapture { tone: "od_color_vol_330_tone_1200_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_1200_drive_700.nam" },
-    NamCapture { tone: "od_color_vol_330_tone_230_drive_700", model_path: "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_230_drive_700.nam" },
-    NamCapture { tone: "od_cranked_vol_330_tone_1030_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_1030_drive_500.nam" },
-    NamCapture { tone: "od_cranked_vol_330_tone_1200_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_1200_drive_500.nam" },
-    NamCapture { tone: "od_cranked_vol_330_tone_230_drive_500", model_path: "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_230_drive_500.nam" },
-    NamCapture { tone: "od_high_vol_330_tone_1030_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_1030_drive_300.nam" },
-    NamCapture { tone: "od_high_vol_330_tone_1200_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_1200_drive_300.nam" },
-    NamCapture { tone: "od_high_vol_330_tone_230_drive_300", model_path: "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_230_drive_300.nam" },
-    NamCapture { tone: "od_low_vol_330_tone_1030_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_1030_drive_900.nam" },
-    NamCapture { tone: "od_low_vol_330_tone_1200_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_1200_drive_900.nam" },
-    NamCapture { tone: "od_low_vol_330_tone_230_drive_900", model_path: "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_230_drive_900.nam" },
-    NamCapture { tone: "od_med_vol_330_tone_1030_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_1030_drive_1200.nam" },
-    NamCapture { tone: "od_med_vol_330_tone_1200_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_1200_drive_1200.nam" },
-    NamCapture { tone: "od_med_vol_330_tone_230_drive_1200", model_path: "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_230_drive_1200.nam" },
+// Three-axis pack: mode × voicing × tone (volume fixed at 3:30).
+// 2 modes (OD / Dist) × 5 voicings × 3 tone steps = 30 captures, full grid.
+// Each voicing label corresponds to a fixed drive position that can't be
+// changed independently of the voicing in the original capture set.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (mode, voicing, tone, file)
+    ("od",   "high",    "230",  "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_230_drive_300.nam"),
+    ("od",   "high",    "1030", "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_1030_drive_300.nam"),
+    ("od",   "high",    "1200", "pedals/mxr_duke_of_tone/dot_od_high_vol_330_tone_1200_drive_300.nam"),
+    ("od",   "cranked", "230",  "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_230_drive_500.nam"),
+    ("od",   "cranked", "1030", "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_1030_drive_500.nam"),
+    ("od",   "cranked", "1200", "pedals/mxr_duke_of_tone/dot_od_cranked_vol_330_tone_1200_drive_500.nam"),
+    ("od",   "color",   "230",  "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_230_drive_700.nam"),
+    ("od",   "color",   "1030", "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_1030_drive_700.nam"),
+    ("od",   "color",   "1200", "pedals/mxr_duke_of_tone/dot_od_color_vol_330_tone_1200_drive_700.nam"),
+    ("od",   "low",     "230",  "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_230_drive_900.nam"),
+    ("od",   "low",     "1030", "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_1030_drive_900.nam"),
+    ("od",   "low",     "1200", "pedals/mxr_duke_of_tone/dot_od_low_vol_330_tone_1200_drive_900.nam"),
+    ("od",   "med",     "230",  "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_230_drive_1200.nam"),
+    ("od",   "med",     "1030", "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_1030_drive_1200.nam"),
+    ("od",   "med",     "1200", "pedals/mxr_duke_of_tone/dot_od_med_vol_330_tone_1200_drive_1200.nam"),
+    ("dist", "high",    "230",  "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_230_drive_300.nam"),
+    ("dist", "high",    "1030", "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_1030_drive_300.nam"),
+    ("dist", "high",    "1200", "pedals/mxr_duke_of_tone/dot_dist_high_vol_330_tone_1200_drive_300.nam"),
+    ("dist", "cranked", "230",  "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_230_drive_500.nam"),
+    ("dist", "cranked", "1030", "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_1030_drive_500.nam"),
+    ("dist", "cranked", "1200", "pedals/mxr_duke_of_tone/dot_dist_cranked_vol_330_tone_1200_drive_500.nam"),
+    ("dist", "color",   "230",  "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_230_drive_700.nam"),
+    ("dist", "color",   "1030", "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_1030_drive_700.nam"),
+    ("dist", "color",   "1200", "pedals/mxr_duke_of_tone/dot_dist_color_vol_330_tone_1200_drive_700.nam"),
+    ("dist", "low",     "230",  "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_230_drive_900.nam"),
+    ("dist", "low",     "1030", "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_1030_drive_900.nam"),
+    ("dist", "low",     "1200", "pedals/mxr_duke_of_tone/dot_dist_low_vol_330_tone_1200_drive_900.nam"),
+    ("dist", "med",     "230",  "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_230_drive_1200.nam"),
+    ("dist", "med",     "1030", "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_1030_drive_1200.nam"),
+    ("dist", "med",     "1200", "pedals/mxr_duke_of_tone/dot_dist_med_vol_330_tone_1200_drive_1200.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("dist_color_vol_330_tone_1030_drive_700"),
-        &[
-            ("dist_color_vol_330_tone_1030_drive_700", "Dist Color Vol 330 Tone 1030 Drive 700"),
-            ("dist_color_vol_330_tone_1200_drive_700", "Dist Color Vol 330 Tone 1200 Drive 700"),
-            ("dist_color_vol_330_tone_230_drive_700", "Dist Color Vol 330 Tone 230 Drive 700"),
-            ("dist_cranked_vol_330_tone_1030_drive_500", "Dist Cranked Vol 330 Tone 1030 Drive 500"),
-            ("dist_cranked_vol_330_tone_1200_drive_500", "Dist Cranked Vol 330 Tone 1200 Drive 500"),
-            ("dist_cranked_vol_330_tone_230_drive_500", "Dist Cranked Vol 330 Tone 230 Drive 500"),
-            ("dist_high_vol_330_tone_1030_drive_300", "Dist High Vol 330 Tone 1030 Drive 300"),
-            ("dist_high_vol_330_tone_1200_drive_300", "Dist High Vol 330 Tone 1200 Drive 300"),
-            ("dist_high_vol_330_tone_230_drive_300", "Dist High Vol 330 Tone 230 Drive 300"),
-            ("dist_low_vol_330_tone_1030_drive_900", "Dist Low Vol 330 Tone 1030 Drive 900"),
-            ("dist_low_vol_330_tone_1200_drive_900", "Dist Low Vol 330 Tone 1200 Drive 900"),
-            ("dist_low_vol_330_tone_230_drive_900", "Dist Low Vol 330 Tone 230 Drive 900"),
-            ("dist_med_vol_330_tone_1030_drive_1200", "Dist Med Vol 330 Tone 1030 Drive 1200"),
-            ("dist_med_vol_330_tone_1200_drive_1200", "Dist Med Vol 330 Tone 1200 Drive 1200"),
-            ("dist_med_vol_330_tone_230_drive_1200", "Dist Med Vol 330 Tone 230 Drive 1200"),
-            ("od_color_vol_330_tone_1030_drive_700", "Od Color Vol 330 Tone 1030 Drive 700"),
-            ("od_color_vol_330_tone_1200_drive_700", "Od Color Vol 330 Tone 1200 Drive 700"),
-            ("od_color_vol_330_tone_230_drive_700", "Od Color Vol 330 Tone 230 Drive 700"),
-            ("od_cranked_vol_330_tone_1030_drive_500", "Od Cranked Vol 330 Tone 1030 Drive 500"),
-            ("od_cranked_vol_330_tone_1200_drive_500", "Od Cranked Vol 330 Tone 1200 Drive 500"),
-            ("od_cranked_vol_330_tone_230_drive_500", "Od Cranked Vol 330 Tone 230 Drive 500"),
-            ("od_high_vol_330_tone_1030_drive_300", "Od High Vol 330 Tone 1030 Drive 300"),
-            ("od_high_vol_330_tone_1200_drive_300", "Od High Vol 330 Tone 1200 Drive 300"),
-            ("od_high_vol_330_tone_230_drive_300", "Od High Vol 330 Tone 230 Drive 300"),
-            ("od_low_vol_330_tone_1030_drive_900", "Od Low Vol 330 Tone 1030 Drive 900"),
-            ("od_low_vol_330_tone_1200_drive_900", "Od Low Vol 330 Tone 1200 Drive 900"),
-            ("od_low_vol_330_tone_230_drive_900", "Od Low Vol 330 Tone 230 Drive 900"),
-            ("od_med_vol_330_tone_1030_drive_1200", "Od Med Vol 330 Tone 1030 Drive 1200"),
-            ("od_med_vol_330_tone_1200_drive_1200", "Od Med Vol 330 Tone 1200 Drive 1200"),
-            ("od_med_vol_330_tone_230_drive_1200", "Od Med Vol 330 Tone 230 Drive 1200"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "mode",
+            "Mode",
+            Some("Pedal"),
+            Some("od"),
+            &[
+                ("od",   "Overdrive"),
+                ("dist", "Distortion"),
+            ],
+        ),
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Pedal"),
+            Some("color"),
+            &[
+                ("high",    "High Gain"),
+                ("cranked", "Cranked"),
+                ("color",   "Colour"),
+                ("low",     "Low Gain"),
+                ("med",     "Medium"),
+            ],
+        ),
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Pedal"),
+            Some("1030"),
+            &[
+                ("230",  "2:30"),
+                ("1030", "10:30"),
+                ("1200", "12:00"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -100,9 +98,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -115,16 +113,24 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let mode = required_string(params, "mode").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
     let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(m, v, t, _)| *m == mode && *v == voicing && *t == tone)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for mode={} voicing={} tone={}",
+                MODEL_ID, mode, voicing, tone
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

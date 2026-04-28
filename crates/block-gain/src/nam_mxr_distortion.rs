@@ -14,36 +14,34 @@ const BRAND: &str = "mxr";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "dist1030", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist1030.nam" },
-    NamCapture { tone: "dist1200", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist1200.nam" },
-    NamCapture { tone: "dist130", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist130.nam" },
-    NamCapture { tone: "dist300", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist300.nam" },
-    NamCapture { tone: "dist500", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist500.nam" },
-    NamCapture { tone: "dist700", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist700.nam" },
-    NamCapture { tone: "dist900", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist900.nam" },
+// Single-axis: distortion knob position (output fixed at 3:00).
+// 7 captures span the dial as clock positions.
+const CAPTURES: &[(&str, &str)] = &[
+    // (distortion, file)
+    ("130",  "pedals/mxr_distortion/mxr_distortion_output300_dist130.nam"),
+    ("300",  "pedals/mxr_distortion/mxr_distortion_output300_dist300.nam"),
+    ("500",  "pedals/mxr_distortion/mxr_distortion_output300_dist500.nam"),
+    ("700",  "pedals/mxr_distortion/mxr_distortion_output300_dist700.nam"),
+    ("900",  "pedals/mxr_distortion/mxr_distortion_output300_dist900.nam"),
+    ("1030", "pedals/mxr_distortion/mxr_distortion_output300_dist1030.nam"),
+    ("1200", "pedals/mxr_distortion/mxr_distortion_output300_dist1200.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
+        "distortion",
+        "Distortion",
         Some("Pedal"),
-        Some("dist1030"),
+        Some("700"),
         &[
-            ("dist1030", "Dist1030"),
-            ("dist1200", "Dist1200"),
-            ("dist130", "Dist130"),
-            ("dist300", "Dist300"),
-            ("dist500", "Dist500"),
-            ("dist700", "Dist700"),
-            ("dist900", "Dist900"),
+            ("130",  "1:30"),
+            ("300",  "3:00"),
+            ("500",  "5:00"),
+            ("700",  "7:00"),
+            ("900",  "9:00"),
+            ("1030", "10:30"),
+            ("1200", "12:00"),
         ],
     )];
     schema
@@ -54,9 +52,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -69,16 +67,22 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let distortion = required_string(params, "distortion").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(d, _)| *d == distortion)
+        .map(|(_, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for distortion={}",
+                MODEL_ID, distortion
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
