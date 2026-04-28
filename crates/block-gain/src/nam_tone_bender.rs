@@ -14,54 +14,55 @@ const BRAND: &str = "boss";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "01_12v", model_path: "pedals/tone_bender/boss_tb_2w_01_12v.nam" },
-    NamCapture { tone: "01_7v", model_path: "pedals/tone_bender/boss_tb_2w_01_7v.nam" },
-    NamCapture { tone: "01_9v", model_path: "pedals/tone_bender/boss_tb_2w_01_9v.nam" },
-    NamCapture { tone: "02_12v", model_path: "pedals/tone_bender/boss_tb_2w_02_12v.nam" },
-    NamCapture { tone: "02_7v", model_path: "pedals/tone_bender/boss_tb_2w_02_7v.nam" },
-    NamCapture { tone: "02_9v", model_path: "pedals/tone_bender/boss_tb_2w_02_9v.nam" },
-    NamCapture { tone: "03_12v", model_path: "pedals/tone_bender/boss_tb_2w_03_12v.nam" },
-    NamCapture { tone: "03_7v", model_path: "pedals/tone_bender/boss_tb_2w_03_7v.nam" },
-    NamCapture { tone: "03_9v", model_path: "pedals/tone_bender/boss_tb_2w_03_9v.nam" },
-    NamCapture { tone: "04_12v", model_path: "pedals/tone_bender/boss_tb_2w_04_12v.nam" },
-    NamCapture { tone: "04_7v", model_path: "pedals/tone_bender/boss_tb_2w_04_7v.nam" },
-    NamCapture { tone: "04_9v", model_path: "pedals/tone_bender/boss_tb_2w_04_9v.nam" },
-    NamCapture { tone: "05_12v", model_path: "pedals/tone_bender/boss_tb_2w_05_12v.nam" },
-    NamCapture { tone: "05_7v", model_path: "pedals/tone_bender/boss_tb_2w_05_7v.nam" },
-    NamCapture { tone: "05_9v", model_path: "pedals/tone_bender/boss_tb_2w_05_9v.nam" },
+// Two-axis pack: preset × voltage (Boss TB-2W reissue).
+// 5 nominal preset positions × 3 supply voltages = 15 captures, full grid.
+const CAPTURES: &[(&str, &str, &str)] = &[
+    // (preset, voltage, file)
+    ("01", "7v",  "pedals/tone_bender/boss_tb_2w_01_7v.nam"),
+    ("01", "9v",  "pedals/tone_bender/boss_tb_2w_01_9v.nam"),
+    ("01", "12v", "pedals/tone_bender/boss_tb_2w_01_12v.nam"),
+    ("02", "7v",  "pedals/tone_bender/boss_tb_2w_02_7v.nam"),
+    ("02", "9v",  "pedals/tone_bender/boss_tb_2w_02_9v.nam"),
+    ("02", "12v", "pedals/tone_bender/boss_tb_2w_02_12v.nam"),
+    ("03", "7v",  "pedals/tone_bender/boss_tb_2w_03_7v.nam"),
+    ("03", "9v",  "pedals/tone_bender/boss_tb_2w_03_9v.nam"),
+    ("03", "12v", "pedals/tone_bender/boss_tb_2w_03_12v.nam"),
+    ("04", "7v",  "pedals/tone_bender/boss_tb_2w_04_7v.nam"),
+    ("04", "9v",  "pedals/tone_bender/boss_tb_2w_04_9v.nam"),
+    ("04", "12v", "pedals/tone_bender/boss_tb_2w_04_12v.nam"),
+    ("05", "7v",  "pedals/tone_bender/boss_tb_2w_05_7v.nam"),
+    ("05", "9v",  "pedals/tone_bender/boss_tb_2w_05_9v.nam"),
+    ("05", "12v", "pedals/tone_bender/boss_tb_2w_05_12v.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("01_12v"),
-        &[
-            ("01_12v", "01 12v"),
-            ("01_7v", "01 7v"),
-            ("01_9v", "01 9v"),
-            ("02_12v", "02 12v"),
-            ("02_7v", "02 7v"),
-            ("02_9v", "02 9v"),
-            ("03_12v", "03 12v"),
-            ("03_7v", "03 7v"),
-            ("03_9v", "03 9v"),
-            ("04_12v", "04 12v"),
-            ("04_7v", "04 7v"),
-            ("04_9v", "04 9v"),
-            ("05_12v", "05 12v"),
-            ("05_7v", "05 7v"),
-            ("05_9v", "05 9v"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "preset",
+            "Preset",
+            Some("Pedal"),
+            Some("03"),
+            &[
+                ("01", "Preset 1"),
+                ("02", "Preset 2"),
+                ("03", "Preset 3"),
+                ("04", "Preset 4"),
+                ("05", "Preset 5"),
+            ],
+        ),
+        enum_parameter(
+            "voltage",
+            "Sag (Supply V)",
+            Some("Pedal"),
+            Some("9v"),
+            &[
+                ("7v",  "7 V"),
+                ("9v",  "9 V"),
+                ("12v", "12 V"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -70,9 +71,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -85,16 +86,23 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let preset = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let voltage = required_string(params, "voltage").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(p, v, _)| *p == preset && *v == voltage)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for preset={} voltage={}",
+                MODEL_ID, preset, voltage
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
