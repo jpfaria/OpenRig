@@ -13,27 +13,28 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis pack: 5 voicings of the Slammin' Marshall 2203, MV varies per voicing.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("slammin_marshall_2203_scooped_mv4_48k_st", "SLAMMIN_MARSHALL_2203_SCOOPED_MV4_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard.nam"),
-    ("slammin_marshall_2203_dark_mv5_48k_stand", "SLAMMIN_MARSHALL_2203_DARK_MV5_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard.nam"),
-    ("slammin_marshall_2203_noon_mv3_48k_stand", "SLAMMIN_MARSHALL_2203_NOON_MV3_48K_STANDARD", "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard.nam"),
-    ("slammin_marshall_2203_rock_mv7_48k", "SLAMMIN_MARSHALL_2203_ROCK_MV7_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k.nam"),
-    ("slammin_marshall_2203_wylde_sd1_mv6_48k", "SLAMMIN_MARSHALL_2203_WYLDE_SD1_MV6_48K", "amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k.nam"),
+    ("noon_mv3",     "Noon (MV3)",      "amps/marshall_jmp_2203/slammin_marshall_2203_noon_mv3_48k_standard.nam"),
+    ("scooped_mv4",  "Scooped (MV4)",   "amps/marshall_jmp_2203/slammin_marshall_2203_scooped_mv4_48k_standard.nam"),
+    ("dark_mv5",     "Dark (MV5)",      "amps/marshall_jmp_2203/slammin_marshall_2203_dark_mv5_48k_standard.nam"),
+    ("wylde_sd1_mv6","Wylde + SD1 (MV6)","amps/marshall_jmp_2203/slammin_marshall_2203_wylde_sd1_mv6_48k.nam"),
+    ("rock_mv7",     "Rock (MV7)",      "amps/marshall_jmp_2203/slammin_marshall_2203_rock_mv7_48k.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "voicing",
+        "Voicing",
         Some("Amp"),
-        Some("slammin_marshall_2203_scooped_mv4_48k_st"),
+        Some("rock_mv7"),
         &[
-            ("slammin_marshall_2203_scooped_mv4_48k_st", "SLAMMIN_MARSHALL_2203_SCOOPED_MV4_48K_STANDARD"),
-            ("slammin_marshall_2203_dark_mv5_48k_stand", "SLAMMIN_MARSHALL_2203_DARK_MV5_48K_STANDARD"),
-            ("slammin_marshall_2203_noon_mv3_48k_stand", "SLAMMIN_MARSHALL_2203_NOON_MV3_48K_STANDARD"),
-            ("slammin_marshall_2203_rock_mv7_48k", "SLAMMIN_MARSHALL_2203_ROCK_MV7_48K"),
-            ("slammin_marshall_2203_wylde_sd1_mv6_48k", "SLAMMIN_MARSHALL_2203_WYLDE_SD1_MV6_48K"),
+            ("noon_mv3",      "Noon (MV3)"),
+            ("scooped_mv4",   "Scooped (MV4)"),
+            ("dark_mv5",      "Dark (MV5)"),
+            ("wylde_sd1_mv6", "Wylde + SD1 (MV6)"),
+            ("rock_mv7",      "Rock (MV7)"),
         ],
     )];
     schema
@@ -55,12 +56,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no voicing '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
