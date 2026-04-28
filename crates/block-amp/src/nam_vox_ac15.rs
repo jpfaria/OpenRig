@@ -13,35 +13,45 @@ const BRAND: &str = "vox";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: gain × channel. Full 4×2 cartesian on AC15CH.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("edge_of_breakup_normal", "Vox AC15CH Edge of Breakup Normal", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_normal.nam"),
-    ("crunch_normal", "Vox AC15CH Crunch Normal", "amps/vox_ac15/vox_ac15ch_crunch_normal.nam"),
-    ("overdriven_normal", "Vox AC15CH Overdriven Normal", "amps/vox_ac15/vox_ac15ch_overdriven_normal.nam"),
-    ("crystal_clean_normal", "Vox AC15CH Crystal Clean Normal", "amps/vox_ac15/vox_ac15ch_crystal_clean_normal.nam"),
-    ("edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_tb.nam"),
-    ("crunch_tb", "Vox AC15CH Crunch TB", "amps/vox_ac15/vox_ac15ch_crunch_tb.nam"),
-    ("crystal_clean_tb", "Vox AC15CH Crystal Clean TB", "amps/vox_ac15/vox_ac15ch_crystal_clean_tb.nam"),
-    ("overdriven_tb", "Vox AC15CH Overdriven TB", "amps/vox_ac15/vox_ac15ch_overdriven_tb.nam"),
+    // (gain, channel, file)
+    ("crystal_clean",    "normal", "amps/vox_ac15/vox_ac15ch_crystal_clean_normal.nam"),
+    ("crystal_clean",    "tb",     "amps/vox_ac15/vox_ac15ch_crystal_clean_tb.nam"),
+    ("edge_of_breakup",  "normal", "amps/vox_ac15/vox_ac15ch_edge_of_breakup_normal.nam"),
+    ("edge_of_breakup",  "tb",     "amps/vox_ac15/vox_ac15ch_edge_of_breakup_tb.nam"),
+    ("crunch",           "normal", "amps/vox_ac15/vox_ac15ch_crunch_normal.nam"),
+    ("crunch",           "tb",     "amps/vox_ac15/vox_ac15ch_crunch_tb.nam"),
+    ("overdriven",       "normal", "amps/vox_ac15/vox_ac15ch_overdriven_normal.nam"),
+    ("overdriven",       "tb",     "amps/vox_ac15/vox_ac15ch_overdriven_tb.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("edge_of_breakup_normal"),
-        &[
-            ("edge_of_breakup_normal", "Vox AC15CH Edge of Breakup Normal"),
-            ("crunch_normal", "Vox AC15CH Crunch Normal"),
-            ("overdriven_normal", "Vox AC15CH Overdriven Normal"),
-            ("crystal_clean_normal", "Vox AC15CH Crystal Clean Normal"),
-            ("edge_of_breakup_tb", "Vox AC15CH Edge of Breakup TB"),
-            ("crunch_tb", "Vox AC15CH Crunch TB"),
-            ("crystal_clean_tb", "Vox AC15CH Crystal Clean TB"),
-            ("overdriven_tb", "Vox AC15CH Overdriven TB"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("edge_of_breakup"),
+            &[
+                ("crystal_clean",   "Crystal Clean"),
+                ("edge_of_breakup", "Edge of Breakup"),
+                ("crunch",          "Crunch"),
+                ("overdriven",      "Overdriven"),
+            ],
+        ),
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Amp"),
+            Some("normal"),
+            &[
+                ("normal", "Normal"),
+                ("tb",     "Top Boost"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +71,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(g, c, _)| *g == gain && *c == channel)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for gain={} channel={}",
+                MODEL_ID, gain, channel
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
