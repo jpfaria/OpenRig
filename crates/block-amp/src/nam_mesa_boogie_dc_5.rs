@@ -13,8 +13,9 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: Black Shadow speaker, SM57 mic, full-range capture.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mesa_dc_5_black_shadow_sm57_fr", "DC-5 Black Shadow sm57 FR", "amps/mesa_boogie_dc_5/mesa_dc_5_black_shadow_sm57_fr.nam"),
+    ("black_shadow_sm57", "Black Shadow + SM57", "amps/mesa_boogie_dc_5/mesa_dc_5_black_shadow_sm57_fr.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,10 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("mesa_dc_5_black_shadow_sm57_fr"),
+        Some("black_shadow_sm57"),
         &[
-            ("mesa_dc_5_black_shadow_sm57_fr", "DC-5 Black Shadow sm57 FR"),
-        
+            ("black_shadow_sm57", "Black Shadow + SM57"),
         ],
     )];
     schema
