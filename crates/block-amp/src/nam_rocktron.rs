@@ -13,21 +13,22 @@ const BRAND: &str = "rocktron";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 mid frequency settings on Piranha Ch3 with EL34A/B power amps.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("750", "piranha ch3 mid 750 el34ab", "amps/rocktron/piranha_ch3_mid_750_el34ab.nam"),
-    ("850", "piranha ch3 mid 850 el34ab", "amps/rocktron/piranha_ch3_mid_850_el34ab.nam"),
+    ("750", "Mid 750 Hz", "amps/rocktron/piranha_ch3_mid_750_el34ab.nam"),
+    ("850", "Mid 850 Hz", "amps/rocktron/piranha_ch3_mid_850_el34ab.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "mid_freq",
+        "Mid Freq",
         Some("Amp"),
         Some("750"),
         &[
-            ("750", "piranha ch3 mid 750 el34ab"),
-            ("850", "piranha ch3 mid 850 el34ab"),
+            ("750", "750 Hz"),
+            ("850", "850 Hz"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "mid_freq").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no mid_freq '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
