@@ -13,33 +13,35 @@ const BRAND: &str = "bogner";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis preset pack: 8 voicings with no clean cartesian decomposition.
+// Keys/labels cleaned (was 41-char "Bogner Ecstasy - ..." prefix).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone.nam"),
-    ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)", "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off.nam"),
-    ("fender_clean", "Bogner Ecstasy - Fender Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean.nam"),
-    ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch.nam"),
-    ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch", "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch.nam"),
-    ("basic_clean", "Bogner Ecstasy - Basic Clean", "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean.nam"),
-    ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone", "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone.nam"),
-    ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock", "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock.nam"),
+    ("basic_clean",       "Basic Clean",          "amps/bogner_ecstasy_101b/bogner_ecstasy_basic_clean.nam"),
+    ("fender_clean",      "Fender Clean",         "amps/bogner_ecstasy_101b/bogner_ecstasy_fender_clean.nam"),
+    ("plexi_crunch",      "Plexi Crunch",         "amps/bogner_ecstasy_101b/bogner_ecstasy_plexi_crunch.nam"),
+    ("dumble_crunch",     "Dumble Crunch",        "amps/bogner_ecstasy_101b/bogner_ecstasy_dumble_crunch.nam"),
+    ("bright_crunchy",    "Bright Crunchy",       "amps/bogner_ecstasy_101b/bogner_ecstasy_bright_crunchy_rock.nam"),
+    ("crunchier_rock",    "Crunchier Rock",       "amps/bogner_ecstasy_101b/bogner_ecstasy_crunchier_rock_tone.nam"),
+    ("ch2_warm_rock",     "Ch2 Warm Rock",        "amps/bogner_ecstasy_101b/bogner_ecstasy_channel_2_warm_rock_tone.nam"),
+    ("vai_ftlog_b_off",   "Vai FTLOG (B off)",    "amps/bogner_ecstasy_101b/bogner_ecstasy_vai_ftlog_tone_b_off.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("channel_2_warm_rock_tone"),
+        Some("basic_clean"),
         &[
-            ("channel_2_warm_rock_tone", "Bogner Ecstasy - Channel 2 Warm Rock Tone"),
-            ("vai_ftlog_tone_b_off", "Bogner Ecstasy - Vai FTLOG Tone (B off)"),
-            ("fender_clean", "Bogner Ecstasy - Fender Clean"),
-            ("dumble_crunch", "Bogner Ecstasy - Dumble Crunch"),
-            ("plexi_crunch", "Bogner Ecstasy - Plexi Crunch"),
-            ("basic_clean", "Bogner Ecstasy - Basic Clean"),
-            ("crunchier_rock_tone", "Bogner Ecstasy - Crunchier Rock Tone"),
-            ("bright_crunchy_rock", "Bogner Ecstasy - Bright Crunchy Rock"),
+            ("basic_clean",     "Basic Clean"),
+            ("fender_clean",    "Fender Clean"),
+            ("plexi_crunch",    "Plexi Crunch"),
+            ("dumble_crunch",   "Dumble Crunch"),
+            ("bright_crunchy",  "Bright Crunchy"),
+            ("crunchier_rock",  "Crunchier Rock"),
+            ("ch2_warm_rock",   "Ch2 Warm Rock"),
+            ("vai_ftlog_b_off", "Vai FTLOG (B off)"),
         ],
     )];
     schema
@@ -61,12 +63,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
