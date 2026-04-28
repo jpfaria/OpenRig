@@ -13,21 +13,22 @@ const BRAND: &str = "bad_cat";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 2 channels (EF86 / Top Boost) — both with Marshall Cabinet IR.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ef86", "EF86 - Marshall Cabinet", "amps/badcat_wildcat_40r/ef86_marshall_cabinet.nam"),
-    ("top_boost", "Top Boost - Marshall Cabinet", "amps/badcat_wildcat_40r/top_boost_marshall_cabinet.nam"),
+    ("ef86",      "EF86",      "amps/badcat_wildcat_40r/ef86_marshall_cabinet.nam"),
+    ("top_boost", "Top Boost", "amps/badcat_wildcat_40r/top_boost_marshall_cabinet.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "channel",
+        "Channel",
         Some("Amp"),
         Some("ef86"),
         &[
-            ("ef86", "EF86 - Marshall Cabinet"),
-            ("top_boost", "Top Boost - Marshall Cabinet"),
+            ("ef86",      "EF86"),
+            ("top_boost", "Top Boost"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "channel").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no channel '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
