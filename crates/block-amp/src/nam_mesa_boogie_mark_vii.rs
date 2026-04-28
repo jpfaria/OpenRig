@@ -1,0 +1,100 @@
+use anyhow::{anyhow, Result};
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
+};
+use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_mesa_boogie_mark_vii";
+pub const DISPLAY_NAME: &str = "Mark VII";
+const BRAND: &str = "mesa";
+
+pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+    ("pre_mesa_mkvii_90w_ch3_mkiic_eet", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ", "amps/mesa_boogie_mark_vii/pre_mesa_mkvii_90w_ch3_mkiic_eet_faq.nam"),
+    ("amp_mesa_mkvii_90w_ch1_cln_facto", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2", "amps/mesa_boogie_mark_vii/amp_mesa_mkvii_90w_ch1_cln_factory_bright_clean_blend_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5_", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm58.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5__366955", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_2.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5__366951", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_sm57.nam"),
+    ("pow_mesa_mkvii_90w_eq_on_pres_5__366952", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3", "amps/mesa_boogie_mark_vii/pow_mesa_mkvii_90w_eq_on_pres_5_blend_3.nam"),
+];
+
+pub fn model_schema() -> ModelParameterSchema {
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "capture",
+        "Capture",
+        Some("Amp"),
+        Some("pre_mesa_mkvii_90w_ch3_mkiic_eet"),
+        &[
+            ("pre_mesa_mkvii_90w_ch3_mkiic_eet", "[PRE] MESA.MKVII-90W-CH3-MKIIC EET FAQ"),
+            ("amp_mesa_mkvii_90w_ch1_cln_facto", "[AMP] MESA.MKVII-90W-CH1-CLN Factory Bright Clean - BLEND #2"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5_", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM58"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5__366955", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #2"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5__366951", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - SM57"),
+            ("pow_mesa_mkvii_90w_eq_on_pres_5__366952", "[POW] MESA.MKVII-90W-EQ@ON Pres@5 - BLEND #3"),
+        ],
+    )];
+    schema
+}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let path = resolve_capture(params)?;
+    build_processor_with_assets_for_layout(
+        &nam::resolve_nam_capture(path)?,
+        None,
+        NAM_PLUGIN_FIXED_PARAMS,
+        sample_rate,
+        layout,
+    )
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: AmpBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
+}
