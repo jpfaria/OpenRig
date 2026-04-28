@@ -13,23 +13,24 @@ const BRAND: &str = "driftwood";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: VA Nightmare (Master Drive) paired with one of 3 cabs.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412.nam"),
-    ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional.nam"),
-    ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)", "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized.nam"),
+    ("evh_5150iii", "EVH 5150III 4x12",  "amps/driftwood_purple_nightmare/va_nightmare_md_and_evh_5150iii_412.nam"),
+    ("mesa_trad",   "Mesa Traditional",   "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_traditional.nam"),
+    ("mesa_os",     "Mesa Oversized",     "amps/driftwood_purple_nightmare/va_nightmare_md_and_mesa_oversized.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "cab",
+        "Cab",
         Some("Amp"),
-        Some("evh_5150iii_412"),
+        Some("evh_5150iii"),
         &[
-            ("evh_5150iii_412", "VA Nightmare (MD and EVH 5150III 412)"),
-            ("mesa_traditional", "VA Nightmare (MD and Mesa Traditional)"),
-            ("mesa_oversized", "VA Nightmare (MD and Mesa Oversized)"),
+            ("evh_5150iii", "EVH 5150III 4x12"),
+            ("mesa_trad",   "Mesa Traditional"),
+            ("mesa_os",     "Mesa Oversized"),
         ],
     )];
     schema
@@ -51,12 +52,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "cab").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no cab '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
