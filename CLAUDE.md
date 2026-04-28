@@ -36,6 +36,12 @@ OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latênci
 2. **Qualidade de áudio** (ruído, aliasing, THD, resposta em frequência)
 3. **Estabilidade do stream** — zero xruns, dropouts, cliques, glitches, pops
 4. **Isolation entre streams** — cada `InputBlock` é um stream paralelo TOTALMENTE isolado. NUNCA um stream pode impactar outro. Sem buffer compartilhado, sem lock compartilhado, sem cache line contestada, sem CPU spike de um afetando outro. "Chain" no YAML é só agrupamento lógico — no runtime são N runtimes paralelos. Mixing entre streams (se necessário) acontece no backend (cpal/JACK), nunca no nosso código. Violação = regressão crítica, igual a perder áudio.
+5. **Stream é SEMPRE estéreo internamente** — o bus de processamento de TODO stream é estéreo, regardless de input mode:
+   - Mono input → upmix broadcast: `Stereo([s, s])` (mesmo sinal nos 2 canais — centrado).
+   - DualMono input → `Stereo([L, R])` com L/R processados independentemente pelo `AudioProcessor::DualMono`.
+   - Stereo input → `Stereo([L, R])` direto.
+   - 1 InputBlock com `mode: mono, channels: [0, 1]` (duas guitarras na mesma input) → 2 streams estéreo INDEPENDENTES (cada um broadcast pra ambos os canais), somados com escala 1/N (auto-mix sem saturar).
+   - Saída final pro device só vira mono se o `OutputBlock` for `mode: mono` — aí o `apply_mixdown` faz Stereo→Mono pelo método configurado (Average / Sum / Left / Right). NUNCA forçar bus Mono no segment quando output é estéreo. NUNCA auto-pan: cada stream sempre presente em AMBOS os canais. Violação = regressão crítica.
 5. **Jitter do callback** — tempo de processamento estável
 6. **Custo de CPU no audio thread** — regressão de CPU vira xrun
 7. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção

@@ -586,3 +586,173 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// "Stream is ALWAYS stereo internally" invariant (issue #350).
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Project rule (CLAUDE.md non-regression invariant #5): every internal
+// stream processes on a STEREO bus when the chain output is stereo —
+// regardless of input mode. Mono input upmixes by broadcasting
+// (Stereo([s, s])); two split-mono siblings are TWO separate stereo
+// streams (each broadcast), summed at fan-out with 1/N gain to avoid
+// limiter saturation. Auto-panning, forcing Mono bus on a stereo
+// chain, or sending one guitar to one ear is FORBIDDEN.
+//
+// The tests below pin the rule. Reintroducing the Mono-bus override or
+// auto-pan will break them.
+
+/// `processing_layout` of every InputProcessingState in a chain whose
+/// OutputBlock is stereo MUST be Stereo — split-mono siblings included.
+/// This catches the regression where a previous fix forced Mono bus
+/// for split-mono segments and the user heard each guitar in only one
+/// ear (auto-pan effect via partial broadcast).
+#[test]
+fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
+    let chain = Chain {
+        id: ChainId("isolation:always-stereo".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        blocks: vec![
+            // 1 InputBlock, 2 channels, mono mode → 2 effective entries
+            // (one per channel) — the user's "duas guitarras na mesma
+            // input" config.
+            AudioBlock {
+                id: BlockId("input:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    entries: vec![InputEntry {
+                        device_id: DeviceId("scarlett".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+            // Stereo output → bus must stay stereo for every stream.
+            AudioBlock {
+                id: BlockId("output:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("monitor".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    };
+
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(&chain, 48_000.0, &[256])
+            .expect("split-mono / stereo-output chain must build"),
+    );
+    let processing = runtime.processing.lock().expect("lock poisoned");
+
+    assert!(
+        processing.input_states.len() >= 2,
+        "fixture invariant: split-mono with 2 channels must produce ≥2 segments, got {}",
+        processing.input_states.len()
+    );
+
+    for (i, state) in processing.input_states.iter().enumerate() {
+        assert!(
+            matches!(state.processing_layout, AudioChannelLayout::Stereo),
+            "segment {} processing_layout = {:?}; must be Stereo when chain \
+             output is stereo, even for split-mono entries. Forcing Mono bus \
+             here breaks the 'stream is always stereo internally' rule and \
+             produces auto-pan / one-ear-only output.",
+            i,
+            state.processing_layout
+        );
+    }
+}
+
+/// DualMono input + stereo output: also Stereo bus (the DualMono variant
+/// is flattened to a Stereo layout at the buffer level; L/R independence
+/// is preserved internally by `AudioProcessor::DualMono`).
+#[test]
+fn dual_mono_segment_keeps_stereo_processing() {
+    let chain = Chain {
+        id: ChainId("isolation:dualmono-stereo".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        blocks: vec![
+            AudioBlock {
+                id: BlockId("input:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    entries: vec![InputEntry {
+                        device_id: DeviceId("scarlett".into()),
+                        mode: ChainInputMode::DualMono,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+            AudioBlock {
+                id: BlockId("output:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("monitor".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    };
+
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(&chain, 48_000.0, &[256])
+            .expect("dualmono chain must build"),
+    );
+    let processing = runtime.processing.lock().expect("lock poisoned");
+
+    for (i, state) in processing.input_states.iter().enumerate() {
+        assert!(
+            matches!(state.processing_layout, AudioChannelLayout::Stereo),
+            "DualMono segment {} processing_layout = {:?}; must be Stereo. \
+             DualMono is flattened to a Stereo bus at the buffer level, with \
+             internal L/R independence preserved by AudioProcessor::DualMono.",
+            i, state.processing_layout
+        );
+    }
+}
+
+/// Mono input + Mono OUTPUT: Mono bus is correct. The "always stereo"
+/// rule applies WHEN OUTPUT IS STEREO. If the user explicitly configures
+/// a mono output, we don't force a useless upmix.
+#[test]
+fn mono_input_with_mono_output_stays_mono() {
+    let chain = Chain {
+        id: ChainId("isolation:mono-mono".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        blocks: vec![
+            input_block("input:0", "scarlett", vec![0]),
+            output_block("output:0", "monitor", vec![0]),
+        ],
+    };
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(&chain, 48_000.0, &[256])
+            .expect("mono-only chain must build"),
+    );
+    let processing = runtime.processing.lock().expect("lock poisoned");
+
+    for (i, state) in processing.input_states.iter().enumerate() {
+        assert!(
+            matches!(state.processing_layout, AudioChannelLayout::Mono),
+            "segment {} processing_layout = {:?}; mono in + mono out must \
+             stay Mono (no useless upmix).",
+            i, state.processing_layout
+        );
+    }
+}
