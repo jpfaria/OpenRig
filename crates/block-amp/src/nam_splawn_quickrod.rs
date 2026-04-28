@@ -1,0 +1,102 @@
+use anyhow::{anyhow, Result};
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
+};
+use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_splawn_quickrod";
+pub const DISPLAY_NAME: &str = "Quickrod";
+const BRAND: &str = "splawn";
+
+pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+    ("splawn_hg3g7m_mids5", "Splawn HG3G7M mids5", "amps/splawn_quickrod/splawn_hg3g7m_mids5.nam"),
+    ("splawn5g7m_mids_5", "Splawn5G7M mids 5", "amps/splawn_quickrod/splawn5g7m_mids_5.nam"),
+    ("splawn_hg5g7m_mids5", "Splawn HG5G7M mids5", "amps/splawn_quickrod/splawn_hg5g7m_mids5.nam"),
+    ("splawn3g7m_mids_3", "Splawn3G7M mids 3", "amps/splawn_quickrod/splawn3g7m_mids_3.nam"),
+    ("splawn3g7m_mids_5", "Splawn3G7M mids 5", "amps/splawn_quickrod/splawn3g7m_mids_5.nam"),
+    ("splawnhgt5g7m", "SplawnHGt5G7M", "amps/splawn_quickrod/splawnhgt5g7m.nam"),
+    ("splawnhgt3g7m", "SplawnHGt3G7M", "amps/splawn_quickrod/splawnhgt3g7m.nam"),
+];
+
+pub fn model_schema() -> ModelParameterSchema {
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "capture",
+        "Capture",
+        Some("Amp"),
+        Some("splawn_hg3g7m_mids5"),
+        &[
+            ("splawn_hg3g7m_mids5", "Splawn HG3G7M mids5"),
+            ("splawn5g7m_mids_5", "Splawn5G7M mids 5"),
+            ("splawn_hg5g7m_mids5", "Splawn HG5G7M mids5"),
+            ("splawn3g7m_mids_3", "Splawn3G7M mids 3"),
+            ("splawn3g7m_mids_5", "Splawn3G7M mids 5"),
+            ("splawnhgt5g7m", "SplawnHGt5G7M"),
+            ("splawnhgt3g7m", "SplawnHGt3G7M"),
+        ],
+    )];
+    schema
+}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let path = resolve_capture(params)?;
+    build_processor_with_assets_for_layout(
+        &nam::resolve_nam_capture(path)?,
+        None,
+        NAM_PLUGIN_FIXED_PARAMS,
+        sample_rate,
+        layout,
+    )
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: AmpBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
+}
