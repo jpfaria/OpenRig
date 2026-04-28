@@ -23,36 +23,58 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     treble: 5.0,
 };
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("lo_down_02", "[PRE] UNNAMED Lo-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_02_std.nam"),
-    ("hi_up_04", "[PRE] UNNAMED Hi-Up #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_04_std.nam"),
-    ("lo_down_03", "[PRE] UNNAMED Lo-Down #03 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_03_std.nam"),
-    ("hi_down_02", "[PRE] UNNAMED Hi-Down #02 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_02_std.nam"),
-    ("lo_down_04", "[PRE] UNNAMED Lo-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_04_std.nam"),
-    ("hi_up_01", "[PRE] UNNAMED Hi-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_01_std.nam"),
-    ("hi_down_04", "[PRE] UNNAMED Hi-Down #04 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_04_std.nam"),
-    ("lo_up_01", "[PRE] UNNAMED Lo-Up #01 - STD", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_up_01_std.nam"),
+// Three-axis pack: range × direction × take.
+// range = lo / hi   (low or high gain footprint)
+// direction = up / down  (sweep direction in original capture pack)
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (range, direction, take, file)
+    ("lo", "down", "02", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_02_std.nam"),
+    ("lo", "down", "03", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_03_std.nam"),
+    ("lo", "down", "04", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_down_04_std.nam"),
+    ("lo", "up",   "01", "preamp/fortin_meshuggah_preamp/pre_unnamed_lo_up_01_std.nam"),
+    ("hi", "down", "02", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_02_std.nam"),
+    ("hi", "down", "04", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_down_04_std.nam"),
+    ("hi", "up",   "01", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_01_std.nam"),
+    ("hi", "up",   "04", "preamp/fortin_meshuggah_preamp/pre_unnamed_hi_up_04_std.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema =
         model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("lo_down_02"),
-        &[
-            ("lo_down_02", "[PRE] UNNAMED Lo-Down #02 - STD"),
-            ("hi_up_04", "[PRE] UNNAMED Hi-Up #04 - STD"),
-            ("lo_down_03", "[PRE] UNNAMED Lo-Down #03 - STD"),
-            ("hi_down_02", "[PRE] UNNAMED Hi-Down #02 - STD"),
-            ("lo_down_04", "[PRE] UNNAMED Lo-Down #04 - STD"),
-            ("hi_up_01", "[PRE] UNNAMED Hi-Up #01 - STD"),
-            ("hi_down_04", "[PRE] UNNAMED Hi-Down #04 - STD"),
-            ("lo_up_01", "[PRE] UNNAMED Lo-Up #01 - STD"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "range",
+            "Range",
+            Some("Amp"),
+            Some("lo"),
+            &[
+                ("lo", "Lo Range"),
+                ("hi", "Hi Range"),
+            ],
+        ),
+        enum_parameter(
+            "direction",
+            "Direction",
+            Some("Amp"),
+            Some("down"),
+            &[
+                ("down", "Down"),
+                ("up",   "Up"),
+            ],
+        ),
+        enum_parameter(
+            "take",
+            "Take",
+            Some("Amp"),
+            Some("02"),
+            &[
+                ("01", "Take #01"),
+                ("02", "Take #02"),
+                ("03", "Take #03"),
+                ("04", "Take #04"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -68,12 +90,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let range = required_string(params, "range").map_err(anyhow::Error::msg)?;
+    let direction = required_string(params, "direction").map_err(anyhow::Error::msg)?;
+    let take = required_string(params, "take").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(r, d, t, _)| *r == range && *d == direction && *t == take)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "preamp '{}' has no capture for range={} direction={} take={}",
+                MODEL_ID, range, direction, take
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
