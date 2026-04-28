@@ -1,31 +1,5 @@
 # OpenRig — Contexto do Projeto para Claude Code
 
-## OBRIGATORIO — Skills
-
-**Antes de qualquer ação:** invocar `superpowers:using-superpowers`. Vale para todos os agentes (locais e GitHub Actions).
-
-**Ao tocar em código:**
-- Rust → `openrig-code-quality` + `rust-best-practices`
-- Slint (`.slint`) → `slint-best-practices`
-
-**Por situação (invocar antes de agir):**
-
-| Situação | Skill |
-|---|---|
-| Adicionando feature ou comportamento novo | `superpowers:brainstorming` |
-| Implementando feature ou bugfix | `superpowers:test-driven-development` |
-| Debugando bug ou falha de teste | `superpowers:systematic-debugging` |
-| Executando plano já escrito | `superpowers:executing-plans` |
-| Trabalho completo, prestes a declarar "done" | `superpowers:verification-before-completion` |
-| Recebendo feedback de code review | `superpowers:receiving-code-review` |
-| Finalizando branch, prestes a abrir PR | `superpowers:finishing-a-development-branch` |
-| Criando nova skill | `superpowers:writing-skills` |
-| 2+ tarefas independentes em paralelo | `superpowers:dispatching-parallel-agents` |
-
-Nenhuma é opcional.
-
----
-
 ## OBRIGATORIO — Prioridades de Produto (Non-Regression)
 
 OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança deve provar que não degrada nenhuma propriedade abaixo antes de mergear.
