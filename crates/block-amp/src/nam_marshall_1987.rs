@@ -13,21 +13,22 @@ const BRAND: &str = "marshall";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 1987X high-input crunch — pick CAB IR or DI source.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab.nam"),
-    ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di.nam"),
+    ("cab", "Cab IR", "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_cab.nam"),
+    ("di",  "DI",     "amps/marshall_1987/01_fr_marshall_1987x_hi_input_crunch_bal_di.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
+        "source",
+        "Source",
         Some("Amp"),
         Some("cab"),
         &[
-            ("cab", "01 FR Marshall 1987X HI Input Crunch BAL CAB"),
-            ("di", "01 FR Marshall 1987X HI Input Crunch BAL DI"),
+            ("cab", "Cab IR"),
+            ("di",  "DI"),
         ],
     )];
     schema
@@ -49,12 +50,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "source").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no source '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
