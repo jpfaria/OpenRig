@@ -13,35 +13,48 @@ const BRAND: &str = "peavey";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × gain step. All captures from APP 6505+ pack.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("app_6505plus_clean_gain_06", "APP-6505Plus-Clean-Gain-06", "amps/peavey_6505/app_6505plus_clean_gain_06.nam"),
-    ("app_6505plus_clean_gain_07", "APP-6505Plus-Clean-Gain-07", "amps/peavey_6505/app_6505plus_clean_gain_07.nam"),
-    ("app_6505plus_clean_gain_08", "APP-6505Plus-Clean-Gain-08", "amps/peavey_6505/app_6505plus_clean_gain_08.nam"),
-    ("app_6505plus_clean_gain_02", "APP-6505Plus-Clean-Gain-02", "amps/peavey_6505/app_6505plus_clean_gain_02.nam"),
-    ("app_6505plus_midforward_gain_07", "APP-6505Plus-MidForward-Gain-07", "amps/peavey_6505/app_6505plus_midforward_gain_07.nam"),
-    ("app_6505plus_scooped_gain_06", "APP-6505Plus-Scooped-Gain-06", "amps/peavey_6505/app_6505plus_scooped_gain_06.nam"),
-    ("app_6505plus_clean_gain_09", "APP-6505Plus-Clean-Gain-09", "amps/peavey_6505/app_6505plus_clean_gain_09.nam"),
-    ("app_6505plus_clean_gain_04", "APP-6505Plus-Clean-Gain-04", "amps/peavey_6505/app_6505plus_clean_gain_04.nam"),
+    // (voicing, gain, file)
+    ("clean",       "g02", "amps/peavey_6505/app_6505plus_clean_gain_02.nam"),
+    ("clean",       "g04", "amps/peavey_6505/app_6505plus_clean_gain_04.nam"),
+    ("clean",       "g06", "amps/peavey_6505/app_6505plus_clean_gain_06.nam"),
+    ("clean",       "g07", "amps/peavey_6505/app_6505plus_clean_gain_07.nam"),
+    ("clean",       "g08", "amps/peavey_6505/app_6505plus_clean_gain_08.nam"),
+    ("clean",       "g09", "amps/peavey_6505/app_6505plus_clean_gain_09.nam"),
+    ("mid_forward", "g07", "amps/peavey_6505/app_6505plus_midforward_gain_07.nam"),
+    ("scooped",     "g06", "amps/peavey_6505/app_6505plus_scooped_gain_06.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("app_6505plus_clean_gain_06"),
-        &[
-            ("app_6505plus_clean_gain_06", "APP-6505Plus-Clean-Gain-06"),
-            ("app_6505plus_clean_gain_07", "APP-6505Plus-Clean-Gain-07"),
-            ("app_6505plus_clean_gain_08", "APP-6505Plus-Clean-Gain-08"),
-            ("app_6505plus_clean_gain_02", "APP-6505Plus-Clean-Gain-02"),
-            ("app_6505plus_midforward_gain_07", "APP-6505Plus-MidForward-Gain-07"),
-            ("app_6505plus_scooped_gain_06", "APP-6505Plus-Scooped-Gain-06"),
-            ("app_6505plus_clean_gain_09", "APP-6505Plus-Clean-Gain-09"),
-            ("app_6505plus_clean_gain_04", "APP-6505Plus-Clean-Gain-04"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("clean"),
+            &[
+                ("clean",       "Clean"),
+                ("mid_forward", "Mid Forward"),
+                ("scooped",     "Scooped"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Amp"),
+            Some("g06"),
+            &[
+                ("g02", "G02"),
+                ("g04", "G04"),
+                ("g06", "G06"),
+                ("g07", "G07"),
+                ("g08", "G08"),
+                ("g09", "G09"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -61,12 +74,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, g, _)| *v == voicing && *g == gain)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} gain={}",
+                MODEL_ID, voicing, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
