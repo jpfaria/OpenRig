@@ -1380,52 +1380,94 @@ pub fn invalidate_device_cache() {
 }
 
 // ── Hotplug detection ────────────────────────────────────────────────────────
-// Cheap device count used by the health timer to detect plug-in events without
-// running a full enumeration (no ALSA PCM probe, no JACK client connection).
+// The UI's health timer calls device_set_changed() periodically to detect any
+// change in the connected device set — plug, unplug, or hot-swap. Detection
+// is identity-based (fingerprint of names), not count-based: two devices with
+// matching channel totals would otherwise be invisible to a count-only check
+// (issue #354). The probe stays cheap on every platform — no ALSA PCM open,
+// no JACK client connection.
 
-static LAST_KNOWN_DEVICE_COUNT: Mutex<Option<usize>> = Mutex::new(None);
+static LAST_KNOWN_DEVICE_FINGERPRINT: Mutex<Option<u64>> = Mutex::new(None);
 
-/// Returns `true` when the audio device count has increased since the last
-/// call, indicating that a new interface was plugged in.
+/// Returns `true` when the audio device set has changed since the last call
+/// — plug, unplug, or hot-swap (e.g. unplug Q26 + plug Scarlett).
 ///
 /// Intentionally cheap — no ALSA probing, no JACK connection. Call from a
-/// periodic UI timer; on `true` follow up with `invalidate_device_cache()` and
-/// a full device-list refresh.
-pub fn has_new_devices() -> bool {
-    let current = count_devices_cheap();
-    let mut guard = LAST_KNOWN_DEVICE_COUNT.lock().unwrap();
-    match *guard {
-        None => {
-            *guard = Some(current);
-            false
-        }
-        Some(prev) if current > prev => {
-            *guard = Some(current);
-            log::info!("has_new_devices: count {} → {}", prev, current);
-            true
-        }
-        Some(prev) => {
-            if current != prev {
-                *guard = Some(current);
-            }
-            false
-        }
+/// periodic UI timer; on `true` follow up with `invalidate_device_cache()`
+/// and a full device-list refresh.
+///
+/// First call in a process records the baseline and returns `false`, so app
+/// startup doesn't trigger a spurious refresh.
+pub fn device_set_changed() -> bool {
+    let identities = collect_device_identities();
+    let fingerprint = compute_device_fingerprint(&identities);
+    let changed = detect_set_change(&LAST_KNOWN_DEVICE_FINGERPRINT, fingerprint);
+    if changed {
+        log::info!("device_set_changed: identities={:?}", identities);
     }
+    changed
 }
 
-/// Count audio devices cheaply — no ALSA PCM probing, no JACK client.
-fn count_devices_cheap() -> usize {
+/// Pure helper: hash a set of device identity strings into a fingerprint.
+///
+/// Order-independent — `["A", "B"]` and `["B", "A"]` produce the same hash.
+/// Callers don't need to sort beforehand.
+fn compute_device_fingerprint(identities: &[String]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut sorted: Vec<&str> = identities.iter().map(String::as_str).collect();
+    sorted.sort_unstable();
+    let mut hasher = DefaultHasher::new();
+    sorted.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// Pure helper: did the fingerprint change since the last observation?
+///
+/// Always updates the storage to the current value. First observation
+/// (storage = `None`) records the baseline and returns `false` — the very
+/// first call in a process must NOT report a change.
+fn detect_set_change(storage: &Mutex<Option<u64>>, current: u64) -> bool {
+    let mut guard = storage.lock().unwrap();
+    let changed = match *guard {
+        None => false,
+        Some(prev) => prev != current,
+    };
+    *guard = Some(current);
+    changed
+}
+
+/// Cheap identity probe — names of all connected audio devices.
+///
+/// Linux/JACK: `/proc/asound/cards` (no PCM open, no JACK client).
+/// Other: CPAL host enumeration (no stream open, no buffer probe).
+fn collect_device_identities() -> Vec<String> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        // Pure /proc/asound/cards read — safe, no PCM open, no JACK connection.
-        return detect_all_usb_audio_cards().len();
+        return detect_all_usb_audio_cards()
+            .into_iter()
+            .map(|c| format!("{}:{}", c.card_num, c.display_name))
+            .collect();
     }
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
         let host = select_host_for_enumeration();
-        let input = host.input_devices().map(|it| it.count()).unwrap_or(0);
-        let output = host.output_devices().map(|it| it.count()).unwrap_or(0);
-        input + output
+        let mut ids = Vec::new();
+        if let Ok(it) = host.input_devices() {
+            for d in it {
+                if let Ok(id) = d.id() {
+                    ids.push(format!("in:{:?}", id));
+                }
+            }
+        }
+        if let Ok(it) = host.output_devices() {
+            for d in it {
+                if let Ok(id) = d.id() {
+                    ids.push(format!("out:{:?}", id));
+                }
+            }
+        }
+        ids
     }
 }
 
@@ -4505,5 +4547,115 @@ mod tests {
         assert_eq!(config.nperiods, 3);
         assert_eq!(config.sample_rate, 48_000);
         assert_eq!(config.buffer_size, 64);
+    }
+
+    // ── Hot-swap fingerprint detection (#354) ──────────────────────────────
+    // device_set_changed() is the cross-platform replacement for
+    // has_new_devices(). The old function only fired on `count > prev`, so
+    // unplug+replug with same channel total (or even different device
+    // entirely) was invisible. The new helpers detect any change of
+    // identity, set-semantics (order-independent), via a hash fingerprint.
+
+    use super::{compute_device_fingerprint, detect_set_change};
+    use std::sync::Mutex;
+
+    #[test]
+    fn fingerprint_same_identities_returns_same_hash() {
+        let a = compute_device_fingerprint(&["Scarlett".to_string(), "Built-in".to_string()]);
+        let b = compute_device_fingerprint(&["Scarlett".to_string(), "Built-in".to_string()]);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn fingerprint_different_identities_returns_different_hash() {
+        let a = compute_device_fingerprint(&["Scarlett".to_string()]);
+        let b = compute_device_fingerprint(&["Q26".to_string()]);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn fingerprint_uses_set_semantics_order_independent() {
+        // Reordering must NOT change the fingerprint — two enumerations of the
+        // same device set in different order shouldn't trigger a refresh.
+        let a = compute_device_fingerprint(&["Scarlett".to_string(), "Built-in".to_string()]);
+        let b = compute_device_fingerprint(&["Built-in".to_string(), "Scarlett".to_string()]);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn fingerprint_subset_returns_different_hash() {
+        // Unplug case: identities went from [A, B] to [A] — must be different.
+        let full = compute_device_fingerprint(&["A".to_string(), "B".to_string()]);
+        let partial = compute_device_fingerprint(&["A".to_string()]);
+        assert_ne!(full, partial);
+    }
+
+    #[test]
+    fn fingerprint_empty_identities_returns_stable_hash() {
+        // [] → [] must report unchanged (both same fingerprint).
+        let a = compute_device_fingerprint(&[]);
+        let b = compute_device_fingerprint(&[]);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn detect_change_first_call_records_baseline_and_returns_false() {
+        // First observation has no prior baseline — must NOT report a change
+        // (otherwise every app start would spam refresh).
+        let storage: Mutex<Option<u64>> = Mutex::new(None);
+        let changed = detect_set_change(&storage, 42);
+        assert!(!changed);
+        assert_eq!(*storage.lock().unwrap(), Some(42));
+    }
+
+    #[test]
+    fn detect_change_same_fingerprint_returns_false() {
+        let storage: Mutex<Option<u64>> = Mutex::new(Some(42));
+        let changed = detect_set_change(&storage, 42);
+        assert!(!changed);
+        assert_eq!(*storage.lock().unwrap(), Some(42));
+    }
+
+    #[test]
+    fn detect_change_different_fingerprint_returns_true_and_updates() {
+        let storage: Mutex<Option<u64>> = Mutex::new(Some(42));
+        let changed = detect_set_change(&storage, 99);
+        assert!(changed);
+        assert_eq!(*storage.lock().unwrap(), Some(99));
+    }
+
+    #[test]
+    fn detect_change_swap_with_same_count_returns_true() {
+        // The bug at the heart of #354: count stays the same (1 device → 1
+        // different device) but identity changed. Old has_new_devices() was
+        // count-based and missed this. Fingerprint catches it.
+        let storage: Mutex<Option<u64>> = Mutex::new(None);
+
+        // Initial state: device A.
+        let fp_a = compute_device_fingerprint(&["TEYUN Q26".to_string()]);
+        let _ = detect_set_change(&storage, fp_a); // baseline
+
+        // Hot-swap: A unplugged, B plugged (count still 1).
+        let fp_b = compute_device_fingerprint(&["Focusrite Scarlett".to_string()]);
+        let changed = detect_set_change(&storage, fp_b);
+
+        assert!(changed, "swap with identical count must report change");
+        assert_eq!(*storage.lock().unwrap(), Some(fp_b));
+    }
+
+    #[test]
+    fn detect_change_unplug_then_replug_same_device_returns_no_change() {
+        // Unplug A, then plug A back — both transitions report `true` (set
+        // actually changed at each step). This pins the contract.
+        let storage: Mutex<Option<u64>> = Mutex::new(None);
+        let fp_a = compute_device_fingerprint(&["A".to_string()]);
+        let fp_empty = compute_device_fingerprint(&[]);
+
+        let _ = detect_set_change(&storage, fp_a); // baseline
+        let unplug_changed = detect_set_change(&storage, fp_empty);
+        let replug_changed = detect_set_change(&storage, fp_a);
+
+        assert!(unplug_changed, "unplug must report change");
+        assert!(replug_changed, "replug must report change");
     }
 }
