@@ -13,13 +13,14 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 6 named voicings. Labels stripped of leading "+ " marker.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("hetfield_rhythm", "+ Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
-    ("fast_lead", "+ Fast Lead", "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
-    ("creamy_lead", "+ Creamy Lead", "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
-    ("tight_rhythm", "+ Tight Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
-    ("phat_rhythm", "+ Phat Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
-    ("yummy_clean", "+ Yummy Clean", "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
+    ("yummy_clean",     "Yummy Clean",     "amps/mesa_boogie_mark_iic/mark_iic_yummy_clean.nam"),
+    ("phat_rhythm",     "Phat Rhythm",     "amps/mesa_boogie_mark_iic/mark_iic_phat_rhythm.nam"),
+    ("tight_rhythm",    "Tight Rhythm",    "amps/mesa_boogie_mark_iic/mark_iic_tight_rhythm.nam"),
+    ("hetfield_rhythm", "Hetfield Rhythm", "amps/mesa_boogie_mark_iic/mark_iic_hetfield_rhythm.nam"),
+    ("creamy_lead",     "Creamy Lead",     "amps/mesa_boogie_mark_iic/mark_iic_creamy_lead.nam"),
+    ("fast_lead",       "Fast Lead",       "amps/mesa_boogie_mark_iic/mark_iic_fast_lead.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,15 +29,14 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("hetfield_rhythm"),
+        Some("yummy_clean"),
         &[
-            ("hetfield_rhythm", "+ Hetfield Rhythm"),
-            ("fast_lead", "+ Fast Lead"),
-            ("creamy_lead", "+ Creamy Lead"),
-            ("tight_rhythm", "+ Tight Rhythm"),
-            ("phat_rhythm", "+ Phat Rhythm"),
-            ("yummy_clean", "+ Yummy Clean"),
-        
+            ("yummy_clean",     "Yummy Clean"),
+            ("phat_rhythm",     "Phat Rhythm"),
+            ("tight_rhythm",    "Tight Rhythm"),
+            ("hetfield_rhythm", "Hetfield Rhythm"),
+            ("creamy_lead",     "Creamy Lead"),
+            ("fast_lead",       "Fast Lead"),
         ],
     )];
     schema
