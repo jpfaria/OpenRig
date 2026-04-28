@@ -13,43 +13,54 @@ const BRAND: &str = "mesa";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: voicing × mic.
+// All captures are TREC-150BLD-DIO. Voicings: Modern 6L6 Juice, Vintage 6L6 Juice,
+// Vintage Chaosball. Mic: DI / SM57 / SM58 / Blend variants.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("pow_trec_150bld_dio_mdn_6l6_juice_01_sm5", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - SM57", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_sm57.nam"),
-    ("pow_trec_150bld_dio_mdn_6l6_juice_01_di", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - DI", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_di.nam"),
-    ("pow_trec_150bld_dio_mdn_6l6_juice_01_ble", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - BLEND #2", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_blend_2.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_di", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - DI", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_di.nam"),
-    ("amp_trec_150bld_dio_vnt_chaosball_di", "[AMP] TREC-150BLD-DIO-VNT Chaosball - DI", "amps/mesa_triple_rectifier/amp_trec_150bld_dio_vnt_chaosball_di.nam"),
-    ("pow_trec_150bld_dio_mdn_6l6_juice_01_ble_292599", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - BLEND #3", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_blend_3.nam"),
-    ("pow_trec_150bld_dio_mdn_6l6_juice_01_sm5_292616", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - SM58", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_sm58.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #1", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_1.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble_292761", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #2", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_2.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble_292779", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #3", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_3.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_sm5", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - SM57", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_sm57.nam"),
-    ("pow_trec_150bld_dio_vnt_6l6_juice_36_sm5_292775", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - SM58", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_sm58.nam"),
+    // (voicing, mic, file)
+    ("mdn_juice",  "di",     "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_di.nam"),
+    ("mdn_juice",  "sm57",   "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_sm57.nam"),
+    ("mdn_juice",  "sm58",   "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_sm58.nam"),
+    ("mdn_juice",  "blend2", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_blend_2.nam"),
+    ("mdn_juice",  "blend3", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_mdn_6l6_juice_01_blend_3.nam"),
+    ("vnt_juice",  "di",     "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_di.nam"),
+    ("vnt_juice",  "sm57",   "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_sm57.nam"),
+    ("vnt_juice",  "sm58",   "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_sm58.nam"),
+    ("vnt_juice",  "blend1", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_1.nam"),
+    ("vnt_juice",  "blend2", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_2.nam"),
+    ("vnt_juice",  "blend3", "amps/mesa_triple_rectifier/pow_trec_150bld_dio_vnt_6l6_juice_36_blend_3.nam"),
+    ("chaosball",  "di",     "amps/mesa_triple_rectifier/amp_trec_150bld_dio_vnt_chaosball_di.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("pow_trec_150bld_dio_mdn_6l6_juice_01_sm5"),
-        &[
-            ("pow_trec_150bld_dio_mdn_6l6_juice_01_sm5", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - SM57"),
-            ("pow_trec_150bld_dio_mdn_6l6_juice_01_di", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - DI"),
-            ("pow_trec_150bld_dio_mdn_6l6_juice_01_ble", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - BLEND #2"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_di", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - DI"),
-            ("amp_trec_150bld_dio_vnt_chaosball_di", "[AMP] TREC-150BLD-DIO-VNT Chaosball - DI"),
-            ("pow_trec_150bld_dio_mdn_6l6_juice_01_ble_292599", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - BLEND #3"),
-            ("pow_trec_150bld_dio_mdn_6l6_juice_01_sm5_292616", "[POW] TREC-150BLD-DIO-MDN 6L6 Juice #01 - SM58"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #1"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble_292761", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #2"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_ble_292779", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - BLEND #3"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_sm5", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - SM57"),
-            ("pow_trec_150bld_dio_vnt_6l6_juice_36_sm5_292775", "[POW] TREC-150BLD-DIO-VNT 6L6 Juice #36 - SM58"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("mdn_juice"),
+            &[
+                ("mdn_juice", "Modern 6L6 Juice"),
+                ("vnt_juice", "Vintage 6L6 Juice"),
+                ("chaosball", "Vintage Chaosball"),
+            ],
+        ),
+        enum_parameter(
+            "mic",
+            "Mic",
+            Some("Amp"),
+            Some("sm57"),
+            &[
+                ("di",     "DI (No Cab)"),
+                ("sm57",   "SM57"),
+                ("sm58",   "SM58"),
+                ("blend1", "Blend #1"),
+                ("blend2", "Blend #2"),
+                ("blend3", "Blend #3"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -69,12 +80,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let voicing = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(v, m, _)| *v == voicing && *m == mic)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for voicing={} mic={}",
+                MODEL_ID, voicing, mic
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
