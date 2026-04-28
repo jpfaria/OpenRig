@@ -1,0 +1,111 @@
+use anyhow::{anyhow, Result};
+use crate::registry::PreampModelDefinition;
+use crate::PreampBackendKind;
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{plugin_params_from_set_with_defaults, NamPluginParams},
+};
+use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_tone_king_imperial_preamp";
+pub const DISPLAY_NAME: &str = "Imperial Preamp";
+const BRAND: &str = "tone_king";
+
+pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
+    input_level_db: 0.0,
+    output_level_db: 0.0,
+    noise_gate_threshold_db: -80.0,
+    noise_gate_enabled: true,
+    eq_enabled: true,
+    bass: 5.0,
+    middle: 5.0,
+    treble: 5.0,
+};
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+    ("ap_08_imperial_lead_g9", "AP 08 Imperial Lead G9", "preamp/tone_king_imperial_preamp/ap_08_imperial_lead_g9.nam"),
+    ("ap_03_imperial_clean_g7", "AP 03 Imperial Clean G7", "preamp/tone_king_imperial_preamp/ap_03_imperial_clean_g7.nam"),
+    ("ap_07_imperial_lead_g7", "AP 07 Imperial Lead G7", "preamp/tone_king_imperial_preamp/ap_07_imperial_lead_g7.nam"),
+    ("ap_01_imperial_clean_g3", "AP 01 Imperial Clean G3", "preamp/tone_king_imperial_preamp/ap_01_imperial_clean_g3.nam"),
+    ("ap_04_imperial_clean_g9", "AP 04 Imperial Clean G9", "preamp/tone_king_imperial_preamp/ap_04_imperial_clean_g9.nam"),
+    ("ap_02_imperial_clean_g5", "AP 02  Imperial Clean G5", "preamp/tone_king_imperial_preamp/ap_02_imperial_clean_g5.nam"),
+    ("ap_06_imperial_lead_g5", "AP 06 Imperial Lead G5", "preamp/tone_king_imperial_preamp/ap_06_imperial_lead_g5.nam"),
+    ("ap_05_imperial_lead_g3", "AP 05 Imperial Lead G3", "preamp/tone_king_imperial_preamp/ap_05_imperial_lead_g3.nam"),
+];
+
+pub fn model_schema() -> ModelParameterSchema {
+    let mut schema =
+        model_schema_for(block_core::EFFECT_TYPE_PREAMP, MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "capture",
+        "Capture",
+        Some("Amp"),
+        Some("ap_08_imperial_lead_g9"),
+        &[
+            ("ap_08_imperial_lead_g9", "AP 08 Imperial Lead G9"),
+            ("ap_03_imperial_clean_g7", "AP 03 Imperial Clean G7"),
+            ("ap_07_imperial_lead_g7", "AP 07 Imperial Lead G7"),
+            ("ap_01_imperial_clean_g3", "AP 01 Imperial Clean G3"),
+            ("ap_04_imperial_clean_g9", "AP 04 Imperial Clean G9"),
+            ("ap_02_imperial_clean_g5", "AP 02  Imperial Clean G5"),
+            ("ap_06_imperial_lead_g5", "AP 06 Imperial Lead G5"),
+            ("ap_05_imperial_lead_g3", "AP 05 Imperial Lead G3"),
+        ],
+    )];
+    schema
+}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let path = resolve_capture(params)?;
+    let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
+    let model_path = nam::resolve_nam_capture(path)?;
+    build_processor_with_assets_for_layout(&model_path, None, plugin_params, sample_rate, layout)
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("preamp '{}' has no capture '{}'", MODEL_ID, key))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: PreampBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let path = resolve_capture(params)?;
+    Ok(format!("asset_id='{}'", path))
+}
