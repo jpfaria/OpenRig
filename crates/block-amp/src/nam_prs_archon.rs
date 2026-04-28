@@ -13,43 +13,58 @@ const BRAND: &str = "prs";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Two-axis pack: stage × tone preset.
+// stage = AMP (full amp) / POW (power amp). All ARC50C captures.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("amp_arc50c_lead_hippo", "[AMP] ARC50C-LEAD Hippo - STD", "amps/prs_archon/amp_arc50c_lead_hippo_std.nam"),
-    ("amp_arc50c_lead_roar", "[AMP] ARC50C-LEAD Roar - STD", "amps/prs_archon/amp_arc50c_lead_roar_std.nam"),
-    ("amp_arc50c_lead_rhino", "[AMP] ARC50C-LEAD Rhino - STD", "amps/prs_archon/amp_arc50c_lead_rhino_std.nam"),
-    ("amp_arc50c_lead_growl", "[AMP] ARC50C-LEAD Growl - STD", "amps/prs_archon/amp_arc50c_lead_growl_std.nam"),
-    ("amp_arc50c_lead_nessie", "[AMP] ARC50C-LEAD Nessie - STD", "amps/prs_archon/amp_arc50c_lead_nessie_std.nam"),
-    ("amp_arc50c_lead_kong", "[AMP] ARC50C-LEAD Kong - STD", "amps/prs_archon/amp_arc50c_lead_kong_std.nam"),
-    ("pow_arc50c_p5_d5_cl_mesa4x12", "[POW] ARC50C P5 D5 - CL (Mesa4x12) - STD", "amps/prs_archon/pow_arc50c_p5_d5_cl_mesa4x12_std.nam"),
-    ("pow_arc50c_p8_d2_rl", "[POW] ARC50C P8 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p8_d2_rl_std.nam"),
-    ("pow_arc50c_p6_d6_rl", "[POW] ARC50C P6 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p6_d6_rl_std.nam"),
-    ("pow_arc50c_p2_d6_rl", "[POW] ARC50C P2 D6 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d6_rl_std.nam"),
-    ("pow_arc50c_p5_d2_rl", "[POW] ARC50C P5 D2 - RL - STD", "amps/prs_archon/pow_arc50c_p5_d2_rl_std.nam"),
-    ("pow_arc50c_p2_d8_rl", "[POW] ARC50C P2 D8 - RL - STD", "amps/prs_archon/pow_arc50c_p2_d8_rl_std.nam"),
+    // (stage, tone, file)
+    ("amp", "lead_hippo",  "amps/prs_archon/amp_arc50c_lead_hippo_std.nam"),
+    ("amp", "lead_roar",   "amps/prs_archon/amp_arc50c_lead_roar_std.nam"),
+    ("amp", "lead_rhino",  "amps/prs_archon/amp_arc50c_lead_rhino_std.nam"),
+    ("amp", "lead_growl",  "amps/prs_archon/amp_arc50c_lead_growl_std.nam"),
+    ("amp", "lead_nessie", "amps/prs_archon/amp_arc50c_lead_nessie_std.nam"),
+    ("amp", "lead_kong",   "amps/prs_archon/amp_arc50c_lead_kong_std.nam"),
+    ("pow", "p5_d5_cl",    "amps/prs_archon/pow_arc50c_p5_d5_cl_mesa4x12_std.nam"),
+    ("pow", "p8_d2_rl",    "amps/prs_archon/pow_arc50c_p8_d2_rl_std.nam"),
+    ("pow", "p6_d6_rl",    "amps/prs_archon/pow_arc50c_p6_d6_rl_std.nam"),
+    ("pow", "p2_d6_rl",    "amps/prs_archon/pow_arc50c_p2_d6_rl_std.nam"),
+    ("pow", "p5_d2_rl",    "amps/prs_archon/pow_arc50c_p5_d2_rl_std.nam"),
+    ("pow", "p2_d8_rl",    "amps/prs_archon/pow_arc50c_p2_d8_rl_std.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
-        Some("Amp"),
-        Some("amp_arc50c_lead_hippo"),
-        &[
-            ("amp_arc50c_lead_hippo", "[AMP] ARC50C-LEAD Hippo - STD"),
-            ("amp_arc50c_lead_roar", "[AMP] ARC50C-LEAD Roar - STD"),
-            ("amp_arc50c_lead_rhino", "[AMP] ARC50C-LEAD Rhino - STD"),
-            ("amp_arc50c_lead_growl", "[AMP] ARC50C-LEAD Growl - STD"),
-            ("amp_arc50c_lead_nessie", "[AMP] ARC50C-LEAD Nessie - STD"),
-            ("amp_arc50c_lead_kong", "[AMP] ARC50C-LEAD Kong - STD"),
-            ("pow_arc50c_p5_d5_cl_mesa4x12", "[POW] ARC50C P5 D5 - CL (Mesa4x12) - STD"),
-            ("pow_arc50c_p8_d2_rl", "[POW] ARC50C P8 D2 - RL - STD"),
-            ("pow_arc50c_p6_d6_rl", "[POW] ARC50C P6 D6 - RL - STD"),
-            ("pow_arc50c_p2_d6_rl", "[POW] ARC50C P2 D6 - RL - STD"),
-            ("pow_arc50c_p5_d2_rl", "[POW] ARC50C P5 D2 - RL - STD"),
-            ("pow_arc50c_p2_d8_rl", "[POW] ARC50C P2 D8 - RL - STD"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "stage",
+            "Stage",
+            Some("Amp"),
+            Some("amp"),
+            &[
+                ("amp", "Full Amp"),
+                ("pow", "Power Amp"),
+            ],
+        ),
+        enum_parameter(
+            "tone",
+            "Tone",
+            Some("Amp"),
+            Some("lead_hippo"),
+            &[
+                ("lead_hippo",  "Lead Hippo"),
+                ("lead_roar",   "Lead Roar"),
+                ("lead_rhino",  "Lead Rhino"),
+                ("lead_growl",  "Lead Growl"),
+                ("lead_nessie", "Lead Nessie"),
+                ("lead_kong",   "Lead Kong"),
+                ("p5_d5_cl",    "P5 D5 (Clean)"),
+                ("p8_d2_rl",    "P8 D2 (Rhythm)"),
+                ("p6_d6_rl",    "P6 D6 (Rhythm)"),
+                ("p2_d6_rl",    "P2 D6 (Rhythm)"),
+                ("p5_d2_rl",    "P5 D2 (Rhythm)"),
+                ("p2_d8_rl",    "P2 D8 (Rhythm)"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -69,12 +84,18 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let stage = required_string(params, "stage").map_err(anyhow::Error::msg)?;
+    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
+        .find(|(s, t, _)| *s == stage && *t == tone)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| {
+            anyhow!(
+                "amp '{}' has no capture for stage={} tone={}",
+                MODEL_ID, stage, tone
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
