@@ -13,33 +13,35 @@ const BRAND: &str = "fender";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis preset pack — 8 voicing presets without a natural cartesian split.
+// Labels stripped of "15 Hot Rod Deluxe - " prefix.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("warm_lead", "15 Hot Rod Deluxe - Warm Lead", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_warm_lead.nam"),
-    ("vintage_sweet_spot", "15 Hot Rod Deluxe - Vintage Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_sweet_spot.nam"),
-    ("modern_overdrive", "15 Hot Rod Deluxe - Modern Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_modern_overdrive.nam"),
-    ("womanly", "15 Hot Rod Deluxe - Womanly", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_womanly.nam"),
-    ("vintage_overdrive", "15 Hot Rod Deluxe - Vintage Overdrive", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_overdrive.nam"),
-    ("bright_sweet_spot", "15 Hot Rod Deluxe - Bright Sweet Spot", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_sweet_spot.nam"),
-    ("bright_clean", "15 Hot Rod Deluxe - Bright Clean", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_clean.nam"),
-    ("southern_snap", "15 Hot Rod Deluxe - Southern Snap", "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_southern_snap.nam"),
+    ("bright_clean",       "Bright Clean",        "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_clean.nam"),
+    ("bright_sweet_spot",  "Bright Sweet Spot",   "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_bright_sweet_spot.nam"),
+    ("vintage_sweet_spot", "Vintage Sweet Spot",  "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_sweet_spot.nam"),
+    ("vintage_overdrive",  "Vintage Overdrive",   "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_vintage_overdrive.nam"),
+    ("modern_overdrive",   "Modern Overdrive",    "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_modern_overdrive.nam"),
+    ("warm_lead",          "Warm Lead",           "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_warm_lead.nam"),
+    ("southern_snap",      "Southern Snap",       "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_southern_snap.nam"),
+    ("womanly",            "Womanly",             "amps/fender_hot_rod_deluxe/15_hot_rod_deluxe_womanly.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "capture",
-        "Capture",
+        "preset",
+        "Preset",
         Some("Amp"),
-        Some("warm_lead"),
+        Some("bright_clean"),
         &[
-            ("warm_lead", "15 Hot Rod Deluxe - Warm Lead"),
-            ("vintage_sweet_spot", "15 Hot Rod Deluxe - Vintage Sweet Spot"),
-            ("modern_overdrive", "15 Hot Rod Deluxe - Modern Overdrive"),
-            ("womanly", "15 Hot Rod Deluxe - Womanly"),
-            ("vintage_overdrive", "15 Hot Rod Deluxe - Vintage Overdrive"),
-            ("bright_sweet_spot", "15 Hot Rod Deluxe - Bright Sweet Spot"),
-            ("bright_clean", "15 Hot Rod Deluxe - Bright Clean"),
-            ("southern_snap", "15 Hot Rod Deluxe - Southern Snap"),
+            ("bright_clean",       "Bright Clean"),
+            ("bright_sweet_spot",  "Bright Sweet Spot"),
+            ("vintage_sweet_spot", "Vintage Sweet Spot"),
+            ("vintage_overdrive",  "Vintage Overdrive"),
+            ("modern_overdrive",   "Modern Overdrive"),
+            ("warm_lead",          "Warm Lead"),
+            ("southern_snap",      "Southern Snap"),
+            ("womanly",            "Womanly"),
         ],
     )];
     schema
@@ -61,12 +63,12 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let key = required_string(params, "preset").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
         .find(|(k, _, _)| *k == key)
         .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+        .ok_or_else(|| anyhow!("amp '{}' has no preset '{}'", MODEL_ID, key))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
