@@ -13,11 +13,13 @@ const BRAND: &str = "peavey";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: channel × boost combos. Sparse: Red+nothing, Red+HM-2w,
+// Red+Maxon, Green+Maxon (no clean cartesian).
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("red_boss_hm_2w", "6505+ Red ch. + Boss HM-2w", "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w.nam"),
-    ("red_maxon_st9pro", "6505+ Red ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro.nam"),
-    ("green_maxon_st9pro", "6505+ Green ch. + Maxon ST9Pro+", "amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro.nam"),
-    ("red", "6505+ Red ch.", "amps/peavey_6505_plus/peavey_6505_red_ch.nam"),
+    ("red",            "Red",                  "amps/peavey_6505_plus/peavey_6505_red_ch.nam"),
+    ("red_hm2w",       "Red + Boss HM-2w",     "amps/peavey_6505_plus/peavey_6505_red_ch_boss_hm_2w.nam"),
+    ("red_maxon",      "Red + Maxon ST9Pro+",  "amps/peavey_6505_plus/peavey_6505_red_ch_maxon_st9pro.nam"),
+    ("green_maxon",    "Green + Maxon ST9Pro+","amps/peavey_6505_plus/peavey_6505_green_ch_maxon_st9pro.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -26,13 +28,12 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("red_boss_hm_2w"),
+        Some("red"),
         &[
-            ("red_boss_hm_2w", "6505+ Red ch. + Boss HM-2w"),
-            ("red_maxon_st9pro", "6505+ Red ch. + Maxon ST9Pro+"),
-            ("green_maxon_st9pro", "6505+ Green ch. + Maxon ST9Pro+"),
-            ("red", "6505+ Red ch."),
-        
+            ("red",         "Red"),
+            ("red_hm2w",    "Red + Boss HM-2w"),
+            ("red_maxon",   "Red + Maxon ST9Pro+"),
+            ("green_maxon", "Green + Maxon ST9Pro+"),
         ],
     )];
     schema
