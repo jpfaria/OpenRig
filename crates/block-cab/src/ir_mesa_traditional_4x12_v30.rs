@@ -9,17 +9,22 @@ pub const MODEL_ID: &str = "mesa_traditional_4x12_v30";
 pub const DISPLAY_NAME: &str = "Traditional 4x12 V30";
 const BRAND: &str = "mesa";
 
-const CAPTURES: &[(&str, &str, &str)] = &[
-    ("ll_0_50in_7603", "V30 LL 4FB 4x12 SM57 0.50in 0.0in 7603", "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_0_50in_0_0in_7603_3.wav"),
-    ("ll_0_75in_vp28", "V30 LL 4FB 4x12 SM57 0.75in 0.0in VP28", "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_0_75in_0_0in_vp28_3.wav"),
-    ("ll_1_25in_sa73", "V30 LL 4FB 4x12 SM57 1.25in 0.0in SA73", "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_1_25in_0_0in_sa73_3.wav"),
-    ("ll_2_50in_7603", "V30 LL 4FB 4x12 SM57 2.50in 0.0in 7603", "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_2_50in_0_0in_7603_3.wav"),
-    ("lr_0_25in_7603", "V30 LR 4FB 4x12 SM57 0.25in 0.0in 7603", "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_0_25in_0_0in_7603_3.wav"),
-    ("lr_0_75in_vp28", "V30 LR 4FB 4x12 SM57 0.75in 0.0in VP28", "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_0_75in_0_0in_vp28_3.wav"),
-    ("lr_2_00in_vp28", "V30 LR 4FB 4x12 SM57 2.00in 0.0in VP28", "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_2_00in_0_0in_vp28_3.wav"),
-    ("ul_0_50in_oa30_sa73", "V30 UL 4FB 4x12 SM57 0.50in 0.0in OA30 SA73", "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_0_50in_0_0in_oa30_sa73_3.wav"),
-    ("ul_1_25in_7603", "V30 UL 4FB 4x12 SM57 1.25in 0.0in 7603", "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_1_25in_0_0in_7603_3.wav"),
-    ("ul_1_50in_sa73", "V30 UL 4FB 4x12 SM57 1.50in 0.0in SA73", "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_1_50in_0_0in_sa73_3.wav"),
+// Three-axis pack: mic position × distance × preamp.
+// Only 10 of the 3×7×4 = 84 possible combinations were captured. The
+// `resolve_capture` lookup rejects the holes so the UI can still expose
+// all three knobs as independent controls.
+const CAPTURES: &[(&str, &str, &str, &str)] = &[
+    // (mic_pos, distance, preamp, file)
+    ("ll", "0.50", "neve_7603",  "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_0_50in_0_0in_7603_3.wav"),
+    ("ll", "0.75", "vp28",       "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_0_75in_0_0in_vp28_3.wav"),
+    ("ll", "1.25", "sa73",       "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_1_25in_0_0in_sa73_3.wav"),
+    ("ll", "2.50", "neve_7603",  "cabs/mesa_traditional_4x12_v30/v30_ll_4fb_4x12_sm57_2_50in_0_0in_7603_3.wav"),
+    ("lr", "0.25", "neve_7603",  "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_0_25in_0_0in_7603_3.wav"),
+    ("lr", "0.75", "vp28",       "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_0_75in_0_0in_vp28_3.wav"),
+    ("lr", "2.00", "vp28",       "cabs/mesa_traditional_4x12_v30/v30_lr_4fb_4x12_sm57_2_00in_0_0in_vp28_3.wav"),
+    ("ul", "0.50", "oa30_sa73",  "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_0_50in_0_0in_oa30_sa73_3.wav"),
+    ("ul", "1.25", "neve_7603",  "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_1_25in_0_0in_7603_3.wav"),
+    ("ul", "1.50", "sa73",       "cabs/mesa_traditional_4x12_v30/v30_ul_4fb_4x12_sm57_1_50in_0_0in_sa73_3.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -28,24 +33,46 @@ pub fn model_schema() -> ModelParameterSchema {
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![enum_parameter(
-            "capture",
-            "Capture",
-            Some("Cab"),
-            Some("ll_0_50in_7603"),
-            &[
-            ("ll_0_50in_7603", "V30 LL 4FB 4x12 SM57 0.50in 0.0in 7603"),
-            ("ll_0_75in_vp28", "V30 LL 4FB 4x12 SM57 0.75in 0.0in VP28"),
-            ("ll_1_25in_sa73", "V30 LL 4FB 4x12 SM57 1.25in 0.0in SA73"),
-            ("ll_2_50in_7603", "V30 LL 4FB 4x12 SM57 2.50in 0.0in 7603"),
-            ("lr_0_25in_7603", "V30 LR 4FB 4x12 SM57 0.25in 0.0in 7603"),
-            ("lr_0_75in_vp28", "V30 LR 4FB 4x12 SM57 0.75in 0.0in VP28"),
-            ("lr_2_00in_vp28", "V30 LR 4FB 4x12 SM57 2.00in 0.0in VP28"),
-            ("ul_0_50in_oa30_sa73", "V30 UL 4FB 4x12 SM57 0.50in 0.0in OA30 SA73"),
-            ("ul_1_25in_7603", "V30 UL 4FB 4x12 SM57 1.25in 0.0in 7603"),
-            ("ul_1_50in_sa73", "V30 UL 4FB 4x12 SM57 1.50in 0.0in SA73"),
-            ],
-        )],
+        parameters: vec![
+            enum_parameter(
+                "mic_position",
+                "Mic Position",
+                Some("Cab"),
+                Some("ll"),
+                &[
+                    ("ll", "Lower Left"),
+                    ("lr", "Lower Right"),
+                    ("ul", "Upper Left"),
+                ],
+            ),
+            enum_parameter(
+                "distance",
+                "Distance",
+                Some("Cab"),
+                Some("0.50"),
+                &[
+                    ("0.25", "0.25 in"),
+                    ("0.50", "0.50 in"),
+                    ("0.75", "0.75 in"),
+                    ("1.25", "1.25 in"),
+                    ("1.50", "1.50 in"),
+                    ("2.00", "2.00 in"),
+                    ("2.50", "2.50 in"),
+                ],
+            ),
+            enum_parameter(
+                "preamp",
+                "Mic Preamp",
+                Some("Cab"),
+                Some("neve_7603"),
+                &[
+                    ("neve_7603", "Neve 7603"),
+                    ("vp28",      "VP28"),
+                    ("sa73",      "SA73"),
+                    ("oa30_sa73", "OA30 + SA73"),
+                ],
+            ),
+        ],
     }
 }
 
@@ -77,12 +104,19 @@ pub fn build_processor_for_model(
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
-    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    let mic = required_string(params, "mic_position").map_err(anyhow::Error::msg)?;
+    let dist = required_string(params, "distance").map_err(anyhow::Error::msg)?;
+    let pre = required_string(params, "preamp").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|(k, _, _)| *k == key)
-        .map(|(_, _, path)| *path)
-        .ok_or_else(|| anyhow!("cab '{}' has no capture '{}'", MODEL_ID, key))
+        .find(|(m, d, p, _)| *m == mic && *d == dist && *p == pre)
+        .map(|(_, _, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "cab '{}' has no capture for mic_position={} distance={} preamp={}",
+                MODEL_ID, mic, dist, pre
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {
