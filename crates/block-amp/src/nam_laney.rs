@@ -13,10 +13,12 @@ const BRAND: &str = "laney";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-axis: 3 cumulative voicings on the lead/Top channel — base, +Boost,
+// +Boost+Bright switch.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("top_boosted_bright_switch_on", "Top, Boosted, Bright Switch On", "amps/laney/laney_lead_top_boosted_bright_switch_on_2.nam"),
-    ("top_boosted", "Top, Boosted", "amps/laney/laney_lead_top_boosted_2.nam"),
-    ("top", "Top", "amps/laney/laney_lead_top_2.nam"),
+    ("top",            "Top",                "amps/laney/laney_lead_top_2.nam"),
+    ("top_boost",      "Top + Boost",        "amps/laney/laney_lead_top_boosted_2.nam"),
+    ("top_boost_brt",  "Top + Boost + Brt",  "amps/laney/laney_lead_top_boosted_bright_switch_on_2.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -25,11 +27,11 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("top_boosted_bright_switch_on"),
+        Some("top"),
         &[
-            ("top_boosted_bright_switch_on", "Top, Boosted, Bright Switch On"),
-            ("top_boosted", "Top, Boosted"),
-            ("top", "Top"),
+            ("top",           "Top"),
+            ("top_boost",     "Top + Boost"),
+            ("top_boost_brt", "Top + Boost + Brt"),
         ],
     )];
     schema
