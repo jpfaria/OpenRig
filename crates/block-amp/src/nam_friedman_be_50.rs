@@ -13,8 +13,9 @@ const BRAND: &str = "friedman";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
+// Single-capture: 4AT amp+cab capture.
 const CAPTURES: &[(&str, &str, &str)] = &[
-    ("mbfriedman4atampcab", "MBFriedMan4ATAmpCab", "amps/friedman_be_50/mbfriedman4atampcab.nam"),
+    ("amp_cab_4at", "Amp + Cab (4AT)", "amps/friedman_be_50/mbfriedman4atampcab.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -23,9 +24,9 @@ pub fn model_schema() -> ModelParameterSchema {
         "preset",
         "Preset",
         Some("Amp"),
-        Some("mbfriedman4atampcab"),
+        Some("amp_cab_4at"),
         &[
-            ("mbfriedman4atampcab", "MBFriedMan4ATAmpCab"),
+            ("amp_cab_4at", "Amp + Cab (4AT)"),
         ],
     )];
     schema
