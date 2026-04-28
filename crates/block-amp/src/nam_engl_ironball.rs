@@ -1,0 +1,104 @@
+use anyhow::{anyhow, Result};
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
+};
+use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_engl_ironball";
+pub const DISPLAY_NAME: &str = "Ironball";
+const BRAND: &str = "engl";
+
+pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
+
+const CAPTURES: &[(&str, &str, &str)] = &[
+    ("slammin_engl_iron_lead_scoop_sol", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_scoop_solo_s.nam"),
+    ("slammin_engl_iron_lead_balanced_", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_balanced_rhythm_s.nam"),
+    ("slammin_engl_iron_lead_bright_rh", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_rhythm_s.nam"),
+    ("slammin_engl_iron_lead_bright_so", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_bright_solo_s.nam"),
+    ("slammin_engl_iron_lead_chunky_rh", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_rhythm_s.nam"),
+    ("slammin_engl_iron_lead_slightsco", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S", "amps/engl_ironball/slammin_engl_iron_lead_slightscoop_rhythm_s.nam"),
+    ("slammin_engl_iron_lead_mids_solo", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_mids_solo_s.nam"),
+    ("slammin_engl_iron_lead_chunky_so", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S", "amps/engl_ironball/slammin_engl_iron_lead_chunky_solo_s.nam"),
+];
+
+pub fn model_schema() -> ModelParameterSchema {
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "capture",
+        "Capture",
+        Some("Amp"),
+        Some("slammin_engl_iron_lead_scoop_sol"),
+        &[
+            ("slammin_engl_iron_lead_scoop_sol", "SLAMMIN_ENGL_IRON_LEAD_SCOOP_SOLO_S"),
+            ("slammin_engl_iron_lead_balanced_", "SLAMMIN_ENGL_IRON_LEAD_BALANCED_RHYTHM_S"),
+            ("slammin_engl_iron_lead_bright_rh", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_RHYTHM_S"),
+            ("slammin_engl_iron_lead_bright_so", "SLAMMIN_ENGL_IRON_LEAD_BRIGHT_SOLO_S"),
+            ("slammin_engl_iron_lead_chunky_rh", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_RHYTHM_S"),
+            ("slammin_engl_iron_lead_slightsco", "SLAMMIN_ENGL_IRON_LEAD_SLIGHTSCOOP_RHYTHM_S"),
+            ("slammin_engl_iron_lead_mids_solo", "SLAMMIN_ENGL_IRON_LEAD_MIDS_SOLO_S"),
+            ("slammin_engl_iron_lead_chunky_so", "SLAMMIN_ENGL_IRON_LEAD_CHUNKY_SOLO_S"),
+        ],
+    )];
+    schema
+}
+
+pub fn build_processor_for_model(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let path = resolve_capture(params)?;
+    build_processor_with_assets_for_layout(
+        &nam::resolve_nam_capture(path)?,
+        None,
+        NAM_PLUGIN_FIXED_PARAMS,
+        sample_rate,
+        layout,
+    )
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let key = required_string(params, "capture").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| anyhow!("amp '{}' has no capture '{}'", MODEL_ID, key))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: AmpBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};
+
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
+}
