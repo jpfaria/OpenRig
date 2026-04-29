@@ -1,8 +1,5 @@
-use anyhow::{anyhow, Result};
 use block_core::{AudioChannelLayout, StreamHandle};
 use domain::ids::BlockId;
-use project::chain::ChainOutputMixdown;
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -370,24 +367,17 @@ pub(crate) use crate::runtime_graph::{
 };
 
 
-/// Ensure denormalized floats are flushed to zero on aarch64.
-///
-/// Without this, neural-network processors (NAM) produce degraded audio on
-/// aarch64 because denormals accumulate through the network layers.  On x86
-/// the NAM/Eigen libraries set DAZ+FTZ internally — we leave x86 alone to
-/// avoid changing the sound character on macOS/Windows.
-#[inline(always)]
-fn ensure_flush_to_zero() {
-    #[cfg(target_arch = "aarch64")]
-    unsafe {
-        // FZ bit (bit 24) in FPCR
-        let fpcr: u64;
-        core::arch::asm!("mrs {}, fpcr", out(reg) fpcr);
-        if fpcr & (1 << 24) == 0 {
-            core::arch::asm!("msr fpcr, {}", in(reg) fpcr | (1 << 24));
-        }
-    }
-}
+// Slice 5 of Phase 2: I/O helpers moved to runtime_io.rs.
+use crate::runtime_io::{
+    blend_frame, downcast_panic_message, ensure_flush_to_zero, write_output_frame,
+};
+// Re-export layout_label so the existing `crate::runtime::layout_label` paths
+// in runtime_graph.rs / runtime_block_builders.rs / runtime_tests.rs keep
+// working. Same for layout_from_channels (used by runtime_tests).
+pub(crate) use crate::runtime_io::layout_label;
+#[cfg(test)]
+pub(crate) use crate::runtime_io::{apply_mixdown, layout_from_channels, output_limiter};
+
 
 pub fn process_input_f32(
     runtime: &Arc<ChainRuntimeState>,
@@ -797,33 +787,6 @@ fn apply_block_processor(
     }
 }
 
-fn downcast_panic_message(payload: Box<dyn Any + Send>) -> String {
-    if let Some(s) = payload.downcast_ref::<&str>() {
-        s.to_string()
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown panic".to_string()
-    }
-}
-
-#[inline]
-fn blend_frame(frame: &mut AudioFrame, dry: AudioFrame, dry_gain: f32, wet_gain: f32) {
-    match (frame, dry) {
-        (AudioFrame::Mono(w), AudioFrame::Mono(d)) => {
-            *w = d * dry_gain + *w * wet_gain;
-        }
-        (AudioFrame::Stereo([wl, wr]), AudioFrame::Stereo([dl, dr])) => {
-            *wl = dl * dry_gain + *wl * wet_gain;
-            *wr = dr * dry_gain + *wr * wet_gain;
-        }
-        // Layout mismatch shouldn't happen in practice; pass dry through
-        (frame, dry) => {
-            *frame = dry;
-        }
-    }
-}
-
 pub fn process_output_f32(
     runtime: &Arc<ChainRuntimeState>,
     output_index: usize,
@@ -893,76 +856,7 @@ pub fn process_output_f32(
 
 
 /// Soft limiter — transparent below 0dBFS, gentle saturation above.
-#[inline]
-fn output_limiter(sample: f32) -> f32 {
-    if sample.abs() < 0.95 {
-        sample
-    } else {
-        sample.tanh()
-    }
-}
 
-fn write_output_frame(
-    chain_frame: AudioFrame,
-    output_channels: &[usize],
-    frame: &mut [f32],
-    mixdown: ChainOutputMixdown,
-) {
-    match chain_frame {
-        AudioFrame::Mono(sample) => {
-            let limited = output_limiter(sample);
-            for &channel_index in output_channels {
-                if let Some(dst) = frame.get_mut(channel_index) {
-                    *dst = limited;
-                }
-            }
-        }
-        AudioFrame::Stereo([left, right]) => match output_channels {
-            [] => {}
-            [channel_index] => {
-                if let Some(dst) = frame.get_mut(*channel_index) {
-                    *dst = output_limiter(apply_mixdown(mixdown, left, right));
-                }
-            }
-            [left_channel, right_channel, ..] => {
-                if let Some(dst) = frame.get_mut(*left_channel) {
-                    *dst = output_limiter(left);
-                }
-                if let Some(dst) = frame.get_mut(*right_channel) {
-                    *dst = output_limiter(right);
-                }
-            }
-        },
-    }
-}
-
-fn apply_mixdown(mixdown: ChainOutputMixdown, left: f32, right: f32) -> f32 {
-    match mixdown {
-        ChainOutputMixdown::Sum => left + right,
-        ChainOutputMixdown::Average => (left + right) * 0.5,
-        ChainOutputMixdown::Left => left,
-        ChainOutputMixdown::Right => right,
-    }
-}
-
-#[allow(dead_code)]
-fn layout_from_channels(channel_count: usize) -> Result<AudioChannelLayout> {
-    match channel_count {
-        1 => Ok(AudioChannelLayout::Mono),
-        2 => Ok(AudioChannelLayout::Stereo),
-        other => Err(anyhow!(
-            "only mono and stereo are supported right now; got {} channels",
-            other
-        )),
-    }
-}
-
-pub(crate) fn layout_label(layout: AudioChannelLayout) -> &'static str {
-    match layout {
-        AudioChannelLayout::Mono => "mono",
-        AudioChannelLayout::Stereo => "stereo",
-    }
-}
 
 
 #[cfg(test)]
