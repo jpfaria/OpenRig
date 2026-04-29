@@ -26,7 +26,8 @@ mod host;
 use host::get_host;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use host::jack_server_is_running;
-use host::{is_asio_host, using_jack_direct};
+#[cfg(all(target_os = "linux", feature = "jack"))]
+use host::using_jack_direct;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod usb_proc;
@@ -56,9 +57,7 @@ mod active_runtime;
 use active_runtime::ActiveChainRuntime;
 
 use project::project::Project;
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use project::block::InsertBlock;
+use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -832,300 +831,13 @@ impl ProjectRuntimeController {
     }
 }
 
-pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
-    // On Linux+JACK, get sample rate from JACK server directly — zero ALSA access.
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    {
-        // Probe the first running named server via the libjack helper — no
-        // cache involved; this is a one-off read for UI/display purposes.
-        let cards = detect_all_usb_audio_cards();
-        let meta = cards
-            .iter()
-            .find(|c| jack_server_is_running_for(&c.server_name))
-            .map(|c| jack_supervisor::ServerName::from(c.server_name.clone()))
-            .ok_or_else(|| anyhow!("no running JACK server found"))
-            .and_then(|name| jack_supervisor::live_backend::probe_server_meta(&name))?;
-        let sr = meta.sample_rate as f32;
-        let mut sample_rates = HashMap::new();
-        for chain in &project.chains {
-            if chain.enabled {
-                sample_rates.insert(chain.id.clone(), sr);
-            }
-        }
-        return Ok(sample_rates);
-    }
-
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    {
-        let host = get_host();
-        let mut sample_rates = HashMap::new();
-
-        for chain in &project.chains {
-            if !chain.enabled {
-                continue;
-            }
-            let inputs = resolve_chain_inputs(&host, project, chain)?;
-            let outputs = resolve_chain_outputs(&host, project, chain)?;
-            let sample_rate = resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
-            sample_rates.insert(chain.id.clone(), sample_rate);
-        }
-
-        Ok(sample_rates)
-    }
-}
-
+mod chain_resolve;
+pub use chain_resolve::resolve_project_chain_sample_rates;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use chain_resolve::{resolve_chain_audio_config, resolve_enabled_chain_audio_configs};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_input_device_for_chain_input(
-    host: &cpal::Host,
-    project: &Project,
-    input: &InputEntry,
-    is_asio: bool,
-) -> Result<ResolvedInputDevice> {
-    let settings = project
-        .device_settings
-        .iter()
-        .find(|s| s.device_id == input.device_id)
-        .cloned();
-    if using_jack_direct() {
-        // Unreachable in JACK-direct mode: sync_project / upsert_chain short-circuit
-        // into sync_project_jack_direct() before ever calling this function. If we
-        // ever land here while JACK is active, something bypassed the short-circuit
-        // and is about to probe ALSA on a device JACK owns — refuse instead.
-        bail!("internal error: resolve_input_device_for_chain_input called in JACK-direct mode");
-    }
-    let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
-        anyhow!("input device '{}' not found by device_id", input.device_id.0)
-    })?;
-    let default_config = device.default_input_config().with_context(|| {
-        format!(
-            "failed to get default input config for '{}'",
-            input.device_id.0
-        )
-    })?;
-    let supported_ranges = device
-        .supported_input_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate input configs for '{}'",
-                input.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&input.channels);
-    let supported = select_supported_stream_config(
-        &default_config,
-        &supported_ranges,
-        settings.as_ref().map(|s| s.sample_rate),
-        required_channels,
-        &input.device_id.0,
-    )?;
-    // For ASIO, skip buffer size range validation — the project's requested buffer size
-    // is passed directly to the ASIO driver via BufferSize::Fixed. The driver accepts or
-    // rejects it at stream build time with a real error. Pre-validation is incorrect for
-    // ASIO because the driver's reported range reflects its current preferred size, not
-    // what it actually accepts when asked.
-    if !is_asio {
-        if let Some(settings) = &settings {
-            validate_buffer_size(
-                settings.buffer_size_frames,
-                supported.buffer_size(),
-                &settings.device_id.0,
-            )?;
-        }
-    }
-    Ok(ResolvedInputDevice { settings, device, supported })
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_output_device_for_chain_output(
-    host: &cpal::Host,
-    project: &Project,
-    output: &OutputEntry,
-    is_asio: bool,
-) -> Result<ResolvedOutputDevice> {
-    let settings = project
-        .device_settings
-        .iter()
-        .find(|s| s.device_id == output.device_id)
-        .cloned();
-    if using_jack_direct() {
-        // Unreachable in JACK-direct mode (see matching guard in the input path).
-        bail!("internal error: resolve_output_device_for_chain_output called in JACK-direct mode");
-    }
-    let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
-        anyhow!("output device '{}' not found by device_id", output.device_id.0)
-    })?;
-    let default_config = device.default_output_config().with_context(|| {
-        format!(
-            "failed to get default output config for '{}'",
-            output.device_id.0
-        )
-    })?;
-    let supported_ranges = device
-        .supported_output_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate output configs for '{}'",
-                output.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&output.channels);
-    let supported = select_supported_stream_config(
-        &default_config,
-        &supported_ranges,
-        settings.as_ref().map(|s| s.sample_rate),
-        required_channels,
-        &output.device_id.0,
-    )?;
-    if !is_asio {
-        if let Some(settings) = &settings {
-            validate_buffer_size(
-                settings.buffer_size_frames,
-                supported.buffer_size(),
-                &settings.device_id.0,
-            )?;
-        }
-    }
-    Ok(ResolvedOutputDevice { settings, device, supported })
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_chain_inputs(
-    host: &cpal::Host,
-    project: &Project,
-    chain: &Chain,
-) -> Result<Vec<ResolvedInputDevice>> {
-    let is_asio = is_asio_host(host);
-    let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib),
-            _ => None,
-        })
-        .flat_map(|ib| ib.entries.iter())
-        .collect();
-    // Include Insert block return endpoints as input streams
-    let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
-            _ => None,
-        })
-        .collect();
-    let insert_refs: Vec<&InputEntry> = insert_return_entries.iter().collect();
-    input_entries.extend(insert_refs);
-    if input_entries.is_empty() {
-        bail!("chain '{}' has no input blocks configured", chain.id.0);
-    }
-    input_entries
-        .iter()
-        .map(|input| resolve_input_device_for_chain_input(host, project, input, is_asio))
-        .collect()
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_chain_outputs(
-    host: &cpal::Host,
-    project: &Project,
-    chain: &Chain,
-) -> Result<Vec<ResolvedOutputDevice>> {
-    let is_asio = is_asio_host(host);
-    let mut output_entries: Vec<&OutputEntry> = chain.blocks.iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob),
-            _ => None,
-        })
-        .flat_map(|ob| ob.entries.iter())
-        .collect();
-    // Include Insert block send endpoints as output streams
-    let insert_send_entries: Vec<OutputEntry> = chain.blocks.iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
-            _ => None,
-        })
-        .collect();
-    let insert_refs: Vec<&OutputEntry> = insert_send_entries.iter().collect();
-    output_entries.extend(insert_refs);
-    if output_entries.is_empty() {
-        bail!("chain '{}' has no output blocks configured", chain.id.0);
-    }
-    output_entries
-        .iter()
-        .map(|output| resolve_output_device_for_chain_output(host, project, output, is_asio))
-        .collect()
-}
-
-/// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
-    InputEntry {
-        device_id: insert.return_.device_id.clone(),
-        mode: insert.return_.mode,
-        channels: insert.return_.channels.clone(),
-    }
-}
-
-/// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
-    use project::chain::ChainOutputMode;
-    OutputEntry {
-        device_id: insert.send.device_id.clone(),
-        mode: match insert.send.mode {
-            project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
-            _ => ChainOutputMode::Stereo,
-        },
-        channels: insert.send.channels.clone(),
-    }
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_enabled_chain_audio_configs(
-    host: &cpal::Host,
-    project: &Project,
-) -> Result<HashMap<ChainId, ResolvedChainAudioConfig>> {
-    let mut resolved = HashMap::new();
-
-    for chain in &project.chains {
-        if !chain.enabled {
-            continue;
-        }
-
-        let config = resolve_chain_audio_config(host, project, chain)?;
-        resolved.insert(chain.id.clone(), config);
-    }
-
-    Ok(resolved)
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_chain_audio_config(
-    host: &cpal::Host,
-    project: &Project,
-    chain: &Chain,
-) -> Result<ResolvedChainAudioConfig> {
-    let inputs = resolve_chain_inputs(host, project, chain)?;
-    let outputs = resolve_chain_outputs(host, project, chain)?;
-
-    // Validate sample rates: all inputs and outputs must agree
-    let sample_rate = resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
-
-    let stream_signature = build_chain_stream_signature_multi(chain, &inputs, &outputs);
-
-    Ok(ResolvedChainAudioConfig {
-        inputs,
-        outputs,
-        sample_rate,
-        stream_signature,
-    })
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn validate_buffer_size(
+pub(crate) fn validate_buffer_size(
     requested: u32,
     supported: &SupportedBufferSize,
     context: &str,
@@ -1284,7 +996,7 @@ pub(crate) fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Res
     Ok(None)
 }
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
+pub(crate) fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
     for device in host.output_devices()? {
         if device.id()?.to_string() == device_id {
             return Ok(Some(device));
@@ -1609,7 +1321,7 @@ fn build_active_chain_runtime(
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn build_chain_stream_signature_multi(
+pub(crate) fn build_chain_stream_signature_multi(
     chain: &Chain,
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
@@ -1711,7 +1423,7 @@ pub(crate) fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn required_channel_count(channels: &[usize]) -> usize {
+pub(crate) fn required_channel_count(channels: &[usize]) -> usize {
     channels
         .iter()
         .copied()
@@ -1721,7 +1433,7 @@ fn required_channel_count(channels: &[usize]) -> usize {
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn select_supported_stream_config(
+pub(crate) fn select_supported_stream_config(
     default_config: &SupportedStreamConfig,
     supported_ranges: &[SupportedStreamConfigRange],
     requested_sample_rate: Option<u32>,
@@ -1772,7 +1484,7 @@ fn resolve_chain_runtime_sample_rate(
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn resolve_multi_io_sample_rate(
+pub(crate) fn resolve_multi_io_sample_rate(
     chain_id: &str,
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
@@ -2519,7 +2231,7 @@ mod tests {
     #[test]
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     fn is_asio_host_returns_false_on_non_windows() {
-        use super::is_asio_host;
+        use super::host::is_asio_host;
         let host = cpal::default_host();
         assert!(!is_asio_host(&host), "non-Windows host should not be ASIO");
     }
@@ -2528,7 +2240,7 @@ mod tests {
 
     #[test]
     fn insert_return_as_input_entry_copies_return_fields() {
-        use super::insert_return_as_input_entry;
+        use super::chain_resolve::insert_return_as_input_entry;
         use project::block::{InsertBlock, InsertEndpoint};
         use project::chain::ChainInputMode;
         use domain::ids::DeviceId;
@@ -2555,7 +2267,7 @@ mod tests {
 
     #[test]
     fn insert_send_as_output_entry_mono_becomes_mono() {
-        use super::insert_send_as_output_entry;
+        use super::chain_resolve::insert_send_as_output_entry;
         use project::block::{InsertBlock, InsertEndpoint};
         use project::chain::{ChainInputMode, ChainOutputMode};
         use domain::ids::DeviceId;
@@ -2580,7 +2292,7 @@ mod tests {
 
     #[test]
     fn insert_send_as_output_entry_stereo_becomes_stereo() {
-        use super::insert_send_as_output_entry;
+        use super::chain_resolve::insert_send_as_output_entry;
         use project::block::{InsertBlock, InsertEndpoint};
         use project::chain::{ChainInputMode, ChainOutputMode};
         use domain::ids::DeviceId;
