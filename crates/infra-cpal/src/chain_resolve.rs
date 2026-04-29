@@ -100,7 +100,6 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
     }
 }
 
-
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_input_device_for_chain_input(
     host: &cpal::Host,
@@ -121,7 +120,10 @@ pub(crate) fn resolve_input_device_for_chain_input(
         bail!("internal error: resolve_input_device_for_chain_input called in JACK-direct mode");
     }
     let device = crate::find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
-        anyhow!("input device '{}' not found by device_id", input.device_id.0)
+        anyhow!(
+            "input device '{}' not found by device_id",
+            input.device_id.0
+        )
     })?;
     let default_config = device.default_input_config().with_context(|| {
         format!(
@@ -160,7 +162,11 @@ pub(crate) fn resolve_input_device_for_chain_input(
             )?;
         }
     }
-    Ok(ResolvedInputDevice { settings, device, supported })
+    Ok(ResolvedInputDevice {
+        settings,
+        device,
+        supported,
+    })
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -180,7 +186,10 @@ pub(crate) fn resolve_output_device_for_chain_output(
         bail!("internal error: resolve_output_device_for_chain_output called in JACK-direct mode");
     }
     let device = crate::find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
-        anyhow!("output device '{}' not found by device_id", output.device_id.0)
+        anyhow!(
+            "output device '{}' not found by device_id",
+            output.device_id.0
+        )
     })?;
     let default_config = device.default_output_config().with_context(|| {
         format!(
@@ -214,7 +223,11 @@ pub(crate) fn resolve_output_device_for_chain_output(
             )?;
         }
     }
-    Ok(ResolvedOutputDevice { settings, device, supported })
+    Ok(ResolvedOutputDevice {
+        settings,
+        device,
+        supported,
+    })
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -224,7 +237,9 @@ pub(crate) fn resolve_chain_inputs(
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
+    let mut input_entries: Vec<&InputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -233,7 +248,9 @@ pub(crate) fn resolve_chain_inputs(
         .flat_map(|ib| ib.entries.iter())
         .collect();
     // Include Insert block return endpoints as input streams
-    let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
+    let insert_return_entries: Vec<InputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
@@ -258,7 +275,9 @@ pub(crate) fn resolve_chain_outputs(
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+    let mut output_entries: Vec<&OutputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -267,7 +286,9 @@ pub(crate) fn resolve_chain_outputs(
         .flat_map(|ob| ob.entries.iter())
         .collect();
     // Include Insert block send endpoints as output streams
-    let insert_send_entries: Vec<OutputEntry> = chain.blocks.iter()
+    let insert_send_entries: Vec<OutputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),

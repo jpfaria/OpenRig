@@ -55,8 +55,12 @@ pub fn list_devices() -> Result<Vec<String>> {
         let inputs = jack_enumerate_input_devices()?;
         let outputs = jack_enumerate_output_devices()?;
         let mut devices = Vec::new();
-        for d in inputs { devices.push(format!("input: {} | device_id: {}", d.name, d.id)); }
-        for d in outputs { devices.push(format!("output: {} | device_id: {}", d.name, d.id)); }
+        for d in inputs {
+            devices.push(format!("input: {} | device_id: {}", d.name, d.id));
+        }
+        for d in outputs {
+            devices.push(format!("output: {} | device_id: {}", d.name, d.id));
+        }
         return Ok(devices);
     }
 
@@ -124,7 +128,11 @@ pub(crate) fn is_hardware_device(id: &str) -> bool {
         // Accept only named CARD forms: hw:CARD=<letter>...
         // Reject numeric CARD forms: hw:CARD=<digit>...
         let after_card = pcm_id.split("CARD=").nth(1).unwrap_or("");
-        !after_card.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+        !after_card
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -151,10 +159,15 @@ struct TimedDeviceCache {
 
 impl TimedDeviceCache {
     const fn new() -> Self {
-        Self { devices: None, fetched_at: None }
+        Self {
+            devices: None,
+            fetched_at: None,
+        }
     }
     fn is_fresh(&self) -> bool {
-        self.fetched_at.map(|t| t.elapsed() < DEVICE_CACHE_TTL).unwrap_or(false)
+        self.fetched_at
+            .map(|t| t.elapsed() < DEVICE_CACHE_TTL)
+            .unwrap_or(false)
     }
 }
 
@@ -242,7 +255,10 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
         }
     };
     if let Some(devices) = fresh {
-        log::trace!("list_input_device_descriptors: cache hit ({} devices)", devices.len());
+        log::trace!(
+            "list_input_device_descriptors: cache hit ({} devices)",
+            devices.len()
+        );
         return Ok(devices);
     }
     // Slow path: try to acquire the refresh lock. If another thread is
@@ -253,7 +269,11 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
             // Double-check in case a concurrent refresh just finished.
             let already_fresh = {
                 let cache = INPUT_DEVICE_CACHE.lock().unwrap();
-                if cache.is_fresh() { cache.devices.clone() } else { None }
+                if cache.is_fresh() {
+                    cache.devices.clone()
+                } else {
+                    None
+                }
             };
             if let Some(devices) = already_fresh {
                 return Ok(devices);
@@ -267,8 +287,15 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
             Ok(devices)
         }
         Err(_) => {
-            log::debug!("list_input_device_descriptors: refresh in progress, returning stale snapshot");
-            Ok(INPUT_DEVICE_CACHE.lock().unwrap().devices.clone().unwrap_or_default())
+            log::debug!(
+                "list_input_device_descriptors: refresh in progress, returning stale snapshot"
+            );
+            Ok(INPUT_DEVICE_CACHE
+                .lock()
+                .unwrap()
+                .devices
+                .clone()
+                .unwrap_or_default())
         }
     }
 }
@@ -283,14 +310,21 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
         }
     };
     if let Some(devices) = fresh {
-        log::trace!("list_output_device_descriptors: cache hit ({} devices)", devices.len());
+        log::trace!(
+            "list_output_device_descriptors: cache hit ({} devices)",
+            devices.len()
+        );
         return Ok(devices);
     }
     match OUTPUT_REFRESH_LOCK.try_lock() {
         Ok(_guard) => {
             let already_fresh = {
                 let cache = OUTPUT_DEVICE_CACHE.lock().unwrap();
-                if cache.is_fresh() { cache.devices.clone() } else { None }
+                if cache.is_fresh() {
+                    cache.devices.clone()
+                } else {
+                    None
+                }
             };
             if let Some(devices) = already_fresh {
                 return Ok(devices);
@@ -304,8 +338,15 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
             Ok(devices)
         }
         Err(_) => {
-            log::debug!("list_output_device_descriptors: refresh in progress, returning stale snapshot");
-            Ok(OUTPUT_DEVICE_CACHE.lock().unwrap().devices.clone().unwrap_or_default())
+            log::debug!(
+                "list_output_device_descriptors: refresh in progress, returning stale snapshot"
+            );
+            Ok(OUTPUT_DEVICE_CACHE
+                .lock()
+                .unwrap()
+                .devices
+                .clone()
+                .unwrap_or_default())
         }
     }
 }
@@ -323,11 +364,14 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         // consistency regardless of ALSA card numbering order (hw:0 vs hw:1).
         log::info!("JACK not running, detecting USB audio cards for input devices (no PCM probe)");
         let usb_cards = detect_all_usb_audio_cards();
-        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
-            id: c.device_id.clone(),
-            name: c.display_name.clone(),
-            channels: c.capture_channels as usize,
-        }).collect();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards
+            .iter()
+            .map(|c| AudioDeviceDescriptor {
+                id: c.device_id.clone(),
+                name: c.display_name.clone(),
+                channels: c.capture_channels as usize,
+            })
+            .collect();
         log::info!("[enumerate_input] usb cards: {} devices", cards.len());
         return Ok(cards);
     }
@@ -342,12 +386,24 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
                 continue;
             }
             let name = device.description()?.name().to_string();
-            if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            if devices
+                .iter()
+                .any(|d: &AudioDeviceDescriptor| d.name == name)
+            {
                 continue;
             }
             let ch = crate::max_supported_input_channels(&device).unwrap_or(0);
-            log::info!("[enumerate_input] device id='{}' name='{}' channels={}", id, name, ch);
-            devices.push(AudioDeviceDescriptor { id, name, channels: ch });
+            log::info!(
+                "[enumerate_input] device id='{}' name='{}' channels={}",
+                id,
+                name,
+                ch
+            );
+            devices.push(AudioDeviceDescriptor {
+                id,
+                name,
+                channels: ch,
+            });
         }
         log::info!("[enumerate_input] total {} devices", devices.len());
         devices.sort_by(|a, b| a.name.cmp(&b.name));
@@ -363,11 +419,14 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         }
         log::info!("JACK not running, detecting USB audio cards for output devices (no PCM probe)");
         let usb_cards = detect_all_usb_audio_cards();
-        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
-            id: c.device_id.clone(),
-            name: c.display_name.clone(),
-            channels: c.playback_channels as usize,
-        }).collect();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards
+            .iter()
+            .map(|c| AudioDeviceDescriptor {
+                id: c.device_id.clone(),
+                name: c.display_name.clone(),
+                channels: c.playback_channels as usize,
+            })
+            .collect();
         log::info!("[enumerate_output] usb cards: {} devices", cards.len());
         return Ok(cards);
     }
@@ -382,12 +441,24 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
                 continue;
             }
             let name = device.description()?.name().to_string();
-            if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            if devices
+                .iter()
+                .any(|d: &AudioDeviceDescriptor| d.name == name)
+            {
                 continue;
             }
             let ch = crate::max_supported_output_channels(&device).unwrap_or(0);
-            log::info!("[enumerate_output] device id='{}' name='{}' channels={}", id, name, ch);
-            devices.push(AudioDeviceDescriptor { id, name, channels: ch });
+            log::info!(
+                "[enumerate_output] device id='{}' name='{}' channels={}",
+                id,
+                name,
+                ch
+            );
+            devices.push(AudioDeviceDescriptor {
+                id,
+                name,
+                channels: ch,
+            });
         }
         log::info!("[enumerate_output] total {} devices", devices.len());
         devices.sort_by(|a, b| a.name.cmp(&b.name));

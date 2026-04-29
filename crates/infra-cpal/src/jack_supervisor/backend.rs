@@ -93,9 +93,13 @@ pub struct MockBackendInner {
     /// exercise the supervisor's failure-propagation paths.
     pub terminate_script: std::collections::VecDeque<std::result::Result<(), String>>,
     /// Queue of post-ready outcomes per server.
-    pub post_ready_script: std::collections::HashMap<ServerName, std::collections::VecDeque<PostReadyStatus>>,
+    pub post_ready_script:
+        std::collections::HashMap<ServerName, std::collections::VecDeque<PostReadyStatus>>,
     /// Queue of probe_meta outcomes — if empty we return the default meta.
-    pub probe_script: std::collections::HashMap<ServerName, std::collections::VecDeque<std::result::Result<JackMeta, String>>>,
+    pub probe_script: std::collections::HashMap<
+        ServerName,
+        std::collections::VecDeque<std::result::Result<JackMeta, String>>,
+    >,
 }
 
 #[derive(Clone, Default)]
@@ -117,7 +121,11 @@ impl MockBackend {
     /// Queue a terminate outcome. `Err(msg)` simulates a real-world
     /// termination failure (e.g. jackd we can't discover the PID of).
     pub fn queue_terminate_result(&self, result: std::result::Result<(), String>) {
-        self.inner.lock().unwrap().terminate_script.push_back(result);
+        self.inner
+            .lock()
+            .unwrap()
+            .terminate_script
+            .push_back(result);
     }
 
     /// Queue a post-ready verdict for a server. The next `post_ready_status`
@@ -133,7 +141,11 @@ impl MockBackend {
     }
 
     /// Queue a `probe_meta` outcome for a server.
-    pub fn queue_probe_result(&self, name: &ServerName, result: std::result::Result<JackMeta, String>) {
+    pub fn queue_probe_result(
+        &self,
+        name: &ServerName,
+        result: std::result::Result<JackMeta, String>,
+    ) {
         self.inner
             .lock()
             .unwrap()
@@ -146,7 +158,11 @@ impl MockBackend {
     /// Directly set the meta returned by `probe_meta` when no script entries
     /// are queued. Useful when the test just wants a stable default.
     pub fn set_default_meta(&self, name: &ServerName, meta: JackMeta) {
-        self.inner.lock().unwrap().meta_for.insert(name.clone(), meta);
+        self.inner
+            .lock()
+            .unwrap()
+            .meta_for
+            .insert(name.clone(), meta);
     }
 
     pub fn calls(&self) -> Vec<MockCall> {
@@ -161,19 +177,24 @@ impl MockBackend {
 impl JackBackend for MockBackend {
     fn spawn(&mut self, name: &ServerName, config: &JackConfig) -> Result<()> {
         let mut inner = self.inner.lock().unwrap();
-        inner.calls.push(MockCall::Spawn(name.clone(), config.clone()));
+        inner
+            .calls
+            .push(MockCall::Spawn(name.clone(), config.clone()));
         let outcome = inner.spawn_script.pop_front().unwrap_or(Ok(()));
         match outcome {
             Ok(()) => {
                 inner.running.insert(name.clone());
                 // Seed a default meta if one hasn't been set explicitly.
-                inner.meta_for.entry(name.clone()).or_insert_with(|| JackMeta {
-                    sample_rate: config.sample_rate,
-                    buffer_size: config.buffer_size,
-                    capture_port_count: config.capture_channels as usize,
-                    playback_port_count: config.playback_channels as usize,
-                    hw_name: format!("mock:{}", name),
-                });
+                inner
+                    .meta_for
+                    .entry(name.clone())
+                    .or_insert_with(|| JackMeta {
+                        sample_rate: config.sample_rate,
+                        buffer_size: config.buffer_size,
+                        capture_port_count: config.capture_channels as usize,
+                        playback_port_count: config.playback_channels as usize,
+                        hw_name: format!("mock:{}", name),
+                    });
                 Ok(())
             }
             Err(msg) => Err(anyhow::anyhow!(msg)),
@@ -270,7 +291,9 @@ mod tests {
     fn mock_backend_spawn_error_leaves_server_not_running() {
         let mut backend = MockBackend::new();
         backend.queue_spawn_result(Err("simulated".into()));
-        let err = backend.spawn(&name(), &JackConfig::test_default()).unwrap_err();
+        let err = backend
+            .spawn(&name(), &JackConfig::test_default())
+            .unwrap_err();
         assert!(err.to_string().contains("simulated"));
         assert!(!backend.is_socket_present(&name()));
     }
@@ -278,7 +301,10 @@ mod tests {
     #[test]
     fn mock_backend_post_ready_failure_clears_running() {
         let mut backend = MockBackend::new();
-        backend.queue_post_ready(&name(), PostReadyStatus::DriverFailure("Broken pipe".into()));
+        backend.queue_post_ready(
+            &name(),
+            PostReadyStatus::DriverFailure("Broken pipe".into()),
+        );
         backend.spawn(&name(), &JackConfig::test_default()).unwrap();
         assert!(backend.is_socket_present(&name()));
         let status = backend.post_ready_status(&name());

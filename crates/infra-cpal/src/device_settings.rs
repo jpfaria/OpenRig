@@ -53,9 +53,8 @@ pub fn start_jack_in_background(
                     "no USB audio interface found — connect a device before enabling a chain"
                 );
             }
-            let mut supervisor = jack_supervisor::JackSupervisor::new(
-                jack_supervisor::LiveJackBackend::new(),
-            );
+            let mut supervisor =
+                jack_supervisor::JackSupervisor::new(jack_supervisor::LiveJackBackend::new());
             for card in &cards {
                 let matched = device_settings
                     .iter()
@@ -75,8 +74,7 @@ pub fn start_jack_in_background(
                     capture_channels: card.capture_channels,
                     playback_channels: card.playback_channels,
                 };
-                let server_name =
-                    jack_supervisor::ServerName::from(card.server_name.clone());
+                let server_name = jack_supervisor::ServerName::from(card.server_name.clone());
                 let mut hook = |_: &jack_supervisor::ServerName| {};
                 supervisor.ensure_server(&server_name, &config, &mut hook)?;
             }
@@ -107,7 +105,9 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = settings;
-        log::info!("apply_device_settings: Linux/JACK — skipping ALSA probe (jackd owns device config)");
+        log::info!(
+            "apply_device_settings: Linux/JACK — skipping ALSA probe (jackd owns device config)"
+        );
         return Ok(());
     }
     // macOS / Windows path: build a temporary stream to force the CoreAudio /
@@ -119,26 +119,31 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
         for ds in settings {
             log::info!(
                 "apply_device_settings: configuring '{}' sr={} buf={}",
-                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
+                ds.device_id.0,
+                ds.sample_rate,
+                ds.buffer_size_frames
             );
             // Try as input device first — on macOS the same physical device
             // often shares one AudioObjectID for both directions, so configuring
             // the input side sets the sample rate for the whole device.
             if let Ok(Some(device)) = crate::find_input_device_by_id(host, &ds.device_id.0) {
                 // Check if device already at requested sample rate
-                let current_rate = device.default_input_config()
+                let current_rate = device
+                    .default_input_config()
                     .map(|c| c.sample_rate())
                     .unwrap_or(0);
                 if current_rate == ds.sample_rate {
                     log::info!(
                         "apply_device_settings: input '{}' already at sr={}, skipping",
-                        ds.device_id.0, ds.sample_rate
+                        ds.device_id.0,
+                        ds.sample_rate
                     );
                     continue;
                 }
                 if let Ok(ranges) = device.supported_input_configs() {
                     let ranges: Vec<_> = ranges.collect();
-                    if let Some(config) = ranges.iter()
+                    if let Some(config) = ranges
+                        .iter()
                         .filter(|r| r.channels() >= 1)
                         .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
                         .next()

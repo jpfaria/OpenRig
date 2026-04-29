@@ -116,7 +116,9 @@ fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u3
     map.insert(display_name.to_string(), ch);
     log::info!(
         "[CARD-REGISTRY] learned '{}' → capture={} playback={}",
-        display_name, ch.0, ch.1
+        display_name,
+        ch.0,
+        ch.1
     );
     ch
 }
@@ -127,7 +129,9 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     let mut cards = Vec::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
-        let Some(first) = trimmed.chars().next() else { continue };
+        let Some(first) = trimmed.chars().next() else {
+            continue;
+        };
         if !first.is_ascii_digit() {
             continue;
         }
@@ -178,7 +182,11 @@ fn try_refresh_proc_cache() {
         return;
     }
     let caller = std::panic::Location::caller();
-    log::debug!("[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}", caller.file(), caller.line());
+    log::debug!(
+        "[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}",
+        caller.file(),
+        caller.line()
+    );
     let snapshot = read_proc_asound_snapshot();
     *PROC_CACHE.lock().unwrap() = Some(snapshot);
 }
@@ -188,7 +196,11 @@ fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
     let fresh = proc_cache_is_fresh();
     if !fresh {
         let caller = std::panic::Location::caller();
-        log::debug!("[PROC-CACHE] snapshot STALE — caller={}:{}", caller.file(), caller.line());
+        log::debug!(
+            "[PROC-CACHE] snapshot STALE — caller={}:{}",
+            caller.file(),
+            caller.line()
+        );
         try_refresh_proc_cache();
     }
     PROC_CACHE.lock().unwrap().clone()
@@ -204,7 +216,8 @@ pub(crate) fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
 /// jackd -n <name> creates /dev/shm/jack_<name>_<uid>_0
 pub(crate) fn jack_server_is_running_for(server_name: &str) -> bool {
     let prefix = format!("jack_{}_", server_name);
-    std::fs::read_dir("/dev/shm").ok()
+    std::fs::read_dir("/dev/shm")
+        .ok()
         .map(|entries| {
             entries.filter_map(|e| e.ok()).any(|e| {
                 let name = e.file_name();
@@ -223,7 +236,10 @@ fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => {
-            log::warn!("read_card_channels_raw: cannot read {}, using defaults 2/2", path);
+            log::warn!(
+                "read_card_channels_raw: cannot read {}, using defaults 2/2",
+                path
+            );
             return (2, 2);
         }
     };
@@ -261,11 +277,12 @@ fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let playback = playback_ch.unwrap_or(2);
     log::info!(
         "read_card_channels_raw: card {} → capture={} playback={}",
-        card, capture, playback
+        card,
+        capture,
+        playback
     );
     (capture, playback)
 }
-
 
 /// Enumerate input devices via JACK — one entry per running named JACK server.
 /// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:card1").

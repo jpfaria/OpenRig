@@ -143,7 +143,9 @@ impl JackServerState {
     /// config matches what is actually running.
     pub fn launched_config(&self) -> Option<&JackConfig> {
         match self {
-            Self::Ready { launched_config, .. } => Some(launched_config),
+            Self::Ready {
+                launched_config, ..
+            } => Some(launched_config),
             _ => None,
         }
     }
@@ -160,10 +162,7 @@ impl JackServerState {
 pub enum RestartReason {
     /// The user (or another change in project state) picked a different
     /// sample rate or buffer size.
-    ConfigMismatch {
-        old: JackConfig,
-        new: JackConfig,
-    },
+    ConfigMismatch { old: JackConfig, new: JackConfig },
     /// Socket exists but the server isn't responding to client connections.
     /// Seen after USB disconnects on RK3588: jackd's process survives but the
     /// ALSA driver has gone away.

@@ -50,7 +50,8 @@ pub(crate) fn create_host() -> cpal::Host {
 /// Safe to call from the UI thread — pure filesystem scan, no JACK client.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) fn jack_server_is_running() -> bool {
-    std::fs::read_dir("/dev/shm").ok()
+    std::fs::read_dir("/dev/shm")
+        .ok()
         .map(|entries| {
             entries.filter_map(|e| e.ok()).any(|e| {
                 let name = e.file_name();
@@ -81,7 +82,10 @@ pub(crate) fn is_asio_host(host: &cpal::Host) -> bool {
     host.id() == cpal::HostId::Asio
 }
 
-#[cfg(all(not(target_os = "windows"), not(all(target_os = "linux", feature = "jack"))))]
+#[cfg(all(
+    not(target_os = "windows"),
+    not(all(target_os = "linux", feature = "jack"))
+))]
 pub(crate) fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }

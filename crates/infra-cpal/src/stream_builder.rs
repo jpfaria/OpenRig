@@ -25,24 +25,24 @@
 //!   non-JACK chain_resolve path that builds a synthetic
 //!   ResolvedChainAudioConfig from libjack metadata.
 
-use anyhow::Result;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::anyhow;
+use anyhow::Result;
 use std::sync::Arc;
 
-use cpal::Stream;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::{DeviceTrait, StreamTrait};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SampleFormat;
+use cpal::Stream;
 
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use engine::runtime::{process_input_f32, process_output_f32};
-use project::chain::Chain;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{InputEntry, OutputEntry};
+use project::chain::Chain;
 
 use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
@@ -81,7 +81,7 @@ pub fn build_streams_for_project(
     // USB audio devices.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        let _ = project;       // not needed on Linux/JACK
+        let _ = project; // not needed on Linux/JACK
         let _ = runtime_graph; // not needed on Linux/JACK: all streaming handled by jack crate
         return Ok(Vec::new());
     }
@@ -90,7 +90,8 @@ pub fn build_streams_for_project(
     {
         let host = crate::host::get_host();
         crate::validation::validate_channels_against_devices(project, host)?;
-        let mut resolved_chains = crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project)?;
+        let mut resolved_chains =
+            crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project)?;
         let mut streams = Vec::new();
         for chain in &project.chains {
             if !chain.enabled {
@@ -104,7 +105,8 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, runtime)?;
+            let (input_streams, output_streams) =
+                build_chain_streams(&chain.id, resolved, runtime)?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -149,18 +151,22 @@ pub(crate) fn jack_resolve_chain_config(
                 return Some(card.server_name.clone());
             }
         }
-        cards.iter()
+        cards
+            .iter()
             .find(|c| supervisor_has_ready(&c.server_name))
             .map(|c| c.server_name.clone())
     };
 
     // Determine server from first input entry, or fallback to first
     // supervisor-ready card.
-    let server_name = chain.input_blocks().into_iter()
+    let server_name = chain
+        .input_blocks()
+        .into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .find_map(|entry| resolve_server(&entry.device_id.0))
         .or_else(|| {
-            cards.iter()
+            cards
+                .iter()
                 .find(|c| supervisor_has_ready(&c.server_name))
                 .map(|c| c.server_name.clone())
         })
@@ -172,7 +178,9 @@ pub(crate) fn jack_resolve_chain_config(
     let in_channels = meta.capture_port_count as u16;
     let out_channels = meta.playback_port_count as u16;
 
-    let input_sigs: Vec<InputStreamSignature> = chain.input_blocks().into_iter()
+    let input_sigs: Vec<InputStreamSignature> = chain
+        .input_blocks()
+        .into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .map(|entry| InputStreamSignature {
             device_id: device_id.clone(),
@@ -183,7 +191,9 @@ pub(crate) fn jack_resolve_chain_config(
         })
         .collect();
 
-    let output_sigs: Vec<OutputStreamSignature> = chain.output_blocks().into_iter()
+    let output_sigs: Vec<OutputStreamSignature> = chain
+        .output_blocks()
+        .into_iter()
         .flat_map(|(_, ob)| ob.entries.iter())
         .map(|entry| OutputStreamSignature {
             device_id: device_id.clone(),
@@ -414,8 +424,8 @@ pub(crate) fn build_output_stream_for_output(
                         process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
-                        *dst = (*src * i32::MAX as f32)
-                            .clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+                        *dst =
+                            (*src * i32::MAX as f32).clamp(i32::MIN as f32, i32::MAX as f32) as i32;
                     }
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -445,20 +455,26 @@ fn build_chain_streams(
     let mut input_streams = Vec::new();
     let mut seen_devices: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
-        let device_key = resolved_input.device.id().map(|id| id.to_string()).unwrap_or_default();
+        let device_key = resolved_input
+            .device
+            .id()
+            .map(|id| id.to_string())
+            .unwrap_or_default();
         if !seen_devices.insert(device_key.clone()) {
-            log::info!("input[{}] shares device '{}', reusing existing CPAL stream", i, device_key);
+            log::info!(
+                "input[{}] shares device '{}', reusing existing CPAL stream",
+                i,
+                device_key
+            );
             continue;
         }
-        let stream =
-            build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
+        let stream = build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
         input_streams.push(stream);
     }
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        let stream =
-            build_output_stream_for_output(chain_id, j, resolved_output, runtime.clone())?;
+        let stream = build_output_stream_for_output(chain_id, j, resolved_output, runtime.clone())?;
         output_streams.push(stream);
     }
 
@@ -471,7 +487,11 @@ pub(crate) fn build_active_chain_runtime(
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<ActiveChainRuntime> {
-    log::info!("building active chain runtime for '{}', sample_rate={}", chain_id.0, resolved.sample_rate);
+    log::info!(
+        "building active chain runtime for '{}', sample_rate={}",
+        chain_id.0,
+        resolved.sample_rate
+    );
     let stream_signature = resolved.stream_signature.clone();
 
     // On Linux with JACK: use the jack crate directly for zero-overhead audio.
@@ -535,7 +555,8 @@ pub(crate) fn build_chain_stream_signature_multi(
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
 ) -> ChainStreamSignature {
-    let chain_input_entries: Vec<&InputEntry> = chain.input_blocks()
+    let chain_input_entries: Vec<&InputEntry> = chain
+        .input_blocks()
         .into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .collect();
@@ -564,7 +585,8 @@ pub(crate) fn build_chain_stream_signature_multi(
             .collect()
     };
 
-    let chain_output_entries: Vec<&OutputEntry> = chain.output_blocks()
+    let chain_output_entries: Vec<&OutputEntry> = chain
+        .output_blocks()
         .into_iter()
         .flat_map(|(_, ob)| ob.entries.iter())
         .collect();

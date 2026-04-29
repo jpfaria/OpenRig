@@ -34,8 +34,7 @@ use std::time::{Duration, Instant};
 
 use super::backend::{JackBackend, PostReadyStatus};
 use super::types::{
-    HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName,
-    SupervisorEvent,
+    HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName, SupervisorEvent,
 };
 
 /// Maximum number of spawn attempts per `ensure_server` call. Kept low —
@@ -263,12 +262,12 @@ impl<B: JackBackend> JackSupervisor<B> {
             let reason = {
                 let server = self.servers.get(name).expect("inserted above");
                 match &server.state {
-                    JackServerState::Ready { launched_config, .. } => {
-                        RestartReason::ConfigMismatch {
-                            old: launched_config.clone(),
-                            new: desired.clone(),
-                        }
-                    }
+                    JackServerState::Ready {
+                        launched_config, ..
+                    } => RestartReason::ConfigMismatch {
+                        old: launched_config.clone(),
+                        new: desired.clone(),
+                    },
                     _ => unreachable!("guarded by needs_restart matches!"),
                 }
             };
@@ -503,8 +502,9 @@ impl<B: JackBackend> JackSupervisor<B> {
     /// counts, nperiods, realtime flags), when the server is not `Ready`, or
     /// when the buffer size already matches.
     pub fn only_buffer_changed(&self, name: &ServerName, desired: &JackConfig) -> bool {
-        let Some(JackServerState::Ready { launched_config, .. }) =
-            self.servers.get(name).map(|s| &s.state)
+        let Some(JackServerState::Ready {
+            launched_config, ..
+        }) = self.servers.get(name).map(|s| &s.state)
         else {
             return false;
         };
@@ -738,7 +738,6 @@ fn bump_buffer(config: &JackConfig) -> JackConfig {
         ..config.clone()
     }
 }
-
 
 #[cfg(test)]
 #[path = "supervisor_tests.rs"]

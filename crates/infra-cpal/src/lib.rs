@@ -45,12 +45,12 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_taps;
 mod device_enum;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub use device_enum::jack_is_running;
 pub use device_enum::{
     has_new_devices, invalidate_device_cache, list_devices, list_input_device_descriptors,
     list_output_device_descriptors,
 };
-#[cfg(all(target_os = "linux", feature = "jack"))]
-pub use device_enum::jack_is_running;
 
 mod device_settings;
 pub use device_settings::apply_device_settings;
@@ -62,8 +62,8 @@ pub use chain_resolve::resolve_project_chain_sample_rates;
 
 mod validation;
 
-mod stream_config;
 mod stream_builder;
+mod stream_config;
 pub use stream_builder::build_streams_for_project;
 
 // Cross-module helpers — these used to live in lib.rs and are referenced
@@ -75,9 +75,7 @@ pub use stream_builder::build_streams_for_project;
 pub(crate) use stream_builder::{build_active_chain_runtime, build_chain_stream_signature_multi};
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) use stream_builder::{build_active_chain_runtime, jack_resolve_chain_config};
-pub(crate) use stream_config::{
-    build_stream_config, resolved_output_buffer_size_frames,
-};
+pub(crate) use stream_config::{build_stream_config, resolved_output_buffer_size_frames};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
     max_supported_input_channels, max_supported_output_channels, required_channel_count,
@@ -90,4 +88,3 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod tests;
-

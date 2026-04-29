@@ -29,7 +29,10 @@ pub(crate) fn pin_thread_to_cpus(cpus: &[usize]) {
         }
         let ret = libc::sched_setaffinity(0, mem::size_of::<libc::cpu_set_t>(), &set);
         if ret != 0 {
-            log::warn!("sched_setaffinity failed: {}", std::io::Error::last_os_error());
+            log::warn!(
+                "sched_setaffinity failed: {}",
+                std::io::Error::last_os_error()
+            );
         }
     }
 }
@@ -41,7 +44,10 @@ pub(crate) fn pin_thread_to_cpus(cpus: &[usize]) {
 pub(crate) fn detect_big_cores() -> Vec<usize> {
     let mut cpu_freqs: Vec<(usize, u64)> = Vec::new();
     for cpu in 0..16 {
-        let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq", cpu);
+        let path = format!(
+            "/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq",
+            cpu
+        );
         if let Ok(contents) = std::fs::read_to_string(&path) {
             if let Ok(freq) = contents.trim().parse::<u64>() {
                 cpu_freqs.push((cpu, freq));
@@ -53,10 +59,15 @@ pub(crate) fn detect_big_cores() -> Vec<usize> {
         return vec![4, 5, 6, 7];
     }
     let max_freq = cpu_freqs.iter().map(|(_, f)| *f).max().unwrap_or(0);
-    let big: Vec<usize> = cpu_freqs.iter()
+    let big: Vec<usize> = cpu_freqs
+        .iter()
         .filter(|(_, f)| *f == max_freq)
         .map(|(cpu, _)| *cpu)
         .collect();
-    log::info!("DSP worker: detected big cores {:?} (max_freq={}kHz)", big, max_freq);
+    log::info!(
+        "DSP worker: detected big cores {:?} (max_freq={}kHz)",
+        big,
+        max_freq
+    );
     big
 }

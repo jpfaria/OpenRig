@@ -80,11 +80,15 @@ impl SpscRingBuffer {
         let base = slot * self.max_samples_per_slot;
         let n = samples.len().min(self.max_samples_per_slot);
         for i in 0..n {
-            unsafe { *self.data[base + i].get() = samples[i]; }
+            unsafe {
+                *self.data[base + i].get() = samples[i];
+            }
         }
         // Zero remaining samples in slot
         for i in n..self.max_samples_per_slot {
-            unsafe { *self.data[base + i].get() = 0.0; }
+            unsafe {
+                *self.data[base + i].get() = 0.0;
+            }
         }
         self.write_pos.store(wp.wrapping_add(1), Ordering::Release);
         true
@@ -123,7 +127,8 @@ pub(crate) struct JackShutdownHandler {
 impl jack::NotificationHandler for JackShutdownHandler {
     unsafe fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
         log::warn!("JACK server shutdown: {:?} — {}", status, reason);
-        self.shutdown_flag.store(true, std::sync::atomic::Ordering::Release);
+        self.shutdown_flag
+            .store(true, std::sync::atomic::Ordering::Release);
         // The supervisor's health_check will probe the server on the next
         // health tick and classify it as Zombie; that triggers try_reconnect
         // which calls supervisor.shutdown_all + fresh ensure_server. No

@@ -60,7 +60,13 @@ impl ActiveChainRuntime {
         client
             .as_client()
             .set_buffer_size(new_frames)
-            .map_err(|e| anyhow!("set_live_buffer_size: jackd refused {} frames: {:?}", new_frames, e))?;
+            .map_err(|e| {
+                anyhow!(
+                    "set_live_buffer_size: jackd refused {} frames: {:?}",
+                    new_frames,
+                    e
+                )
+            })?;
         log::info!(
             "set_live_buffer_size: applied in-place on live client → {} frames",
             new_frames
@@ -80,7 +86,8 @@ pub(crate) struct DspWorkerHandle {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 impl Drop for DspWorkerHandle {
     fn drop(&mut self) {
-        self.stop_flag.store(true, std::sync::atomic::Ordering::Release);
+        self.stop_flag
+            .store(true, std::sync::atomic::Ordering::Release);
         // Wake the worker so it sees the stop flag
         if let Ok(mut flag) = self.wake.0.lock() {
             *flag = true;

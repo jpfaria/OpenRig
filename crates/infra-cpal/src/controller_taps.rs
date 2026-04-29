@@ -25,7 +25,10 @@ use domain::ids::ChainId;
 use crate::controller::ProjectRuntimeController;
 
 impl ProjectRuntimeController {
-    pub fn poll_stream(&self, block_id: &domain::ids::BlockId) -> Option<Vec<block_core::StreamEntry>> {
+    pub fn poll_stream(
+        &self,
+        block_id: &domain::ids::BlockId,
+    ) -> Option<Vec<block_core::StreamEntry>> {
         for (_, runtime) in &self.runtime_graph.chains {
             if let Some(entries) = runtime.poll_stream(block_id) {
                 return Some(entries);
@@ -36,14 +39,18 @@ impl ProjectRuntimeController {
 
     /// Drains and returns all block errors that occurred since the last call.
     pub fn poll_errors(&self) -> Vec<engine::runtime::BlockError> {
-        self.runtime_graph.chains.values()
+        self.runtime_graph
+            .chains
+            .values()
             .flat_map(|runtime| runtime.poll_errors())
             .collect()
     }
 
     /// Returns the measured real-time latency in milliseconds for a given chain.
     pub fn measured_latency_ms(&self, chain_id: &ChainId) -> Option<f32> {
-        self.runtime_graph.chains.get(chain_id)
+        self.runtime_graph
+            .chains
+            .get(chain_id)
             .map(|runtime| runtime.measured_latency_ms())
     }
 

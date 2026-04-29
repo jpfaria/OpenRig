@@ -23,12 +23,12 @@
 //!
 //! Public surface: nothing. All `pub(crate)`.
 
-use anyhow::{anyhow, Result};
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::bail;
-use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
+use anyhow::{anyhow, Result};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SupportedStreamConfigRange;
+use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::DeviceTrait;
@@ -184,22 +184,34 @@ pub(crate) fn max_supported_input_channels(device: &cpal::Device) -> Result<usiz
     let max_supported = match device.supported_input_configs() {
         Ok(configs) => {
             let max = configs.map(|config| config.channels() as usize).max();
-            log::info!("[max_supported_input_channels] supported_input_configs max={:?}", max);
+            log::info!(
+                "[max_supported_input_channels] supported_input_configs max={:?}",
+                max
+            );
             max
         }
         Err(e) => {
-            log::warn!("[max_supported_input_channels] supported_input_configs error: {}", e);
+            log::warn!(
+                "[max_supported_input_channels] supported_input_configs error: {}",
+                e
+            );
             return Err(e.into());
         }
     };
     let default_channels = match device.default_input_config() {
         Ok(config) => {
             let ch = config.channels() as usize;
-            log::info!("[max_supported_input_channels] default_input_config channels={}", ch);
+            log::info!(
+                "[max_supported_input_channels] default_input_config channels={}",
+                ch
+            );
             Some(ch)
         }
         Err(e) => {
-            log::info!("[max_supported_input_channels] default_input_config error: {}", e);
+            log::info!(
+                "[max_supported_input_channels] default_input_config error: {}",
+                e
+            );
             None
         }
     };
@@ -211,22 +223,34 @@ pub(crate) fn max_supported_output_channels(device: &cpal::Device) -> Result<usi
     let max_supported = match device.supported_output_configs() {
         Ok(configs) => {
             let max = configs.map(|config| config.channels() as usize).max();
-            log::info!("[max_supported_output_channels] supported_output_configs max={:?}", max);
+            log::info!(
+                "[max_supported_output_channels] supported_output_configs max={:?}",
+                max
+            );
             max
         }
         Err(e) => {
-            log::warn!("[max_supported_output_channels] supported_output_configs error: {}", e);
+            log::warn!(
+                "[max_supported_output_channels] supported_output_configs error: {}",
+                e
+            );
             return Err(e.into());
         }
     };
     let default_channels = match device.default_output_config() {
         Ok(config) => {
             let ch = config.channels() as usize;
-            log::info!("[max_supported_output_channels] default_output_config channels={}", ch);
+            log::info!(
+                "[max_supported_output_channels] default_output_config channels={}",
+                ch
+            );
             Some(ch)
         }
         Err(e) => {
-            log::info!("[max_supported_output_channels] default_output_config error: {}", e);
+            log::info!(
+                "[max_supported_output_channels] default_output_config error: {}",
+                e
+            );
             None
         }
     };

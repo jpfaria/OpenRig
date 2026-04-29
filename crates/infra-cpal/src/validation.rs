@@ -54,7 +54,10 @@ pub(crate) fn validate_buffer_size(
     Ok(())
 }
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Result<()> {
+pub(crate) fn validate_channels_against_devices(
+    project: &Project,
+    host: &cpal::Host,
+) -> Result<()> {
     for chain in &project.chains {
         if !chain.enabled {
             continue;
@@ -65,26 +68,49 @@ pub(crate) fn validate_channels_against_devices(project: &Project, host: &cpal::
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
+pub(crate) fn validate_chain_channels_against_devices(
+    host: &cpal::Host,
+    chain: &Chain,
+) -> Result<()> {
     for (_, input) in chain.input_blocks() {
         for entry in &input.entries {
-            validate_input_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
+            validate_input_channels_against_device(
+                host,
+                &chain.id.0,
+                &entry.device_id.0,
+                &entry.channels,
+            )?;
         }
     }
 
     for (_, output) in chain.output_blocks() {
         for entry in &output.entries {
-            validate_output_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
+            validate_output_channels_against_device(
+                host,
+                &chain.id.0,
+                &entry.device_id.0,
+                &entry.channels,
+            )?;
         }
     }
 
     // Validate Insert block endpoints
     for (_, insert) in chain.insert_blocks() {
         if !insert.send.device_id.0.is_empty() {
-            validate_output_channels_against_device(host, &chain.id.0, &insert.send.device_id.0, &insert.send.channels)?;
+            validate_output_channels_against_device(
+                host,
+                &chain.id.0,
+                &insert.send.device_id.0,
+                &insert.send.channels,
+            )?;
         }
         if !insert.return_.device_id.0.is_empty() {
-            validate_input_channels_against_device(host, &chain.id.0, &insert.return_.device_id.0, &insert.return_.channels)?;
+            validate_input_channels_against_device(
+                host,
+                &chain.id.0,
+                &insert.return_.device_id.0,
+                &insert.return_.channels,
+            )?;
         }
     }
 
@@ -104,18 +130,21 @@ pub(crate) fn validate_input_channels_against_device(
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = (host, chain_id, device_id, channels);
-        log::debug!("[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)");
+        log::debug!(
+            "[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)"
+        );
         return Ok(());
     }
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
         log::info!(
             "[validate_input_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
-            chain_id, device_id, channels
+            chain_id,
+            device_id,
+            channels
         );
-        let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
-        })?;
+        let device = find_input_device_by_id(host, device_id)?
+            .ok_or_else(|| anyhow!("chain '{}' missing input device '{}'", chain_id, device_id))?;
         log::info!("[validate_input_channels] device found, querying channel capacity...");
         let total_channels = crate::max_supported_input_channels(&device).with_context(|| {
             format!(
@@ -123,7 +152,11 @@ pub(crate) fn validate_input_channels_against_device(
                 device_id
             )
         })?;
-        log::info!("[validate_input_channels] device '{}' has {} channels", device_id, total_channels);
+        log::info!(
+            "[validate_input_channels] device '{}' has {} channels",
+            device_id,
+            total_channels
+        );
         for channel in channels {
             if *channel >= total_channels {
                 bail!(
@@ -148,18 +181,21 @@ pub(crate) fn validate_output_channels_against_device(
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = (host, chain_id, device_id, channels);
-        log::debug!("[validate_output_channels] skipping — Linux/JACK (JACK validates at connect time)");
+        log::debug!(
+            "[validate_output_channels] skipping — Linux/JACK (JACK validates at connect time)"
+        );
         return Ok(());
     }
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
         log::info!(
             "[validate_output_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
-            chain_id, device_id, channels
+            chain_id,
+            device_id,
+            channels
         );
-        let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
-        })?;
+        let device = find_output_device_by_id(host, device_id)?
+            .ok_or_else(|| anyhow!("chain '{}' missing output device '{}'", chain_id, device_id))?;
         log::info!("[validate_output_channels] device found, querying channel capacity...");
         let total_channels = crate::max_supported_output_channels(&device).with_context(|| {
             format!(
@@ -167,7 +203,11 @@ pub(crate) fn validate_output_channels_against_device(
                 device_id
             )
         })?;
-        log::info!("[validate_output_channels] device '{}' has {} channels", device_id, total_channels);
+        log::info!(
+            "[validate_output_channels] device '{}' has {} channels",
+            device_id,
+            total_channels
+        );
         for channel in channels {
             if *channel >= total_channels {
                 bail!(
@@ -182,7 +222,10 @@ pub(crate) fn validate_output_channels_against_device(
     }
 }
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
+pub(crate) fn find_input_device_by_id(
+    host: &cpal::Host,
+    device_id: &str,
+) -> Result<Option<cpal::Device>> {
     for device in host.input_devices()? {
         if device.id()?.to_string() == device_id {
             return Ok(Some(device));
@@ -191,7 +234,10 @@ pub(crate) fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Res
     Ok(None)
 }
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
+pub(crate) fn find_output_device_by_id(
+    host: &cpal::Host,
+    device_id: &str,
+) -> Result<Option<cpal::Device>> {
     for device in host.output_devices()? {
         if device.id()?.to_string() == device_id {
             return Ok(Some(device));

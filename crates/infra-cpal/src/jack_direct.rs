@@ -46,10 +46,15 @@ pub(crate) fn build_jack_direct_chain(
     chain_id: &ChainId,
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
-) -> Result<(jack::AsyncClient<JackShutdownHandler, JackProcessHandler>, DspWorkerHandle)> {
+) -> Result<(
+    jack::AsyncClient<JackShutdownHandler, JackProcessHandler>,
+    DspWorkerHandle,
+)> {
     // Determine which named JACK server this chain should connect to.
     let cards = detect_all_usb_audio_cards();
-    let server_name = chain.input_blocks().into_iter()
+    let server_name = chain
+        .input_blocks()
+        .into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .find_map(|entry| {
             if let Some(name) = entry.device_id.0.strip_prefix("jack:") {
@@ -63,7 +68,8 @@ pub(crate) fn build_jack_direct_chain(
             None
         })
         .or_else(|| {
-            cards.iter()
+            cards
+                .iter()
                 .find(|c| jack_server_is_running_for(&c.server_name))
                 .map(|c| c.server_name.clone())
         })
@@ -71,50 +77,63 @@ pub(crate) fn build_jack_direct_chain(
 
     log::info!(
         "build_jack_direct_chain: chain '{}' → JACK server '{}'",
-        chain_id.0, server_name
+        chain_id.0,
+        server_name
     );
 
     let client_name = format!("openrig_{}", chain_id.0);
     // Retry up to 5 times with 200ms between attempts.
     // The JACK UNIX socket appears before the shm segments are fully initialized,
     // so the first connection attempt can fail with "Cannot open shm segment".
-    let result = (|| {
-        for attempt in 0..5u32 {
-            let _lock = jack_supervisor::live_backend::JACK_DEFAULT_SERVER_LOCK.lock().unwrap();
-            std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
-            let r = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
-            std::env::remove_var("JACK_DEFAULT_SERVER");
-            drop(_lock);
-            match r {
-                Ok(ok) => return Ok(ok),
-                Err(e) => {
-                    if attempt < 4 {
-                        log::warn!(
+    let result =
+        (|| {
+            for attempt in 0..5u32 {
+                let _lock = jack_supervisor::live_backend::JACK_DEFAULT_SERVER_LOCK
+                    .lock()
+                    .unwrap();
+                std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
+                let r = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
+                std::env::remove_var("JACK_DEFAULT_SERVER");
+                drop(_lock);
+                match r {
+                    Ok(ok) => return Ok(ok),
+                    Err(e) => {
+                        if attempt < 4 {
+                            log::warn!(
                             "JACK client '{}' connect attempt {} failed ({:?}), retrying in 200ms",
                             client_name, attempt + 1, e
                         );
-                        std::thread::sleep(std::time::Duration::from_millis(200));
-                    } else {
-                        return Err(e);
+                            std::thread::sleep(std::time::Duration::from_millis(200));
+                        } else {
+                            return Err(e);
+                        }
                     }
                 }
             }
-        }
-        unreachable!()
-    })();
-    let (client, _status) = result
-        .map_err(|e| anyhow!("failed to create JACK client for server '{}': {:?}", server_name, e))?;
+            unreachable!()
+        })();
+    let (client, _status) = result.map_err(|e| {
+        anyhow!(
+            "failed to create JACK client for server '{}': {:?}",
+            server_name,
+            e
+        )
+    })?;
 
     let sample_rate = client.sample_rate() as f32;
     let buf_size = client.buffer_size() as usize;
     log::info!(
         "JACK direct: client '{}', sample_rate={}, buffer_size={}",
-        client_name, sample_rate, buf_size
+        client_name,
+        sample_rate,
+        buf_size
     );
 
     // Collect chain's configured input/output entries — used only to size the
     // interleave scratch for the `max_in_ch / max_out_ch` picked below.
-    let input_entries: Vec<&InputEntry> = chain.blocks.iter()
+    let input_entries: Vec<&InputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -138,7 +157,8 @@ pub(crate) fn build_jack_direct_chain(
         .find(|c| c.server_name == server_name)
         .map(|c| c.capture_channels as usize)
         .unwrap_or(0);
-    let chain_max_in = input_entries.iter()
+    let chain_max_in = input_entries
+        .iter()
         .flat_map(|e| e.channels.iter())
         .copied()
         .max()
@@ -147,7 +167,9 @@ pub(crate) fn build_jack_direct_chain(
     let max_in_ch = device_in_ch.max(chain_max_in);
 
     // Collect output channel requirements from chain
-    let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+    let output_entries: Vec<&OutputEntry> = chain
+        .blocks
+        .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -161,7 +183,8 @@ pub(crate) fn build_jack_direct_chain(
         .find(|c| c.server_name == server_name)
         .map(|c| c.playback_channels as usize)
         .unwrap_or(0);
-    let chain_max_out = output_entries.iter()
+    let chain_max_out = output_entries
+        .iter()
         .flat_map(|e| e.channels.iter())
         .copied()
         .max()
@@ -230,7 +253,11 @@ pub(crate) fn build_jack_direct_chain(
             let big_cores = detect_big_cores();
             if !big_cores.is_empty() {
                 pin_thread_to_cpus(&big_cores);
-                log::info!("DSP worker '{}': pinned to cores {:?}", worker_chain_id, big_cores);
+                log::info!(
+                    "DSP worker '{}': pinned to cores {:?}",
+                    worker_chain_id,
+                    big_cores
+                );
             }
 
             // Set high priority (not RT, but high normal)
@@ -242,7 +269,12 @@ pub(crate) fn build_jack_direct_chain(
             }
 
             let mut read_buf = vec![0.0f32; samples_per_buffer];
-            log::info!("DSP worker '{}': started (buf_size={}, channels={})", worker_chain_id, buf_size, worker_channels);
+            log::info!(
+                "DSP worker '{}': started (buf_size={}, channels={})",
+                worker_chain_id,
+                buf_size,
+                worker_channels
+            );
 
             loop {
                 if worker_stop.load(std::sync::atomic::Ordering::Acquire) {
@@ -306,7 +338,8 @@ pub(crate) fn build_jack_direct_chain(
 
     let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let notification_handler = JackShutdownHandler { shutdown_flag };
-    let active_client = client.activate_async(notification_handler, handler)
+    let active_client = client
+        .activate_async(notification_handler, handler)
         .map_err(|e| anyhow!("failed to activate JACK client: {:?}", e))?;
 
     // Connect to system ports
@@ -327,7 +360,9 @@ pub(crate) fn build_jack_direct_chain(
 
     log::info!(
         "JACK direct: chain '{}' active with {} input(s), {} output(s), DSP worker on big cores",
-        chain_id.0, max_in_ch, max_out_ch
+        chain_id.0,
+        max_in_ch,
+        max_out_ch
     );
 
     Ok((active_client, worker_handle))

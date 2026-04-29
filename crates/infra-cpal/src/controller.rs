@@ -31,8 +31,6 @@ use crate::elastic::compute_elastic_targets_for_chain;
 use crate::resolved::ResolvedChainAudioConfig;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
-use anyhow::bail;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::host::using_jack_direct;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::jack_supervisor;
@@ -40,13 +38,17 @@ use crate::jack_supervisor;
 use crate::resolved::stream_signatures_require_client_rebuild;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::usb_proc::{detect_all_usb_audio_cards, UsbAudioCard};
+#[cfg(all(target_os = "linux", feature = "jack"))]
+use anyhow::bail;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::chain_resolve::{resolve_chain_audio_config, resolve_enabled_chain_audio_configs};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::get_host;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use crate::validation::{validate_channels_against_devices, validate_chain_channels_against_devices};
+use crate::validation::{
+    validate_chain_channels_against_devices, validate_channels_against_devices,
+};
 
 pub struct ProjectRuntimeController {
     pub(crate) runtime_graph: RuntimeGraph,
@@ -203,7 +205,10 @@ impl ProjectRuntimeController {
     }
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
-        log::debug!("syncing project runtime with {} chains", project.chains.len());
+        log::debug!(
+            "syncing project runtime with {} chains",
+            project.chains.len()
+        );
 
         // On Linux with JACK feature, only start jackd when the project has
         // at least one enabled chain that actually needs audio. Launching
@@ -258,9 +263,9 @@ impl ProjectRuntimeController {
                     continue;
                 }
 
-                let resolved = resolved_chains
-                    .remove(&chain.id)
-                    .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
+                let resolved = resolved_chains.remove(&chain.id).ok_or_else(|| {
+                    anyhow!("chain '{}' missing resolved audio config", chain.id.0)
+                })?;
                 self.upsert_chain_with_resolved(chain, resolved)?;
             }
 
@@ -304,7 +309,11 @@ impl ProjectRuntimeController {
     }
 
     pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
-        log::info!("upserting chain '{}', enabled={}", chain.id.0, chain.enabled);
+        log::info!(
+            "upserting chain '{}', enabled={}",
+            chain.id.0,
+            chain.enabled
+        );
         if !chain.enabled {
             self.remove_chain(&chain.id);
             return Ok(());
