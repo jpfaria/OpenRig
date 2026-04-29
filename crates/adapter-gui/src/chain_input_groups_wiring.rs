@@ -169,7 +169,7 @@ pub(crate) fn wire(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    device_id: fresh_input.first().map(|d| d.id.clone()),
+                    device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
                 });
