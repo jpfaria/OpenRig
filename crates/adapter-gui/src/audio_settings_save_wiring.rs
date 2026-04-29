@@ -28,6 +28,15 @@ use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::sync_project_runtime;
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
 
+/// Read the persisted `language` field so audio-device saves don't clobber it.
+/// Returns None when settings file is absent or has no language override.
+fn current_language() -> Option<String> {
+    FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .and_then(|s| s.language)
+}
+
 pub(crate) struct AudioSettingsSaveCtx {
     pub input_devices: Rc<VecModel<DeviceSelectionItem>>,
     pub output_devices: Rc<VecModel<DeviceSelectionItem>>,
@@ -119,6 +128,7 @@ pub(crate) fn wire(
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
+                        language: current_language(),
                     };
                     if !settings.is_complete() {
                         set_status_warning(
@@ -168,6 +178,7 @@ pub(crate) fn wire(
                     let gui_settings = GuiAudioSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
+                        language: current_language(),
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
@@ -250,6 +261,7 @@ pub(crate) fn wire(
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
+                        language: current_language(),
                     };
                     if !settings.is_complete() {
                         settings_window.set_status_message(
@@ -271,6 +283,7 @@ pub(crate) fn wire(
                     let gui_settings = GuiAudioSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
+                        language: current_language(),
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");

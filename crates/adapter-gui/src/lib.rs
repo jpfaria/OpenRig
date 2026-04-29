@@ -93,7 +93,9 @@ mod desktop_app_block_models;
 mod desktop_app_init;
 mod desktop_app_block_wiring;
 mod desktop_app_chain_wiring;
+mod i18n;
 pub use desktop_app::run_desktop_app;
+pub use i18n::{init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;

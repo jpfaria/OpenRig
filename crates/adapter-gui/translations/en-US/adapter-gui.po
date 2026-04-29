@@ -1,0 +1,21 @@
+# OpenRig — English (US).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: OpenRig\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-29 00:00+0000\n"
+"PO-Revision-Date: 2026-04-29 00:00+0000\n"
+"Last-Translator: João Paulo Faria <jpfaria@gmail.com>\n"
+"Language-Team: English (US)\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Buscar modelos..."
+msgstr "Search models..."
+
+msgid "Nenhum modelo encontrado"
+msgstr "No models found"

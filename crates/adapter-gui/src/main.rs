@@ -1,11 +1,21 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use adapter_gui::run_desktop_app;
+use adapter_gui::{init_translations, run_desktop_app};
+use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .init();
+
+    // Load persisted language override (if any) before anything renders.
+    // Failures here must not block startup — translations are best-effort.
+    let persisted_language = FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .and_then(|s| s.language);
+    init_translations(persisted_language.as_deref());
+
     let runtime_mode = match std::env::var("OPENRIG_APP_MODE").ok().as_deref() {
         Some("pedalboard") => AppRuntimeMode::Pedalboard,
         Some("controller") => AppRuntimeMode::Controller,
