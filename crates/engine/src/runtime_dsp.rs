@@ -10,21 +10,22 @@
 //!   - `ensure_flush_to_zero` — sets FZ bit on aarch64 FPCR so NAM
 //!     network output doesn't degrade through accumulating denormals.
 //!     No-op on x86 (NAM/Eigen handle DAZ+FTZ internally there).
+//!     (CPU/FPU setup, not DSP math, but lives here because it gates
+//!     correct DSP output on aarch64 and runs every callback alongside
+//!     the rest of these helpers.)
 //!   - `blend_frame` — dry/wet crossfade for Insert send/return blend.
 //!   - `output_limiter` — tanh soft clipper above 0.95 — the chain's
 //!     last line of defence against samples clipping over ±1.0.
 //!   - `apply_mixdown` — Stereo → Mono channel reduction modes (Sum /
 //!     Average / Left / Right). Used by `write_output_frame` when an
 //!     output route is mono.
-//!   - `downcast_panic_message` — pulls the `&str` / `String` payload
-//!     out of `catch_unwind` so a faulted DSP block can be reported
-//!     to the UI instead of taking down the audio thread.
 //!
 //! What's NOT here: actual buffer I/O (writing to the interleaved
 //! output buffer) lives in `runtime_io.rs`. Channel-layout type
-//! helpers live in `runtime_layout.rs`.
-
-use std::any::Any;
+//! helpers live in `runtime_layout.rs`. `downcast_panic_message` —
+//! the error-handling helper that pulls a string out of a
+//! `catch_unwind` payload — lives in `runtime.rs` next to its
+//! single caller (`apply_block_processor`).
 
 use project::chain::ChainOutputMixdown;
 
@@ -46,16 +47,6 @@ pub(crate) fn ensure_flush_to_zero() {
         if fpcr & (1 << 24) == 0 {
             core::arch::asm!("msr fpcr, {}", in(reg) fpcr | (1 << 24));
         }
-    }
-}
-
-pub(crate) fn downcast_panic_message(payload: Box<dyn Any + Send>) -> String {
-    if let Some(s) = payload.downcast_ref::<&str>() {
-        s.to_string()
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown panic".to_string()
     }
 }
 

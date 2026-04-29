@@ -371,7 +371,8 @@ pub(crate) use crate::runtime_graph::{
 //   - runtime_dsp.rs        → DSP math + per-callback CPU setup
 //   - runtime_layout.rs     → AudioChannelLayout type helpers
 //   - runtime_io.rs         → output buffer write (the only real I/O)
-use crate::runtime_dsp::{blend_frame, downcast_panic_message, ensure_flush_to_zero};
+use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
+use std::any::Any;
 use crate::runtime_io::write_output_frame;
 // Re-export layout_label so existing `crate::runtime::layout_label` paths
 // in runtime_graph.rs / runtime_block_builders.rs / runtime_tests.rs keep
@@ -789,6 +790,19 @@ fn apply_block_processor(
             }
         }
         RuntimeProcessor::Bypass => {}
+    }
+}
+
+/// Pull a string out of a `catch_unwind` payload so a faulted DSP block
+/// can be reported via `BlockError` instead of taking down the audio
+/// thread. Lives here next to its only caller (`apply_block_processor`).
+fn downcast_panic_message(payload: Box<dyn Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
     }
 }
 
