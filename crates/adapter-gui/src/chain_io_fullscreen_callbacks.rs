@@ -255,14 +255,13 @@ pub(crate) fn wire(
                     let gi = group_index as usize;
                     draft.editing_input_index = Some(gi);
                     if let Some(input_group) = draft.inputs.get(gi) {
-                        let session_borrow = project_session.borrow();
-                        if let Some(session) = session_borrow.as_ref() {
+                        if project_session.borrow().is_some() {
                             let dev_idx = selected_device_index(
                                 &fresh_input,
                                 input_group.device_id.as_deref(),
                             );
                             let mode_idx = input_mode_to_index(input_group.mode);
-                            let channel_items = build_input_channel_items(input_group, draft, &session.project, &fresh_input);
+                            let channel_items = build_input_channel_items(input_group, &fresh_input);
                             let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into(), "Dual Mono".into()];
                             let device_strings: Vec<slint::SharedString> = fresh_input.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
                             // Sync shared VecModel so toggle_chain_input_channel works

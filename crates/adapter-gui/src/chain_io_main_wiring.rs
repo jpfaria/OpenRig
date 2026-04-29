@@ -100,12 +100,10 @@ pub(crate) fn wire(
                 input_group.channels.clear();
             }
             // Now use immutable references
-            if let Some(session) = project_session.borrow().as_ref() {
+            if project_session.borrow().is_some() {
                 if let Some(input_group) = draft.inputs.get(gi) {
                     let channel_items = build_input_channel_items(
                         input_group,
-                        draft,
-                        &session.project,
                         &fresh_input,
                     );
                     replace_channel_options(&chain_input_channels, channel_items.clone());

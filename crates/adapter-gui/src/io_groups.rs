@@ -1,5 +1,4 @@
 use infra_cpal::AudioDeviceDescriptor;
-use project::project::Project;
 use slint::{ModelRc, VecModel};
 use std::rc::Rc;
 use crate::{AppWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, IoGroupItem};
@@ -75,14 +74,12 @@ pub(crate) fn apply_chain_io_groups(
 pub(crate) fn apply_chain_input_window_state(
     input_window: &ChainInputWindow,
     input_group: &InputGroupDraft,
-    draft: &ChainDraft,
-    project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     channel_model: &Rc<VecModel<ChannelOptionItem>>,
 ) {
     replace_channel_options(
         channel_model,
-        build_input_channel_items(input_group, draft, project, input_devices),
+        build_input_channel_items(input_group, input_devices),
     );
     input_window.set_selected_device_index(selected_device_index(
         input_devices,

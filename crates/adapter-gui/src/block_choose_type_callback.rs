@@ -236,18 +236,12 @@ pub(crate) fn wire(
                 });
                 if let Some(input_window) = weak_input_window.upgrade() {
                     let fresh_input = refresh_input_devices(&chain_input_device_options);
-                    let draft_borrow = chain_draft.borrow();
-                    let draft = draft_borrow.as_ref().unwrap();
-                    if let Some(session) = project_session.borrow().as_ref() {
-                        apply_chain_input_window_state(
-                            &input_window,
-                            &input_group,
-                            draft,
-                            &session.project,
-                            &fresh_input,
-                            &chain_input_channels,
-                        );
-                    }
+                    apply_chain_input_window_state(
+                        &input_window,
+                        &input_group,
+                        &fresh_input,
+                        &chain_input_channels,
+                    );
                     show_child_window(window.window(), input_window.window());
                 }
             } else {

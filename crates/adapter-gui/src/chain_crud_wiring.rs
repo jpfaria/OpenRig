@@ -149,7 +149,7 @@ pub(crate) fn wire(
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,
-                    build_input_channel_items(input_group, &draft, &session.project, &devs_in),
+                    build_input_channel_items(input_group, &devs_in),
                 );
             }
             if let Some(output_group) = draft.outputs.first() {
@@ -258,7 +258,7 @@ pub(crate) fn wire(
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,
-                    build_input_channel_items(input_group, &draft, &session.project, &devs_in),
+                    build_input_channel_items(input_group, &devs_in),
                 );
             }
             if let Some(output_group) = draft.outputs.first() {

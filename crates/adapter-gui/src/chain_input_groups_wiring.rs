@@ -91,15 +91,13 @@ pub(crate) fn wire(
                 return;
             };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
+            if session_borrow.is_none() {
                 return;
-            };
+            }
             if let Some(input_group) = draft.inputs.get(gi) {
                 apply_chain_input_window_state(
                     &input_window,
                     input_group,
-                    draft,
-                    &session.project,
                     &fresh_input,
                     &chain_input_channels,
                 );
@@ -187,15 +185,13 @@ pub(crate) fn wire(
                 return;
             };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
+            if session_borrow.is_none() {
                 return;
-            };
+            }
             if let Some(input_group) = draft.inputs.get(new_idx) {
                 apply_chain_input_window_state(
                     &input_window,
                     input_group,
-                    draft,
-                    &session.project,
                     &fresh_input,
                     &chain_input_channels,
                 );
