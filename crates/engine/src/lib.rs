@@ -3,6 +3,7 @@ pub mod probe;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;
+pub mod runtime_block_core;
 pub mod runtime_dsp;
 pub mod runtime_endpoints;
 pub mod runtime_graph;
