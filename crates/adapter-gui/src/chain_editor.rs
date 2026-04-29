@@ -21,24 +21,15 @@ pub(crate) fn create_chain_draft(
     _input_devices: &[AudioDeviceDescriptor],
     _output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
-    // Empty I/O fields force the user to consciously pick the device + channels
-    // for the chain instead of accepting whichever device happens to be first.
-    let default_input = InputGroupDraft {
-        device_id: None,
-        channels: Vec::new(),
-        mode: ChainInputMode::Mono,
-    };
-    let default_output = OutputGroupDraft {
-        device_id: None,
-        channels: Vec::new(),
-        mode: ChainOutputMode::Stereo,
-    };
+    // No placeholder rows: the user must explicitly click "+ Adicionar entrada"
+    // and "+ Adicionar saída" before saving. The save handler rejects empty
+    // inputs/outputs with a toast.
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
-        inputs: vec![default_input],
-        outputs: vec![default_output],
+        inputs: Vec::new(),
+        outputs: Vec::new(),
         editing_io_block_index: None,
         editing_input_index: None,
         editing_output_index: None,
