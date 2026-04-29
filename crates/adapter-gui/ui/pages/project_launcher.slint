@@ -281,9 +281,8 @@ export component ProjectLauncherPage inherits Rectangle {
         }
 
         LanguageSelector {
-            x: parent.width - 360px;
+            x: parent.width - 268px;
             y: 6px;
-            compact: true;
             language-options: root.language-options;
             selected-language-index: root.selected-language-index;
             language-selected(i) => { root.change-language(i); }

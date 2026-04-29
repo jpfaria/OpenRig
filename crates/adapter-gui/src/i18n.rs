@@ -167,18 +167,29 @@ pub fn init_translations(persisted_language: Option<&str>) {
     // pick which locale is active.
     rust_i18n::set_locale(&locale);
 
-    // Slint side: gettext. setlocale + bindtextdomain + textdomain.
+    // Slint side: gettext.
+    //
+    // gettext picks the active language from environment vars first
+    // (LANGUAGE, then LC_ALL, then LC_MESSAGES, then LANG). setlocale
+    // alone is NOT enough on macOS / glibc-less platforms: libintl re-reads
+    // the env on each lookup and ignores in-process setlocale changes.
+    //
+    // We set LANGUAGE explicitly because it has the highest priority and
+    // works consistently on Linux/macOS/Windows. This is safe — we own
+    // the process and only adjust at startup, before any UI renders.
     use gettextrs::{bindtextdomain, setlocale, textdomain, LocaleCategory};
 
-    let target = format!("{}.UTF-8", locale.replace('-', "_"));
+    let posix = locale.replace('-', "_");
+    std::env::set_var("LANGUAGE", &posix);
+
+    let target = format!("{}.UTF-8", posix);
     let applied = setlocale(LocaleCategory::LcMessages, target.clone());
     if applied.is_none() {
-        let bare = locale.replace('-', "_");
-        if setlocale(LocaleCategory::LcMessages, bare.clone()).is_none() {
+        if setlocale(LocaleCategory::LcMessages, posix.clone()).is_none() {
             log::warn!(
-                "i18n: setlocale rejected {:?} and {:?} — Slint translations may not load",
-                target,
-                bare
+                "i18n: setlocale rejected {:?} and {:?} — Slint translations \
+                 will rely on the LANGUAGE env var only",
+                target, posix
             );
         }
     }
@@ -295,5 +306,90 @@ mod tests {
         let codes: Vec<_> = SUPPORTED_LANGUAGES.iter().map(|l| l.code).collect();
         assert!(codes.contains(&"pt-BR"));
         assert!(codes.contains(&"en-US"));
+    }
+
+    /// gettext on Unix derives the catalog path from `setlocale(LC_MESSAGES,
+    /// "en_US.UTF-8")` and looks under `<dir>/en_US/LC_MESSAGES/<domain>.mo` —
+    /// underscore, not hyphen. If we ever add a hyphenated locale dir again,
+    /// dgettext silently echoes back the msgid (the bug behind the original
+    /// "BTN-NEW-PROJECT" leak).
+    #[test]
+    fn translation_dirs_use_posix_underscore_not_bcp47_hyphen() {
+        let translations = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("translations");
+        let entries = std::fs::read_dir(&translations)
+            .expect("crates/adapter-gui/translations/ must exist");
+        let mut hyphenated = Vec::new();
+        let mut posix = Vec::new();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if name.contains('-') {
+                hyphenated.push(name.to_string());
+            } else if name.contains('_') {
+                posix.push(name.to_string());
+            }
+        }
+        assert!(
+            hyphenated.is_empty(),
+            "Found BCP 47 hyphen locale dirs: {:?}. \
+             gettext lookup will fail for these — rename to POSIX underscore \
+             (e.g. pt_BR, en_US). Coexistent POSIX dirs: {:?}",
+            hyphenated, posix
+        );
+        assert!(
+            !posix.is_empty(),
+            "No POSIX locale dirs found under translations/ — pipeline broken"
+        );
+    }
+
+    /// End-to-end: bind the catalog, set locale, perform the same dgettext
+    /// call Slint runtime makes for `@tr("btn-new-project")` inside the
+    /// `ProjectLauncherPage` component, and assert dgettext returns the
+    /// translation, NOT the mangled msgid.
+    ///
+    /// Marked `#[ignore]` because:
+    ///   1. It mutates global gettext state, which conflicts with parallel
+    ///      tests running on the same process.
+    ///   2. It requires `.mo` files to exist on disk (build.rs writes them).
+    ///      `cargo test --workspace` runs the build, but isolated invocations
+    ///      that skip the build (rare) would fail spuriously.
+    /// Run with `cargo test -p adapter-gui --lib gettext_resolves -- --ignored`.
+    #[test]
+    #[ignore = "mutates global gettext state; run with --ignored"]
+    fn gettext_resolves_btn_new_project_in_en_us() {
+        use gettextrs::{bindtextdomain, dgettext, setlocale, textdomain, LocaleCategory};
+
+        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("translations");
+        std::env::set_var("LANGUAGE", "en_US");
+        bindtextdomain(TEXT_DOMAIN, dir).expect("bindtextdomain");
+        textdomain(TEXT_DOMAIN).expect("textdomain");
+        setlocale(LocaleCategory::LcMessages, "en_US.UTF-8");
+
+        // The mangled msgid is exactly what i-slint-core emits for
+        // @tr("btn-new-project") inside ProjectLauncherPage:
+        // <ctx>\u{4}<msgid>
+        let mangled = format!("ProjectLauncherPage\u{4}btn-new-project");
+        let result = dgettext(TEXT_DOMAIN, mangled.clone());
+
+        assert_ne!(
+            result, mangled,
+            "dgettext echoed back the mangled msgid — translation lookup \
+             FAILED. This is the bug that surfaces as 'BTN-NEW-PROJECT' \
+             leaking into the UI. Likely cause: dir layout regressed to \
+             BCP 47 hyphen, or .mo file missing the key."
+        );
+        // Slint demangles by taking the part after \u{4}.
+        let demangled = result.split('\u{4}').last().unwrap_or(&result);
+        assert_eq!(
+            demangled, "New project",
+            "Translation resolved but does not match expected en-US value"
+        );
     }
 }

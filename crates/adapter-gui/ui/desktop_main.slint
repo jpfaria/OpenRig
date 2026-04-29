@@ -443,9 +443,8 @@ export component DesktopMain inherits Rectangle {
     // open/create-project buttons so they don't fight for the same corner).
     if !root.show-project-launcher : LanguageSelector {
         x: parent.width - self.width - 16px;
-        y: 18px;
+        y: 22px;
         z: 200;
-        compact: true;
         language-options: root.language-options;
         selected-language-index: root.selected-language-index;
         language-selected(i) => { root.change-language(i); }
