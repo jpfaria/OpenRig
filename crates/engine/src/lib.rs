@@ -7,6 +7,7 @@ pub mod runtime_dsp;
 pub mod runtime_graph;
 pub mod runtime_io;
 pub mod runtime_layout;
+pub mod runtime_probe;
 pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;

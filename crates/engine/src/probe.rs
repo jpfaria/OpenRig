@@ -43,11 +43,7 @@ const PROBE_BUFFER_CHANNELS: usize = 2;
 ///
 /// Returns `0.0` on any build error (the UI treats zero as "not
 /// measured" and hides the badge).
-pub fn measure_chain_dsp_latency_ms(
-    chain: &Chain,
-    sample_rate: f32,
-    buffer_frames: usize,
-) -> f32 {
+pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_frames: usize) -> f32 {
     if buffer_frames == 0 {
         return 0.0;
     }
@@ -153,12 +149,7 @@ pub fn measure_chain_dsp_latency_ms(
     let ms = elapsed.as_nanos() as f32 / 1_000_000.0;
     eprintln!(
         "[probe] chain={} sr={} buf_frames={} enabled_blocks={:?} elapsed={:.3}ms {}",
-        chain.id.0,
-        sample_rate,
-        buffer_frames,
-        enabled_blocks,
-        ms,
-        runtime_summary,
+        chain.id.0, sample_rate, buffer_frames, enabled_blocks, ms, runtime_summary,
     );
     ms
 }

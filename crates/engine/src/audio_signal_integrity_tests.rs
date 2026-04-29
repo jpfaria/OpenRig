@@ -122,8 +122,8 @@ fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
 }
 
 fn neutral_params(effect_type: &str, model: &str) -> ParameterSet {
-    let schema = schema_for_block_model(effect_type, model)
-        .expect("schema must exist for test model");
+    let schema =
+        schema_for_block_model(effect_type, model).expect("schema must exist for test model");
     ParameterSet::default()
         .normalized_against(&schema)
         .expect("defaults must normalize")
@@ -422,8 +422,7 @@ fn extreme_amplitude_input_does_not_produce_nan() {
     let mut gen = SineGen::new(220.0, SR, 1.0);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 4);
 
-    scan_finite("fullscale_finite", &captured)
-        .expect("non-finite output for full-scale input");
+    scan_finite("fullscale_finite", &captured).expect("non-finite output for full-scale input");
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -458,8 +457,7 @@ fn eq_eight_band_at_defaults_is_transparent_no_clipping() {
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 8);
 
-    scan_for_click("eq8_defaults", &captured, 1, 0.1)
-        .expect("EQ at defaults should be click-free");
+    scan_for_click("eq8_defaults", &captured, 1, 0.1).expect("EQ at defaults should be click-free");
     scan_within_magnitude("eq8_defaults_magnitude", &captured, 1.0)
         .expect("EQ at defaults should not clip");
 
@@ -528,8 +526,7 @@ fn eq_eight_band_one_band_max_boost_does_not_overshoot_input() {
     let mut gen = SineGen::new(1_000.0, SR, 0.05);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
 
-    scan_finite("eq8_1k_+24_finite", &captured)
-        .expect("EQ +24dB at 1k must produce finite output");
+    scan_finite("eq8_1k_+24_finite", &captured).expect("EQ +24dB at 1k must produce finite output");
     let peak = captured.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
     eprintln!("[eq8 1k +24dB] input peak 0.05 → output peak {peak:.4}");
     assert!(
@@ -557,8 +554,7 @@ fn eq_eight_band_output_trim_attenuates_uniformly() {
     let runtime = build_runtime(&chain);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 8);
-    scan_finite("eq8_out_trim_-6dB", &captured)
-        .expect("output trim must not produce NaN");
+    scan_finite("eq8_out_trim_-6dB", &captured).expect("output trim must not produce NaN");
     let peak = captured.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
     let expected = 0.5_f32 * 10.0_f32.powf(-6.0 / 20.0); // ≈ 0.2506
     assert!(
@@ -627,7 +623,9 @@ fn eq_eight_band_smile_curve_typical_user_config() {
     // boosted band centers and find the worst-case overshoot.
     let mut max_overshoot = 0.0_f32;
     let mut worst_freq = 0.0_f32;
-    for &freq in &[62.0_f32, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0] {
+    for &freq in &[
+        62.0_f32, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0,
+    ] {
         let runtime = build_runtime(&chain); // fresh runtime per freq, no leftover state
         let mut gen = SineGen::new(freq, SR, 0.5);
         let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
@@ -714,8 +712,7 @@ fn eq_eight_band_at_defaults_full_scale_no_overshoot() {
     let mut gen = SineGen::new(220.0, SR, 1.0);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
 
-    scan_finite("eq8_fullscale_finite", &captured)
-        .expect("EQ must not produce NaN at full scale");
+    scan_finite("eq8_fullscale_finite", &captured).expect("EQ must not produce NaN at full scale");
     let max_abs = captured.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
     // Full-scale sine through unity EQ → output peak ≤ 1.0 (limiter
     // soft-saturates at 0.95, so peak <= ~0.95 + tanh tail).

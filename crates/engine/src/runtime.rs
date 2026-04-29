@@ -1,40 +1,16 @@
-use block_core::{AudioChannelLayout, StreamHandle};
-use domain::ids::BlockId;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
-use arc_swap::ArcSwap;
+use block_core::AudioChannelLayout;
 use crossbeam_queue::ArrayQueue;
 
-use crate::input_tap::InputTap;
-use crate::spsc::SpscRing;
 use crate::stream_tap::StreamTap;
 
-/// Floor for the elastic buffer target. Below this the buffer cannot absorb
-/// even minor scheduling jitter, regardless of how small the device buffer is.
-pub const ELASTIC_TARGET_FLOOR: usize = 64;
-
-/// Default elastic target used when no device-derived value is provided
-/// (tests, headless tools). Production callers in infra-cpal compute this
-/// from the resolved device buffer size via [`elastic_target_for_buffer`].
-pub const DEFAULT_ELASTIC_TARGET: usize = 256;
-
-/// Compute the elastic buffer target level (in frames) for a given device
-/// buffer size and backend multiplier.
-///
-/// The elastic buffer absorbs jitter between the producer (input + DSP path)
-/// and the consumer (output callback). Sizing it relative to the actual device
-/// buffer makes the latency proportional to the user's chosen buffer size
-/// instead of a hardcoded constant.
-///
-/// `multiplier` reflects backend-specific jitter:
-/// - `2` — direct CPAL callbacks (macOS/Windows/Linux ALSA): tight, predictable.
-/// - `8` — JACK with worker-thread DSP (Linux): non-RT worker adds variance.
-pub fn elastic_target_for_buffer(buffer_size_frames: u32, multiplier: u8) -> usize {
-    let target = (buffer_size_frames as usize).saturating_mul(multiplier as usize);
-    target.max(ELASTIC_TARGET_FLOOR)
-}
+// Public elastic-target API moved to `runtime_audio_frame` (where ElasticBuffer
+// lives); re-exported here so external callers `engine::runtime::*` keep working.
+pub use crate::runtime_audio_frame::{
+    elastic_target_for_buffer, DEFAULT_ELASTIC_TARGET, ELASTIC_TARGET_FLOOR,
+};
 
 // Re-export the audio-frame primitives so tests in `runtime_tests.rs` keep using
 // `super::AudioFrame` etc., and the rest of `runtime.rs` keeps the old call sites.
@@ -50,340 +26,54 @@ pub(crate) use crate::runtime_audio_frame::{AudioProcessor, ElasticBuffer, Proce
 #[cfg(test)]
 pub(crate) use crate::runtime_audio_frame::{mix_frames, read_channel, silent_frame};
 
-
 // Slice 2 of Phase 2: state structs lifted to runtime_state.rs.
-// `BlockError` stays `pub` (re-exported as `engine::runtime::BlockError`
-// from infra-cpal / adapter-console). The rest are `pub(crate)`.
-pub use crate::runtime_state::BlockError;
+// Slice 6 of Phase 2: ChainRuntimeState struct + impl + FADE_IN_FRAMES
+// also lifted to runtime_state.rs (it's the root state, fits with the
+// support state types that already lived there).
+// `BlockError` and `ChainRuntimeState` stay `pub` (re-exported as
+// `engine::runtime::BlockError` / `ChainRuntimeState` from infra-cpal /
+// adapter-console). The rest are `pub(crate)`.
+pub use crate::runtime_state::{BlockError, ChainRuntimeState};
 pub(crate) use crate::runtime_state::{
-    BlockRuntimeNode, ChainProcessingState, FadeState, InputCallbackScratch,
-    InputProcessingState, OutputRoutingState, RuntimeProcessor,
+    BlockRuntimeNode, ChainProcessingState, FadeState, InputCallbackScratch, InputProcessingState,
+    RuntimeProcessor, FADE_IN_FRAMES,
 };
 // Test-only — `runtime_tests.rs` references SelectRuntimeState via `super::`.
 // `ProcessorBuildOutcome` only used inside `runtime_graph.rs` after slice 3.
 #[cfg(test)]
 pub(crate) use crate::runtime_state::SelectRuntimeState;
 
+// Slice 6 of Phase 2: probe state machine + probe impl methods lifted to
+// runtime_probe.rs. Re-exports below preserve `crate::runtime::PROBE_*`
+// paths in runtime_graph.rs and probe.rs.
+use crate::runtime_probe::{PROBE_ARMED, PROBE_DETECT_THRESHOLD, PROBE_FIRED};
+pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_IDLE};
 
-pub struct ChainRuntimeState {
-    pub(crate) processing: Mutex<ChainProcessingState>,
-    /// Per-route output state. Swapped atomically on chain rebuild so the
-    /// RT callback sees a fresh snapshot without taking any lock.
-    pub(crate) output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
-    /// Stream handles published by block processors, polled by UI thread.
-    pub(crate) stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
-    /// Errors posted by the audio thread, drained by the UI thread.
-    /// Lock-free SPSC bounded queue: audio thread `push` is wait-free,
-    /// UI thread `pop` is wait-free. Audio thread never blocks on UI
-    /// contention. When full, audio drops new errors silently — the
-    /// queue is sized for any plausible burst.
-    pub(crate) error_queue: ArrayQueue<BlockError>,
-    /// Monotonic reference used to derive `u64` nanos for latency probes.
-    /// Captured at state creation.
-    pub(crate) created_at: std::time::Instant,
-    /// Nanos-since-`created_at` of the moment a probe beep was injected
-    /// into the input stream. Written by `process_input_f32` when a probe
-    /// transitions Armed → Fired; read by `process_output_f32` when the
-    /// beep is detected at the output, to compute the measured latency.
-    pub(crate) last_input_nanos: AtomicU64,
-    /// Measured end-to-end latency (ns) of the last completed probe.
-    /// Exposed to the UI via `measured_latency_ms()`.
-    pub(crate) measured_latency_nanos: AtomicU64,
-    /// Latency probe state machine: Idle / Armed / Fired. Transitions are
-    /// Idle → Armed (user click), Armed → Fired (input callback injects
-    /// the beep), Fired → Idle (output callback detects the beep).
-    pub(crate) probe_state: std::sync::atomic::AtomicU8,
-    /// When true, the audio callback must not call any block processors.
-    /// Set before deactivating the JACK client to prevent use-after-free
-    /// in C++ NAM destructors (terminate called without active exception).
-    pub(crate) draining: std::sync::atomic::AtomicBool,
-    /// Per-channel sample taps published to consumers (Tuner / Spectrum
-    /// windows). Empty by default. Hot-swapped via ArcSwap so the audio
-    /// thread reads without locking. See `crate::input_tap::InputTap`.
-    pub(crate) input_taps: ArcSwap<Vec<Arc<InputTap>>>,
-    /// Per-stream sample taps published to consumers (Spectrum window).
-    /// A "stream" is one `InputProcessingState` — one input feeding one
-    /// parallel pipeline through the chain — so each tap publishes the
-    /// post-FX, pre-mixdown stereo signal of a single guitar / mic /
-    /// keyboard. Subscribing per-stream (instead of per-output-channel)
-    /// keeps the analyzer separate per input source even when several
-    /// inputs share an output device.
-    ///
-    /// The publish point is *before* the device-side `output_muted`
-    /// zero-fill, so muting the audio output does not blank the analyzer.
-    pub(crate) stream_taps: ArcSwap<Vec<Arc<StreamTap>>>,
-    /// When true, the output stage zeros every frame before publishing.
-    /// Toggled by any consumer that needs a silent output (e.g. the
-    /// Tuner window). Auto-cleared on consumer close.
-    pub(crate) output_muted: std::sync::atomic::AtomicBool,
-}
-
-pub(crate) const PROBE_IDLE: u8 = 0;
-const PROBE_ARMED: u8 = 1;
-const PROBE_FIRED: u8 = 2;
-/// Number of audio frames the probe beep occupies. At 48 kHz this is
-/// 128 / 48000 ≈ 2.7 ms of a short 1 kHz sine burst — audible as a "tick"
-/// without being intrusive.
-pub(crate) const PROBE_BEEP_FRAMES: usize = 128;
-/// Frequency of the sine used for the probe beep, in Hz.
-pub(crate) const PROBE_BEEP_FREQ: f32 = 1000.0;
-/// Output sample amplitude that counts as "the probe arrived". Set low
-/// enough to catch the beep even through an amp model that attenuates
-/// or filters the 1 kHz sine, but well above a realistic digital noise
-/// floor so background hum does not false-trigger detection.
-const PROBE_DETECT_THRESHOLD: f32 = 0.05;
-
-impl ChainRuntimeState {
-    /// Signal the audio callback to stop processing blocks.
-    /// Must be called before deactivating JACK or dropping block processors.
-    pub fn set_draining(&self) {
-        self.draining
-            .store(true, std::sync::atomic::Ordering::Release);
-    }
-
-    pub fn is_draining(&self) -> bool {
-        self.draining.load(std::sync::atomic::Ordering::Acquire)
-    }
-
-    /// Re-arm the audio callback after a teardown-and-rebuild cycle that
-    /// reuses this `ChainRuntimeState` (the Arc is kept alive in
-    /// `RuntimeGraph` across `infra_cpal::teardown_active_chain_for_rebuild`).
-    /// Without this reset the new CPAL/JACK streams attached to the same
-    /// runtime would see `is_draining()` return `true` on every callback and
-    /// silence audio indefinitely until the chain is fully removed and
-    /// re-added — issue #316.
-    pub fn clear_draining(&self) {
-        self.draining
-            .store(false, std::sync::atomic::Ordering::Release);
-    }
-
-    pub fn measured_latency_ms(&self) -> f32 {
-        let nanos = self
-            .measured_latency_nanos
-            .load(std::sync::atomic::Ordering::Relaxed);
-        nanos as f32 / 1_000_000.0
-    }
-
-    /// Subscribe to raw pre-FX samples from one input. Returns one
-    /// [`SpscRing`] handle per requested channel, in the same order as
-    /// `subscribed_channels`. The audio thread starts pushing samples on
-    /// the next callback. Drop the returned handles to unsubscribe — the
-    /// tap is removed from the registry on the next subscription change.
-    ///
-    /// `total_channels` should match the input's actual interleaved channel
-    /// count (i.e. the `input_total_channels` argument the audio callback
-    /// receives). `capacity_per_channel` is the SPSC ring depth in samples;
-    /// pick a value comfortably larger than (consumer poll period) ×
-    /// (sample rate).
-    pub fn subscribe_input_tap(
-        &self,
-        input_index: usize,
-        total_channels: usize,
-        subscribed_channels: &[usize],
-        capacity_per_channel: usize,
-    ) -> Vec<Arc<SpscRing<f32>>> {
-        let (tap, handles) = InputTap::new(
-            input_index,
-            total_channels,
-            subscribed_channels,
-            capacity_per_channel,
-        );
-        let mut new_taps: Vec<Arc<InputTap>> =
-            self.input_taps.load_full().iter().cloned().collect();
-        new_taps.push(Arc::new(tap));
-        self.input_taps.store(Arc::new(new_taps));
-        handles
-    }
-
-    /// Toggle the output-mute flag. When `true`, `process_output_f32`
-    /// zeros every output frame. Cheap (single atomic store) and safe
-    /// to call from any thread.
-    pub fn set_output_muted(&self, mute: bool) {
-        self.output_muted
-            .store(mute, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    pub fn is_output_muted(&self) -> bool {
-        self.output_muted.load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    /// Drop input taps that no longer have any external `SpscRing` handles
-    /// kept by consumers. Cheap to call; intended for periodic cleanup
-    /// from a UI timer (e.g. when the tuner window closes).
-    ///
-    /// Detection works because the audio thread only borrows the rings via
-    /// the `Arc<InputTap>`; if no consumer holds a handle, the channel
-    /// `Arc`s have refcount 1 (only the `InputTap` holds them).
-    pub fn prune_dead_input_taps(&self) {
-        let current = self.input_taps.load_full();
-        let mut kept: Vec<Arc<InputTap>> = Vec::with_capacity(current.len());
-        let mut changed = false;
-        for tap in current.iter() {
-            let has_consumer = tap
-                .channel_rings
-                .iter()
-                .filter_map(|r| r.as_ref())
-                .any(|ring| Arc::strong_count(ring) > 1);
-            if has_consumer {
-                kept.push(Arc::clone(tap));
-            } else {
-                changed = true;
-            }
-        }
-        if changed {
-            self.input_taps.store(Arc::new(kept));
-        }
-    }
-
-    /// Subscribe a consumer to the post-FX, pre-mixdown stereo samples
-    /// of stream `stream_index` (one input pipeline) in this chain.
-    /// Returns `[l_ring, r_ring]` — both rings always present because
-    /// every stream is internally stereo (mono inputs are upmixed
-    /// before the FX chain).
-    ///
-    /// Same lock-free semantics as `subscribe_input_tap`. The dispatch
-    /// happens before the device-side `output_muted` zero-fill so muting
-    /// the audio output does not blank the analyzer.
-    pub fn subscribe_stream_tap(
-        &self,
-        stream_index: usize,
-        capacity_per_channel: usize,
-    ) -> [Arc<SpscRing<f32>>; 2] {
-        let (tap, handles) = StreamTap::new(stream_index, capacity_per_channel);
-        let mut new_taps: Vec<Arc<StreamTap>> =
-            self.stream_taps.load_full().iter().cloned().collect();
-        new_taps.push(Arc::new(tap));
-        self.stream_taps.store(Arc::new(new_taps));
-        handles
-    }
-
-    /// Drop stream taps whose consumer handles have all been released.
-    /// Mirrors `prune_dead_input_taps`.
-    pub fn prune_dead_stream_taps(&self) {
-        let current = self.stream_taps.load_full();
-        let mut kept: Vec<Arc<StreamTap>> = Vec::with_capacity(current.len());
-        let mut changed = false;
-        for tap in current.iter() {
-            // A consumer holds an Arc to either or both rings; if neither
-            // ring has any external Arc, this tap is dead.
-            let has_consumer =
-                Arc::strong_count(&tap.l_ring) > 1 || Arc::strong_count(&tap.r_ring) > 1;
-            if has_consumer {
-                kept.push(Arc::clone(tap));
-            } else {
-                changed = true;
-            }
-        }
-        if changed {
-            self.stream_taps.store(Arc::new(kept));
-        }
-    }
-
-    /// How many streams this chain currently runs (one per
-    /// `InputProcessingState`). Used by the UI to know how many
-    /// per-stream taps to subscribe.
-    pub fn stream_count(&self) -> usize {
-        self.processing
-            .lock()
-            .map(|p| p.input_states.len())
-            .unwrap_or(0)
-    }
-
-    /// Arm the latency probe. The next input callback will inject a short
-    /// beep into the signal path, and the first output callback to see it
-    /// arrive at the output stage records the measured latency. Safe to
-    /// call while audio is flowing; idempotent if already armed or fired.
-    pub fn arm_latency_probe(&self) {
-        self.probe_state
-            .store(PROBE_ARMED, std::sync::atomic::Ordering::Release);
-    }
-
-    pub fn probe_in_flight(&self) -> bool {
-        self.probe_state.load(std::sync::atomic::Ordering::Acquire) != PROBE_IDLE
-    }
-
-    /// Reset the probe state to Idle. Used by the UI when the display
-    /// window expires so a probe that never completed (e.g. the beep was
-    /// consumed by a chain rebuild, or the chain was disabled before the
-    /// output callback ran) does not stay armed across sessions.
-    pub fn cancel_latency_probe(&self) {
-        self.probe_state
-            .store(PROBE_IDLE, std::sync::atomic::Ordering::Release);
-    }
-
-    /// Returns stream data for a block by ID, or None if not found or empty.
-    ///
-    /// The inner read is wait-free (`ArcSwap::load`); only the outer
-    /// `stream_handles` HashMap takes a brief lock against rebuild paths
-    /// (also UI thread, never the RT callback).
-    pub fn poll_stream(&self, block_id: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
-        let handles = self.stream_handles.lock().ok()?;
-        let handle = handles.get(block_id)?;
-        let entries = handle.load();
-        if entries.is_empty() {
-            None
-        } else {
-            Some((**entries).clone())
-        }
-    }
-
-    /// Drains and returns all block errors posted since the last call.
-    ///
-    /// Wait-free against the audio thread: each `pop()` is lock-free, and
-    /// the audio thread is never blocked even if the UI is mid-drain.
-    pub fn poll_errors(&self) -> Vec<BlockError> {
-        let mut out = Vec::new();
-        while let Some(err) = self.error_queue.pop() {
-            out.push(err);
-        }
-        out
-    }
-}
-
-/// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
-pub(crate) const FADE_IN_FRAMES: usize = 128;
-
-
-
-
-// Slice 3 of Phase 2: graph + block builders lifted to runtime_graph.rs.
-// External callers (infra-cpal, adapter-console) keep using
+// Slice 3: graph + block builders. External callers keep using
 // `engine::runtime::*` paths via these re-exports.
-pub use crate::runtime_graph::{
-    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state, RuntimeGraph,
-};
-// Test-only re-exports — `runtime_tests.rs` and `stream_isolation_tests.rs`
-// access several of the now-moved builder helpers via `super::`. Keeping the
-// alias surface here means we don't have to touch every test file.
 #[cfg(test)]
 pub(crate) use crate::runtime_block_builders::{
     bypass_runtime_node, next_block_instance_serial, processor_scratch,
 };
+pub use crate::runtime_graph::{
+    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state, RuntimeGraph,
+};
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{
-    build_output_routing_state, effective_inputs, effective_outputs,
-    insert_return_as_input_entry, insert_send_as_output_entry, split_chain_into_segments,
-    ERROR_QUEUE_CAPACITY,
+    build_output_routing_state, effective_inputs, effective_outputs, insert_return_as_input_entry,
+    insert_send_as_output_entry, split_chain_into_segments, ERROR_QUEUE_CAPACITY,
 };
 
-
-// Phase 2 slices 5+5b: helpers split by *what they actually do*:
-//   - runtime_dsp.rs        → DSP math + per-callback CPU setup
-//   - runtime_layout.rs     → AudioChannelLayout type helpers
-//   - runtime_io.rs         → output buffer write (the only real I/O)
-use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
-use std::any::Any;
-use crate::runtime_io::write_output_frame;
-// Re-export layout_label so existing `crate::runtime::layout_label` paths
-// in runtime_graph.rs / runtime_block_builders.rs / runtime_tests.rs keep
-// working unchanged.
-pub(crate) use crate::runtime_layout::layout_label;
-// Test-only re-exports for things only tests reach for via super::.
+// Slices 5+5b: helpers split by what they actually do
+// (runtime_dsp / runtime_layout / runtime_io).
 #[cfg(test)]
 pub(crate) use crate::runtime_dsp::{apply_mixdown, output_limiter};
+use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
+use crate::runtime_io::write_output_frame;
 #[cfg(test)]
 pub(crate) use crate::runtime_layout::layout_from_channels;
-
+pub(crate) use crate::runtime_layout::layout_label;
+use std::any::Any;
 
 pub fn process_input_f32(
     runtime: &Arc<ChainRuntimeState>,
@@ -873,10 +563,7 @@ pub fn process_output_f32(
     }
 }
 
-
 /// Soft limiter — transparent below 0dBFS, gentle saturation above.
-
-
 
 #[cfg(test)]
 #[path = "runtime_tests.rs"]

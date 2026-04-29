@@ -20,6 +20,31 @@ use block_core::{AudioChannelLayout, MonoProcessor, StereoProcessor};
 
 use crate::spsc::SpscRing;
 
+/// Floor for the elastic buffer target. Below this the buffer cannot absorb
+/// even minor scheduling jitter, regardless of how small the device buffer is.
+pub const ELASTIC_TARGET_FLOOR: usize = 64;
+
+/// Default elastic target used when no device-derived value is provided
+/// (tests, headless tools). Production callers in infra-cpal compute this
+/// from the resolved device buffer size via [`elastic_target_for_buffer`].
+pub const DEFAULT_ELASTIC_TARGET: usize = 256;
+
+/// Compute the elastic buffer target level (in frames) for a given device
+/// buffer size and backend multiplier.
+///
+/// The elastic buffer absorbs jitter between the producer (input + DSP path)
+/// and the consumer (output callback). Sizing it relative to the actual device
+/// buffer makes the latency proportional to the user's chosen buffer size
+/// instead of a hardcoded constant.
+///
+/// `multiplier` reflects backend-specific jitter:
+/// - `2` — direct CPAL callbacks (macOS/Windows/Linux ALSA): tight, predictable.
+/// - `8` — JACK with worker-thread DSP (Linux): non-RT worker adds variance.
+pub fn elastic_target_for_buffer(buffer_size_frames: u32, multiplier: u8) -> usize {
+    let target = (buffer_size_frames as usize).saturating_mul(multiplier as usize);
+    target.max(ELASTIC_TARGET_FLOOR)
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum AudioFrame {
     Mono(f32),

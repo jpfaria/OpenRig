@@ -87,7 +87,9 @@ use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use std::sync::Arc;
 use std::time::Instant;
@@ -260,12 +262,8 @@ fn run_deadline(
     iterations: usize,
 ) -> DeadlineResult {
     let runtime = Arc::new(
-        build_chain_runtime_state(
-            chain,
-            sample_rate_hz as f32,
-            &[DEFAULT_ELASTIC_TARGET],
-        )
-        .expect("runtime should build for deadline test"),
+        build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET])
+            .expect("runtime should build for deadline test"),
     );
 
     let period_ns = (buffer_frames as u128 * 1_000_000_000) / sample_rate_hz as u128;
@@ -336,10 +334,7 @@ fn pipe_only_mono_64_at_44100_meets_deadline() {
     // mono_mix, frame_to_bits, read_input_frame) runs every iteration.
     let chain = chain_with_blocks(
         "pipe-mono-64-44k",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
     );
     let result = run_deadline(
         "pipe_only_mono_64@44.1k",
@@ -391,10 +386,7 @@ fn pipe_only_mono_128_at_48000_meets_deadline() {
     // a regression here means something quite expensive landed.
     let chain = chain_with_blocks(
         "pipe-mono-128-48k",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
     );
     let result = run_deadline(
         "pipe_only_mono_128@48k",
@@ -418,10 +410,7 @@ fn pipe_only_mono_64_at_48000_meets_deadline() {
     // openrig has to hit on Mac/Linux at default settings.
     let chain = chain_with_blocks(
         "pipe-mono-64-48k",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
     );
     let result = run_deadline(
         "pipe_only_mono_64@48k",

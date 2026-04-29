@@ -47,7 +47,9 @@ use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 use project::project::Project;
 
-use crate::runtime::{layout_label, ChainRuntimeState, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES, PROBE_IDLE};
+use crate::runtime::{
+    layout_label, ChainRuntimeState, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES, PROBE_IDLE,
+};
 use crate::runtime_audio_frame::ElasticBuffer;
 use crate::runtime_state::{
     BlockRuntimeNode, ChainProcessingState, InputCallbackScratch, InputProcessingState,
@@ -59,7 +61,6 @@ use crate::runtime_state::{
 /// every 200 ms, so 64 slots covers ~13 s of one-error-per-frame at
 /// 48 kHz / 64-frame buffers.
 pub(crate) const ERROR_QUEUE_CAPACITY: usize = 64;
-
 
 pub struct RuntimeGraph {
     pub chains: HashMap<ChainId, Arc<ChainRuntimeState>>,
@@ -698,7 +699,10 @@ fn build_input_processing_state(
     })
 }
 
-pub(crate) fn build_output_routing_state(output: &OutputEntry, elastic_target: usize) -> OutputRoutingState {
+pub(crate) fn build_output_routing_state(
+    output: &OutputEntry,
+    elastic_target: usize,
+) -> OutputRoutingState {
     let output_layout = if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
@@ -898,7 +902,6 @@ impl RuntimeGraph {
         self.chains.get(chain_id).cloned()
     }
 }
-
 
 // Slice 4 of Phase 2: block-level builders moved to runtime_block_builders.rs.
 // `runtime_graph.rs` only needs `build_runtime_block_nodes` for chain assembly.
