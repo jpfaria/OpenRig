@@ -2705,3 +2705,7 @@ mod volume_invariants;
 #[cfg(test)]
 #[path = "audio_deadline_tests.rs"]
 mod audio_deadline;
+
+#[cfg(test)]
+#[path = "audio_signal_integrity_tests.rs"]
+mod audio_signal_integrity;
