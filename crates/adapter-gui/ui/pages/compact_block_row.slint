@@ -9,6 +9,7 @@ import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { PanelSlider } from "../components/panel_slider.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { BlockStreamMiniDisplay } from "../components/block_stream_mini_display.slint";
+import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -16,6 +17,13 @@ import "../fonts/BebasNeue.ttf";
 // CompactChainViewPage (in compact_chain_view.slint) can use it.
 export component CompactBlockRow inherits Rectangle {
     in property <CompactBlockItem> block-data;
+
+    // True when the block exposes a graphic/parametric EQ widget. Replaces
+    // the generic param strip with the dedicated EQ widget — otherwise
+    // per-band enable/type controls render as a 16-widget mess (#342).
+    private property <bool> has-eq:
+        root.block-data.multi-slider-points.length > 0
+        || root.block-data.curve-editor-points.length > 0;
     callback toggle-enabled(int, int);
     callback update-parameter-number(int, int, string, float);
     callback update-parameter-bool(int, int, string, bool);
@@ -183,9 +191,37 @@ export component CompactBlockRow inherits Rectangle {
         }
     }
 
+    // ── EQ widget (graphic) — replaces the generic param strip ──
+    if root.has-eq && root.block-data.curve-editor-points.length == 0 : MultiSliderControl {
+        x: 470px;
+        y: 6px;
+        width: parent.width - 510px;
+        height: parent.height - 12px;
+        points: root.block-data.multi-slider-points;
+        update-parameter(p, v) => {
+            root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v);
+        }
+    }
+
+    // ── EQ widget (parametric) ──
+    if root.has-eq && root.block-data.curve-editor-points.length > 0 : CurveEditorControl {
+        x: 470px;
+        y: 6px;
+        width: parent.width - 510px;
+        height: parent.height - 12px;
+        points: root.block-data.curve-editor-points;
+        total-curve: "";
+        band-curves: [];
+        update-parameter(p, v) => {
+            root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v);
+        }
+    }
+
     // ── All parameters (HorizontalLayout, right-aligned) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.has-external-gui;
+        visible: root.block-data.knob-overlays.length == 0
+            && !root.block-data.has-external-gui
+            && !root.has-eq;
         alignment: end;
         spacing: 4px;
         padding-right: 34px;
@@ -426,6 +462,7 @@ export component CompactBlockRow inherits Rectangle {
     // Compact mini stream display (tuner readouts OR spectrum bars).
     // Width stops before parameter knobs on the right (~180px reserved for params).
     BlockStreamMiniDisplay {
+        visible: !root.has-eq;
         x: 470px;
         y: root.block-data.stream-data.stream-kind == "spectrum" ? 6px : 4px;
         width: root.block-data.stream-data.stream-kind == "spectrum"
