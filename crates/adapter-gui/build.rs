@@ -2,7 +2,30 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
-    slint_build::compile("ui/app-window.slint").expect("failed to compile Slint UI");
+    // with_bundled_translations embeds the .po files directly into the
+    // compiled binary at compile time. This sidesteps every runtime path
+    // resolution issue: no bindtextdomain, no env-var dependency, no
+    // POSIX-vs-BCP47 dir name confusion, and no IDE/launcher quirks
+    // (RustRover, .app double-click, cargo run from a tmp cwd, etc.).
+    //
+    // The locale Slint translate() picks at runtime comes from
+    // `slint::select_bundled_translation(...)` which we call from
+    // i18n::init_translations once we resolve the user's preference.
+    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let translations = manifest.join("translations");
+    let config = if translations.exists() {
+        slint_build::CompilerConfiguration::new()
+            .with_bundled_translations(translations)
+    } else {
+        slint_build::CompilerConfiguration::new()
+    };
+    slint_build::compile_with_config("ui/app-window.slint", config)
+        .expect("failed to compile Slint UI");
+
+    // Keep msgfmt-driven .mo generation as a build artifact for packaging
+    // scripts (macOS .app bundle, .deb, Windows installer) — even though
+    // the runtime no longer needs them, the packaging pipeline does for
+    // the staged distribution layout.
     compile_translations();
 }
 
@@ -44,7 +67,7 @@ fn compile_translations() {
         let Some(lang) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        let po = path.join("adapter-gui.po");
+        let po = path.join("LC_MESSAGES").join("adapter-gui.po");
         if !po.exists() {
             continue;
         }

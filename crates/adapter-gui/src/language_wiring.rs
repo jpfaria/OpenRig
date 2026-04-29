@@ -32,10 +32,15 @@ pub fn wire(window: &AppWindow) {
         };
         let lang = pick_language(idx);
         log::info!("language selector: persisting {:?}", lang);
-        if let Err(e) = FilesystemStorage::save_gui_language(lang) {
+        if let Err(e) = FilesystemStorage::save_gui_language(lang.clone()) {
             log::warn!("failed to persist language preference: {e}");
             return;
         }
+        // Live update: re-select the bundled translation so visible strings
+        // reflect the new locale immediately. No restart needed for Slint
+        // bundled translations (unlike runtime gettext, which is locked
+        // once libintl reads its env vars).
+        crate::i18n::apply_bundled_translation(lang.as_deref());
         window.set_selected_language_index(idx);
     });
 }

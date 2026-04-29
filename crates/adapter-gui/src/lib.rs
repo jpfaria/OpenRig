@@ -94,7 +94,7 @@ mod desktop_app_polling;
 mod i18n;
 mod language_wiring;
 pub use desktop_app::run_desktop_app;
-pub use i18n::{init_translations, resolve_locale, SUPPORTED_LANGUAGES};
+pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 
 // Loads every YAML under crates/adapter-gui/locales/ at compile time.
 // After this, `rust_i18n::t!("Some string")` is callable everywhere in

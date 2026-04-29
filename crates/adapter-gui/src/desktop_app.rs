@@ -98,6 +98,14 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    // Slint's select_bundled_translation requires at least one component to
+    // exist before it can resolve the bundled language list. Call it here,
+    // after AppWindow is constructed.
+    let persisted_language = FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .and_then(|s| s.language);
+    crate::i18n::apply_bundled_translation(persisted_language.as_deref());
     crate::language_wiring::wire(&window);
     window
         .window()

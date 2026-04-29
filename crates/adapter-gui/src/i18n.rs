@@ -157,6 +157,23 @@ fn has_any_mo(dir: &Path) -> bool {
     false
 }
 
+/// Apply the resolved locale to Slint's bundled translations. Must be
+/// called AFTER `AppWindow::new()` — Slint requires the first component
+/// to exist before bundled translations can be selected.
+///
+/// Locale code in BCP 47 form (e.g. `pt-BR`, `en-US`) is converted to
+/// the POSIX form (`pt_BR`, `en_US`) that the bundled translations are
+/// indexed by — this matches the `<lang>/adapter-gui.po` filenames the
+/// `slint_build::with_bundled_translations` ingested at compile time.
+pub fn apply_bundled_translation(persisted_language: Option<&str>) {
+    let locale = resolve_locale(persisted_language);
+    let posix = locale.replace('-', "_");
+    match slint::select_bundled_translation(&posix) {
+        Ok(()) => log::info!("i18n: slint bundled translation = {}", posix),
+        Err(e) => log::warn!("i18n: slint select_bundled_translation({}) failed: {}", posix, e),
+    }
+}
+
 /// Initialize both catalogs:
 /// - gettext (Slint side) via `bindtextdomain` + `setlocale` so `@tr(...)`
 ///   resolves against `<lang>/LC_MESSAGES/adapter-gui.mo`.

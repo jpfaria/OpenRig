@@ -54,9 +54,10 @@ echo "→ updated $POT"
 # Sync each per-locale .po against the new template.
 for lang_dir in "$TRANSLATIONS"/*/; do
   lang="$(basename "$lang_dir")"
-  po="$lang_dir$DOMAIN.po"
+  # Slint's with_bundled_translations expects .po under <lang>/LC_MESSAGES/.
+  po="${lang_dir}LC_MESSAGES/${DOMAIN}.po"
   if [ -f "$po" ]; then
-    echo "→ merging into $lang/$DOMAIN.po…"
+    echo "→ merging into $lang/LC_MESSAGES/$DOMAIN.po…"
     msgmerge --update --backup=none --no-fuzzy-matching "$po" "$POT"
   fi
 done
