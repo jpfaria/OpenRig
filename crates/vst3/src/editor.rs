@@ -109,14 +109,14 @@ pub fn open_vst3_editor_window(
 
         ns_window.show(plugin_name);
 
-        return Ok(Vst3EditorHandle {
+        Ok(Vst3EditorHandle {
             view,
             _library: library,
             _controller: controller,
             _component_handler: component_handler,
             _standalone_plugin: None,
             _ns_window: ns_window,
-        });
+        })
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -199,14 +199,14 @@ pub fn open_vst3_editor_window_standalone(
 
         ns_window.show(plugin_name);
 
-        return Ok(Vst3EditorHandle {
+        Ok(Vst3EditorHandle {
             view,
             _library: library,
             _controller: controller,
             _component_handler: component_handler,
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: ns_window,
-        });
+        })
     }
 
     #[cfg(not(target_os = "macos"))]
