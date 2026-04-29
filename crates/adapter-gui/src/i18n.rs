@@ -125,11 +125,17 @@ pub fn resolve_translations_dir() -> Option<PathBuf> {
         }
     }
 
-    if cfg!(debug_assertions) {
-        let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("translations");
-        if has_any_mo(&dev) {
-            return Some(dev);
-        }
+    // CARGO_MANIFEST_DIR is the absolute path to the crate at compile time.
+    // On the developer machine it's the source tree and the .mo files live
+    // there next to the .po. On a user's machine after a deb/dmg install
+    // that path doesn't exist — we check existence before trusting it, so
+    // it's safe to attempt outside debug builds too.
+    // Without this, `cargo run --release` (or any non-bundled run) would
+    // skip every candidate and dgettext would fall back to the msgid,
+    // surfacing as "BTN-NEW-PROJECT" leaking into the UI.
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("translations");
+    if has_any_mo(&dev) {
+        return Some(dev);
     }
 
     None
@@ -306,6 +312,29 @@ mod tests {
         let codes: Vec<_> = SUPPORTED_LANGUAGES.iter().map(|l| l.code).collect();
         assert!(codes.contains(&"pt-BR"));
         assert!(codes.contains(&"en-US"));
+    }
+
+    /// `resolve_translations_dir` must find catalogs regardless of build
+    /// profile. Earlier the CARGO_MANIFEST_DIR fallback was gated on
+    /// `cfg!(debug_assertions)`, which made `cargo run --release` (or any
+    /// non-bundled run) skip every candidate, so dgettext silently echoed
+    /// the msgid back — surfacing as "BTN-NEW-PROJECT" in the UI.
+    #[test]
+    fn resolve_translations_dir_finds_source_tree_in_any_profile() {
+        let dir = resolve_translations_dir();
+        assert!(
+            dir.is_some(),
+            "resolve_translations_dir returned None — gettext lookup will \
+             fail. Likely cause: CARGO_MANIFEST_DIR fallback was gated \
+             behind cfg!(debug_assertions) again."
+        );
+        let path = dir.unwrap();
+        assert!(
+            path.join("pt_BR").join("LC_MESSAGES").join("adapter-gui.mo").exists()
+                || path.join("en_US").join("LC_MESSAGES").join("adapter-gui.mo").exists(),
+            "resolve_translations_dir returned {:?} but it has no .mo files",
+            path
+        );
     }
 
     /// gettext on Unix derives the catalog path from `setlocale(LC_MESSAGES,
