@@ -58,11 +58,8 @@ pub(crate) use runtime_lifecycle::{
     sync_live_chain_runtime, sync_project_runtime, system_language,
     ui_index_to_real_block_index,
 };
-
-
-const SELECT_PATH_PREFIX: &str = "__select.";
-const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
-
+mod defaults;
+pub(crate) use defaults::*;
 mod audio_devices;
 mod block_editor;
 mod block_editor_param_items;
@@ -89,13 +86,6 @@ use state::UNTITLED_PROJECT_NAME;
 pub(crate) use project_ops::{
     open_cli_project, project_display_name, project_title_for_path, register_recent_project,
 };
-const DEFAULT_SAMPLE_RATE: u32 = 48_000;
-const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 64;
-const DEFAULT_BIT_DEPTH: u32 = 32;
-const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
-const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
-const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
-
 mod desktop_app;
 mod desktop_app_polling;
 mod desktop_app_cli_open;
