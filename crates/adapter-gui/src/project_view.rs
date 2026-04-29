@@ -11,6 +11,7 @@ use crate::{
 };
 use crate::state::SelectedBlock;
 use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays};
+use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::AppWindow;
 use crate::ui_state::chain_routing_summary;
 
@@ -176,6 +177,8 @@ pub(crate) fn build_compact_blocks(
             let knob_layout =
                 project::catalog::model_knob_layout(&effect_type, &model_id);
             let overlays = build_knob_overlays(knob_layout, &params);
+            let ms_pts = build_multi_slider_points(&effect_type, &model_id, &editor_data.params);
+            let ce_pts = build_curve_editor_points(&effect_type, &model_id, &editor_data.params);
             let icon_kind = supported_block_type(&effect_type)
                 .map(|t| t.icon_kind.to_string())
                 .unwrap_or_default();
@@ -230,6 +233,8 @@ pub(crate) fn build_compact_blocks(
                 icon_source: slint::Image::default(),
                 knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
                 parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
+                multi_slider_points: ModelRc::from(Rc::new(VecModel::from(ms_pts))),
+                curve_editor_points: ModelRc::from(Rc::new(VecModel::from(ce_pts))),
                 model_labels: {
                     let instrument = chain.instrument.as_str();
                     let items = block_model_picker_items(&effect_type, instrument);
