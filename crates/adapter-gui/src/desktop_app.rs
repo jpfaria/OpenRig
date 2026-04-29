@@ -21,15 +21,11 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
-use crate::audio_devices::{
-    build_device_selection_items, mark_unselected_devices,
-};
-use crate::project_ops::{
-    load_and_sync_app_config, resolve_project_paths,
-};
+use crate::audio_devices::{build_device_selection_items, mark_unselected_devices};
+use crate::project_ops::{load_and_sync_app_config, resolve_project_paths};
 use crate::state::{
-    AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft,
-    IoBlockInsertDraft, ProjectSession, SelectedBlock,
+    AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft, IoBlockInsertDraft,
+    ProjectSession, SelectedBlock,
 };
 use crate::{
     latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInputGroupsWindow,
@@ -45,7 +41,11 @@ pub fn run_desktop_app(
     auto_save: bool,
     fullscreen: bool,
 ) -> Result<()> {
-    log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
+    log::info!(
+        "starting desktop app: runtime_mode={:?}, interaction_mode={:?}",
+        runtime_mode,
+        interaction_mode
+    );
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -81,7 +81,8 @@ pub fn run_desktop_app(
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
     let inline_stream_timer: Rc<RefCell<Option<Timer>>> = Rc::new(RefCell::new(None));
-    let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
+    let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> =
+        Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     // Start with empty device descriptors. Enumerating here would read
     // /proc/asound/cards (and transitively /proc/asound/card*/stream0), which
@@ -97,17 +98,18 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize {
-        width: 1100.0,
-        height: 620.0,
-    }));
+    crate::language_wiring::wire(&window);
+    window
+        .window()
+        .set_size(slint::WindowSize::Logical(slint::LogicalSize {
+            width: 1100.0,
+            height: 620.0,
+        }));
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> =
-        Rc::new(RefCell::new(None));
+    let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> = Rc::new(RefCell::new(None));
     let plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>> = Rc::new(RefCell::new(None));
-    let chain_input_window =
-        ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_input_window = ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_output_window =
         ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_input_groups_window =
@@ -122,13 +124,11 @@ pub fn run_desktop_app(
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    let tuner_window =
-        TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let tuner_session: Rc<RefCell<Option<crate::tuner_session::TunerSession>>> =
         Rc::new(RefCell::new(None));
     let tuner_timer = Rc::new(Timer::default());
-    let spectrum_window =
-        SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let spectrum_window = SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
@@ -235,7 +235,8 @@ pub fn run_desktop_app(
     chain_output_window.set_selected_device_index(-1);
     chain_output_window.set_status_message("".into());
     chain_insert_window.set_send_device_options(ModelRc::from(chain_output_device_options.clone()));
-    chain_insert_window.set_return_device_options(ModelRc::from(chain_input_device_options.clone()));
+    chain_insert_window
+        .set_return_device_options(ModelRc::from(chain_input_device_options.clone()));
     chain_insert_window.set_send_channels(ModelRc::from(insert_send_channels.clone()));
     chain_insert_window.set_return_channels(ModelRc::from(insert_return_channels.clone()));
     chain_insert_window.set_selected_send_device_index(-1);
@@ -423,85 +424,81 @@ pub fn run_desktop_app(
         },
     );
     // --- Chain-level callback wirings (extracted to desktop_app_chain_wiring) ---
-    crate::desktop_app_chain_wiring::wire_all(
-        &crate::desktop_app_chain_wiring::ChainWiringDeps {
-            window: &window,
-            chain_input_window: &chain_input_window,
-            chain_output_window: &chain_output_window,
-            chain_input_groups_window: &chain_input_groups_window,
-            chain_output_groups_window: &chain_output_groups_window,
-            chain_draft: chain_draft.clone(),
-            block_editor_draft: block_editor_draft.clone(),
-            io_block_insert_draft: io_block_insert_draft.clone(),
-            inline_io_groups_is_input: inline_io_groups_is_input.clone(),
-            project_session: project_session.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_input_channels: chain_input_channels.clone(),
-            chain_output_channels: chain_output_channels.clone(),
-            chain_editor_window: chain_editor_window.clone(),
-            open_compact_window: open_compact_window.clone(),
-            vst3_editor_handles: vst3_editor_handles.clone(),
-            toast_timer: toast_timer.clone(),
-            vst3_sample_rate,
-            fullscreen,
-            auto_save,
-        },
-    );
+    crate::desktop_app_chain_wiring::wire_all(&crate::desktop_app_chain_wiring::ChainWiringDeps {
+        window: &window,
+        chain_input_window: &chain_input_window,
+        chain_output_window: &chain_output_window,
+        chain_input_groups_window: &chain_input_groups_window,
+        chain_output_groups_window: &chain_output_groups_window,
+        chain_draft: chain_draft.clone(),
+        block_editor_draft: block_editor_draft.clone(),
+        io_block_insert_draft: io_block_insert_draft.clone(),
+        inline_io_groups_is_input: inline_io_groups_is_input.clone(),
+        project_session: project_session.clone(),
+        project_chains: project_chains.clone(),
+        project_runtime: project_runtime.clone(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        input_chain_devices: input_chain_devices.clone(),
+        output_chain_devices: output_chain_devices.clone(),
+        chain_input_device_options: chain_input_device_options.clone(),
+        chain_output_device_options: chain_output_device_options.clone(),
+        chain_input_channels: chain_input_channels.clone(),
+        chain_output_channels: chain_output_channels.clone(),
+        chain_editor_window: chain_editor_window.clone(),
+        open_compact_window: open_compact_window.clone(),
+        vst3_editor_handles: vst3_editor_handles.clone(),
+        toast_timer: toast_timer.clone(),
+        vst3_sample_rate,
+        fullscreen,
+        auto_save,
+    });
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
-    crate::desktop_app_block_wiring::wire_all(
-        &crate::desktop_app_block_wiring::BlockWiringDeps {
-            window: &window,
-            block_editor_window: &block_editor_window,
-            chain_input_window: &chain_input_window,
-            chain_output_window: &chain_output_window,
-            chain_input_groups_window: &chain_input_groups_window,
-            chain_output_groups_window: &chain_output_groups_window,
-            chain_insert_window: &chain_insert_window,
-            selected_block: selected_block.clone(),
-            block_editor_draft: block_editor_draft.clone(),
-            chain_draft: chain_draft.clone(),
-            insert_draft: insert_draft.clone(),
-            io_block_insert_draft: io_block_insert_draft.clone(),
-            block_type_options: block_type_options.clone(),
-            block_model_options: block_model_options.clone(),
-            filtered_block_model_options: filtered_block_model_options.clone(),
-            block_model_option_labels: block_model_option_labels.clone(),
-            block_parameter_items: block_parameter_items.clone(),
-            multi_slider_points: multi_slider_points.clone(),
-            curve_editor_points: curve_editor_points.clone(),
-            eq_band_curves: eq_band_curves.clone(),
-            project_session: project_session.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_input_channels: chain_input_channels.clone(),
-            chain_output_channels: chain_output_channels.clone(),
-            insert_send_channels: insert_send_channels.clone(),
-            insert_return_channels: insert_return_channels.clone(),
-            open_block_windows: open_block_windows.clone(),
-            inline_stream_timer: inline_stream_timer.clone(),
-            open_compact_window: open_compact_window.clone(),
-            toast_timer: toast_timer.clone(),
-            plugin_info_window: plugin_info_window.clone(),
-            vst3_editor_handles: vst3_editor_handles.clone(),
-            vst3_editor_handles_for_on_open: vst3_editor_handles_for_on_open.clone(),
-            block_editor_persist_timer: block_editor_persist_timer.clone(),
-            vst3_sample_rate,
-            auto_save,
-        },
-    );
+    crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
+        window: &window,
+        block_editor_window: &block_editor_window,
+        chain_input_window: &chain_input_window,
+        chain_output_window: &chain_output_window,
+        chain_input_groups_window: &chain_input_groups_window,
+        chain_output_groups_window: &chain_output_groups_window,
+        chain_insert_window: &chain_insert_window,
+        selected_block: selected_block.clone(),
+        block_editor_draft: block_editor_draft.clone(),
+        chain_draft: chain_draft.clone(),
+        insert_draft: insert_draft.clone(),
+        io_block_insert_draft: io_block_insert_draft.clone(),
+        block_type_options: block_type_options.clone(),
+        block_model_options: block_model_options.clone(),
+        filtered_block_model_options: filtered_block_model_options.clone(),
+        block_model_option_labels: block_model_option_labels.clone(),
+        block_parameter_items: block_parameter_items.clone(),
+        multi_slider_points: multi_slider_points.clone(),
+        curve_editor_points: curve_editor_points.clone(),
+        eq_band_curves: eq_band_curves.clone(),
+        project_session: project_session.clone(),
+        project_chains: project_chains.clone(),
+        project_runtime: project_runtime.clone(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        input_chain_devices: input_chain_devices.clone(),
+        output_chain_devices: output_chain_devices.clone(),
+        chain_input_device_options: chain_input_device_options.clone(),
+        chain_output_device_options: chain_output_device_options.clone(),
+        chain_input_channels: chain_input_channels.clone(),
+        chain_output_channels: chain_output_channels.clone(),
+        insert_send_channels: insert_send_channels.clone(),
+        insert_return_channels: insert_return_channels.clone(),
+        open_block_windows: open_block_windows.clone(),
+        inline_stream_timer: inline_stream_timer.clone(),
+        open_compact_window: open_compact_window.clone(),
+        toast_timer: toast_timer.clone(),
+        plugin_info_window: plugin_info_window.clone(),
+        vst3_editor_handles: vst3_editor_handles.clone(),
+        vst3_editor_handles_for_on_open: vst3_editor_handles_for_on_open.clone(),
+        block_editor_persist_timer: block_editor_persist_timer.clone(),
+        vst3_sample_rate,
+        auto_save,
+    });
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
     // --- Chain editor delegation forwarders (extracted to chain_editor_forwarders_wiring) ---
     crate::chain_editor_forwarders_wiring::wire(&window, chain_editor_window.clone());

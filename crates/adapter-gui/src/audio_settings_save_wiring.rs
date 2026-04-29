@@ -53,7 +53,9 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub auto_save: bool,
 }
 
-fn project_device_settings_from_rows(rows: Vec<infra_filesystem::GuiAudioDeviceSettings>) -> Vec<DeviceSettings> {
+fn project_device_settings_from_rows(
+    rows: Vec<infra_filesystem::GuiAudioDeviceSettings>,
+) -> Vec<DeviceSettings> {
     rows.into_iter()
         .map(|device| DeviceSettings {
             device_id: DeviceId(device.device_id),
@@ -149,9 +151,9 @@ pub(crate) fn wire(
                                     &settings.input_devices,
                                     &settings.output_devices,
                                 );
-                                if let Err(e) =
-                                    infra_cpal::apply_device_settings(&session.project.device_settings)
-                                {
+                                if let Err(e) = infra_cpal::apply_device_settings(
+                                    &session.project.device_settings,
+                                ) {
                                     log::warn!("apply_device_settings failed: {e}");
                                 }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {

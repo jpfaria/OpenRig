@@ -1,0 +1,107 @@
+import { Theme } from "../theme.slint";
+
+// Single source for the language selector dropdown. Exposed in two places:
+//   - DesktopMain: floating overlay at the top-right of every screen
+//   - ProjectSettings: regular row alongside other persistent prefs
+//
+// Picking a new language persists to gui-settings.yaml on the Rust side and
+// pops a toast asking the user to restart the app — gettext only re-resolves
+// strings on process startup. A future issue can wire live re-rendering.
+//
+// `language-options` and `selected-language-index` are driven by the Rust
+// side from i18n::SUPPORTED_LANGUAGES; the component itself stays naive about
+// which locales exist.
+
+export component LanguageSelector inherits Rectangle {
+    in property <[string]> language-options;
+    in property <int> selected-language-index;
+    in property <bool> compact: false;
+    callback language-selected(int);
+
+    width: compact ? 140px : 220px;
+    height: 36px;
+    background: Theme.palette.card;
+    border-color: Theme.palette.border;
+    border-width: 1px;
+    border-radius: 6px;
+
+    private property <bool> dropdown-open: false;
+    private property <string> current-label:
+        root.selected-language-index >= 0 && root.selected-language-index < root.language-options.length
+            ? root.language-options[root.selected-language-index]
+            : "Auto";
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 6px;
+        alignment: space-between;
+
+        Text {
+            text: @tr("🌐  {}", root.current-label);
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.body.size;
+            font-weight: Theme.typo.body.weight;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+
+        Text {
+            text: root.dropdown-open ? "▴" : "▾";
+            color: Theme.palette.text-muted;
+            font-size: 11px;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.dropdown-open = !root.dropdown-open;
+        }
+        accessible-role: combobox;
+        accessible-label: @tr("Idioma");
+    }
+
+    if root.dropdown-open : Rectangle {
+        x: 0;
+        y: parent.height + 4px;
+        width: parent.width;
+        height: list-layout.preferred-height;
+        background: Theme.palette.card-secondary;
+        border-color: Theme.palette.border-strong;
+        border-width: 1px;
+        border-radius: 6px;
+        z: 100;
+
+        list-layout := VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            for option[i] in root.language-options : Rectangle {
+                height: 30px;
+                background: option-touch.has-hover ? Theme.palette.row-start : transparent;
+                border-radius: 4px;
+
+                Text {
+                    x: 10px;
+                    text: option;
+                    color: Theme.palette.text-primary;
+                    font-size: Theme.typo.body.size;
+                    vertical-alignment: center;
+                    horizontal-alignment: left;
+                    width: parent.width - 20px;
+                    overflow: elide;
+                }
+
+                option-touch := TouchArea {
+                    clicked => {
+                        root.dropdown-open = false;
+                        root.language-selected(i);
+                    }
+                }
+            }
+        }
+    }
+}

@@ -15,9 +15,18 @@ pub const TEXT_DOMAIN: &str = "adapter-gui";
 /// Languages exposed in the language selector UI. Order matters — index 0 is
 /// the "Auto" sentinel meaning "follow OS locale".
 pub const SUPPORTED_LANGUAGES: &[Language] = &[
-    Language { code: "auto",  display: "Auto" },
-    Language { code: "pt-BR", display: "Português (Brasil)" },
-    Language { code: "en-US", display: "English (US)" },
+    Language {
+        code: "auto",
+        display: "Auto",
+    },
+    Language {
+        code: "pt-BR",
+        display: "Português (Brasil)",
+    },
+    Language {
+        code: "en-US",
+        display: "English (US)",
+    },
 ];
 
 #[derive(Debug, Clone, Copy)]
@@ -79,7 +88,11 @@ pub fn resolve_translations_dir() -> Option<PathBuf> {
 
     let candidates = [
         exec_dir.join("translations"),
-        exec_dir.join("..").join("share").join("openrig").join("translations"),
+        exec_dir
+            .join("..")
+            .join("share")
+            .join("openrig")
+            .join("translations"),
         exec_dir.join("..").join("Resources").join("translations"),
     ];
     for c in &candidates {
@@ -103,7 +116,10 @@ fn has_any_mo(dir: &Path) -> bool {
         return false;
     };
     for entry in rd.flatten() {
-        let mo = entry.path().join("LC_MESSAGES").join(format!("{}.mo", TEXT_DOMAIN));
+        let mo = entry
+            .path()
+            .join("LC_MESSAGES")
+            .join(format!("{}.mo", TEXT_DOMAIN));
         if mo.exists() {
             return true;
         }
@@ -131,7 +147,8 @@ pub fn init_translations(persisted_language: Option<&str>) {
         if setlocale(LocaleCategory::LcMessages, bare.clone()).is_none() {
             log::warn!(
                 "i18n: setlocale rejected {:?} and {:?} — translations may not load",
-                target, bare
+                target,
+                bare
             );
         }
     }
@@ -194,8 +211,11 @@ mod tests {
         // We can't pin the OS locale in the test environment, but we can
         // verify that "auto" is not echoed back literally.
         let result = resolve_locale(Some("auto"));
-        assert!(result == "pt-BR" || result == "en-US",
-            "auto resolution returned unexpected value: {}", result);
+        assert!(
+            result == "pt-BR" || result == "en-US",
+            "auto resolution returned unexpected value: {}",
+            result
+        );
     }
 
     #[test]

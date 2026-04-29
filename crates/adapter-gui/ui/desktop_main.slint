@@ -2,6 +2,7 @@ import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { LanguageSelector } from "components/language_selector.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -191,6 +192,10 @@ export component DesktopMain inherits Rectangle {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    // Language selector — driven by adapter_gui::SUPPORTED_LANGUAGES on Rust side.
+    in property <[string]> language-options;
+    in property <int> selected-language-index;
+    callback change-language(int);
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -430,5 +435,15 @@ export component DesktopMain inherits Rectangle {
         refresh-devices => { root.refresh-devices(); }
     }
 
+    // Floating language selector — top-right, visible on every screen.
+    LanguageSelector {
+        x: parent.width - self.width - 16px;
+        y: 12px;
+        z: 200;
+        compact: true;
+        language-options: root.language-options;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.change-language(i); }
+    }
 }
 
