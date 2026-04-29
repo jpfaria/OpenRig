@@ -514,10 +514,19 @@ fn d02_tremolo_at_50_depth_peaks_at_unity() {
 }
 
 /// REGRESSION DOC: replicates the user's CLEAN chain on 2026-04-28.
-/// Tremolo at depth=50% causes the perceived "low volume" complaint
-/// (signal averages around 75% of input → -2.5 dB). Pinned: a chain
-/// with this exact tremolo config must show modulation, but the peak
-/// must still hit unity (i.e. the engine isn't applying an extra gain).
+/// Tremolo at depth=50% modulates between unity and 50% of input
+/// (signal averages around 75% → -2.5 dB). Pinned: a chain with this
+/// exact tremolo config must show modulation, but the peak must still
+/// hit unity (i.e. the engine isn't applying an extra gain).
+///
+/// **NOTE on the user's actual CLEAN chain:** the chain also has
+/// `amp blackface_clean` with `master: 100` which applies multiple
+/// internal drive stages (see `block_preamp::native_core`). Combined
+/// with `output_limiter` tanh, that amp clamps the signal at ~0.86
+/// and removes dynamics, so the perceived "low + compressed" sound
+/// has TWO sources: the tremolo modulation tested here AND the amp's
+/// internal saturation curve at `master: 100`. The amp behavior is
+/// documented in `k01_blackface_clean_master_100_internal_saturation`.
 #[test]
 fn d03_user_clean_chain_tremolo_signature() {
     let mut params = neutral_params("modulation", "tremolo_sine");
@@ -837,6 +846,73 @@ fn j01_user_reported_mac_volume_drop_does_not_recur() {
     assert!(
         (peak - 0.3).abs() < TOLERANCE,
         "Mac single-mono setup must hold steady at unity; got {peak}"
+    );
+}
+
+/// REGRESSION DOC: replicates the user's CLEAN chain on 2026-04-28
+/// EXACTLY (input mono [0] → blackface_clean with their params →
+/// output stereo). Tremolo OMITTED — user clarified it's not active.
+/// Filter omitted — disabled in their YAML. Only the amp.
+///
+/// Measures peak + RMS for a 0.4-amplitude 440 Hz sine input. The
+/// numbers in the test output are the engine's authoritative answer
+/// to "what does the engine produce for this exact input?". If the
+/// user hears something quieter than the test reports, the
+/// discrepancy is upstream of engine code (CoreAudio device gain,
+/// Scarlett monitor knob, system output volume slider, headphone
+/// gain on the Scarlett front panel).
+#[test]
+fn j02_user_clean_chain_blackface_only_signature() {
+    let mut p = neutral_params("amp", "blackface_clean");
+    p.insert("gain", ParameterValue::Float(0.0));
+    p.insert("bass", ParameterValue::Float(50.0));
+    p.insert("middle", ParameterValue::Float(50.0));
+    p.insert("treble", ParameterValue::Float(50.0));
+    p.insert("master", ParameterValue::Float(100.0));
+    p.insert("output", ParameterValue::Float(50.0));
+    p.insert("bright", ParameterValue::Bool(true));
+    p.insert("sag", ParameterValue::Float(14.0));
+    p.insert("room_mix", ParameterValue::Float(14.0));
+    p.insert("input", ParameterValue::Float(50.0));
+    let chain = chain_with_blocks(
+        "j02",
+        vec![
+            input_mono(vec![0]),
+            core_block("amp", "amp", "blackface_clean", p),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let runtime = build_runtime(&chain);
+    let sr = SR;
+    let mut all_samples: Vec<f32> = Vec::new();
+    let mut phase = 0.0_f32;
+    let inc = std::f32::consts::TAU * 440.0 / sr;
+    for _ in 0..16 {
+        let mut data = vec![0.0_f32; 256];
+        for s in data.iter_mut() {
+            *s = phase.sin() * 0.4;
+            phase = (phase + inc).rem_euclid(std::f32::consts::TAU);
+        }
+        let out = drive_and_capture(&runtime, 1, &data, 2);
+        all_samples.extend(out);
+    }
+    let steady = &all_samples[1024..];
+    let peak = peak_abs(steady);
+    let rms = (steady.iter().map(|s| s * s).sum::<f32>() / steady.len() as f32).sqrt();
+    let peak_db = 20.0 * peak.log10();
+    let rms_db = 20.0 * rms.log10();
+    eprintln!(
+        "[j02] blackface_clean signature: peak={peak} ({peak_db:.2} dBFS), \
+         rms={rms} ({rms_db:.2} dBFS)"
+    );
+    assert!(
+        peak > 0.5,
+        "blackface_clean with master=100 + input 0.4 sine MUST output above 0.5 peak; \
+         got {peak}. If this fails, engine is attenuating the signal — bug in code."
+    );
+    assert!(
+        rms > 0.15,
+        "blackface_clean RMS must be above 0.15; got {rms}. Low RMS = excessive limiter."
     );
 }
 
