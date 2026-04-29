@@ -182,7 +182,7 @@ component SearchField inherits Rectangle {
         y: 0px;
         width: parent.width - 24px;
         height: parent.height;
-        text: @tr("Buscar projetos");
+        text: @tr("placeholder-search-projects");
         color: #858d99;
         vertical-alignment: center;
         font-size: 13px;
@@ -293,14 +293,14 @@ export component ProjectLauncherPage inherits Rectangle {
             x: parent.width - 212px;
             y: 6px;
             icon: @image-url("../assets/open-file.svg");
-            tooltip: "Abrir projeto";
+            tooltip: @tr("tooltip-open-project");
             clicked => { root.open-project-file(); }
         }
 
         LauncherButton {
             x: parent.width - 156px;
             y: 6px;
-            label: "Novo projeto";
+            label: @tr("btn-new-project");
             primary: true;
             clicked => { root.create-project-file(); }
         }

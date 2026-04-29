@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-29 05:46+0000\n"
+"POT-Creation-Date: 2026-04-29 16:19+0000\n"
 "PO-Revision-Date: 2026-04-29 00:00+0000\n"
 "Last-Translator: João Paulo Faria <jpfaria@gmail.com>\n"
 "Language-Team: English (US)\n"
@@ -49,12 +49,7 @@ msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir"
 msgstr "Delete"
 
-#: crates/adapter-gui/ui/components/language_selector.slint:41
-msgctxt "LanguageSelector"
-msgid "🌐  {}"
-msgstr "🌐  {}"
-
-#: crates/adapter-gui/ui/components/language_selector.slint:64
+#: crates/adapter-gui/ui/components/language_selector.slint:61
 msgctxt "LanguageSelector"
 msgid "Idioma"
 msgstr "Language"
@@ -84,9 +79,19 @@ msgctxt "ModelSelectWithSearch"
 msgid "Nenhum modelo encontrado"
 msgstr "No models found"
 
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
+msgctxt "BlockEditorPanel"
+msgid "Excluir"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:241
 msgctxt "BlockEditorPanel"
 msgid "–"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:36
+msgctxt "BlockPanelEditor"
+msgid "Adicionar"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/block_panel_editor.slint:684
@@ -124,10 +129,25 @@ msgctxt "ChainEditorPage"
 msgid "Entradas"
 msgstr "Inputs"
 
+#: crates/adapter-gui/ui/pages/chain_editor.slint:367
+msgctxt "ChainEditorPage"
+msgid "+ Adicionar entrada"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/chain_editor.slint:386
 msgctxt "ChainEditorPage"
 msgid "Saidas"
 msgstr "Outputs"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:413
+msgctxt "ChainEditorPage"
+msgid "+ Adicionar saida"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:440
+msgctxt "ChainEditorPage"
+msgid "Cancelar"
+msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
 msgctxt "ChannelRow"
@@ -148,6 +168,16 @@ msgstr "Mode"
 msgctxt "ChainEndpointEditorPage"
 msgid "Canais"
 msgstr "Channels"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:268
+msgctxt "ChainEndpointEditorPage"
+msgid "Cancelar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:275
+msgctxt "ChainEndpointEditorPage"
+msgid "OK"
+msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
 msgctxt "ChainInsertEditorPage"
@@ -173,6 +203,56 @@ msgstr "Channels"
 msgctxt "ChainInsertEditorPage"
 msgid "Retorno"
 msgstr "Return"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:469
+msgctxt "ChainInsertEditorPage"
+msgid "Cancelar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:476
+msgctxt "ChainInsertEditorPage"
+msgid "OK"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_io_groups.slint:307
+msgctxt "ChainIoGroupsPage"
+msgid "Cancelar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_io_groups.slint:314
+msgctxt "ChainIoGroupsPage"
+msgid "OK"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:129
+msgctxt "ChainRow"
+msgid "Expandir blocos"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:137
+msgctxt "ChainRow"
+msgid "Medir latência real (emite um bipe)"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:145
+msgctxt "ChainRow"
+msgid "Configurar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:153
+msgctxt "ChainRow"
+msgid "Abrir preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:161
+msgctxt "ChainRow"
+msgid "Salvar preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:169
+msgctxt "ChainRow"
+msgid "Excluir"
+msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_row.slint:435
 msgctxt "ChainRow"
@@ -239,10 +319,50 @@ msgctxt "PluginInfoWindow"
 msgid "Open Homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:184
+#: crates/adapter-gui/ui/pages/project_chains.slint:130
+msgctxt "ProjectChainsPage"
+msgid "Voltar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:138
+msgctxt "ProjectChainsPage"
+msgid "Spectrum"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:146
+msgctxt "ProjectChainsPage"
+msgid "Tuner"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:154
+msgctxt "ProjectChainsPage"
+msgid "Projeto"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:163
+msgctxt "ProjectChainsPage"
+msgid "Salvar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:171
+msgctxt "ProjectChainsPage"
+msgid "Nova chain"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
-msgid "Buscar projetos"
+msgid "placeholder-search-projects"
 msgstr "Search projects"
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:296
+msgctxt "ProjectLauncherPage"
+msgid "tooltip-open-project"
+msgstr "Open project"
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:303
+msgctxt "ProjectLauncherPage"
+msgid "btn-new-project"
+msgstr "New project"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:120
 msgctxt "DeviceRow"
@@ -274,20 +394,40 @@ msgctxt "ProjectSettingsPage"
 msgid "Dispositivos de áudio"
 msgstr "Audio devices"
 
+#: crates/adapter-gui/ui/pages/project_settings.slint:330
+msgctxt "ProjectSettingsPage"
+msgid "Cancelar"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:337
+msgctxt "ProjectSettingsPage"
+msgid "OK"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/project_setup.slint:55
 msgctxt "NameInput"
-msgid "Ex: Guitarra ao vivo"
+msgid "placeholder-project-name-example"
 msgstr "e.g. Live Guitar"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:151
 msgctxt "ProjectSetupPage"
-msgid "Novo Projeto"
+msgid "title-new-project"
 msgstr "New Project"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:164
 msgctxt "ProjectSetupPage"
-msgid "Nome do projeto"
+msgid "label-project-name"
 msgstr "Project name"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:204
+msgctxt "ProjectSetupPage"
+msgid "btn-cancel"
+msgstr "Cancel"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:211
+msgctxt "ProjectSetupPage"
+msgid "btn-create-project"
+msgstr "Create project"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:73
 msgctxt "SpectrumCard"
@@ -364,6 +504,26 @@ msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
 msgstr "Enable a chain with a configured input to see its tuners here."
 
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:22
+msgctxt "ProjectSettingsWindow"
+msgid "Configurar projeto"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:95
+msgctxt "ChainEditorWindow"
+msgid "OpenRig · Configurar chain"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:128
+msgctxt "ChainEditorWindow"
+msgid "Entrada"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:186
+msgctxt "ChainInputWindow"
+msgid "Entrada"
+msgstr ""
+
 #: crates/adapter-gui/ui/touch_main.slint:563
 msgctxt "TouchMain"
 msgid "⌨"
@@ -383,6 +543,26 @@ msgstr ""
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "Cancel"
+
+#~ msgctxt "LanguageSelector"
+#~ msgid "🌐  {}"
+#~ msgstr "🌐  {}"
+
+#~ msgctxt "SearchField"
+#~ msgid "Buscar projetos"
+#~ msgstr "Search projects"
+
+#~ msgctxt "NameInput"
+#~ msgid "Ex: Guitarra ao vivo"
+#~ msgstr "e.g. Live Guitar"
+
+#~ msgctxt "ProjectSetupPage"
+#~ msgid "Novo Projeto"
+#~ msgstr "New Project"
+
+#~ msgctxt "ProjectSetupPage"
+#~ msgid "Nome do projeto"
+#~ msgstr "Project name"
 
 #~ msgid "Buscar modelos..."
 #~ msgstr "Search models..."
