@@ -1437,6 +1437,75 @@ fn detect_set_change(storage: &Mutex<Option<u64>>, current: u64) -> bool {
     changed
 }
 
+/// Spawn a Linux event-driven hotplug watcher.
+///
+/// Watches `/dev/snd/` via `inotify` for ALSA control/PCM device nodes
+/// being created/removed (the kernel publishes them when an audio card
+/// enters or leaves the bus). Wakes only on real hardware events — no
+/// polling — so it never reads `/proc/asound/cards` periodically and
+/// therefore never triggers `scarlett2_notify` freezes on the Orange Pi
+/// USB-C OTG port (root cause of #331's manual-button fallback).
+///
+/// `callback` runs on the watcher thread for each batch of events. It is
+/// the caller's responsibility to forward to the UI thread (e.g.
+/// `slint::invoke_from_event_loop`).
+///
+/// The watcher thread is detached and runs for the lifetime of the
+/// process; there is no shutdown handle (intentional — the only place
+/// we'd ever want to stop is at process exit).
+#[cfg(target_os = "linux")]
+pub fn spawn_linux_hotplug_watcher<F>(mut callback: F)
+where
+    F: FnMut() + Send + 'static,
+{
+    use inotify::{Inotify, WatchMask};
+    std::thread::Builder::new()
+        .name("openrig-hotplug".into())
+        .spawn(move || {
+            let mut inotify = match Inotify::init() {
+                Ok(i) => i,
+                Err(e) => {
+                    log::warn!("hotplug watcher: inotify init failed: {}", e);
+                    return;
+                }
+            };
+            // CREATE/DELETE: card add/remove. MOVED_FROM/MOVED_TO: udev's
+            // atomic rename pattern when reordering. ATTRIB: chmod when
+            // udev sets permissions on a freshly created node.
+            let mask = WatchMask::CREATE
+                | WatchMask::DELETE
+                | WatchMask::MOVED_FROM
+                | WatchMask::MOVED_TO
+                | WatchMask::ATTRIB;
+            if let Err(e) = inotify.watches().add("/dev/snd", mask) {
+                log::warn!("hotplug watcher: cannot watch /dev/snd: {}", e);
+                return;
+            }
+            log::info!("hotplug watcher: watching /dev/snd via inotify");
+            let mut buf = [0u8; 4096];
+            loop {
+                match inotify.read_events_blocking(&mut buf) {
+                    Ok(events) => {
+                        // Drain the event iterator so the kernel doesn't
+                        // refire the same batch. We only care that
+                        // *something* changed.
+                        let saw_any = events.into_iter().count() > 0;
+                        if saw_any {
+                            callback();
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("hotplug watcher: read failed: {}", e);
+                        // Brief sleep before retrying to avoid tight loop
+                        // on permanent failure.
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
+                }
+            }
+        })
+        .expect("spawn hotplug watcher thread");
+}
+
 /// Cheap identity probe — names of all connected audio devices.
 ///
 /// Linux/JACK: `/proc/asound/cards` (no PCM open, no JACK client).

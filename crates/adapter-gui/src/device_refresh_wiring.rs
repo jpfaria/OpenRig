@@ -4,10 +4,18 @@
 //! The two callbacks re-enumerate audio interfaces (after a USB hot-swap, for
 //! instance) and rebuild the project devices list. They run in the UI thread.
 //!
-//! On Linux the refresh is user-initiated only (the button) — periodic polling
-//! triggered scarlett2_notify freezes on the Orange Pi USB-C OTG port.
-//! On macOS/Windows a periodic watcher (`spawn_hotplug_watcher`) calls
-//! `device_set_changed()` and runs the same refresh path automatically.
+//! Auto-refresh is on by default and uses a different mechanism per platform:
+//! - **macOS / Windows**: 2 s polling timer (`spawn_periodic_hotplug_watcher`)
+//!   that calls `device_set_changed()` and triggers refresh on transitions.
+//! - **Linux**: event-driven `inotify` watcher on `/dev/snd/`
+//!   (`infra_cpal::spawn_linux_hotplug_watcher`). Zero polling — the kernel
+//!   wakes the watcher thread only on real card add/remove. Periodic
+//!   `/proc/asound/cards` reads triggered scarlett2_notify freezes on the
+//!   Orange Pi USB-C OTG port (#331), so polling is not an option there.
+//!
+//! In every case the eventual refresh runs on the UI thread (Slint forbids
+//! mutating models from background threads). The Linux watcher posts back
+//! via `slint::invoke_from_event_loop`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -62,15 +70,17 @@ pub(crate) fn wire(
     project_settings_window: &ProjectSettingsWindow,
     ctx: DeviceRefreshCtx,
 ) {
-    // Issue #354: auto-refresh when audio devices change (hot-swap on macOS/
-    // Windows). On Linux a periodic /proc/asound/cards probe freezes the
-    // Scarlett 4th Gen on the Orange Pi USB-C OTG port — the manual
-    // "Refresh devices" button below remains the only path there.
+    // Issue #354: auto-refresh when audio devices change (hot-swap).
+    // - macOS/Windows: 2 s polling timer (cheap, host enumeration).
+    // - Linux: event-driven inotify on /dev/snd (zero polling, safe for
+    //   Scarlett 4th Gen on Orange Pi USB-C OTG — see #331).
     #[cfg(not(target_os = "linux"))]
     {
-        let timer = spawn_hotplug_watcher(window, project_settings_window, &ctx);
+        let timer = spawn_periodic_hotplug_watcher(window, project_settings_window, &ctx);
         std::mem::forget(timer);
     }
+    #[cfg(target_os = "linux")]
+    spawn_linux_hotplug_watcher(window, project_settings_window, &ctx);
 
     let DeviceRefreshCtx {
         project_session,
@@ -127,16 +137,45 @@ pub(crate) fn wire(
     }
 }
 
+/// Run the device-list refresh after a hot-plug event, then surface a toast
+/// on the appropriate window. Pure UI-thread work — caller MUST be on the
+/// Slint event loop.
+fn refresh_and_toast(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_devices: &Rc<VecModel<DeviceSelectionItem>>,
+    chain_input_device_options: &Rc<VecModel<SharedString>>,
+    chain_output_device_options: &Rc<VecModel<SharedString>>,
+    main_window_weak: &slint::Weak<AppWindow>,
+    settings_window_weak: &slint::Weak<ProjectSettingsWindow>,
+    toast_timer: &Rc<slint::Timer>,
+) {
+    if !perform_refresh(
+        project_session,
+        project_devices,
+        chain_input_device_options,
+        chain_output_device_options,
+    ) {
+        return;
+    }
+    if let Some(window) = main_window_weak.upgrade() {
+        set_status_info(
+            &window,
+            toast_timer,
+            "Audio devices changed — list refreshed",
+        );
+    }
+    if let Some(sw) = settings_window_weak.upgrade() {
+        sw.set_status_message("Audio devices changed — list refreshed".into());
+    }
+}
+
 /// Spawn a periodic watcher that runs `device_set_changed()` and refreshes
 /// the device list automatically when a hot-plug, unplug, or interface swap
-/// is detected. **Non-Linux only** — Linux relies on the manual "Refresh
-/// devices" button because periodic `/proc/asound/cards` reads freeze the
+/// is detected. **macOS / Windows only** — Linux uses the event-driven
+/// inotify watcher because periodic `/proc/asound/cards` reads freeze the
 /// Scarlett 4th Gen on the Orange Pi USB-C OTG port (issue #331 origin).
-///
-/// Returns the timer; caller is responsible for keeping it alive (e.g.
-/// `std::mem::forget`) so it isn't dropped when the wiring function returns.
 #[cfg(not(target_os = "linux"))]
-fn spawn_hotplug_watcher(
+fn spawn_periodic_hotplug_watcher(
     window: &AppWindow,
     project_settings_window: &ProjectSettingsWindow,
     ctx: &DeviceRefreshCtx,
@@ -164,25 +203,73 @@ fn spawn_hotplug_watcher(
             if !infra_cpal::device_set_changed() {
                 return;
             }
-            if !perform_refresh(
+            refresh_and_toast(
                 &project_session,
                 &project_devices,
                 &chain_input_device_options,
                 &chain_output_device_options,
-            ) {
-                return;
-            }
-            if let Some(window) = main_window_weak.upgrade() {
-                set_status_info(
-                    &window,
-                    &toast_timer,
-                    "Audio devices changed — list refreshed",
-                );
-            }
-            if let Some(sw) = settings_window_weak.upgrade() {
-                sw.set_status_message("Audio devices changed — list refreshed".into());
-            }
+                &main_window_weak,
+                &settings_window_weak,
+                &toast_timer,
+            );
         },
     );
     timer
+}
+
+/// Spawn the Linux event-driven hotplug watcher. The watcher thread blocks
+/// on inotify events for `/dev/snd/`; on each batch it posts back to the
+/// Slint event loop so the refresh runs on the UI thread.
+///
+/// Refresh always runs (no fingerprint gate) — kernel events are already
+/// rare and edge-triggered, and a redundant refresh is cheap.
+#[cfg(target_os = "linux")]
+fn spawn_linux_hotplug_watcher(
+    window: &AppWindow,
+    project_settings_window: &ProjectSettingsWindow,
+    ctx: &DeviceRefreshCtx,
+) {
+    let DeviceRefreshCtx {
+        project_session,
+        project_devices,
+        chain_input_device_options,
+        chain_output_device_options,
+        toast_timer,
+    } = ctx;
+    // Snapshot weak handles + Rcs into the closure that runs on the UI loop.
+    // The inotify thread itself only schedules; it captures nothing UI-bound.
+    let main_window_weak = window.as_weak();
+    let settings_window_weak = project_settings_window.as_weak();
+    let project_session = project_session.clone();
+    let project_devices = project_devices.clone();
+    let chain_input_device_options = chain_input_device_options.clone();
+    let chain_output_device_options = chain_output_device_options.clone();
+    let toast_timer = toast_timer.clone();
+
+    infra_cpal::spawn_linux_hotplug_watcher(move || {
+        // We're on the inotify thread. Hop to the Slint event loop before
+        // touching any UI state. Clone everything the closure needs because
+        // invoke_from_event_loop runs the closure asynchronously, so the
+        // FnMut here is called many times.
+        let main_window_weak = main_window_weak.clone();
+        let settings_window_weak = settings_window_weak.clone();
+        let project_session = project_session.clone();
+        let project_devices = project_devices.clone();
+        let chain_input_device_options = chain_input_device_options.clone();
+        let chain_output_device_options = chain_output_device_options.clone();
+        let toast_timer = toast_timer.clone();
+        if let Err(e) = slint::invoke_from_event_loop(move || {
+            refresh_and_toast(
+                &project_session,
+                &project_devices,
+                &chain_input_device_options,
+                &chain_output_device_options,
+                &main_window_weak,
+                &settings_window_weak,
+                &toast_timer,
+            );
+        }) {
+            log::warn!("hotplug watcher: cannot post to UI loop: {}", e);
+        }
+    });
 }
