@@ -43,66 +43,14 @@ use usb_proc::{
 
 use domain::ids::ChainId;
 use engine::runtime::{
-    elastic_target_for_buffer, process_input_f32, process_output_f32, ChainRuntimeState,
+    process_input_f32, process_output_f32, ChainRuntimeState,
     RuntimeGraph,
 };
 use engine;
 
-/// Backend-specific multiplier for the elastic buffer target.
-/// JACK uses a worker-thread DSP path on Linux; non-RT scheduling jitter
-/// needs more headroom than direct CPAL callbacks.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-const ELASTIC_MULTIPLIER: u8 = 8;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-const ELASTIC_MULTIPLIER: u8 = 2;
+mod elastic;
+use elastic::compute_elastic_targets_for_chain;
 
-/// Multiplier used for the elastic target of a regular output route.
-/// See `ELASTIC_MULTIPLIER` for the per-backend rationale.
-const ELASTIC_MULTIPLIER_REGULAR: u8 = ELASTIC_MULTIPLIER;
-/// Multiplier used for the elastic target of an Insert block's *send*
-/// endpoint. The main chain's elastic buffer already absorbs upstream
-/// jitter before the signal reaches the insert send, and the external
-/// hardware on the other side has its own driver buffering. Keeping the
-/// send's elastic at the default multiplier would be pure redundancy
-/// and roughly doubles the insert's round-trip latency; `1` trims that
-/// overhead while the shared `ELASTIC_TARGET_FLOOR` prevents pathologic
-/// sizing for tiny device buffers.
-const ELASTIC_MULTIPLIER_INSERT_SEND: u8 = 1;
-
-/// Compute per-output elastic targets for a chain. Regular outputs use
-/// the backend's default multiplier; Insert send endpoints use a leaner
-/// multiplier to avoid doubling the round-trip latency of the external
-/// effect loop. The order of the returned Vec matches
-/// `ResolvedChainAudioConfig::outputs`, which places regular outputs
-/// first and Insert sends last (mirroring `effective_outputs`).
-fn compute_elastic_targets_for_chain(
-    chain: &Chain,
-    resolved: &ResolvedChainAudioConfig,
-) -> Vec<usize> {
-    let regular_output_count: usize = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
-            _ => None,
-        })
-        .sum();
-    resolved
-        .outputs
-        .iter()
-        .enumerate()
-        .map(|(idx, out)| {
-            let buf = resolved_output_buffer_size_frames(out);
-            let multiplier = if idx >= regular_output_count {
-                ELASTIC_MULTIPLIER_INSERT_SEND
-            } else {
-                ELASTIC_MULTIPLIER_REGULAR
-            };
-            elastic_target_for_buffer(buf, multiplier)
-        })
-        .collect()
-}
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::block::{AudioBlockKind, InputEntry, OutputEntry};
@@ -2885,7 +2833,7 @@ fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
         .unwrap_or(256)
 }
 
-fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
+pub(crate) fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
     resolved
         .settings
         .as_ref()
