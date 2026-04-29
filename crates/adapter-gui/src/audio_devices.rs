@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use infra_cpal::{AudioDeviceDescriptor, list_input_device_descriptors, list_output_device_descriptors};
 use infra_filesystem::GuiAudioDeviceSettings;
 use project::device::DeviceSettings;
-use project::project::Project;
 use slint::{Model, SharedString, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -11,7 +10,7 @@ use crate::{
     DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE_FRAMES, DEFAULT_BIT_DEPTH,
     SUPPORTED_SAMPLE_RATES, SUPPORTED_BUFFER_SIZES, SUPPORTED_BIT_DEPTHS,
 };
-use crate::state::{ChainDraft, InputGroupDraft, InsertDraft, OutputGroupDraft};
+use crate::state::{InputGroupDraft, InsertDraft, OutputGroupDraft};
 
 pub(crate) fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
@@ -111,8 +110,6 @@ pub(crate) fn build_project_device_rows(
 
 pub(crate) fn build_input_channel_items(
     input_group: &InputGroupDraft,
-    draft: &ChainDraft,
-    project: &Project,
     input_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
     let Some(device_id) = input_group.device_id.as_ref() else {
@@ -124,38 +121,16 @@ pub(crate) fn build_input_channel_items(
     let Some(device) = device else {
         return Vec::new();
     };
-    let device_id = &device.id;
-    // A disabled chain can claim any channel — it is not running so there is no
-    // real conflict. Only show conflicts when the chain being edited is enabled.
-    let editing_chain_enabled = draft.editing_index
-        .and_then(|i| project.chains.get(i))
-        .map(|c| c.enabled)
-        .unwrap_or(true); // new chains (no editing_index) behave as enabled for conflict purposes
-    let used_channels: Vec<usize> = if !editing_chain_enabled {
-        Vec::new()
-    } else {
-        project
-            .chains
-            .iter()
-            .enumerate()
-            .filter(|(index, chain)| {
-                chain.enabled && draft.editing_index != Some(*index)
-            })
-            .flat_map(|(_, chain)| {
-                chain.input_blocks().into_iter()
-                    .flat_map(|(_, inp)| inp.entries.iter())
-                    .filter(|entry| entry.device_id.0 == *device_id)
-                    .flat_map(|entry| entry.channels.iter().copied().collect::<Vec<_>>())
-                    .collect::<Vec<_>>()
-            })
-            .collect()
-    };
+    // Input channels are freely shareable across chains — backend fan-out
+    // (cpal/JACK opens the device once and dispatches to N parallel
+    // runtimes). #317: do NOT mark a channel unavailable just because
+    // another chain consumes it.
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
             label: format!("Canal {}", channel + 1).into(),
             selected: input_group.channels.contains(&channel),
-            available: !used_channels.contains(&channel),
+            available: true,
         })
         .collect()
 }
