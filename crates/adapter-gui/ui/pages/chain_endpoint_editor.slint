@@ -249,6 +249,19 @@ export component ChainEndpointEditorPage inherits Rectangle {
         }
     }
 
+    if root.status-message != "" : Text {
+        x: 32px;
+        y: parent.height - 50px;
+        width: parent.width - 320px;
+        height: 32px;
+        text: root.status-message;
+        color: #ff6b6b;
+        font-size: 13px;
+        font-weight: 600;
+        vertical-alignment: center;
+        wrap: word-wrap;
+    }
+
     FooterButton {
         x: parent.width - 196px;
         y: parent.height - 52px;
