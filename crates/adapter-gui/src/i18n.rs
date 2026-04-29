@@ -21,21 +21,26 @@ use std::path::{Path, PathBuf};
 /// name on disk.
 pub const TEXT_DOMAIN: &str = "adapter-gui";
 
-/// Languages exposed in the language selector UI. Order matters — index 0 is
-/// the "Auto" sentinel meaning "follow OS locale".
+/// Languages exposed in the language selector UI. Order matters:
+/// - Index 0 is the "Auto" sentinel meaning "follow OS locale".
+/// - The rest is alphabetical by Portuguese display name (matches the
+///   codebase source language).
+///
+/// Only pt-BR and en-US currently have real translations; the others are
+/// listed so users can pick them, but render passthrough (source pt-BR)
+/// until a translator fills the corresponding `.po` and `.yml` files.
+/// Tracked as a follow-up issue.
 pub const SUPPORTED_LANGUAGES: &[Language] = &[
-    Language {
-        code: "auto",
-        display: "Auto",
-    },
-    Language {
-        code: "pt-BR",
-        display: "Português (Brasil)",
-    },
-    Language {
-        code: "en-US",
-        display: "English (US)",
-    },
+    Language { code: "auto",  display: "Auto" },
+    Language { code: "de-DE", display: "Alemão" },
+    Language { code: "zh-CN", display: "Chinês" },
+    Language { code: "ko-KR", display: "Coreano" },
+    Language { code: "es-ES", display: "Espanhol" },
+    Language { code: "fr-FR", display: "Francês" },
+    Language { code: "hi-IN", display: "Hindi" },
+    Language { code: "en-US", display: "Inglês (US)" },
+    Language { code: "ja-JP", display: "Japonês" },
+    Language { code: "pt-BR", display: "Português (Brasil)" },
 ];
 
 #[derive(Debug, Clone, Copy)]
@@ -59,11 +64,13 @@ pub fn resolve_locale(persisted: Option<&str>) -> String {
         .unwrap_or_else(|| "en-US".to_string())
 }
 
-/// Normalize OS locale strings ("en_US.UTF-8", "pt_BR") to our canonical form
-/// ("en-US", "pt-BR"). Unsupported locales fall back to "en-US" — English is
-/// the default UI language. Portuguese variants (pt-PT, pt-AO, etc.) route
-/// to "pt-BR" because we ship a Portuguese translation; if the user reads
-/// Portuguese, showing them Portuguese is better than English.
+/// Normalize OS locale strings ("en_US.UTF-8", "pt_BR") to one of the
+/// supported canonical codes. Unsupported locales fall back to "en-US" —
+/// English is the default UI language.
+///
+/// Regional variants collapse to the closest shipped translation: pt-PT
+/// routes to pt-BR, en-GB routes to en-US, zh-TW routes to zh-CN, and so
+/// on. This is "best-effort coverage" rather than dialectal accuracy.
 fn normalize(raw: &str) -> String {
     let head = raw.split('.').next().unwrap_or(raw);
     let head = head.replace('_', "-");
@@ -72,6 +79,14 @@ fn normalize(raw: &str) -> String {
     match lower_lang.as_str() {
         "pt" => "pt-BR".to_string(),
         "en" => "en-US".to_string(),
+        "es" => "es-ES".to_string(),
+        "fr" => "fr-FR".to_string(),
+        "de" => "de-DE".to_string(),
+        "it" => "es-ES".to_string(), // closest Romance language we ship
+        "ja" => "ja-JP".to_string(),
+        "ko" => "ko-KR".to_string(),
+        "zh" => "zh-CN".to_string(),
+        "hi" => "hi-IN".to_string(),
         _ => "en-US".to_string(),
     }
 }
@@ -203,20 +218,41 @@ mod tests {
 
     #[test]
     fn normalize_falls_back_to_english_for_unsupported() {
-        // English is the default UI language for distribution; unknown
-        // locales (ja_JP, fr-FR, es-419, …) get English rather than the
-        // Portuguese source.
-        assert_eq!(normalize("ja_JP"), "en-US");
+        // Unknown locales (Latin "xx-YY", empty) fall back to en-US — the
+        // default UI language for distribution.
         assert_eq!(normalize("xx-YY"), "en-US");
         assert_eq!(normalize(""), "en-US");
     }
 
     #[test]
-    fn normalize_collapses_pt_pt_to_pt_br() {
-        // pt-PT, pt-AO, etc. route to pt-BR because we ship a Portuguese
-        // translation. Showing Portuguese to a Portuguese reader beats
-        // dropping to the English default.
+    fn normalize_collapses_regional_variants() {
+        // pt-PT, pt-AO → pt-BR (Portuguese family)
         assert_eq!(normalize("pt_PT"), "pt-BR");
+        assert_eq!(normalize("pt-AO"), "pt-BR");
+        // en-GB → en-US
+        assert_eq!(normalize("en_GB"), "en-US");
+        // zh-TW → zh-CN
+        assert_eq!(normalize("zh_TW"), "zh-CN");
+        // es-419 → es-ES
+        assert_eq!(normalize("es-419"), "es-ES");
+    }
+
+    #[test]
+    fn normalize_routes_each_supported_language_family() {
+        assert_eq!(normalize("de_DE"), "de-DE");
+        assert_eq!(normalize("fr_FR"), "fr-FR");
+        assert_eq!(normalize("es_ES"), "es-ES");
+        assert_eq!(normalize("ja_JP"), "ja-JP");
+        assert_eq!(normalize("ko_KR"), "ko-KR");
+        assert_eq!(normalize("zh_CN"), "zh-CN");
+        assert_eq!(normalize("hi_IN"), "hi-IN");
+    }
+
+    #[test]
+    fn normalize_routes_italian_to_spanish() {
+        // We don't ship Italian; route to es-ES as the closest Romance
+        // language. Better than dropping to en-US.
+        assert_eq!(normalize("it_IT"), "es-ES");
     }
 
     #[test]
@@ -225,12 +261,20 @@ mod tests {
         assert_eq!(resolve_locale(Some("pt-BR")), "pt-BR");
     }
 
+    fn is_supported_code(code: &str) -> bool {
+        SUPPORTED_LANGUAGES
+            .iter()
+            .any(|l| l.code == code && l.code != "auto")
+    }
+
     #[test]
     fn resolve_locale_treats_auto_as_unset() {
+        // Result depends on the test host's OS locale — accept any of our
+        // shipped codes (the resolver should never echo "auto" back).
         let result = resolve_locale(Some("auto"));
         assert!(
-            result == "pt-BR" || result == "en-US",
-            "auto resolution returned unexpected value: {}",
+            is_supported_code(&result),
+            "auto resolution returned unsupported code: {}",
             result
         );
     }
@@ -238,7 +282,7 @@ mod tests {
     #[test]
     fn resolve_locale_treats_empty_as_unset() {
         let result = resolve_locale(Some(""));
-        assert!(result == "pt-BR" || result == "en-US");
+        assert!(is_supported_code(&result));
     }
 
     #[test]

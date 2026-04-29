@@ -208,11 +208,14 @@ export component DesktopMain inherits Rectangle {
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
+        language-options: root.language-options;
+        selected-language-index: root.selected-language-index;
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
+        change-language(i) => { root.change-language(i); }
     }
 
     if root.show-project-setup : ProjectSetupPage {
@@ -435,10 +438,12 @@ export component DesktopMain inherits Rectangle {
         refresh-devices => { root.refresh-devices(); }
     }
 
-    // Floating language selector — top-right, visible on every screen.
-    LanguageSelector {
+    // Floating language selector — top-right of every screen EXCEPT the
+    // launcher (the launcher renders its own copy inline next to the
+    // open/create-project buttons so they don't fight for the same corner).
+    if !root.show-project-launcher : LanguageSelector {
         x: parent.width - self.width - 16px;
-        y: 12px;
+        y: 18px;
         z: 200;
         compact: true;
         language-options: root.language-options;

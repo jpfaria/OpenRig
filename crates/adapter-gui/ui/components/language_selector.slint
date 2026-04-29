@@ -1,16 +1,12 @@
-import { Theme } from "../theme.slint";
-
-// Single source for the language selector dropdown. Exposed in two places:
-//   - DesktopMain: floating overlay at the top-right of every screen
-//   - ProjectSettings: regular row alongside other persistent prefs
+// Language selector — visual identity matches IconLauncherButton /
+// LauncherButton: 40px tall, #2f3339 background, #4c515b border, 4px
+// radius, #f4f7fb text. Same hover tooltip pattern as IconLauncherButton.
 //
-// Picking a new language persists to gui-settings.yaml on the Rust side and
-// pops a toast asking the user to restart the app — gettext only re-resolves
-// strings on process startup. A future issue can wire live re-rendering.
+// Used at the top-right of DesktopMain. The dropdown opens upward-anchored
+// to the trigger so it doesn't overlap UI below.
 //
-// `language-options` and `selected-language-index` are driven by the Rust
-// side from i18n::SUPPORTED_LANGUAGES; the component itself stays naive about
-// which locales exist.
+// Driven from Rust by adapter_gui::SUPPORTED_LANGUAGES. The component is
+// naive about which locales exist.
 
 export component LanguageSelector inherits Rectangle {
     in property <[string]> language-options;
@@ -18,12 +14,12 @@ export component LanguageSelector inherits Rectangle {
     in property <bool> compact: false;
     callback language-selected(int);
 
-    width: compact ? 140px : 220px;
-    height: 36px;
-    background: Theme.palette.card;
-    border-color: Theme.palette.border;
+    width: compact ? 130px : 180px;
+    height: 40px;
+    background: #2f3339;
     border-width: 1px;
-    border-radius: 6px;
+    border-color: #4c515b;
+    border-radius: 4px;
 
     private property <bool> dropdown-open: false;
     private property <string> current-label:
@@ -31,29 +27,30 @@ export component LanguageSelector inherits Rectangle {
             ? root.language-options[root.selected-language-index]
             : "Auto";
 
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 8px;
-        spacing: 6px;
-        alignment: space-between;
+    Text {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 32px;
+        height: parent.height;
+        text: "🌐  " + root.current-label;
+        color: #f4f7fb;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 600;
+        overflow: elide;
+    }
 
-        Text {
-            text: @tr("🌐  {}", root.current-label);
-            color: Theme.palette.text-primary;
-            font-size: Theme.typo.body.size;
-            font-weight: Theme.typo.body.weight;
-            vertical-alignment: center;
-            horizontal-alignment: left;
-            overflow: elide;
-        }
-
-        Text {
-            text: root.dropdown-open ? "▴" : "▾";
-            color: Theme.palette.text-muted;
-            font-size: 11px;
-            vertical-alignment: center;
-            horizontal-alignment: right;
-        }
+    Text {
+        x: parent.width - 18px;
+        y: 0px;
+        width: 12px;
+        height: parent.height;
+        text: root.dropdown-open ? "▴" : "▾";
+        color: #93a1b7;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 11px;
     }
 
     TouchArea {
@@ -69,10 +66,10 @@ export component LanguageSelector inherits Rectangle {
         y: parent.height + 4px;
         width: parent.width;
         height: list-layout.preferred-height;
-        background: Theme.palette.card-secondary;
-        border-color: Theme.palette.border-strong;
+        background: #2f3339;
+        border-color: #4c515b;
         border-width: 1px;
-        border-radius: 6px;
+        border-radius: 4px;
         z: 100;
 
         list-layout := VerticalLayout {
@@ -81,14 +78,15 @@ export component LanguageSelector inherits Rectangle {
 
             for option[i] in root.language-options : Rectangle {
                 height: 30px;
-                background: option-touch.has-hover ? Theme.palette.row-start : transparent;
-                border-radius: 4px;
+                background: option-touch.has-hover ? #3b4250 : transparent;
+                border-radius: 3px;
 
                 Text {
                     x: 10px;
                     text: option;
-                    color: Theme.palette.text-primary;
-                    font-size: Theme.typo.body.size;
+                    color: #f4f7fb;
+                    font-size: 13px;
+                    font-weight: 600;
                     vertical-alignment: center;
                     horizontal-alignment: left;
                     width: parent.width - 20px;

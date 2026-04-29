@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
+import { LanguageSelector } from "../components/language_selector.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -214,6 +215,9 @@ export component ProjectLauncherPage inherits Rectangle {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
+    in property <[string]> language-options;
+    in property <int> selected-language-index;
+    callback change-language(int);
 
     background: #1f2023;
 
@@ -274,6 +278,15 @@ export component ProjectLauncherPage inherits Rectangle {
             height: 52px;
             source: @image-url("../assets/openrig-logotype.png");
             image-fit: contain;
+        }
+
+        LanguageSelector {
+            x: parent.width - 360px;
+            y: 6px;
+            compact: true;
+            language-options: root.language-options;
+            selected-language-index: root.selected-language-index;
+            language-selected(i) => { root.change-language(i); }
         }
 
         IconLauncherButton {
