@@ -8,8 +8,6 @@ use cpal::{BufferSize, SampleFormat, Stream, StreamConfig, SupportedStreamConfig
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::{SupportedBufferSize, SupportedStreamConfigRange};
 use std::sync::Mutex;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 // Single owner of the jackd lifecycle on Linux (issue #308). The supervisor
@@ -25,70 +23,12 @@ use std::time::{Duration, Instant};
 )]
 mod jack_supervisor;
 
-// ── Cached host ─────────────────────────────────────────────────────────────
-// select_host() was called 8+ times per session (each creating a new CPAL
-// host, which on JACK means a new client connection).  Cache it once.
-//
-// On Linux+JACK the host is never needed: all device enumeration and streaming
-// goes through /proc/asound and the jack crate directly — zero ALSA/cpal.
-
+mod host;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-static HOST: OnceLock<cpal::Host> = OnceLock::new();
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn get_host() -> &'static cpal::Host {
-    HOST.get_or_init(create_host)
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn create_host() -> cpal::Host {
-    #[cfg(target_os = "windows")]
-    {
-        for host_id in cpal::available_hosts() {
-            if host_id == cpal::HostId::Asio {
-                match cpal::host_from_id(host_id) {
-                    Ok(host) => {
-                        log::info!("Audio host: ASIO");
-                        return host;
-                    }
-                    Err(e) => {
-                        log::warn!("ASIO driver found but failed to initialize: {e} — falling back to WASAPI");
-                    }
-                }
-            }
-        }
-        log::info!("Audio host: WASAPI (no ASIO driver found)");
-    }
-
-    cpal::default_host()
-}
-
-/// Returns true when at least one JACK server is running.
-/// jackd creates a socket at /dev/shm/jack_<name>_<uid>_0 for any server name.
-/// Safe to call from the UI thread — pure filesystem scan, no JACK client.
+use host::{get_host, select_host_for_enumeration};
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn jack_server_is_running() -> bool {
-    std::fs::read_dir("/dev/shm").ok()
-        .map(|entries| {
-            entries.filter_map(|e| e.ok()).any(|e| {
-                let name = e.file_name();
-                let s = name.to_string_lossy();
-                s.starts_with("jack_") && s.ends_with("_0")
-            })
-        })
-        .unwrap_or(false)
-}
-
-/// Select the CPAL audio host for device enumeration (non-JACK path only).
-///
-/// On Linux+JACK this function does not exist — all enumeration goes through
-/// /proc/asound and the jack crate. On other platforms, caches a default host
-/// once so repeated enumerations share the same host instance.
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn select_host_for_enumeration() -> &'static cpal::Host {
-    static ENUM_HOST: OnceLock<cpal::Host> = OnceLock::new();
-    ENUM_HOST.get_or_init(cpal::default_host)
-}
+use host::jack_server_is_running;
+use host::{is_asio_host, using_jack_direct};
 
 /// Represents a USB audio card detected in /proc/asound/cards.
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -391,32 +331,6 @@ fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
         }
     }
     Ok(devices)
-}
-
-/// Returns true when the direct JACK backend will be used for audio streaming.
-/// This replaces is_jack_host() checks — since we never create a CPAL JACK host,
-/// we check JACK availability directly instead of inspecting the host type.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn using_jack_direct() -> bool {
-    jack_server_is_running()
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn using_jack_direct() -> bool {
-    false
-}
-
-/// Returns true when the given host is the ASIO host on Windows.
-/// ASIO devices report a fixed sample rate and buffer size configured externally
-/// via vendor software — project settings must be ignored for those devices.
-#[cfg(target_os = "windows")]
-fn is_asio_host(host: &cpal::Host) -> bool {
-    host.id() == cpal::HostId::Asio
-}
-
-#[cfg(all(not(target_os = "windows"), not(all(target_os = "linux", feature = "jack"))))]
-fn is_asio_host(_host: &cpal::Host) -> bool {
-    false
 }
 
 // is_jack_host() removed — CPAL JACK host is never created.
