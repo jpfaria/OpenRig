@@ -7,8 +7,10 @@
 //! Both catalogs are kept in sync by sharing the same locale code (pt-BR /
 //! en-US). The selector in the UI sets the locale on both at startup.
 //!
-//! Source language is pt-BR. Fallback when a translation is missing is the
-//! source string (gettext default; rust-i18n configured the same way).
+//! Source language (where the keys live) is pt-BR. Default UI language for
+//! distribution is **en-US** — when the OS locale is not pt or en, the app
+//! falls back to en-US, not to the Portuguese source. Portuguese variants
+//! (pt-PT, pt-AO) route to pt-BR because we ship a Portuguese translation.
 //!
 //! See `docs/i18n.md` for the full flow and the rationale for two catalogs.
 
@@ -45,7 +47,7 @@ pub struct Language {
 /// Resolve the locale we should activate. Order:
 ///   1. Explicit non-"auto" value persisted in `gui-settings.yaml`
 ///   2. OS locale (sys-locale)
-///   3. Fallback to "pt-BR" (the source language)
+///   3. Fallback to "en-US" — the default UI language for distribution
 pub fn resolve_locale(persisted: Option<&str>) -> String {
     if let Some(code) = persisted {
         if !code.is_empty() && !code.eq_ignore_ascii_case("auto") {
@@ -54,11 +56,14 @@ pub fn resolve_locale(persisted: Option<&str>) -> String {
     }
     sys_locale::get_locale()
         .map(|s| normalize(&s))
-        .unwrap_or_else(|| "pt-BR".to_string())
+        .unwrap_or_else(|| "en-US".to_string())
 }
 
 /// Normalize OS locale strings ("en_US.UTF-8", "pt_BR") to our canonical form
-/// ("en-US", "pt-BR"). Unsupported locales fall back to the source language.
+/// ("en-US", "pt-BR"). Unsupported locales fall back to "en-US" — English is
+/// the default UI language. Portuguese variants (pt-PT, pt-AO, etc.) route
+/// to "pt-BR" because we ship a Portuguese translation; if the user reads
+/// Portuguese, showing them Portuguese is better than English.
 fn normalize(raw: &str) -> String {
     let head = raw.split('.').next().unwrap_or(raw);
     let head = head.replace('_', "-");
@@ -67,7 +72,7 @@ fn normalize(raw: &str) -> String {
     match lower_lang.as_str() {
         "pt" => "pt-BR".to_string(),
         "en" => "en-US".to_string(),
-        _ => "pt-BR".to_string(),
+        _ => "en-US".to_string(),
     }
 }
 
@@ -197,15 +202,20 @@ mod tests {
     }
 
     #[test]
-    fn normalize_falls_back_to_source_language_for_unsupported() {
-        assert_eq!(normalize("ja_JP"), "pt-BR");
-        assert_eq!(normalize("xx-YY"), "pt-BR");
-        assert_eq!(normalize(""), "pt-BR");
+    fn normalize_falls_back_to_english_for_unsupported() {
+        // English is the default UI language for distribution; unknown
+        // locales (ja_JP, fr-FR, es-419, …) get English rather than the
+        // Portuguese source.
+        assert_eq!(normalize("ja_JP"), "en-US");
+        assert_eq!(normalize("xx-YY"), "en-US");
+        assert_eq!(normalize(""), "en-US");
     }
 
     #[test]
     fn normalize_collapses_pt_pt_to_pt_br() {
-        // pt-PT routes to pt-BR — broader Portuguese coverage.
+        // pt-PT, pt-AO, etc. route to pt-BR because we ship a Portuguese
+        // translation. Showing Portuguese to a Portuguese reader beats
+        // dropping to the English default.
         assert_eq!(normalize("pt_PT"), "pt-BR");
     }
 

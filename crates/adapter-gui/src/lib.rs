@@ -98,8 +98,9 @@ pub use i18n::{init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 
 // Loads every YAML under crates/adapter-gui/locales/ at compile time.
 // After this, `rust_i18n::t!("Some string")` is callable everywhere in
-// the crate. Default fallback locale is the source language (pt-BR).
-rust_i18n::i18n!("locales", fallback = "pt-BR");
+// the crate. Default fallback is en-US (the UI default language); the
+// Portuguese source strings remain as keys but are not used as fallback.
+rust_i18n::i18n!("locales", fallback = "en-US");
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
