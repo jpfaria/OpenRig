@@ -60,6 +60,9 @@ pub use device_settings::start_jack_in_background;
 mod chain_resolve;
 pub use chain_resolve::resolve_project_chain_sample_rates;
 
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_chain_resolve;
+
 mod validation;
 
 mod stream_builder;
@@ -71,10 +74,12 @@ pub use stream_builder::build_streams_for_project;
 // device_settings, elastic) via `crate::<name>`. Re-export them at the
 // crate root so existing call sites keep resolving without an import
 // flip-day across every file.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub(crate) use jack_chain_resolve::jack_resolve_chain_config;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub(crate) use stream_builder::build_active_chain_runtime;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_builder::{build_active_chain_runtime, build_chain_stream_signature_multi};
-#[cfg(all(target_os = "linux", feature = "jack"))]
-pub(crate) use stream_builder::{build_active_chain_runtime, jack_resolve_chain_config};
 pub(crate) use stream_config::{build_stream_config, resolved_output_buffer_size_frames};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
@@ -88,3 +93,7 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_regression;
+#[cfg(test)]
+mod tests_signatures;

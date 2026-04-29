@@ -21,9 +21,6 @@
 //!   together the cpal streams.
 //! - `build_chain_stream_signature_multi` — derive the stream
 //!   signature from a chain's resolved IO; used by `chain_resolve`.
-//! - `jack_resolve_chain_config` — Linux+JACK only, the inverse of the
-//!   non-JACK chain_resolve path that builds a synthetic
-//!   ResolvedChainAudioConfig from libjack metadata.
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::anyhow;
@@ -62,12 +59,6 @@ use crate::stream_config::{
 use crate::host::jack_server_is_running;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::jack_direct::build_jack_direct_chain;
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::jack_supervisor;
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::resolved::{ChainStreamSignature, InputStreamSignature, OutputStreamSignature};
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::usb_proc::detect_all_usb_audio_cards;
 
 pub fn build_streams_for_project(
     project: &project::project::Project,
@@ -112,107 +103,6 @@ pub fn build_streams_for_project(
         }
         Ok(streams)
     }
-}
-
-/// Build a synthetic ResolvedChainAudioConfig using only the jack crate.
-/// No CPAL or ALSA access. The resolved config is only used to provide
-/// sample_rate and stream_signature to the runtime graph — the direct JACK
-/// backend ignores inputs/outputs entirely.
-///
-/// Consumes cached meta from the supervisor — callers must guarantee that
-/// `ensure_jack_servers` ran beforehand so every active card is in the
-/// `Ready` state.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-pub(crate) fn jack_resolve_chain_config(
-    chain: &Chain,
-    supervisor: &jack_supervisor::JackSupervisor<jack_supervisor::LiveJackBackend>,
-) -> Result<ResolvedChainAudioConfig> {
-    use anyhow::anyhow;
-    // Resolve the JACK server for this chain by inspecting its I/O device_ids.
-    // Chain entries may have:
-    //   - "jack:<server_name>"  → use that server directly
-    //   - "hw:<N>"              → find the card at hw:N and use its server
-    //   - anything else         → fall back to first supervised running server
-    let cards = detect_all_usb_audio_cards();
-
-    let supervisor_has_ready = |name: &str| {
-        matches!(
-            supervisor.state(&jack_supervisor::ServerName::from(name)),
-            Some(jack_supervisor::JackServerState::Ready { .. })
-        )
-    };
-
-    let resolve_server = |device_id: &str| -> Option<String> {
-        if let Some(name) = device_id.strip_prefix("jack:") {
-            return Some(name.to_string());
-        }
-        if let Some(hw_num) = device_id.strip_prefix("hw:") {
-            if let Some(card) = cards.iter().find(|c| c.card_num == hw_num) {
-                return Some(card.server_name.clone());
-            }
-        }
-        cards
-            .iter()
-            .find(|c| supervisor_has_ready(&c.server_name))
-            .map(|c| c.server_name.clone())
-    };
-
-    // Determine server from first input entry, or fallback to first
-    // supervisor-ready card.
-    let server_name = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
-        .find_map(|entry| resolve_server(&entry.device_id.0))
-        .or_else(|| {
-            cards
-                .iter()
-                .find(|c| supervisor_has_ready(&c.server_name))
-                .map(|c| c.server_name.clone())
-        })
-        .ok_or_else(|| anyhow!("no running JACK server found for chain"))?;
-
-    let meta = supervisor.meta(&jack_supervisor::ServerName::from(server_name.clone()))?;
-    let device_id = format!("jack:{}", server_name);
-    let sample_rate = meta.sample_rate as f32;
-    let in_channels = meta.capture_port_count as u16;
-    let out_channels = meta.playback_port_count as u16;
-
-    let input_sigs: Vec<InputStreamSignature> = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
-        .map(|entry| InputStreamSignature {
-            device_id: device_id.clone(),
-            channels: entry.channels.clone(),
-            stream_channels: in_channels,
-            sample_rate: meta.sample_rate,
-            buffer_size_frames: meta.buffer_size,
-        })
-        .collect();
-
-    let output_sigs: Vec<OutputStreamSignature> = chain
-        .output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter())
-        .map(|entry| OutputStreamSignature {
-            device_id: device_id.clone(),
-            channels: entry.channels.clone(),
-            stream_channels: out_channels,
-            sample_rate: meta.sample_rate,
-            buffer_size_frames: meta.buffer_size,
-        })
-        .collect();
-
-    Ok(ResolvedChainAudioConfig {
-        inputs: Vec::new(),
-        outputs: Vec::new(),
-        sample_rate,
-        stream_signature: ChainStreamSignature {
-            inputs: input_sigs,
-            outputs: output_sigs,
-        },
-    })
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
