@@ -367,16 +367,21 @@ pub(crate) use crate::runtime_graph::{
 };
 
 
-// Slice 5 of Phase 2: I/O helpers moved to runtime_io.rs.
-use crate::runtime_io::{
-    blend_frame, downcast_panic_message, ensure_flush_to_zero, write_output_frame,
-};
-// Re-export layout_label so the existing `crate::runtime::layout_label` paths
+// Phase 2 slices 5+5b: helpers split by *what they actually do*:
+//   - runtime_dsp.rs        → DSP math + per-callback CPU setup
+//   - runtime_layout.rs     → AudioChannelLayout type helpers
+//   - runtime_io.rs         → output buffer write (the only real I/O)
+use crate::runtime_dsp::{blend_frame, downcast_panic_message, ensure_flush_to_zero};
+use crate::runtime_io::write_output_frame;
+// Re-export layout_label so existing `crate::runtime::layout_label` paths
 // in runtime_graph.rs / runtime_block_builders.rs / runtime_tests.rs keep
-// working. Same for layout_from_channels (used by runtime_tests).
-pub(crate) use crate::runtime_io::layout_label;
+// working unchanged.
+pub(crate) use crate::runtime_layout::layout_label;
+// Test-only re-exports for things only tests reach for via super::.
 #[cfg(test)]
-pub(crate) use crate::runtime_io::{apply_mixdown, layout_from_channels, output_limiter};
+pub(crate) use crate::runtime_dsp::{apply_mixdown, output_limiter};
+#[cfg(test)]
+pub(crate) use crate::runtime_layout::layout_from_channels;
 
 
 pub fn process_input_f32(
