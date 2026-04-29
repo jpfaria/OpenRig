@@ -251,7 +251,7 @@ pub(crate) fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    device_id: fresh_input.first().map(|d| d.id.clone()),
+                    device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
                 });
@@ -308,7 +308,7 @@ pub(crate) fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    device_id: fresh_output.first().map(|d| d.id.clone()),
+                    device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
                 });
