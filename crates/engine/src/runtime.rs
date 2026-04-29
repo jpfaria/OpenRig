@@ -359,10 +359,14 @@ pub use crate::runtime_graph::{
 // access several of the now-moved builder helpers via `super::`. Keeping the
 // alias surface here means we don't have to touch every test file.
 #[cfg(test)]
+pub(crate) use crate::runtime_block_builders::{
+    bypass_runtime_node, next_block_instance_serial, processor_scratch,
+};
+#[cfg(test)]
 pub(crate) use crate::runtime_graph::{
-    build_output_routing_state, bypass_runtime_node, effective_inputs, effective_outputs,
-    insert_return_as_input_entry, insert_send_as_output_entry, next_block_instance_serial,
-    processor_scratch, split_chain_into_segments, ERROR_QUEUE_CAPACITY,
+    build_output_routing_state, effective_inputs, effective_outputs,
+    insert_return_as_input_entry, insert_send_as_output_entry, split_chain_into_segments,
+    ERROR_QUEUE_CAPACITY,
 };
 
 
