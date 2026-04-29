@@ -51,18 +51,23 @@ pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_
 
 // Slice 3: graph + block builders. External callers keep using
 // `engine::runtime::*` paths via these re-exports.
+// Slice 7: endpoint resolution + segmentation moved to runtime_endpoints
+// and runtime_segments respectively; re-exported here for tests.
 #[cfg(test)]
 pub(crate) use crate::runtime_block_builders::{
     bypass_runtime_node, next_block_instance_serial, processor_scratch,
+};
+#[cfg(test)]
+pub(crate) use crate::runtime_endpoints::{
+    effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
 };
 pub use crate::runtime_graph::{
     build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state, RuntimeGraph,
 };
 #[cfg(test)]
-pub(crate) use crate::runtime_graph::{
-    build_output_routing_state, effective_inputs, effective_outputs, insert_return_as_input_entry,
-    insert_send_as_output_entry, split_chain_into_segments, ERROR_QUEUE_CAPACITY,
-};
+pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
+#[cfg(test)]
+pub(crate) use crate::runtime_segments::split_chain_into_segments;
 
 // Slices 5+5b: helpers split by what they actually do
 // (runtime_dsp / runtime_layout / runtime_io).
