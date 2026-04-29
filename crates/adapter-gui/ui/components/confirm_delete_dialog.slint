@@ -24,7 +24,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
             padding: 20px;
             spacing: 12px;
             Text {
-                text: "Excluir bloco";
+                text: @tr("Excluir bloco");
                 font-size: 16px;
                 color: #ffffff;
                 font-weight: 700;
@@ -50,7 +50,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                         clicked => { root.cancel(); }
                     }
                     Text {
-                        text: "Cancelar";
+                        text: @tr("Cancelar");
                         font-size: 13px;
                         color: #aaaaaa;
                         horizontal-alignment: center;
@@ -67,7 +67,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                         clicked => { root.confirm(); }
                     }
                     Text {
-                        text: "Excluir";
+                        text: @tr("Excluir");
                         font-size: 13px;
                         color: #ffffff;
                         font-weight: 700;

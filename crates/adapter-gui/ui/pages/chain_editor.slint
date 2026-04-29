@@ -98,7 +98,7 @@ component IoGroupRow inherits Rectangle {
         Text {
             width: parent.width;
             height: parent.height;
-            text: "✕";
+            text: @tr("✕");
             color: #5a6270;
             font-size: 13px;
             horizontal-alignment: center;
@@ -119,7 +119,7 @@ component IoGroupRow inherits Rectangle {
         y: 0px;
         width: 20px;
         height: parent.height;
-        text: "›";
+        text: @tr("›");
         color: #4c5566;
         font-size: 18px;
         horizontal-alignment: right;
@@ -230,7 +230,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 84px;
         width: 120px;
         height: 16px;
-        text: "Nome";
+        text: @tr("Nome");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -258,7 +258,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 168px;
         width: 120px;
         height: 16px;
-        text: "Instrumento";
+        text: @tr("Instrumento");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -337,7 +337,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 248px;
         width: 120px;
         height: 16px;
-        text: "Entradas";
+        text: @tr("Entradas");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -383,7 +383,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 328px + Math.max(0px, root.input-groups.length * 36px);
         width: 120px;
         height: 16px;
-        text: "Saidas";
+        text: @tr("Saidas");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;

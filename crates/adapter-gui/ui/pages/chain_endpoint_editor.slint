@@ -63,7 +63,7 @@ component ChannelRow inherits Rectangle {
         if root.channel.selected : Text {
             width: parent.width;
             height: parent.height;
-            text: "✓";
+            text: @tr("✓");
             color: #ffffff;
             font-size: 12px;
             font-weight: 700;
@@ -137,7 +137,7 @@ export component ChainEndpointEditorPage inherits Rectangle {
         y: 80px;
         width: 120px;
         height: 16px;
-        text: "Dispositivo";
+        text: @tr("Dispositivo");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -167,7 +167,7 @@ export component ChainEndpointEditorPage inherits Rectangle {
         y: 163px;
         width: 120px;
         height: 16px;
-        text: "Modo";
+        text: @tr("Modo");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -226,7 +226,7 @@ export component ChainEndpointEditorPage inherits Rectangle {
         y: root.show-mode-selector ? 258px : 166px;
         width: 120px;
         height: 16px;
-        text: "Canais";
+        text: @tr("Canais");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;

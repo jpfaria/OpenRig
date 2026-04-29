@@ -560,7 +560,7 @@ export component TouchMain inherits Rectangle {
             mouse-cursor: pointer;
             clicked => { root.keyboard-visible = !root.keyboard-visible; root.kb-shift = false; }
             Text {
-                text: "⌨";
+                text: @tr("⌨");
                 font-size: 22px;
                 color: #ffffff;
                 horizontal-alignment: center;
@@ -585,7 +585,7 @@ export component TouchMain inherits Rectangle {
                 padding: 16px;
                 spacing: 8px;
                 Text {
-                    text: "Carregar Preset";
+                    text: @tr("Carregar Preset");
                     font-size: 16px;
                     color: #ffffff;
                     font-weight: 700;
@@ -625,7 +625,7 @@ export component TouchMain inherits Rectangle {
                                     clicked => { root.preset-picker-delete(i); }
                                 }
                                 Text {
-                                    text: "✕";
+                                    text: @tr("✕");
                                     font-size: 16px;
                                     color: #cc4444;
                                     horizontal-alignment: center;
@@ -644,7 +644,7 @@ export component TouchMain inherits Rectangle {
                         clicked => { root.preset-picker-cancel(); }
                     }
                     Text {
-                        text: "Cancelar";
+                        text: @tr("Cancelar");
                         font-size: 14px;
                         color: #aaaaaa;
                         horizontal-alignment: center;

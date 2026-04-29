@@ -681,7 +681,7 @@ export component BlockPanelEditor inherits Rectangle {
                         x: parent.width - 22px; y: 0;
                         width: 18px;
                         height: parent.height;
-                        text: "\u{25BC}";
+                        text: @tr("\u{25BC}");
                         color: #ffffff;
                         font-size: 11px;
                         vertical-alignment: center;
@@ -837,7 +837,7 @@ export component BlockPanelEditor inherits Rectangle {
         // Waiting for signal — shown until pitch is detected
         if !root.block-stream-data.active : Text {
             x: 0; y: 0; width: parent.width; height: parent.height;
-            text: "–";
+            text: @tr("–");
             color: #3a4050;
             font-size: 28px; font-weight: 900;
             horizontal-alignment: center;

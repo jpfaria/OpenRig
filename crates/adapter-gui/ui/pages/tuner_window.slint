@@ -51,7 +51,7 @@ component MuteSwitch inherits Rectangle {
     Text {
         x: 4px; y: 0;
         width: 26px; height: 12px;
-        text: "MUTE";
+        text: @tr("MUTE");
         color: root.active ? #ff7878 : #8a95a5;
         font-family: "Bebas Neue";
         font-size: 9px;
@@ -313,7 +313,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 110px; y: 0;
             width: 80px; height: parent.height;
-            text: "TUNER";
+            text: @tr("TUNER");
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
@@ -333,7 +333,7 @@ export component TunerPanel inherits Rectangle {
             Text {
                 x: 0; y: 0;
                 width: parent.width; height: parent.height;
-                text: "✕";
+                text: @tr("✕");
                 color: #c5cdd9;
                 font-family: "Inter";
                 font-size: 14px;
@@ -367,7 +367,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
-            text: "NO ACTIVE INPUTS";
+            text: @tr("NO ACTIVE INPUTS");
             color: #4a525e;
             font-family: "Bebas Neue";
             font-size: 16px;
@@ -377,7 +377,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 4px;
             width: parent.width; height: 20px;
-            text: "Enable a chain with a configured input to see its tuners here.";
+            text: @tr("Enable a chain with a configured input to see its tuners here.");
             color: #4a525e;
             font-family: "Inter";
             font-size: 11px;

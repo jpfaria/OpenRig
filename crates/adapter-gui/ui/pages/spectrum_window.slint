@@ -70,7 +70,7 @@ component SpectrumCard inherits Rectangle {
     if !root.data.active : Text {
         x: 0; y: parent.height / 2 - 6px;
         width: parent.width; height: 14px;
-        text: "—";
+        text: @tr("—");
         color: #2a3340;
         font-family: "Bebas Neue";
         font-size: 14px;
@@ -124,31 +124,31 @@ component SpectrumCard inherits Rectangle {
 
         Text {
             x: 0 * parent.bar-stride; y: 0; width: 20px;
-            text: "20"; color: #4a525e;
+            text: @tr("20"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 14 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "100"; color: #4a525e;
+            text: @tr("100"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 34 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "1k"; color: #4a525e;
+            text: @tr("1k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 54 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "10k"; color: #4a525e;
+            text: @tr("10k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 60 * parent.bar-stride - 4px; y: 0; width: 20px;
-            text: "20k"; color: #4a525e;
+            text: @tr("20k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
@@ -196,7 +196,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 110px; y: 0;
             width: 140px; height: parent.height;
-            text: "SPECTRUM";
+            text: @tr("SPECTRUM");
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
@@ -216,7 +216,7 @@ export component SpectrumPanel inherits Rectangle {
             Text {
                 x: 0; y: 0;
                 width: parent.width; height: parent.height;
-                text: "✕";
+                text: @tr("✕");
                 color: #c5cdd9;
                 font-family: "Inter";
                 font-size: 14px;
@@ -240,7 +240,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
-            text: "NO ACTIVE OUTPUTS";
+            text: @tr("NO ACTIVE OUTPUTS");
             color: #4a525e;
             font-family: "Bebas Neue";
             font-size: 16px;
@@ -250,7 +250,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 4px;
             width: parent.width; height: 20px;
-            text: "Power on the spectrum and enable a chain with a configured output.";
+            text: @tr("Power on the spectrum and enable a chain with a configured output.");
             color: #4a525e;
             font-family: "Inter";
             font-size: 11px;

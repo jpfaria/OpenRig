@@ -432,7 +432,7 @@ export component ChainRow inherits Rectangle {
                 y: 2px;
                 width: 26px;
                 height: parent.height;
-                text: "LAT";
+                text: @tr("LAT");
                 color: root.chain.latency_ms < 10.0 ? #4ade8099
                      : root.chain.latency_ms < 20.0 ? #facc1599
                      : #f8717199;
@@ -481,7 +481,7 @@ export component ChainRow inherits Rectangle {
                     x: 12px;
                     width: parent.width - 24px;
                     height: parent.height;
-                    text: "Entrada";
+                    text: @tr("Entrada");
                     color: #edf2f9;
                     font-size: 12px;
                     font-weight: 800;
@@ -527,7 +527,7 @@ export component ChainRow inherits Rectangle {
                     x: 12px;
                     width: parent.width - 24px;
                     height: parent.height;
-                    text: "Saída";
+                    text: @tr("Saída");
                     color: #edf2f9;
                     font-size: 12px;
                     font-weight: 800;
