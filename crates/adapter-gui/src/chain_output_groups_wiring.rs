@@ -115,7 +115,7 @@ pub(crate) fn wire(
             };
             // Fixed block (chip In/Out): must keep at least one entry
             if draft.editing_io_block_index.is_none() && draft.outputs.len() <= 1 {
-                groups_window.set_status_message("É necessário pelo menos uma saída.".into());
+                groups_window.set_status_message(rust_i18n::t!("É necessário pelo menos uma saída.").to_string().into());
                 return;
             }
             let gi = group_index as usize;
@@ -209,18 +209,18 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                groups_window.set_status_message("Nenhum projeto carregado.".into());
+                groups_window.set_status_message(rust_i18n::t!("Nenhum projeto carregado.").to_string().into());
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    groups_window.set_status_message("Nenhuma chain em edição.".into());
+                    groups_window.set_status_message(rust_i18n::t!("Nenhuma chain em edição.").to_string().into());
                     return;
                 }
             };
             if draft.outputs.is_empty() {
-                groups_window.set_status_message("Adicione pelo menos uma saída.".into());
+                groups_window.set_status_message(rust_i18n::t!("Adicione pelo menos uma saída.").to_string().into());
                 return;
             }
             for (i, output) in draft.outputs.iter().enumerate() {

@@ -491,7 +491,7 @@ pub(crate) fn persist_block_editor_draft(
     let selected_select_option_block_id = if draft.is_select {
         Some(
             internal_block_parameter_value(block_parameter_items, SELECT_SELECTED_BLOCK_ID)
-                .ok_or_else(|| anyhow!("Seleção do select inválida."))?,
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Seleção do select inválida.")))?,
         )
     } else {
         None
@@ -499,22 +499,22 @@ pub(crate) fn persist_block_editor_draft(
     let mut session_borrow = project_session.borrow_mut();
     let session = session_borrow
         .as_mut()
-        .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
+        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Nenhum projeto carregado.")))?;
     let chain_id = {
         let chain = session
             .project
             .chains
             .get_mut(draft.chain_index)
-            .ok_or_else(|| anyhow!("Chain inválida."))?;
+            .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Chain inválida.")))?;
         if let Some(block_index) = draft.block_index {
             let block = chain
                 .blocks
                 .get_mut(block_index)
-                .ok_or_else(|| anyhow!("Block inválido."))?;
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Block inválido.")))?;
             block.enabled = draft.enabled;
             if draft.is_select {
                 let AudioBlockKind::Select(select) = &mut block.kind else {
-                    return Err(anyhow!("Block selecionado não é um select."));
+                    return Err(anyhow!("{}", rust_i18n::t!("Block selecionado não é um select.")));
                 };
                 let selected_option_block_id = selected_select_option_block_id
                     .as_ref()
@@ -527,7 +527,7 @@ pub(crate) fn persist_block_editor_draft(
                             .model_ref()
                             .map(|model| model.effect_type.to_string())
                     })
-                    .ok_or_else(|| anyhow!("Select sem opções válidas."))?;
+                    .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Select sem opções válidas.")))?;
                 if select_family != draft.effect_type {
                     return Err(anyhow!(
                         "Select só aceita opções do tipo '{}'.",
@@ -539,7 +539,7 @@ pub(crate) fn persist_block_editor_draft(
                     .options
                     .iter_mut()
                     .find(|option| option.id.0 == *selected_option_block_id)
-                    .ok_or_else(|| anyhow!("Opção ativa do select não existe."))?;
+                    .ok_or_else(|| anyhow!("{}", rust_i18n::t!("Opção ativa do select não existe.")))?;
                 let option_id = option.id.clone();
                 let option_enabled = option.enabled;
                 option.kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)

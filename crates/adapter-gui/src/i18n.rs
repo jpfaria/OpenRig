@@ -1,15 +1,22 @@
-//! Internationalization runtime — locale detection, override, and gettext wiring.
+//! Internationalization runtime — locale detection, override, and i18n wiring.
 //!
-//! OpenRig translations follow the gettext convention: source-language strings
-//! are marked with `@tr("...")` in Slint and looked up against `<lang>/
-//! LC_MESSAGES/openrig.mo` at runtime via the gettext shared library.
+//! OpenRig has two translation catalogs because Slint's `@tr(...)` macro
+//! only speaks gettext, while the Rust side uses the more idiomatic
+//! `rust-i18n` framework (YAML-based, `t!()` macro, no external tools).
 //!
-//! Source language is pt-BR. Fallback is passthrough (the source string).
+//! Both catalogs are kept in sync by sharing the same locale code (pt-BR /
+//! en-US). The selector in the UI sets the locale on both at startup.
+//!
+//! Source language is pt-BR. Fallback when a translation is missing is the
+//! source string (gettext default; rust-i18n configured the same way).
+//!
+//! See `docs/i18n.md` for the full flow and the rationale for two catalogs.
 
 use std::path::{Path, PathBuf};
 
-/// gettext text domain — must match Slint's default (CARGO_PKG_NAME).
-/// End users never see this; it's just the .mo file name on disk.
+/// gettext text domain for the Slint side — must match Slint's default
+/// (`CARGO_PKG_NAME`). End users never see this; it's just the .mo file
+/// name on disk.
 pub const TEXT_DOMAIN: &str = "adapter-gui";
 
 /// Languages exposed in the language selector UI. Order matters — index 0 is
@@ -64,17 +71,14 @@ fn normalize(raw: &str) -> String {
     }
 }
 
-/// Search the filesystem for a directory containing `<lang>/LC_MESSAGES/
-/// openrig.mo`. Search order matches platform conventions:
+/// Search the filesystem for the gettext catalog directory containing
+/// `<lang>/LC_MESSAGES/adapter-gui.mo`. Same path order as before:
 ///
 /// 1. `OPENRIG_TRANSLATIONS_DIR` env var (developer override)
 /// 2. `<exec_dir>/translations` (Windows next-to-exe, Mac.app/Resources)
 /// 3. `<exec_dir>/../share/openrig/translations` (Linux FHS / .deb)
 /// 4. `<exec_dir>/../Resources/translations` (Mac.app fallback)
 /// 5. `CARGO_MANIFEST_DIR/translations` (debug builds running via `cargo run`)
-///
-/// Returns `None` when no `.mo` files can be found — gettext then returns the
-/// source string (passthrough), which is acceptable for the source language.
 pub fn resolve_translations_dir() -> Option<PathBuf> {
     if let Ok(env_dir) = std::env::var("OPENRIG_TRANSLATIONS_DIR") {
         let p = PathBuf::from(env_dir);
@@ -127,26 +131,32 @@ fn has_any_mo(dir: &Path) -> bool {
     false
 }
 
-/// Initialize gettext: bind text domain to the translations directory, set
-/// active locale. Slint's `@tr(...)` looks up via `gettext()` once
-/// `slint = { features = ["gettext"] }` is enabled, so this single call is
-/// enough to localize the entire UI.
+/// Initialize both catalogs:
+/// - gettext (Slint side) via `bindtextdomain` + `setlocale` so `@tr(...)`
+///   resolves against `<lang>/LC_MESSAGES/adapter-gui.mo`.
+/// - rust-i18n (Rust side) via `rust_i18n::set_locale` so `t!("...")`
+///   resolves against `crates/adapter-gui/locales/<lang>.yml`.
 ///
 /// Failures are logged but never panic — translations are not load-bearing.
 pub fn init_translations(persisted_language: Option<&str>) {
     let locale = resolve_locale(persisted_language);
     log::info!("i18n: resolved locale = {}", locale);
 
+    // Rust side: rust-i18n. The `i18n!("locales")` macro at crate root
+    // already loaded the YAML catalogs at compile time; we just need to
+    // pick which locale is active.
+    rust_i18n::set_locale(&locale);
+
+    // Slint side: gettext. setlocale + bindtextdomain + textdomain.
     use gettextrs::{bindtextdomain, setlocale, textdomain, LocaleCategory};
 
     let target = format!("{}.UTF-8", locale.replace('-', "_"));
     let applied = setlocale(LocaleCategory::LcMessages, target.clone());
     if applied.is_none() {
-        // Some POSIX systems don't have the .UTF-8 alias compiled — try bare.
         let bare = locale.replace('-', "_");
         if setlocale(LocaleCategory::LcMessages, bare.clone()).is_none() {
             log::warn!(
-                "i18n: setlocale rejected {:?} and {:?} — translations may not load",
+                "i18n: setlocale rejected {:?} and {:?} — Slint translations may not load",
                 target,
                 bare
             );
@@ -155,13 +165,13 @@ pub fn init_translations(persisted_language: Option<&str>) {
 
     match resolve_translations_dir() {
         Some(dir) => {
-            log::info!("i18n: translations dir = {}", dir.display());
+            log::info!("i18n: gettext translations dir = {}", dir.display());
             if let Err(e) = bindtextdomain(TEXT_DOMAIN, dir) {
                 log::warn!("i18n: bindtextdomain failed: {}", e);
             }
         }
         None => {
-            log::info!("i18n: no translations dir found, using passthrough (source language)");
+            log::info!("i18n: no gettext translations dir found, Slint will passthrough source");
         }
     }
 
@@ -195,8 +205,7 @@ mod tests {
 
     #[test]
     fn normalize_collapses_pt_pt_to_pt_br() {
-        // We only ship pt-BR; pt-PT should not silently drop to source either —
-        // we route both Portuguese variants to pt-BR to maximize coverage.
+        // pt-PT routes to pt-BR — broader Portuguese coverage.
         assert_eq!(normalize("pt_PT"), "pt-BR");
     }
 
@@ -208,8 +217,6 @@ mod tests {
 
     #[test]
     fn resolve_locale_treats_auto_as_unset() {
-        // We can't pin the OS locale in the test environment, but we can
-        // verify that "auto" is not echoed back literally.
         let result = resolve_locale(Some("auto"));
         assert!(
             result == "pt-BR" || result == "en-US",

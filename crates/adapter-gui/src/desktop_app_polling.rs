@@ -96,7 +96,7 @@ pub(crate) fn start(
                 // Backend is unhealthy
                 if !*is_disconnected {
                     *is_disconnected = true;
-                    set_status_warning(&win, &toast_timer_health, "Audio device disconnected — reconnecting...");
+                    set_status_warning(&win, &toast_timer_health, &rust_i18n::t!("Audio device disconnected — reconnecting..."));
                     log::warn!("health check: audio backend unhealthy, will attempt reconnection");
                 }
 
@@ -106,7 +106,7 @@ pub(crate) fn start(
                 match rt.try_reconnect(&session.project) {
                     Ok(true) => {
                         *is_disconnected = false;
-                        set_status_info(&win, &toast_timer_health, "Audio device reconnected");
+                        set_status_info(&win, &toast_timer_health, &rust_i18n::t!("Audio device reconnected"));
                         log::info!("health check: successfully reconnected");
                     }
                     Ok(false) => {

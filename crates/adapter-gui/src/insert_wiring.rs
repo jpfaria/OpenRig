@@ -286,11 +286,11 @@ pub(crate) fn wire(
                 return;
             };
             if draft.send_device_id.is_none() || draft.send_channels.is_empty() {
-                iw.set_status_message("Selecione dispositivo e canais de envio.".into());
+                iw.set_status_message(rust_i18n::t!("Selecione dispositivo e canais de envio.").to_string().into());
                 return;
             }
             if draft.return_device_id.is_none() || draft.return_channels.is_empty() {
-                iw.set_status_message("Selecione dispositivo e canais de retorno.".into());
+                iw.set_status_message(rust_i18n::t!("Selecione dispositivo e canais de retorno.").to_string().into());
                 return;
             }
             let chain_idx = draft.chain_index;

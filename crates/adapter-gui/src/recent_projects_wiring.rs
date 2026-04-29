@@ -100,7 +100,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 .get(index as usize)
                 .cloned()
             else {
-                set_status_error(&window, &toast_timer, "Projeto recente inválido.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Projeto recente inválido."));
                 return;
             };
             if !recent.is_valid {

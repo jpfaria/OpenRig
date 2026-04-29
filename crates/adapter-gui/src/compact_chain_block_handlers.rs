@@ -147,7 +147,7 @@ pub(crate) fn wire(
                 drop(session_borrow);
 
                 jack_starting.set(true);
-                set_status_info(&main_win, &toast_timer, "Starting audio...");
+                set_status_info(&main_win, &toast_timer, &rust_i18n::t!("Starting audio..."));
 
                 let rx = Rc::new(std::cell::RefCell::new(
                     infra_cpal::start_jack_in_background(device_settings),

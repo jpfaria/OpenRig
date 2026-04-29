@@ -112,7 +112,7 @@ pub(crate) fn wire(
                         ig
                     };
                     if input_group.device_id.is_none() || input_group.channels.is_empty() {
-                        input_window.set_status_message("Selecione dispositivo e canais.".into());
+                        input_window.set_status_message(rust_i18n::t!("Selecione dispositivo e canais.").to_string().into());
                         return;
                     }
                     let chain_index = io_draft.chain_index;
@@ -177,7 +177,7 @@ pub(crate) fn wire(
                 return;
             };
             if input_group.device_id.is_none() || input_group.channels.is_empty() {
-                input_window.set_status_message("Selecione dispositivo e canais.".into());
+                input_window.set_status_message(rust_i18n::t!("Selecione dispositivo e canais.").to_string().into());
                 return;
             }
             if let Some(index) = draft.editing_index {
@@ -394,7 +394,7 @@ pub(crate) fn wire(
                         og
                     };
                     if output_group.device_id.is_none() || output_group.channels.is_empty() {
-                        output_window.set_status_message("Selecione dispositivo e canais.".into());
+                        output_window.set_status_message(rust_i18n::t!("Selecione dispositivo e canais.").to_string().into());
                         return;
                     }
                     let chain_index = io_draft.chain_index;
@@ -455,7 +455,7 @@ pub(crate) fn wire(
                 return;
             };
             if output_group.device_id.is_none() || output_group.channels.is_empty() {
-                output_window.set_status_message("Selecione dispositivo e canais.".into());
+                output_window.set_status_message(rust_i18n::t!("Selecione dispositivo e canais.").to_string().into());
                 return;
             }
             if let Some(index) = draft.editing_index {

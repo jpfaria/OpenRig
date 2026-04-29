@@ -139,11 +139,11 @@ pub(crate) fn wire(
         };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
             return;
         };
         let Some(chain) = session.project.chains.get(chain_index as usize) else {
-            set_status_error(&window, &toast_timer, "Chain inválida.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
             return;
         };
         // Convert UI index (position in filtered array without first Input/last Output)
@@ -152,7 +152,7 @@ pub(crate) fn wire(
         log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
         let Some(block) = chain.blocks.get(block_index as usize) else {
             log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
-            set_status_error(&window, &toast_timer, "Block inválido.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Block inválido."));
             return;
         };
         // Handle I/O blocks — open I/O groups window with entries of THIS specific block
@@ -250,7 +250,7 @@ pub(crate) fn wire(
             log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
         }
         let Some(editor_data) = block_editor_data(block) else {
-            set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Esse block ainda não pode ser editado pela GUI."));
             return;
         };
         let effect_type = editor_data.effect_type.clone();

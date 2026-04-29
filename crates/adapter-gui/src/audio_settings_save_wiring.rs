@@ -187,7 +187,7 @@ pub(crate) fn wire(
                     }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                        set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                         return;
                     };
                     session.project.device_settings =
@@ -292,7 +292,7 @@ pub(crate) fn wire(
                     }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        settings_window.set_status_message("Nenhum projeto carregado.".into());
+                        settings_window.set_status_message(rust_i18n::t!("Nenhum projeto carregado.").to_string().into());
                         return;
                     };
                     session.project.device_settings =

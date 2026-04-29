@@ -73,22 +73,22 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    set_status_error(&window, &toast_timer, "Nenhuma chain em edição.");
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhuma chain em edição."));
                     return;
                 }
             };
             if draft.inputs.is_empty() {
-                set_status_warning(&window, &toast_timer, "Adicione pelo menos uma entrada.");
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("Adicione pelo menos uma entrada."));
                 return;
             }
             if draft.outputs.is_empty() {
-                set_status_warning(&window, &toast_timer, "Adicione pelo menos uma saída.");
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("Adicione pelo menos uma saída."));
                 return;
             }
             for (i, input) in draft.inputs.iter().enumerate() {

@@ -79,12 +79,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         }
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
             return;
         };
         let ci = chain_index as usize;
         let Some(chain) = session.project.chains.get(ci) else {
-            set_status_error(&window, &toast_timer, "Chain inválida.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
             return;
         };
 

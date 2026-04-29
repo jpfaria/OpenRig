@@ -79,7 +79,7 @@ pub(crate) fn wire(
             let fresh_output = refresh_output_devices(&chain_output_device_options);
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                 return;
             };
             project_devices.set_vec(build_project_device_rows(

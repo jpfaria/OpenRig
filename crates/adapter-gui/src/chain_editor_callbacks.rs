@@ -451,22 +451,22 @@ pub(crate) fn setup_chain_editor_callbacks(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                chain_window.set_status_message("Nenhum projeto carregado.".into());
+                chain_window.set_status_message(rust_i18n::t!("Nenhum projeto carregado.").to_string().into());
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    chain_window.set_status_message("Nenhuma chain em edição.".into());
+                    chain_window.set_status_message(rust_i18n::t!("Nenhuma chain em edição.").to_string().into());
                     return;
                 }
             };
             if draft.inputs.is_empty() {
-                chain_window.set_status_message("Adicione pelo menos uma entrada.".into());
+                chain_window.set_status_message(rust_i18n::t!("Adicione pelo menos uma entrada.").to_string().into());
                 return;
             }
             if draft.outputs.is_empty() {
-                chain_window.set_status_message("Adicione pelo menos uma saída.".into());
+                chain_window.set_status_message(rust_i18n::t!("Adicione pelo menos uma saída.").to_string().into());
                 return;
             }
             for (i, input) in draft.inputs.iter().enumerate() {

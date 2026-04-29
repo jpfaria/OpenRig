@@ -68,11 +68,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
                 return;
             };
             let default_name = chain
@@ -99,7 +99,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 p
             };
             match save_chain_blocks_to_preset(chain, &path) {
-                Ok(()) => set_status_info(&window, &toast_timer, "Preset salvo."),
+                Ok(()) => set_status_info(&window, &toast_timer, &rust_i18n::t!("Preset salvo.")),
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
@@ -121,7 +121,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                 return;
             };
             if window.get_touch_optimized() {
@@ -340,7 +340,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         })
                         .collect();
                     window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
-                    set_status_info(&window, &toast_timer, "Preset removido.");
+                    set_status_info(&window, &toast_timer, &rust_i18n::t!("Preset removido."));
                 }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }

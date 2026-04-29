@@ -61,12 +61,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let chain_name = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
-                    set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                     return;
                 };
                 let index = index as usize;
                 if index >= session.project.chains.len() {
-                    set_status_error(&window, &toast_timer, "Chain inválida.");
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
                     return;
                 }
                 session.project.chains[index]
@@ -124,12 +124,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
                 return;
             };
             let index = index as usize;
             let Some(chain) = session.project.chains.get(index) else {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
                 return;
             };
             let will_enable = !chain.enabled;

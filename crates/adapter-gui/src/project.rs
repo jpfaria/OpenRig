@@ -365,7 +365,7 @@ pub(crate) fn preset_id_from_path(path: &Path) -> Result<String> {
     path.file_stem()
         .and_then(|value| value.to_str())
         .map(|value| value.to_string())
-        .ok_or_else(|| anyhow!("arquivo de preset inválido"))
+        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("arquivo de preset inválido")))
 }
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
