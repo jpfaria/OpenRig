@@ -14,4 +14,4 @@ tools/__pycache__/
 *.pyc
 
 # Compiled gettext catalogs — regenerated from .po by build.rs / scripts.
-crates/adapter-gui/translations/*/LC_MESSAGES/
+crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
