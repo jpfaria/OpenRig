@@ -482,8 +482,7 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
     };
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256])
-            .expect("passthrough chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("passthrough chain must build"),
     );
 
     let frames = 64usize;
@@ -558,8 +557,7 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
     };
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256])
-            .expect("passthrough chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("passthrough chain must build"),
     );
 
     let frames = 64usize;
@@ -710,8 +708,7 @@ fn dual_mono_segment_keeps_stereo_processing() {
     };
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256])
-            .expect("dualmono chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("dualmono chain must build"),
     );
     let processing = runtime.processing.lock().expect("lock poisoned");
 
@@ -721,7 +718,8 @@ fn dual_mono_segment_keeps_stereo_processing() {
             "DualMono segment {} processing_layout = {:?}; must be Stereo. \
              DualMono is flattened to a Stereo bus at the buffer level, with \
              internal L/R independence preserved by AudioProcessor::DualMono.",
-            i, state.processing_layout
+            i,
+            state.processing_layout
         );
     }
 }
@@ -742,8 +740,7 @@ fn mono_input_with_mono_output_stays_mono() {
         ],
     };
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256])
-            .expect("mono-only chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("mono-only chain must build"),
     );
     let processing = runtime.processing.lock().expect("lock poisoned");
 
@@ -752,7 +749,8 @@ fn mono_input_with_mono_output_stays_mono() {
             matches!(state.processing_layout, AudioChannelLayout::Mono),
             "segment {} processing_layout = {:?}; mono in + mono out must \
              stay Mono (no useless upmix).",
-            i, state.processing_layout
+            i,
+            state.processing_layout
         );
     }
 }

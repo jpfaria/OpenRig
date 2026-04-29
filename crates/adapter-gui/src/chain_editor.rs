@@ -18,25 +18,18 @@ const INSTRUMENT_KEYS: &[&str] = &[
 
 pub(crate) fn create_chain_draft(
     project: &Project,
-    input_devices: &[AudioDeviceDescriptor],
-    output_devices: &[AudioDeviceDescriptor],
+    _input_devices: &[AudioDeviceDescriptor],
+    _output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
-    let default_input = InputGroupDraft {
-        device_id: input_devices.first().map(|device| device.id.clone()),
-        channels: Vec::new(),
-        mode: ChainInputMode::Mono,
-    };
-    let default_output = OutputGroupDraft {
-        device_id: output_devices.first().map(|device| device.id.clone()),
-        channels: Vec::new(),
-        mode: ChainOutputMode::Stereo,
-    };
+    // No placeholder rows: the user must explicitly click "+ Adicionar entrada"
+    // and "+ Adicionar saída" before saving. The save handler rejects empty
+    // inputs/outputs with a toast.
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
-        inputs: vec![default_input],
-        outputs: vec![default_output],
+        inputs: Vec::new(),
+        outputs: Vec::new(),
         editing_io_block_index: None,
         editing_input_index: None,
         editing_output_index: None,

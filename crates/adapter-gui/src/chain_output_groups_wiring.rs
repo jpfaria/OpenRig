@@ -161,7 +161,7 @@ pub(crate) fn wire(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    device_id: fresh_output.first().map(|d| d.id.clone()),
+                    device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
                 });
