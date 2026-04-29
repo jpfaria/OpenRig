@@ -76,6 +76,8 @@ mod io_groups;
 mod latency_probe;
 mod project_ops;
 mod project_view;
+mod project_view_assets;
+mod project_view_tooltips;
 mod state;
 mod model_search;
 mod model_search_wiring;
