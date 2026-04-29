@@ -2701,3 +2701,7 @@ mod stream_isolation;
 #[cfg(test)]
 #[path = "volume_invariants_tests.rs"]
 mod volume_invariants;
+
+#[cfg(test)]
+#[path = "audio_deadline_tests.rs"]
+mod audio_deadline;
