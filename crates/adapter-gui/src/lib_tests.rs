@@ -311,7 +311,7 @@ fn format_channel_list_multiple_channels_comma_separated() {
 
 // --- unit_label ---
 
-use super::block_editor::unit_label;
+use super::block_editor_values::unit_label;
 use project::param::ParameterUnit;
 
 #[test]

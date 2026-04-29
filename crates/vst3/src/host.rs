@@ -3,7 +3,7 @@
 //! audio processing loop.
 
 use anyhow::{bail, Context, Result};
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{c_char, c_void};
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
@@ -20,6 +20,7 @@ use vst3::Steinberg::{
 };
 use vst3::{ComPtr, ComWrapper, Interface};
 
+use crate::host_utils::{bundle_binary_path, char16_array_to_string, tuid_to_bytes};
 use crate::param_changes::HostParameterChanges;
 
 // ---------------------------------------------------------------------------
@@ -43,116 +44,6 @@ pub struct Vst3PluginClass {
     pub uid: [u8; 16],
     pub name: String,
     pub category: String,
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/// Read a nul-terminated `c_char` array into a `String`, stopping at the
-/// first NUL byte or the end of the buffer.
-fn cstr_array_to_string(buf: &[c_char]) -> String {
-    let bytes: Vec<u8> = buf
-        .iter()
-        .take_while(|&&b| b != 0)
-        .map(|&b| b as u8)
-        .collect();
-    String::from_utf8_lossy(&bytes).into_owned()
-}
-
-/// Read a UTF-16 `char16` (`u16`) array into a `String`.
-fn char16_array_to_string(buf: &[u16]) -> String {
-    let utf16: Vec<u16> = buf
-        .iter()
-        .take_while(|&&c| c != 0)
-        .copied()
-        .collect();
-    String::from_utf16_lossy(&utf16)
-}
-
-/// Convert a 16-byte TUID (signed `c_char`) to `[u8; 16]`.
-fn tuid_to_bytes(tuid: &TUID) -> [u8; 16] {
-    let mut out = [0u8; 16];
-    for (i, &b) in tuid.iter().enumerate() {
-        out[i] = b as u8;
-    }
-    out
-}
-
-/// Resolve the binary path inside a `.vst3` bundle directory.
-///
-/// Convention:
-/// - macOS:   `Plugin.vst3/Contents/MacOS/Plugin`
-/// - Windows: `Plugin.vst3/Contents/x86_64-win/Plugin.vst3`
-/// - Linux:   `Plugin.vst3/Contents/x86_64-linux/Plugin.so`
-pub fn bundle_binary_path(bundle_path: &Path) -> Result<std::path::PathBuf> {
-    #[cfg(target_os = "macos")]
-    {
-        let contents = bundle_path.join("Contents").join("MacOS");
-        // The binary name matches the bundle stem (everything before .vst3)
-        let stem = bundle_path
-            .file_stem()
-            .context("bundle has no filename")?
-            .to_string_lossy();
-        let candidate = contents.join(stem.as_ref());
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-        // Fallback: find any file in MacOS/
-        if contents.exists() {
-            for entry in std::fs::read_dir(&contents)? {
-                let path = entry?.path();
-                if path.is_file() {
-                    return Ok(path);
-                }
-            }
-        }
-        bail!("no binary found in {}", contents.display());
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let contents = bundle_path.join("Contents").join("x86_64-win");
-        let stem = bundle_path
-            .file_stem()
-            .context("bundle has no filename")?
-            .to_string_lossy();
-        let candidate = contents.join(format!("{}.vst3", stem));
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-        bail!("no binary found in {}", contents.display());
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let arch = if cfg!(target_arch = "x86_64") {
-            "x86_64-linux"
-        } else if cfg!(target_arch = "aarch64") {
-            "aarch64-linux"
-        } else {
-            "x86_64-linux"
-        };
-        let contents = bundle_path.join("Contents").join(arch);
-        let stem = bundle_path
-            .file_stem()
-            .context("bundle has no filename")?
-            .to_string_lossy();
-        let candidate = contents.join(format!("{}.so", stem));
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-        // fallback: any .so in the arch dir
-        if contents.exists() {
-            for entry in std::fs::read_dir(&contents)? {
-                let path = entry?.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("so") {
-                    return Ok(path);
-                }
-            }
-        }
-        bail!("no binary found in {}", contents.display());
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-    bail!("unsupported platform for VST3 bundle resolution");
 }
 
 // ---------------------------------------------------------------------------
@@ -623,80 +514,6 @@ impl Vst3Plugin {
     pub fn controller_clone(&self) -> ComPtr<vst3::Steinberg::Vst::IEditController> {
         self.controller.clone()
     }
-
-    /// Enumerate all plugin classes in a bundle without fully initialising them.
-    ///
-    /// Useful for the discovery scanner.
-    pub fn enumerate_classes(
-        bundle_path: &Path,
-    ) -> Result<(libloading::Library, Vec<Vst3PluginClass>)> {
-        let binary_path = bundle_binary_path(bundle_path)?;
-        let library = unsafe { libloading::Library::new(&binary_path) }
-            .with_context(|| {
-                format!("failed to dlopen VST3 binary: {}", binary_path.display())
-            })?;
-
-        let get_factory: libloading::Symbol<unsafe extern "C" fn() -> *mut IPluginFactory> =
-            unsafe { library.get(b"GetPluginFactory\0") }
-                .context("symbol 'GetPluginFactory' not found")?;
-
-        let factory_raw = unsafe { get_factory() };
-        if factory_raw.is_null() {
-            bail!("GetPluginFactory returned null");
-        }
-        let factory: ComPtr<IPluginFactory> =
-            unsafe { ComPtr::from_raw_unchecked(factory_raw) };
-
-        let count = unsafe { factory.countClasses() };
-        let mut classes = Vec::new();
-        for i in 0..count {
-            let mut info: PClassInfo = unsafe { std::mem::zeroed() };
-            if unsafe { factory.getClassInfo(i, &mut info) } != kResultOk {
-                continue;
-            }
-            classes.push(Vst3PluginClass {
-                uid: tuid_to_bytes(&info.cid),
-                name: cstr_array_to_string(&info.name),
-                category: cstr_array_to_string(&info.category),
-            });
-        }
-        Ok((library, classes))
-    }
-
-    /// Read vendor string from the factory info (best effort, empty on failure).
-    pub fn factory_vendor(bundle_path: &Path) -> String {
-        let binary_path = match bundle_binary_path(bundle_path) {
-            Ok(p) => p,
-            Err(_) => return String::new(),
-        };
-        let library = match unsafe { libloading::Library::new(&binary_path) } {
-            Ok(l) => l,
-            Err(_) => return String::new(),
-        };
-        let get_factory_res: Result<
-            libloading::Symbol<unsafe extern "C" fn() -> *mut IPluginFactory>,
-            _,
-        > = unsafe { library.get(b"GetPluginFactory\0") };
-
-        let get_factory = match get_factory_res {
-            Ok(f) => f,
-            Err(_) => return String::new(),
-        };
-        let factory_raw = unsafe { get_factory() };
-        if factory_raw.is_null() {
-            return String::new();
-        }
-        let factory: ComPtr<IPluginFactory> =
-            unsafe { ComPtr::from_raw_unchecked(factory_raw) };
-
-        let mut finfo: vst3::Steinberg::PFactoryInfo = unsafe { std::mem::zeroed() };
-        if unsafe { factory.getFactoryInfo(&mut finfo) } != kResultOk {
-            return String::new();
-        }
-        // Safety: vendor is a c_char array from a C struct — we read until NUL.
-        let raw = unsafe { CStr::from_ptr(finfo.vendor.as_ptr()) };
-        raw.to_string_lossy().into_owned()
-    }
 }
 
 impl Drop for Vst3Plugin {
@@ -713,14 +530,4 @@ impl Drop for Vst3Plugin {
         }
         log::debug!("VST3: plugin instance dropped");
     }
-}
-
-/// Enumerate all classes in a VST3 bundle using only the factory (no full load).
-/// Useful for quick scanning without full plugin initialisation.
-#[allow(dead_code)]
-pub fn list_bundle_classes(bundle_path: &Path) -> Result<Vec<Vst3PluginClass>> {
-    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path)?;
-    // _lib is dropped here, which is fine — we only needed it for enumeration.
-    // The factory ComPtr is already dropped before _lib.
-    Ok(classes)
 }

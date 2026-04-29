@@ -12,6 +12,8 @@
 //! interchangeably.
 
 mod host;
+mod host_factory;
+mod host_utils;
 mod processor;
 mod stereo;
 mod param_changes;

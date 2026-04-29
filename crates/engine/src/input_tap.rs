@@ -66,8 +66,10 @@ impl InputTap {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> (Self, Vec<Arc<SpscRing<f32>>>) {
-        let mut channel_rings: Vec<Option<Arc<SpscRing<f32>>>> = (0..total_channels).map(|_| None).collect();
-        let mut consumer_handles: Vec<Arc<SpscRing<f32>>> = Vec::with_capacity(subscribed_channels.len());
+        let mut channel_rings: Vec<Option<Arc<SpscRing<f32>>>> =
+            (0..total_channels).map(|_| None).collect();
+        let mut consumer_handles: Vec<Arc<SpscRing<f32>>> =
+            Vec::with_capacity(subscribed_channels.len());
 
         for &ch in subscribed_channels {
             if ch >= total_channels {

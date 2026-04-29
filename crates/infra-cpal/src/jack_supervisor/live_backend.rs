@@ -228,11 +228,13 @@ impl LiveJackBackend {
             }
             let Ok(pid) = s.parse::<u32>() else { continue };
             let cmdline_path = entry.path().join("cmdline");
-            let Ok(cmdline) = std::fs::read(&cmdline_path) else { continue };
+            let Ok(cmdline) = std::fs::read(&cmdline_path) else {
+                continue;
+            };
             let cmdline_str = String::from_utf8_lossy(&cmdline);
             // /proc/<pid>/cmdline separates args with NUL bytes.
-            let is_jackd = cmdline_str.starts_with("jackd\0")
-                || cmdline_str.starts_with("/usr/bin/jackd\0");
+            let is_jackd =
+                cmdline_str.starts_with("jackd\0") || cmdline_str.starts_with("/usr/bin/jackd\0");
             if !is_jackd {
                 continue;
             }
@@ -299,7 +301,8 @@ impl JackBackend for LiveJackBackend {
         // Optional realtime: --realtime -P <rt_priority>
         let mut cmd = Command::new("/usr/bin/jackd");
         if config.realtime {
-            cmd.arg("--realtime").args(["-P", &config.rt_priority.to_string()]);
+            cmd.arg("--realtime")
+                .args(["-P", &config.rt_priority.to_string()]);
         } else {
             cmd.arg("--no-realtime");
         }
@@ -345,11 +348,8 @@ impl JackBackend for LiveJackBackend {
                     for &cpu in &big_cores {
                         libc::CPU_SET(cpu, &mut set);
                     }
-                    let _ = libc::sched_setaffinity(
-                        0,
-                        std::mem::size_of::<libc::cpu_set_t>(),
-                        &set,
-                    );
+                    let _ =
+                        libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
                     Ok(())
                 });
             }
@@ -360,7 +360,11 @@ impl JackBackend for LiveJackBackend {
             .map_err(|e| anyhow!("failed to launch jackd for '{}': {}", name, e))?;
 
         let pid = child.id();
-        log::info!("LiveJackBackend::spawn: jackd PID {} server='{}'", pid, name);
+        log::info!(
+            "LiveJackBackend::spawn: jackd PID {} server='{}'",
+            pid,
+            name
+        );
 
         // Reaper thread owns the Child handle for the lifetime of the
         // process. Without a paired wait() the kernel leaves jackd in
@@ -433,7 +437,11 @@ impl JackBackend for LiveJackBackend {
         });
         match pid {
             Some(pid) => {
-                log::info!("LiveJackBackend::terminate: SIGTERM pid {} server='{}'", pid, name);
+                log::info!(
+                    "LiveJackBackend::terminate: SIGTERM pid {} server='{}'",
+                    pid,
+                    name
+                );
                 Self::send_signal(pid, "-TERM");
             }
             None => {
@@ -543,7 +551,6 @@ impl JackBackend for LiveJackBackend {
         }
     }
 }
-
 
 /// Probe a running named JACK server for its metadata without any caching.
 /// Shared between `LiveJackBackend::probe_meta` (for supervisor transitions)

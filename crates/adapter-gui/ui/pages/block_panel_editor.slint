@@ -1,14 +1,14 @@
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
-import { BrandLogo } from "../components/brand_logo.slint";
-import { ModelSelectWithSearch } from "../components/model_select_with_search.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
-import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { PanelSlider } from "../components/panel_slider.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
+import { BlockPanelHeader } from "../components/block_panel_header.slint";
+import { BlockPanelBrandStrip } from "../components/block_panel_brand_strip.slint";
+import { BlockPanelParameterItem } from "../components/block_panel_parameter_item.slint";
 
 import "../fonts/Inter.ttf";
 import "../fonts/BebasNeue.ttf";
@@ -129,152 +129,28 @@ export component BlockPanelEditor inherits Rectangle {
     background: #0a0a0e;
 
     // ── HEADER (48px) ──────────────────────────────────────────────
-    Rectangle {
+    BlockPanelHeader {
         x: 0; y: 0;
         width: parent.width;
         height: root.header-height;
-        background: #06060c;
-
-        // Block type icon (left)
-        Image {
-            x: 10px;
-            y: (parent.height - 24px) / 2;
-            width: 24px;
-            height: 24px;
-            source: root.selected-icon-source;
-            image-fit: contain;
-            colorize: #f1f4f8;
-        }
-
-        // Block type label (left, after icon)
-        Text {
-            x: 38px; y: 0;
-            width: 60px;
-            height: parent.height;
-            text: root.block-type-label;
-            color: #f1f4f8;
-            font-size: 10px;
-            font-weight: 900;
-            vertical-alignment: center;
-            letter-spacing: 1.5px;
-        }
-
-        // Model selector with embedded search (fills middle)
-        ModelSelectWithSearch {
-            x: 100px;
-            y: (parent.height - 34px) / 2;
-            width: parent.width - 100px - root.badge-width - (root.block-drawer-edit-mode ? 80px : 48px);
-            filtered-models: root.filtered-block-model-options;
-            selected-model: root.block-drawer-selected-model-index >= 0
-                && root.block-drawer-selected-model-index < root.block-model-options.length
-                ? root.block-model-options[root.block-drawer-selected-model-index]
-                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
-            search-text <=> root.block-model-search-text;
-            select(model-id) => { root.choose-block-model-by-id(model-id); }
-            search-text-changed(text) => { root.search-block-model(text); }
-        }
-
-        // Type badge
-        if root.selected-type-label != "" : Rectangle {
-            x: parent.width - root.badge-width - (root.block-drawer-edit-mode ? 72px : 40px);
-            y: (parent.height - 22px) / 2;
-            width: root.badge-width;
-            height: 22px;
-            border-radius: 4px;
-            background: root.selected-type-label == "NATIVE" ? #0d2a0d
-                : root.selected-type-label == "NAM" ? #0d1a2e
-                : #2e1a0d;
-            border-width: 1px;
-            border-color: root.selected-type-label == "NATIVE" ? #1a6b1a
-                : root.selected-type-label == "NAM" ? #1a4488
-                : #883300;
-
-            Text {
-                x: 8px; y: 0;
-                width: parent.width - 16px;
-                height: parent.height;
-                text: root.selected-type-label;
-                color: root.selected-type-label == "NATIVE" ? #33bb33
-                    : root.selected-type-label == "NAM" ? #4499ff
-                    : #ff8833;
-                font-size: 9px;
-                font-weight: 800;
-                letter-spacing: 0.8px;
-                vertical-alignment: center;
-                horizontal-alignment: center;
-            }
-        }
-
-        // Info button (edit mode, ao lado do delete)
-        if root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 64px;
-            y: (parent.height - 24px) / 2;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            background: ta-info.has-hover ? #001a1a : transparent;
-
-            Image {
-                x: 3px; y: 3px;
-                width: 18px; height: 18px;
-                source: @image-url("../assets/info.svg");
-                image-fit: contain;
-                colorize: ta-info.has-hover ? #22C55E : #336655;
-            }
-
-            ta-info := TouchArea {
-                mouse-cursor: pointer;
-                clicked => {
-                    root.show-plugin-info(root.selected-icon-kind, root.selected-model-id);
-                }
-            }
-        }
-
-        // Delete button (edit mode, ao lado do badge)
-        if root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 32px;
-            y: (parent.height - 24px) / 2;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            background: ta-del.has-hover ? #1a0000 : transparent;
-
-            Image {
-                x: 3px; y: 3px;
-                width: 18px; height: 18px;
-                source: @image-url("../assets/trash.svg");
-                image-fit: contain;
-                colorize: ta-del.has-hover ? #ff4433 : #662222;
-            }
-
-            ta-del := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.delete-block-drawer(); }
-            }
-        }
-
-        // Save button (insert mode, ao lado do badge)
-        if !root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 32px;
-            y: (parent.height - 24px) / 2;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            background: ta-save.has-hover ? #0a1a30 : transparent;
-
-            Image {
-                x: 3px; y: 3px;
-                width: 18px; height: 18px;
-                source: @image-url("../assets/save.svg");
-                image-fit: contain;
-                colorize: ta-save.has-hover ? #4499ff : #224488;
-            }
-
-            ta-save := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.save-block-drawer(); }
-            }
-        }
+        selected-icon-source: root.selected-icon-source;
+        block-type-label: root.block-type-label;
+        badge-width: root.badge-width;
+        edit-mode: root.block-drawer-edit-mode;
+        filtered-models: root.filtered-block-model-options;
+        selected-model: root.block-drawer-selected-model-index >= 0
+            && root.block-drawer-selected-model-index < root.block-model-options.length
+            ? root.block-model-options[root.block-drawer-selected-model-index]
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+        search-text <=> root.block-model-search-text;
+        type-label: root.selected-type-label;
+        icon-kind: root.selected-icon-kind;
+        selected-model-id: root.selected-model-id;
+        choose-model-by-id(id) => { root.choose-block-model-by-id(id); }
+        search-model(text) => { root.search-block-model(text); }
+        show-plugin-info(kind, id) => { root.show-plugin-info(kind, id); }
+        delete-block => { root.delete-block-drawer(); }
+        save-block => { root.save-block-drawer(); }
     }
 
     // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
@@ -309,147 +185,20 @@ export component BlockPanelEditor inherits Rectangle {
         background: root.panel-bg;
 
         // ── Brand strip (marca + modelo) — hidden for EQ blocks ──
-        // Com marca real (marshall, vox, etc)
-        if !root.has-eq-widget && root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
+        BlockPanelBrandStrip {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 96px;
-            background: root.brand-strip-bg;
-            clip: true;
-
-            // Background photo (transparent, behind logo and text)
-            if root.selected-model-id == "marshall_jcm_800_2203" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/marshall_jcm_800_2203.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "marshall_4x12_v30" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/marshall_4x12_v30.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "blues_overdrive_bd_2" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/blues_overdrive_bd_2.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "ibanez_ts9" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/ibanez_ts9.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "bogner_ecstasy" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/bogner_ecstasy.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "roland_jc_120b_jazz_chorus" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/roland_jc_120b_jazz_chorus.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "gibson_sj_200" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/gibson_sj_200.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "gibson_j_45" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/gibson_j_45.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "martin_d_35" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/martin_d_35.png");
-                image-fit: cover; opacity: 0.25;
-            }
-            if root.selected-model-id == "martin_om_28" : Image {
-                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("../../../../assets/models/photos/martin_om_28.png");
-                image-fit: cover; opacity: 0.25;
-            }
-
-            BrandLogo {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                brand: root.selected-brand;
-                tint: root.panel-text;
-            }
-
-            Text {
-                x: 0;
-                y: 70px;
-                width: parent.width;
-                height: 20px;
-                text: root.selected-model-label;
-                color: #666;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 1.5px;
-                horizontal-alignment: center;
-            }
-        }
-
-        // Nativos: fundo escuro com ilustração do modelo + nome — hidden for EQ blocks
-        if !root.has-eq-widget && (root.selected-brand == "native" || root.selected-brand == "") : Rectangle {
-            x: 0;
-            y: 0;
-            width: parent.width;
-            height: 96px;
-            background: root.brand-strip-bg;
-
-            // Ilustração do modelo (à esquerda do nome, ambos centralizados)
-            Image {
-                x: (parent.width / 2) - 200px;
-                y: (parent.height - 64px) / 2;
-                width: 64px;
-                height: 64px;
-                source: root.selected-model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
-                    : root.selected-model-id == "digital_clean" ? @image-url("../../../../assets/models/digital_clean.svg")
-                    : root.selected-model-id == "modulated_delay" ? @image-url("../../../../assets/models/modulated_delay.svg")
-                    : root.selected-model-id == "reverse" ? @image-url("../../../../assets/models/reverse.svg")
-                    : root.selected-model-id == "slapback" ? @image-url("../../../../assets/models/slapback.svg")
-                    : root.selected-model-id == "tape_vintage" ? @image-url("../../../../assets/models/tape_vintage.svg")
-                    : root.selected-model-id == "plate_foundation" ? @image-url("../../../../assets/models/plate_foundation.svg")
-                    : root.selected-model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
-                    : root.selected-model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
-                    : root.selected-model-id == "eq_three_band_basic" ? @image-url("../../../../assets/models/eq_three_band_basic.svg")
-                    : root.selected-model-id == "cry_classic" ? @image-url("../../../../assets/models/cry_classic.svg")
-                    : root.selected-model-id == "tremolo_sine" ? @image-url("../../../../assets/models/tremolo_sine.svg")
-                    : root.selected-model-id == "tuner_chromatic" ? @image-url("../../../../assets/models/tuner_chromatic.svg")
-                    : root.selected-model-id == "american_clean" ? @image-url("../../../../assets/models/american_clean.svg")
-                    : root.selected-model-id == "brit_crunch" ? @image-url("../../../../assets/models/brit_crunch.svg")
-                    : root.selected-model-id == "modern_high_gain" ? @image-url("../../../../assets/models/modern_high_gain.svg")
-                    : root.selected-model-id == "blackface_clean" ? @image-url("../../../../assets/models/blackface_clean.svg")
-                    : root.selected-model-id == "tweed_breakup" ? @image-url("../../../../assets/models/tweed_breakup.svg")
-                    : root.selected-model-id == "chime" ? @image-url("../../../../assets/models/chime.svg")
-                    : root.selected-model-id == "american_2x12" ? @image-url("../../../../assets/models/american_2x12.svg")
-                    : root.selected-model-id == "brit_4x12" ? @image-url("../../../../assets/models/brit_4x12.svg")
-                    : root.selected-model-id == "vintage_1x12" ? @image-url("../../../../assets/models/vintage_1x12.svg")
-                    : root.selected-model-id == "generic_ir" ? @image-url("../../../../assets/models/generic_ir.svg")
-                    : root.selected-model-id == "generic_nam" ? @image-url("../../../../assets/models/generic_nam.svg")
-                    : root.selected-icon-source;
-                image-fit: contain;
-                colorize: root.panel-text;
-                opacity: 0.6;
-            }
-
-            Text {
-                x: (parent.width / 2) - 128px;
-                y: 0;
-                width: 340px;
-                height: parent.height;
-                text: root.selected-model-label;
-                color: #c0c8d0;
-                font-family: root.model-font;
-                font-size: 28px;
-                font-weight: 700;
-                horizontal-alignment: left;
-                vertical-alignment: center;
-            }
+            has-eq-widget: root.has-eq-widget;
+            selected-brand: root.selected-brand;
+            selected-model-id: root.selected-model-id;
+            brand-strip-bg: root.brand-strip-bg;
+            panel-text: root.panel-text;
+            selected-model-label: root.selected-model-label;
+            photo-offset-x: root.photo-offset-x;
+            photo-offset-y: root.photo-offset-y;
+            selected-icon-source: root.selected-icon-source;
+            model-font: root.model-font;
         }
 
         // ── Knob overlays (distributed like table columns) ──
@@ -508,301 +257,13 @@ export component BlockPanelEditor inherits Rectangle {
             width: parent.width;
             height: 90px;
 
-            for param[pi] in root.block-parameter-items : Rectangle {
-                visible: param.widget_kind != "";
-                horizontal-stretch: 1;
-                height: 90px;
-
-                // Label
-                Text {
-                    x: 0; y: 0; width: parent.width;
-                    height: 14px;
-                    text: param.label;
-                    color: root.panel-text;
-                    font-family: "Bebas Neue";
-                    font-size: 10px;
-                    font-weight: 700;
-                    letter-spacing: 1.5px;
-                    horizontal-alignment: center;
-                    overflow: elide;
-                }
-
-                // ── Enum ≤4 options (selector knob + inline labels) ──
-                if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                    x: 0; y: 14px;
-                    width: parent.width; height: 76px;
-                    background: transparent;
-
-                    property <length> ks: 46px;
-                    property <length> cx: self.width / 2;
-                    property <length> top-row: 0px;
-                    property <length> knob-y: 14px;
-                    property <length> bot-row: self.knob-y + self.ks + 2px;
-                    property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
-                    property <int> n: param.option_labels.length;
-                    property <int> sel: param.selected_option_index;
-                    property <color> tc: root.panel-text;
-
-                    SelectorKnob {
-                        x: parent.cx - parent.ks / 2;
-                        y: parent.knob-y;
-                        width: parent.ks; height: parent.ks;
-                        num-options: parent.n;
-                        selected-index: parent.sel;
-                        select(i) => { root.select-block-parameter-option(param.path, i); }
-                    }
-
-                    // ── Bottom-left label (7h) — option 0 ──
-                    Text {
-                        visible: parent.n >= 2;
-                        x: 0; y: parent.bot-row;
-                        width: parent.lw; height: 14px;
-                        text: param.option_labels.length > 0 ? param.option_labels[0] : "";
-                        color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-                        font-size: 11px;
-                        font-weight: 0 == parent.sel ? 700 : 400;
-                        horizontal-alignment: right;
-                        overflow: elide;
-                    }
-                    TouchArea {
-                        visible: parent.n >= 2;
-                        x: 0; y: parent.bot-row;
-                        width: parent.lw; height: 14px;
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, 0); }
-                    }
-
-                    // ── Bottom-right label (5h) — last option ──
-                    Text {
-                        visible: parent.n >= 2;
-                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
-                        width: parent.lw; height: 14px;
-                        text: parent.n == 2 ? (param.option_labels.length > 1 ? param.option_labels[1] : "")
-                            : parent.n == 3 ? (param.option_labels.length > 2 ? param.option_labels[2] : "")
-                            : (param.option_labels.length > 3 ? param.option_labels[3] : "");
-                        color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
-                            ? #ffaa44 : parent.tc.with-alpha(0.7);
-                        font-size: 11px;
-                        font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-                    TouchArea {
-                        visible: parent.n >= 2;
-                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
-                        width: parent.lw; height: 14px;
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
-                    }
-
-                    // ── Top-center label (12h) — option 1 for 3-opt ──
-                    Text {
-                        visible: parent.n == 3;
-                        x: parent.cx - 55px; y: parent.top-row;
-                        width: 110px; height: 14px;
-                        text: param.option_labels.length > 1 ? param.option_labels[1] : "";
-                        color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-                        font-size: 11px;
-                        font-weight: 1 == parent.sel ? 700 : 400;
-                        horizontal-alignment: center;
-                        overflow: elide;
-                    }
-                    TouchArea {
-                        visible: parent.n == 3;
-                        x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, 1); }
-                    }
-
-                    // ── Upper-left label (10h) — option 1 for 4-opt ──
-                    Text {
-                        visible: parent.n == 4;
-                        x: 0; y: parent.top-row;
-                        width: parent.lw; height: 14px;
-                        text: param.option_labels.length > 1 ? param.option_labels[1] : "";
-                        color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-                        font-size: 11px;
-                        font-weight: 1 == parent.sel ? 700 : 400;
-                        horizontal-alignment: right;
-                        overflow: elide;
-                    }
-                    TouchArea {
-                        visible: parent.n == 4;
-                        x: 0; y: parent.top-row; width: parent.lw; height: 14px;
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, 1); }
-                    }
-
-                    // ── Upper-right label (2h) — option 2 for 4-opt ──
-                    Text {
-                        visible: parent.n == 4;
-                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
-                        width: parent.lw; height: 14px;
-                        text: param.option_labels.length > 2 ? param.option_labels[2] : "";
-                        color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-                        font-size: 11px;
-                        font-weight: 2 == parent.sel ? 700 : 400;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-                    TouchArea {
-                        visible: parent.n == 4;
-                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, 2); }
-                    }
-                }
-
-                // ── Enum 5+ options (dropdown select) ──
-                if param.widget_kind == "enum" && param.option_labels.length > 4 : Rectangle {
-                    x: 0; y: 22px;
-                    width: parent.width;
-                    height: 34px;
-                    background: #060610;
-                    border-width: 1px;
-                    border-color: #252538;
-                    border-radius: 6px;
-
-                    Text {
-                        x: 12px; y: 0;
-                        width: parent.width - 34px;
-                        height: parent.height;
-                        text: param.selected_option_index >= 0 && param.selected_option_index < param.option_labels.length
-                            ? param.option_labels[param.selected_option_index]
-                            : "";
-                        color: #d8e0ff;
-                        font-size: 13px;
-                        font-weight: 700;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-
-                    Text {
-                        x: parent.width - 22px; y: 0;
-                        width: 18px;
-                        height: parent.height;
-                        text: @tr("\u{25BC}");
-                        color: #ffffff;
-                        font-size: 11px;
-                        vertical-alignment: center;
-                        horizontal-alignment: center;
-                    }
-
-                    param-open := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { param-popup.show(); }
-                    }
-
-                    param-popup := PopupWindow {
-                        property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
-                        x: 0;
-                        y: -self.list-height - 4px;
-                        width: parent.width;
-                        height: self.list-height;
-
-                        Rectangle {
-                            width: 100%;
-                            height: 100%;
-                            background: #08080e;
-                            border-width: 1px;
-                            border-color: #2a2a40;
-                            border-radius: 6px;
-                            drop-shadow-blur: 20px;
-                            drop-shadow-color: #000000c0;
-                            drop-shadow-offset-x: 0px;
-                            drop-shadow-offset-y: 6px;
-                            clip: true;
-
-                            Flickable {
-                                x: 0; y: 0;
-                                width: parent.width;
-                                height: parent.height;
-                                viewport-height: param.option_labels.length * 36px + 8px;
-
-                                for option[oi] in param.option_labels : Rectangle {
-                                    x: 4px;
-                                    y: 4px + oi * 36px;
-                                    width: parent.width - 8px;
-                                    height: 36px;
-                                    border-radius: 5px;
-                                    background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
-
-                                    Text {
-                                        x: 12px; y: 0;
-                                        width: parent.width - 24px;
-                                        height: parent.height;
-                                        text: option;
-                                        color: oi == param.selected_option_index ? #7788ff : #b0bce0;
-                                        font-size: 13px;
-                                        font-weight: oi == param.selected_option_index ? 700 : 400;
-                                        vertical-alignment: center;
-                                        overflow: elide;
-                                    }
-
-                                    opt-ta := TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            root.select-block-parameter-option(param.path, oi);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ── File picker (widget_kind == "path") ──
-                if param.widget_kind == "path" : Rectangle {
-                    x: 4px; y: 20px;
-                    width: parent.width - 8px;
-                    height: 32px;
-                    border-radius: 6px;
-                    background: file-ta.has-hover ? #ffffff18 : #00000030;
-                    border-width: 1px;
-                    border-color: #ffffff10;
-
-                    Text {
-                        x: 4px;
-                        width: parent.width - 8px;
-                        height: parent.height;
-                        text: param.value_text != "" ? param.value_text : "Load";
-                        color: param.value_text != "" ? #8090a0 : #4488cc;
-                        font-size: 8px;
-                        font-weight: 600;
-                        overflow: elide;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-
-                    file-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.pick-block-parameter-file(param.path); }
-                    }
-                }
-
-                // ── Numeric knob/stepper/slider ──
-                if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                    x: (parent.width - 50px) / 2;
-                    y: 18px;
-                    width: 50px;
-                    height: 70px;
-                    value: param.numeric_value;
-                    min-val: param.numeric_min;
-                    max-val: param.numeric_max;
-                    step: param.numeric_step;
-                    path: param.path;
-                    changed(p, v) => { root.update-block-parameter-number(p, v); }
-                }
-
-                // ── Boolean toggle (sprite) ──
-                if param.widget_kind == "bool" : ToggleSwitch {
-                    x: (parent.width - 40px) / 2;
-                    y: 18px;
-                    width: 40px;
-                    height: 70px;
-                    checked: param.bool_value;
-                    toggled => { root.update-block-parameter-bool(param.path, !param.bool_value); }
-                }
+            for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
+                param: param;
+                panel-text: root.panel-text;
+                update-number(p, v) => { root.update-block-parameter-number(p, v); }
+                select-option(p, i) => { root.select-block-parameter-option(p, i); }
+                pick-file(p) => { root.pick-block-parameter-file(p); }
+                update-bool(p, v) => { root.update-block-parameter-bool(p, v); }
             }
         }
     }
