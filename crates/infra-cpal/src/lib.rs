@@ -1,12 +1,8 @@
 use anyhow::{anyhow, bail, Result};
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use anyhow::Context;
 use cpal::traits::{DeviceTrait, StreamTrait};
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::HostTrait;
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig, SupportedStreamConfig};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::{SupportedBufferSize, SupportedStreamConfigRange};
+use cpal::SupportedStreamConfigRange;
 
 // Single owner of the jackd lifecycle on Linux (issue #308). The supervisor
 // types compile on any platform with the jack feature so unit tests can
@@ -837,173 +833,13 @@ pub use chain_resolve::resolve_project_chain_sample_rates;
 use chain_resolve::{resolve_chain_audio_config, resolve_enabled_chain_audio_configs};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn validate_buffer_size(
-    requested: u32,
-    supported: &SupportedBufferSize,
-    context: &str,
-) -> Result<()> {
-    match supported {
-        SupportedBufferSize::Range { min, max } => {
-            if requested < *min || requested > *max {
-                bail!(
-                    "{} invalid: buffer_size_frames={} outside supported range [{}..={}]",
-                    context,
-                    requested,
-                    min,
-                    max
-                );
-            }
-        }
-        SupportedBufferSize::Unknown => {}
-    }
-    Ok(())
-}
+mod validation;
+pub(crate) use validation::validate_buffer_size;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Result<()> {
-    for chain in &project.chains {
-        if !chain.enabled {
-            continue;
-        }
-        validate_chain_channels_against_devices(host, chain)?;
-    }
-    Ok(())
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
-    for (_, input) in chain.input_blocks() {
-        for entry in &input.entries {
-            validate_input_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
-        }
-    }
-
-    for (_, output) in chain.output_blocks() {
-        for entry in &output.entries {
-            validate_output_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
-        }
-    }
-
-    // Validate Insert block endpoints
-    for (_, insert) in chain.insert_blocks() {
-        if !insert.send.device_id.0.is_empty() {
-            validate_output_channels_against_device(host, &chain.id.0, &insert.send.device_id.0, &insert.send.channels)?;
-        }
-        if !insert.return_.device_id.0.is_empty() {
-            validate_input_channels_against_device(host, &chain.id.0, &insert.return_.device_id.0, &insert.return_.channels)?;
-        }
-    }
-
-    Ok(())
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn validate_input_channels_against_device(
-    host: &cpal::Host,
-    chain_id: &str,
-    device_id: &str,
-    channels: &[usize],
-) -> Result<()> {
-    // On Linux with JACK, skip ALL ALSA channel validation — calling
-    // supported_input_configs() can disturb USB audio devices regardless of
-    // whether JACK is already running. JACK validates port counts at connect time.
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    {
-        let _ = (host, chain_id, device_id, channels);
-        log::debug!("[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)");
-        return Ok(());
-    }
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    {
-        log::info!(
-            "[validate_input_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
-            chain_id, device_id, channels
-        );
-        let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
-        })?;
-        log::info!("[validate_input_channels] device found, querying channel capacity...");
-        let total_channels = max_supported_input_channels(&device).with_context(|| {
-            format!(
-                "failed to resolve input channel capacity for '{}'",
-                device_id
-            )
-        })?;
-        log::info!("[validate_input_channels] device '{}' has {} channels", device_id, total_channels);
-        for channel in channels {
-            if *channel >= total_channels {
-                bail!(
-                    "chain '{}' invalid: input channel '{}' outside device range (channels={})",
-                    chain_id,
-                    channel,
-                    total_channels
-                );
-            }
-        }
-        Ok(())
-    }
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn validate_output_channels_against_device(
-    host: &cpal::Host,
-    chain_id: &str,
-    device_id: &str,
-    channels: &[usize],
-) -> Result<()> {
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    {
-        let _ = (host, chain_id, device_id, channels);
-        log::debug!("[validate_output_channels] skipping — Linux/JACK (JACK validates at connect time)");
-        return Ok(());
-    }
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    {
-        log::info!(
-            "[validate_output_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
-            chain_id, device_id, channels
-        );
-        let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
-        })?;
-        log::info!("[validate_output_channels] device found, querying channel capacity...");
-        let total_channels = max_supported_output_channels(&device).with_context(|| {
-            format!(
-                "failed to resolve output channel capacity for '{}'",
-                device_id
-            )
-        })?;
-        log::info!("[validate_output_channels] device '{}' has {} channels", device_id, total_channels);
-        for channel in channels {
-            if *channel >= total_channels {
-                bail!(
-                    "chain '{}' invalid: output channel '{}' outside device range (channels={})",
-                    chain_id,
-                    channel,
-                    total_channels
-                );
-            }
-        }
-        Ok(())
-    }
-}
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
-    for device in host.input_devices()? {
-        if device.id()?.to_string() == device_id {
-            return Ok(Some(device));
-        }
-    }
-    Ok(None)
-}
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
-    for device in host.output_devices()? {
-        if device.id()?.to_string() == device_id {
-            return Ok(Some(device));
-        }
-    }
-    Ok(None)
-}
+pub(crate) use validation::{
+    find_input_device_by_id, find_output_device_by_id, validate_channels_against_devices,
+    validate_chain_channels_against_devices,
+};
 fn build_input_stream_for_input(
     chain_id: &ChainId,
     input_index: usize,
