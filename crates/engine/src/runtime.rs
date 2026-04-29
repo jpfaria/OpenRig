@@ -83,12 +83,16 @@ pub(crate) use crate::runtime_audio_frame::{
 pub(crate) use crate::runtime_audio_frame::{mix_frames, read_channel, silent_frame};
 
 
-/// An error produced by a block processor during audio processing.
-#[derive(Debug, Clone)]
-pub struct BlockError {
-    pub block_id: BlockId,
-    pub message: String,
-}
+// Slice 2 of Phase 2: state structs lifted to runtime_state.rs.
+// `BlockError` stays `pub` (re-exported as `engine::runtime::BlockError`
+// from infra-cpal / adapter-console). The rest are `pub(crate)`.
+pub use crate::runtime_state::BlockError;
+pub(crate) use crate::runtime_state::{
+    BlockRuntimeNode, ChainProcessingState, FadeState, InputCallbackScratch,
+    InputProcessingState, OutputRoutingState, ProcessorBuildOutcome, RuntimeProcessor,
+    SelectRuntimeState,
+};
+
 
 pub struct ChainRuntimeState {
     pub(crate) processing: Mutex<ChainProcessingState>,
@@ -368,145 +372,7 @@ impl ChainRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 const FADE_IN_FRAMES: usize = 128;
 
-pub(crate) struct InputProcessingState {
-    input_read_layout: AudioChannelLayout,
-    processing_layout: AudioChannelLayout,
-    input_channels: Vec<usize>,
-    pub(crate) blocks: Vec<BlockRuntimeNode>,
-    frame_buffer: Vec<AudioFrame>,
-    /// Remaining frames of fade-in after a rebuild (0 = no fade active).
-    fade_in_remaining: usize,
-    /// Which output route indices this input/segment should push frames to.
-    /// Empty means push to ALL output routes (legacy behaviour).
-    output_route_indices: Vec<usize>,
-    /// When this segment originated from a split-mono entry (one
-    /// `InputBlock` with `mode: mono` and N channels), this stores N —
-    /// the total number of split siblings sharing the same original entry.
-    /// The fan-out then scales this segment's contribution by 1/N before
-    /// summing into `mixed_per_route`, preventing the unity-gain sum of N
-    /// loud streams from saturating the output limiter. The mono→stereo
-    /// upmix stays the historical broadcast (`Stereo([s, s])`) — the rule
-    /// "mono in → stereo out is broadcast to both channels" is preserved.
-    /// `None` for stereo / single-channel mono / dual-mono / Insert
-    /// returns — they contribute at unity gain. (Issue #350.)
-    split_mono_sibling_count: Option<usize>,
-}
 
-pub(crate) struct ChainProcessingState {
-    pub(crate) input_states: Vec<InputProcessingState>,
-    /// Maps CPAL input_index → Vec of input_states indices to process.
-    input_to_segments: Vec<Vec<usize>>,
-    /// Pre-allocated scratch buffers used by `process_input_f32`, indexed by
-    /// CPAL input_index. Reused across callbacks to avoid per-callback
-    /// allocations in the RT hot path.
-    input_scratches: Vec<InputCallbackScratch>,
-}
-
-/// Scratch buffers reused across audio callbacks for a single input_index.
-/// Each Vec/HashMap keeps its allocated capacity between callbacks; clearing
-/// leaves the backing storage in place.
-#[derive(Default)]
-struct InputCallbackScratch {
-    /// Mixed audio frames keyed by output route index, accumulated across
-    /// segments for the current callback.
-    mixed_per_route: HashMap<usize, Vec<AudioFrame>>,
-    /// Output route Arcs snapshotted from `runtime.output_routes` via
-    /// ArcSwap for this callback — no lock held.
-    route_arcs: Vec<(usize, Arc<OutputRoutingState>)>,
-    /// Buffer written by `process_single_segment` with the processed frames
-    /// of the current segment before they are mixed into `mixed_per_route`.
-    segment_processed: Vec<AudioFrame>,
-    /// Output route indices for the current segment, refreshed per segment.
-    segment_route_indices: Vec<usize>,
-    /// Segment indices belonging to the current input_index, refreshed per
-    /// callback from `input_to_segments`.
-    segment_indices: Vec<usize>,
-}
-
-impl InputCallbackScratch {
-    fn reset_for_callback(&mut self) {
-        for buf in self.mixed_per_route.values_mut() {
-            buf.clear();
-        }
-        self.route_arcs.clear();
-        self.segment_processed.clear();
-        self.segment_route_indices.clear();
-        self.segment_indices.clear();
-    }
-}
-
-struct OutputRoutingState {
-    output_channels: Vec<usize>,
-    output_mixdown: ChainOutputMixdown,
-    buffer: ElasticBuffer,
-}
-
-pub(crate) enum RuntimeProcessor {
-    Audio(AudioProcessor),
-    Select(SelectRuntimeState),
-    Bypass,
-}
-
-impl RuntimeProcessor {
-    /// Stable label of the processor variant — for diagnostics. Keeps the
-    /// `AudioProcessor` and `SelectRuntimeState` types private to the
-    /// runtime module while letting sibling modules (e.g. the latency
-    /// probe) classify nodes without pattern-matching on the variants.
-    pub(crate) fn kind_label(&self) -> &'static str {
-        match self {
-            RuntimeProcessor::Audio(_) => "audio",
-            RuntimeProcessor::Select(_) => "select",
-            RuntimeProcessor::Bypass => "bypass",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum FadeState {
-    /// Fully active — no fade in progress.
-    Active,
-    /// Transitioning from bypass → active. frames_remaining counts down.
-    FadingIn { frames_remaining: usize },
-    /// Transitioning from active → bypass. frames_remaining counts down.
-    FadingOut { frames_remaining: usize },
-    /// Fully bypassed — no audio processing needed.
-    Bypassed,
-}
-
-pub(crate) struct BlockRuntimeNode {
-    #[cfg_attr(not(test), allow(dead_code))]
-    instance_serial: u64,
-    pub(crate) block_id: BlockId,
-    pub(crate) block_snapshot: project::block::AudioBlock,
-    input_layout: AudioChannelLayout,
-    output_layout: AudioChannelLayout,
-    scratch: ProcessorScratch,
-    pub(crate) processor: RuntimeProcessor,
-    stream_handle: Option<StreamHandle>,
-    fade_state: FadeState,
-    /// Set to true if this block panicked during audio processing.
-    /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
-    pub(crate) faulted: bool,
-}
-
-pub(crate) struct SelectRuntimeState {
-    selected_block_id: BlockId,
-    options: Vec<BlockRuntimeNode>,
-}
-
-struct ProcessorBuildOutcome {
-    processor: AudioProcessor,
-    output_layout: AudioChannelLayout,
-    stream_handle: Option<StreamHandle>,
-}
-
-impl SelectRuntimeState {
-    fn selected_node_mut(&mut self) -> Option<&mut BlockRuntimeNode> {
-        self.options
-            .iter_mut()
-            .find(|option| option.block_id == self.selected_block_id)
-    }
-}
 
 pub struct RuntimeGraph {
     pub chains: HashMap<ChainId, Arc<ChainRuntimeState>>,
