@@ -80,7 +80,7 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 
 ### Regras
 
-1. **Issue primeiro** — criar no GitHub antes de qualquer código. Sempre `gh issue list --search` antes de criar (evitar duplicatas).
+1. **Issue primeiro** — criar no GitHub antes de qualquer código. Sempre `gh issue list --search` antes de criar (evitar duplicatas). **NUNCA criar issue sem pedido explícito do usuário.** Sugerir follow-up em comentário é OK; abrir tracker novo sem ele autorizar não é. Antes de `gh issue create`, sempre perguntar "quer que eu abra issue para X?" e esperar `sim`/`abre`/equivalente.
 2. **UMA branch por issue, nome `feature/issue-{N}` ou `bugfix/issue-{N}`** — NUNCA sufixo descritivo. Antes de criar, `git fetch && git branch -a | grep "issue-{N}"`. Se existe, usar; se precisa recomeçar, resetar a existente.
 3. **Sempre a partir de develop atualizado** — `git checkout develop && git pull` antes de criar branch.
 4. **Mergear develop antes de qualquer trabalho** — `git merge -X theirs origin/develop` (develop tem prioridade em conflitos).
