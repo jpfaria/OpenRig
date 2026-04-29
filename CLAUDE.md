@@ -182,6 +182,50 @@ Ver `CONTRIBUTING.md` para detalhes.
 
 ---
 
+## Feature-specific vs shared files (issue #194)
+
+Lição central da issue de decoupling: god-files acontecem porque lógica feature-specific vai parar em arquivos compartilhados. Quando 2 agents trabalham em features diferentes mas ambos editam o mesmo arquivo "central", o merge colide.
+
+**Regra dura:**
+
+> **Código compartilhado SÓ quando 2+ features usam aquele código.** Lógica feature-specific mora no módulo da feature.
+
+### Como decidir
+| Situação | Onde mora |
+|---|---|
+| Constante / tipo / fn usados por 2+ crates ou 2+ features | crate compartilhado (`block-core`, `domain`, `project`) |
+| Lógica de UM modelo (preset Marshall JCM 800, schema do TS9) | crate do efeito dono (`block-amp/src/nam_marshall_jcm_800.rs`, `block-gain/src/nam_ibanez_ts9.rs`) |
+| Visual config (cor de painel, fonte, posição de foto) | camada GUI (`adapter-gui/src/visual_config/`), NUNCA no `MODEL_DEFINITION` da business logic |
+| Wiring de UM widget Slint | arquivo `*_wiring.rs` próprio (`tuner_wiring.rs`, `spectrum_wiring.rs`) |
+| Audio thread hot path | crate `engine` (split por responsabilidade — runtime_dsp / runtime_layout / runtime_io / runtime_audio_frame) |
+
+### Anti-padrões que produzem god-files
+```
+❌ adicionar match/if novo em crate central toda vez que aparece um modelo novo
+❌ adapter-gui/src/lib.rs com 9000+ LOC de callbacks Slint
+❌ project/src/block.rs com 3 match-branches que crescem por effect_type
+❌ visual config de um modelo dentro de MODEL_DEFINITION (mistura business + GUI)
+❌ string literal de model_id em arquivo compartilhado (`if model_id == "marshall_..."`)
+```
+
+### Padrões corretos
+```
+✅ cada block-* crate exporta `<crate>_model_visual(id)` — UI olha só o brand sem tocar business logic
+✅ adapter-gui split em *_wiring.rs por feature
+✅ engine runtime split em runtime_state / runtime_graph / runtime_block_builders / runtime_block_core / runtime_endpoints / runtime_segments
+✅ slint ternary chain por model_id mora em UM componente centralizado (`block_panel_brand_strip.slint`) — slint não tem outra forma e isso é exceção autorizada ao "zero coupling"
+```
+
+### Caps por linguagem (tamanho de arquivo)
+- `.rs` (não-test): **600 LOC** — `validate.sh` falha
+- `.rs` test: ilimitado, mas split se passa de 1000 LOC e cobre múltiplas responsabilidades
+- `.slint`: **500 LOC** — `validate.sh` falha
+- `lib.rs` / `mod.rs`: **só re-exports**, < 100 LOC; nunca implementar lógica nesses
+
+Issue #194 é o umbrella que rastreia o trabalho até esse estado. Acceptance: `cargo build --workspace` zero warnings, `cargo test --workspace` verde, ZERO `model_id == "..."` em arquivos compartilhados.
+
+---
+
 ## Referências (não-regras, ler quando precisar)
 
 | Doc | Conteúdo |
