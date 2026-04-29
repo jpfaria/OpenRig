@@ -27,6 +27,7 @@ pub(crate) enum AudioFrame {
 }
 
 impl AudioFrame {
+    #[inline(always)]
     pub(crate) fn mono_mix(self) -> f32 {
         match self {
             AudioFrame::Mono(sample) => sample,
@@ -66,6 +67,7 @@ impl ElasticBuffer {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn push(&self, frame: AudioFrame) {
         self.last_frame_bits
             .store(frame_to_bits(frame), Ordering::Relaxed);
@@ -75,6 +77,7 @@ impl ElasticBuffer {
         let _ = self.ring.push(frame);
     }
 
+    #[inline(always)]
     pub(crate) fn pop(&self) -> AudioFrame {
         match self.ring.pop() {
             Some(frame) => frame,
@@ -98,6 +101,7 @@ impl ElasticBuffer {
     }
 }
 
+#[inline(always)]
 fn frame_to_bits(frame: AudioFrame) -> u64 {
     match frame {
         AudioFrame::Mono(s) => s.to_bits() as u64,
@@ -105,6 +109,7 @@ fn frame_to_bits(frame: AudioFrame) -> u64 {
     }
 }
 
+#[inline(always)]
 fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
     match layout {
         AudioChannelLayout::Mono => AudioFrame::Mono(f32::from_bits(bits as u32)),
@@ -138,6 +143,7 @@ impl AudioProcessor {
     ///
     /// Bus between blocks is ALWAYS stereo. Mono processors receive the left
     /// channel (or mono mix), process it, and output stereo (duplicated).
+    #[inline]
     pub(crate) fn process_buffer(
         &mut self,
         frames: &mut [AudioFrame],
@@ -224,6 +230,7 @@ impl AudioProcessor {
     }
 }
 
+#[inline(always)]
 pub(crate) fn read_input_frame(
     input_layout: AudioChannelLayout,
     input_channels: &[usize],
@@ -238,10 +245,12 @@ pub(crate) fn read_input_frame(
     }
 }
 
+#[inline(always)]
 pub(crate) fn read_channel(frame: &[f32], channel_index: usize) -> f32 {
     frame.get(channel_index).copied().unwrap_or(0.0)
 }
 
+#[inline(always)]
 pub(crate) fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     match layout {
         AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
