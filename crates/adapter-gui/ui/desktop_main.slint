@@ -439,12 +439,15 @@ export component DesktopMain inherits Rectangle {
     }
 
     // Floating language selector — top-right of every screen EXCEPT the
-    // launcher (the launcher renders its own copy inline next to the
-    // open/create-project buttons so they don't fight for the same corner).
+    // launcher (the launcher renders its own larger copy inline next to the
+    // open/create-project buttons). Compact mode aligns with the
+    // HeaderIconAction row used in project_chains.slint (24x24 flat at y=14
+    // inside an x=24/width=parent.width-48 header strip).
     if !root.show-project-launcher : LanguageSelector {
-        x: parent.width - self.width - 16px;
-        y: 22px;
+        x: parent.width - 32px;
+        y: 32px;
         z: 200;
+        compact: true;
         language-options: root.language-options;
         selected-language-index: root.selected-language-index;
         language-selected(i) => { root.change-language(i); }

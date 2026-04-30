@@ -1,33 +1,39 @@
-// Icon-only language selector — same visual as HeaderIconAction
-// (24x24 flat, hover overlay, tooltip below). Click toggles a dropdown
-// anchored below.
-//
-// Lower visual weight than nearby action icons because language is a
-// rarely-used preference, not a primary action.
+// Language selector with two visual modes:
+//  - compact (24x24, flat) — matches HeaderIconAction (chain editor headers).
+//  - default (40x40, bordered) — matches IconLauncherButton (project launcher).
+// Click toggles dropdown; hover shows tooltip with current language.
 
 export component LanguageSelector inherits Rectangle {
     in property <[string]> language-options;
     in property <int> selected-language-index;
+    in property <bool> compact: false;
     callback language-selected(int);
 
-    width: 24px;
-    height: 24px;
-    background: hover-area.has-hover ? #ffffff10 : transparent;
+    width: root.compact ? 24px : 40px;
+    height: root.compact ? 24px : 40px;
+    background: root.compact
+        ? (hover-area.has-hover ? #ffffff10 : transparent)
+        : #2f3339;
+    border-width: root.compact ? 0px : 1px;
+    border-color: #4c515b;
+    border-radius: root.compact ? 0px : 4px;
 
     private property <bool> dropdown-open: false;
+    private property <length> icon-size: root.compact ? 20px : 20px;
+    private property <length> icon-offset: root.compact ? 2px : 10px;
     private property <string> current-label:
         root.selected-language-index >= 0 && root.selected-language-index < root.language-options.length
             ? root.language-options[root.selected-language-index]
             : "";
 
     Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
+        x: root.icon-offset;
+        y: root.icon-offset;
+        width: root.icon-size;
+        height: root.icon-size;
         source: @image-url("../assets/globe.svg");
         image-fit: contain;
-        colorize: hover-area.has-hover ? #ffffff : #8a94a2;
+        colorize: hover-area.has-hover ? #ffffff : (root.compact ? #eef2f8 : #cfd5de);
     }
 
     hover-area := TouchArea {
@@ -46,7 +52,7 @@ export component LanguageSelector inherits Rectangle {
 
     // Hover tooltip — shows current language while not open.
     if hover-area.has-hover && !root.dropdown-open && root.current-label != "" : Rectangle {
-        x: -56px;
+        x: (parent.width - 136px) / 2;
         y: parent.height + 4px;
         width: 136px;
         height: 24px;
@@ -81,7 +87,7 @@ export component LanguageSelector inherits Rectangle {
         border-color: #4c515b;
         border-width: 1px;
         border-radius: 4px;
-        z: 100;
+        z: 1000;
 
         list-layout := VerticalLayout {
             padding: 4px;

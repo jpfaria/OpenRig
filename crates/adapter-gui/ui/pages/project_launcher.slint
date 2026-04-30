@@ -280,16 +280,8 @@ export component ProjectLauncherPage inherits Rectangle {
             image-fit: contain;
         }
 
-        LanguageSelector {
-            x: parent.width - 268px;
-            y: 6px;
-            language-options: root.language-options;
-            selected-language-index: root.selected-language-index;
-            language-selected(i) => { root.change-language(i); }
-        }
-
         IconLauncherButton {
-            x: parent.width - 212px;
+            x: parent.width - 268px;
             y: 6px;
             icon: @image-url("../assets/open-file.svg");
             tooltip: @tr("tooltip-open-project");
@@ -297,7 +289,7 @@ export component ProjectLauncherPage inherits Rectangle {
         }
 
         LauncherButton {
-            x: parent.width - 156px;
+            x: parent.width - 212px;
             y: 6px;
             label: @tr("btn-new-project");
             primary: true;
@@ -371,5 +363,14 @@ export component ProjectLauncherPage inherits Rectangle {
                 remove(index) => { root.remove-recent-project(index); }
             }
         }
+    }
+
+    // Render last so the dropdown z-orders above the project list.
+    LanguageSelector {
+        x: parent.width - 64px;
+        y: 24px;
+        language-options: root.language-options;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.change-language(i); }
     }
 }
