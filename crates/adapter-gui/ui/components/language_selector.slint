@@ -50,9 +50,11 @@ export component LanguageSelector inherits Rectangle {
     accessible-role: combobox;
     accessible-label: @tr("accessible-language-selector");
 
-    // Hover tooltip — shows current language while not open.
+    // Hover tooltip — shows current language while not open. Right-anchored
+    // so it never overflows the window edge (the selector lives at the
+    // top-right corner on every screen).
     if hover-area.has-hover && !root.dropdown-open && root.current-label != "" : Rectangle {
-        x: (parent.width - 136px) / 2;
+        x: parent.width - 136px;
         y: parent.height + 4px;
         width: 136px;
         height: 24px;
