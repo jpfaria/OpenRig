@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig VERSION\n"
-"POT-Creation-Date: 2026-05-01 18:24+0000\n"
+"POT-Creation-Date: 2026-05-01 23:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,17 +258,17 @@ msgctxt "ChainRow"
 msgid "tooltip-delete"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:435
+#: crates/adapter-gui/ui/pages/chain_row.slint:440
 msgctxt "ChainRow"
 msgid "LAT"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:484
+#: crates/adapter-gui/ui/pages/chain_row.slint:489
 msgctxt "ChainRow"
 msgid "Entrada"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:530
+#: crates/adapter-gui/ui/pages/chain_row.slint:535
 msgctxt "ChainRow"
 msgid "Saída"
 msgstr ""
@@ -497,6 +497,76 @@ msgstr ""
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:22
+msgctxt "ProjectSettingsWindow"
+msgid "window-title-configure-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:95
+msgctxt "ChainEditorWindow"
+msgid "window-title-configure-chain"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:128
+msgctxt "ChainEditorWindow"
+msgid "title-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:146
+msgctxt "ChainEditorWindow"
+msgid "title-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:176
+msgctxt "ChainInputWindow"
+msgid "window-title-chain-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:186
+msgctxt "ChainInputWindow"
+msgid "title-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:216
+msgctxt "ChainOutputWindow"
+msgid "window-title-chain-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:226
+msgctxt "ChainOutputWindow"
+msgid "title-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:257
+msgctxt "ChainInputGroupsWindow"
+msgid "window-title-chain-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:267
+msgctxt "ChainInputGroupsWindow"
+msgid "title-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:298
+msgctxt "ChainOutputGroupsWindow"
+msgid "window-title-chain-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:308
+msgctxt "ChainOutputGroupsWindow"
+msgid "title-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:354
+msgctxt "ChainInsertWindow"
+msgid "window-title-configure-insert"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:364
+msgctxt "ChainInsertWindow"
+msgid "title-configure-insert"
 msgstr ""
 
 #: crates/adapter-gui/ui/touch_main.slint:563

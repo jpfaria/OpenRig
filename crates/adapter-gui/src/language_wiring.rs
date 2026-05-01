@@ -44,8 +44,28 @@ pub fn wire(window: &AppWindow) {
         // is in English.
         let new_locale = locale_for_runtime(lang.as_deref());
         set_language_options(&window, &new_locale);
+        // Refresh strings that Rust injects into Slint (titles, save labels,
+        // etc.). Slint's bundled translations don't cover them — they go
+        // through rust_i18n::t!() at the moment Rust calls set_*. Without
+        // this, properties stay frozen in the previous locale.
+        refresh_rust_injected_strings(&window);
         window.set_selected_language_index(idx);
     });
+}
+
+/// Re-apply every Slint property that Rust pushes via `set_*(t!(...))`.
+/// Called on language change so strings injected from Rust reflect the
+/// new locale without requiring an app restart.
+fn refresh_rust_injected_strings(window: &AppWindow) {
+    use slint::SharedString;
+    window.set_project_title(SharedString::from(rust_i18n::t!("default-project-title").as_ref()));
+    // Default the chain editor labels to "create" mode. If the user is
+    // currently in edit mode, they'll see the create-mode wording until
+    // they reopen the editor — acceptable UX cost for keeping the wiring
+    // generic. apply_chain_editor_labels in chain_editor.rs covers the
+    // edit-mode case when the editor opens.
+    window.set_chain_editor_title(SharedString::from(rust_i18n::t!("title-new-chain").as_ref()));
+    window.set_chain_editor_save_label(SharedString::from(rust_i18n::t!("btn-create-chain").as_ref()));
 }
 
 /// Build the dropdown labels using `display_name` for the given UI locale

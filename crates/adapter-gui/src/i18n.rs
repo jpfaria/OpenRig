@@ -366,6 +366,13 @@ fn has_any_mo(dir: &Path) -> bool {
 /// `slint_build::with_bundled_translations` ingested at compile time.
 pub fn apply_bundled_translation(persisted_language: Option<&str>) {
     let locale = locale_for_runtime(persisted_language);
+    // CRITICAL: switch BOTH catalogs. Slint's bundled translations only
+    // covers strings that flow through @tr(...). Strings that Rust injects
+    // into the Slint window via setters (set_chain_editor_title, etc.)
+    // resolve through rust_i18n::t!() and need their own locale switch —
+    // without this, those properties stay frozen in the boot locale and
+    // surface as 'Salvar chain' when the rest of the UI is in Japanese.
+    rust_i18n::set_locale(&locale);
     let posix = locale.replace('-', "_");
     match slint::select_bundled_translation(&posix) {
         Ok(()) => log::info!("i18n: slint bundled translation = {}", posix),
