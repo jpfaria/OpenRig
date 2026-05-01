@@ -198,9 +198,9 @@ crasha (SIGSEGV) ou desperdiça CPU.
 declarado como `DualMono` → `Lv2Processor` mono conecta 1 in + 1 out, as
 outras 2 portas ficam dangling, primeiro write do host = SIGSEGV.
 
-Audit completo de todos os 105 plugins LV2 existentes em `docs/audio-mode-audit.md`.
-Adicionar plugin novo: confirme port count via TTL antes de escolher
-builder + mode.
+Audit completo dos 105 plugins LV2 existentes está nos comentários da
+issue #194 (Phase 4d). Adicionar plugin novo: confirme port count via
+TTL antes de escolher builder + mode.
 
 ---
 
@@ -257,6 +257,5 @@ Issue #194 é o umbrella que rastreia o trabalho até esse estado. Acceptance: `
 | `docs/cli.md` | Argumentos posicionais e env vars do `openrig` (com exemplos) |
 | `docs/scripts.md` | Scripts de build/deploy + fluxo branch→.deb→Orange Pi + cargo clean obrigatório |
 | `docs/audio-config.md` | I/O como blocos, per-machine device settings, JACK lifecycle Linux |
-| `docs/audio-mode-audit.md` | Audit Phase 4d: `audio_mode` declarado por modelo + builder LV2 + plugins que precisam revisão A/B |
 | `docs/architecture.md` | Crates, registry auto-gerado, assets, BlockEditorPanel |
 | `docs/testing.md` | Cobertura, convenções, categorias, comandos |
