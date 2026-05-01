@@ -12,7 +12,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use infra_filesystem::FilesystemStorage;
 
-use crate::i18n::{display_name, flag_for, locale_for_runtime, SUPPORTED_LANGUAGES};
+use crate::i18n::{display_name, locale_for_runtime, SUPPORTED_LANGUAGES};
 use crate::AppWindow;
 
 pub fn wire(window: &AppWindow) {
@@ -70,20 +70,29 @@ fn refresh_rust_injected_strings(window: &AppWindow) {
 
 /// Build the dropdown labels using `display_name` for the given UI locale
 /// and push them into the AppWindow's `language-options` model.
+/// Also pushes the parallel `language-codes` model so Slint can look up
+/// the country flag SVG for each row via @image-url ternary.
 fn set_language_options(window: &AppWindow, ui_locale: &str) {
     let options = build_language_options(ui_locale);
     let shared: Vec<SharedString> = options.into_iter().map(SharedString::from).collect();
     window.set_language_options(ModelRc::new(VecModel::from(shared)));
+
+    let codes: Vec<SharedString> = SUPPORTED_LANGUAGES
+        .iter()
+        .map(|l| SharedString::from(l.code))
+        .collect();
+    window.set_language_codes(ModelRc::new(VecModel::from(codes)));
 }
 
 /// Pure helper used by tests AND by the runtime wiring. Returns the list
 /// of dropdown labels in the current UI locale, in the same order as
-/// `SUPPORTED_LANGUAGES`. Each label is prefixed with the country flag
-/// emoji so the user gets visual orientation at a glance.
+/// `SUPPORTED_LANGUAGES`. The flag is rendered separately by Slint via
+/// the parallel `language-codes` array (see `LanguageSelector.slint`),
+/// so this returns just the localized name.
 pub fn build_language_options(ui_locale: &str) -> Vec<String> {
     SUPPORTED_LANGUAGES
         .iter()
-        .map(|l| format!("{}  {}", flag_for(l.code), display_name(l.code, ui_locale)))
+        .map(|l| display_name(l.code, ui_locale).to_string())
         .collect()
 }
 
@@ -157,42 +166,39 @@ mod tests {
     #[test]
     fn build_language_options_uses_pt_br_names_when_ui_is_pt_br() {
         let opts = build_language_options("pt-BR");
-        assert_eq!(opts[0], "🌐  Auto");
-        assert_eq!(opts[1], "🇩🇪  Alemão");
-        assert_eq!(opts[7], "🇺🇸  Inglês (US)");
-        assert_eq!(opts[9], "🇧🇷  Português (Brasil)");
+        assert_eq!(opts[0], "Auto");
+        assert_eq!(opts[1], "Alemão");
+        assert_eq!(opts[7], "Inglês (US)");
+        assert_eq!(opts[9], "Português (Brasil)");
     }
 
     #[test]
     fn build_language_options_uses_en_us_names_when_ui_is_en_us() {
         let opts = build_language_options("en-US");
-        assert_eq!(opts[0], "🌐  Auto");
-        assert_eq!(opts[1], "🇩🇪  German");
-        assert_eq!(opts[7], "🇺🇸  English (US)");
-        assert_eq!(opts[9], "🇧🇷  Portuguese (Brazil)");
+        assert_eq!(opts[0], "Auto");
+        assert_eq!(opts[1], "German");
+        assert_eq!(opts[7], "English (US)");
+        assert_eq!(opts[9], "Portuguese (Brazil)");
     }
 
-    /// Each shipped UI locale renders its OWN script in the dropdown.
-    /// Picking Japanese as the UI must show the language list in
-    /// Japanese, not English — bug reported by the user.
     #[test]
     fn build_language_options_uses_native_script_when_ui_is_ja_jp() {
         let opts = build_language_options("ja-JP");
-        assert_eq!(opts[0], "🌐  自動");
-        assert_eq!(opts[8], "🇯🇵  日本語");
+        assert_eq!(opts[0], "自動");
+        assert_eq!(opts[8], "日本語");
     }
 
     #[test]
     fn build_language_options_uses_native_script_when_ui_is_zh_cn() {
         let opts = build_language_options("zh-CN");
-        assert_eq!(opts[2], "🇨🇳  中文");
-        assert_eq!(opts[7], "🇺🇸  英语 (US)");
+        assert_eq!(opts[2], "中文");
+        assert_eq!(opts[7], "英语 (US)");
     }
 
     #[test]
     fn build_language_options_uses_native_script_when_ui_is_ko_kr() {
         let opts = build_language_options("ko-KR");
-        assert_eq!(opts[3], "🇰🇷  한국어");
+        assert_eq!(opts[3], "한국어");
     }
 
     #[test]

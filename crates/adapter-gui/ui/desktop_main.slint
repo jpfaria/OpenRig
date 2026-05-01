@@ -194,6 +194,7 @@ export component DesktopMain inherits Rectangle {
     callback chain-io-groups-delete-block();
     // Language selector — driven by adapter_gui::SUPPORTED_LANGUAGES on Rust side.
     in property <[string]> language-options;
+    in property <[string]> language-codes;
     in property <int> selected-language-index;
     callback change-language(int);
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
@@ -209,6 +210,7 @@ export component DesktopMain inherits Rectangle {
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
         language-options: root.language-options;
+        language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
@@ -449,6 +451,7 @@ export component DesktopMain inherits Rectangle {
         z: 200;
         compact: true;
         language-options: root.language-options;
+        language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         language-selected(i) => { root.change-language(i); }
     }

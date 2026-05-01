@@ -216,6 +216,7 @@ export component ProjectLauncherPage inherits Rectangle {
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
     in property <[string]> language-options;
+    in property <[string]> language-codes;
     in property <int> selected-language-index;
     callback change-language(int);
 
@@ -370,6 +371,7 @@ export component ProjectLauncherPage inherits Rectangle {
         x: parent.width - 64px;
         y: 24px;
         language-options: root.language-options;
+        language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         language-selected(i) => { root.change-language(i); }
     }

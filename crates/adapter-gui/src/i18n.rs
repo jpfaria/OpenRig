@@ -211,25 +211,6 @@ pub fn display_name(lang_code: &str, ui_locale: &str) -> &'static str {
     }
 }
 
-/// Country flag emoji for a language code. The "auto" sentinel returns a
-/// globe (no specific country). Unknown codes also return a globe so the
-/// UI never has a missing-glyph hole next to the language name.
-pub fn flag_for(lang_code: &str) -> &'static str {
-    match lang_code {
-        "auto" => "🌐",
-        "de-DE" => "🇩🇪",
-        "zh-CN" => "🇨🇳",
-        "ko-KR" => "🇰🇷",
-        "es-ES" => "🇪🇸",
-        "fr-FR" => "🇫🇷",
-        "hi-IN" => "🇮🇳",
-        "en-US" => "🇺🇸",
-        "ja-JP" => "🇯🇵",
-        "pt-BR" => "🇧🇷",
-        _ => "🌐",
-    }
-}
-
 /// Defensive fallback for an unknown lang code. The function only fires
 /// when callers pass a code outside SUPPORTED_LANGUAGES — every supported
 /// code is matched explicitly in `display_name`. Returning a literal "?"
@@ -664,27 +645,6 @@ mod tests {
         assert_eq!(display_name("zh-CN", "zh-CN"), "中文");
         assert_eq!(display_name("ja-JP", "zh-CN"), "日语");
         assert_eq!(display_name("auto", "zh-CN"), "自动");
-    }
-
-    /// Flag prefix per language code. Auto sentinel uses a globe icon
-    /// since it has no associated country.
-    #[test]
-    fn flag_for_returns_country_emoji() {
-        assert_eq!(flag_for("auto"), "🌐");
-        assert_eq!(flag_for("de-DE"), "🇩🇪");
-        assert_eq!(flag_for("zh-CN"), "🇨🇳");
-        assert_eq!(flag_for("ko-KR"), "🇰🇷");
-        assert_eq!(flag_for("es-ES"), "🇪🇸");
-        assert_eq!(flag_for("fr-FR"), "🇫🇷");
-        assert_eq!(flag_for("hi-IN"), "🇮🇳");
-        assert_eq!(flag_for("en-US"), "🇺🇸");
-        assert_eq!(flag_for("ja-JP"), "🇯🇵");
-        assert_eq!(flag_for("pt-BR"), "🇧🇷");
-    }
-
-    #[test]
-    fn flag_for_unknown_code_returns_globe() {
-        assert_eq!(flag_for("xx-YY"), "🌐");
     }
 
     #[test]

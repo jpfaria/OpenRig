@@ -217,6 +217,7 @@ export component AppWindow inherits Window {
     callback virtual-key-pressed(string);
     // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
     in property <[string]> language-options;
+    in property <[string]> language-codes;
     in property <int> selected-language-index;
     callback change-language(int);
     in property <bool> show-preset-picker: false;
@@ -420,6 +421,7 @@ export component AppWindow inherits Window {
         add-chain-output => { root.add-chain-output(); }
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
         language-options: root.language-options;
+        language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         change-language(i) => { root.change-language(i); }
     }
