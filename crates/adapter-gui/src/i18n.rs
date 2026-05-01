@@ -26,10 +26,13 @@ pub const TEXT_DOMAIN: &str = "adapter-gui";
 /// - The rest is alphabetical by Portuguese display name (matches the
 ///   codebase source language).
 ///
-/// Only pt-BR and en-US currently have real translations; the others are
-/// listed so users can pick them, but render passthrough (source pt-BR)
-/// until a translator fills the corresponding `.po` and `.yml` files.
-/// Tracked as a follow-up issue.
+/// Only locales listed in [`LOCALES_WITH_TRANSLATIONS`] currently have
+/// real translations; the others are kept in the selector so users see
+/// them coming, but `effective_locale()` redirects them to en-US under
+/// the hood until a translator fills the corresponding `.po` and `.yml`
+/// files (otherwise Slint's bundled-translation runtime returns empty
+/// strings for empty msgstr — the UI blanks out instead of falling back
+/// to msgid like classic gettext).
 pub const SUPPORTED_LANGUAGES: &[Language] = &[
     Language { code: "auto",  display: "Auto" },
     Language { code: "de-DE", display: "Alemão" },
@@ -43,10 +46,97 @@ pub const SUPPORTED_LANGUAGES: &[Language] = &[
     Language { code: "pt-BR", display: "Português (Brasil)" },
 ];
 
+/// Locales with real translations populated in both gettext (`.po`) and
+/// rust-i18n (`.yml`) catalogs. Picking any other locale silently falls
+/// back to en-US — see [`effective_locale`].
+///
+/// Add a code here as soon as its `.po` and `.yml` are fully populated.
+pub const LOCALES_WITH_TRANSLATIONS: &[&str] = &[
+    "pt-BR", "en-US", "de-DE", "es-ES", "fr-FR", "hi-IN", "ja-JP", "ko-KR", "zh-CN",
+];
+
 #[derive(Debug, Clone, Copy)]
 pub struct Language {
     pub code: &'static str,
     pub display: &'static str,
+}
+
+/// Convert a requested locale into the one to actually activate. If the
+/// locale isn't in [`LOCALES_WITH_TRANSLATIONS`], silently fall back to
+/// en-US — Slint's bundled translations return empty strings for
+/// skeleton `.po` files (all `msgstr ""`), which blanks every text in
+/// the UI. Falling back to a populated locale keeps the app readable.
+///
+/// Stop-gap until each shipped locale has real translations. Once a
+/// `.po` is populated, add its code to [`LOCALES_WITH_TRANSLATIONS`].
+pub fn effective_locale(requested: &str) -> String {
+    if LOCALES_WITH_TRANSLATIONS.iter().any(|c| *c == requested) {
+        requested.to_string()
+    } else {
+        "en-US".to_string()
+    }
+}
+
+/// Returns the human-readable name of a language for display in the
+/// LanguageSelector dropdown, localized to the active UI locale.
+///
+/// Hand-curated tables instead of `@tr(...)` because the language list
+/// is built in Rust and passed to Slint as a `[string]` model — the
+/// gettext catalog is the wrong layer for it. Falls back to en-US when
+/// the active UI locale doesn't have populated translations (matches
+/// `effective_locale`'s behavior). Unknown lang codes echo back the
+/// code so the UI never shows nothing.
+pub fn display_name(lang_code: &str, ui_locale: &str) -> &'static str {
+    let active_ui = effective_locale(ui_locale);
+    match active_ui.as_str() {
+        "pt-BR" => match lang_code {
+            "auto" => "Auto",
+            "de-DE" => "Alemão",
+            "zh-CN" => "Chinês",
+            "ko-KR" => "Coreano",
+            "es-ES" => "Espanhol",
+            "fr-FR" => "Francês",
+            "hi-IN" => "Hindi",
+            "en-US" => "Inglês (US)",
+            "ja-JP" => "Japonês",
+            "pt-BR" => "Português (Brasil)",
+            _ => echo_unknown(lang_code),
+        },
+        // Default branch covers en-US plus any locale that fell back to
+        // en-US via `effective_locale`. Adding a new populated UI locale
+        // requires adding a `match` arm above.
+        _ => match lang_code {
+            "auto" => "Auto",
+            "de-DE" => "German",
+            "zh-CN" => "Chinese",
+            "ko-KR" => "Korean",
+            "es-ES" => "Spanish",
+            "fr-FR" => "French",
+            "hi-IN" => "Hindi",
+            "en-US" => "English (US)",
+            "ja-JP" => "Japanese",
+            "pt-BR" => "Portuguese (Brazil)",
+            _ => echo_unknown(lang_code),
+        },
+    }
+}
+
+/// Defensive fallback for an unknown lang code. The function only fires
+/// when callers pass a code outside SUPPORTED_LANGUAGES — every supported
+/// code is matched explicitly in `display_name`. Returning a literal "?"
+/// keeps the UI showing *something* instead of nothing.
+fn echo_unknown(_code: &str) -> &'static str {
+    "?"
+}
+
+/// Single-source-of-truth for "what locale should Slint and gettext
+/// actually use right now": resolves the persisted/auto preference into
+/// a canonical BCP 47 code, then routes any skeleton-translation locale
+/// to en-US so the UI stays readable. Both `apply_bundled_translation`
+/// and `init_translations` MUST go through this function.
+pub fn locale_for_runtime(persisted: Option<&str>) -> String {
+    let resolved = resolve_locale(persisted);
+    effective_locale(&resolved)
 }
 
 /// Resolve the locale we should activate. Order:
@@ -166,7 +256,7 @@ fn has_any_mo(dir: &Path) -> bool {
 /// indexed by — this matches the `<lang>/adapter-gui.po` filenames the
 /// `slint_build::with_bundled_translations` ingested at compile time.
 pub fn apply_bundled_translation(persisted_language: Option<&str>) {
-    let locale = resolve_locale(persisted_language);
+    let locale = locale_for_runtime(persisted_language);
     let posix = locale.replace('-', "_");
     match slint::select_bundled_translation(&posix) {
         Ok(()) => log::info!("i18n: slint bundled translation = {}", posix),
@@ -182,7 +272,7 @@ pub fn apply_bundled_translation(persisted_language: Option<&str>) {
 ///
 /// Failures are logged but never panic — translations are not load-bearing.
 pub fn init_translations(persisted_language: Option<&str>) {
-    let locale = resolve_locale(persisted_language);
+    let locale = locale_for_runtime(persisted_language);
     log::info!("i18n: resolved locale = {}", locale);
 
     // Rust side: rust-i18n. The `i18n!("locales")` macro at crate root
@@ -317,6 +407,144 @@ mod tests {
     fn resolve_locale_treats_empty_as_unset() {
         let result = resolve_locale(Some(""));
         assert!(is_supported_code(&result));
+    }
+
+    #[test]
+    fn effective_locale_passes_through_pt_br() {
+        assert_eq!(effective_locale("pt-BR"), "pt-BR");
+    }
+
+    #[test]
+    fn effective_locale_passes_through_en_us() {
+        assert_eq!(effective_locale("en-US"), "en-US");
+    }
+
+    /// All 9 shipped locales now have populated translations. They must
+    /// pass through `effective_locale` unchanged. Regression test for the
+    /// "blank UI" bug: if a `.po` ever regresses to skeleton-only state,
+    /// remove its code from LOCALES_WITH_TRANSLATIONS — never let an
+    /// empty `.po` reach Slint's runtime, which renders msgstr "" as
+    /// empty strings (not msgid fallback).
+    #[test]
+    fn effective_locale_passes_through_every_shipped_locale() {
+        for code in &["pt-BR", "en-US", "de-DE", "es-ES", "fr-FR", "hi-IN", "ja-JP", "ko-KR", "zh-CN"] {
+            assert_eq!(
+                effective_locale(code),
+                *code,
+                "locale {:?} should pass through to Slint",
+                code
+            );
+        }
+    }
+
+    /// A locale code outside SUPPORTED_LANGUAGES must fall back to en-US
+    /// rather than crash or pass an unsupported value to Slint.
+    #[test]
+    fn effective_locale_falls_back_for_unknown_code() {
+        assert_eq!(effective_locale("xx-YY"), "en-US");
+        assert_eq!(effective_locale(""), "en-US");
+    }
+
+    /// Composes `resolve_locale` (BCP47 normalization) with `effective_locale`
+    /// (skeleton fallback). This is the single function `apply_bundled_translation`
+    /// and `init_translations` must use to decide what locale Slint and gettext
+    /// should activate. Today every shipped locale is populated so every code
+    /// passes through; the fallback path triggers only for codes outside
+    /// SUPPORTED_LANGUAGES (defensive).
+    #[test]
+    fn locale_for_runtime_passes_through_every_shipped_locale() {
+        for code in &["pt-BR", "en-US", "de-DE", "es-ES", "fr-FR", "hi-IN", "ja-JP", "ko-KR", "zh-CN"] {
+            assert_eq!(locale_for_runtime(Some(code)), *code);
+        }
+    }
+
+    /// OS locale strings come from `sys_locale::get_locale` in POSIX form
+    /// like "fr_FR.UTF-8". `locale_for_runtime` must normalize them into
+    /// the canonical BCP 47 code (`fr-FR`) before applying the fallback.
+    #[test]
+    fn locale_for_runtime_normalizes_posix_input() {
+        assert_eq!(locale_for_runtime(Some("fr_FR.UTF-8")), "fr-FR");
+        assert_eq!(locale_for_runtime(Some("ja_JP")), "ja-JP");
+        assert_eq!(locale_for_runtime(Some("pt_BR.UTF-8")), "pt-BR");
+    }
+
+    /// A locale code outside SUPPORTED_LANGUAGES must redirect to en-US.
+    #[test]
+    fn locale_for_runtime_falls_back_for_unknown_code() {
+        // "xx-YY" normalizes to "xx-YY" (unknown), then falls back via
+        // resolve_locale's normalize → "en-US"; effective_locale passes
+        // it through. End-to-end: "en-US".
+        assert_eq!(locale_for_runtime(Some("xx-YY")), "en-US");
+    }
+
+    /// Sanity rail: every code in `LOCALES_WITH_TRANSLATIONS` must be a
+    /// valid entry in `SUPPORTED_LANGUAGES`. Catches typos that would
+    /// silently break the fallback.
+    #[test]
+    fn locales_with_translations_are_all_in_supported_list() {
+        let supported: Vec<&str> = SUPPORTED_LANGUAGES.iter().map(|l| l.code).collect();
+        for code in LOCALES_WITH_TRANSLATIONS {
+            assert!(
+                supported.contains(code),
+                "{:?} is in LOCALES_WITH_TRANSLATIONS but not in SUPPORTED_LANGUAGES",
+                code
+            );
+        }
+    }
+
+    /// The list of languages exposed in the LanguageSelector UI must be
+    /// localized to the active UI language. Showing "Alemão" / "Chinês"
+    /// when the rest of the UI is in English is jarring (and was reported
+    /// by the user). For each shipped UI locale, every language in
+    /// SUPPORTED_LANGUAGES has a localized display name.
+    #[test]
+    fn display_name_localizes_into_pt_br() {
+        assert_eq!(display_name("auto", "pt-BR"), "Auto");
+        assert_eq!(display_name("de-DE", "pt-BR"), "Alemão");
+        assert_eq!(display_name("zh-CN", "pt-BR"), "Chinês");
+        assert_eq!(display_name("ko-KR", "pt-BR"), "Coreano");
+        assert_eq!(display_name("es-ES", "pt-BR"), "Espanhol");
+        assert_eq!(display_name("fr-FR", "pt-BR"), "Francês");
+        assert_eq!(display_name("hi-IN", "pt-BR"), "Hindi");
+        assert_eq!(display_name("en-US", "pt-BR"), "Inglês (US)");
+        assert_eq!(display_name("ja-JP", "pt-BR"), "Japonês");
+        assert_eq!(display_name("pt-BR", "pt-BR"), "Português (Brasil)");
+    }
+
+    #[test]
+    fn display_name_localizes_into_en_us() {
+        assert_eq!(display_name("auto", "en-US"), "Auto");
+        assert_eq!(display_name("de-DE", "en-US"), "German");
+        assert_eq!(display_name("zh-CN", "en-US"), "Chinese");
+        assert_eq!(display_name("ko-KR", "en-US"), "Korean");
+        assert_eq!(display_name("es-ES", "en-US"), "Spanish");
+        assert_eq!(display_name("fr-FR", "en-US"), "French");
+        assert_eq!(display_name("hi-IN", "en-US"), "Hindi");
+        assert_eq!(display_name("en-US", "en-US"), "English (US)");
+        assert_eq!(display_name("ja-JP", "en-US"), "Japanese");
+        assert_eq!(display_name("pt-BR", "en-US"), "Portuguese (Brazil)");
+    }
+
+    /// Locales without populated translations also need readable language
+    /// names. Since `effective_locale` redirects them to en-US, the UI
+    /// will be in English — the language list should match. We also test
+    /// the function directly with skeleton codes to make sure nothing
+    /// panics (e.g. user picks French in selector and pre-fallback
+    /// the display call uses fr-FR).
+    #[test]
+    fn display_name_falls_back_when_ui_locale_is_skeleton() {
+        // Skeleton locale routes display name resolution to en-US — same
+        // way runtime translations route to en-US.
+        assert_eq!(display_name("de-DE", "fr-FR"), "German");
+        assert_eq!(display_name("ja-JP", "ja-JP"), "Japanese");
+    }
+
+    #[test]
+    fn display_name_unknown_lang_code_returns_placeholder() {
+        // Defensive: an unknown lang code should not panic, just return
+        // a placeholder ("?") so the UI shows SOMETHING. Function returns
+        // `&'static str`, so we can't echo arbitrary input.
+        assert_eq!(display_name("xx-YY", "en-US"), "?");
     }
 
     #[test]

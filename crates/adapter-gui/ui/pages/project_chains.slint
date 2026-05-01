@@ -127,7 +127,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 240px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
-            tooltip: "Voltar";
+            tooltip: @tr("tooltip-back");
             clicked => { root.back-to-launcher(); }
         }
 
@@ -135,7 +135,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 200px;
             y: 14px;
             icon: @image-url("../assets/spectrum.svg");
-            tooltip: "Spectrum";
+            tooltip: @tr("tooltip-spectrum");
             clicked => { root.open-spectrum-window(); }
         }
 
@@ -143,7 +143,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 160px;
             y: 14px;
             icon: @image-url("../assets/tuner.svg");
-            tooltip: "Tuner";
+            tooltip: @tr("tooltip-tuner");
             clicked => { root.open-tuner-window(); }
         }
 
@@ -151,7 +151,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: root.auto-save ? parent.width - 80px : parent.width - 120px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
-            tooltip: "Projeto";
+            tooltip: @tr("tooltip-project-settings");
             clicked => { root.configure-project(); }
         }
 
@@ -160,7 +160,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 14px;
             icon: @image-url("../assets/save.svg");
             tint: root.project-dirty ? #f3c64f : #eef2f8;
-            tooltip: "Salvar";
+            tooltip: @tr("tooltip-save");
             clicked => { root.save-project(); }
         }
 
@@ -168,7 +168,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 40px;
             y: 14px;
             icon: @image-url("../assets/plus.svg");
-            tooltip: "Nova chain";
+            tooltip: @tr("tooltip-new-chain");
             clicked => { root.add-chain(); }
         }
 

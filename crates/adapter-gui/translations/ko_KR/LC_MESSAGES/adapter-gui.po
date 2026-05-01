@@ -1,412 +1,372 @@
-# OpenRig — Brazilian Portuguese (source language; near-identity translation).
-#
-# Source strings are already in pt-BR. This file exists so that:
-#   1. The locale is offered in the Language selector.
-#   2. We have a place to override edge cases (e.g. plural forms, regional spelling).
-#
-# Translations are kept identical to msgid unless explicitly overridden.
-#
+# OpenRig — Korean.
 msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-29 17:23+0000\n"
-"PO-Revision-Date: 2026-04-29 00:00+0000\n"
-"Last-Translator: João Paulo Faria <jpfaria@gmail.com>\n"
-"Language-Team: Brazilian Portuguese\n"
-"Language: pt_BR\n"
+"POT-Creation-Date: 2026-04-30 16:52+0000\n"
+"PO-Revision-Date: 2026-04-30 00:00+0000\n"
+"Language-Team: Korean\n"
+"Language: ko_KR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 
-#: crates/adapter-gui/ui/blocks/header.slint:13
 msgctxt "Header"
 msgid "OpenRig"
-msgstr ""
+msgstr "OpenRig"
 
-#: crates/adapter-gui/ui/components/block_stream_mini_display.slint:23
 msgctxt "BlockStreamMiniDisplay"
 msgid "–"
-msgstr ""
+msgstr "–"
 
-#: crates/adapter-gui/ui/components/block_value_widgets.slint:128
 msgctxt "BlockValueStepper"
 msgid "−"
-msgstr ""
+msgstr "−"
 
-#: crates/adapter-gui/ui/components/block_value_widgets.slint:194
 msgctxt "BlockValueStepper"
 msgid "+"
-msgstr ""
+msgstr "+"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir bloco"
-msgstr ""
+msgstr "블록 삭제"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:53
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir \"{}\"?"
+msgstr "\"{}\" 삭제하시겠습니까?"
+
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Cancelar"
-msgstr ""
+msgstr "취소"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:70
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir"
-msgstr ""
+msgstr "삭제"
 
-#: crates/adapter-gui/ui/components/language_selector.slint:60
 msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
-msgstr ""
+msgstr "언어 선택기"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:93
 msgctxt "ModelSelectWithSearch"
 msgid "▼"
-msgstr ""
+msgstr "▼"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:149
 msgctxt "ModelSelectWithSearch"
 msgid "🔍"
-msgstr ""
+msgstr "🔍"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:177
 msgctxt "ModelSelectWithSearch"
 msgid "Buscar modelos..."
-msgstr ""
+msgstr "모델 검색..."
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:197
 msgctxt "ModelSelectWithSearch"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:212
 msgctxt "ModelSelectWithSearch"
 msgid "Nenhum modelo encontrado"
-msgstr ""
+msgstr "모델을 찾을 수 없음"
 
-#: crates/adapter-gui/ui/pages/block_editor_panel.slint:241
+msgctxt "BlockEditorPanel"
+msgid "tooltip-delete"
+msgstr "삭제"
+
 msgctxt "BlockEditorPanel"
 msgid "–"
-msgstr ""
+msgstr "–"
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:684
-msgctxt "BlockPanelEditor"
-msgid "▼"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:840
 msgctxt "BlockPanelEditor"
 msgid "–"
-msgstr ""
+msgstr "–"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:101
 msgctxt "IoGroupRow"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:122
 msgctxt "IoGroupRow"
 msgid "›"
-msgstr ""
+msgstr "›"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:233
 msgctxt "ChainEditorPage"
 msgid "Nome"
-msgstr ""
+msgstr "이름"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:261
 msgctxt "ChainEditorPage"
 msgid "Instrumento"
-msgstr ""
+msgstr "악기"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:340
 msgctxt "ChainEditorPage"
 msgid "Entradas"
-msgstr ""
+msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:386
 msgctxt "ChainEditorPage"
 msgid "Saidas"
-msgstr ""
+msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
 msgctxt "ChannelRow"
 msgid "✓"
-msgstr ""
+msgstr "✓"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
 msgctxt "ChainEndpointEditorPage"
 msgid "Dispositivo"
-msgstr ""
+msgstr "장치"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
 msgctxt "ChainEndpointEditorPage"
 msgid "Modo"
-msgstr ""
+msgstr "모드"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
 msgctxt "ChainEndpointEditorPage"
 msgid "Canais"
-msgstr ""
+msgstr "채널"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
 msgctxt "ChainInsertEditorPage"
 msgid "Envio"
-msgstr ""
+msgstr "전송"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
 msgctxt "ChainInsertEditorPage"
 msgid "Dispositivo"
-msgstr ""
+msgstr "장치"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
 msgctxt "ChainInsertEditorPage"
 msgid "Modo"
-msgstr ""
+msgstr "모드"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
 msgctxt "ChainInsertEditorPage"
 msgid "Canais"
-msgstr ""
+msgstr "채널"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
 msgctxt "ChainInsertEditorPage"
 msgid "Retorno"
-msgstr ""
+msgstr "리턴"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:435
+msgctxt "ChainRow"
+msgid "tooltip-expand-blocks"
+msgstr "블록 확장"
+
+msgctxt "ChainRow"
+msgid "tooltip-measure-latency"
+msgstr "지연시간 측정 (삑 소리가 납니다)"
+
+msgctxt "ChainRow"
+msgid "tooltip-configure"
+msgstr "구성"
+
+msgctxt "ChainRow"
+msgid "tooltip-open-preset"
+msgstr "프리셋 열기"
+
+msgctxt "ChainRow"
+msgid "tooltip-save-preset"
+msgstr "프리셋 저장"
+
+msgctxt "ChainRow"
+msgid "tooltip-delete"
+msgstr "삭제"
+
 msgctxt "ChainRow"
 msgid "LAT"
-msgstr ""
+msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:484
 msgctxt "ChainRow"
 msgid "Entrada"
-msgstr ""
+msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:530
 msgctxt "ChainRow"
 msgid "Saída"
-msgstr ""
+msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/compact_block_row.slint:414
 msgctxt "CompactBlockRow"
 msgid "▼"
-msgstr ""
+msgstr "▼"
 
-#: crates/adapter-gui/ui/pages/compact_block_row.slint:492
 msgctxt "CompactBlockRow"
 msgid "Abrir Plugin"
-msgstr ""
+msgstr "플러그인 열기"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
 msgctxt "CompactChainViewPage"
 msgid "IN"
-msgstr ""
+msgstr "IN"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
 msgctxt "CompactChainViewPage"
 msgid "OUT"
-msgstr ""
+msgstr "OUT"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:162
 msgctxt "CompactChainViewPage"
 msgid "+"
-msgstr ""
+msgstr "+"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:85
 msgctxt "PluginInfoWindow"
 msgid "·"
-msgstr ""
+msgstr "·"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:121
 msgctxt "PluginInfoWindow"
 msgid "Description"
-msgstr ""
+msgstr "설명"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:140
 msgctxt "PluginInfoWindow"
 msgid "License:"
-msgstr ""
+msgstr "라이선스:"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:167
 msgctxt "PluginInfoWindow"
 msgid "↗"
-msgstr ""
+msgstr "↗"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:173
 msgctxt "PluginInfoWindow"
 msgid "Open Homepage"
-msgstr ""
+msgstr "홈페이지 열기"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:185
+msgctxt "ProjectChainsPage"
+msgid "tooltip-back"
+msgstr "뒤로"
+
+msgctxt "ProjectChainsPage"
+msgid "tooltip-spectrum"
+msgstr "Spectrum"
+
+msgctxt "ProjectChainsPage"
+msgid "tooltip-tuner"
+msgstr "Tuner"
+
+msgctxt "ProjectChainsPage"
+msgid "tooltip-project-settings"
+msgstr "프로젝트"
+
+msgctxt "ProjectChainsPage"
+msgid "tooltip-save"
+msgstr "저장"
+
+msgctxt "ProjectChainsPage"
+msgid "tooltip-new-chain"
+msgstr "새 chain"
+
 msgctxt "SearchField"
 msgid "placeholder-search-projects"
-msgstr ""
+msgstr "프로젝트 검색"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:295
 msgctxt "ProjectLauncherPage"
 msgid "tooltip-open-project"
-msgstr ""
+msgstr "프로젝트 열기"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:302
 msgctxt "ProjectLauncherPage"
 msgid "btn-new-project"
-msgstr ""
+msgstr "새 프로젝트"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:120
 msgctxt "DeviceRow"
 msgid "✓"
-msgstr ""
+msgstr "✓"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:147
 msgctxt "DeviceRow"
 msgid "Hz"
-msgstr ""
+msgstr "Hz"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:170
 msgctxt "DeviceRow"
 msgid "Buffer"
-msgstr ""
+msgstr "Buffer"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:193
 msgctxt "DeviceRow"
 msgid "Bits"
-msgstr ""
+msgstr "Bits"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:244
 msgctxt "ProjectSettingsPage"
 msgid "Nome"
-msgstr ""
+msgstr "이름"
 
-#: crates/adapter-gui/ui/pages/project_settings.slint:272
 msgctxt "ProjectSettingsPage"
 msgid "Dispositivos de áudio"
-msgstr ""
+msgstr "오디오 장치"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:55
 msgctxt "NameInput"
 msgid "placeholder-project-name-example"
-msgstr ""
+msgstr "예: 라이브 기타"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:151
 msgctxt "ProjectSetupPage"
 msgid "title-new-project"
-msgstr ""
+msgstr "새 프로젝트"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:164
 msgctxt "ProjectSetupPage"
 msgid "label-project-name"
-msgstr ""
+msgstr "프로젝트 이름"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:204
 msgctxt "ProjectSetupPage"
 msgid "btn-cancel"
-msgstr ""
+msgstr "취소"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:211
 msgctxt "ProjectSetupPage"
 msgid "btn-create-project"
-msgstr ""
+msgstr "프로젝트 만들기"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:73
 msgctxt "SpectrumCard"
 msgid "—"
-msgstr ""
+msgstr "—"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:127
 msgctxt "SpectrumCard"
 msgid "20"
-msgstr ""
+msgstr "20"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:133
 msgctxt "SpectrumCard"
 msgid "100"
-msgstr ""
+msgstr "100"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:139
 msgctxt "SpectrumCard"
 msgid "1k"
-msgstr ""
+msgstr "1k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:145
 msgctxt "SpectrumCard"
 msgid "10k"
-msgstr ""
+msgstr "10k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:151
 msgctxt "SpectrumCard"
 msgid "20k"
-msgstr ""
+msgstr "20k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:199
 msgctxt "SpectrumPanel"
 msgid "SPECTRUM"
-msgstr ""
+msgstr "SPECTRUM"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:219
 msgctxt "SpectrumPanel"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:243
 msgctxt "SpectrumPanel"
 msgid "NO ACTIVE OUTPUTS"
-msgstr ""
+msgstr "활성 출력 없음"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr ""
+msgstr "Spectrum을 켜고 구성된 출력이 있는 chain을 활성화하십시오."
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
 msgid "MUTE"
-msgstr ""
+msgstr "MUTE"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:316
 msgctxt "TunerPanel"
 msgid "TUNER"
-msgstr ""
+msgstr "TUNER"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:336
 msgctxt "TunerPanel"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:370
 msgctxt "TunerPanel"
 msgid "NO ACTIVE INPUTS"
-msgstr ""
+msgstr "활성 입력 없음"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr ""
+msgstr "여기서 Tuner를 보려면 구성된 입력이 있는 chain을 활성화하십시오."
 
-#: crates/adapter-gui/ui/touch_main.slint:563
 msgctxt "TouchMain"
 msgid "⌨"
-msgstr ""
+msgstr "⌨"
 
-#: crates/adapter-gui/ui/touch_main.slint:588
 msgctxt "TouchMain"
 msgid "Carregar Preset"
-msgstr ""
+msgstr "프리셋 불러오기"
 
-#: crates/adapter-gui/ui/touch_main.slint:628
 msgctxt "TouchMain"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
-#: crates/adapter-gui/ui/touch_main.slint:647
 msgctxt "TouchMain"
 msgid "Cancelar"
-msgstr ""
-
-#~ msgid "Buscar modelos..."
-#~ msgstr "Buscar modelos..."
-
-#~ msgid "Nenhum modelo encontrado"
-#~ msgstr "Nenhum modelo encontrado"
+msgstr "취소"

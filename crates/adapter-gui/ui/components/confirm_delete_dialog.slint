@@ -31,7 +31,9 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                 horizontal-alignment: center;
             }
             Text {
-                text: "Excluir \"" + root.block-name + "\"?";
+                // Slint @tr supports `{}` placeholders. The msgid is the
+                // pt-BR source string with the placeholder.
+                text: @tr("Excluir \"{}\"?", root.block-name);
                 font-size: 13px;
                 color: #aaaaaa;
                 horizontal-alignment: center;

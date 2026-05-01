@@ -126,7 +126,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 196px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
-            tooltip: "Expandir blocos";
+            tooltip: @tr("tooltip-expand-blocks");
             clicked => { root.open-compact-chain-view(root.chain-index); }
         }
 
@@ -134,7 +134,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 236px;
             y: 14px;
             icon: @image-url("../assets/sonar.svg");
-            tooltip: "Medir latência real (emite um bipe)";
+            tooltip: @tr("tooltip-measure-latency");
             clicked => { root.probe-chain-latency(root.chain-index); }
         }
 
@@ -142,7 +142,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 156px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
-            tooltip: "Configurar";
+            tooltip: @tr("tooltip-configure");
             clicked => { root.configure-chain(root.chain-index); }
         }
 
@@ -150,7 +150,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 116px;
             y: 14px;
             icon: @image-url("../assets/open-file.svg");
-            tooltip: "Abrir preset";
+            tooltip: @tr("tooltip-open-preset");
             clicked => { root.configure-chain-preset(root.chain-index); }
         }
 
@@ -158,7 +158,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 76px;
             y: 14px;
             icon: @image-url("../assets/save.svg");
-            tooltip: "Salvar preset";
+            tooltip: @tr("tooltip-save-preset");
             clicked => { root.save-chain-preset(root.chain-index); }
         }
 
@@ -166,7 +166,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 36px;
             y: 14px;
             icon: @image-url("../assets/trash.svg");
-            tooltip: "Excluir";
+            tooltip: @tr("tooltip-delete");
             clicked => { root.remove-chain(root.chain-index); }
         }
     }

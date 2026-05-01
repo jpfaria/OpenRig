@@ -3,15 +3,15 @@
 # Source strings are already in pt-BR. This file exists so that:
 #   1. The locale is offered in the Language selector.
 #   2. We have a place to override edge cases (e.g. plural forms, regional spelling).
-#
-# Translations are kept identical to msgid unless explicitly overridden.
+#   3. Symbolic keys (btn-*, tooltip-*, label-*, etc.) need explicit pt-BR
+#      values because the msgid is the key itself, not Portuguese text.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-29 17:23+0000\n"
-"PO-Revision-Date: 2026-04-29 00:00+0000\n"
+"POT-Creation-Date: 2026-04-30 16:52+0000\n"
+"PO-Revision-Date: 2026-04-30 00:00+0000\n"
 "Last-Translator: João Paulo Faria <jpfaria@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
 "Language: pt_BR\n"
@@ -23,39 +23,45 @@ msgstr ""
 #: crates/adapter-gui/ui/blocks/header.slint:13
 msgctxt "Header"
 msgid "OpenRig"
-msgstr ""
+msgstr "OpenRig"
 
 #: crates/adapter-gui/ui/components/block_stream_mini_display.slint:23
 msgctxt "BlockStreamMiniDisplay"
 msgid "–"
-msgstr ""
+msgstr "–"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:128
 msgctxt "BlockValueStepper"
 msgid "−"
-msgstr ""
+msgstr "−"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:194
 msgctxt "BlockValueStepper"
 msgid "+"
-msgstr ""
+msgstr "+"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir bloco"
-msgstr ""
+msgstr "Excluir bloco"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:53
+#. pt-BR source string with the placeholder.
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:36
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir \"{}\"?"
+msgstr "Excluir \"{}\"?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Cancelar"
-msgstr ""
+msgstr "Cancelar"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:70
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir"
-msgstr ""
+msgstr "Excluir"
 
-#: crates/adapter-gui/ui/components/language_selector.slint:60
+#: crates/adapter-gui/ui/components/language_selector.slint:51
 msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
 msgstr "Seletor de idioma"
@@ -63,194 +69,254 @@ msgstr "Seletor de idioma"
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:93
 msgctxt "ModelSelectWithSearch"
 msgid "▼"
-msgstr ""
+msgstr "▼"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:149
 msgctxt "ModelSelectWithSearch"
 msgid "🔍"
-msgstr ""
+msgstr "🔍"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:177
 msgctxt "ModelSelectWithSearch"
 msgid "Buscar modelos..."
-msgstr ""
+msgstr "Buscar modelos..."
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:197
 msgctxt "ModelSelectWithSearch"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:212
 msgctxt "ModelSelectWithSearch"
 msgid "Nenhum modelo encontrado"
-msgstr ""
+msgstr "Nenhum modelo encontrado"
+
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
+msgctxt "BlockEditorPanel"
+msgid "tooltip-delete"
+msgstr "Excluir"
 
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:241
 msgctxt "BlockEditorPanel"
 msgid "–"
-msgstr ""
+msgstr "–"
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:684
-msgctxt "BlockPanelEditor"
-msgid "▼"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:840
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:301
 msgctxt "BlockPanelEditor"
 msgid "–"
-msgstr ""
+msgstr "–"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:101
 msgctxt "IoGroupRow"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:122
 msgctxt "IoGroupRow"
 msgid "›"
-msgstr ""
+msgstr "›"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:233
 msgctxt "ChainEditorPage"
 msgid "Nome"
-msgstr ""
+msgstr "Nome"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:261
 msgctxt "ChainEditorPage"
 msgid "Instrumento"
-msgstr ""
+msgstr "Instrumento"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:340
 msgctxt "ChainEditorPage"
 msgid "Entradas"
-msgstr ""
+msgstr "Entradas"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:386
 msgctxt "ChainEditorPage"
 msgid "Saidas"
-msgstr ""
+msgstr "Saídas"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
 msgctxt "ChannelRow"
 msgid "✓"
-msgstr ""
+msgstr "✓"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
 msgctxt "ChainEndpointEditorPage"
 msgid "Dispositivo"
-msgstr ""
+msgstr "Dispositivo"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
 msgctxt "ChainEndpointEditorPage"
 msgid "Modo"
-msgstr ""
+msgstr "Modo"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
 msgctxt "ChainEndpointEditorPage"
 msgid "Canais"
-msgstr ""
+msgstr "Canais"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
 msgctxt "ChainInsertEditorPage"
 msgid "Envio"
-msgstr ""
+msgstr "Envio"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
 msgctxt "ChainInsertEditorPage"
 msgid "Dispositivo"
-msgstr ""
+msgstr "Dispositivo"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
 msgctxt "ChainInsertEditorPage"
 msgid "Modo"
-msgstr ""
+msgstr "Modo"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
 msgctxt "ChainInsertEditorPage"
 msgid "Canais"
-msgstr ""
+msgstr "Canais"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
 msgctxt "ChainInsertEditorPage"
 msgid "Retorno"
-msgstr ""
+msgstr "Retorno"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:129
+msgctxt "ChainRow"
+msgid "tooltip-expand-blocks"
+msgstr "Expandir blocos"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:137
+msgctxt "ChainRow"
+msgid "tooltip-measure-latency"
+msgstr "Medir latência (emite um bipe)"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:145
+msgctxt "ChainRow"
+msgid "tooltip-configure"
+msgstr "Configurar"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:153
+msgctxt "ChainRow"
+msgid "tooltip-open-preset"
+msgstr "Abrir preset"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:161
+msgctxt "ChainRow"
+msgid "tooltip-save-preset"
+msgstr "Salvar preset"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:169
+msgctxt "ChainRow"
+msgid "tooltip-delete"
+msgstr "Excluir"
 
 #: crates/adapter-gui/ui/pages/chain_row.slint:435
 msgctxt "ChainRow"
 msgid "LAT"
-msgstr ""
+msgstr "LAT"
 
 #: crates/adapter-gui/ui/pages/chain_row.slint:484
 msgctxt "ChainRow"
 msgid "Entrada"
-msgstr ""
+msgstr "Entrada"
 
 #: crates/adapter-gui/ui/pages/chain_row.slint:530
 msgctxt "ChainRow"
 msgid "Saída"
-msgstr ""
+msgstr "Saída"
 
 #: crates/adapter-gui/ui/pages/compact_block_row.slint:414
 msgctxt "CompactBlockRow"
 msgid "▼"
-msgstr ""
+msgstr "▼"
 
 #: crates/adapter-gui/ui/pages/compact_block_row.slint:492
 msgctxt "CompactBlockRow"
 msgid "Abrir Plugin"
-msgstr ""
+msgstr "Abrir Plugin"
 
 #: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
 msgctxt "CompactChainViewPage"
 msgid "IN"
-msgstr ""
+msgstr "IN"
 
 #: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
 msgctxt "CompactChainViewPage"
 msgid "OUT"
-msgstr ""
+msgstr "OUT"
 
 #: crates/adapter-gui/ui/pages/compact_chain_view.slint:162
 msgctxt "CompactChainViewPage"
 msgid "+"
-msgstr ""
+msgstr "+"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:85
 msgctxt "PluginInfoWindow"
 msgid "·"
-msgstr ""
+msgstr "·"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:121
 msgctxt "PluginInfoWindow"
 msgid "Description"
-msgstr ""
+msgstr "Descrição"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:140
 msgctxt "PluginInfoWindow"
 msgid "License:"
-msgstr ""
+msgstr "Licença:"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:167
 msgctxt "PluginInfoWindow"
 msgid "↗"
-msgstr ""
+msgstr "↗"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:173
 msgctxt "PluginInfoWindow"
 msgid "Open Homepage"
-msgstr ""
+msgstr "Abrir página"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:130
+msgctxt "ProjectChainsPage"
+msgid "tooltip-back"
+msgstr "Voltar"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:138
+msgctxt "ProjectChainsPage"
+msgid "tooltip-spectrum"
+msgstr "Spectrum"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:146
+msgctxt "ProjectChainsPage"
+msgid "tooltip-tuner"
+msgstr "Tuner"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:154
+msgctxt "ProjectChainsPage"
+msgid "tooltip-project-settings"
+msgstr "Projeto"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:163
+msgctxt "ProjectChainsPage"
+msgid "tooltip-save"
+msgstr "Salvar"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:171
+msgctxt "ProjectChainsPage"
+msgid "tooltip-new-chain"
+msgstr "Nova chain"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
 msgid "placeholder-search-projects"
 msgstr "Buscar projetos"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:295
+#: crates/adapter-gui/ui/pages/project_launcher.slint:287
 msgctxt "ProjectLauncherPage"
 msgid "tooltip-open-project"
 msgstr "Abrir projeto"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:302
+#: crates/adapter-gui/ui/pages/project_launcher.slint:294
 msgctxt "ProjectLauncherPage"
 msgid "btn-new-project"
 msgstr "Novo projeto"
@@ -258,32 +324,32 @@ msgstr "Novo projeto"
 #: crates/adapter-gui/ui/pages/project_settings.slint:120
 msgctxt "DeviceRow"
 msgid "✓"
-msgstr ""
+msgstr "✓"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:147
 msgctxt "DeviceRow"
 msgid "Hz"
-msgstr ""
+msgstr "Hz"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:170
 msgctxt "DeviceRow"
 msgid "Buffer"
-msgstr ""
+msgstr "Buffer"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:193
 msgctxt "DeviceRow"
 msgid "Bits"
-msgstr ""
+msgstr "Bits"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:244
 msgctxt "ProjectSettingsPage"
 msgid "Nome"
-msgstr ""
+msgstr "Nome"
 
 #: crates/adapter-gui/ui/pages/project_settings.slint:272
 msgctxt "ProjectSettingsPage"
 msgid "Dispositivos de áudio"
-msgstr ""
+msgstr "Dispositivos de áudio"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:55
 msgctxt "NameInput"
@@ -313,100 +379,94 @@ msgstr "Criar projeto"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:73
 msgctxt "SpectrumCard"
 msgid "—"
-msgstr ""
+msgstr "—"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:127
 msgctxt "SpectrumCard"
 msgid "20"
-msgstr ""
+msgstr "20"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:133
 msgctxt "SpectrumCard"
 msgid "100"
-msgstr ""
+msgstr "100"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:139
 msgctxt "SpectrumCard"
 msgid "1k"
-msgstr ""
+msgstr "1k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:145
 msgctxt "SpectrumCard"
 msgid "10k"
-msgstr ""
+msgstr "10k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:151
 msgctxt "SpectrumCard"
 msgid "20k"
-msgstr ""
+msgstr "20k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:199
 msgctxt "SpectrumPanel"
 msgid "SPECTRUM"
-msgstr ""
+msgstr "SPECTRUM"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:219
 msgctxt "SpectrumPanel"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:243
 msgctxt "SpectrumPanel"
 msgid "NO ACTIVE OUTPUTS"
-msgstr ""
+msgstr "SEM SAÍDAS ATIVAS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr ""
+msgstr "Ligue o spectrum e ative uma chain com uma saída configurada."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
 msgid "MUTE"
-msgstr ""
+msgstr "MUTE"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:316
 msgctxt "TunerPanel"
 msgid "TUNER"
-msgstr ""
+msgstr "TUNER"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:336
 msgctxt "TunerPanel"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:370
 msgctxt "TunerPanel"
 msgid "NO ACTIVE INPUTS"
-msgstr ""
+msgstr "SEM ENTRADAS ATIVAS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr ""
+msgstr "Ative uma chain com uma entrada configurada para ver seus tuners aqui."
 
 #: crates/adapter-gui/ui/touch_main.slint:563
 msgctxt "TouchMain"
 msgid "⌨"
-msgstr ""
+msgstr "⌨"
 
 #: crates/adapter-gui/ui/touch_main.slint:588
 msgctxt "TouchMain"
 msgid "Carregar Preset"
-msgstr ""
+msgstr "Carregar Preset"
 
 #: crates/adapter-gui/ui/touch_main.slint:628
 msgctxt "TouchMain"
 msgid "✕"
-msgstr ""
+msgstr "✕"
 
 #: crates/adapter-gui/ui/touch_main.slint:647
 msgctxt "TouchMain"
 msgid "Cancelar"
-msgstr ""
-
-#~ msgid "Buscar modelos..."
-#~ msgstr "Buscar modelos..."
-
-#~ msgid "Nenhum modelo encontrado"
-#~ msgstr "Nenhum modelo encontrado"
+msgstr "Cancelar"

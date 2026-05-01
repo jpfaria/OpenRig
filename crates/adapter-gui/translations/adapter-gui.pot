@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig VERSION\n"
-"POT-Creation-Date: 2026-04-29 17:23+0000\n"
+"POT-Creation-Date: 2026-04-30 16:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,17 +37,23 @@ msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir bloco"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:53
+#. pt-BR source string with the placeholder.
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:36
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir \"{}\"?"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Cancelar"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:70
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
 msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/language_selector.slint:60
+#: crates/adapter-gui/ui/components/language_selector.slint:51
 msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
 msgstr ""
@@ -77,17 +83,17 @@ msgctxt "ModelSelectWithSearch"
 msgid "Nenhum modelo encontrado"
 msgstr ""
 
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
+msgctxt "BlockEditorPanel"
+msgid "tooltip-delete"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:241
 msgctxt "BlockEditorPanel"
 msgid "–"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:684
-msgctxt "BlockPanelEditor"
-msgid "▼"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:840
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:301
 msgctxt "BlockPanelEditor"
 msgid "–"
 msgstr ""
@@ -172,6 +178,36 @@ msgctxt "ChainInsertEditorPage"
 msgid "Retorno"
 msgstr ""
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:129
+msgctxt "ChainRow"
+msgid "tooltip-expand-blocks"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:137
+msgctxt "ChainRow"
+msgid "tooltip-measure-latency"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:145
+msgctxt "ChainRow"
+msgid "tooltip-configure"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:153
+msgctxt "ChainRow"
+msgid "tooltip-open-preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:161
+msgctxt "ChainRow"
+msgid "tooltip-save-preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:169
+msgctxt "ChainRow"
+msgid "tooltip-delete"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/chain_row.slint:435
 msgctxt "ChainRow"
 msgid "LAT"
@@ -238,17 +274,47 @@ msgctxt "PluginInfoWindow"
 msgid "Open Homepage"
 msgstr ""
 
+#: crates/adapter-gui/ui/pages/project_chains.slint:130
+msgctxt "ProjectChainsPage"
+msgid "tooltip-back"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:138
+msgctxt "ProjectChainsPage"
+msgid "tooltip-spectrum"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:146
+msgctxt "ProjectChainsPage"
+msgid "tooltip-tuner"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:154
+msgctxt "ProjectChainsPage"
+msgid "tooltip-project-settings"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:163
+msgctxt "ProjectChainsPage"
+msgid "tooltip-save"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:171
+msgctxt "ProjectChainsPage"
+msgid "tooltip-new-chain"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
 msgid "placeholder-search-projects"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:295
+#: crates/adapter-gui/ui/pages/project_launcher.slint:287
 msgctxt "ProjectLauncherPage"
 msgid "tooltip-open-project"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:302
+#: crates/adapter-gui/ui/pages/project_launcher.slint:294
 msgctxt "ProjectLauncherPage"
 msgid "btn-new-project"
 msgstr ""
