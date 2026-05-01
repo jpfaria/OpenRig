@@ -114,7 +114,13 @@ pub(crate) struct ChainYaml {
 impl ChainYaml {
     pub(crate) fn into_chain(self, index: usize) -> Result<Chain> {
         let chain_id = generated_chain_id(index);
-        log::debug!("deserializing chain index={}, description={:?}, instrument='{}', enabled={}", index, self.description, self.instrument, self.enabled);
+        log::debug!(
+            "deserializing chain index={}, description={:?}, instrument='{}', enabled={}",
+            index,
+            self.description,
+            self.instrument,
+            self.enabled
+        );
 
         // Parse all blocks from the blocks array (new format may include input/output blocks inline)
         let parsed_blocks: Vec<AudioBlock> = self
@@ -127,73 +133,96 @@ impl ChainYaml {
             .collect();
 
         // Check if blocks already contain Input/Output (new inline format)
-        let has_inline_inputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-        let has_inline_outputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+        let has_inline_inputs = parsed_blocks
+            .iter()
+            .any(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+        let has_inline_outputs = parsed_blocks
+            .iter()
+            .any(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
 
         if has_inline_inputs || has_inline_outputs {
             // New format: blocks already contain I/O inline, use as-is
-            let chain = Chain {
+            let mut chain = Chain {
                 id: chain_id.clone(),
                 description: self.description,
                 instrument: self.instrument,
                 enabled: self.enabled,
                 blocks: parsed_blocks,
             };
+            // Migrate projects saved while issue #377 was open: split-per-device
+            // I/O runs at chain head/tail collapse back into a single block.
+            chain.coalesce_endpoint_blocks();
             return Ok(chain);
         }
 
         // Old format: convert separate inputs/outputs sections to blocks
-        let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| {
-            let entries = if !inp.entries.is_empty() {
-                inp.entries.into_iter().map(|e| InputEntry {
-                    device_id: DeviceId(e.device_id),
-                    mode: e.mode,
-                    channels: e.channels,
-                }).collect()
-            } else if let Some(device_id) = inp.device_id {
-                vec![InputEntry {
-                    device_id: DeviceId(device_id),
-                    mode: inp.mode.unwrap_or_default(),
-                    channels: inp.channels.unwrap_or_default(),
-                }]
-            } else {
-                Vec::new()
-            };
-            AudioBlock {
-                id: BlockId(format!("{}:input:{}", chain_id.0, i)),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: inp.model,
-                    entries,
-                }),
-            }
-        }).collect();
+        let mut input_blocks: Vec<AudioBlock> = self
+            .inputs
+            .into_iter()
+            .enumerate()
+            .map(|(i, inp)| {
+                let entries = if !inp.entries.is_empty() {
+                    inp.entries
+                        .into_iter()
+                        .map(|e| InputEntry {
+                            device_id: DeviceId(e.device_id),
+                            mode: e.mode,
+                            channels: e.channels,
+                        })
+                        .collect()
+                } else if let Some(device_id) = inp.device_id {
+                    vec![InputEntry {
+                        device_id: DeviceId(device_id),
+                        mode: inp.mode.unwrap_or_default(),
+                        channels: inp.channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                AudioBlock {
+                    id: BlockId(format!("{}:input:{}", chain_id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: inp.model,
+                        entries,
+                    }),
+                }
+            })
+            .collect();
 
-        let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| {
-            let entries = if !out.entries.is_empty() {
-                out.entries.into_iter().map(|e| OutputEntry {
-                    device_id: DeviceId(e.device_id),
-                    mode: e.mode,
-                    channels: e.channels,
-                }).collect()
-            } else if let Some(device_id) = out.device_id {
-                vec![OutputEntry {
-                    device_id: DeviceId(device_id),
-                    mode: out.mode.unwrap_or_default(),
-                    channels: out.channels.unwrap_or_default(),
-                }]
-            } else {
-                Vec::new()
-            };
-            AudioBlock {
-                id: BlockId(format!("{}:output:{}", chain_id.0, i)),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: out.model,
-                    entries,
-                }),
-            }
-        }).collect();
+        let mut output_blocks: Vec<AudioBlock> = self
+            .outputs
+            .into_iter()
+            .enumerate()
+            .map(|(i, out)| {
+                let entries = if !out.entries.is_empty() {
+                    out.entries
+                        .into_iter()
+                        .map(|e| OutputEntry {
+                            device_id: DeviceId(e.device_id),
+                            mode: e.mode,
+                            channels: e.channels,
+                        })
+                        .collect()
+                } else if let Some(device_id) = out.device_id {
+                    vec![OutputEntry {
+                        device_id: DeviceId(device_id),
+                        mode: out.mode.unwrap_or_default(),
+                        channels: out.channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                AudioBlock {
+                    id: BlockId(format!("{}:output:{}", chain_id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: out.model,
+                        entries,
+                    }),
+                }
+            })
+            .collect();
 
         // Oldest legacy format: single input_device_id/output_device_id fields
         if input_blocks.is_empty() {
@@ -238,19 +267,20 @@ impl ChainYaml {
         }
 
         // Build blocks: inputs first, then audio blocks, then outputs
-        let mut all_blocks = Vec::with_capacity(input_blocks.len() + parsed_blocks.len() + output_blocks.len());
+        let mut all_blocks =
+            Vec::with_capacity(input_blocks.len() + parsed_blocks.len() + output_blocks.len());
         all_blocks.extend(input_blocks);
         all_blocks.extend(parsed_blocks);
         all_blocks.extend(output_blocks);
 
-        let chain = Chain {
+        let mut chain = Chain {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
             enabled: self.enabled,
             blocks: all_blocks,
         };
-
+        chain.coalesce_endpoint_blocks();
         Ok(chain)
     }
 

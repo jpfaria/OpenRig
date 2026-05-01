@@ -11,6 +11,10 @@ export component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
     in property <bool> selected: false;
     in property <bool> dragging: false;
+    // True while ANY block in the same chain row is being dragged. Drives
+    // the type-label fade so the floating ghost has a clear path across
+    // every neighbouring chip, not just the source.
+    in property <bool> chain-dragging: false;
     property <color> accent-color: root.block.accent-color;
     property <string> block-type-label: root.block.type_label;
     callback clicked();
@@ -34,7 +38,9 @@ export component BlockChip inherits Rectangle {
     border-width: 0px;
     border-radius: 6px;
 
-    // Type label on top
+    // Type label on top — fades out while a drag is happening anywhere in
+    // this chain row so it doesn't obscure the floating ghost or the chips
+    // it passes over. Slot height stays reserved (no reflow on neighbours).
     Text {
         x: 0px;
         y: 0px;
@@ -47,6 +53,8 @@ export component BlockChip inherits Rectangle {
         letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
+        opacity: (root.dragging || root.chain-dragging) ? 0.0 : 1.0;
+        animate opacity { duration: 120ms; easing: ease-out; }
     }
 
     // Block icon area — base size at rest. On hover the artwork grows

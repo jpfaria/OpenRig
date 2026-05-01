@@ -22,6 +22,7 @@ mod chain_editor_meta_io_callbacks;
 mod chain_editor_output_endpoint_callbacks;
 mod chain_editor_save_cancel_callbacks;
 mod chain_input_groups_wiring;
+mod chain_io_block_builders;
 mod chain_io_fullscreen_callbacks;
 mod chain_io_main_wiring;
 mod chain_io_picker_wiring;
@@ -51,7 +52,6 @@ mod tuner_session;
 mod tuner_wiring;
 mod virtual_keyboard_wiring;
 mod vst3_editor_wiring;
-
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub use cli::parse_cli_args_from;
 pub(crate) use runtime_lifecycle::{
@@ -80,17 +80,15 @@ mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
 mod state;
-pub(crate) use state::UNTITLED_PROJECT_NAME;
 mod ui_state;
 mod visual_config;
 
 slint::include_modules!();
-
 #[cfg(test)]
 pub(crate) use project_ops::{
     open_cli_project, project_display_name, project_title_for_path, register_recent_project,
 };
-
+use state::UNTITLED_PROJECT_NAME;
 mod desktop_app;
 mod desktop_app_block_models;
 mod desktop_app_block_wiring;
@@ -98,9 +96,6 @@ mod desktop_app_chain_wiring;
 mod desktop_app_cli_open;
 mod desktop_app_init;
 mod desktop_app_polling;
-mod i18n;
-mod language_wiring;
-
 pub use desktop_app::run_desktop_app;
 pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 
