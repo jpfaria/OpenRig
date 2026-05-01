@@ -97,3 +97,5 @@ pub use desktop_app::run_desktop_app;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+#[cfg(test)]
+mod visual_compat_tests;

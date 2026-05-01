@@ -1,6 +1,14 @@
 use crate::block::{build_audio_block_kind, schema_for_block_model, AudioBlockKind};
 use crate::param::ParameterSet;
-use block_core::ModelVisualData;
+use block_core::{ModelColorOverride, ModelColorScheme, ModelVisualData};
+
+/// Used in the BlockRegistryEntry rows for block crates that have no
+/// native model overrides (block-body, block-full-rig, block-gain,
+/// block-ir, block-nam, block-pitch, block-util). Returning `None`
+/// here makes the resolution fall through to the brand colors only.
+fn no_color_override(_: &str) -> Option<ModelColorOverride> {
+    None
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockTypeCatalogEntry {
@@ -23,6 +31,7 @@ pub struct BlockModelCatalogEntry {
 
 type SupportedModelsFn = fn() -> &'static [&'static str];
 type ModelVisualFn = fn(&str) -> Option<ModelVisualData>;
+type ModelColorOverrideFn = fn(&str) -> Option<ModelColorOverride>;
 
 #[derive(Clone, Copy)]
 struct BlockRegistryEntry {
@@ -32,6 +41,7 @@ struct BlockRegistryEntry {
     use_panel_editor: bool,
     supported_models: SupportedModelsFn,
     model_visual: ModelVisualFn,
+    model_color_override: ModelColorOverrideFn,
 }
 
 fn block_registry() -> [BlockRegistryEntry; 16] {
@@ -44,6 +54,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_preamp::supported_models,
             model_visual: block_preamp::preamp_model_visual,
+            model_color_override: block_preamp::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_AMP,
@@ -52,6 +63,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_amp::supported_models,
             model_visual: block_amp::amp_model_visual,
+            model_color_override: block_amp::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_CAB,
@@ -60,6 +72,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_cab::supported_models,
             model_visual: block_cab::cab_model_visual,
+            model_color_override: block_cab::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_BODY,
@@ -68,6 +81,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_body::supported_models,
             model_visual: block_body::body_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_IR,
@@ -76,6 +90,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_ir::supported_models,
             model_visual: block_ir::ir_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_FULL_RIG,
@@ -84,6 +99,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_full_rig::supported_models,
             model_visual: block_full_rig::full_rig_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_GAIN,
@@ -92,6 +108,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_gain::supported_models,
             model_visual: block_gain::gain_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_DYNAMICS,
@@ -100,6 +117,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_dyn::supported_models,
             model_visual: block_dyn::dyn_model_visual,
+            model_color_override: block_dyn::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_FILTER,
@@ -108,6 +126,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_filter::supported_models,
             model_visual: block_filter::filter_model_visual,
+            model_color_override: block_filter::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_WAH,
@@ -116,6 +135,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_wah::supported_models,
             model_visual: block_wah::wah_model_visual,
+            model_color_override: block_wah::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_PITCH,
@@ -124,6 +144,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_pitch::supported_models,
             model_visual: block_pitch::pitch_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_MODULATION,
@@ -132,6 +153,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_mod::supported_models,
             model_visual: block_mod::mod_model_visual,
+            model_color_override: block_mod::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_DELAY,
@@ -140,6 +162,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_delay::supported_models,
             model_visual: block_delay::delay_model_visual,
+            model_color_override: block_delay::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_REVERB,
@@ -148,6 +171,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_reverb::supported_models,
             model_visual: block_reverb::reverb_model_visual,
+            model_color_override: block_reverb::model_visual::model_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_UTILITY,
@@ -156,6 +180,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_util::supported_models,
             model_visual: block_util::util_model_visual,
+            model_color_override: no_color_override,
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_NAM,
@@ -164,8 +189,32 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
             use_panel_editor: true,
             supported_models: block_nam::supported_models,
             model_visual: block_nam::nam_model_visual,
+            model_color_override: no_color_override,
         },
     ]
+}
+
+/// Per-effect-type dispatch: returns the color override declared by the
+/// owning block-* crate for `model_id`, or `None` if the model has no
+/// override (the brand fallback applies).
+pub fn model_color_override(effect_type: &str, model_id: &str) -> Option<ModelColorOverride> {
+    block_registry()
+        .into_iter()
+        .find(|e| e.effect_type == effect_type)
+        .and_then(|e| (e.model_color_override)(model_id))
+}
+
+/// Resolve the final color scheme for a model: brand colors (centralized
+/// in `block_core::brand_visual`) layered with the model's per-crate
+/// override, falling back to `ModelColorScheme::DEFAULT` when neither
+/// brand nor override is registered.
+///
+/// This is the public surface adapter-gui calls during rendering,
+/// replacing the legacy `adapter-gui/src/visual_config/` lookup.
+pub fn resolve_color_scheme(effect_type: &str, brand: &str, model_id: &str) -> ModelColorScheme {
+    let brand_scheme = block_core::brand_colors(brand);
+    let override_ = model_color_override(effect_type, model_id);
+    block_core::compose(brand_scheme, override_)
 }
 
 pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
