@@ -34,8 +34,7 @@ export component BlockChip inherits Rectangle {
     border-width: 0px;
     border-radius: 6px;
 
-    // Type label on top — hidden while dragging so it doesn't obscure the
-    // ghost the user is moving over neighbouring chips.
+    // Type label on top
     Text {
         x: 0px;
         y: 0px;
@@ -48,8 +47,6 @@ export component BlockChip inherits Rectangle {
         letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
-        opacity: root.dragging ? 0.0 : 1.0;
-        animate opacity { duration: 120ms; easing: ease-out; }
     }
 
     // Block icon area — base size at rest. On hover the artwork grows
