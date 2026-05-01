@@ -30,6 +30,7 @@ mod chain_editor_meta_io_callbacks;
 mod chain_editor_save_cancel_callbacks;
 mod chain_editor_input_endpoint_callbacks;
 mod chain_editor_output_endpoint_callbacks;
+mod chain_io_block_builders;
 mod chain_io_save_wiring;
 mod block_model_search_wiring;
 mod block_picker_wiring;

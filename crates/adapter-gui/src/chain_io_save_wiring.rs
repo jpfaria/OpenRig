@@ -18,6 +18,9 @@ use project::block::{
     AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
 };
 
+use crate::chain_io_block_builders::{
+    build_input_block_from_draft, build_output_block_from_draft,
+};
 use crate::io_groups::{apply_chain_io_groups, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
@@ -188,34 +191,15 @@ pub(crate) fn wire(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                // Rebuild chain blocks: collapse all draft input groups into a SINGLE
-                // InputBlock with one entry per device. The previous shape (one
-                // InputBlock per device) made each extra device appear as a separate
-                // block in the canvas. Multiple entries inside one block is the
-                // intended representation — runtime fans out per entry.
-                let new_input_blocks: Vec<AudioBlock> = if draft.inputs.is_empty() {
-                    Vec::new()
-                } else {
-                    let entries: Vec<InputEntry> = draft.inputs.iter().map(|ig| InputEntry {
-                        device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                        mode: ig.mode,
-                        channels: ig.channels.clone(),
-                    }).collect();
-                    vec![AudioBlock {
-                        id: BlockId(format!("{}:input", chain.id.0)),
-                        enabled: true,
-                        kind: AudioBlockKind::Input(InputBlock {
-                            model: "standard".to_string(),
-                            entries,
-                        }),
-                    }]
-                };
+                let new_input_block = build_input_block_from_draft(&chain.id, &draft.inputs);
                 let non_input_blocks: Vec<AudioBlock> = chain.blocks.iter()
                     .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
                     .cloned()
                     .collect();
-                let mut all_blocks = Vec::with_capacity(new_input_blocks.len() + non_input_blocks.len());
-                all_blocks.extend(new_input_blocks);
+                let mut all_blocks = Vec::with_capacity(non_input_blocks.len() + 1);
+                if let Some(block) = new_input_block {
+                    all_blocks.push(block);
+                }
                 all_blocks.extend(non_input_blocks);
                 chain.blocks = all_blocks;
                 let chain_id = chain.id.clone();
@@ -474,33 +458,16 @@ pub(crate) fn wire(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                // Rebuild chain blocks: collapse all draft output groups into a
-                // SINGLE OutputBlock with one entry per device. Mirror of the input
-                // path — see the input save handler for rationale.
-                let new_output_blocks: Vec<AudioBlock> = if draft.outputs.is_empty() {
-                    Vec::new()
-                } else {
-                    let entries: Vec<OutputEntry> = draft.outputs.iter().map(|og| OutputEntry {
-                        device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                        mode: og.mode,
-                        channels: og.channels.clone(),
-                    }).collect();
-                    vec![AudioBlock {
-                        id: BlockId(format!("{}:output", chain.id.0)),
-                        enabled: true,
-                        kind: AudioBlockKind::Output(OutputBlock {
-                            model: "standard".to_string(),
-                            entries,
-                        }),
-                    }]
-                };
+                let new_output_block = build_output_block_from_draft(&chain.id, &draft.outputs);
                 let non_output_blocks: Vec<AudioBlock> = chain.blocks.iter()
                     .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
                     .cloned()
                     .collect();
-                let mut all_blocks = Vec::with_capacity(non_output_blocks.len() + new_output_blocks.len());
+                let mut all_blocks = Vec::with_capacity(non_output_blocks.len() + 1);
                 all_blocks.extend(non_output_blocks);
-                all_blocks.extend(new_output_blocks);
+                if let Some(block) = new_output_block {
+                    all_blocks.push(block);
+                }
                 chain.blocks = all_blocks;
                 let chain_id = chain.id.clone();
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
