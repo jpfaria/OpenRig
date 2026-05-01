@@ -79,7 +79,6 @@ mod state;
 mod model_search;
 mod model_search_wiring;
 mod ui_state;
-mod visual_config;
 slint::include_modules!();
 use state::UNTITLED_PROJECT_NAME;
 #[cfg(test)]
@@ -97,5 +96,3 @@ pub use desktop_app::run_desktop_app;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
-#[cfg(test)]
-mod visual_compat_tests;
