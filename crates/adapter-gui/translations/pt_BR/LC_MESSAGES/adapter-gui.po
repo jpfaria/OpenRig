@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenRig\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-30 16:52+0000\n"
+"POT-Creation-Date: 2026-05-01 18:24+0000\n"
 "PO-Revision-Date: 2026-04-30 00:00+0000\n"
 "Last-Translator: João Paulo Faria <jpfaria@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -116,25 +116,75 @@ msgctxt "IoGroupRow"
 msgid "›"
 msgstr "›"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:233
+#: crates/adapter-gui/ui/pages/chain_editor.slint:196
+msgctxt "ChainEditorPage"
+msgid "instrument-guitar"
+msgstr "Guitarra"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:197
+msgctxt "ChainEditorPage"
+msgid "instrument-acoustic-guitar"
+msgstr "Violão"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:198
+msgctxt "ChainEditorPage"
+msgid "instrument-bass"
+msgstr "Baixo"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:199
+msgctxt "ChainEditorPage"
+msgid "instrument-voice"
+msgstr "Voz"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:200
+msgctxt "ChainEditorPage"
+msgid "instrument-keyboard"
+msgstr "Teclado"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:201
+msgctxt "ChainEditorPage"
+msgid "instrument-drums"
+msgstr "Bateria"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:202
+msgctxt "ChainEditorPage"
+msgid "instrument-other"
+msgstr "Outro"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:241
 msgctxt "ChainEditorPage"
 msgid "Nome"
 msgstr "Nome"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:261
+#: crates/adapter-gui/ui/pages/chain_editor.slint:269
 msgctxt "ChainEditorPage"
 msgid "Instrumento"
 msgstr "Instrumento"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:340
+#: crates/adapter-gui/ui/pages/chain_editor.slint:348
 msgctxt "ChainEditorPage"
 msgid "Entradas"
 msgstr "Entradas"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:386
+#: crates/adapter-gui/ui/pages/chain_editor.slint:375
+msgctxt "ChainEditorPage"
+msgid "btn-add-input"
+msgstr "+ Adicionar entrada"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:394
 msgctxt "ChainEditorPage"
 msgid "Saidas"
 msgstr "Saídas"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:421
+msgctxt "ChainEditorPage"
+msgid "btn-add-output"
+msgstr "+ Adicionar saída"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:448
+msgctxt "ChainEditorPage"
+msgid "btn-cancel"
+msgstr "Cancelar"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
 msgctxt "ChannelRow"

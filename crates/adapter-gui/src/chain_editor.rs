@@ -267,12 +267,12 @@ pub(crate) fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
 pub(crate) fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
-            window.set_chain_editor_title("Nova chain".into());
-            window.set_chain_editor_save_label("Criar chain".into());
+            window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+            window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
         }
         ChainEditorMode::Edit => {
-            window.set_chain_editor_title("Configurar chain".into());
-            window.set_chain_editor_save_label("Salvar chain".into());
+            window.set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
+            window.set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
         }
     }
 }

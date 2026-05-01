@@ -26,3 +26,10 @@
 "arquivo de preset inválido": "invalid preset file"
 "É necessário pelo menos uma entrada.": "At least one input is required."
 "É necessário pelo menos uma saída.": "At least one output is required."
+
+# Symbolic keys — strings injected from Rust into the Slint AppWindow.
+title-new-chain: "New chain"
+title-configure-chain: "Configure chain"
+btn-create-chain: "Create chain"
+btn-save-chain: "Save chain"
+default-project-title: "Project"

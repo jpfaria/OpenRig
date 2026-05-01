@@ -34,4 +34,11 @@
 "Starting audio...": "Iniciando áudio..."
 "arquivo de preset inválido": "arquivo de preset inválido"
 "É necessário pelo menos uma entrada.": "É necessário pelo menos uma entrada."
-"É necessário pelo menos uma saída.": "É necessário pelo menos uma saída."
+"É necessário pelo menos uma saída.": "Se requiere al menos una salida."
+
+# Symbolic keys — strings injected from Rust into the Slint AppWindow.
+title-new-chain: "Nueva chain"
+title-configure-chain: "Configurar chain"
+btn-create-chain: "Crear chain"
+btn-save-chain: "Guardar chain"
+default-project-title: "Proyecto"

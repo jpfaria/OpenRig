@@ -134,11 +134,11 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
                 return;
             };
             let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                 return;
             };
             // Convert UI index to real block index from current chain state
@@ -150,7 +150,7 @@ pub(crate) fn wire(
                 block_index
             );
             let Some(block) = chain.blocks.get_mut(block_index) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Block inválido."));
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
                 return;
             };
             block.enabled = !block.enabled;
@@ -212,12 +212,12 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
                 return;
             };
             let (chain_id, _insert_at) = {
                 let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("Chain inválida."));
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 };
                 // Both from_index and before_index are in UI space — convert to real indices

@@ -15,7 +15,12 @@ export { BlockEditorWindow, CompactChainViewWindow }
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    // Helvetica Neue (system) instead of Bebas Neue because the bundled
+    // Latin-only display fonts cause CJK/Devanagari/Hangul characters to
+    // render as tofu boxes when the UI locale is ja-JP / zh-CN / ko-KR /
+    // hi-IN. Helvetica Neue routes through the macOS system fallback
+    // chain (PingFang SC, Hiragino, Apple SD Gothic, etc.).
+    default-font-family: "Helvetica Neue";
     default-font-size: 13px;
     in property <string> app-version;
     in property <bool> show-project-launcher;
