@@ -182,6 +182,28 @@ Ver `CONTRIBUTING.md` para detalhes.
 
 ---
 
+## LV2 plugin — `audio_mode` vs builder (issue #130, absorbed by #194)
+
+Toda vez que adicionar/editar um arquivo `crates/block-*/src/lv2_*.rs`, a
+escolha do builder e do `audio_mode` precisa bater. Misturar os dois
+crasha (SIGSEGV) ou desperdiça CPU.
+
+| Plugin é... | Builder | `ModelAudioMode` |
+|---|---|---|
+| 1 in / 1 out (mono natural) | `lv2::build_lv2_processor*` com `[in], [out]` | `DualMono` ou `MonoOnly` |
+| 1 in / 2 out (mono → stereo) | `lv2::build_lv2_processor*` com `[in], [L, R]` | `MonoToStereo` |
+| 2 in / 2 out (stereo natural) | `lv2::build_stereo_lv2_processor*` | `TrueStereo` |
+
+**Sintoma da regressão clássica:** plugin com 4 portas LV2 (2 in + 2 out)
+declarado como `DualMono` → `Lv2Processor` mono conecta 1 in + 1 out, as
+outras 2 portas ficam dangling, primeiro write do host = SIGSEGV.
+
+Audit completo de todos os 105 plugins LV2 existentes em `docs/audio-mode-audit.md`.
+Adicionar plugin novo: confirme port count via TTL antes de escolher
+builder + mode.
+
+---
+
 ## Feature-specific vs shared files (issue #194)
 
 Lição central da issue de decoupling: god-files acontecem porque lógica feature-specific vai parar em arquivos compartilhados. Quando 2 agents trabalham em features diferentes mas ambos editam o mesmo arquivo "central", o merge colide.
@@ -235,5 +257,6 @@ Issue #194 é o umbrella que rastreia o trabalho até esse estado. Acceptance: `
 | `docs/cli.md` | Argumentos posicionais e env vars do `openrig` (com exemplos) |
 | `docs/scripts.md` | Scripts de build/deploy + fluxo branch→.deb→Orange Pi + cargo clean obrigatório |
 | `docs/audio-config.md` | I/O como blocos, per-machine device settings, JACK lifecycle Linux |
+| `docs/audio-mode-audit.md` | Audit Phase 4d: `audio_mode` declarado por modelo + builder LV2 + plugins que precisam revisão A/B |
 | `docs/architecture.md` | Crates, registry auto-gerado, assets, BlockEditorPanel |
 | `docs/testing.md` | Cobertura, convenções, categorias, comandos |
