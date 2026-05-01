@@ -178,8 +178,64 @@ impl Chain {
         }
         Ok(())
     }
+
+    /// Migration for projects saved while issue #377 was open: collapse a run of
+    /// consecutive `InputBlock`s at the chain head into a single block, and a
+    /// run of consecutive `OutputBlock`s at the chain tail into a single block.
+    /// All entries are preserved in source order, so the runtime keeps spawning
+    /// the same number of streams. Non-consecutive I/O blocks (e.g. an Input
+    /// flanked by effects) are intentionally left alone — only the boundary
+    /// runs that the bug produced are merged.
+    pub fn coalesce_endpoint_blocks(&mut self) {
+        let head_run = self
+            .blocks
+            .iter()
+            .take_while(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
+            .count();
+        if head_run > 1 {
+            let mut merged_entries: Vec<InputEntry> = Vec::new();
+            for block in self.blocks.iter().take(head_run) {
+                if let AudioBlockKind::Input(ib) = &block.kind {
+                    merged_entries.extend(ib.entries.iter().cloned());
+                }
+            }
+            // Keep the first block's id and model so any externally-held reference
+            // (e.g. selection state) keeps working.
+            if let AudioBlockKind::Input(ib) = &mut self.blocks[0].kind {
+                ib.entries = merged_entries;
+            }
+            self.blocks.drain(1..head_run);
+        }
+
+        let tail_run = self
+            .blocks
+            .iter()
+            .rev()
+            .take_while(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+            .count();
+        if tail_run > 1 {
+            let len = self.blocks.len();
+            let tail_start = len - tail_run;
+            let mut merged_entries: Vec<crate::block::OutputEntry> = Vec::new();
+            for block in self.blocks.iter().skip(tail_start) {
+                if let AudioBlockKind::Output(ob) = &block.kind {
+                    merged_entries.extend(ob.entries.iter().cloned());
+                }
+            }
+            // Keep the last block as the survivor (preserves rposition-based id).
+            let last_idx = len - 1;
+            if let AudioBlockKind::Output(ob) = &mut self.blocks[last_idx].kind {
+                ob.entries = merged_entries;
+            }
+            self.blocks.drain(tail_start..last_idx);
+        }
+    }
 }
 
 #[cfg(test)]
 #[path = "chain_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chain_coalesce_tests.rs"]
+mod coalesce_tests;

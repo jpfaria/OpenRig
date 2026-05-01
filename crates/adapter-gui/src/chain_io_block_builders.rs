@@ -104,7 +104,11 @@ mod tests {
         assert_eq!(block.id.0, "chain-a:input", "deterministic block id");
         match &block.kind {
             AudioBlockKind::Input(ib) => {
-                assert_eq!(ib.entries.len(), 2, "two devices → two entries in ONE block");
+                assert_eq!(
+                    ib.entries.len(),
+                    2,
+                    "two devices → two entries in ONE block"
+                );
                 assert_eq!(ib.entries[0].device_id.0, "dev-A");
                 assert_eq!(ib.entries[1].device_id.0, "dev-B");
             }
@@ -159,7 +163,11 @@ mod tests {
         assert_eq!(block.id.0, "chain-a:output");
         match &block.kind {
             AudioBlockKind::Output(ob) => {
-                assert_eq!(ob.entries.len(), 2, "two devices → two entries in ONE block");
+                assert_eq!(
+                    ob.entries.len(),
+                    2,
+                    "two devices → two entries in ONE block"
+                );
                 assert_eq!(ob.entries[0].device_id.0, "out-A");
                 assert_eq!(ob.entries[0].mode, ChainOutputMode::Stereo);
                 assert_eq!(ob.entries[1].device_id.0, "out-B");

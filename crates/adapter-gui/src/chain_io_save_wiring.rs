@@ -18,9 +18,7 @@ use project::block::{
     AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
 };
 
-use crate::chain_io_block_builders::{
-    build_input_block_from_draft, build_output_block_from_draft,
-};
+use crate::chain_io_block_builders::{build_input_block_from_draft, build_output_block_from_draft};
 use crate::io_groups::{apply_chain_io_groups, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
@@ -93,10 +91,20 @@ pub(crate) fn wire(
 
             // Handle I/O block insert mode: insert a single InputBlock at the stored position
             let io_insert = io_block_insert_draft_for_input_save.borrow().clone();
-            log::info!("[input_window.on_save] io_insert={:?}", io_insert.as_ref().map(|d| format!("kind={}, chain={}, before={}", d.kind, d.chain_index, d.before_index)));
+            log::info!(
+                "[input_window.on_save] io_insert={:?}",
+                io_insert.as_ref().map(|d| format!(
+                    "kind={}, chain={}, before={}",
+                    d.kind, d.chain_index, d.before_index
+                ))
+            );
             if let Some(io_draft) = io_insert {
                 if io_draft.kind == "input" {
-                    log::info!("[input_window.on_save] INSERTING NEW InputBlock at chain={}, before={}", io_draft.chain_index, io_draft.before_index);
+                    log::info!(
+                        "[input_window.on_save] INSERTING NEW InputBlock at chain={}, before={}",
+                        io_draft.chain_index,
+                        io_draft.before_index
+                    );
                     // Extract what we need from chain_draft, then drop the borrow
                     let input_group = {
                         let draft_borrow = chain_draft.borrow();
@@ -139,7 +147,9 @@ pub(crate) fn wire(
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
                             entries: vec![InputEntry {
-                                device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
+                                device_id: DeviceId(
+                                    input_group.device_id.clone().unwrap_or_default(),
+                                ),
                                 mode: input_group.mode,
                                 channels: input_group.channels.clone(),
                             }],
@@ -147,7 +157,9 @@ pub(crate) fn wire(
                     };
                     let insert_pos = before_index.min(chain.blocks.len());
                     chain.blocks.insert(insert_pos, input_block);
-                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                    if let Err(error) =
+                        sync_live_chain_runtime(&project_runtime, session, &real_chain_id)
+                    {
                         eprintln!("io block insert error: {error}");
                     }
                     replace_project_chains(
@@ -156,7 +168,13 @@ pub(crate) fn wire(
                         &*input_chain_devices.borrow(),
                         &*output_chain_devices.borrow(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                    sync_project_dirty(
+                        &window,
+                        session,
+                        &saved_project_snapshot,
+                        &project_dirty,
+                        auto_save,
+                    );
                     input_window.set_status_message("".into());
                     let _ = input_window.hide();
                     return;
@@ -174,7 +192,11 @@ pub(crate) fn wire(
                 let _ = input_window.hide();
                 return;
             };
-            log::info!("[input_window.on_save] editing_input_index={}, draft.inputs.len={}", gi, draft.inputs.len());
+            log::info!(
+                "[input_window.on_save] editing_input_index={}, draft.inputs.len={}",
+                gi,
+                draft.inputs.len()
+            );
             let Some(input_group) = draft.inputs.get(gi) else {
                 let _ = input_window.hide();
                 return;
@@ -192,7 +214,9 @@ pub(crate) fn wire(
                     return;
                 };
                 let new_input_block = build_input_block_from_draft(&chain.id, &draft.inputs);
-                let non_input_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                let non_input_blocks: Vec<AudioBlock> = chain
+                    .blocks
+                    .iter()
                     .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
                     .cloned()
                     .collect();
@@ -213,7 +237,13 @@ pub(crate) fn wire(
                     &*input_chain_devices.borrow(),
                     &*output_chain_devices.borrow(),
                 );
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
             }
             if let Some(chain_window) = weak_chain_window.borrow().as_ref() {
                 apply_chain_io_groups(
@@ -226,10 +256,12 @@ pub(crate) fn wire(
             }
             // Refresh input groups window if open
             if let Some(groups_window) = weak_input_groups_window.upgrade() {
-                let (input_items, _) =
-                    build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                groups_window
-                    .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+                let (input_items, _) = build_io_group_items(
+                    draft,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
+                );
+                groups_window.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             }
             // Clear the adding flag on successful save
             draft.adding_new_input = false;
@@ -269,7 +301,9 @@ pub(crate) fn wire(
                     draft.editing_output_index = None;
                     // Refresh chain editor window
                     if let Some(window) = weak_window_for_out_cancel.upgrade() {
-                        if let Some(chain_window) = chain_editor_window_for_out_cancel.borrow().as_ref() {
+                        if let Some(chain_window) =
+                            chain_editor_window_for_out_cancel.borrow().as_ref()
+                        {
                             apply_chain_io_groups(
                                 &window,
                                 chain_window,
@@ -281,8 +315,11 @@ pub(crate) fn wire(
                     }
                     // Refresh groups window if open
                     if let Some(groups_window) = weak_output_groups_for_cancel.upgrade() {
-                        let (_, output_items) =
-                            build_io_group_items(draft, &*input_chain_devices_for_out_cancel.borrow(), &*output_chain_devices_for_out_cancel.borrow());
+                        let (_, output_items) = build_io_group_items(
+                            draft,
+                            &*input_chain_devices_for_out_cancel.borrow(),
+                            &*output_chain_devices_for_out_cancel.borrow(),
+                        );
                         groups_window
                             .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
                     }
@@ -322,7 +359,8 @@ pub(crate) fn wire(
                     draft.editing_input_index = None;
                     // Refresh chain editor window
                     if let Some(window) = weak_window_for_cancel.upgrade() {
-                        if let Some(chain_window) = chain_editor_window_for_cancel.borrow().as_ref() {
+                        if let Some(chain_window) = chain_editor_window_for_cancel.borrow().as_ref()
+                        {
                             apply_chain_io_groups(
                                 &window,
                                 chain_window,
@@ -334,8 +372,11 @@ pub(crate) fn wire(
                     }
                     // Refresh groups window if open
                     if let Some(groups_window) = weak_input_groups_for_cancel.upgrade() {
-                        let (input_items, _) =
-                            build_io_group_items(draft, &*input_chain_devices_for_cancel.borrow(), &*output_chain_devices_for_cancel.borrow());
+                        let (input_items, _) = build_io_group_items(
+                            draft,
+                            &*input_chain_devices_for_cancel.borrow(),
+                            &*output_chain_devices_for_cancel.borrow(),
+                        );
                         groups_window
                             .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
                     }
@@ -409,7 +450,9 @@ pub(crate) fn wire(
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
                             entries: vec![OutputEntry {
-                                device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
+                                device_id: DeviceId(
+                                    output_group.device_id.clone().unwrap_or_default(),
+                                ),
                                 mode: output_group.mode,
                                 channels: output_group.channels.clone(),
                             }],
@@ -417,7 +460,9 @@ pub(crate) fn wire(
                     };
                     let insert_pos = before_index.min(chain.blocks.len());
                     chain.blocks.insert(insert_pos, output_block);
-                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                    if let Err(error) =
+                        sync_live_chain_runtime(&project_runtime, session, &real_chain_id)
+                    {
                         eprintln!("io block insert error: {error}");
                     }
                     replace_project_chains(
@@ -426,7 +471,13 @@ pub(crate) fn wire(
                         &*input_chain_devices.borrow(),
                         &*output_chain_devices.borrow(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                    sync_project_dirty(
+                        &window,
+                        session,
+                        &saved_project_snapshot,
+                        &project_dirty,
+                        auto_save,
+                    );
                     output_window.set_status_message("".into());
                     let _ = output_window.hide();
                     return;
@@ -459,7 +510,9 @@ pub(crate) fn wire(
                     return;
                 };
                 let new_output_block = build_output_block_from_draft(&chain.id, &draft.outputs);
-                let non_output_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                let non_output_blocks: Vec<AudioBlock> = chain
+                    .blocks
+                    .iter()
                     .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
                     .cloned()
                     .collect();
@@ -480,7 +533,13 @@ pub(crate) fn wire(
                     &*input_chain_devices.borrow(),
                     &*output_chain_devices.borrow(),
                 );
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
             }
             if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                 apply_chain_io_groups(
@@ -493,10 +552,12 @@ pub(crate) fn wire(
             }
             // Refresh output groups window if open
             if let Some(groups_window) = weak_output_groups_window.upgrade() {
-                let (_, output_items) =
-                    build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                groups_window
-                    .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+                let (_, output_items) = build_io_group_items(
+                    draft,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
+                );
+                groups_window.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             }
             // Clear the adding flag on successful save
             draft.adding_new_output = false;
