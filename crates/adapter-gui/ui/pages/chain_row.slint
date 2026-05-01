@@ -329,6 +329,7 @@ export component ChainRow inherits Rectangle {
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
+            chain-dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             clicked => { root.select-chain-block(root.chain-index, block-index); }
             hover-state-changed(is-hovered) => {
                 if (is-hovered) {
@@ -361,9 +362,13 @@ export component ChainRow inherits Rectangle {
         // paint order keeps it on top of every sibling block. Hidden when
         // no block is hovered or when the hovered block has no model
         // (I/O / Insert blocks have empty display_name). Issue #333.
+        // Also hidden while a drag is in flight so the tooltip card
+        // doesn't sit under the cursor and obscure the ghost / drop
+        // targets the user is moving over. Issue #376.
         if root.hovered-block-index >= 0
             && root.hovered-block-index < root.chain.blocks.length
             && root.chain.blocks[root.hovered-block-index].display_name != ""
+            && root.dragging-block-index < 0
             : BlockHoverTooltip {
             block: root.chain.blocks[root.hovered-block-index];
             anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 132px;
