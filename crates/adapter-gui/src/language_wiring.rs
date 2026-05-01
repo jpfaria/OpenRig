@@ -12,7 +12,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use infra_filesystem::FilesystemStorage;
 
-use crate::i18n::{display_name, locale_for_runtime, SUPPORTED_LANGUAGES};
+use crate::i18n::{display_name, flag_for, locale_for_runtime, SUPPORTED_LANGUAGES};
 use crate::AppWindow;
 
 pub fn wire(window: &AppWindow) {
@@ -57,12 +57,13 @@ fn set_language_options(window: &AppWindow, ui_locale: &str) {
 }
 
 /// Pure helper used by tests AND by the runtime wiring. Returns the list
-/// of human-readable language names in the current UI locale, in the same
-/// order as `SUPPORTED_LANGUAGES`.
+/// of dropdown labels in the current UI locale, in the same order as
+/// `SUPPORTED_LANGUAGES`. Each label is prefixed with the country flag
+/// emoji so the user gets visual orientation at a glance.
 pub fn build_language_options(ui_locale: &str) -> Vec<String> {
     SUPPORTED_LANGUAGES
         .iter()
-        .map(|l| display_name(l.code, ui_locale).to_string())
+        .map(|l| format!("{}  {}", flag_for(l.code), display_name(l.code, ui_locale)))
         .collect()
 }
 
@@ -136,26 +137,42 @@ mod tests {
     #[test]
     fn build_language_options_uses_pt_br_names_when_ui_is_pt_br() {
         let opts = build_language_options("pt-BR");
-        assert_eq!(opts[0], "Auto");
-        assert_eq!(opts[1], "Alemão");
-        assert_eq!(opts[7], "Inglês (US)");
-        assert_eq!(opts[9], "Português (Brasil)");
+        assert_eq!(opts[0], "🌐  Auto");
+        assert_eq!(opts[1], "🇩🇪  Alemão");
+        assert_eq!(opts[7], "🇺🇸  Inglês (US)");
+        assert_eq!(opts[9], "🇧🇷  Português (Brasil)");
     }
 
     #[test]
     fn build_language_options_uses_en_us_names_when_ui_is_en_us() {
         let opts = build_language_options("en-US");
-        assert_eq!(opts[0], "Auto");
-        assert_eq!(opts[1], "German");
-        assert_eq!(opts[7], "English (US)");
-        assert_eq!(opts[9], "Portuguese (Brazil)");
+        assert_eq!(opts[0], "🌐  Auto");
+        assert_eq!(opts[1], "🇩🇪  German");
+        assert_eq!(opts[7], "🇺🇸  English (US)");
+        assert_eq!(opts[9], "🇧🇷  Portuguese (Brazil)");
+    }
+
+    /// Each shipped UI locale renders its OWN script in the dropdown.
+    /// Picking Japanese as the UI must show the language list in
+    /// Japanese, not English — bug reported by the user.
+    #[test]
+    fn build_language_options_uses_native_script_when_ui_is_ja_jp() {
+        let opts = build_language_options("ja-JP");
+        assert_eq!(opts[0], "🌐  自動");
+        assert_eq!(opts[8], "🇯🇵  日本語");
     }
 
     #[test]
-    fn build_language_options_falls_back_to_en_us_for_skeleton_ui_locale() {
-        let opts = build_language_options("fr-FR");
-        assert_eq!(opts[1], "German");
-        assert_eq!(opts[7], "English (US)");
+    fn build_language_options_uses_native_script_when_ui_is_zh_cn() {
+        let opts = build_language_options("zh-CN");
+        assert_eq!(opts[2], "🇨🇳  中文");
+        assert_eq!(opts[7], "🇺🇸  英语 (US)");
+    }
+
+    #[test]
+    fn build_language_options_uses_native_script_when_ui_is_ko_kr() {
+        let opts = build_language_options("ko-KR");
+        assert_eq!(opts[3], "🇰🇷  한국어");
     }
 
     #[test]

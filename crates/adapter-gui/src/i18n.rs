@@ -78,14 +78,14 @@ pub fn effective_locale(requested: &str) -> String {
 }
 
 /// Returns the human-readable name of a language for display in the
-/// LanguageSelector dropdown, localized to the active UI locale.
+/// LanguageSelector dropdown, localized to the active UI locale. Each
+/// shipped UI locale lists languages in its OWN script (Japanese UI =
+/// Japanese names, Chinese UI = Chinese names, etc.).
 ///
 /// Hand-curated tables instead of `@tr(...)` because the language list
 /// is built in Rust and passed to Slint as a `[string]` model — the
-/// gettext catalog is the wrong layer for it. Falls back to en-US when
-/// the active UI locale doesn't have populated translations (matches
-/// `effective_locale`'s behavior). Unknown lang codes echo back the
-/// code so the UI never shows nothing.
+/// gettext catalog is the wrong layer for it. Unknown locales fall
+/// through `effective_locale` to en-US.
 pub fn display_name(lang_code: &str, ui_locale: &str) -> &'static str {
     let active_ui = effective_locale(ui_locale);
     match active_ui.as_str() {
@@ -102,9 +102,99 @@ pub fn display_name(lang_code: &str, ui_locale: &str) -> &'static str {
             "pt-BR" => "Português (Brasil)",
             _ => echo_unknown(lang_code),
         },
+        "de-DE" => match lang_code {
+            "auto" => "Auto",
+            "de-DE" => "Deutsch",
+            "zh-CN" => "Chinesisch",
+            "ko-KR" => "Koreanisch",
+            "es-ES" => "Spanisch",
+            "fr-FR" => "Französisch",
+            "hi-IN" => "Hindi",
+            "en-US" => "Englisch (US)",
+            "ja-JP" => "Japanisch",
+            "pt-BR" => "Portugiesisch (Brasilien)",
+            _ => echo_unknown(lang_code),
+        },
+        "es-ES" => match lang_code {
+            "auto" => "Auto",
+            "de-DE" => "Alemán",
+            "zh-CN" => "Chino",
+            "ko-KR" => "Coreano",
+            "es-ES" => "Español",
+            "fr-FR" => "Francés",
+            "hi-IN" => "Hindi",
+            "en-US" => "Inglés (EE. UU.)",
+            "ja-JP" => "Japonés",
+            "pt-BR" => "Portugués (Brasil)",
+            _ => echo_unknown(lang_code),
+        },
+        "fr-FR" => match lang_code {
+            "auto" => "Auto",
+            "de-DE" => "Allemand",
+            "zh-CN" => "Chinois",
+            "ko-KR" => "Coréen",
+            "es-ES" => "Espagnol",
+            "fr-FR" => "Français",
+            "hi-IN" => "Hindi",
+            "en-US" => "Anglais (US)",
+            "ja-JP" => "Japonais",
+            "pt-BR" => "Portugais (Brésil)",
+            _ => echo_unknown(lang_code),
+        },
+        "hi-IN" => match lang_code {
+            "auto" => "स्वत:",
+            "de-DE" => "जर्मन",
+            "zh-CN" => "चीनी",
+            "ko-KR" => "कोरियाई",
+            "es-ES" => "स्पेनिश",
+            "fr-FR" => "फ्रेंच",
+            "hi-IN" => "हिन्दी",
+            "en-US" => "अंग्रेज़ी (US)",
+            "ja-JP" => "जापानी",
+            "pt-BR" => "पुर्तगाली (ब्राज़ील)",
+            _ => echo_unknown(lang_code),
+        },
+        "ja-JP" => match lang_code {
+            "auto" => "自動",
+            "de-DE" => "ドイツ語",
+            "zh-CN" => "中国語",
+            "ko-KR" => "韓国語",
+            "es-ES" => "スペイン語",
+            "fr-FR" => "フランス語",
+            "hi-IN" => "ヒンディー語",
+            "en-US" => "英語 (US)",
+            "ja-JP" => "日本語",
+            "pt-BR" => "ポルトガル語 (ブラジル)",
+            _ => echo_unknown(lang_code),
+        },
+        "ko-KR" => match lang_code {
+            "auto" => "자동",
+            "de-DE" => "독일어",
+            "zh-CN" => "중국어",
+            "ko-KR" => "한국어",
+            "es-ES" => "스페인어",
+            "fr-FR" => "프랑스어",
+            "hi-IN" => "힌디어",
+            "en-US" => "영어 (US)",
+            "ja-JP" => "일본어",
+            "pt-BR" => "포르투갈어 (브라질)",
+            _ => echo_unknown(lang_code),
+        },
+        "zh-CN" => match lang_code {
+            "auto" => "自动",
+            "de-DE" => "德语",
+            "zh-CN" => "中文",
+            "ko-KR" => "韩语",
+            "es-ES" => "西班牙语",
+            "fr-FR" => "法语",
+            "hi-IN" => "印地语",
+            "en-US" => "英语 (US)",
+            "ja-JP" => "日语",
+            "pt-BR" => "葡萄牙语 (巴西)",
+            _ => echo_unknown(lang_code),
+        },
         // Default branch covers en-US plus any locale that fell back to
-        // en-US via `effective_locale`. Adding a new populated UI locale
-        // requires adding a `match` arm above.
+        // en-US via `effective_locale`.
         _ => match lang_code {
             "auto" => "Auto",
             "de-DE" => "German",
@@ -118,6 +208,25 @@ pub fn display_name(lang_code: &str, ui_locale: &str) -> &'static str {
             "pt-BR" => "Portuguese (Brazil)",
             _ => echo_unknown(lang_code),
         },
+    }
+}
+
+/// Country flag emoji for a language code. The "auto" sentinel returns a
+/// globe (no specific country). Unknown codes also return a globe so the
+/// UI never has a missing-glyph hole next to the language name.
+pub fn flag_for(lang_code: &str) -> &'static str {
+    match lang_code {
+        "auto" => "🌐",
+        "de-DE" => "🇩🇪",
+        "zh-CN" => "🇨🇳",
+        "ko-KR" => "🇰🇷",
+        "es-ES" => "🇪🇸",
+        "fr-FR" => "🇫🇷",
+        "hi-IN" => "🇮🇳",
+        "en-US" => "🇺🇸",
+        "ja-JP" => "🇯🇵",
+        "pt-BR" => "🇧🇷",
+        _ => "🌐",
     }
 }
 
@@ -497,6 +606,80 @@ mod tests {
     /// when the rest of the UI is in English is jarring (and was reported
     /// by the user). For each shipped UI locale, every language in
     /// SUPPORTED_LANGUAGES has a localized display name.
+    /// Each shipped UI locale must list the languages in its OWN script.
+    /// Showing pt-BR names while the UI is in Japanese (or English names
+    /// while the UI is in Korean) is jarring and was reported by the user.
+    #[test]
+    fn display_name_localizes_into_de_de() {
+        assert_eq!(display_name("de-DE", "de-DE"), "Deutsch");
+        assert_eq!(display_name("zh-CN", "de-DE"), "Chinesisch");
+        assert_eq!(display_name("ja-JP", "de-DE"), "Japanisch");
+        assert_eq!(display_name("auto", "de-DE"), "Auto");
+    }
+
+    #[test]
+    fn display_name_localizes_into_es_es() {
+        assert_eq!(display_name("de-DE", "es-ES"), "Alemán");
+        assert_eq!(display_name("es-ES", "es-ES"), "Español");
+        assert_eq!(display_name("ja-JP", "es-ES"), "Japonés");
+    }
+
+    #[test]
+    fn display_name_localizes_into_fr_fr() {
+        assert_eq!(display_name("de-DE", "fr-FR"), "Allemand");
+        assert_eq!(display_name("fr-FR", "fr-FR"), "Français");
+        assert_eq!(display_name("zh-CN", "fr-FR"), "Chinois");
+    }
+
+    #[test]
+    fn display_name_localizes_into_hi_in() {
+        assert_eq!(display_name("hi-IN", "hi-IN"), "हिन्दी");
+        assert_eq!(display_name("de-DE", "hi-IN"), "जर्मन");
+    }
+
+    #[test]
+    fn display_name_localizes_into_ja_jp() {
+        assert_eq!(display_name("ja-JP", "ja-JP"), "日本語");
+        assert_eq!(display_name("zh-CN", "ja-JP"), "中国語");
+        assert_eq!(display_name("de-DE", "ja-JP"), "ドイツ語");
+        assert_eq!(display_name("auto", "ja-JP"), "自動");
+    }
+
+    #[test]
+    fn display_name_localizes_into_ko_kr() {
+        assert_eq!(display_name("ko-KR", "ko-KR"), "한국어");
+        assert_eq!(display_name("ja-JP", "ko-KR"), "일본어");
+        assert_eq!(display_name("auto", "ko-KR"), "자동");
+    }
+
+    #[test]
+    fn display_name_localizes_into_zh_cn() {
+        assert_eq!(display_name("zh-CN", "zh-CN"), "中文");
+        assert_eq!(display_name("ja-JP", "zh-CN"), "日语");
+        assert_eq!(display_name("auto", "zh-CN"), "自动");
+    }
+
+    /// Flag prefix per language code. Auto sentinel uses a globe icon
+    /// since it has no associated country.
+    #[test]
+    fn flag_for_returns_country_emoji() {
+        assert_eq!(flag_for("auto"), "🌐");
+        assert_eq!(flag_for("de-DE"), "🇩🇪");
+        assert_eq!(flag_for("zh-CN"), "🇨🇳");
+        assert_eq!(flag_for("ko-KR"), "🇰🇷");
+        assert_eq!(flag_for("es-ES"), "🇪🇸");
+        assert_eq!(flag_for("fr-FR"), "🇫🇷");
+        assert_eq!(flag_for("hi-IN"), "🇮🇳");
+        assert_eq!(flag_for("en-US"), "🇺🇸");
+        assert_eq!(flag_for("ja-JP"), "🇯🇵");
+        assert_eq!(flag_for("pt-BR"), "🇧🇷");
+    }
+
+    #[test]
+    fn flag_for_unknown_code_returns_globe() {
+        assert_eq!(flag_for("xx-YY"), "🌐");
+    }
+
     #[test]
     fn display_name_localizes_into_pt_br() {
         assert_eq!(display_name("auto", "pt-BR"), "Auto");
@@ -525,18 +708,13 @@ mod tests {
         assert_eq!(display_name("pt-BR", "en-US"), "Portuguese (Brazil)");
     }
 
-    /// Locales without populated translations also need readable language
-    /// names. Since `effective_locale` redirects them to en-US, the UI
-    /// will be in English — the language list should match. We also test
-    /// the function directly with skeleton codes to make sure nothing
-    /// panics (e.g. user picks French in selector and pre-fallback
-    /// the display call uses fr-FR).
+    /// Defensive: if a UI locale is outside SUPPORTED_LANGUAGES,
+    /// `effective_locale` redirects to en-US, and `display_name` uses
+    /// English names for the dropdown.
     #[test]
-    fn display_name_falls_back_when_ui_locale_is_skeleton() {
-        // Skeleton locale routes display name resolution to en-US — same
-        // way runtime translations route to en-US.
-        assert_eq!(display_name("de-DE", "fr-FR"), "German");
-        assert_eq!(display_name("ja-JP", "ja-JP"), "Japanese");
+    fn display_name_falls_back_to_english_for_unsupported_ui_locale() {
+        assert_eq!(display_name("de-DE", "xx-YY"), "German");
+        assert_eq!(display_name("ja-JP", ""), "Japanese");
     }
 
     #[test]

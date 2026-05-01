@@ -76,6 +76,8 @@ export component LanguageSelector inherits Rectangle {
             horizontal-alignment: center;
             vertical-alignment: center;
             overflow: elide;
+            // Override AppWindow's Bebas Neue so CJK/Hindi tooltips render.
+            font-family: "Helvetica Neue";
         }
     }
 
@@ -100,16 +102,36 @@ export component LanguageSelector inherits Rectangle {
                 background: option-touch.has-hover ? #3b4250 : transparent;
                 border-radius: 3px;
 
+                // Selected indicator (✓) on the left so the user sees
+                // which locale is currently active.
                 Text {
-                    x: 10px;
+                    x: 8px;
+                    text: i == root.selected-language-index ? "✓" : "";
+                    color: #4ad28e;
+                    font-size: 13px;
+                    font-weight: 700;
+                    width: 16px;
+                    vertical-alignment: center;
+                    horizontal-alignment: left;
+                    // Override the AppWindow's Bebas Neue (Latin-only display
+                    // font) so glyphs render against the system fallback chain
+                    // — required for CJK/Hindi names in the dropdown.
+                    font-family: "Helvetica Neue";
+                }
+
+                Text {
+                    x: 28px;
                     text: option;
                     color: #f4f7fb;
                     font-size: 13px;
                     font-weight: 600;
                     vertical-alignment: center;
                     horizontal-alignment: left;
-                    width: parent.width - 20px;
+                    width: parent.width - 36px;
                     overflow: elide;
+                    // Same reason as the tick above — AppWindow's default
+                    // Bebas Neue lacks CJK and Devanagari glyphs.
+                    font-family: "Helvetica Neue";
                 }
 
                 option-touch := TouchArea {
