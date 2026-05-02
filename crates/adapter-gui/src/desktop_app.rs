@@ -576,6 +576,7 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
+    crate::plugin_info_inline_wiring::wire(&window);
     // Ao fechar a janela principal, encerra todo o processo
     window.window().on_close_requested(|| {
         let _ = slint::quit_event_loop();

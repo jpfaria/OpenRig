@@ -1,9 +1,8 @@
-export component PluginInfoWindow inherits Window {
-    title: "Plugin Info";
-    width: 480px;
-    min-height: 400px;
-    background: #111118;
+// Plugin info — both a standalone Window (windowed mode) and a Rectangle panel
+// used as inline overlay in fullscreen, where secondary windows do not surface
+// reliably (e.g. Orange Pi / kiosk).
 
+export component PluginInfoPanel inherits Rectangle {
     in property <image> screenshot;
     in property <bool> has-screenshot: false;
     in property <string> plugin-name: "";
@@ -13,9 +12,12 @@ export component PluginInfoWindow inherits Window {
     in property <string> license: "";
     in property <string> homepage: "";
     in property <bool> has-homepage: false;
+    in property <bool> show-close-button: false;
 
     callback open-homepage();
     callback close-window();
+
+    background: #111118;
 
     VerticalLayout {
         alignment: start;
@@ -52,6 +54,35 @@ export component PluginInfoWindow inherits Window {
                 width: parent.width; height: 60px;
                 background: @linear-gradient(180deg, transparent 0%, #111118 100%);
             }
+
+            // Inline close button — only when used as fullscreen overlay
+            if root.show-close-button : Rectangle {
+                x: parent.width - 40px;
+                y: 12px;
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: close-ta.has-hover ? #2a1a1a : #1a1a22;
+                border-width: 1px;
+                border-color: close-ta.has-hover ? #ff6a57 : #2d3340;
+
+                Text {
+                    text: "✕";
+                    color: close-ta.has-hover ? #ff6a57 : #a0a0b8;
+                    font-size: 14px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                close-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.close-window(); }
+                }
+
+                animate background { duration: 150ms; }
+                animate border-color { duration: 150ms; }
+            }
         }
 
         // ── Content ───────────────────────────────────────────────────────────
@@ -82,7 +113,7 @@ export component PluginInfoWindow inherits Window {
                 }
 
                 if root.brand != "" && root.type-label != "" : Text {
-                    text: "·";
+                    text: @tr("·");
                     font-size: 12px;
                     color: #555566;
                     vertical-alignment: center;
@@ -118,7 +149,7 @@ export component PluginInfoWindow inherits Window {
             if root.description != "" : VerticalLayout {
                 spacing: 4px;
                 Text {
-                    text: "Description";
+                    text: @tr("Description");
                     font-size: 10px;
                     font-weight: 600;
                     color: #555566;
@@ -137,7 +168,7 @@ export component PluginInfoWindow inherits Window {
                 spacing: 8px;
                 alignment: start;
                 Text {
-                    text: "License:";
+                    text: @tr("License:");
                     font-size: 12px;
                     color: #555566;
                     vertical-alignment: center;
@@ -164,13 +195,13 @@ export component PluginInfoWindow inherits Window {
                     padding: 0px;
 
                     Text {
-                        text: "↗";
+                        text: @tr("↗");
                         font-size: 14px;
                         color: #22C55E;
                         vertical-alignment: center;
                     }
                     Text {
-                        text: "Open Homepage";
+                        text: @tr("Open Homepage");
                         font-size: 13px;
                         color: #22C55E;
                         vertical-alignment: center;
@@ -186,5 +217,42 @@ export component PluginInfoWindow inherits Window {
                 animate border-color { duration: 150ms; }
             }
         }
+    }
+}
+
+export component PluginInfoWindow inherits Window {
+    title: "Plugin Info";
+    width: 480px;
+    min-height: 400px;
+    background: #111118;
+
+    in property <image> screenshot;
+    in property <bool> has-screenshot: false;
+    in property <string> plugin-name: "";
+    in property <string> brand: "";
+    in property <string> type-label: "";
+    in property <string> description: "";
+    in property <string> license: "";
+    in property <string> homepage: "";
+    in property <bool> has-homepage: false;
+
+    callback open-homepage();
+    callback close-window();
+
+    PluginInfoPanel {
+        width: parent.width;
+        height: parent.height;
+        screenshot: root.screenshot;
+        has-screenshot: root.has-screenshot;
+        plugin-name: root.plugin-name;
+        brand: root.brand;
+        type-label: root.type-label;
+        description: root.description;
+        license: root.license;
+        homepage: root.homepage;
+        has-homepage: root.has-homepage;
+        show-close-button: false;
+        open-homepage => { root.open-homepage(); }
+        close-window => { root.close-window(); }
     }
 }
