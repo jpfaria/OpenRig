@@ -172,7 +172,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             };
             let name = window.get_project_name_draft().trim().to_string();
             if name.is_empty() {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("O nome do projeto é obrigatório."));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-project-name-required"),
+                );
                 return;
             }
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
@@ -225,7 +229,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let project_path = if let Some(path) = session.project_path.clone() {

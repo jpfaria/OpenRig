@@ -1,44 +1,38 @@
-# OpenRig — Brazilian Portuguese (source language).
-#
-# Format: rust-i18n v3 YAML.
-# Keys are the source-language strings themselves so:
-#   - The codebase reads naturally (`t!("Projeto salvo.")`)
-#   - Missing translations fall back to the key (= the source)
-#
-# Strings live HERE (Rust side, YAML) and the Slint side lives separately
-# in translations/<lang>/adapter-gui.po (gettext). Two catalogs because
-# Slint's @tr() only speaks gettext. See docs/i18n.md.
+# OpenRig — 한국어. See docs/i18n.md. Keys are semantic tags.
 
-"Adicione pelo menos uma entrada.": "Adicione pelo menos uma entrada."
-"Adicione pelo menos uma saída.": "Adicione pelo menos uma saída."
-"Audio device disconnected — reconnecting...": "Dispositivo de áudio desconectado — reconectando..."
-"Audio device reconnected": "Dispositivo de áudio reconectado"
-"Block inválido.": "Block inválido."
-"Block selecionado não é um select.": "Block selecionado não é um select."
-"Chain inválida.": "Chain inválida."
-"Esse block ainda não pode ser editado pela GUI.": "Esse block ainda não pode ser editado pela GUI."
-"Lista de dispositivos atualizada": "Lista de dispositivos atualizada"
-"Nenhum projeto carregado.": "Nenhum projeto carregado."
-"Nenhuma chain em edição.": "Nenhuma chain em edição."
-"O nome do projeto é obrigatório.": "O nome do projeto é obrigatório."
-"Opção ativa do select não existe.": "Opção ativa do select não existe."
-"Preset removido.": "Preset removido."
-"Preset salvo.": "Preset salvo."
-"Projeto recente inválido.": "Projeto recente inválido."
-"Selecione dispositivo e canais de envio.": "Selecione dispositivo e canais de envio."
-"Selecione dispositivo e canais de retorno.": "Selecione dispositivo e canais de retorno."
-"Selecione dispositivo e canais.": "Selecione dispositivo e canais."
-"Selecione pelo menos um input e um output antes de continuar.": "Selecione pelo menos um input e um output antes de continuar."
-"Select sem opções válidas.": "Select sem opções válidas."
-"Seleção do select inválida.": "Seleção do select inválida."
-"Starting audio...": "Iniciando áudio..."
-"arquivo de preset inválido": "arquivo de preset inválido"
-"É necessário pelo menos uma entrada.": "É necessário pelo menos uma entrada."
-"É necessário pelo menos uma saída.": "최소한 하나의 출력이 필요합니다."
+error-block-not-editable: "이 블록은 아직 GUI에서 편집할 수 없습니다."
+error-block-not-select: "선택된 블록은 select가 아닙니다."
+error-invalid-block: "유효하지 않은 블록입니다."
+error-invalid-chain: "유효하지 않은 chain입니다."
+error-invalid-preset-file: "유효하지 않은 프리셋 파일"
+error-invalid-recent-project: "유효하지 않은 최근 프로젝트입니다."
+error-need-input: "최소한 하나의 입력이 필요합니다."
+error-need-input-and-output: "계속하기 전에 최소한 하나의 입력과 하나의 출력을 선택하세요."
+error-need-output: "최소한 하나의 출력이 필요합니다."
+error-no-chain-editing: "편집 중인 chain이 없습니다."
+error-no-project-loaded: "로드된 프로젝트가 없습니다."
+error-project-name-required: "프로젝트 이름은 필수입니다."
+error-select-device-channels: "장치와 채널을 선택하세요."
+error-select-invalid: "유효하지 않은 select 선택입니다."
+error-select-no-options: "select에 유효한 옵션이 없습니다."
+error-select-option-missing: "활성 select 옵션이 존재하지 않습니다."
+insert-error-select-return: "리턴 장치와 채널을 선택하세요."
+insert-error-select-send: "센드 장치와 채널을 선택하세요."
 
-# Symbolic keys — strings injected from Rust into the Slint AppWindow.
+warn-add-input: "최소한 하나의 입력을 추가하세요."
+warn-add-output: "최소한 하나의 출력을 추가하세요."
+
+status-audio-disconnected: "오디오 장치 연결 끊김 — 재연결 중..."
+status-audio-reconnected: "오디오 장치가 다시 연결되었습니다"
+status-audio-starting: "오디오 시작 중..."
+status-devices-refreshed: "장치 목록 새로 고침됨"
+status-preset-removed: "프리셋이 제거되었습니다."
+status-preset-saved: "프리셋이 저장되었습니다."
+
 title-new-chain: "새 chain"
 title-configure-chain: "Chain 구성"
 btn-create-chain: "Chain 만들기"
 btn-save-chain: "Chain 저장"
 default-project-title: "프로젝트"
+chain-io-input-title: "입력"
+chain-io-output-title: "출력"

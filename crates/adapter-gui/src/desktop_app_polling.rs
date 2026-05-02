@@ -43,12 +43,20 @@ pub(crate) fn start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_millis(200),
             move || {
-                let Some(win) = weak_window.upgrade() else { return; };
+                let Some(win) = weak_window.upgrade() else {
+                    return;
+                };
                 let rt_borrow = project_runtime_for_errors.borrow();
-                let Some(rt) = rt_borrow.as_ref() else { return; };
+                let Some(rt) = rt_borrow.as_ref() else {
+                    return;
+                };
                 let errors = rt.poll_errors();
                 if let Some(first) = errors.first() {
-                    set_status_error(&win, &toast_timer_for_errors, &format!("Plugin error: {}", first.message));
+                    set_status_error(
+                        &win,
+                        &toast_timer_for_errors,
+                        &format!("Plugin error: {}", first.message),
+                    );
                 }
             },
         );
@@ -69,7 +77,9 @@ pub(crate) fn start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_secs(2),
             move || {
-                let Some(win) = weak_window.upgrade() else { return; };
+                let Some(win) = weak_window.upgrade() else {
+                    return;
+                };
 
                 // NOTE: device hot-plug detection moved OUT of the health timer.
                 // Periodically polling /proc/asound/cards while the Scarlett 4th Gen
@@ -78,7 +88,9 @@ pub(crate) fn start(
                 // user enters a UI surface that needs it (chain I/O editor, Settings,
                 // configure-project) — see the refresh_input_devices call sites.
                 let mut rt_borrow = runtime_health.borrow_mut();
-                let Some(rt) = rt_borrow.as_mut() else { return; };
+                let Some(rt) = rt_borrow.as_mut() else {
+                    return;
+                };
                 if !rt.is_running() {
                     return;
                 }
@@ -96,17 +108,27 @@ pub(crate) fn start(
                 // Backend is unhealthy
                 if !*is_disconnected {
                     *is_disconnected = true;
-                    set_status_warning(&win, &toast_timer_health, &rust_i18n::t!("Audio device disconnected — reconnecting..."));
+                    set_status_warning(
+                        &win,
+                        &toast_timer_health,
+                        &rust_i18n::t!("status-audio-disconnected"),
+                    );
                     log::warn!("health check: audio backend unhealthy, will attempt reconnection");
                 }
 
                 // Try to reconnect
                 let session_borrow = session_health.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
                 match rt.try_reconnect(&session.project) {
                     Ok(true) => {
                         *is_disconnected = false;
-                        set_status_info(&win, &toast_timer_health, &rust_i18n::t!("Audio device reconnected"));
+                        set_status_info(
+                            &win,
+                            &toast_timer_health,
+                            &rust_i18n::t!("status-audio-reconnected"),
+                        );
                         log::info!("health check: successfully reconnected");
                     }
                     Ok(false) => {

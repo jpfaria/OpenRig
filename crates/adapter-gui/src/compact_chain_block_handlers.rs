@@ -70,14 +70,24 @@ pub(crate) fn wire(
         let weak_compact = compact_win.as_weak();
         let toast_timer = toast_timer.clone();
         compact_win.on_toggle_block_enabled(move |ci, bi| {
-            let Some(main_win) = weak_main.upgrade() else { return; };
-            let Some(cw) = weak_compact.upgrade() else { return; };
+            let Some(main_win) = weak_main.upgrade() else {
+                return;
+            };
+            let Some(cw) = weak_compact.upgrade() else {
+                return;
+            };
             let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
-            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                return;
+            };
+            let Some(block) = chain.blocks.get_mut(block_idx) else {
+                return;
+            };
             block.enabled = !block.enabled;
             let new_enabled = block.enabled;
             let chain_id = chain.id.clone();
@@ -123,14 +133,24 @@ pub(crate) fn wire(
         // Guard against double-clicks while JACK is starting up
         let jack_starting: Rc<std::cell::Cell<bool>> = Rc::new(std::cell::Cell::new(false));
         compact_win.on_toggle_chain_enabled(move |ci| {
-            let Some(main_win) = weak_main.upgrade() else { return; };
-            let Some(cw) = weak_compact.upgrade() else { return; };
+            let Some(main_win) = weak_main.upgrade() else {
+                return;
+            };
+            let Some(cw) = weak_compact.upgrade() else {
+                return;
+            };
             // Block re-entrant clicks during async JACK startup
-            if jack_starting.get() { return; }
+            if jack_starting.get() {
+                return;
+            }
             let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
             let chain_idx = ci as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                return;
+            };
             let will_enable = !chain.enabled;
             chain.enabled = will_enable;
             let chain_id = chain.id.clone();
@@ -147,7 +167,11 @@ pub(crate) fn wire(
                 drop(session_borrow);
 
                 jack_starting.set(true);
-                set_status_info(&main_win, &toast_timer, &rust_i18n::t!("Starting audio..."));
+                set_status_info(
+                    &main_win,
+                    &toast_timer,
+                    &rust_i18n::t!("status-audio-starting"),
+                );
 
                 let rx = Rc::new(std::cell::RefCell::new(
                     infra_cpal::start_jack_in_background(device_settings),
@@ -168,7 +192,9 @@ pub(crate) fn wire(
                     slint::TimerMode::Repeated,
                     std::time::Duration::from_millis(300),
                     move || {
-                        if done_t.get() { return; }
+                        if done_t.get() {
+                            return;
+                        }
                         use std::sync::mpsc::TryRecvError;
                         match rx.borrow().try_recv() {
                             Err(TryRecvError::Empty) => return,
@@ -186,7 +212,9 @@ pub(crate) fn wire(
                                 // Revert chain.enabled
                                 let mut sb = project_session_t.borrow_mut();
                                 if let Some(s) = sb.as_mut() {
-                                    if let Some(c) = s.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                    if let Some(c) =
+                                        s.project.chains.iter_mut().find(|c| c.id == chain_id)
+                                    {
                                         c.enabled = false;
                                     }
                                 }
@@ -195,17 +223,32 @@ pub(crate) fn wire(
                             Ok(Ok(())) => {
                                 done_t.set(true);
                                 jack_starting_t.set(false);
-                                let Some(win) = weak_main_t.upgrade() else { return; };
-                                let Some(cw) = weak_compact_t.upgrade() else { return; };
+                                let Some(win) = weak_main_t.upgrade() else {
+                                    return;
+                                };
+                                let Some(cw) = weak_compact_t.upgrade() else {
+                                    return;
+                                };
                                 let mut sb = project_session_t.borrow_mut();
-                                let Some(session) = sb.as_mut() else { return; };
-                                if let Err(e) = sync_live_chain_runtime(&project_runtime_t, session, &chain_id) {
+                                let Some(session) = sb.as_mut() else {
+                                    return;
+                                };
+                                if let Err(e) =
+                                    sync_live_chain_runtime(&project_runtime_t, session, &chain_id)
+                                {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
-                                    if let Some(c) = session.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                    if let Some(c) =
+                                        session.project.chains.iter_mut().find(|c| c.id == chain_id)
+                                    {
                                         c.enabled = false;
                                     }
                                 } else {
-                                    replace_project_chains(&project_chains_t, &session.project, &*input_chain_devices_t.borrow(), &*output_chain_devices_t.borrow());
+                                    replace_project_chains(
+                                        &project_chains_t,
+                                        &session.project,
+                                        &*input_chain_devices_t.borrow(),
+                                        &*output_chain_devices_t.borrow(),
+                                    );
                                     cw.set_chain_enabled(true);
                                     set_status_info(&win, &toast_timer_t, "");
                                 }
@@ -221,7 +264,12 @@ pub(crate) fn wire(
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
             cw.set_chain_enabled(will_enable);
         });
     }
@@ -239,8 +287,12 @@ pub(crate) fn wire(
         let weak_compact = compact_win.as_weak();
         let toast_timer = toast_timer.clone();
         compact_win.on_choose_block_model(move |ci, bi, mi| {
-            let Some(main_win) = weak_main.upgrade() else { return; };
-            let Some(cw) = weak_compact.upgrade() else { return; };
+            let Some(main_win) = weak_main.upgrade() else {
+                return;
+            };
+            let Some(cw) = weak_compact.upgrade() else {
+                return;
+            };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
             let model_idx = mi as usize;
@@ -248,35 +300,50 @@ pub(crate) fn wire(
             // Get the instrument to filter models
             let instrument = {
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
-                let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let Some(chain) = session.project.chains.get(chain_idx) else {
+                    return;
+                };
                 chain.instrument.clone()
             };
 
             // Get the effect type from the current block
             let effect_type = {
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
-                let Some(chain) = session.project.chains.get(chain_idx) else { return; };
-                let Some(block) = chain.blocks.get(block_idx) else { return; };
-                let Some(data) = block_editor_data(block) else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let Some(chain) = session.project.chains.get(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_idx) else {
+                    return;
+                };
+                let Some(data) = block_editor_data(block) else {
+                    return;
+                };
                 data.effect_type.clone()
             };
 
             let models = block_model_picker_items(&effect_type, &instrument);
-            let Some(model) = models.get(model_idx) else { return; };
+            let Some(model) = models.get(model_idx) else {
+                return;
+            };
             let new_model_id = model.model_id.to_string();
             let new_effect_type = model.effect_type.to_string();
 
             // Build new block kind with default params
             let new_params = block_core::param::ParameterSet::default();
-            let schema = match project::block::schema_for_block_model(&new_effect_type, &new_model_id) {
-                Ok(s) => s,
-                Err(e) => {
-                    log::error!("compact choose-model schema error: {e}");
-                    return;
-                }
-            };
+            let schema =
+                match project::block::schema_for_block_model(&new_effect_type, &new_model_id) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::error!("compact choose-model schema error: {e}");
+                        return;
+                    }
+                };
             let normalized = match new_params.normalized_against(&schema) {
                 Ok(p) => p,
                 Err(e) => {
@@ -284,7 +351,11 @@ pub(crate) fn wire(
                     return;
                 }
             };
-            let kind = match project::block::build_audio_block_kind(&new_effect_type, &new_model_id, normalized) {
+            let kind = match project::block::build_audio_block_kind(
+                &new_effect_type,
+                &new_model_id,
+                normalized,
+            ) {
                 Ok(k) => k,
                 Err(e) => {
                     log::error!("compact choose-model build error: {e}");
@@ -294,9 +365,15 @@ pub(crate) fn wire(
 
             // Apply to project
             let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
-            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                return;
+            };
+            let Some(block) = chain.blocks.get_mut(block_idx) else {
+                return;
+            };
             let block_id = block.id.clone();
             let enabled = block.enabled;
             block.kind = kind;
@@ -308,10 +385,21 @@ pub(crate) fn wire(
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
             let blocks = build_compact_blocks(&session.project, chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &main_win,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
 
@@ -329,23 +417,44 @@ pub(crate) fn wire(
         let _toast_timer = toast_timer.clone();
         compact_win.on_remove_block(move |ci, bi| {
             log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
-            let Some(main_win) = weak_main.upgrade() else { return; };
-            let Some(cw) = weak_compact.upgrade() else { return; };
+            let Some(main_win) = weak_main.upgrade() else {
+                return;
+            };
+            let Some(cw) = weak_compact.upgrade() else {
+                return;
+            };
             let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
-            if block_idx >= chain.blocks.len() { return; }
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                return;
+            };
+            if block_idx >= chain.blocks.len() {
+                return;
+            }
             chain.blocks.remove(block_idx);
             let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] remove-block runtime sync: {}", e);
             }
-            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
             let blocks = build_compact_blocks(&session.project, chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &main_win,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
 
@@ -406,4 +515,3 @@ pub(crate) fn wire(
         });
     }
 }
-

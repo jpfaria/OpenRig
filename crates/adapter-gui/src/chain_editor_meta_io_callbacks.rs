@@ -122,7 +122,9 @@ pub(crate) fn wire(
                         .iter()
                         .map(|d| slint::SharedString::from(d.name.as_str()))
                         .collect();
-                    window.set_chain_io_editor_title("Entrada".into());
+                    window.set_chain_io_editor_title(
+                        rust_i18n::t!("chain-io-input-title").as_ref().into(),
+                    );
                     window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(
                         device_strings,
                     ))));
@@ -187,7 +189,9 @@ pub(crate) fn wire(
                         .iter()
                         .map(|d| slint::SharedString::from(d.name.as_str()))
                         .collect();
-                    window.set_chain_io_editor_title("Saída".into());
+                    window.set_chain_io_editor_title(
+                        rust_i18n::t!("chain-io-output-title").as_ref().into(),
+                    );
                     window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(
                         device_strings,
                     ))));

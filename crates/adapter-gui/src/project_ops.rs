@@ -1,19 +1,19 @@
+use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
+use crate::RecentProjectItem;
+use crate::{AppWindow, UNTITLED_PROJECT_NAME};
 use anyhow::{anyhow, Result};
-use infra_filesystem::{
-    AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry,
+use domain::ids::DeviceId;
+use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
+use infra_yaml::{
+    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
 };
-use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository};
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
-use domain::ids::DeviceId;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::state::{ProjectSession, ProjectPaths, AppConfigYaml, ConfigYaml};
-use crate::{AppWindow, UNTITLED_PROJECT_NAME};
-use crate::RecentProjectItem;
 
 pub(crate) fn open_cli_project(path: &PathBuf) -> Result<ProjectSession> {
     if !path.exists() {
@@ -56,7 +56,9 @@ pub(crate) fn sync_recent_projects(config: &mut AppConfig) -> bool {
         let canonical_path = if path.is_absolute() {
             path.clone()
         } else {
-            env::current_dir().map(|d| d.join(&path)).unwrap_or(path.clone())
+            env::current_dir()
+                .map(|d| d.join(&path))
+                .unwrap_or(path.clone())
         };
         let canonical_path_string = canonical_path.to_string_lossy().to_string();
         if synced
@@ -242,7 +244,10 @@ pub(crate) fn build_device_settings_from_gui(
     result
 }
 
-pub(crate) fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
+pub(crate) fn load_project_session(
+    project_path: &Path,
+    config_path: &Path,
+) -> Result<ProjectSession> {
     log::info!("loading project session from {:?}", project_path);
     let config = if config_path.exists() {
         load_app_config(config_path)?
@@ -265,10 +270,8 @@ pub(crate) fn load_project_session(project_path: &Path, config_path: &Path) -> R
         .ok()
         .flatten()
         .unwrap_or_default();
-    project.device_settings = build_device_settings_from_gui(
-        &gui_settings.input_devices,
-        &gui_settings.output_devices,
-    );
+    project.device_settings =
+        build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
     Ok(ProjectSession {
         project,
@@ -286,7 +289,11 @@ pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<Strin
     infra_yaml::serialize_project(&session.project)
 }
 
-pub(crate) fn set_project_dirty(window: &AppWindow, project_dirty: &std::rc::Rc<std::cell::RefCell<bool>>, dirty: bool) {
+pub(crate) fn set_project_dirty(
+    window: &AppWindow,
+    project_dirty: &std::rc::Rc<std::cell::RefCell<bool>>,
+    dirty: bool,
+) {
     *project_dirty.borrow_mut() = dirty;
     window.set_project_dirty(dirty);
 }
@@ -364,7 +371,7 @@ pub(crate) fn preset_id_from_path(path: &Path) -> Result<String> {
     path.file_stem()
         .and_then(|value| value.to_str())
         .map(|value| value.to_string())
-        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("arquivo de preset inválido")))
+        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-preset-file")))
 }
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {

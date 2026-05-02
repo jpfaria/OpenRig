@@ -26,9 +26,8 @@ use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
     canonical_project_path, load_project_session, mark_recent_project_invalid,
-    project_display_name, project_session_snapshot, project_title_for_path,
-    recent_project_items, register_recent_project, resolve_project_config_path,
-    set_project_dirty,
+    project_display_name, project_session_snapshot, project_title_for_path, recent_project_items,
+    register_recent_project, resolve_project_config_path, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
@@ -100,7 +99,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 .get(index as usize)
                 .cloned()
             else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Projeto recente inválido."));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-invalid-recent-project"),
+                );
                 return;
             };
             if !recent.is_valid {

@@ -73,46 +73,74 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhum projeto carregado."));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("Nenhuma chain em edição."));
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-no-chain-editing"),
+                    );
                     return;
                 }
             };
             if draft.inputs.is_empty() {
-                set_status_warning(&window, &toast_timer, &rust_i18n::t!("Adicione pelo menos uma entrada."));
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-add-input"));
                 return;
             }
             if draft.outputs.is_empty() {
-                set_status_warning(&window, &toast_timer, &rust_i18n::t!("Adicione pelo menos uma saída."));
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-add-output"));
                 return;
             }
             for (i, input) in draft.inputs.iter().enumerate() {
                 if input.device_id.is_none() {
-                    set_status_warning(&window, &toast_timer, &format!("Entrada {}: selecione o dispositivo.", i + 1));
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &format!("Entrada {}: selecione o dispositivo.", i + 1),
+                    );
                     return;
                 }
                 if input.channels.is_empty() {
-                    set_status_warning(&window, &toast_timer, &format!("Entrada {}: selecione pelo menos um canal.", i + 1));
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &format!("Entrada {}: selecione pelo menos um canal.", i + 1),
+                    );
                     return;
                 }
             }
             for (i, output) in draft.outputs.iter().enumerate() {
                 if output.device_id.is_none() {
-                    set_status_warning(&window, &toast_timer, &format!("Saída {}: selecione o dispositivo.", i + 1));
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &format!("Saída {}: selecione o dispositivo.", i + 1),
+                    );
                     return;
                 }
                 if output.channels.is_empty() {
-                    set_status_warning(&window, &toast_timer, &format!("Saída {}: selecione pelo menos um canal.", i + 1));
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &format!("Saída {}: selecione pelo menos um canal.", i + 1),
+                    );
                     return;
                 }
             }
             let editing_index = draft.editing_index;
-            log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
+            log::debug!(
+                "[save_chain] editing_index={:?}, draft.instrument='{}'",
+                editing_index,
+                draft.instrument
+            );
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
@@ -120,8 +148,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 set_status_warning(&window, &toast_timer, &msg);
                 return;
             }
-            log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
-                chain.id.0, chain.description, chain.instrument, editing_index);
+            log::info!(
+                "=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
+                chain.id.0,
+                chain.description,
+                chain.instrument,
+                editing_index
+            );
             let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.chains.get_mut(index) {
@@ -141,7 +174,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 &*output_chain_devices.borrow(),
             );
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });

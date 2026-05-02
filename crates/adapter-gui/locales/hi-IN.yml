@@ -1,44 +1,38 @@
-# OpenRig — Brazilian Portuguese (source language).
-#
-# Format: rust-i18n v3 YAML.
-# Keys are the source-language strings themselves so:
-#   - The codebase reads naturally (`t!("Projeto salvo.")`)
-#   - Missing translations fall back to the key (= the source)
-#
-# Strings live HERE (Rust side, YAML) and the Slint side lives separately
-# in translations/<lang>/adapter-gui.po (gettext). Two catalogs because
-# Slint's @tr() only speaks gettext. See docs/i18n.md.
+# OpenRig — हिन्दी. See docs/i18n.md. Keys are semantic tags.
 
-"Adicione pelo menos uma entrada.": "Adicione pelo menos uma entrada."
-"Adicione pelo menos uma saída.": "Adicione pelo menos uma saída."
-"Audio device disconnected — reconnecting...": "Dispositivo de áudio desconectado — reconectando..."
-"Audio device reconnected": "Dispositivo de áudio reconectado"
-"Block inválido.": "Block inválido."
-"Block selecionado não é um select.": "Block selecionado não é um select."
-"Chain inválida.": "Chain inválida."
-"Esse block ainda não pode ser editado pela GUI.": "Esse block ainda não pode ser editado pela GUI."
-"Lista de dispositivos atualizada": "Lista de dispositivos atualizada"
-"Nenhum projeto carregado.": "Nenhum projeto carregado."
-"Nenhuma chain em edição.": "Nenhuma chain em edição."
-"O nome do projeto é obrigatório.": "O nome do projeto é obrigatório."
-"Opção ativa do select não existe.": "Opção ativa do select não existe."
-"Preset removido.": "Preset removido."
-"Preset salvo.": "Preset salvo."
-"Projeto recente inválido.": "Projeto recente inválido."
-"Selecione dispositivo e canais de envio.": "Selecione dispositivo e canais de envio."
-"Selecione dispositivo e canais de retorno.": "Selecione dispositivo e canais de retorno."
-"Selecione dispositivo e canais.": "Selecione dispositivo e canais."
-"Selecione pelo menos um input e um output antes de continuar.": "Selecione pelo menos um input e um output antes de continuar."
-"Select sem opções válidas.": "Select sem opções válidas."
-"Seleção do select inválida.": "Seleção do select inválida."
-"Starting audio...": "Iniciando áudio..."
-"arquivo de preset inválido": "arquivo de preset inválido"
-"É necessário pelo menos uma entrada.": "É necessário pelo menos uma entrada."
-"É necessário pelo menos uma saída.": "कम से कम एक आउटपुट आवश्यक है।"
+error-block-not-editable: "इस block को अभी GUI से संपादित नहीं किया जा सकता।"
+error-block-not-select: "चयनित block एक select नहीं है।"
+error-invalid-block: "अमान्य block।"
+error-invalid-chain: "अमान्य chain।"
+error-invalid-preset-file: "अमान्य प्रीसेट फ़ाइल"
+error-invalid-recent-project: "अमान्य हालिया प्रोजेक्ट।"
+error-need-input: "कम से कम एक इनपुट आवश्यक है।"
+error-need-input-and-output: "जारी रखने से पहले कम से कम एक इनपुट और एक आउटपुट चुनें।"
+error-need-output: "कम से कम एक आउटपुट आवश्यक है।"
+error-no-chain-editing: "कोई chain संपादित नहीं की जा रही है।"
+error-no-project-loaded: "कोई प्रोजेक्ट लोड नहीं है।"
+error-project-name-required: "प्रोजेक्ट का नाम आवश्यक है।"
+error-select-device-channels: "डिवाइस और चैनल चुनें।"
+error-select-invalid: "अमान्य select चयन।"
+error-select-no-options: "select में कोई वैध विकल्प नहीं है।"
+error-select-option-missing: "सक्रिय select विकल्प मौजूद नहीं है।"
+insert-error-select-return: "रिटर्न डिवाइस और चैनल चुनें।"
+insert-error-select-send: "सेंड डिवाइस और चैनल चुनें।"
 
-# Symbolic keys — strings injected from Rust into the Slint AppWindow.
+warn-add-input: "कम से कम एक इनपुट जोड़ें।"
+warn-add-output: "कम से कम एक आउटपुट जोड़ें।"
+
+status-audio-disconnected: "ऑडियो डिवाइस डिस्कनेक्ट हो गया — पुनः कनेक्ट हो रहा है..."
+status-audio-reconnected: "ऑडियो डिवाइस पुनः कनेक्ट हो गया"
+status-audio-starting: "ऑडियो शुरू हो रहा है..."
+status-devices-refreshed: "डिवाइस सूची ताज़ा की गई"
+status-preset-removed: "प्रीसेट हटाया गया।"
+status-preset-saved: "प्रीसेट सहेजा गया।"
+
 title-new-chain: "नई chain"
 title-configure-chain: "Chain कॉन्फ़िगर करें"
 btn-create-chain: "Chain बनाएं"
 btn-save-chain: "Chain सहेजें"
 default-project-title: "प्रोजेक्ट"
+chain-io-input-title: "इनपुट"
+chain-io-output-title: "आउटपुट"

@@ -1,44 +1,38 @@
-# OpenRig — Brazilian Portuguese (source language).
-#
-# Format: rust-i18n v3 YAML.
-# Keys are the source-language strings themselves so:
-#   - The codebase reads naturally (`t!("Projeto salvo.")`)
-#   - Missing translations fall back to the key (= the source)
-#
-# Strings live HERE (Rust side, YAML) and the Slint side lives separately
-# in translations/<lang>/adapter-gui.po (gettext). Two catalogs because
-# Slint's @tr() only speaks gettext. See docs/i18n.md.
+# OpenRig — Français. See docs/i18n.md. Keys are semantic tags.
 
-"Adicione pelo menos uma entrada.": "Adicione pelo menos uma entrada."
-"Adicione pelo menos uma saída.": "Adicione pelo menos uma saída."
-"Audio device disconnected — reconnecting...": "Dispositivo de áudio desconectado — reconectando..."
-"Audio device reconnected": "Dispositivo de áudio reconectado"
-"Block inválido.": "Block inválido."
-"Block selecionado não é um select.": "Block selecionado não é um select."
-"Chain inválida.": "Chain inválida."
-"Esse block ainda não pode ser editado pela GUI.": "Esse block ainda não pode ser editado pela GUI."
-"Lista de dispositivos atualizada": "Lista de dispositivos atualizada"
-"Nenhum projeto carregado.": "Nenhum projeto carregado."
-"Nenhuma chain em edição.": "Nenhuma chain em edição."
-"O nome do projeto é obrigatório.": "O nome do projeto é obrigatório."
-"Opção ativa do select não existe.": "Opção ativa do select não existe."
-"Preset removido.": "Preset removido."
-"Preset salvo.": "Preset salvo."
-"Projeto recente inválido.": "Projeto recente inválido."
-"Selecione dispositivo e canais de envio.": "Selecione dispositivo e canais de envio."
-"Selecione dispositivo e canais de retorno.": "Selecione dispositivo e canais de retorno."
-"Selecione dispositivo e canais.": "Selecione dispositivo e canais."
-"Selecione pelo menos um input e um output antes de continuar.": "Selecione pelo menos um input e um output antes de continuar."
-"Select sem opções válidas.": "Select sem opções válidas."
-"Seleção do select inválida.": "Seleção do select inválida."
-"Starting audio...": "Iniciando áudio..."
-"arquivo de preset inválido": "arquivo de preset inválido"
-"É necessário pelo menos uma entrada.": "É necessário pelo menos uma entrada."
-"É necessário pelo menos uma saída.": "Au moins une sortie est requise."
+error-block-not-editable: "Ce block ne peut pas encore être édité depuis l'interface."
+error-block-not-select: "Le block sélectionné n'est pas un select."
+error-invalid-block: "Block invalide."
+error-invalid-chain: "Chain invalide."
+error-invalid-preset-file: "fichier de preset invalide"
+error-invalid-recent-project: "Projet récent invalide."
+error-need-input: "Au moins une entrée est requise."
+error-need-input-and-output: "Sélectionnez au moins une entrée et une sortie avant de continuer."
+error-need-output: "Au moins une sortie est requise."
+error-no-chain-editing: "Aucune chain en cours d'édition."
+error-no-project-loaded: "Aucun projet chargé."
+error-project-name-required: "Le nom du projet est obligatoire."
+error-select-device-channels: "Sélectionnez un appareil et des canaux."
+error-select-invalid: "Sélection de select invalide."
+error-select-no-options: "Le select n'a aucune option valide."
+error-select-option-missing: "L'option active du select n'existe pas."
+insert-error-select-return: "Sélectionnez l'appareil et les canaux de retour."
+insert-error-select-send: "Sélectionnez l'appareil et les canaux d'envoi."
 
-# Symbolic keys — strings injected from Rust into the Slint AppWindow.
+warn-add-input: "Ajoutez au moins une entrée."
+warn-add-output: "Ajoutez au moins une sortie."
+
+status-audio-disconnected: "Périphérique audio déconnecté — reconnexion..."
+status-audio-reconnected: "Périphérique audio reconnecté"
+status-audio-starting: "Démarrage audio..."
+status-devices-refreshed: "Liste des périphériques actualisée"
+status-preset-removed: "Preset supprimé."
+status-preset-saved: "Preset enregistré."
+
 title-new-chain: "Nouvelle chain"
 title-configure-chain: "Configurer la chain"
 btn-create-chain: "Créer la chain"
 btn-save-chain: "Enregistrer la chain"
 default-project-title: "Projet"
+chain-io-input-title: "Entrée"
+chain-io-output-title: "Sortie"

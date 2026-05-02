@@ -80,12 +80,18 @@ pub(crate) fn wire(
         let weak_output_window = chain_output_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_select_device(move |index| {
-            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            let from_groups = weak_window
+                .upgrade()
+                .map_or(false, |w| w.get_show_chain_io_groups());
             if from_groups {
                 if inline_flag.get() {
-                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_select_device(index); }
+                    if let Some(iw) = weak_input_window.upgrade() {
+                        iw.invoke_select_device(index);
+                    }
                 } else {
-                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_select_device(index); }
+                    if let Some(ow) = weak_output_window.upgrade() {
+                        ow.invoke_select_device(index);
+                    }
                 }
             } else {
                 if let Some(cew) = chain_editor_window.borrow().as_ref() {
@@ -105,7 +111,9 @@ pub(crate) fn wire(
         let weak_window = window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_toggle_channel(move |index, selected| {
-            let Some(w) = weak_window.upgrade() else { return; };
+            let Some(w) = weak_window.upgrade() else {
+                return;
+            };
             let from_groups = w.get_show_chain_io_groups();
             if from_groups {
                 // Delegate to AppWindow's toggle handler which updates the
@@ -138,12 +146,18 @@ pub(crate) fn wire(
         let weak_output_window = chain_output_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_select_mode(move |index| {
-            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            let from_groups = weak_window
+                .upgrade()
+                .map_or(false, |w| w.get_show_chain_io_groups());
             if from_groups {
                 if inline_flag.get() {
-                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_select_input_mode(index); }
+                    if let Some(iw) = weak_input_window.upgrade() {
+                        iw.invoke_select_input_mode(index);
+                    }
                 } else {
-                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_select_output_mode(index); }
+                    if let Some(ow) = weak_output_window.upgrade() {
+                        ow.invoke_select_output_mode(index);
+                    }
                 }
             } else {
                 if let Some(cew) = chain_editor_window.borrow().as_ref() {
@@ -167,7 +181,9 @@ pub(crate) fn wire(
         let weak_input_groups = chain_input_groups_window.as_weak();
         let weak_output_groups = chain_output_groups_window.as_weak();
         window.on_chain_io_save(move || {
-            let Some(w) = weak_window.upgrade() else { return; };
+            let Some(w) = weak_window.upgrade() else {
+                return;
+            };
             if w.get_show_chain_io_groups() {
                 // Came from groups flow — delegate to ChainInputWindow/ChainOutputWindow
                 if inline_flag.get() {
@@ -208,7 +224,9 @@ pub(crate) fn wire(
         let weak_output_window = chain_output_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_cancel(move || {
-            let Some(w) = weak_window.upgrade() else { return; };
+            let Some(w) = weak_window.upgrade() else {
+                return;
+            };
             if w.get_show_chain_io_groups() {
                 // Came from groups flow — delegate cancel
                 if inline_flag.get() {
@@ -273,7 +291,7 @@ pub(crate) fn wire(
                                 log::info!("[groups_edit INPUT]   ch[{}] label='{}' selected={} available={}", ci, ch.label, ch.selected, ch.available);
                             }
                             replace_channel_options(&chain_input_channels, channel_items.clone());
-                            window.set_chain_io_editor_title("Entrada".into());
+                            window.set_chain_io_editor_title(rust_i18n::t!("chain-io-input-title").as_ref().into());
                             window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings.clone()))));
                             log::info!("[groups_edit INPUT] device_strings={:?}", device_strings);
                             window.set_chain_io_selected_device_index(dev_idx);
@@ -312,7 +330,7 @@ pub(crate) fn wire(
                             log::info!("[groups_edit OUTPUT]   ch[{}] label='{}' selected={} available={}", ci, ch.label, ch.selected, ch.available);
                         }
                         replace_channel_options(&chain_output_channels, channel_items.clone());
-                        window.set_chain_io_editor_title("Saída".into());
+                        window.set_chain_io_editor_title(rust_i18n::t!("chain-io-output-title").as_ref().into());
                         window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings.clone()))));
                         log::info!("[groups_edit OUTPUT] device_strings={:?}", device_strings);
                         window.set_chain_io_selected_device_index(dev_idx);

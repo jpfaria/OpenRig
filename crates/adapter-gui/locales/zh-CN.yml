@@ -1,44 +1,38 @@
-# OpenRig — Brazilian Portuguese (source language).
-#
-# Format: rust-i18n v3 YAML.
-# Keys are the source-language strings themselves so:
-#   - The codebase reads naturally (`t!("Projeto salvo.")`)
-#   - Missing translations fall back to the key (= the source)
-#
-# Strings live HERE (Rust side, YAML) and the Slint side lives separately
-# in translations/<lang>/adapter-gui.po (gettext). Two catalogs because
-# Slint's @tr() only speaks gettext. See docs/i18n.md.
+# OpenRig — 简体中文. See docs/i18n.md. Keys are semantic tags.
 
-"Adicione pelo menos uma entrada.": "Adicione pelo menos uma entrada."
-"Adicione pelo menos uma saída.": "Adicione pelo menos uma saída."
-"Audio device disconnected — reconnecting...": "Dispositivo de áudio desconectado — reconectando..."
-"Audio device reconnected": "Dispositivo de áudio reconectado"
-"Block inválido.": "Block inválido."
-"Block selecionado não é um select.": "Block selecionado não é um select."
-"Chain inválida.": "Chain inválida."
-"Esse block ainda não pode ser editado pela GUI.": "Esse block ainda não pode ser editado pela GUI."
-"Lista de dispositivos atualizada": "Lista de dispositivos atualizada"
-"Nenhum projeto carregado.": "Nenhum projeto carregado."
-"Nenhuma chain em edição.": "Nenhuma chain em edição."
-"O nome do projeto é obrigatório.": "O nome do projeto é obrigatório."
-"Opção ativa do select não existe.": "Opção ativa do select não existe."
-"Preset removido.": "Preset removido."
-"Preset salvo.": "Preset salvo."
-"Projeto recente inválido.": "Projeto recente inválido."
-"Selecione dispositivo e canais de envio.": "Selecione dispositivo e canais de envio."
-"Selecione dispositivo e canais de retorno.": "Selecione dispositivo e canais de retorno."
-"Selecione dispositivo e canais.": "Selecione dispositivo e canais."
-"Selecione pelo menos um input e um output antes de continuar.": "Selecione pelo menos um input e um output antes de continuar."
-"Select sem opções válidas.": "Select sem opções válidas."
-"Seleção do select inválida.": "Seleção do select inválida."
-"Starting audio...": "Iniciando áudio..."
-"arquivo de preset inválido": "arquivo de preset inválido"
-"É necessário pelo menos uma entrada.": "É necessário pelo menos uma entrada."
-"É necessário pelo menos uma saída.": "至少需要一个输出。"
+error-block-not-editable: "此block尚不能从GUI编辑。"
+error-block-not-select: "所选block不是select。"
+error-invalid-block: "无效的block。"
+error-invalid-chain: "无效的chain。"
+error-invalid-preset-file: "无效的预设文件"
+error-invalid-recent-project: "无效的最近项目。"
+error-need-input: "至少需要一个输入。"
+error-need-input-and-output: "在继续之前,请选择至少一个输入和一个输出。"
+error-need-output: "至少需要一个输出。"
+error-no-chain-editing: "没有正在编辑的chain。"
+error-no-project-loaded: "未加载任何项目。"
+error-project-name-required: "项目名称是必需的。"
+error-select-device-channels: "选择设备和通道。"
+error-select-invalid: "无效的select选择。"
+error-select-no-options: "select没有有效选项。"
+error-select-option-missing: "活动的select选项不存在。"
+insert-error-select-return: "选择返回设备和通道。"
+insert-error-select-send: "选择发送设备和通道。"
 
-# Symbolic keys — strings injected from Rust into the Slint AppWindow.
-title-new-chain: "新建 chain"
-title-configure-chain: "配置 chain"
-btn-create-chain: "创建 chain"
-btn-save-chain: "保存 chain"
+warn-add-input: "至少添加一个输入。"
+warn-add-output: "至少添加一个输出。"
+
+status-audio-disconnected: "音频设备已断开 — 正在重新连接..."
+status-audio-reconnected: "音频设备已重新连接"
+status-audio-starting: "正在启动音频..."
+status-devices-refreshed: "设备列表已刷新"
+status-preset-removed: "预设已删除。"
+status-preset-saved: "预设已保存。"
+
+title-new-chain: "新建chain"
+title-configure-chain: "配置chain"
+btn-create-chain: "创建chain"
+btn-save-chain: "保存chain"
 default-project-title: "项目"
+chain-io-input-title: "输入"
+chain-io-output-title: "输出"

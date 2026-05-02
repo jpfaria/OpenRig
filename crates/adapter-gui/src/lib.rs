@@ -100,9 +100,8 @@ pub use desktop_app::run_desktop_app;
 pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 
 // Loads every YAML under crates/adapter-gui/locales/ at compile time.
-// After this, `rust_i18n::t!("Some string")` is callable everywhere in
-// the crate. Default fallback is en-US (the UI default language); the
-// Portuguese source strings remain as keys but are not used as fallback.
+// Keys MUST be semantic tags (e.g. `t!("error-no-project-loaded")`,
+// never `t!("Nenhum projeto carregado.")`). Default fallback is en-US.
 rust_i18n::i18n!("locales", fallback = "en-US");
 
 #[cfg(test)]
