@@ -81,8 +81,6 @@ mod project_view_assets;
 mod project_view_tooltips;
 mod state;
 mod ui_state;
-mod visual_config;
-
 slint::include_modules!();
 #[cfg(test)]
 pub(crate) use project_ops::{

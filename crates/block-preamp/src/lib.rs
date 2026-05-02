@@ -1,4 +1,5 @@
 //! Amplifier models backed by reusable NAM/IR infrastructure.
+pub mod model_visual;
 pub mod native_core;
 mod registry;
 

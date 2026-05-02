@@ -182,6 +182,28 @@ Ver `CONTRIBUTING.md` para detalhes.
 
 ---
 
+## LV2 plugin — `audio_mode` vs builder (issue #130, absorbed by #194)
+
+Toda vez que adicionar/editar um arquivo `crates/block-*/src/lv2_*.rs`, a
+escolha do builder e do `audio_mode` precisa bater. Misturar os dois
+crasha (SIGSEGV) ou desperdiça CPU.
+
+| Plugin é... | Builder | `ModelAudioMode` |
+|---|---|---|
+| 1 in / 1 out (mono natural) | `lv2::build_lv2_processor*` com `[in], [out]` | `DualMono` ou `MonoOnly` |
+| 1 in / 2 out (mono → stereo) | `lv2::build_lv2_processor*` com `[in], [L, R]` | `MonoToStereo` |
+| 2 in / 2 out (stereo natural) | `lv2::build_stereo_lv2_processor*` | `TrueStereo` |
+
+**Sintoma da regressão clássica:** plugin com 4 portas LV2 (2 in + 2 out)
+declarado como `DualMono` → `Lv2Processor` mono conecta 1 in + 1 out, as
+outras 2 portas ficam dangling, primeiro write do host = SIGSEGV.
+
+Audit completo dos 105 plugins LV2 existentes está nos comentários da
+issue #194 (Phase 4d). Adicionar plugin novo: confirme port count via
+TTL antes de escolher builder + mode.
+
+---
+
 ## Feature-specific vs shared files (issue #194)
 
 Lição central da issue de decoupling: god-files acontecem porque lógica feature-specific vai parar em arquivos compartilhados. Quando 2 agents trabalham em features diferentes mas ambos editam o mesmo arquivo "central", o merge colide.
