@@ -81,7 +81,7 @@ export component LanguageSelector inherits Rectangle {
             vertical-alignment: center;
             overflow: elide;
             // Override AppWindow's Bebas Neue so CJK/Hindi tooltips render.
-            font-family: "Helvetica Neue";
+            font-family: "PingFang SC";
         }
     }
 
@@ -120,7 +120,7 @@ export component LanguageSelector inherits Rectangle {
                     // Override the AppWindow's Bebas Neue (Latin-only display
                     // font) so glyphs render against the system fallback chain
                     // — required for CJK/Hindi names in the dropdown.
-                    font-family: "Helvetica Neue";
+                    font-family: "PingFang SC";
                 }
 
                 // Country flag SVG. @image-url requires compile-time literal,
@@ -159,7 +159,7 @@ export component LanguageSelector inherits Rectangle {
                     overflow: elide;
                     // Same reason as the tick above — AppWindow's default
                     // Bebas Neue lacks CJK and Devanagari glyphs.
-                    font-family: "Helvetica Neue";
+                    font-family: "PingFang SC";
                 }
 
                 option-touch := TouchArea {

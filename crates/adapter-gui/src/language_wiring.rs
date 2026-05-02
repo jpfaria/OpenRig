@@ -53,12 +53,14 @@ pub fn wire(window: &AppWindow) {
     });
 }
 
-/// Re-apply every Slint property that Rust pushes via `set_*(t!(...))`.
-/// Called on language change so strings injected from Rust reflect the
-/// new locale without requiring an app restart.
+/// Re-apply Slint properties that Rust pushes via `set_*(t!(...))` and
+/// whose text comes from translations (not from data files). Called on
+/// language change so labels reflect the new locale without an app
+/// restart. NEVER touch properties whose values come from user data —
+/// `project_title`, for example, is the loaded project's actual name
+/// and would be clobbered if we re-applied a translated default here.
 fn refresh_rust_injected_strings(window: &AppWindow) {
     use slint::SharedString;
-    window.set_project_title(SharedString::from(rust_i18n::t!("default-project-title").as_ref()));
     // Default the chain editor labels to "create" mode. If the user is
     // currently in edit mode, they'll see the create-mode wording until
     // they reopen the editor — acceptable UX cost for keeping the wiring
