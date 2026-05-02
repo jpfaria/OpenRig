@@ -582,3 +582,27 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "キャンセル"
+
+msgid "title-window-project-settings"
+msgstr "OpenRig · プロジェクトを構成"
+
+msgid "title-window-chain-editor"
+msgstr "OpenRig · Chainを構成"
+
+msgid "title-window-chain-input"
+msgstr "OpenRig · Chain入力"
+
+msgid "title-window-chain-output"
+msgstr "OpenRig · Chain出力"
+
+msgid "title-window-chain-inputs"
+msgstr "OpenRig · Chain入力"
+
+msgid "title-window-chain-outputs"
+msgstr "OpenRig · Chain出力"
+
+msgid "title-window-chain-insert"
+msgstr "OpenRig · Insertを構成"
+
+msgid "title-window-chain-view"
+msgstr "OpenRig · Chain"

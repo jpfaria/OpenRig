@@ -581,3 +581,27 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "Annuler"
+
+msgid "title-window-project-settings"
+msgstr "OpenRig · Configurer le projet"
+
+msgid "title-window-chain-editor"
+msgstr "OpenRig · Configurer la chain"
+
+msgid "title-window-chain-input"
+msgstr "OpenRig · Entrée de la chain"
+
+msgid "title-window-chain-output"
+msgstr "OpenRig · Sortie de la chain"
+
+msgid "title-window-chain-inputs"
+msgstr "OpenRig · Entrées de la chain"
+
+msgid "title-window-chain-outputs"
+msgstr "OpenRig · Sorties de la chain"
+
+msgid "title-window-chain-insert"
+msgstr "OpenRig · Configurer Insert"
+
+msgid "title-window-chain-view"
+msgstr "OpenRig · Chain"

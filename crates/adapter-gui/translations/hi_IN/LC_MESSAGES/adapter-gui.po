@@ -581,3 +581,27 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "रद्द करें"
+
+msgid "title-window-project-settings"
+msgstr "OpenRig · प्रोजेक्ट कॉन्फ़िगर करें"
+
+msgid "title-window-chain-editor"
+msgstr "OpenRig · Chain कॉन्फ़िगर करें"
+
+msgid "title-window-chain-input"
+msgstr "OpenRig · Chain इनपुट"
+
+msgid "title-window-chain-output"
+msgstr "OpenRig · Chain आउटपुट"
+
+msgid "title-window-chain-inputs"
+msgstr "OpenRig · Chain इनपुट"
+
+msgid "title-window-chain-outputs"
+msgstr "OpenRig · Chain आउटपुट"
+
+msgid "title-window-chain-insert"
+msgstr "OpenRig · Insert कॉन्फ़िगर करें"
+
+msgid "title-window-chain-view"
+msgstr "OpenRig · Chain"

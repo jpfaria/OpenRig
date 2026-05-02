@@ -19,7 +19,7 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
-    title: "OpenRig · Configurar projeto";
+    title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
     preferred-width: 1100px;
@@ -92,7 +92,7 @@ export component ChainEditorWindow inherits Window {
     callback output-select-mode(int);
     callback output-save();
     callback output-cancel();
-    title: "OpenRig · Configurar chain";
+    title: @tr("title-window-chain-editor");
     min-width: 860px;
     min-height: 540px;
     preferred-width: 1100px;
@@ -173,7 +173,7 @@ export component ChainInputWindow inherits Window {
     callback select-input-mode(int);
     callback save();
     callback cancel();
-    title: "OpenRig · Entrada da chain";
+    title: @tr("title-window-chain-input");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -213,7 +213,7 @@ export component ChainOutputWindow inherits Window {
     callback select-output-mode(int);
     callback save();
     callback cancel();
-    title: "OpenRig · Saída da chain";
+    title: @tr("title-window-chain-output");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -254,7 +254,7 @@ export component ChainInputGroupsWindow inherits Window {
     callback cancel();
     callback toggle-enabled();
     callback delete-block();
-    title: "OpenRig \u{00B7} Entradas da chain";
+    title: @tr("title-window-chain-inputs");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -295,7 +295,7 @@ export component ChainOutputGroupsWindow inherits Window {
     callback cancel();
     callback toggle-enabled();
     callback delete-block();
-    title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
+    title: @tr("title-window-chain-outputs");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -351,7 +351,7 @@ export component ChainInsertWindow inherits Window {
     callback save();
     callback cancel();
 
-    title: "OpenRig \u{00B7} Configurar Insert";
+    title: @tr("title-window-chain-insert");
     min-width: 680px;
     min-height: 580px;
     preferred-width: 820px;
