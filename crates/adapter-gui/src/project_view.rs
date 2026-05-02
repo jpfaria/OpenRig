@@ -81,7 +81,7 @@ pub(crate) fn block_model_picker_items(effect_type: &str, instrument: &str) -> V
                 let brand_display = block_core::capitalize_first(brand);
                 format!("{} {}", brand_display, item.display_name)
             };
-            let visual = crate::visual_config::visual_config_for_model(&item.brand, &item.model_id);
+            let visual = project::catalog::resolve_color_scheme(&item.effect_type, &item.brand, &item.model_id);
             let [r, g, b] = visual.panel_bg;
             let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
             let [r, g, b] = visual.panel_text;
@@ -215,13 +215,13 @@ pub(crate) fn build_compact_blocks(
                 enabled: block.enabled,
                 panel_bg: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = crate::visual_config::visual_config_for_model(brand_str, &model_id);
+                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_bg;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
                 panel_text: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = crate::visual_config::visual_config_for_model(brand_str, &model_id);
+                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_text;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },

@@ -1,4 +1,5 @@
 //! Delay implementations.
+pub mod model_visual;
 mod registry;
 pub mod shared;
 use anyhow::Result;

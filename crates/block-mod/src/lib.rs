@@ -1,4 +1,5 @@
 //! Modulation implementations.
+pub mod model_visual;
 mod registry;
 
 use anyhow::Result;

@@ -6,6 +6,7 @@
 //! re-exports + module declarations only — no logic.
 
 pub mod audio_types;
+pub mod brand_visual;
 pub mod constants;
 pub mod dsp;
 pub mod param;
@@ -35,4 +36,5 @@ pub use dsp::{
     EnvelopeFollower, OnePoleHighPass, OnePoleLowPass,
 };
 pub use traits::{BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle, StereoProcessor};
+pub use brand_visual::{brand_colors, compose, ModelColorOverride, ModelColorScheme};
 pub use visual::{KnobLayoutEntry, ModelVisualData};
