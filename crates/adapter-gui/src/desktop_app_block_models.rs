@@ -74,7 +74,7 @@ pub(crate) fn init(window: &AppWindow, block_editor_window: &BlockEditorWindow) 
     block_editor_window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
     block_editor_window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
     block_editor_window.set_block_drawer_title("".into());
-    block_editor_window.set_block_drawer_confirm_label("Adicionar".into());
+    block_editor_window.set_block_drawer_confirm_label(rust_i18n::t!("btn-add").as_ref().into());
     block_editor_window.set_block_drawer_status_message("".into());
     block_editor_window.set_block_drawer_edit_mode(false);
     block_editor_window.set_block_drawer_selected_type_index(-1);

@@ -394,7 +394,7 @@ pub(crate) fn replace_project_chains(
                 title: chain
                     .description
                     .clone()
-                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+                    .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string())
                     .into(),
                 subtitle: chain_routing_summary(chain).into(),
                 enabled: chain.enabled,

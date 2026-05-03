@@ -128,7 +128,7 @@ pub(crate) fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf
     {
         recent.is_valid = false;
         recent.invalid_reason = Some(if reason.trim().is_empty() {
-            "Projeto inválido".to_string()
+            rust_i18n::t!("error-invalid-project").to_string()
         } else {
             reason.trim().to_string()
         });

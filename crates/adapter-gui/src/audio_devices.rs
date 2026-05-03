@@ -128,7 +128,7 @@ pub(crate) fn build_input_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: format!("Canal {}", channel + 1).into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
             selected: input_group.channels.contains(&channel),
             available: true,
         })
@@ -150,7 +150,7 @@ pub(crate) fn build_output_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: format!("Canal {}", channel + 1).into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
             selected: output_group.channels.contains(&channel),
             available: true,
         })
@@ -174,7 +174,7 @@ pub(crate) fn build_insert_send_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: format!("Canal {}", channel + 1).into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
             selected: draft.send_channels.contains(&channel),
             available: true,
         })
@@ -194,7 +194,7 @@ pub(crate) fn build_insert_return_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: format!("Canal {}", channel + 1).into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
             selected: draft.return_channels.contains(&channel),
             available: true,
         })

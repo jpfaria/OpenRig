@@ -83,7 +83,7 @@ pub(crate) fn wire(
         );
         clear_status(&window, &toast_timer);
         set_project_dirty(&window, &project_dirty, false);
-        window.set_project_title("Projeto".into());
+        window.set_project_title(rust_i18n::t!("default-project-title").as_ref().into());
         window.set_project_name_draft("".into());
         window.set_project_path_label("".into());
         window.set_show_project_settings(false);

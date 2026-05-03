@@ -61,7 +61,7 @@ pub(crate) fn try_auto_open(
             set_project_dirty(window, project_dirty, false);
             window.set_project_title(title.into());
             window.set_project_path_label(
-                format!("Projeto: {}", canonical_path.display()).into(),
+                rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
             );
             window.set_show_project_launcher(false);
             window.set_show_project_setup(false);

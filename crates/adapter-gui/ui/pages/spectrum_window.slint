@@ -196,7 +196,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 110px; y: 0;
             width: 140px; height: parent.height;
-            text: @tr("SPECTRUM");
+            text: @tr("label-spectrum");
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
@@ -240,7 +240,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
-            text: @tr("NO ACTIVE OUTPUTS");
+            text: @tr("status-no-active-outputs");
             color: #4a525e;
             font-family: "Bebas Neue";
             font-size: 16px;
@@ -250,7 +250,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 4px;
             width: parent.width; height: 20px;
-            text: @tr("Power on the spectrum and enable a chain with a configured output.");
+            text: @tr("status-spectrum-empty-help");
             color: #4a525e;
             font-family: "Inter";
             font-size: 11px;
@@ -278,7 +278,7 @@ export component SpectrumWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
     default-font-family: "Bebas Neue";
     default-font-size: 13px;
-    title: "OpenRig · Spectrum";
+    title: @tr("title-window-spectrum");
     min-width: 560px;
     min-height: 280px;
     preferred-width: 720px;

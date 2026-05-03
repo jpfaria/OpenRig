@@ -93,7 +93,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 // Desktop: use file dialog
                 let Some(p) = FileDialog::new()
                     .add_filter("OpenRig Preset", &["yaml", "yml"])
-                    .set_title("Salvar preset")
+                    .set_title(rust_i18n::t!("dialog-save-preset").as_ref())
                     .set_directory(&session.presets_path)
                     .set_file_name(format!("{default_name}.yaml"))
                     .save_file()
@@ -169,7 +169,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // Desktop: use file dialog
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Carregar preset na chain")
+                .set_title(rust_i18n::t!("dialog-load-preset").as_ref())
                 .set_directory(&session.presets_path)
                 .pick_file()
             else {

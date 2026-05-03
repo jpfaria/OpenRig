@@ -100,7 +100,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         let title = chain
             .description
             .clone()
-            .unwrap_or_else(|| format!("Chain {}", ci + 1));
+            .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = ci + 1).to_string());
         compact_win.set_chain_title(title.into());
         compact_win.set_chain_index(chain_index);
         compact_win.set_chain_enabled(chain.enabled);

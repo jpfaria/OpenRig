@@ -26,7 +26,7 @@ pub(crate) fn create_chain_draft(
     // inputs/outputs with a toast.
     ChainDraft {
         editing_index: None,
-        name: format!("Chain {}", project.chains.len() + 1),
+        name: rust_i18n::t!("default-chain-name", n = project.chains.len() + 1).to_string(),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         inputs: Vec::new(),
         outputs: Vec::new(),
@@ -80,7 +80,7 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
         name: chain
             .description
             .clone()
-            .unwrap_or_else(|| format!("Chain {}", index + 1)),
+            .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string()),
         instrument: chain.instrument.clone(),
         inputs,
         editing_io_block_index: None,

@@ -241,13 +241,13 @@ pub(crate) fn wire(
             for (i, input) in draft.inputs.iter().enumerate() {
                 if input.device_id.is_none() {
                     groups_window.set_status_message(
-                        format!("Entrada {}: selecione o dispositivo.", i + 1).into(),
+                        rust_i18n::t!("error-input-no-device-numbered", n = i + 1).to_string().into(),
                     );
                     return;
                 }
                 if input.channels.is_empty() {
                     groups_window.set_status_message(
-                        format!("Entrada {}: selecione pelo menos um canal.", i + 1).into(),
+                        rust_i18n::t!("error-input-no-channels-numbered", n = i + 1).to_string().into(),
                     );
                     return;
                 }

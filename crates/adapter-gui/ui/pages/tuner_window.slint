@@ -51,7 +51,7 @@ component MuteSwitch inherits Rectangle {
     Text {
         x: 4px; y: 0;
         width: 26px; height: 12px;
-        text: @tr("MUTE");
+        text: @tr("label-mute");
         color: root.active ? #ff7878 : #8a95a5;
         font-family: "Bebas Neue";
         font-size: 9px;
@@ -313,7 +313,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 110px; y: 0;
             width: 80px; height: parent.height;
-            text: @tr("TUNER");
+            text: @tr("label-tuner");
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
@@ -367,7 +367,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
-            text: @tr("NO ACTIVE INPUTS");
+            text: @tr("status-no-active-inputs");
             color: #4a525e;
             font-family: "Bebas Neue";
             font-size: 16px;
@@ -377,7 +377,7 @@ export component TunerPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 4px;
             width: parent.width; height: 20px;
-            text: @tr("Enable a chain with a configured input to see its tuners here.");
+            text: @tr("status-tuner-empty-help");
             color: #4a525e;
             font-family: "Inter";
             font-size: 11px;
@@ -405,7 +405,7 @@ export component TunerWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
     default-font-family: "Bebas Neue";
     default-font-size: 13px;
-    title: "OpenRig · Tuner";
+    title: @tr("title-window-tuner");
     min-width: 480px;
     min-height: 220px;
     preferred-width: 560px;

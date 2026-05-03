@@ -112,7 +112,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     &toast_timer,
                     &recent
                         .invalid_reason
-                        .unwrap_or_else(|| "Projeto inválido.".to_string()),
+                        .unwrap_or_else(|| rust_i18n::t!("error-invalid-recent-project").to_string()),
                 );
                 return;
             }
@@ -154,7 +154,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                             .into(),
                     );
                     window.set_project_path_label(
-                        format!("Projeto: {}", canonical_path.display()).into(),
+                        rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
                     );
                     window.set_show_project_launcher(false);
                     window.set_show_project_chains(true);
@@ -175,7 +175,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     set_status_error(
                         &window,
                         &toast_timer,
-                        "Projeto inválido. Corrija ou remova da lista.",
+                        &rust_i18n::t!("error-invalid-recent-project-detail"),
                     );
                 }
             }

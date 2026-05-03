@@ -660,3 +660,215 @@ msgstr "取消"
 msgctxt "ChainInsertEditorPage"
 msgid "btn-ok"
 msgstr "确定"
+
+msgctxt "BlockEditorWindow"
+msgid "title-window-block-editor"
+msgstr "OpenRig · Block"
+
+msgctxt "SpectrumWindow"
+msgid "title-window-spectrum"
+msgstr "OpenRig · Spectrum"
+
+msgctxt "TunerWindow"
+msgid "title-window-tuner"
+msgstr "OpenRig · Tuner"
+
+msgctxt "PluginInfoWindow"
+msgid "title-window-plugin-info"
+msgstr "Plugin Info"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-input"
+msgstr "输入"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-output"
+msgstr "输出"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-channels"
+msgstr "通道"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-device"
+msgstr "设备"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-mode"
+msgstr "模式"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-inputs"
+msgstr "输入"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-outputs"
+msgstr "输出"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-input-row"
+msgstr "+ 添加输入"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-output-row"
+msgstr "+ 添加输出"
+
+msgctxt "ChainInsertEditorPage"
+msgid "title-section-configure-insert"
+msgstr "配置Insert"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-channels"
+msgstr "通道"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-device"
+msgstr "设备"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-mode"
+msgstr "模式"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-send"
+msgstr "发送"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-return"
+msgstr "返回"
+
+msgctxt "ChainEditorPage"
+msgid "label-name"
+msgstr "名称"
+
+msgctxt "ChainEditorPage"
+msgid "label-instrument"
+msgstr "乐器"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-inputs"
+msgstr "输入"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-outputs"
+msgstr "输出"
+
+msgctxt "ProjectSettingsPage"
+msgid "label-name"
+msgstr "名称"
+
+msgctxt "ProjectSettingsPage"
+msgid "title-section-audio-devices"
+msgstr "音频设备"
+
+msgctxt "TouchMain"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "TouchMain"
+msgid "btn-load-preset"
+msgstr "加载预设"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-delete"
+msgstr "删除"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "title-dialog-delete-block"
+msgstr "删除块"
+
+msgctxt "ChainRow"
+msgid "label-input"
+msgstr "输入"
+
+msgctxt "ChainRow"
+msgid "label-output"
+msgstr "输出"
+
+msgctxt "ChainRow"
+msgid "label-lat"
+msgstr "LAT"
+
+msgctxt "MuteSwitch"
+msgid "label-mute"
+msgstr "MUTE"
+
+msgctxt "TunerPanel"
+msgid "label-tuner"
+msgstr "TUNER"
+
+msgctxt "TunerPanel"
+msgid "status-no-active-inputs"
+msgstr "NO ACTIVE INPUTS"
+
+msgctxt "TunerPanel"
+msgid "status-tuner-empty-help"
+msgstr "启用带有配置输入的chain以在此处查看调音器。"
+
+msgctxt "SpectrumPanel"
+msgid "label-spectrum"
+msgstr "SPECTRUM"
+
+msgctxt "SpectrumPanel"
+msgid "status-no-active-outputs"
+msgstr "NO ACTIVE OUTPUTS"
+
+msgctxt "SpectrumPanel"
+msgid "status-spectrum-empty-help"
+msgstr "打开频谱并启用带有配置输出的chain。"
+
+msgctxt "PluginInfoWindow"
+msgid "label-description"
+msgstr "Description"
+
+msgctxt "PluginInfoWindow"
+msgid "label-license"
+msgstr "License:"
+
+msgctxt "PluginInfoWindow"
+msgid "btn-open-homepage"
+msgstr "Open Homepage"
+
+msgctxt "ModelSelectWithSearch"
+msgid "placeholder-search-models"
+msgstr "搜索模型..."
+
+msgctxt "ModelSelectWithSearch"
+msgid "status-no-models-found"
+msgstr "未找到模型"
+
+msgctxt "CompactBlockRow"
+msgid "btn-open-plugin"
+msgstr "打开插件"
+
+msgctxt "CompactChainViewPage"
+msgid "label-in"
+msgstr "IN"
+
+msgctxt "CompactChainViewPage"
+msgid "label-out"
+msgstr "OUT"
+
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr "Bits"
+
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr "Buffer"
+
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr "Hz"
+
+msgctxt "BlockPanelEditor"
+msgid "btn-add"
+msgstr "添加"
+
+msgctxt "BlockPanelParameterItem"
+msgid "btn-load-file"
+msgstr "Load"

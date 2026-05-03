@@ -669,3 +669,215 @@ msgstr "Cancelar"
 msgctxt "ChainInsertEditorPage"
 msgid "btn-ok"
 msgstr "OK"
+
+msgctxt "BlockEditorWindow"
+msgid "title-window-block-editor"
+msgstr "OpenRig · Block"
+
+msgctxt "SpectrumWindow"
+msgid "title-window-spectrum"
+msgstr "OpenRig · Spectrum"
+
+msgctxt "TunerWindow"
+msgid "title-window-tuner"
+msgstr "OpenRig · Tuner"
+
+msgctxt "PluginInfoWindow"
+msgid "title-window-plugin-info"
+msgstr "Plugin Info"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-input"
+msgstr "Entrada"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-output"
+msgstr "Saída"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-channels"
+msgstr "Canais"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-device"
+msgstr "Dispositivo"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-mode"
+msgstr "Modo"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-inputs"
+msgstr "Entradas"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-outputs"
+msgstr "Saídas"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-input-row"
+msgstr "+ Adicionar entrada"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-output-row"
+msgstr "+ Adicionar saída"
+
+msgctxt "ChainInsertEditorPage"
+msgid "title-section-configure-insert"
+msgstr "Configurar Insert"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-channels"
+msgstr "Canais"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-device"
+msgstr "Dispositivo"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-mode"
+msgstr "Modo"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-send"
+msgstr "Envio"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-return"
+msgstr "Retorno"
+
+msgctxt "ChainEditorPage"
+msgid "label-name"
+msgstr "Nome"
+
+msgctxt "ChainEditorPage"
+msgid "label-instrument"
+msgstr "Instrumento"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-inputs"
+msgstr "Entradas"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-outputs"
+msgstr "Saídas"
+
+msgctxt "ProjectSettingsPage"
+msgid "label-name"
+msgstr "Nome"
+
+msgctxt "ProjectSettingsPage"
+msgid "title-section-audio-devices"
+msgstr "Dispositivos de áudio"
+
+msgctxt "TouchMain"
+msgid "btn-cancel"
+msgstr "Cancelar"
+
+msgctxt "TouchMain"
+msgid "btn-load-preset"
+msgstr "Carregar Preset"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-cancel"
+msgstr "Cancelar"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-delete"
+msgstr "Excluir"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "title-dialog-delete-block"
+msgstr "Excluir bloco"
+
+msgctxt "ChainRow"
+msgid "label-input"
+msgstr "Entrada"
+
+msgctxt "ChainRow"
+msgid "label-output"
+msgstr "Saída"
+
+msgctxt "ChainRow"
+msgid "label-lat"
+msgstr "LAT"
+
+msgctxt "MuteSwitch"
+msgid "label-mute"
+msgstr "MUTE"
+
+msgctxt "TunerPanel"
+msgid "label-tuner"
+msgstr "TUNER"
+
+msgctxt "TunerPanel"
+msgid "status-no-active-inputs"
+msgstr "NO ACTIVE INPUTS"
+
+msgctxt "TunerPanel"
+msgid "status-tuner-empty-help"
+msgstr "Habilite uma chain com entrada configurada para ver os afinadores aqui."
+
+msgctxt "SpectrumPanel"
+msgid "label-spectrum"
+msgstr "SPECTRUM"
+
+msgctxt "SpectrumPanel"
+msgid "status-no-active-outputs"
+msgstr "NO ACTIVE OUTPUTS"
+
+msgctxt "SpectrumPanel"
+msgid "status-spectrum-empty-help"
+msgstr "Ligue o espectro e habilite uma chain com saída configurada."
+
+msgctxt "PluginInfoWindow"
+msgid "label-description"
+msgstr "Description"
+
+msgctxt "PluginInfoWindow"
+msgid "label-license"
+msgstr "License:"
+
+msgctxt "PluginInfoWindow"
+msgid "btn-open-homepage"
+msgstr "Open Homepage"
+
+msgctxt "ModelSelectWithSearch"
+msgid "placeholder-search-models"
+msgstr "Buscar modelos..."
+
+msgctxt "ModelSelectWithSearch"
+msgid "status-no-models-found"
+msgstr "Nenhum modelo encontrado"
+
+msgctxt "CompactBlockRow"
+msgid "btn-open-plugin"
+msgstr "Abrir Plugin"
+
+msgctxt "CompactChainViewPage"
+msgid "label-in"
+msgstr "IN"
+
+msgctxt "CompactChainViewPage"
+msgid "label-out"
+msgstr "OUT"
+
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr "Bits"
+
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr "Buffer"
+
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr "Hz"
+
+msgctxt "BlockPanelEditor"
+msgid "btn-add"
+msgstr "Adicionar"
+
+msgctxt "BlockPanelParameterItem"
+msgid "btn-load-file"
+msgstr "Load"

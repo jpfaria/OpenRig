@@ -308,7 +308,7 @@ pub(crate) fn wire(
         if is_vst3_block && !model_id.is_empty() {
             match project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate) {
                 Ok(handle) => { vst3_editor_handles.borrow_mut().push(handle); }
-                Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
+                Err(e) => set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string()),
             }
             return;
         }
@@ -415,7 +415,7 @@ pub(crate) fn wire(
             ) {
                 Ok(pair) => pair,
                 Err(e) => {
-                    set_status_error(&window, &toast_timer, &format!("Erro ao abrir editor: {e}"));
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-editor-open", err = e).to_string());
                     return;
                 }
             };

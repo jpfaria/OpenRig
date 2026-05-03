@@ -120,7 +120,7 @@ pub(crate) fn populate_initial_window_state(
     window.set_block_picker_title("".into());
     window.set_show_block_drawer(false);
     window.set_block_drawer_title("".into());
-    window.set_block_drawer_confirm_label("Adicionar".into());
+    window.set_block_drawer_confirm_label(rust_i18n::t!("btn-add").as_ref().into());
     window.set_block_drawer_status_message("".into());
     window.set_block_drawer_edit_mode(false);
     window.set_block_drawer_selected_type_index(-1);

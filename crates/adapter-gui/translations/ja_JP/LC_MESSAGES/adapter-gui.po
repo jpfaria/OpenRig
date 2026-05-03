@@ -661,3 +661,215 @@ msgstr "キャンセル"
 msgctxt "ChainInsertEditorPage"
 msgid "btn-ok"
 msgstr "OK"
+
+msgctxt "BlockEditorWindow"
+msgid "title-window-block-editor"
+msgstr "OpenRig · Block"
+
+msgctxt "SpectrumWindow"
+msgid "title-window-spectrum"
+msgstr "OpenRig · Spectrum"
+
+msgctxt "TunerWindow"
+msgid "title-window-tuner"
+msgstr "OpenRig · Tuner"
+
+msgctxt "PluginInfoWindow"
+msgid "title-window-plugin-info"
+msgstr "Plugin Info"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-input"
+msgstr "入力"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-output"
+msgstr "出力"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-channels"
+msgstr "チャンネル"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-device"
+msgstr "デバイス"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-mode"
+msgstr "モード"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-inputs"
+msgstr "入力"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-outputs"
+msgstr "出力"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-input-row"
+msgstr "+ 入力を追加"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-output-row"
+msgstr "+ 出力を追加"
+
+msgctxt "ChainInsertEditorPage"
+msgid "title-section-configure-insert"
+msgstr "Insertを構成"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-channels"
+msgstr "チャンネル"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-device"
+msgstr "デバイス"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-mode"
+msgstr "モード"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-send"
+msgstr "センド"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-return"
+msgstr "リターン"
+
+msgctxt "ChainEditorPage"
+msgid "label-name"
+msgstr "名前"
+
+msgctxt "ChainEditorPage"
+msgid "label-instrument"
+msgstr "楽器"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-inputs"
+msgstr "入力"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-outputs"
+msgstr "出力"
+
+msgctxt "ProjectSettingsPage"
+msgid "label-name"
+msgstr "名前"
+
+msgctxt "ProjectSettingsPage"
+msgid "title-section-audio-devices"
+msgstr "オーディオデバイス"
+
+msgctxt "TouchMain"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "TouchMain"
+msgid "btn-load-preset"
+msgstr "プリセットを読み込む"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-delete"
+msgstr "削除"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "title-dialog-delete-block"
+msgstr "ブロックを削除"
+
+msgctxt "ChainRow"
+msgid "label-input"
+msgstr "入力"
+
+msgctxt "ChainRow"
+msgid "label-output"
+msgstr "出力"
+
+msgctxt "ChainRow"
+msgid "label-lat"
+msgstr "LAT"
+
+msgctxt "MuteSwitch"
+msgid "label-mute"
+msgstr "MUTE"
+
+msgctxt "TunerPanel"
+msgid "label-tuner"
+msgstr "TUNER"
+
+msgctxt "TunerPanel"
+msgid "status-no-active-inputs"
+msgstr "NO ACTIVE INPUTS"
+
+msgctxt "TunerPanel"
+msgid "status-tuner-empty-help"
+msgstr "入力が構成されたchainを有効にすると、ここにチューナーが表示されます。"
+
+msgctxt "SpectrumPanel"
+msgid "label-spectrum"
+msgstr "SPECTRUM"
+
+msgctxt "SpectrumPanel"
+msgid "status-no-active-outputs"
+msgstr "NO ACTIVE OUTPUTS"
+
+msgctxt "SpectrumPanel"
+msgid "status-spectrum-empty-help"
+msgstr "スペクトラムを電源ONにし、出力が構成されたchainを有効にしてください。"
+
+msgctxt "PluginInfoWindow"
+msgid "label-description"
+msgstr "Description"
+
+msgctxt "PluginInfoWindow"
+msgid "label-license"
+msgstr "License:"
+
+msgctxt "PluginInfoWindow"
+msgid "btn-open-homepage"
+msgstr "Open Homepage"
+
+msgctxt "ModelSelectWithSearch"
+msgid "placeholder-search-models"
+msgstr "モデルを検索..."
+
+msgctxt "ModelSelectWithSearch"
+msgid "status-no-models-found"
+msgstr "モデルが見つかりません"
+
+msgctxt "CompactBlockRow"
+msgid "btn-open-plugin"
+msgstr "プラグインを開く"
+
+msgctxt "CompactChainViewPage"
+msgid "label-in"
+msgstr "IN"
+
+msgctxt "CompactChainViewPage"
+msgid "label-out"
+msgstr "OUT"
+
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr "Bits"
+
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr "Buffer"
+
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr "Hz"
+
+msgctxt "BlockPanelEditor"
+msgid "btn-add"
+msgstr "追加"
+
+msgctxt "BlockPanelParameterItem"
+msgid "btn-load-file"
+msgstr "Load"

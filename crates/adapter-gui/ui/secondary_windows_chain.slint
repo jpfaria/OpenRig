@@ -125,7 +125,7 @@ export component ChainEditorWindow inherits Window {
     if root.show-input-editor : ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Entrada";
+        title: @tr("title-section-input");
         device-options: root.input-device-options;
         selected-device-index <=> root.input-selected-device-index;
         channels: root.input-channels;
@@ -143,7 +143,7 @@ export component ChainEditorWindow inherits Window {
     if root.show-output-editor : ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Saída";
+        title: @tr("title-section-output");
         device-options: root.output-device-options;
         selected-device-index <=> root.output-selected-device-index;
         channels: root.output-channels;
@@ -183,7 +183,7 @@ export component ChainInputWindow inherits Window {
     ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Entrada";
+        title: @tr("title-section-input");
         device-options: root.device-options;
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
@@ -223,7 +223,7 @@ export component ChainOutputWindow inherits Window {
     ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Saída";
+        title: @tr("title-section-output");
         device-options: root.device-options;
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
@@ -264,8 +264,8 @@ export component ChainInputGroupsWindow inherits Window {
     ChainIoGroupsPage {
         width: parent.width;
         height: parent.height;
-        title: "Entradas";
-        add-label: "+ Adicionar entrada";
+        title: @tr("title-section-inputs");
+        add-label: @tr("btn-add-input-row");
         groups: root.groups;
         status-message <=> root.status-message;
         show-block-controls: root.show-block-controls;
@@ -305,8 +305,8 @@ export component ChainOutputGroupsWindow inherits Window {
     ChainIoGroupsPage {
         width: parent.width;
         height: parent.height;
-        title: "Sa\u{00ED}das";
-        add-label: "+ Adicionar sa\u{00ED}da";
+        title: @tr("title-section-outputs");
+        add-label: @tr("btn-add-output-row");
         groups: root.groups;
         status-message <=> root.status-message;
         show-block-controls: root.show-block-controls;
@@ -361,7 +361,7 @@ export component ChainInsertWindow inherits Window {
     ChainInsertEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Configurar Insert";
+        title: @tr("title-section-configure-insert");
         send-device-options: root.send-device-options;
         selected-send-device-index <=> root.selected-send-device-index;
         send-channels: root.send-channels;

@@ -55,7 +55,7 @@ pub(crate) fn start(
                     set_status_error(
                         &win,
                         &toast_timer_for_errors,
-                        &format!("Plugin error: {}", first.message),
+                        &rust_i18n::t!("status-plugin-error", msg = first.message).to_string(),
                     );
                 }
             },

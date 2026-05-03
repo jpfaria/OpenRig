@@ -33,7 +33,7 @@ export component BlockPanelEditor inherits Rectangle {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
-    in property <string> block-drawer-confirm-label: "Adicionar";
+    in property <string> block-drawer-confirm-label: @tr("btn-add");
     in property <BlockStreamData> block-stream-data;
 
     callback choose-block-model(int);

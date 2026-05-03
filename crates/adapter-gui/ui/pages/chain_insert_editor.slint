@@ -96,7 +96,7 @@ component ChannelRow inherits Rectangle {
 }
 
 export component ChainInsertEditorPage inherits Rectangle {
-    in property <string> title: "Configurar Insert";
+    in property <string> title: @tr("title-section-configure-insert");
     // Send (output devices)
     in property <[string]> send-device-options;
     in-out property <int> selected-send-device-index;
@@ -211,7 +211,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: 72px;
         width: 200px;
         height: 20px;
-        text: @tr("Envio");
+        text: @tr("label-send");
         color: #edf2f9;
         font-size: 15px;
         font-weight: 700;
@@ -222,7 +222,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: 98px;
         width: 120px;
         height: 16px;
-        text: @tr("Dispositivo");
+        text: @tr("label-device");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -244,7 +244,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: 162px;
         width: 120px;
         height: 16px;
-        text: @tr("Modo");
+        text: @tr("label-mode");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -296,7 +296,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: 226px;
         width: 120px;
         height: 16px;
-        text: @tr("Canais");
+        text: @tr("label-channels");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -341,7 +341,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: root.return-start + 12px;
         width: 200px;
         height: 20px;
-        text: @tr("Retorno");
+        text: @tr("label-return");
         color: #edf2f9;
         font-size: 15px;
         font-weight: 700;
@@ -352,7 +352,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: root.return-start + 38px;
         width: 120px;
         height: 16px;
-        text: @tr("Dispositivo");
+        text: @tr("label-device");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -374,7 +374,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: root.return-start + 102px;
         width: 120px;
         height: 16px;
-        text: @tr("Modo");
+        text: @tr("label-mode");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -426,7 +426,7 @@ export component ChainInsertEditorPage inherits Rectangle {
         y: root.return-start + 166px;
         width: 120px;
         height: 16px;
-        text: @tr("Canais");
+        text: @tr("label-channels");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;

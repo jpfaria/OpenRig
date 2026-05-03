@@ -660,3 +660,215 @@ msgstr "रद्द करें"
 msgctxt "ChainInsertEditorPage"
 msgid "btn-ok"
 msgstr "ठीक है"
+
+msgctxt "BlockEditorWindow"
+msgid "title-window-block-editor"
+msgstr "OpenRig · Block"
+
+msgctxt "SpectrumWindow"
+msgid "title-window-spectrum"
+msgstr "OpenRig · Spectrum"
+
+msgctxt "TunerWindow"
+msgid "title-window-tuner"
+msgstr "OpenRig · Tuner"
+
+msgctxt "PluginInfoWindow"
+msgid "title-window-plugin-info"
+msgstr "Plugin Info"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-input"
+msgstr "इनपुट"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-output"
+msgstr "आउटपुट"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-channels"
+msgstr "चैनल"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-device"
+msgstr "डिवाइस"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-mode"
+msgstr "मोड"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-inputs"
+msgstr "इनपुट"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-outputs"
+msgstr "आउटपुट"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-input-row"
+msgstr "+ इनपुट जोड़ें"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-output-row"
+msgstr "+ आउटपुट जोड़ें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "title-section-configure-insert"
+msgstr "Insert कॉन्फ़िगर करें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-channels"
+msgstr "चैनल"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-device"
+msgstr "डिवाइस"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-mode"
+msgstr "मोड"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-send"
+msgstr "सेंड"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-return"
+msgstr "रिटर्न"
+
+msgctxt "ChainEditorPage"
+msgid "label-name"
+msgstr "नाम"
+
+msgctxt "ChainEditorPage"
+msgid "label-instrument"
+msgstr "वाद्य यंत्र"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-inputs"
+msgstr "इनपुट"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-outputs"
+msgstr "आउटपुट"
+
+msgctxt "ProjectSettingsPage"
+msgid "label-name"
+msgstr "नाम"
+
+msgctxt "ProjectSettingsPage"
+msgid "title-section-audio-devices"
+msgstr "ऑडियो डिवाइस"
+
+msgctxt "TouchMain"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "TouchMain"
+msgid "btn-load-preset"
+msgstr "प्रीसेट लोड करें"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-delete"
+msgstr "हटाएं"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "title-dialog-delete-block"
+msgstr "ब्लॉक हटाएं"
+
+msgctxt "ChainRow"
+msgid "label-input"
+msgstr "इनपुट"
+
+msgctxt "ChainRow"
+msgid "label-output"
+msgstr "आउटपुट"
+
+msgctxt "ChainRow"
+msgid "label-lat"
+msgstr "LAT"
+
+msgctxt "MuteSwitch"
+msgid "label-mute"
+msgstr "MUTE"
+
+msgctxt "TunerPanel"
+msgid "label-tuner"
+msgstr "TUNER"
+
+msgctxt "TunerPanel"
+msgid "status-no-active-inputs"
+msgstr "NO ACTIVE INPUTS"
+
+msgctxt "TunerPanel"
+msgid "status-tuner-empty-help"
+msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ एक chain सक्षम करें。"
+
+msgctxt "SpectrumPanel"
+msgid "label-spectrum"
+msgstr "SPECTRUM"
+
+msgctxt "SpectrumPanel"
+msgid "status-no-active-outputs"
+msgstr "NO ACTIVE OUTPUTS"
+
+msgctxt "SpectrumPanel"
+msgid "status-spectrum-empty-help"
+msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ एक chain सक्षम करें。"
+
+msgctxt "PluginInfoWindow"
+msgid "label-description"
+msgstr "Description"
+
+msgctxt "PluginInfoWindow"
+msgid "label-license"
+msgstr "License:"
+
+msgctxt "PluginInfoWindow"
+msgid "btn-open-homepage"
+msgstr "Open Homepage"
+
+msgctxt "ModelSelectWithSearch"
+msgid "placeholder-search-models"
+msgstr "मॉडल खोजें..."
+
+msgctxt "ModelSelectWithSearch"
+msgid "status-no-models-found"
+msgstr "कोई मॉडल नहीं मिला"
+
+msgctxt "CompactBlockRow"
+msgid "btn-open-plugin"
+msgstr "प्लगइन खोलें"
+
+msgctxt "CompactChainViewPage"
+msgid "label-in"
+msgstr "IN"
+
+msgctxt "CompactChainViewPage"
+msgid "label-out"
+msgstr "OUT"
+
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr "Bits"
+
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr "Buffer"
+
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr "Hz"
+
+msgctxt "BlockPanelEditor"
+msgid "btn-add"
+msgstr "जोड़ें"
+
+msgctxt "BlockPanelParameterItem"
+msgid "btn-load-file"
+msgstr "Load"

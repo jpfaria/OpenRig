@@ -1,5 +1,5 @@
 export component PluginInfoWindow inherits Window {
-    title: "Plugin Info";
+    title: @tr("title-window-plugin-info");
     width: 480px;
     min-height: 400px;
     background: #111118;
@@ -118,7 +118,7 @@ export component PluginInfoWindow inherits Window {
             if root.description != "" : VerticalLayout {
                 spacing: 4px;
                 Text {
-                    text: @tr("Description");
+                    text: @tr("label-description");
                     font-size: 10px;
                     font-weight: 600;
                     color: #555566;
@@ -137,7 +137,7 @@ export component PluginInfoWindow inherits Window {
                 spacing: 8px;
                 alignment: start;
                 Text {
-                    text: @tr("License:");
+                    text: @tr("label-license");
                     font-size: 12px;
                     color: #555566;
                     vertical-alignment: center;
@@ -170,7 +170,7 @@ export component PluginInfoWindow inherits Window {
                         vertical-alignment: center;
                     }
                     Text {
-                        text: @tr("Open Homepage");
+                        text: @tr("btn-open-homepage");
                         font-size: 13px;
                         color: #22C55E;
                         vertical-alignment: center;

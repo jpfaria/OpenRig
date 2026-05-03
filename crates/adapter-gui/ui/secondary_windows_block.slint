@@ -24,7 +24,7 @@ export component BlockEditorWindow inherits Window {
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
-    in property <string> block-window-title: "OpenRig · Block";
+    in property <string> block-window-title: @tr("title-window-block-editor");
     callback choose-block-model(int);
     callback choose-block-model-by-id(string);
     callback search-block-model(string);

@@ -28,7 +28,7 @@ pub(crate) fn chain_inputs_tooltip(
                 ChainInputMode::Stereo => "Stereo",
                 ChainInputMode::DualMono => "Dual Mono",
             };
-            let label = format!("Input #{}", ei + 1);
+            let label = rust_i18n::t!("label-input-numbered", n = ei + 1).to_string();
             format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
@@ -53,7 +53,7 @@ pub(crate) fn chain_outputs_tooltip(
             ChainOutputMode::Mono => "Mono",
             ChainOutputMode::Stereo => "Stereo",
         };
-        let label = format!("Output #{}", ei + 1);
+        let label = rust_i18n::t!("label-output-numbered", n = ei + 1).to_string();
         format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }

@@ -82,7 +82,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Project", &["yaml", "yml"])
-                .set_title("Abrir projeto")
+                .set_title(rust_i18n::t!("dialog-open-project").as_ref())
                 .pick_file()
             else {
                 return;
@@ -125,7 +125,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                             .into(),
                     );
                     window.set_project_path_label(
-                        format!("Projeto: {}", canonical_path.display()).into(),
+                        rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
                     );
                     window.set_show_project_launcher(false);
                     window.set_show_project_setup(false);
@@ -194,7 +194,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title(name.into());
-            window.set_project_path_label("Projeto em memória".into());
+            window.set_project_path_label(rust_i18n::t!("status-project-in-memory").as_ref().into());
             window.set_show_project_setup(false);
             window.set_show_project_launcher(false);
             window.set_show_project_chains(true);
@@ -241,7 +241,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             } else {
                 let Some(path) = FileDialog::new()
                     .add_filter("OpenRig Project", &["yaml", "yml"])
-                    .set_title("Salvar projeto")
+                    .set_title(rust_i18n::t!("dialog-save-project").as_ref())
                     .set_file_name("project.yaml")
                     .save_file()
                 else {
@@ -277,7 +277,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         session.project.name.clone().unwrap_or_default().into(),
                     );
                     window.set_project_path_label(
-                        format!("Projeto: {}", project_path.display()).into(),
+                        rust_i18n::t!("status-project-path-prefix", path = project_path.display()).to_string().into(),
                     );
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(&window, &project_dirty, false);
