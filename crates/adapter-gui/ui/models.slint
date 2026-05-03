@@ -216,3 +216,17 @@ export struct IoGroupItem {
     summary: string,
 }
 
+// Inline plugin info overlay payload (issue #307). Carried as a single struct so the
+// AppWindow → DesktopMain/TouchMain propagation is one binding instead of nine.
+export struct PluginInfoData {
+    screenshot: image,
+    has-screenshot: bool,
+    plugin-name: string,
+    brand: string,
+    type-label: string,
+    description: string,
+    license: string,
+    homepage: string,
+    has-homepage: bool,
+}
+

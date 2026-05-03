@@ -40,6 +40,7 @@ mod device_refresh_wiring;
 mod device_settings_wiring;
 mod insert_wiring;
 mod plugin_info;
+mod plugin_info_inline_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;

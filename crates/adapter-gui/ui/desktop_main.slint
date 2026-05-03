@@ -1,7 +1,8 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -193,6 +194,12 @@ export component DesktopMain inherits Rectangle {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    // Fullscreen inline plugin info overlay (windowed mode opens PluginInfoWindow instead).
+    // Wired in fullscreen because secondary windows do not surface reliably on Orange Pi.
+    in property <bool> plugin-info-visible: false;
+    in property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -412,6 +419,43 @@ export component DesktopMain inherits Rectangle {
             width: parent.width;
             height: parent.height;
             background: transparent;
+        }
+
+        // Fullscreen inline plugin info overlay — replaces secondary PluginInfoWindow
+        // when in fullscreen, where child windows do not surface (Orange Pi / kiosk).
+        if root.fullscreen && root.plugin-info-visible : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: #0405068a;
+
+            TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                clicked => { root.close-plugin-info(); }
+            }
+
+            PluginInfoPanel {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: Math.min(480px, parent.width - 32px);
+                height: Math.min(560px, parent.height - 32px);
+                screenshot: root.plugin-info-data.screenshot;
+                has-screenshot: root.plugin-info-data.has-screenshot;
+                plugin-name: root.plugin-info-data.plugin-name;
+                brand: root.plugin-info-data.brand;
+                type-label: root.plugin-info-data.type-label;
+                description: root.plugin-info-data.description;
+                license: root.plugin-info-data.license;
+                homepage: root.plugin-info-data.homepage;
+                has-homepage: root.plugin-info-data.has-homepage;
+                show-close-button: true;
+                open-homepage => { root.open-plugin-info-homepage(); }
+                close-window => { root.close-plugin-info(); }
+            }
         }
     }
 

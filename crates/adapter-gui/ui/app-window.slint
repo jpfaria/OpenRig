@@ -1,5 +1,5 @@
 import "fonts/CooperHewitt-Semibold.ttf";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
@@ -222,6 +222,12 @@ export component AppWindow inherits Window {
     in property <string> confirm-delete-block-name: "";
     callback confirm-delete-block();
     callback cancel-delete-block();
+    // Inline plugin info overlay — used in fullscreen / touch where the secondary
+    // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
+    in property <bool> plugin-info-visible: false;
+    in property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -414,6 +420,10 @@ export component AppWindow inherits Window {
         remove-chain-output(index) => { root.remove-chain-output(index); }
         add-chain-output => { root.add-chain-output(); }
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
+        plugin-info-visible: root.plugin-info-visible;
+        plugin-info-data: root.plugin-info-data;
+        close-plugin-info => { root.close-plugin-info(); }
+        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
     if touch-optimized : TouchMain {
@@ -609,6 +619,10 @@ export component AppWindow inherits Window {
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
+        plugin-info-visible: root.plugin-info-visible;
+        plugin-info-data: root.plugin-info-data;
+        close-plugin-info => { root.close-plugin-info(); }
+        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
     if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
