@@ -1,0 +1,10 @@
+// Locale-driven globals.
+// Rust sets Locale.font-family at startup AND on every language change so
+// every Window can bind `default-font-family: Locale.font-family` and the
+// whole UI swaps to a glyph-appropriate face when the user picks a CJK,
+// Hindi, or Latin locale. Avoids tofu without forcing one universal font.
+export global Locale {
+    // Default value covers Latin locales; Rust overrides at boot via
+    // i18n::default_font_family() and on each change-language.
+    in-out property <string> font-family: "Bebas Neue";
+}

@@ -1,9 +1,10 @@
 import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem } from "models.slint";
+import { Locale } from "locale_globals.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
@@ -48,7 +49,7 @@ export component ProjectSettingsWindow inherits Window {
 
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <string> editor-title;
     in property <string> editor-save-label;
@@ -161,7 +162,7 @@ export component ChainEditorWindow inherits Window {
 
 export component ChainInputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -201,7 +202,7 @@ export component ChainInputWindow inherits Window {
 
 export component ChainOutputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -241,7 +242,7 @@ export component ChainOutputWindow inherits Window {
 
 export component ChainInputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -282,7 +283,7 @@ export component ChainInputGroupsWindow inherits Window {
 
 export component ChainOutputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -323,7 +324,7 @@ export component ChainOutputGroupsWindow inherits Window {
 
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     // Send (output devices)
     in property <[string]> send-device-options;

@@ -8,16 +8,20 @@
 //! does not reflow the UI in place — the user sees the new language on the
 //! next launch. Live re-rendering is left for a follow-up issue.
 
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
 use infra_filesystem::FilesystemStorage;
 
-use crate::i18n::{display_name, locale_for_runtime, SUPPORTED_LANGUAGES};
-use crate::AppWindow;
+use crate::i18n::{display_name, font_family_for_locale, locale_for_runtime, SUPPORTED_LANGUAGES};
+use crate::{AppWindow, Locale};
 
 pub fn wire(window: &AppWindow) {
     let initial_locale = locale_for_runtime(read_persisted_language().as_deref());
     set_language_options(window, &initial_locale);
+    // Boot-time font: must match the locale the bundled translations were
+    // selected against, otherwise the first frame renders tofu before any
+    // language change happens.
+    Locale::get(window).set_font_family(font_family_for_locale(&initial_locale).into());
 
     let initial_index = current_language_index();
     window.set_selected_language_index(initial_index);
@@ -38,6 +42,11 @@ pub fn wire(window: &AppWindow) {
         // bundled translations (unlike runtime gettext, which is locked
         // once libintl reads its env vars).
         crate::i18n::apply_bundled_translation(lang.as_deref());
+        // Swap default-font-family on the Slint side so CJK/Devanagari
+        // glyphs render against a face that actually contains them
+        // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
+        let new_locale_for_font = locale_for_runtime(lang.as_deref());
+        Locale::get(&window).set_font_family(font_family_for_locale(&new_locale_for_font).into());
         // Rebuild the dropdown labels in the new UI locale — otherwise
         // the language list itself stays in the previous language and
         // the selector reads "Alemão / Chinês" while the rest of the UI

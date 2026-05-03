@@ -337,6 +337,26 @@ fn has_any_mo(dir: &Path) -> bool {
     false
 }
 
+/// Pick the macOS font family that has the right glyph coverage for a
+/// given locale. The Slint global `Locale.font-family` is bound to this
+/// at boot and on every change-language so each script renders against
+/// a face that actually contains its codepoints (no .notdef / tofu).
+///
+/// Latin locales keep "Bebas Neue" (the project's display font). CJK and
+/// Devanagari locales pick the macOS-native face for their script. Empty
+/// string at the end means "fall through to the system default" — a
+/// safe last resort that activates the macOS font cascade.
+pub fn font_family_for_locale(locale: &str) -> &'static str {
+    match locale {
+        "ja-JP" => "Hiragino Sans",
+        "zh-CN" => "PingFang SC",
+        "ko-KR" => "Apple SD Gothic Neo",
+        "hi-IN" => "Kohinoor Devanagari",
+        // pt-BR, en-US, es-ES, fr-FR, de-DE — all Latin
+        _ => "Bebas Neue",
+    }
+}
+
 /// Apply the resolved locale to Slint's bundled translations. Must be
 /// called AFTER `AppWindow::new()` — Slint requires the first component
 /// to exist before bundled translations can be selected.
