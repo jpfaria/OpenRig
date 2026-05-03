@@ -466,14 +466,14 @@ export component ChainInsertEditorPage inherits Rectangle {
     FooterButton {
         x: parent.width - 196px;
         y: parent.height - 52px;
-        label: "Cancelar";
+        label: @tr("btn-cancel");
         clicked => { root.cancel(); }
     }
 
     FooterButton {
         x: parent.width - 92px;
         y: parent.height - 52px;
-        label: "OK";
+        label: @tr("btn-ok");
         primary: true;
         clicked => { root.save(); }
     }

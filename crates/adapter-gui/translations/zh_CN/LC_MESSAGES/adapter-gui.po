@@ -581,27 +581,82 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "取消"
-
+msgctxt "ProjectSettingsWindow"
 msgid "title-window-project-settings"
 msgstr "OpenRig · 配置项目"
 
+msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
 msgstr "OpenRig · 配置chain"
 
+msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
 msgstr "OpenRig · Chain输入"
 
+msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
 msgstr "OpenRig · Chain输出"
 
+msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
 msgstr "OpenRig · Chain输入"
 
+msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
 msgstr "OpenRig · Chain输出"
 
+msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
 msgstr "OpenRig · 配置Insert"
 
+msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-new-chain"
+msgstr "新建chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-configure-chain"
+msgstr "配置chain"
+
+msgctxt "ChainEditorPage"
+msgid "btn-create-chain"
+msgstr "创建chain"
+
+msgctxt "ChainEditorPage"
+msgid "btn-save-chain"
+msgstr "保存chain"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-ok"
+msgstr "确定"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-ok"
+msgstr "确定"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-ok"
+msgstr "确定"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-cancel"
+msgstr "取消"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-ok"
+msgstr "确定"

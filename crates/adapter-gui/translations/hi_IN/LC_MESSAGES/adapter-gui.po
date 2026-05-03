@@ -581,27 +581,82 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "रद्द करें"
-
+msgctxt "ProjectSettingsWindow"
 msgid "title-window-project-settings"
 msgstr "OpenRig · प्रोजेक्ट कॉन्फ़िगर करें"
 
+msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
 msgstr "OpenRig · Chain कॉन्फ़िगर करें"
 
+msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
 msgstr "OpenRig · Chain इनपुट"
 
+msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
 msgstr "OpenRig · Chain आउटपुट"
 
+msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
 msgstr "OpenRig · Chain इनपुट"
 
+msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
 msgstr "OpenRig · Chain आउटपुट"
 
+msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Insert कॉन्फ़िगर करें"
 
+msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-new-chain"
+msgstr "नई chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-configure-chain"
+msgstr "Chain कॉन्फ़िगर करें"
+
+msgctxt "ChainEditorPage"
+msgid "btn-create-chain"
+msgstr "Chain बनाएं"
+
+msgctxt "ChainEditorPage"
+msgid "btn-save-chain"
+msgstr "Chain सहेजें"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-ok"
+msgstr "ठीक है"

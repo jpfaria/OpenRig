@@ -582,27 +582,82 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "キャンセル"
-
+msgctxt "ProjectSettingsWindow"
 msgid "title-window-project-settings"
 msgstr "OpenRig · プロジェクトを構成"
 
+msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
 msgstr "OpenRig · Chainを構成"
 
+msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
 msgstr "OpenRig · Chain入力"
 
+msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
 msgstr "OpenRig · Chain出力"
 
+msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
 msgstr "OpenRig · Chain入力"
 
+msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
 msgstr "OpenRig · Chain出力"
 
+msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Insertを構成"
 
+msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-new-chain"
+msgstr "新しいchain"
+
+msgctxt "ChainEditorPage"
+msgid "title-configure-chain"
+msgstr "Chainを構成"
+
+msgctxt "ChainEditorPage"
+msgid "btn-create-chain"
+msgstr "Chainを作成"
+
+msgctxt "ChainEditorPage"
+msgid "btn-save-chain"
+msgstr "Chainを保存"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-cancel"
+msgstr "キャンセル"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-ok"
+msgstr "OK"

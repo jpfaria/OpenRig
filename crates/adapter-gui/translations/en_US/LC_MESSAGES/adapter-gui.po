@@ -584,27 +584,82 @@ msgstr "✕"
 msgctxt "TouchMain"
 msgid "Cancelar"
 msgstr "Cancel"
-
+msgctxt "ProjectSettingsWindow"
 msgid "title-window-project-settings"
 msgstr "OpenRig · Configure project"
 
+msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
 msgstr "OpenRig · Configure chain"
 
+msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
 msgstr "OpenRig · Chain input"
 
+msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
 msgstr "OpenRig · Chain output"
 
+msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
 msgstr "OpenRig · Chain inputs"
 
+msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
 msgstr "OpenRig · Chain outputs"
 
+msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Configure Insert"
 
+msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-new-chain"
+msgstr "New chain"
+
+msgctxt "ChainEditorPage"
+msgid "title-configure-chain"
+msgstr "Configure chain"
+
+msgctxt "ChainEditorPage"
+msgid "btn-create-chain"
+msgstr "Create chain"
+
+msgctxt "ChainEditorPage"
+msgid "btn-save-chain"
+msgstr "Save chain"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-cancel"
+msgstr "Cancel"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-cancel"
+msgstr "Cancel"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-cancel"
+msgstr "Cancel"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-ok"
+msgstr "OK"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-cancel"
+msgstr "Cancel"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-ok"
+msgstr "OK"
