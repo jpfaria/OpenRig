@@ -202,4 +202,82 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             clear_status(&window, &toast_timer);
         });
     }
+    // --- chain reorder (issue #246) ---
+    // Reordering swaps Chain entries inside `Project::chains`. ChainIds stay
+    // stable, so the live runtime doesn't need to be torn down — only the
+    // ProjectChainItem VecModel needs to be rebuilt so the UI reflects the
+    // new order. The project YAML preserves the order on save, so the new
+    // arrangement persists.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_move_chain_up(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if !session.project.move_chain_up(index as usize) {
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+            clear_status(&window, &toast_timer);
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_move_chain_down(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if !session.project.move_chain_down(index as usize) {
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+            clear_status(&window, &toast_timer);
+        });
+    }
 }

@@ -14,11 +14,14 @@ import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
 export component ChainRow inherits Rectangle {
     in property <ProjectChainItem> chain;
     in property <int> chain-index;
+    in property <int> chain-count;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
     in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback remove-chain(int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
     callback configure-chain(int);
     callback configure-chain-input(int);
     callback configure-chain-output(int);
@@ -136,6 +139,27 @@ export component ChainRow inherits Rectangle {
             icon: @image-url("../assets/sonar.svg");
             tooltip: @tr("tooltip-measure-latency");
             clicked => { root.probe-chain-latency(root.chain-index); }
+        }
+
+        // Reorder controls — visible when more than one chain exists; the
+        // boundary icon (first/last) renders dimmed and the wiring side
+        // ignores no-op clicks. Issue #246.
+        if root.chain-count > 1 : ChainActionIcon {
+            x: parent.width - 316px;
+            y: 14px;
+            opacity: root.chain-index == 0 ? 0.35 : 1.0;
+            icon: @image-url("../assets/arrow-up.svg");
+            tooltip: "Mover chain para cima";
+            clicked => { root.move-chain-up(root.chain-index); }
+        }
+
+        if root.chain-count > 1 : ChainActionIcon {
+            x: parent.width - 276px;
+            y: 14px;
+            opacity: root.chain-index >= root.chain-count - 1 ? 0.35 : 1.0;
+            icon: @image-url("../assets/arrow-down.svg");
+            tooltip: "Mover chain para baixo";
+            clicked => { root.move-chain-down(root.chain-index); }
         }
 
         ChainActionIcon {
