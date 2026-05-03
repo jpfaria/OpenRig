@@ -4,7 +4,7 @@ import { Toast } from "components/toast.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "PingFang SC";
+    default-font-family: "";
     default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
@@ -170,7 +170,7 @@ export component BlockEditorWindow inherits Window {
 
 export component CompactChainViewWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "PingFang SC";
+    default-font-family: "";
     default-font-size: 13px;
     title: @tr("title-window-chain-view");
     min-width: 800px;

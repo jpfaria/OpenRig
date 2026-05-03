@@ -65,7 +65,7 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                chain_window.set_status_message("Nenhum projeto carregado.".into());
+                chain_window.set_status_message(rust_i18n::t!("error-no-project-loaded").to_string().into());
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
@@ -76,7 +76,7 @@ pub(crate) fn wire(
                 }
             };
             if draft.inputs.is_empty() {
-                chain_window.set_status_message("Adicione pelo menos uma entrada.".into());
+                chain_window.set_status_message(rust_i18n::t!("warn-add-input").to_string().into());
                 return;
             }
             if draft.outputs.is_empty() {
