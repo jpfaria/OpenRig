@@ -52,6 +52,28 @@ impl Project {
             .flat_map(|chain| chain.blocks.iter())
             .find_map(|block| find_block_recursive(block, block_id))
     }
+
+    /// Moves the chain at `index` one position toward the top of the list.
+    /// No-op when the chain is already first or the index is out of bounds.
+    /// Returns `true` when the order changed (caller should mark the project dirty).
+    pub fn move_chain_up(&mut self, index: usize) -> bool {
+        if index == 0 || index >= self.chains.len() {
+            return false;
+        }
+        self.chains.swap(index - 1, index);
+        true
+    }
+
+    /// Moves the chain at `index` one position toward the bottom of the list.
+    /// No-op when the chain is already last or the index is out of bounds.
+    /// Returns `true` when the order changed (caller should mark the project dirty).
+    pub fn move_chain_down(&mut self, index: usize) -> bool {
+        if index + 1 >= self.chains.len() {
+            return false;
+        }
+        self.chains.swap(index, index + 1);
+        true
+    }
 }
 
 fn collect_block_parameter_descriptors(
@@ -78,8 +100,8 @@ fn find_block_recursive<'a>(block: &'a AudioBlock, block_id: &BlockId) -> Option
 mod tests {
     use super::*;
     use crate::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-        SelectBlock, schema_for_block_model,
+        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
+        OutputBlock, OutputEntry, SelectBlock,
     };
     use crate::chain::{Chain, ChainInputMode, ChainOutputMode};
     use crate::param::ParameterSet;
@@ -118,9 +140,7 @@ mod tests {
     fn make_delay_block(id: &str) -> AudioBlock {
         let model = block_delay::supported_models().first().unwrap();
         let schema = schema_for_block_model("delay", model).unwrap();
-        let params = ParameterSet::default()
-            .normalized_against(&schema)
-            .unwrap();
+        let params = ParameterSet::default().normalized_against(&schema).unwrap();
         AudioBlock {
             id: BlockId(id.into()),
             enabled: true,
@@ -135,9 +155,7 @@ mod tests {
     fn make_reverb_block(id: &str) -> AudioBlock {
         let model = block_reverb::supported_models().first().unwrap();
         let schema = schema_for_block_model("reverb", model).unwrap();
-        let params = ParameterSet::default()
-            .normalized_against(&schema)
-            .unwrap();
+        let params = ParameterSet::default().normalized_against(&schema).unwrap();
         AudioBlock {
             id: BlockId(id.into()),
             enabled: true,
@@ -349,5 +367,84 @@ mod tests {
         let descs = project.block_audio_descriptors().unwrap();
         assert_eq!(descs.len(), 1);
         assert_eq!(descs[0].effect_type, "reverb");
+    }
+
+    // --- chain reorder tests (issue #246) ---
+
+    fn chain_with_id(id: &str) -> Chain {
+        Chain {
+            id: ChainId(id.to_string()),
+            description: Some(id.to_string()),
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![],
+        }
+    }
+
+    fn ids(project: &Project) -> Vec<String> {
+        project.chains.iter().map(|c| c.id.0.clone()).collect()
+    }
+
+    #[test]
+    fn move_chain_up_swaps_with_previous() {
+        let mut project = make_project(vec![
+            chain_with_id("a"),
+            chain_with_id("b"),
+            chain_with_id("c"),
+        ]);
+        assert!(project.move_chain_up(2));
+        assert_eq!(ids(&project), vec!["a", "c", "b"]);
+    }
+
+    #[test]
+    fn move_chain_up_at_first_is_noop() {
+        let mut project = make_project(vec![chain_with_id("a"), chain_with_id("b")]);
+        assert!(!project.move_chain_up(0));
+        assert_eq!(ids(&project), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn move_chain_up_out_of_bounds_is_noop() {
+        let mut project = make_project(vec![chain_with_id("a"), chain_with_id("b")]);
+        assert!(!project.move_chain_up(99));
+        assert_eq!(ids(&project), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn move_chain_down_swaps_with_next() {
+        let mut project = make_project(vec![
+            chain_with_id("a"),
+            chain_with_id("b"),
+            chain_with_id("c"),
+        ]);
+        assert!(project.move_chain_down(0));
+        assert_eq!(ids(&project), vec!["b", "a", "c"]);
+    }
+
+    #[test]
+    fn move_chain_down_at_last_is_noop() {
+        let mut project = make_project(vec![chain_with_id("a"), chain_with_id("b")]);
+        assert!(!project.move_chain_down(1));
+        assert_eq!(ids(&project), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn move_chain_down_out_of_bounds_is_noop() {
+        let mut project = make_project(vec![chain_with_id("a"), chain_with_id("b")]);
+        assert!(!project.move_chain_down(99));
+        assert_eq!(ids(&project), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn move_chain_preserves_chain_data() {
+        let mut a = chain_with_id("a");
+        a.enabled = false;
+        a.instrument = "bass".to_string();
+        let mut project = make_project(vec![a, chain_with_id("b")]);
+        project.move_chain_down(0);
+        let moved = &project.chains[1];
+        assert_eq!(moved.id.0, "a");
+        assert!(!moved.enabled);
+        assert_eq!(moved.instrument, "bass");
     }
 }
