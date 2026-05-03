@@ -1,3 +1,4 @@
+import { Locale } from "../locale_globals.slint";
 // Language selector with two visual modes:
 //  - compact (24x24, flat) — matches HeaderIconAction (chain editor headers).
 //  - default (40x40, bordered) — matches IconLauncherButton (project launcher).
@@ -81,7 +82,7 @@ export component LanguageSelector inherits Rectangle {
             vertical-alignment: center;
             overflow: elide;
             // Override AppWindow's Bebas Neue so CJK/Hindi tooltips render.
-            font-family: "PingFang SC";
+            font-family: Locale.font-family;
         }
     }
 
@@ -120,7 +121,7 @@ export component LanguageSelector inherits Rectangle {
                     // Override the AppWindow's Bebas Neue (Latin-only display
                     // font) so glyphs render against the system fallback chain
                     // — required for CJK/Hindi names in the dropdown.
-                    font-family: "PingFang SC";
+                    font-family: Locale.font-family;
                 }
 
                 // Country flag SVG. @image-url requires compile-time literal,
@@ -159,7 +160,7 @@ export component LanguageSelector inherits Rectangle {
                     overflow: elide;
                     // Same reason as the tick above — AppWindow's default
                     // Bebas Neue lacks CJK and Devanagari glyphs.
-                    font-family: "PingFang SC";
+                    font-family: Locale.font-family;
                 }
 
                 option-touch := TouchArea {
