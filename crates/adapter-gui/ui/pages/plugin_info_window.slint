@@ -199,13 +199,13 @@ export component PluginInfoPanel inherits Rectangle {
         border-radius: 16px;
         background: close-ta.has-hover ? #ff6a5740 : #00000080;
 
-        Text {
-            text: "✕";
-            color: close-ta.has-hover ? #ffffff : #d0d4dc;
-            font-size: 16px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: (parent.width - 14px) / 2;
+            y: (parent.height - 14px) / 2;
+            width: 14px;
+            height: 14px;
+            source: @image-url("../assets/close.svg");
+            colorize: close-ta.has-hover ? #ffffff : #d0d4dc;
         }
 
         close-ta := TouchArea {
