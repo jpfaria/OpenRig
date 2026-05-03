@@ -24,6 +24,10 @@ export component TouchMain inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;

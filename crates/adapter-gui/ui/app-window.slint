@@ -267,6 +267,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -458,6 +462,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
