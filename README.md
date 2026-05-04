@@ -155,15 +155,58 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branching, commits, PRs, and code sta
 
 ## Roadmap
 
-- [x] Standalone desktop app (macOS, Linux, Windows)
-- [x] Multi-input parallel chains with stream isolation
-- [x] 560+ models across 16 block types, four audio backends in the same graph
-- [ ] gRPC server — remote chain control over the network
-- [ ] Mobile / tablet app — per-musician control surface
-- [ ] Pedalboard form factor (Orange Pi-class hardware, low-latency Linux)
-- [ ] Pedalboard-as-terminal (USB / Bluetooth / network controller for remote nodes)
+Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/OpenRig/issues) — that's where progress, design discussion, and PRs live. Star or watch the repo to follow along.
+
+### Today
+
+- [x] Standalone desktop app for **macOS** (Apple Silicon + Intel), **Linux** (x86_64 + aarch64), and **Windows** (x86_64) — five platform targets from a single codebase
+- [x] **Truly parallel chains** — each input is an isolated audio runtime, no shared buffers, no contended locks, no cross-stream CPU spikes
+- [x] **560+ models** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
+- [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
+- [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
+- [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
+- [x] **Multi-language UI** — 9 languages today: English (`en-US`), Portuguese (`pt-BR`), Spanish (`es-ES`), French (`fr-FR`), German (`de-DE`), Japanese (`ja-JP`), Korean (`ko-KR`), Simplified Chinese (`zh-CN`), and Hindi (`hi-IN`); the i18n framework is ready for community contributions
+- [x] **Per-chain instrument filtering** — electric guitar, acoustic guitar, bass, voice, keys, drums, or generic — surfaces only relevant blocks
+- [x] **Multiple I/O blocks per chain** with independent device and channel configuration per block
+- [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
+- [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
+- [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](docs/user-guide/blocks-reference.md)
+- [x] **AI-assisted preset building** — the [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill ships in the repo and writes full presets from a song or artist name
+
+### Stage features
+
+- [ ] Snapshots / scenes ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
+- [ ] Looper, multi-layer ([#323](https://github.com/jpfaria/OpenRig/issues/323))
+- [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
+- [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [ ] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
+- [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
+- [ ] Master mixer per stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
+
+### Sound foundation
+
+- [ ] Native DSP rewrites of every block type from first principles, papers and no external capture dependency ([#380](https://github.com/jpfaria/OpenRig/issues/380) umbrella, with sub-issues [#381–#392](https://github.com/jpfaria/OpenRig/issues?q=is%3Aopen+is%3Aissue+label%3Acore+38))
+- [ ] Manual component models for the OpenRig benchmark amps ([#347](https://github.com/jpfaria/OpenRig/issues/347))
+- [ ] NAM → native generators for amps and preamps ([#282](https://github.com/jpfaria/OpenRig/issues/282), [#283](https://github.com/jpfaria/OpenRig/issues/283))
+- [ ] IR → native generators for cabinets and acoustic bodies ([#284](https://github.com/jpfaria/OpenRig/issues/284), [#285](https://github.com/jpfaria/OpenRig/issues/285))
+- [ ] User-authored plugin wizard for NAM / IR import ([#287](https://github.com/jpfaria/OpenRig/issues/287))
+
+### Ecosystem and remote
+
+- [ ] gRPC server for remote chain control over the network
+- [ ] Mobile and tablet app as the per-musician control surface
+- [ ] Pedalboard form factor — Orange Pi-class hardware, low-latency Linux
+- [ ] Pedalboard-as-terminal — USB / Bluetooth / network controller for remote nodes
 - [ ] Multi-musician projects on a single node
+- [ ] `openrig-cli` — scriptable CLI client over gRPC ([#298](https://github.com/jpfaria/OpenRig/issues/298))
+- [ ] OpenRig Hub — community plugin marketplace ([#309](https://github.com/jpfaria/OpenRig/issues/309))
 - [ ] VST3 / AU plugin
+
+### Catalog expansion
+
+The current 560+ models are the seed. Per-block expansion is tracked under the [`planned` label](https://github.com/jpfaria/OpenRig/issues?q=is%3Aopen+is%3Aissue+label%3Aplanned), including a community-driven LV2/VST3 import pipeline ([#372](https://github.com/jpfaria/OpenRig/issues/372), [#374](https://github.com/jpfaria/OpenRig/issues/374), [#379](https://github.com/jpfaria/OpenRig/issues/379)) and Airwindows mass integration ([#373](https://github.com/jpfaria/OpenRig/issues/373)).
 
 ## License
 
