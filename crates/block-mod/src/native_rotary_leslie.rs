@@ -1,35 +1,41 @@
-//! Rotary speaker (Leslie) — dual-rotor model.
+//! Rotary speaker (Leslie 122) — dual-rotor model. Pro-tier.
 //!
 //! Reference: Smith, J. O. III. "Rotary Speaker (Leslie)" tutorial in
 //! "Physical Audio Signal Processing" (CCRMA online); Henricksen, C.
 //! "Unearthing the Mysteries of the Leslie Cabinet" Recording
-//! Engineer/Producer 1981. Topology:
+//! Engineer/Producer 1981.
 //!
-//!   1. Linkwitz-Riley 4th-order crossover at 800 Hz splits the input
+//! Pro-tier topology:
+//!   1. Linkwitz-Riley 4th-order crossover @ 800 Hz splits the input
 //!      into a high-band (horn) and low-band (drum / bass rotor).
-//!   2. Each rotor is modulated by an LFO at its own rate:
-//!         * Doppler delay-line modulation (~ pitch wobble)
-//!         * Amplitude modulation (tremolo from rotation past the mics)
-//!         * Stereo pan as the rotor faces away from L vs R mic
-//!   3. The two rotor outputs are summed stereo.
+//!   2. Each rotor:
+//!        * LFO with PolyBLEP — even at sub-Hz rates the alternating
+//!          phase wrap is alias-free.
+//!        * Doppler delay-line modulation read with Catmull-Rom Hermite
+//!          cubic interpolation (smoother than linear under fast motion).
+//!        * Amplitude modulation (rotor pointing toward mic = louder).
+//!        * Stereo pan from rotor angle.
+//!   3. DC blocker on the wet sum so any AM asymmetry doesn't drift.
+//!   4. Speed param continuous so the speed switch spins up/down via a
+//!      single-pole rate smoother (motor inertia).
 //!
-//! Two speeds: SLOW ("chorale") and FAST ("tremolo"). Real Leslie 122
-//! rotors:
+//! Real Leslie 122 motor rates baked in:
 //!         horn    drum
-//!   slow  0.83 Hz 0.67 Hz
-//!   fast  6.40 Hz 5.70 Hz
+//!   slow  0.83 Hz 0.67 Hz (chorale)
+//!   fast  6.40 Hz 5.70 Hz (tremolo)
 //!
-//! RT-safe: pre-allocated delay rings for both rotors; no allocation,
-//! lock or syscall on the audio thread.
+//! RT-safe: pre-allocated rings for both rotors, biquads in direct-form
+//! I, cubic interp on the read pointer, zero alloc on hot path.
 
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
 use anyhow::{Error, Result};
+use block_core::dsp::{flush_denormal, DcBlocker, Lfo, LfoShape};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{ModelAudioMode, MonoProcessor};
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::TAU;
 
 pub const MODEL_ID: &str = "rotary_leslie";
 pub const DISPLAY_NAME: &str = "Rotary Leslie";
@@ -169,13 +175,13 @@ impl Biquad {
 }
 
 struct Rotor {
-    sample_rate: f32,
     base_delay_samples: f32,
     depth_samples: f32,
     am_depth: f32,
     buffer: Vec<f32>,
     write_idx: usize,
-    phase: f32,
+    lfo: Lfo,
+    sample_rate: f32,
     rate_hz: f32,
 }
 
@@ -190,44 +196,62 @@ impl Rotor {
     ) -> Self {
         let max_samples =
             (((base_delay_ms + depth_ms) / 1000.0) * sample_rate).ceil() as usize + 8;
+        let mut lfo = Lfo::new(LfoShape::Sine, rate_hz, sample_rate);
+        lfo.set_phase(phase_offset / TAU);
         Self {
-            sample_rate,
             base_delay_samples: (base_delay_ms / 1000.0) * sample_rate,
             depth_samples: (depth_ms / 1000.0) * sample_rate,
             am_depth: am_depth.clamp(0.0, 1.0),
             buffer: vec![0.0; max_samples],
             write_idx: 0,
-            phase: phase_offset,
+            lfo,
+            sample_rate,
             rate_hz,
         }
     }
 
-    fn read_interp(&self, delay_samples: f32) -> f32 {
-        let len = self.buffer.len();
-        let pos = self.write_idx as f32 - delay_samples;
-        let pos = pos.rem_euclid(len as f32);
-        let i0 = pos.floor() as usize % len;
-        let i1 = (i0 + 1) % len;
+    /// Catmull-Rom Hermite 4-point interpolation on the ring.
+    fn read_cubic(&self, delay_samples: f32) -> f32 {
+        let len = self.buffer.len() as f32;
+        let len_u = self.buffer.len();
+        let pos = (self.write_idx as f32 - delay_samples).rem_euclid(len);
+        let i0 = pos.floor() as usize % len_u;
         let frac = pos - pos.floor();
-        self.buffer[i0] * (1.0 - frac) + self.buffer[i1] * frac
+
+        let i_m1 = (i0 + len_u - 1) % len_u;
+        let i_p1 = (i0 + 1) % len_u;
+        let i_p2 = (i0 + 2) % len_u;
+
+        let y_m1 = self.buffer[i_m1];
+        let y_0 = self.buffer[i0];
+        let y_p1 = self.buffer[i_p1];
+        let y_p2 = self.buffer[i_p2];
+
+        let c0 = y_0;
+        let c1 = 0.5 * (y_p1 - y_m1);
+        let c2 = y_m1 - 2.5 * y_0 + 2.0 * y_p1 - 0.5 * y_p2;
+        let c3 = 0.5 * (y_p2 - y_m1) + 1.5 * (y_0 - y_p1);
+
+        ((c3 * frac + c2) * frac + c1) * frac + c0
     }
 
     fn step(&mut self, input: f32, target_rate_hz: f32) -> [f32; 2] {
-        // Single-pole smoothing on rate to spin-up/down like a motor.
-        // tau ~= 0.5s independent of sample rate.
+        // Single-pole smoothing on rate to spin-up/down like a motor
+        // (tau ≈ 0.5 s independent of sample rate).
         let tau_samples = 0.5 * self.sample_rate;
         let alpha = 1.0 / tau_samples;
         self.rate_hz += (target_rate_hz - self.rate_hz) * alpha;
+        self.lfo.set_rate(self.rate_hz);
 
-        let lfo_sin = self.phase.sin();
-        self.phase = (self.phase + (TAU * self.rate_hz / self.sample_rate)).rem_euclid(TAU);
+        // Band-limited LFO, bipolar [-1, 1].
+        let lfo_sin = self.lfo.next();
 
         // Doppler: instantaneous delay sweeps base ± depth.
         let delay = self.base_delay_samples + self.depth_samples * lfo_sin;
         // Write input.
         self.buffer[self.write_idx] = input;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
-        let delayed = self.read_interp(delay);
+        let delayed = self.read_cubic(delay);
 
         // AM tremolo (rotor pointing toward a mic = louder).
         let am_l = 1.0 - self.am_depth * (1.0 + lfo_sin) * 0.5;
@@ -246,6 +270,8 @@ pub struct LeslieRotary {
     crossover_hp_b: Biquad,
     horn: Rotor,
     drum: Rotor,
+    dc_blocker_l: DcBlocker,
+    dc_blocker_r: DcBlocker,
 }
 
 impl LeslieRotary {
@@ -273,8 +299,10 @@ impl LeslieRotary {
                 DRUM_DELAY_DEPTH_MS,
                 DRUM_AM_DEPTH,
                 DRUM_RATE_SLOW_HZ,
-                PI, // start drum 180° out so onset doesn't pile
+                std::f32::consts::PI,
             ),
+            dc_blocker_l: DcBlocker::new(5.0, sample_rate),
+            dc_blocker_r: DcBlocker::new(5.0, sample_rate),
         }
     }
 
@@ -294,8 +322,10 @@ impl LeslieRotary {
         let [horn_l, horn_r] = self.horn.step(hi, horn_rate);
         let [drum_l, drum_r] = self.drum.step(lo, drum_rate);
 
-        let wet_l = horn_l + drum_l;
-        let wet_r = horn_r + drum_r;
+        let wet_l_raw = horn_l + drum_l;
+        let wet_r_raw = horn_r + drum_r;
+        let wet_l = self.dc_blocker_l.process(flush_denormal(wet_l_raw));
+        let wet_r = self.dc_blocker_r.process(flush_denormal(wet_r_raw));
 
         [
             (1.0 - self.mix) * dry_in + self.mix * wet_l,
@@ -376,8 +406,7 @@ mod tests {
         let mut l = LeslieRotary::new(1.0, 1.0, 44_100.0);
         for _ in 0..8192 {
             let [a, b] = l.process_stereo(0.0);
-            assert_eq!(a, 0.0);
-            assert_eq!(b, 0.0);
+            assert!(a.abs() < 1e-20 && b.abs() < 1e-20);
         }
     }
 

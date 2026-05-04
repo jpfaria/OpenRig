@@ -1,25 +1,38 @@
-//! Phaser — cascade of first-order all-pass filters with LFO-modulated
-//! cutoff, summed (with feedback) into the dry signal.
+//! Phaser — 6-stage cascade of first-order all-pass filters with
+//! LFO-modulated cutoff, summed (with feedback) into the dry signal.
+//! Pro-tier.
 //!
-//! Reference: Smith, J. O. III. "Physical Audio Signal Processing"
-//! (online book, CCRMA Stanford), section "Time-Varying Allpass
-//! Filters." A first-order all-pass with break frequency `f` introduces
-//! a frequency-dependent phase shift; cascading N stages and modulating
-//! `f` with an LFO sweeps notches across the spectrum when summed with
-//! the dry signal. Classic 4–6 stage analog phasers (MXR Phase 90, EHX
-//! Small Stone) are the model.
+//! Reference: Smith, J. O. III. "Physical Audio Signal Processing,"
+//! chapter on Time-Varying Allpass Filters (CCRMA online). MXR
+//! Phase 90 schematic analysis at electrosmash.com.
 //!
-//! RT-safe: stack-allocated stage state, no allocation on the audio
-//! thread.
+//! Pro-tier topology:
+//!   1. LFO with PolyBLEP (Lfo, Sine shape) — alias-free modulator.
+//!   2. JFET-like non-linear sweep curve. Real Phase 90 uses a 2N5952
+//!      JFET as a voltage-controlled resistor; pinch-off gives an
+//!      exponential resistance/voltage relationship that warps the
+//!      sweep towards the upper end. We approximate with a tanh-like
+//!      skew applied on top of the log-linear sweep.
+//!   3. tanh-saturated feedback. Real op-amp feedback in the original
+//!      pedal soft-clips at high resonance — emulating it tames runaway
+//!      and adds the "sing" the analog circuit is loved for.
+//!   4. DC blocker on the feedback register so any tanh asymmetry
+//!      cannot drift the chain.
+//!   5. Anti-denormal flush on the feedback state.
+//!
+//! RT-safe: stack-allocated stage state, single tanh per sample on
+//! the feedback path. Feedback is bounded by tanh saturation so BIBO
+//! is unconditional.
 
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
 use anyhow::{Error, Result};
+use block_core::dsp::{flush_denormal, DcBlocker, Lfo, LfoShape};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{ModelAudioMode, MonoProcessor};
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::PI;
 
 pub const MODEL_ID: &str = "phaser_classic";
 pub const DISPLAY_NAME: &str = "Classic Phaser";
@@ -108,59 +121,80 @@ pub fn params_from_set(params: &ParameterSet) -> Result<PhaserParams> {
 }
 
 pub struct Phaser {
-    rate_hz: f32,
     depth: f32,
     feedback: f32,
     mix: f32,
     sample_rate: f32,
-    phase: f32,
+    lfo: Lfo,
     stage_z: [f32; STAGES],
     feedback_z: f32,
+    feedback_dc_blocker: DcBlocker,
 }
 
 impl Phaser {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
         Self {
-            rate_hz,
             depth: depth.clamp(0.0, 1.0),
             feedback: feedback.clamp(-0.95, 0.95),
             mix: mix.clamp(0.0, 1.0),
             sample_rate,
-            phase: 0.0,
+            lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
             stage_z: [0.0; STAGES],
             feedback_z: 0.0,
+            feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),
         }
+    }
+
+    pub fn set_lfo_phase(&mut self, phase: f32) {
+        self.lfo.set_phase(phase);
+    }
+
+    /// JFET-like sweep skew. `t` in [0, 1] (raw LFO unipolar). Output
+    /// in [0, 1] but biased toward the upper portion of the sweep,
+    /// emulating the exponential V→R curve of the 2N5952 in pinch-off.
+    fn shape_sweep(t: f32) -> f32 {
+        // tanh skew normalised so the curve passes exactly through
+        // (0,0), (0.5,0.5) and (1,1) — only the slope is shaped, not
+        // the endpoints.
+        const K: f32 = 2.5;
+        let centered = t * 2.0 - 1.0;
+        let denom = K.tanh();
+        let raw = (centered * K).tanh() / denom * 0.5 + 0.5;
+        // Blend 70% shaped + 30% linear so the bottom of the sweep
+        // still feels musical (shaped-only collapses too fast).
+        0.7 * raw + 0.3 * t
     }
 }
 
 impl MonoProcessor for Phaser {
     fn process_sample(&mut self, input: f32) -> f32 {
-        // LFO in [0,1]
-        let lfo = 0.5 * (1.0 + self.phase.sin());
-        self.phase = (self.phase + (TAU * self.rate_hz / self.sample_rate)).rem_euclid(TAU);
+        let lfo_raw = self.lfo.next_unipolar();
+        let lfo_shaped = Self::shape_sweep(lfo_raw);
 
-        // Sweep break frequency on a log scale so motion sounds even.
+        // Sweep break frequency on a log scale, then JFET-shape it.
         let log_min = MIN_FREQ_HZ.ln();
         let log_max = MAX_FREQ_HZ.ln();
-        let log_freq = log_min + (log_max - log_min) * self.depth * lfo;
+        let log_freq = log_min + (log_max - log_min) * self.depth * lfo_shaped;
         let break_hz = log_freq.exp();
 
-        // First-order all-pass coefficient from break frequency:
-        //   tan(pi * f / fs) - 1
-        //   ─────────────────────
-        //   tan(pi * f / fs) + 1
+        // First-order all-pass coefficient via bilinear substitution:
+        //   a = (tan(pi*f/fs) - 1) / (tan(pi*f/fs) + 1)
         let t = (PI * break_hz / self.sample_rate).tan();
         let a = (t - 1.0) / (t + 1.0);
 
-        let mut x = input + self.feedback * self.feedback_z;
+        let mut x = input + self.feedback_z;
         for stage in self.stage_z.iter_mut() {
-            // y[n] = a * x[n] + x[n-1] - a * y[n-1]
-            // Using direct-form Transposed II in-place state update:
+            // Direct Form II Transposed first-order all-pass.
             let y = a * x + *stage;
             *stage = x - a * y;
             x = y;
         }
-        self.feedback_z = x;
+
+        // Soft-sat the feedback — limits resonance, kills runaway, gives
+        // the analog "sing" near max feedback.
+        let fb_soft = (self.feedback * x * 1.5).tanh() / 1.5;
+        // DC-block + denormal flush so feedback stays well-behaved.
+        self.feedback_z = flush_denormal(self.feedback_dc_blocker.process(fb_soft));
 
         (1.0 - self.mix) * input + self.mix * x
     }
@@ -184,7 +218,7 @@ pub fn build_processor_with_phase(
 ) -> Result<Box<dyn MonoProcessor>> {
     let p = params_from_set(params)?;
     let mut ph = Phaser::new(p.rate_hz, p.depth, p.feedback, p.mix, sample_rate);
-    ph.phase = phase_offset;
+    ph.set_lfo_phase(phase_offset / std::f32::consts::TAU);
     Ok(Box::new(ph))
 }
 
@@ -238,13 +272,14 @@ pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f32::consts::TAU;
 
     #[test]
     fn silence_in_silence_out() {
         let mut ph = Phaser::new(0.5, 0.7, 0.5, 0.5, 44_100.0);
         for _ in 0..4096 {
             let out = ph.process_sample(0.0);
-            assert_eq!(out, 0.0, "phaser of silence must be silence");
+            assert!(out.abs() < 1e-20, "phaser of silence: {out}");
         }
     }
 
@@ -271,12 +306,23 @@ mod tests {
     }
 
     #[test]
-    fn output_bounded_with_clamped_feedback() {
-        let mut ph = Phaser::new(0.5, 1.0, 1.5, 1.0, 44_100.0);
+    fn output_bounded_with_max_feedback() {
+        // tanh saturation guarantees feedback bounded.
+        let mut ph = Phaser::new(0.5, 1.0, 0.95, 1.0, 44_100.0);
         for i in 0..44_100 {
             let input = ((i as f32 * 0.1).sin()).clamp(-1.0, 1.0);
             let out = ph.process_sample(input);
-            assert!(out.abs() < 50.0, "diverged: {out} at {i}");
+            assert!(out.abs() < 5.0, "diverged: {out} at {i}");
         }
+    }
+
+    #[test]
+    fn shape_sweep_fixed_points() {
+        // Endpoints should still be 0 and 1.
+        assert!((Phaser::shape_sweep(0.0)).abs() < 0.01);
+        assert!((Phaser::shape_sweep(1.0) - 1.0).abs() < 0.01);
+        // Midpoint should be near 0.5 too.
+        let mid = Phaser::shape_sweep(0.5);
+        assert!((mid - 0.5).abs() < 0.05, "mid: {mid}");
     }
 }

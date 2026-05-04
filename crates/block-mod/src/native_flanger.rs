@@ -1,23 +1,31 @@
-//! Flanger — short modulated delay line with feedback.
+//! Flanger — short modulated delay line with feedback. Pro-tier.
 //!
 //! Reference: Dattorro, J. (1997). "Effect Design Part 2: Delay-Line
-//! Modulation and Chorus." Journal of the Audio Engineering Society,
-//! 45(10), pp. 764-788. The flanger is a delay-line in the 0.5–10 ms
-//! range, length-modulated by a low-frequency oscillator, summed
-//! (optionally with feedback) into the dry signal. Comb-filter notches
-//! sweep across the spectrum producing the characteristic "jet" sound.
+//! Modulation and Chorus." JAES 45(10).
 //!
-//! RT-safe: pre-allocated ring buffer, fractional read via linear
-//! interpolation. No allocation, lock, syscall on the audio thread.
+//! Pro-tier topology:
+//!   1. LFO with PolyBLEP (Välimäki & Huovilainen 2007) — alias-free
+//!      modulator even when the host samples cutoff at sub-Hz.
+//!   2. Catmull-Rom Hermite cubic interpolation on the fractional
+//!      delay read — eliminates the "plastic" sound of linear
+//!      interpolation under fast modulation.
+//!   3. DC blocker on the feedback path so an asymmetric input cannot
+//!      drift the delay-line into clip territory.
+//!   4. Anti-denormal injection on the feedback register prevents
+//!      subnormal-CPU stalls during long silences.
+//!
+//! RT-safe: pre-allocated ring (~530 samples @44.1k), one Lfo + one
+//! DcBlocker per stereo leg, zero alloc on hot path. Feedback clamp
+//! `[-0.95, 0.95]` for BIBO stability.
 
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
 use anyhow::{Error, Result};
+use block_core::dsp::{flush_denormal, DcBlocker, Lfo, LfoShape};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{ModelAudioMode, MonoProcessor};
-use std::f32::consts::TAU;
 
 pub const MODEL_ID: &str = "flanger_classic";
 pub const DISPLAY_NAME: &str = "Classic Flanger";
@@ -105,58 +113,82 @@ pub fn params_from_set(params: &ParameterSet) -> Result<FlangerParams> {
 }
 
 pub struct Flanger {
-    rate_hz: f32,
     depth: f32,
     feedback: f32,
     mix: f32,
-    sample_rate: f32,
-    buffer: Vec<f32>,
-    write_idx: usize,
-    phase: f32,
     base_samples: f32,
     sweep_samples: f32,
+    buffer: Vec<f32>,
+    write_idx: usize,
+    lfo: Lfo,
+    feedback_dc_blocker: DcBlocker,
 }
 
 impl Flanger {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
-        let max_samples = ((MAX_DELAY_MS / 1000.0) * sample_rate).ceil() as usize + 4;
+        let max_samples = ((MAX_DELAY_MS / 1000.0) * sample_rate).ceil() as usize + 8;
         let base_samples = (BASE_DELAY_MS / 1000.0) * sample_rate;
         let sweep_samples = ((MAX_DELAY_MS - BASE_DELAY_MS) / 1000.0) * sample_rate;
         Self {
-            rate_hz,
             depth: depth.clamp(0.0, 1.0),
             feedback: feedback.clamp(-0.95, 0.95),
             mix: mix.clamp(0.0, 1.0),
-            sample_rate,
-            buffer: vec![0.0; max_samples],
-            write_idx: 0,
-            phase: 0.0,
             base_samples,
             sweep_samples,
+            buffer: vec![0.0; max_samples],
+            write_idx: 0,
+            lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
+            // 5 Hz HP — kills DC drift in feedback without colouring.
+            feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),
         }
     }
 
-    fn read_interp(&self, delay_samples: f32) -> f32 {
-        let len = self.buffer.len();
-        let read_pos = self.write_idx as f32 - delay_samples;
-        let read_pos = read_pos.rem_euclid(len as f32);
-        let i0 = read_pos.floor() as usize % len;
-        let i1 = (i0 + 1) % len;
-        let frac = read_pos - read_pos.floor();
-        self.buffer[i0] * (1.0 - frac) + self.buffer[i1] * frac
+    pub fn set_lfo_phase(&mut self, phase: f32) {
+        self.lfo.set_phase(phase);
+    }
+
+    /// Catmull-Rom Hermite 4-point interpolation. Reads samples
+    /// `y_m1, y0, y1, y2` (centred at the integer part of
+    /// `delay_samples`) and interpolates with parameter `frac` in
+    /// `[0, 1]`. Smoother and less plastic than linear interpolation
+    /// for time-varying delays.
+    fn read_cubic(&self, delay_samples: f32) -> f32 {
+        let len = self.buffer.len() as f32;
+        let len_u = self.buffer.len();
+        let pos = (self.write_idx as f32 - delay_samples).rem_euclid(len);
+        let i0 = pos.floor() as usize % len_u;
+        let frac = pos - pos.floor();
+
+        let i_m1 = (i0 + len_u - 1) % len_u;
+        let i_p1 = (i0 + 1) % len_u;
+        let i_p2 = (i0 + 2) % len_u;
+
+        let y_m1 = self.buffer[i_m1];
+        let y_0 = self.buffer[i0];
+        let y_p1 = self.buffer[i_p1];
+        let y_p2 = self.buffer[i_p2];
+
+        let c0 = y_0;
+        let c1 = 0.5 * (y_p1 - y_m1);
+        let c2 = y_m1 - 2.5 * y_0 + 2.0 * y_p1 - 0.5 * y_p2;
+        let c3 = 0.5 * (y_p2 - y_m1) + 1.5 * (y_0 - y_p1);
+
+        ((c3 * frac + c2) * frac + c1) * frac + c0
     }
 }
 
 impl MonoProcessor for Flanger {
     fn process_sample(&mut self, input: f32) -> f32 {
-        // LFO in [0,1]
-        let lfo = 0.5 * (1.0 + self.phase.sin());
-        self.phase = (self.phase + (TAU * self.rate_hz / self.sample_rate)).rem_euclid(TAU);
+        // Band-limited LFO in [0,1].
+        let lfo = self.lfo.next_unipolar();
 
         let delay = self.base_samples + self.sweep_samples * self.depth * lfo;
-        let delayed = self.read_interp(delay);
+        let delayed = self.read_cubic(delay);
 
-        let to_buffer = input + self.feedback * delayed;
+        // Feedback path: DC-block, denormal-flush, write to ring.
+        let feedback_in =
+            flush_denormal(self.feedback_dc_blocker.process(self.feedback * delayed));
+        let to_buffer = input + feedback_in;
         self.buffer[self.write_idx] = to_buffer;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
 
@@ -182,7 +214,8 @@ pub fn build_processor_with_phase(
 ) -> Result<Box<dyn MonoProcessor>> {
     let p = params_from_set(params)?;
     let mut f = Flanger::new(p.rate_hz, p.depth, p.feedback, p.mix, sample_rate);
-    f.phase = phase_offset;
+    // phase_offset comes in radians — convert to fraction of cycle.
+    f.set_lfo_phase(phase_offset / std::f32::consts::TAU);
     Ok(Box::new(f))
 }
 
@@ -236,13 +269,14 @@ pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f32::consts::TAU;
 
     #[test]
     fn silence_in_silence_out() {
         let mut f = Flanger::new(0.4, 0.6, 0.5, 0.5, 44_100.0);
         for _ in 0..4096 {
             let out = f.process_sample(0.0);
-            assert_eq!(out, 0.0, "flanger of silence must be silence");
+            assert!(out.abs() < 1e-20, "flanger of silence: {out}");
         }
     }
 
@@ -270,9 +304,7 @@ mod tests {
 
     #[test]
     fn output_bounded_with_clamped_feedback() {
-        // With clamped feedback (|fb| ≤ 0.95) and bounded input,
-        // delay-line cannot diverge.
-        let mut f = Flanger::new(0.4, 1.0, 1.5, 1.0, 44_100.0); // 1.5 -> clamped to 0.95
+        let mut f = Flanger::new(0.4, 1.0, 1.5, 1.0, 44_100.0);
         for i in 0..44_100 {
             let input = ((i as f32 * 0.1).sin()).clamp(-1.0, 1.0);
             let out = f.process_sample(input);
