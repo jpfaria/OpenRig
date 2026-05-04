@@ -43,7 +43,7 @@ That's the destination. Below is what already works, and what's coming next.
 
 ## What runs today
 
-OpenRig is on `v0.1.0-dev` — early, but real. The foundation that makes the bigger vision possible already runs in production on every desktop platform:
+The foundation that makes the bigger vision possible already runs on every desktop platform:
 
 - **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64).
 - **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel.
