@@ -159,9 +159,19 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 
 ### Today
 
-- [x] Standalone desktop app (macOS, Linux, Windows)
-- [x] Multi-input parallel chains with stream isolation
-- [x] 560+ models across 16 block types, four audio backends in the same graph
+- [x] Standalone desktop app for **macOS** (Apple Silicon + Intel), **Linux** (x86_64 + aarch64), and **Windows** (x86_64) — five platform targets from a single codebase
+- [x] **Truly parallel chains** — each input is an isolated audio runtime, no shared buffers, no contended locks, no cross-stream CPU spikes
+- [x] **560+ models** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
+- [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
+- [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
+- [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
+- [x] **Multi-language UI** — English and Brazilian Portuguese today (`en-US`, `pt-BR`), with the i18n framework ready for community translations
+- [x] **Per-chain instrument filtering** — electric guitar, acoustic guitar, bass, voice, keys, drums, or generic — surfaces only relevant blocks
+- [x] **Multiple I/O blocks per chain** with independent device and channel configuration per block
+- [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
+- [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
+- [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](docs/user-guide/blocks-reference.md)
+- [x] **AI-assisted preset building** — the [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill ships in the repo and writes full presets from a song or artist name
 
 ### Stage features
 
