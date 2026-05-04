@@ -357,6 +357,18 @@ pub fn font_family_for_locale(locale: &str) -> &'static str {
     }
 }
 
+/// Resolve the font family that the persisted/auto locale should use.
+/// Pure helper for callers that want to seed Locale.font-family on a
+/// freshly-created Slint Window without re-deriving the locale.
+pub fn font_for_persisted_runtime() -> &'static str {
+    let persisted = infra_filesystem::FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .and_then(|s| s.language);
+    let locale = locale_for_runtime(persisted.as_deref());
+    font_family_for_locale(&locale)
+}
+
 /// Apply the resolved locale to Slint's bundled translations. Must be
 /// called AFTER `AppWindow::new()` — Slint requires the first component
 /// to exist before bundled translations can be selected.

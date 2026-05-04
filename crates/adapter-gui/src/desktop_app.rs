@@ -98,6 +98,11 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let boot_font = crate::i18n::font_for_persisted_runtime();
+    {
+        use slint::Global;
+        crate::Locale::get(&window).set_font_family(boot_font.into());
+    }
     // Slint's select_bundled_translation requires at least one component to
     // exist before it can resolve the bundled language list. Call it here,
     // after AppWindow is constructed.
@@ -115,28 +120,64 @@ pub fn run_desktop_app(
         }));
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&project_settings_window).set_font_family(boot_font.into());
+    }
     let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> = Rc::new(RefCell::new(None));
     let plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>> = Rc::new(RefCell::new(None));
     let chain_input_window = ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_input_window).set_font_family(boot_font.into());
+    }
     let chain_output_window =
         ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_output_window).set_font_family(boot_font.into());
+    }
     let chain_input_groups_window =
         ChainInputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_input_groups_window).set_font_family(boot_font.into());
+    }
     let chain_output_groups_window =
         ChainOutputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_output_groups_window).set_font_family(boot_font.into());
+    }
     // Tracks whether the inline I/O groups page is showing inputs (true) or outputs (false)
     let inline_io_groups_is_input: Rc<Cell<bool>> = Rc::new(Cell::new(true));
     let chain_insert_window =
         ChainInsertWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_insert_window).set_font_family(boot_font.into());
+    }
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&block_editor_window).set_font_family(boot_font.into());
+    }
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&tuner_window).set_font_family(boot_font.into());
+    }
     let tuner_session: Rc<RefCell<Option<crate::tuner_session::TunerSession>>> =
         Rc::new(RefCell::new(None));
     let tuner_timer = Rc::new(Timer::default());
     let spectrum_window = SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&spectrum_window).set_font_family(boot_font.into());
+    }
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
