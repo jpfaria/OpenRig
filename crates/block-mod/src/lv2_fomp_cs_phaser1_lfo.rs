@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/cs_phaser1_lfo";
 const PLUGIN_DIR: &str = "fomp";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "cs_phaser.dylib.dylib";
+const PLUGIN_BINARY: &str = "cs_phaser.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "cs_phaser.dylib.so";
+const PLUGIN_BINARY: &str = "cs_phaser.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "cs_phaser.dylib.dll";
+const PLUGIN_BINARY: &str = "cs_phaser.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

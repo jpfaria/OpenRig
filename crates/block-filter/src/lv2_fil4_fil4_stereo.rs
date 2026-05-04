@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fil4#stereo";
 const PLUGIN_DIR: &str = "fil4";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "fil4.dylib.dylib";
+const PLUGIN_BINARY: &str = "fil4.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "fil4.dylib.so";
+const PLUGIN_BINARY: &str = "fil4.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "fil4.dylib.dll";
+const PLUGIN_BINARY: &str = "fil4.dll";
 
 // Port indices (from TTL)
 const PORT_ATOM_IN_CONTROL: usize = 0;

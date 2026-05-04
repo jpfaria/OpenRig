@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/BandPassFilter
 const PLUGIN_DIR: &str = "mod-bpf";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "mod-bpf.dylib.dylib";
+const PLUGIN_BINARY: &str = "mod-bpf.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "mod-bpf.dylib.so";
+const PLUGIN_BINARY: &str = "mod-bpf.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "mod-bpf.dylib.dll";
+const PLUGIN_BINARY: &str = "mod-bpf.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

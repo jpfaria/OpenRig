@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/BigMuffPi";
 const PLUGIN_DIR: &str = "mod-bigmuff";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "mod-bigmuff.dylib.dylib";
+const PLUGIN_BINARY: &str = "mod-bigmuff.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "mod-bigmuff.dylib.so";
+const PLUGIN_BINARY: &str = "mod-bigmuff.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "mod-bigmuff.dylib.dll";
+const PLUGIN_BINARY: &str = "mod-bigmuff.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

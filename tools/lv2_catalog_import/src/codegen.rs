@@ -22,8 +22,7 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
             .strip_suffix(".lv2")
             .unwrap_or(&plugin.bundle_dir),
     );
-    let bin = plugin.binary.as_deref().unwrap_or("plugin.so");
-    let bin_stem = bin.strip_suffix(".so").unwrap_or(bin);
+    let bin_stem = strip_binary_extension(plugin.binary.as_deref().unwrap_or("plugin"));
 
     let port_const_names = name_ports(plugin);
     let audio_in_consts = audio_const_list(plugin, &port_const_names, PortDirection::Input);
@@ -491,4 +490,17 @@ fn strip_kind(path: &str) -> &str {
 
 fn escape_str(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Strip any platform-specific suffix from a binary file name to get the bare
+/// stem that the codegen reanchors per OS via #[cfg]. Some upstream TTLs
+/// declare `lv2:binary <Plugin.dylib>` even on Linux (typo), so we accept any
+/// of the three families as a stripable suffix.
+fn strip_binary_extension(name: &str) -> &str {
+    for ext in [".dylib", ".so", ".dll"] {
+        if let Some(stem) = name.strip_suffix(ext) {
+            return stem;
+        }
+    }
+    name
 }

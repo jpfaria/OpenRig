@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "https://github.com/jatinchowdhury18/KlonCentaur";
 const PLUGIN_DIR: &str = "ChowCentaur";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "ChowCentaur.dylib.dylib";
+const PLUGIN_BINARY: &str = "ChowCentaur.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "ChowCentaur.dylib.so";
+const PLUGIN_BINARY: &str = "ChowCentaur.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "ChowCentaur.dylib.dll";
+const PLUGIN_BINARY: &str = "ChowCentaur.dll";
 
 // Port indices (from TTL)
 const PORT_CTRL_LV2_FREEWHEEL: usize = 0;

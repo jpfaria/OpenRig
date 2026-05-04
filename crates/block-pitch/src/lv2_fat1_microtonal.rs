@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fat1#microtonal";
 const PLUGIN_DIR: &str = "fat1";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "fat1.dylib.dylib";
+const PLUGIN_BINARY: &str = "fat1.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "fat1.dylib.so";
+const PLUGIN_BINARY: &str = "fat1.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "fat1.dylib.dll";
+const PLUGIN_BINARY: &str = "fat1.dll";
 
 // Port indices (from TTL)
 const PORT_ATOM_IN_MIDIIN: usize = 0;

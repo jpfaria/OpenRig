@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/CrossOver2";
 const PLUGIN_DIR: &str = "mod-crossover2";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "mod-crossover2.dylib.dylib";
+const PLUGIN_BINARY: &str = "mod-crossover2.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "mod-crossover2.dylib.so";
+const PLUGIN_BINARY: &str = "mod-crossover2.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "mod-crossover2.dylib.dll";
+const PLUGIN_BINARY: &str = "mod-crossover2.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

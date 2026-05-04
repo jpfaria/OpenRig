@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/ThruZero";
 const PLUGIN_DIR: &str = "mod-mda-ThruZero";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "ThruZero.dylib.dylib";
+const PLUGIN_BINARY: &str = "ThruZero.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "ThruZero.dylib.so";
+const PLUGIN_BINARY: &str = "ThruZero.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "ThruZero.dylib.dll";
+const PLUGIN_BINARY: &str = "ThruZero.dll";
 
 // Port indices (from TTL)
 const PORT_CTRL_RATE: usize = 0;

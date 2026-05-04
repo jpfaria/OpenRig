@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/b_whirl#mod";
 const PLUGIN_DIR: &str = "b_whirl_mod";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "b_whirl.dylib.dylib";
+const PLUGIN_BINARY: &str = "b_whirl.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "b_whirl.dylib.so";
+const PLUGIN_BINARY: &str = "b_whirl.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "b_whirl.dylib.dll";
+const PLUGIN_BINARY: &str = "b_whirl.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

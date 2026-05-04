@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/DS1";
 const PLUGIN_DIR: &str = "mod-ds1";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "mod-ds1.dylib.dylib";
+const PLUGIN_BINARY: &str = "mod-ds1.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "mod-ds1.dylib.so";
+const PLUGIN_BINARY: &str = "mod-ds1.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "mod-ds1.dylib.dll";
+const PLUGIN_BINARY: &str = "mod-ds1.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN: usize = 0;

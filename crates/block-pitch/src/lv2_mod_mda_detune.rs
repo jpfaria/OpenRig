@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Detune";
 const PLUGIN_DIR: &str = "mod-mda-Detune";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "Detune.dylib.dylib";
+const PLUGIN_BINARY: &str = "Detune.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "Detune.dylib.so";
+const PLUGIN_BINARY: &str = "Detune.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "Detune.dylib.dll";
+const PLUGIN_BINARY: &str = "Detune.dll";
 
 // Port indices (from TTL)
 const PORT_CTRL_DETUNE: usize = 0;

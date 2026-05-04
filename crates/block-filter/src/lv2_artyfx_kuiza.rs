@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#kuiza";
 const PLUGIN_DIR: &str = "artyfx";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "artyfx.dylib.dylib";
+const PLUGIN_BINARY: &str = "artyfx.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "artyfx.dylib.so";
+const PLUGIN_BINARY: &str = "artyfx.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "artyfx.dylib.dll";
+const PLUGIN_BINARY: &str = "artyfx.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_INPUT: usize = 0;

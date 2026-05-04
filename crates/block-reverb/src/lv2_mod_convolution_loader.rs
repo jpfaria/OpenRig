@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "https://mod.audio/plugins/ConvolutionLoader";
 const PLUGIN_DIR: &str = "MOD-ConvolutionLoader";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dylib.dylib";
+const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dylib.so";
+const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dylib.dll";
+const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_LV2_AUDIO_IN_1: usize = 0;

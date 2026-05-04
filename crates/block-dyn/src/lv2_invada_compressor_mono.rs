@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://invadarecords.com/plugins/lv2/compressor/mono";
 const PLUGIN_DIR: &str = "invada";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "inv_compressor.dylib.dylib";
+const PLUGIN_BINARY: &str = "inv_compressor.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "inv_compressor.dylib.so";
+const PLUGIN_BINARY: &str = "inv_compressor.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "inv_compressor.dylib.dll";
+const PLUGIN_BINARY: &str = "inv_compressor.dll";
 
 // Port indices (from TTL)
 const PORT_CTRL_BYPASS: usize = 0;

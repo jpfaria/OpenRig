@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://invadarecords.com/plugins/lv2/phaser/mono";
 const PLUGIN_DIR: &str = "invada";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "inv_phaser.dylib.dylib";
+const PLUGIN_BINARY: &str = "inv_phaser.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "inv_phaser.dylib.so";
+const PLUGIN_BINARY: &str = "inv_phaser.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "inv_phaser.dylib.dll";
+const PLUGIN_BINARY: &str = "inv_phaser.dll";
 
 // Port indices (from TTL)
 const PORT_CTRL_BYPASS: usize = 0;

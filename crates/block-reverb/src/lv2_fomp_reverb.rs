@@ -19,11 +19,11 @@ const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/reverb";
 const PLUGIN_DIR: &str = "fomp";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "reverbs.dylib.dylib";
+const PLUGIN_BINARY: &str = "reverbs.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "reverbs.dylib.so";
+const PLUGIN_BINARY: &str = "reverbs.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "reverbs.dylib.dll";
+const PLUGIN_BINARY: &str = "reverbs.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_IN_IN_L: usize = 0;

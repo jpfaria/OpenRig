@@ -20,11 +20,11 @@ const PLUGIN_URI: &str = "http://hippie.lt/lv2/gate";
 const PLUGIN_DIR: &str = "abGate";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "gate.dylib.dylib";
+const PLUGIN_BINARY: &str = "gate.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "gate.dylib.so";
+const PLUGIN_BINARY: &str = "gate.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "gate.dylib.dll";
+const PLUGIN_BINARY: &str = "gate.dll";
 
 // Port indices (from TTL)
 const PORT_AUDIO_OUT_OUTPUT: usize = 0;
