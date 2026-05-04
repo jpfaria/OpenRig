@@ -1,0 +1,19 @@
+# Manual classification overrides for LV2 plugins.
+# Two scopes: per-bundle (applies to every plugin in the bundle) and per-plugin (URI key).
+#
+# bundle scope keys:
+#   brand: <string>     — override brand string (otherwise derived from bundle name)
+#   skip: true          — skip every plugin in this bundle (e.g. instruments)
+#   skip_reason: <text> — surfaced in dry-run report
+#
+# plugin scope keys (key = full plugin URI):
+#   block_type: reverb|delay|mod|filter|dyn|pitch|gain|util|wah|preamp|amp|cab|body
+#   skip: true | false
+#   skip_reason: <text>
+#   display_name: <text>
+#   model_id: <text>     — manual model id (defaults to lv2_<bundle>_<symbol>)
+#   brand: <text>
+
+bundles: {}
+
+plugins: {}

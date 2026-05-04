@@ -1,0 +1,13 @@
+# Bundles with known cross-platform equivalents (VST3/CLAP).
+# Bundles NOT listed here are treated as `lv2-linux-only`:
+# the model ships in the catalog on all 3 OSes but the runtime only loads
+# the LV2 .so on Linux. Mac/Win surface the model as "unavailable".
+#
+# Schema:
+#   bundles:
+#     <bundle_dir.lv2>:
+#       vst3_equivalent: <vst3 bundle name or repo url>
+#       clap_equivalent: <clap bundle name or repo url>
+#       notes: <text>
+
+bundles: {}
