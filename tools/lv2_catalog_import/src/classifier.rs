@@ -391,18 +391,45 @@ pub fn derive_model_id(plugin: &Plugin, plugin_override: Option<&PluginOverride>
         .strip_suffix(".lv2")
         .unwrap_or(&plugin.bundle_dir);
     let bundle_slug = sanitize_id_segment(bundle_stem);
-    let plugin_slug = sanitize_id_segment(
-        plugin
-            .uri
-            .rsplit(['/', '#', ':'])
-            .next()
-            .unwrap_or(&plugin.uri),
-    );
-    if plugin_slug.is_empty() || bundle_slug.contains(&plugin_slug) {
+    let plugin_slug = derive_plugin_slug_from_uri(&plugin.uri);
+    if plugin_slug.is_empty() {
         format!("lv2_{}", bundle_slug)
+    } else if bundle_slug.contains(&plugin_slug) {
+        // bundle name already disambiguates; keep slug for traceability when not a strict prefix
+        if bundle_slug.ends_with(&plugin_slug) {
+            format!("lv2_{}", bundle_slug)
+        } else {
+            format!("lv2_{}_{}", bundle_slug, plugin_slug)
+        }
     } else {
         format!("lv2_{}_{}", bundle_slug, plugin_slug)
     }
+}
+
+/// Generic suffixes that aren't unique enough on their own (mono, stereo, sum, etc.).
+/// When the last URI segment is one of these, prepend the parent segment.
+const URI_GENERIC_SUFFIXES: &[&str] = &[
+    "mono", "stereo", "sum", "left", "right", "l", "r", "m", "s", "in", "out", "lr", "rl",
+    "1", "2", "3", "4", "5",
+];
+
+fn derive_plugin_slug_from_uri(uri: &str) -> String {
+    let segments: Vec<&str> = uri
+        .rsplit(['/', '#', ':'])
+        .filter(|s| !s.is_empty())
+        .collect();
+    if segments.is_empty() {
+        return String::new();
+    }
+    let last = segments[0];
+    let last_lower = last.to_lowercase();
+    let is_generic = URI_GENERIC_SUFFIXES.contains(&last_lower.as_str());
+    let combined = if is_generic && segments.len() >= 2 {
+        format!("{}_{}", segments[1], last)
+    } else {
+        last.to_string()
+    };
+    sanitize_id_segment(&combined)
 }
 
 fn sanitize_id_segment(s: &str) -> String {

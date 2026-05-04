@@ -6,8 +6,43 @@ mod parser;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use model::Availability;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
+
+fn collect_existing_uris(crates_root: &Path) -> HashSet<String> {
+    let mut uris = HashSet::new();
+    let prefix = "const PLUGIN_URI: &str = \"";
+    let suffix = "\";";
+    let walker = walkdir::WalkDir::new(crates_root)
+        .into_iter()
+        .filter_map(|e| e.ok());
+    for entry in walker {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        if !name.starts_with("lv2_") || !name.ends_with(".rs") {
+            continue;
+        }
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        for line in content.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix(prefix) {
+                if let Some(uri) = rest.strip_suffix(suffix) {
+                    uris.insert(uri.to_string());
+                }
+            }
+        }
+    }
+    uris
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -198,6 +233,12 @@ fn apply(
     let mut skipped = 0usize;
     let mut existing = 0usize;
 
+    // Pre-scan: collect every PLUGIN_URI already declared in any lv2_*.rs across
+    // the workspace (manual or auto-generated). Used to suppress duplicate
+    // registrations when the same plugin URI shows up in two block-* crates
+    // (e.g. tap-reflector classed as Delay manually but as Delay+Reverb here).
+    let known_uris = collect_existing_uris(crates_root);
+
     for bundle in &bundles {
         if let Some(b) = only_bundle {
             if bundle.bundle_dir != b {
@@ -210,6 +251,13 @@ fn apply(
                 skipped += 1;
                 continue;
             };
+            // De-dup against the known catalog: if the plugin URI is already
+            // bound somewhere — typically a manual lv2_*.rs in a different
+            // crate — skip rather than register a duplicate MODEL_ID.
+            if known_uris.contains(&plugin.uri) {
+                existing += 1;
+                continue;
+            }
             let target_dir = crates_root.join(block_type.crate_name()).join("src");
             if !target_dir.exists() {
                 eprintln!("warn: target dir missing: {}", target_dir.display());
