@@ -111,6 +111,12 @@ pub(crate) fn wire(
                     return;
                 }
             };
+            {
+                use slint::Global;
+                crate::Locale::get(&editor_window).set_font_family(
+                    crate::i18n::font_for_persisted_runtime().into(),
+                );
+            }
             setup_chain_editor_callbacks(
                 &editor_window,
                 window.as_weak(),
@@ -219,6 +225,12 @@ pub(crate) fn wire(
                     return;
                 }
             };
+            {
+                use slint::Global;
+                crate::Locale::get(&editor_window).set_font_family(
+                    crate::i18n::font_for_persisted_runtime().into(),
+                );
+            }
             setup_chain_editor_callbacks(
                 &editor_window,
                 window.as_weak(),
