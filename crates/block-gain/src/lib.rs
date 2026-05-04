@@ -32,15 +32,21 @@ pub fn gain_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: gain_thumbnail(model_id),
+        available: registry::is_model_available(model_id),
     })
 }
 
 pub fn gain_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn gain_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn gain_type_label(model: &str) -> &'static str {
@@ -79,8 +85,8 @@ pub fn build_gain_processor_for_layout(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_gain_processor_for_layout, gain_model_schema, supported_models,
-        validate_gain_params, gain_display_name, gain_brand, gain_type_label,
+        build_gain_processor_for_layout, gain_brand, gain_display_name, gain_model_schema,
+        gain_type_label, supported_models, validate_gain_params,
     };
     use crate::registry::find_model_definition;
     use crate::GainBackendKind;
@@ -111,7 +117,10 @@ mod tests {
             let schema = gain_model_schema(model)
                 .unwrap_or_else(|e| panic!("schema() failed for '{model}': {e}"));
             assert_eq!(schema.model, *model, "schema.model mismatch for '{model}'");
-            assert_eq!(schema.effect_type, "gain", "effect_type mismatch for '{model}'");
+            assert_eq!(
+                schema.effect_type, "gain",
+                "effect_type mismatch for '{model}'"
+            );
             assert!(
                 !schema.parameters.is_empty(),
                 "model '{model}' should expose at least one parameter"
@@ -157,13 +166,9 @@ mod tests {
     fn registry_build_native_models_mono() {
         for model in supported_models().iter().filter(|m| is_native(m)) {
             let params = defaults_for(model);
-            let processor = build_gain_processor_for_layout(
-                model,
-                &params,
-                48_000.0,
-                AudioChannelLayout::Mono,
-            )
-            .unwrap_or_else(|e| panic!("build(Mono) failed for native '{model}': {e}"));
+            let processor =
+                build_gain_processor_for_layout(model, &params, 48_000.0, AudioChannelLayout::Mono)
+                    .unwrap_or_else(|e| panic!("build(Mono) failed for native '{model}': {e}"));
             assert!(
                 matches!(processor, BlockProcessor::Mono(_)),
                 "native '{model}' Mono build should return Mono variant"
@@ -280,12 +285,8 @@ mod tests {
     fn registry_build_non_native_models_ignored() {
         for model in supported_models().iter().filter(|m| !is_native(m)) {
             let params = defaults_for(model);
-            let _ = build_gain_processor_for_layout(
-                model,
-                &params,
-                48_000.0,
-                AudioChannelLayout::Mono,
-            );
+            let _ =
+                build_gain_processor_for_layout(model, &params, 48_000.0, AudioChannelLayout::Mono);
         }
     }
 
@@ -379,8 +380,14 @@ mod tests {
                 "gain_model_visual should return Some for '{model}'"
             );
             let v = visual.unwrap();
-            assert!(!v.brand.is_empty(), "brand should be non-empty for '{model}'");
-            assert!(!v.type_label.is_empty(), "type_label should be non-empty for '{model}'");
+            assert!(
+                !v.brand.is_empty(),
+                "brand should be non-empty for '{model}'"
+            );
+            assert!(
+                !v.type_label.is_empty(),
+                "type_label should be non-empty for '{model}'"
+            );
             assert!(
                 !v.supported_instruments.is_empty(),
                 "supported_instruments should be non-empty for '{model}'"
@@ -520,4 +527,17 @@ mod tests {
             "level should raise output: quiet={quiet_output}, loud={loud_output}"
         );
     }
+}
+
+pub fn is_gain_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for a model,
+/// or `None` if the model has no thumbnail registered.
+pub fn gain_thumbnail(model: &str) -> Option<&'static str> {
+    registry::THUMBNAILS
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, path)| *path)
 }

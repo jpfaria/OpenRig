@@ -51,6 +51,8 @@ pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: None,
+        available: true,
     })
 }
 

@@ -524,6 +524,8 @@ fn model_visual_data_fields() {
         type_label: "preamp",
         supported_instruments: ALL_INSTRUMENTS,
         knob_layout: KNOBS,
+        thumbnail_path: None,
+        available: true,
     };
     assert_eq!(mvd.brand, "native");
     assert_eq!(mvd.type_label, "preamp");

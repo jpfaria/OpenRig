@@ -12,6 +12,7 @@ pub enum PreampBackendKind {
     Nam,
     Ir,
     Native,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -36,6 +37,7 @@ pub fn preamp_type_label(model: &str) -> Result<&'static str> {
         PreampBackendKind::Native => block_core::BRAND_NATIVE,
         PreampBackendKind::Nam => "NAM",
         PreampBackendKind::Ir => "IR",
+        PreampBackendKind::Lv2 => "LV2",
     })
 }
 
@@ -47,9 +49,12 @@ pub fn preamp_model_visual(model_id: &str) -> Option<ModelVisualData> {
             PreampBackendKind::Native => "NATIVE",
             PreampBackendKind::Nam => "NAM",
             PreampBackendKind::Ir => "IR",
+            PreampBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: None,
+        available: true,
     })
 }
 

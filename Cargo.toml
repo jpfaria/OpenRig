@@ -35,6 +35,7 @@ members = [
   "crates/adapter-gui",
   "crates/adapter-vst3",
   "crates/vst3",
+  "tools/lv2_catalog_import",
 ]
 resolver = "2"
 

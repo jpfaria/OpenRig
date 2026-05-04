@@ -33,6 +33,8 @@ pub fn filter_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: filter_thumbnail(model_id),
+        available: registry::is_model_available(model_id),
     })
 }
 
@@ -585,4 +587,17 @@ mod tests {
         let result = ParameterSet::default().normalized_against(&schema);
         assert!(result.is_ok());
     }
+}
+
+pub fn is_filter_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for a model,
+/// or `None` if the model has no thumbnail registered.
+pub fn filter_thumbnail(model: &str) -> Option<&'static str> {
+    registry::THUMBNAILS
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, path)| *path)
 }

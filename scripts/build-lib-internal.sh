@@ -18,6 +18,10 @@ CROSS_COMPILE="${CROSS_COMPILE:-}"
 lib_ext() {
     if [ -n "$CROSS_COMPILE" ] && echo "$CROSS_COMPILE" | grep -q mingw; then
         echo "dll"
+    elif [ -n "${MINGW_TARGET:-}" ]; then
+        # MSYS2/MINGW64 builds natively on Windows runners (no cross prefix)
+        # but the target IS Windows so libraries are .dll, not .so.
+        echo "dll"
     elif [ "$(uname -s)" = "Darwin" ]; then
         echo "dylib"
     else
@@ -49,15 +53,18 @@ mkdir -p "$BUILD_WORK_DIR"
 collect_libs() {
     local search_dir="$1"
     shift
-    # Remaining args are name patterns (without extension)
+    # Only copy libs whose extension matches the current target platform.
+    # Without this filter, a leftover .dylib from a previous host build can
+    # leak into libs/lv2/windows-x64/ when building inside the mingw Docker
+    # container — some upstream make recipes ship pre-built artifacts in
+    # the source tree that we don't want to redistribute as the wrong OS.
     if [ $# -eq 0 ]; then
-        # Collect all shared libs
-        find "$search_dir" \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) | while read -r f; do
+        find "$search_dir" -name "*.${LIB_EXT}" | while read -r f; do
             cp "$f" "$OUTPUT_DIR/"
         done
     else
         for pattern in "$@"; do
-            find "$search_dir" \( -name "${pattern}.so" -o -name "${pattern}.dylib" -o -name "${pattern}.dll" -o -name "lib${pattern}.so" -o -name "lib${pattern}.dylib" -o -name "lib${pattern}.dll" \) | while read -r f; do
+            find "$search_dir" \( -name "${pattern}.${LIB_EXT}" -o -name "lib${pattern}.${LIB_EXT}" \) | while read -r f; do
                 cp "$f" "$OUTPUT_DIR/"
             done
         done

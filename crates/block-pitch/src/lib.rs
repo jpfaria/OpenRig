@@ -30,19 +30,27 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: pitch_thumbnail(model_id),
+        available: registry::is_model_available(model_id),
     })
 }
 
 pub fn pitch_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn pitch_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn pitch_type_label(model: &str) -> &'static str {
-    pitch_model_visual(model).map(|v| v.type_label).unwrap_or("")
+    pitch_model_visual(model)
+        .map(|v| v.type_label)
+        .unwrap_or("")
 }
 
 pub fn pitch_model_schema(model: &str) -> Result<ModelParameterSchema> {
@@ -77,8 +85,8 @@ pub fn build_pitch_processor_for_layout(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_pitch_processor_for_layout, pitch_model_schema, supported_models,
-        validate_pitch_params, pitch_display_name, pitch_brand, pitch_type_label,
+        build_pitch_processor_for_layout, pitch_brand, pitch_display_name, pitch_model_schema,
+        pitch_type_label, supported_models, validate_pitch_params,
     };
     use block_core::param::ParameterSet;
     use block_core::AudioChannelLayout;
@@ -100,7 +108,10 @@ mod tests {
             let schema = pitch_model_schema(model)
                 .unwrap_or_else(|e| panic!("schema() failed for '{model}': {e}"));
             assert_eq!(schema.model, *model, "schema.model mismatch for '{model}'");
-            assert_eq!(schema.effect_type, "pitch", "effect_type mismatch for '{model}'");
+            assert_eq!(
+                schema.effect_type, "pitch",
+                "effect_type mismatch for '{model}'"
+            );
         }
     }
 
@@ -176,7 +187,19 @@ mod tests {
     #[test]
     fn defaults_normalize_x42() {
         let params = ParameterSet::default();
-        validate_pitch_params("lv2_fat1_autotune", &params)
-            .expect("defaults should normalize");
+        validate_pitch_params("lv2_fat1_autotune", &params).expect("defaults should normalize");
     }
+}
+
+pub fn is_pitch_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for a model,
+/// or `None` if the model has no thumbnail registered.
+pub fn pitch_thumbnail(model: &str) -> Option<&'static str> {
+    registry::THUMBNAILS
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, path)| *path)
 }

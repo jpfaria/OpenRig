@@ -56,6 +56,8 @@ mod tests {
             model_font: "".into(),
             photo_offset_x: 0.0,
             photo_offset_y: 0.0,
+            available: true,
+            thumbnail_path: "".into(),
         }
     }
 
