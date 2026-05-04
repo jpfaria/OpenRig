@@ -1,0 +1,11 @@
+[package]
+name = "build_plugin_bundle"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "build_plugin_bundle"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true

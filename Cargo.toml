@@ -26,6 +26,7 @@ members = [
   "crates/ir",
   "crates/block-ir",
   "crates/block-wah",
+  "crates/plugin-loader",
   "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",
@@ -35,6 +36,7 @@ members = [
   "crates/adapter-gui",
   "crates/adapter-vst3",
   "crates/vst3",
+  "tools/build_plugin_bundle",
 ]
 resolver = "2"
 

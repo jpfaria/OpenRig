@@ -15,3 +15,7 @@ tools/__pycache__/
 
 # Compiled gettext catalogs — regenerated from .po by build.rs / scripts.
 crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
+
+# Plugin packages — generated at dev-time by tools/build_plugin_bundle from
+# plugins/source/. Never versioned. See issue #287.
+/plugins/
