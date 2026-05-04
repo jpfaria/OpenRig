@@ -25,9 +25,56 @@ bundles:
     skip: true
     skip_reason: AIDA-X integration is tracked separately under issue #144.
 
+  # MOD platform "-bad" bundles are beta/test variants of the regular bundle.
+  # They duplicate plugins with same display names but a slightly different URI.
+  artyfx-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates artyfx.lv2.
+  calf-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates calf.lv2.
+  fomp-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates fomp.lv2.
+  invada-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates invada-studio.lv2.
+  rkr-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates rkr.lv2.
+
+  # MOD ports of mda-lv2 plugins use a different URI but ship the same DSP as
+  # the upstream drobilla mda-lv2 bundle (already registered manually).
+  mod-mda-Ambience.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Ambience.
+  mod-mda-Degrade.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Degrade.
+  mod-mda-Detune.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Detune.
+  mod-mda-DubDelay.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA DubDelay.
+  mod-mda-Overdrive.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Overdrive.
+  mod-mda-RePsycho.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA RePsycho.
+  mod-mda-RingMod.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA RingMod.
+  mod-mda-ThruZero.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA ThruZero.
+  mod-mda-Leslie.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Leslie.
+
 plugins:
   # SimulatorPlugin overrides — primary classification known but ambiguous to the auto-classifier.
-
   http://calf.sourceforge.net/plugins/RotarySpeaker:
     block_type: mod
   http://calf.sourceforge.net/plugins/TapeSimulator:
@@ -36,7 +83,6 @@ plugins:
     block_type: mod
   http://gareus.org/oss/lv2/calf/TapeSimulator:
     block_type: gain
-
   http://guitarix.sourceforge.net/plugins/gx_amp_stereo_#GxAmplifier_st:
     block_type: amp
   http://guitarix.sourceforge.net/plugins/gx_amp_#_GxAmplifier:
@@ -51,21 +97,18 @@ plugins:
     block_type: amp
   http://guitarix.sourceforge.net/plugins/gx_studiopre_st_#_studiopre_st_:
     block_type: preamp
-
   http://moddevices.com/plugins/mod-devel/CabinetLoader:
     block_type: cab
-
   http://moddevices.com/plugins/caps/AmpVTS:
     block_type: amp
   http://moddevices.com/plugins/caps/CabinetIV:
     block_type: cab
   http://moddevices.com/plugins/caps/ToneStack:
     block_type: filter
-
   http://moddevices.com/plugins/tap/tubewarmth:
     block_type: gain
 
-  # EnvelopePlugin overrides — both are envelope-driven dynamics processors.
+  # EnvelopePlugin overrides
   http://www.openavproductions.com/artyfx#ducka:
     block_type: dyn
   http://calf.sourceforge.net/plugins/TransientDesigner:
@@ -73,10 +116,6 @@ plugins:
   http://gareus.org/oss/lv2/calf/TransientDesigner:
     block_type: dyn
 
-  # SpatialPlugin overrides — utility stereo tools that we either skip or remap to mod.
+  # SpatialPlugin overrides
   http://moddevices.com/plugins/tap/autopan:
     block_type: mod
-
-  # All other SpatialPlugin variants stay skipped (Calf Haas/Stereo Tools, mda-RoundPan,
-  # mod-caps-Narrower/Wider, PingPongPan, rkr Pan/Shuffle) — utility-style stereo width
-  # tools that have no clear analogue in OpenRig's effect-block taxonomy yet.
