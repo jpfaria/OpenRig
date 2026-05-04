@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, DeviceId, ChainId};
+use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 
 mod block_yaml;
 mod chain_yaml;
+use block_yaml::{load_audio_block_value, AudioBlockYaml};
 use chain_yaml::ChainYaml;
-use block_yaml::{AudioBlockYaml, load_audio_block_value};
 
 pub struct YamlProjectRepository {
     pub path: PathBuf,
@@ -216,8 +216,6 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
         }
     }
 }
-
-
 
 pub(crate) fn flatten_parameter_set(value: Value) -> Result<ParameterSet> {
     let mut params = ParameterSet::default();
