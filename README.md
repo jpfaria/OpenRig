@@ -155,14 +155,41 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branching, commits, PRs, and code sta
 
 ## Roadmap
 
+### Today
+
 - [x] Standalone desktop app (macOS, Linux, Windows)
 - [x] Multi-input parallel chains with stream isolation
 - [x] 560+ models across 16 block types, four audio backends in the same graph
+
+### Stage features
+
+- [ ] Snapshots / scenes
+- [ ] Setlist / live performance mode
+- [ ] Looper (multi-layer)
+- [ ] Backing tracks / audio player
+- [ ] Expression pedal mapping (MIDI CC)
+- [ ] Global tap tempo / preset BPM
+- [ ] Parallel routing / chain splits
+- [ ] A/B compare
+- [ ] Master mixer per stream
+
+### Sound foundation
+
+- [ ] Native DSP rewrites of every block type from first principles (papers, no external capture dependency)
+- [ ] Manual component models for the OpenRig benchmark amps
+- [ ] NAM → native generators (preamps and amps)
+- [ ] IR → native generators (cabinets and acoustic bodies)
+- [ ] User-authored plugin wizard (NAM / IR import)
+
+### Ecosystem and remote
+
 - [ ] gRPC server — remote chain control over the network
-- [ ] Mobile / tablet app — per-musician control surface
+- [ ] Mobile and tablet app — per-musician control surface
 - [ ] Pedalboard form factor (Orange Pi-class hardware, low-latency Linux)
 - [ ] Pedalboard-as-terminal (USB / Bluetooth / network controller for remote nodes)
 - [ ] Multi-musician projects on a single node
+- [ ] `openrig-cli` — scriptable CLI client over gRPC
+- [ ] OpenRig Hub — community plugin marketplace
 - [ ] VST3 / AU plugin
 
 ## License
