@@ -12,7 +12,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use crate::manifest::{Backend, GridCapture, GridParameter, PluginManifest};
+use crate::manifest::{Backend, GridCapture, GridParameter, ParameterValue, PluginManifest};
 
 /// Highest `manifest_version` this loader understands.
 pub const MAX_SUPPORTED_VERSION: u32 = 1;
@@ -52,14 +52,14 @@ pub enum ValidationError {
     },
 
     #[error(
-        "capture #{capture_index} sets parameter `{parameter}` = {value}, \
+        "capture #{capture_index} sets parameter `{parameter}` = {value:?}, \
          which is not among its declared values {declared:?}"
     )]
     InvalidCaptureValue {
         capture_index: usize,
         parameter: String,
-        value: f64,
-        declared: Vec<f64>,
+        value: ParameterValue,
+        declared: Vec<ParameterValue>,
     },
 
     #[error(
@@ -145,12 +145,12 @@ fn validate_grid(
         }
     }
 
-    let parameter_names: BTreeMap<&str, &[f64]> = parameters
+    let parameter_names: BTreeMap<&str, &[ParameterValue]> = parameters
         .iter()
         .map(|parameter| (parameter.name.as_str(), parameter.values.as_slice()))
         .collect();
 
-    let mut seen_keys: HashSet<Vec<(String, u64)>> = HashSet::new();
+    let mut seen_keys: HashSet<Vec<(String, ParameterValue)>> = HashSet::new();
 
     for (index, capture) in captures.iter().enumerate() {
         for (name, value) in &capture.values {
@@ -164,14 +164,11 @@ fn validate_grid(
                         .collect(),
                 });
             };
-            if !declared_values
-                .iter()
-                .any(|declared| declared.to_bits() == value.to_bits())
-            {
+            if !declared_values.iter().any(|declared| declared == value) {
                 return Err(ValidationError::InvalidCaptureValue {
                     capture_index: index,
                     parameter: name.clone(),
-                    value: *value,
+                    value: value.clone(),
                     declared: declared_values.to_vec(),
                 });
             }
@@ -208,10 +205,10 @@ fn validate_grid(
     Ok(())
 }
 
-fn canonical_key(values: &BTreeMap<String, f64>) -> Vec<(String, u64)> {
+fn canonical_key(values: &BTreeMap<String, ParameterValue>) -> Vec<(String, ParameterValue)> {
     values
         .iter()
-        .map(|(name, value)| (name.clone(), value.to_bits()))
+        .map(|(name, value)| (name.clone(), value.clone()))
         .collect()
 }
 
@@ -262,10 +259,14 @@ mod tests {
         GridCapture {
             values: values
                 .iter()
-                .map(|(name, value)| ((*name).to_string(), *value))
+                .map(|(name, value)| ((*name).to_string(), ParameterValue::Number(*value)))
                 .collect(),
             file: PathBuf::from(file),
         }
+    }
+
+    fn nums(raw: &[f64]) -> Vec<ParameterValue> {
+        raw.iter().copied().map(ParameterValue::Number).collect()
     }
 
     #[test]
@@ -274,7 +275,7 @@ mod tests {
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: vec![10.0, 20.0, 30.0],
+                values: nums(&[10.0, 20.0, 30.0]),
             }],
             vec![
                 capture_with(&[("gain", 10.0)], "g10.nam"),
@@ -292,12 +293,12 @@ mod tests {
                 GridParameter {
                     name: "gain".to_string(),
                     display_name: None,
-                    values: vec![10.0, 20.0],
+                    values: nums(&[10.0, 20.0]),
                 },
                 GridParameter {
                     name: "volume".to_string(),
                     display_name: None,
-                    values: vec![50.0, 60.0],
+                    values: nums(&[50.0, 60.0]),
                 },
             ],
             vec![
@@ -373,7 +374,7 @@ mod tests {
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: vec![10.0],
+                values: nums(&[10.0]),
             }],
             vec![capture_with(
                 &[("gain", 10.0), ("typo_param", 1.0)],
@@ -393,7 +394,7 @@ mod tests {
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: vec![10.0, 20.0],
+                values: nums(&[10.0, 20.0]),
             }],
             vec![
                 capture_with(&[("gain", 10.0)], "g10.nam"),
@@ -401,10 +402,12 @@ mod tests {
             ],
         );
         let err = validate_manifest(&m).unwrap_err();
-        assert!(matches!(
-            err,
-            ValidationError::InvalidCaptureValue { value, .. } if value.to_bits() == 99.0_f64.to_bits()
-        ));
+        match err {
+            ValidationError::InvalidCaptureValue { value, .. } => {
+                assert_eq!(value, ParameterValue::Number(99.0));
+            }
+            other => panic!("expected InvalidCaptureValue, got {other:?}"),
+        }
     }
 
     #[test]
@@ -414,12 +417,12 @@ mod tests {
                 GridParameter {
                     name: "gain".to_string(),
                     display_name: None,
-                    values: vec![10.0],
+                    values: nums(&[10.0]),
                 },
                 GridParameter {
                     name: "volume".to_string(),
                     display_name: None,
-                    values: vec![50.0],
+                    values: nums(&[50.0]),
                 },
             ],
             vec![capture_with(&[("gain", 10.0)], "g10.nam")],
@@ -437,7 +440,7 @@ mod tests {
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: vec![10.0, 20.0, 30.0],
+                values: nums(&[10.0, 20.0, 30.0]),
             }],
             vec![
                 capture_with(&[("gain", 10.0)], "g10.nam"),
@@ -460,7 +463,7 @@ mod tests {
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: vec![10.0, 20.0],
+                values: nums(&[10.0, 20.0]),
             }],
             vec![
                 capture_with(&[("gain", 10.0)], "g10a.nam"),

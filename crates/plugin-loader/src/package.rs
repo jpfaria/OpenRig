@@ -109,7 +109,9 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::*;
-    use crate::manifest::{Backend, BlockType, GridCapture, GridParameter, PluginManifest};
+    use crate::manifest::{
+        Backend, BlockType, GridCapture, GridParameter, ParameterValue, PluginManifest,
+    };
 
     /// Per-test temp directory. Deleted on drop.
     struct TempDir {
@@ -164,7 +166,7 @@ mod tests {
                 parameters: vec![GridParameter {
                     name: "gain".to_string(),
                     display_name: None,
-                    values: vec![10.0],
+                    values: vec![ParameterValue::Number(10.0)],
                 }],
                 captures,
             },
@@ -175,7 +177,7 @@ mod tests {
         GridCapture {
             values: values
                 .iter()
-                .map(|(name, value)| ((*name).to_string(), *value))
+                .map(|(name, value)| ((*name).to_string(), ParameterValue::Number(*value)))
                 .collect(),
             file: PathBuf::from(file),
         }

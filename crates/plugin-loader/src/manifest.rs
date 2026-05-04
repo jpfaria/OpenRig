@@ -106,22 +106,65 @@ pub enum Backend {
     },
 }
 
+/// A single value on a capture-grid axis.
+///
+/// Real-world OpenRig models use both numeric grids (NAM gain stops at
+/// `[10, 20, 30]`) and enum-style discrete labels (IR `voicing: "48k_m"`,
+/// NAM `tone: "ultra_hi"`). YAML treats them naturally; this enum lets
+/// the schema accept both without forcing the author to quote numbers
+/// or invent fake numeric mappings for string labels.
+///
+/// Untagged so that `values: [10, 20]` and `values: [standard, ultra_hi]`
+/// both round-trip as written in YAML.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ParameterValue {
+    Number(f64),
+    Text(String),
+}
+
+impl PartialEq for ParameterValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a.to_bits() == b.to_bits(),
+            (Self::Text(a), Self::Text(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+impl Eq for ParameterValue {}
+
+impl std::hash::Hash for ParameterValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Number(value) => {
+                state.write_u8(0);
+                state.write_u64(value.to_bits());
+            }
+            Self::Text(value) => {
+                state.write_u8(1);
+                value.hash(state);
+            }
+        }
+    }
+}
+
 /// One axis of a NAM/IR capture grid.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridParameter {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    pub values: Vec<f64>,
+    pub values: Vec<ParameterValue>,
 }
 
 /// One cell of the NAM/IR capture grid.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridCapture {
     /// Map of parameter name → value identifying this cell on the grid.
     /// Empty for IR plugins that have no parametric variation.
     #[serde(default)]
-    pub values: BTreeMap<String, f64>,
+    pub values: BTreeMap<String, ParameterValue>,
     /// Path to the asset (`.nam` or `.wav`) relative to the plugin folder.
     pub file: PathBuf,
 }
@@ -187,6 +230,10 @@ captures:
             } => {
                 assert_eq!(parameters.len(), 1);
                 assert_eq!(parameters[0].name, "gain");
+                assert!(matches!(
+                    parameters[0].values[0],
+                    ParameterValue::Number(value) if value == 10.0
+                ));
                 assert_eq!(captures.len(), 3);
                 assert_eq!(captures[0].file, PathBuf::from("captures/gain10.nam"));
             }
@@ -328,10 +375,10 @@ captures: []
                 parameters: vec![GridParameter {
                     name: "gain".to_string(),
                     display_name: Some("Gain".to_string()),
-                    values: vec![10.0, 20.0],
+                    values: vec![ParameterValue::Number(10.0), ParameterValue::Number(20.0)],
                 }],
                 captures: vec![GridCapture {
-                    values: BTreeMap::from([("gain".to_string(), 10.0)]),
+                    values: BTreeMap::from([("gain".to_string(), ParameterValue::Number(10.0))]),
                     file: PathBuf::from("captures/g10.nam"),
                 }],
             },
@@ -340,5 +387,52 @@ captures: []
         let yaml = serde_yaml::to_string(&original).expect("serialize");
         let decoded: PluginManifest = serde_yaml::from_str(&yaml).expect("deserialize");
         assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn parses_nam_manifest_with_enum_string_parameters() {
+        let yaml = r#"
+manifest_version: 1
+id: ampeg_svt
+display_name: SVT Classic
+type: amp
+backend: nam
+parameters:
+  - name: tone
+    values: [standard, ultra_hi, ultra_lo]
+  - name: mic
+    values: [md421, sm57]
+captures:
+  - values: { tone: standard, mic: md421 }
+    file: captures/svt_standard_md421.nam
+  - values: { tone: standard, mic: sm57 }
+    file: captures/svt_standard_sm57.nam
+  - values: { tone: ultra_hi, mic: md421 }
+    file: captures/svt_ultra_hi_md421.nam
+  - values: { tone: ultra_hi, mic: sm57 }
+    file: captures/svt_ultra_hi_sm57.nam
+  - values: { tone: ultra_lo, mic: md421 }
+    file: captures/svt_ultra_lo_md421.nam
+  - values: { tone: ultra_lo, mic: sm57 }
+    file: captures/svt_ultra_lo_sm57.nam
+"#;
+
+        let m = parse(yaml);
+
+        match m.backend {
+            Backend::Nam {
+                parameters,
+                captures,
+            } => {
+                assert_eq!(parameters.len(), 2);
+                assert_eq!(parameters[0].name, "tone");
+                assert!(matches!(
+                    parameters[0].values[0],
+                    ParameterValue::Text(ref s) if s == "standard"
+                ));
+                assert_eq!(captures.len(), 6);
+            }
+            other => panic!("expected NAM backend, got {other:?}"),
+        }
     }
 }
