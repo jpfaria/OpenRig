@@ -14,6 +14,69 @@
 #   model_id: <text>     — manual model id (defaults to lv2_<bundle>_<symbol>)
 #   brand: <text>
 
-bundles: {}
+bundles:
+  # NAM has a dedicated native backend; the LV2 wrapper would conflict.
+  neural_amp_modeler.lv2:
+    skip: true
+    skip_reason: NAM is integrated via the dedicated `nam` crate, not as an LV2 plugin.
 
-plugins: {}
+  # AIDA-X has its own integration tracked in #144.
+  rt-neural-generic.lv2:
+    skip: true
+    skip_reason: AIDA-X integration is tracked separately under issue #144.
+
+plugins:
+  # SimulatorPlugin overrides — primary classification known but ambiguous to the auto-classifier.
+
+  http://calf.sourceforge.net/plugins/RotarySpeaker:
+    block_type: mod
+  http://calf.sourceforge.net/plugins/TapeSimulator:
+    block_type: gain
+  http://gareus.org/oss/lv2/calf/RotarySpeaker:
+    block_type: mod
+  http://gareus.org/oss/lv2/calf/TapeSimulator:
+    block_type: gain
+
+  http://guitarix.sourceforge.net/plugins/gx_amp_stereo_#GxAmplifier_st:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_amp_#_GxAmplifier:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_cabinet#CABINET:
+    block_type: cab
+  http://guitarix.sourceforge.net/plugins/gx_jcm800pre_st_#_jcm800pre_st_:
+    block_type: preamp
+  http://guitarix.sourceforge.net/plugins/gx_jcm800pre_#_jcm800pre_:
+    block_type: preamp
+  http://guitarix.sourceforge.net/plugins/gx_redeye_#_redeye_:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_studiopre_st_#_studiopre_st_:
+    block_type: preamp
+
+  http://moddevices.com/plugins/mod-devel/CabinetLoader:
+    block_type: cab
+
+  http://moddevices.com/plugins/caps/AmpVTS:
+    block_type: amp
+  http://moddevices.com/plugins/caps/CabinetIV:
+    block_type: cab
+  http://moddevices.com/plugins/caps/ToneStack:
+    block_type: filter
+
+  http://moddevices.com/plugins/tap/tubewarmth:
+    block_type: gain
+
+  # EnvelopePlugin overrides — both are envelope-driven dynamics processors.
+  http://www.openavproductions.com/artyfx#ducka:
+    block_type: dyn
+  http://calf.sourceforge.net/plugins/TransientDesigner:
+    block_type: dyn
+  http://gareus.org/oss/lv2/calf/TransientDesigner:
+    block_type: dyn
+
+  # SpatialPlugin overrides — utility stereo tools that we either skip or remap to mod.
+  http://moddevices.com/plugins/tap/autopan:
+    block_type: mod
+
+  # All other SpatialPlugin variants stay skipped (Calf Haas/Stereo Tools, mda-RoundPan,
+  # mod-caps-Narrower/Wider, PingPongPan, rkr Pan/Shuffle) — utility-style stereo width
+  # tools that have no clear analogue in OpenRig's effect-block taxonomy yet.

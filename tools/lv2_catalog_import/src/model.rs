@@ -175,10 +175,17 @@ impl BlockType {
     }
 
     /// Whether the block-* registry supports an LV2 backend variant + standard
-    /// `build` signature compatible with the codegen template.
+    /// `build` signature compatible with the codegen template. The crates that
+    /// don't yet declare `Lv2` in their *BackendKind enum are excluded — adding
+    /// LV2 support to them is tracked separately.
     pub fn supports_lv2_codegen(self) -> bool {
         match self {
-            BlockType::Util => false, // build sig has StreamHandle + no Lv2 variant
+            BlockType::Util => false,   // build sig has StreamHandle + no Lv2 variant
+            BlockType::Amp => false,    // AmpBackendKind has no Lv2 variant yet
+            BlockType::Cab => false,    // CabBackendKind has no Lv2 variant yet
+            BlockType::Preamp => false, // PreampBackendKind has no Lv2 variant yet
+            BlockType::Body => false,
+            BlockType::Wah => false, // existing wah lv2 file is hand-written
             _ => true,
         }
     }

@@ -3,68 +3,64 @@
 
 #![allow(dead_code, unused_imports, unused_variables, clippy::approx_constant, clippy::excessive_precision)]
 
-use crate::registry::ModModelDefinition;
-use crate::ModBackendKind;
+use crate::registry::FilterModelDefinition;
+use crate::FilterBackendKind;
 use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
-pub const MODEL_ID: &str = "lv2_mod_caps_phaser_ii";
-pub const DISPLAY_NAME: &str = "C* PhaserII - Mono phaser modulated by a Lorenz fractal";
+pub const MODEL_ID: &str = "lv2_mod_caps_tone_stack";
+pub const DISPLAY_NAME: &str = "C* ToneStack - Tone stack emulation";
 const BRAND: &str = "caps";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/PhaserII";
-const PLUGIN_DIR: &str = "mod-caps-PhaserII";
+const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/ToneStack";
+const PLUGIN_DIR: &str = "mod-caps-ToneStack";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "PhaserII.dylib.dylib";
+const PLUGIN_BINARY: &str = "ToneStack.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "PhaserII.dylib.so";
+const PLUGIN_BINARY: &str = "ToneStack.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "PhaserII.dylib.dll";
+const PLUGIN_BINARY: &str = "ToneStack.dll";
 
 // Port indices (from TTL)
-const PORT_CTRL_RATE: usize = 0;
-const PORT_CTRL_LFO: usize = 1;
-const PORT_CTRL_DEPTH: usize = 2;
-const PORT_CTRL_SPREAD: usize = 3;
-const PORT_CTRL_RESONANCE: usize = 4;
-const PORT_AUDIO_IN_IN: usize = 5;
-const PORT_AUDIO_OUT_OUT: usize = 6;
+const PORT_CTRL_MODEL: usize = 0;
+const PORT_CTRL_BASS: usize = 1;
+const PORT_CTRL_MID: usize = 2;
+const PORT_CTRL_TREBLE: usize = 3;
+const PORT_AUDIO_IN_IN: usize = 4;
+const PORT_AUDIO_OUT_OUT: usize = 5;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
+        effect_type: block_core::EFFECT_TYPE_FILTER.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("rate", "Rate", None, Some(0.25), 0.0, 1.0, 0.01, ParameterUnit::None),
-            float_parameter("lfo", "LFO", None, Some(0.0), 0.0, 1.0, 0.01, ParameterUnit::None),
-            float_parameter("depth", "Depth", None, Some(0.75), 0.0, 1.0, 0.01, ParameterUnit::None),
-            float_parameter("spread", "Spread", None, Some(0.75), 0.0, 1.0, 0.01, ParameterUnit::None),
-            float_parameter("resonance", "Resonance", None, Some(0.25), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("model", "Model", None, Some(0.0), 0.0, 8.0, 0.01, ParameterUnit::None),
+            float_parameter("bass", "Bass", None, Some(0.5), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("mid", "Mid", None, Some(0.5), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("treble", "Treble", None, Some(0.5), 0.0, 1.0, 0.01, ParameterUnit::None),
         ],
     }
 }
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
-    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
-    let lfo = required_f32(params, "lfo").map_err(anyhow::Error::msg)?;
-    let depth = required_f32(params, "depth").map_err(anyhow::Error::msg)?;
-    let spread = required_f32(params, "spread").map_err(anyhow::Error::msg)?;
-    let resonance = required_f32(params, "resonance").map_err(anyhow::Error::msg)?;
+    let model = required_f32(params, "model").map_err(anyhow::Error::msg)?;
+    let bass = required_f32(params, "bass").map_err(anyhow::Error::msg)?;
+    let mid = required_f32(params, "mid").map_err(anyhow::Error::msg)?;
+    let treble = required_f32(params, "treble").map_err(anyhow::Error::msg)?;
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports: &[(usize, f32)] = &[
-        (PORT_CTRL_RATE, rate),
-        (PORT_CTRL_LFO, lfo),
-        (PORT_CTRL_DEPTH, depth),
-        (PORT_CTRL_SPREAD, spread),
-        (PORT_CTRL_RESONANCE, resonance),
+        (PORT_CTRL_MODEL, model),
+        (PORT_CTRL_BASS, bass),
+        (PORT_CTRL_MID, mid),
+        (PORT_CTRL_TREBLE, treble),
     ];
 
     match layout {
@@ -89,8 +85,8 @@ impl StereoProcessor for DualMonoProcessor {
 
 fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
 
-pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
+pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {
     id: MODEL_ID, display_name: DISPLAY_NAME, brand: BRAND,
-    backend_kind: ModBackendKind::Lv2, schema, build,
+    backend_kind: FilterBackendKind::Lv2, schema, build,
     supported_instruments: block_core::ALL_INSTRUMENTS, knob_layout: &[],
 };
