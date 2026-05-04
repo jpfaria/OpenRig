@@ -174,6 +174,21 @@ impl BlockType {
         }
     }
 
+    /// Whether the block-* registry supports an LV2 backend variant + standard
+    /// `build` signature compatible with the codegen template.
+    pub fn supports_lv2_codegen(self) -> bool {
+        match self {
+            BlockType::Util => false, // build sig has StreamHandle + no Lv2 variant
+            _ => true,
+        }
+    }
+
+    /// True if this crate's ModelDefinition struct requires `validate` +
+    /// `asset_summary` fn-pointers (only block-gain so far).
+    pub fn needs_validate_and_asset_summary(self) -> bool {
+        matches!(self, BlockType::Gain)
+    }
+
     pub fn effect_type_const(self) -> &'static str {
         match self {
             BlockType::Reverb => "block_core::EFFECT_TYPE_REVERB",

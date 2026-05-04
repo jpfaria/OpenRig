@@ -1,12 +1,17 @@
-use crate::model::{AudioMode, BlockType, Classification, Plugin, Port, PortDirection, PortKind};
+use crate::model::{AudioMode, Classification, Plugin, Port, PortDirection, PortKind};
+use std::collections::HashSet;
 use std::fmt::Write as _;
 
 pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Option<String> {
     let block_type = classification.block_type?;
+    if !block_type.supports_lv2_codegen() {
+        return None;
+    }
     let audio_mode = classification.audio_mode?;
     let registry_type = block_type.registry_type_name();
     let backend_kind = block_type.backend_kind_path();
     let effect_type = block_type.effect_type_const();
+
     let model_id = &classification.model_id;
     let display_name = escape_str(&classification.display_name);
     let brand = escape_str(&classification.brand);
@@ -20,17 +25,15 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
     let bin = plugin.binary.as_deref().unwrap_or("plugin.so");
     let bin_stem = bin.strip_suffix(".so").unwrap_or(bin);
 
-    let audio_in_indices = audio_port_indices(plugin, PortDirection::Input);
-    let audio_out_indices = audio_port_indices(plugin, PortDirection::Output);
-    let control_in_ports: Vec<&Port> = plugin
+    let port_const_names = name_ports(plugin);
+    let audio_in_consts = audio_const_list(plugin, &port_const_names, PortDirection::Input);
+    let audio_out_consts = audio_const_list(plugin, &port_const_names, PortDirection::Output);
+    let control_ports: Vec<&Port> = plugin
         .ports
         .iter()
         .filter(|p| p.kind == PortKind::Control && p.direction == PortDirection::Input)
         .collect();
-    let extra_audio_outs: Vec<usize> = match audio_mode {
-        AudioMode::MonoToStereo => audio_out_indices.iter().skip(1).copied().collect(),
-        _ => Vec::new(),
-    };
+    let has_bool = control_ports.iter().any(|p| p.is_toggle);
 
     let mut out = String::new();
     let _ = writeln!(
@@ -42,20 +45,13 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
         "// Re-run the tool to regenerate. Manual customisation goes in overrides.yaml."
     );
     let _ = writeln!(out);
+    let _ = writeln!(out, "#![allow(dead_code, unused_imports, unused_variables, clippy::approx_constant, clippy::excessive_precision)]");
+    let _ = writeln!(out);
     let _ = writeln!(out, "use crate::registry::{};", registry_type);
     let _ = writeln!(out, "use crate::{};", strip_kind(backend_kind));
     let _ = writeln!(out, "use anyhow::Result;");
-    let _ = writeln!(out, "use block_core::param::{{");
-    let _ = writeln!(
-        out,
-        "    bool_parameter, float_parameter, int_parameter, required_bool, required_f32,"
-    );
-    let _ = writeln!(
-        out,
-        "    required_i32, ModelParameterSchema, ParameterSet, ParameterUnit,"
-    );
-    let _ = writeln!(out, "}};");
-    let _ = writeln!(out, "use block_core::{{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor}};");
+    write_param_imports(&mut out, has_bool);
+    write_core_imports(&mut out, audio_mode);
     let _ = writeln!(out);
     let _ = writeln!(out, "pub const MODEL_ID: &str = \"{}\";", model_id);
     let _ = writeln!(out, "pub const DISPLAY_NAME: &str = \"{}\";", display_name);
@@ -72,19 +68,19 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
     let _ = writeln!(out, "const PLUGIN_BINARY: &str = \"{}.dll\";", bin_stem);
     let _ = writeln!(out);
 
-    write_port_consts(&mut out, plugin);
+    write_port_consts(&mut out, plugin, &port_const_names);
     let _ = writeln!(out);
 
-    write_schema_fn(&mut out, audio_mode, effect_type, &control_in_ports);
+    write_schema_fn(&mut out, audio_mode, effect_type, &control_ports);
     let _ = writeln!(out);
 
     write_build_fn(
         &mut out,
         audio_mode,
-        &audio_in_indices,
-        &audio_out_indices,
-        &extra_audio_outs,
-        &control_in_ports,
+        &audio_in_consts,
+        &audio_out_consts,
+        &control_ports,
+        &port_const_names,
     );
     let _ = writeln!(out);
 
@@ -103,38 +99,105 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
         "    id: MODEL_ID, display_name: DISPLAY_NAME, brand: BRAND,"
     );
     let _ = writeln!(out, "    backend_kind: {}, schema, build,", backend_kind);
+    if block_type.needs_validate_and_asset_summary() {
+        let _ = writeln!(out, "    validate, asset_summary,");
+    }
     let _ = writeln!(
         out,
         "    supported_instruments: block_core::ALL_INSTRUMENTS, knob_layout: &[],"
     );
     let _ = writeln!(out, "}};");
 
+    if block_type.needs_validate_and_asset_summary() {
+        let _ = writeln!(out);
+        let _ = writeln!(
+            out,
+            "fn validate(_params: &ParameterSet) -> Result<()> {{ Ok(()) }}"
+        );
+        let _ = writeln!(
+            out,
+            "fn asset_summary(_params: &ParameterSet) -> Result<String> {{ Ok(String::new()) }}"
+        );
+    }
+
     Some(out)
 }
 
-fn audio_port_indices(plugin: &Plugin, dir: PortDirection) -> Vec<usize> {
-    let mut idx: Vec<usize> = plugin
-        .ports
-        .iter()
-        .filter(|p| p.kind == PortKind::Audio && p.direction == dir)
-        .map(|p| p.index)
-        .collect();
-    idx.sort_unstable();
-    idx
+const RESERVED_RUST_KEYWORDS: &[&str] = &[
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
+    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
+    "self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
+    "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
+];
+
+fn safe_param_id(id: &str) -> String {
+    if RESERVED_RUST_KEYWORDS.contains(&id) {
+        format!("p_{}", id)
+    } else {
+        id.to_string()
+    }
 }
 
-fn write_port_consts(out: &mut String, plugin: &Plugin) {
-    let _ = writeln!(out, "// Port indices (from TTL)");
+fn write_param_imports(out: &mut String, has_bool: bool) {
+    let _ = writeln!(out, "use block_core::param::{{");
+    if has_bool {
+        let _ = writeln!(
+            out,
+            "    bool_parameter, float_parameter, required_bool, required_f32,"
+        );
+        let _ = writeln!(
+            out,
+            "    ModelParameterSchema, ParameterSet, ParameterUnit,"
+        );
+    } else {
+        let _ = writeln!(
+            out,
+            "    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,"
+        );
+    }
+    let _ = writeln!(out, "}};");
+}
+
+fn write_core_imports(out: &mut String, audio_mode: AudioMode) {
+    match audio_mode {
+        AudioMode::DualMono | AudioMode::MonoOnly => {
+            let _ = writeln!(out, "use block_core::{{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor}};");
+        }
+        AudioMode::MonoToStereo => {
+            let _ = writeln!(
+                out,
+                "use block_core::{{AudioChannelLayout, BlockProcessor, ModelAudioMode}};"
+            );
+        }
+        AudioMode::TrueStereo => {
+            let _ = writeln!(
+                out,
+                "use block_core::{{AudioChannelLayout, BlockProcessor, ModelAudioMode}};"
+            );
+        }
+    }
+}
+
+/// Build a unique const name per port, indexed by port index.
+fn name_ports(plugin: &Plugin) -> std::collections::HashMap<usize, String> {
+    let mut names = std::collections::HashMap::new();
+    let mut used: HashSet<String> = HashSet::new();
     for port in &plugin.ports {
         if matches!(port.kind, PortKind::Other) {
             continue;
         }
-        let const_name = port_const_name(port);
-        let _ = writeln!(out, "const {}: usize = {};", const_name, port.index);
+        let mut base = port_const_base(port);
+        if used.contains(&base) {
+            base = format!("{}_{}", base, port.index);
+        }
+        used.insert(base.clone());
+        names.insert(port.index, base);
     }
+    names
 }
 
-fn port_const_name(port: &Port) -> String {
+fn port_const_base(port: &Port) -> String {
     use heck::ToShoutySnakeCase;
     let role = match (port.kind, port.direction) {
         (PortKind::Audio, PortDirection::Input) => "AUDIO_IN",
@@ -148,12 +211,46 @@ fn port_const_name(port: &Port) -> String {
         (PortKind::Event, PortDirection::Output) => "EVENT_OUT",
         _ => "PORT",
     };
-    let sym = port.symbol.to_shouty_snake_case();
-    let sym = sym
+    let sym: String = port
+        .symbol
+        .to_shouty_snake_case()
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
-        .collect::<String>();
-    format!("PORT_{}_{}", role, sym)
+        .collect();
+    if sym.is_empty() {
+        format!("PORT_{}_{}", role, port.index)
+    } else {
+        format!("PORT_{}_{}", role, sym)
+    }
+}
+
+fn audio_const_list(
+    plugin: &Plugin,
+    names: &std::collections::HashMap<usize, String>,
+    dir: PortDirection,
+) -> Vec<String> {
+    let mut entries: Vec<(usize, String)> = plugin
+        .ports
+        .iter()
+        .filter(|p| p.kind == PortKind::Audio && p.direction == dir)
+        .filter_map(|p| names.get(&p.index).map(|n| (p.index, n.clone())))
+        .collect();
+    entries.sort_by_key(|(i, _)| *i);
+    entries.into_iter().map(|(_, n)| n).collect()
+}
+
+fn write_port_consts(
+    out: &mut String,
+    plugin: &Plugin,
+    names: &std::collections::HashMap<usize, String>,
+) {
+    let _ = writeln!(out, "// Port indices (from TTL)");
+    let mut entries: Vec<(usize, &String)> = names.iter().map(|(i, n)| (*i, n)).collect();
+    entries.sort_by_key(|(i, _)| *i);
+    for (idx, name) in entries {
+        let _ = writeln!(out, "const {}: usize = {};", name, idx);
+    }
+    let _ = plugin; // unused but kept for future
 }
 
 fn write_schema_fn(
@@ -178,7 +275,7 @@ fn write_schema_fn(
 }
 
 fn render_param(port: &Port) -> String {
-    let symbol = sanitize_param_id(&port.symbol);
+    let symbol = safe_param_id(&sanitize_param_id(&port.symbol));
     let label = port
         .name
         .as_deref()
@@ -195,14 +292,6 @@ fn render_param(port: &Port) -> String {
             symbol,
             label,
             default != 0.0
-        );
-    }
-    if port.is_integer {
-        let step = 1.0_f32;
-        let _ = step;
-        return format!(
-            "int_parameter(\"{}\", \"{}\", None, Some({}), {}, {}, 1, ParameterUnit::{})",
-            symbol, label, default as i32, min as i32, max as i32, unit,
         );
     }
     let step = pick_step(min, max);
@@ -236,9 +325,14 @@ fn guess_unit(port: &Port) -> &'static str {
     } else if unit.ends_with("#ms") || unit.ends_with("millisecond") {
         "Milliseconds"
     } else if unit.ends_with("#s") || unit.ends_with("second") {
-        "Seconds"
+        // ParameterUnit has no Seconds variant — collapse to Milliseconds.
+        "Milliseconds"
     } else if unit.ends_with("#pc") || unit.ends_with("percent") {
         "Percent"
+    } else if unit.ends_with("semitone") {
+        "Semitones"
+    } else if unit.ends_with("ratio") {
+        "Ratio"
     } else {
         "None"
     }
@@ -256,25 +350,22 @@ fn sanitize_param_id(s: &str) -> String {
 fn write_build_fn(
     out: &mut String,
     audio_mode: AudioMode,
-    audio_in: &[usize],
-    audio_out: &[usize],
-    extra_outs: &[usize],
+    audio_in_consts: &[String],
+    audio_out_consts: &[String],
     ctrl_ports: &[&Port],
+    names: &std::collections::HashMap<usize, String>,
 ) {
-    let _ = writeln!(out, "fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {{");
+    let _ = writeln!(
+        out,
+        "fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {{"
+    );
 
     for port in ctrl_ports {
-        let id = sanitize_param_id(&port.symbol);
+        let id = safe_param_id(&sanitize_param_id(&port.symbol));
         if port.is_toggle {
             let _ = writeln!(
                 out,
                 "    let {} = required_bool(params, \"{}\").map_err(anyhow::Error::msg)?;",
-                id, id
-            );
-        } else if port.is_integer {
-            let _ = writeln!(
-                out,
-                "    let {} = required_i32(params, \"{}\").map_err(anyhow::Error::msg)?;",
                 id, id
             );
         } else {
@@ -297,16 +388,17 @@ fn write_build_fn(
     let _ = writeln!(out);
     let _ = writeln!(out, "    let control_ports: &[(usize, f32)] = &[");
     for port in ctrl_ports {
-        let id = sanitize_param_id(&port.symbol);
-        let const_name = port_const_name(port);
+        let id = safe_param_id(&sanitize_param_id(&port.symbol));
+        let const_name = names
+            .get(&port.index)
+            .cloned()
+            .unwrap_or_else(|| format!("PORT_CTRL_{}", port.index));
         if port.is_toggle {
             let _ = writeln!(
                 out,
                 "        ({}, if {} {{ 1.0 }} else {{ 0.0 }}),",
                 const_name, id
             );
-        } else if port.is_integer {
-            let _ = writeln!(out, "        ({}, {} as f32),", const_name, id);
         } else {
             let _ = writeln!(out, "        ({}, {}),", const_name, id);
         }
@@ -314,27 +406,37 @@ fn write_build_fn(
     let _ = writeln!(out, "    ];");
     let _ = writeln!(out);
 
+    write_runtime_branch(out, audio_mode, audio_in_consts, audio_out_consts);
+}
+
+fn write_runtime_branch(
+    out: &mut String,
+    audio_mode: AudioMode,
+    audio_in_consts: &[String],
+    audio_out_consts: &[String],
+) {
+    let join = |v: &[String]| v.join(", ");
     match audio_mode {
         AudioMode::DualMono | AudioMode::MonoOnly => {
-            let in_const = audio_const_lookup(audio_in.first().copied(), "AUDIO_IN");
-            let out_const = audio_const_lookup(audio_out.first().copied(), "AUDIO_OUT");
-            let _ = writeln!(out, "    let _extras: &[usize] = &[];");
+            let in_c = audio_in_consts
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "0".to_string());
+            let out_c = audio_out_consts
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "0".to_string());
             let _ = writeln!(out, "    match layout {{");
             let _ = writeln!(out, "        AudioChannelLayout::Mono => {{");
-            let _ = writeln!(out, "            let processor = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,");
-            let _ = writeln!(
-                out,
-                "                &[{}], &[{}], control_ports)?;",
-                in_const, out_const
-            );
+            let _ = writeln!(out, "            let processor = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_c, out_c);
             let _ = writeln!(
                 out,
                 "            Ok(BlockProcessor::Mono(Box::new(processor)))"
             );
             let _ = writeln!(out, "        }}");
             let _ = writeln!(out, "        AudioChannelLayout::Stereo => {{");
-            let _ = writeln!(out, "            let left = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_const, out_const);
-            let _ = writeln!(out, "            let right = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_const, out_const);
+            let _ = writeln!(out, "            let left = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_c, out_c);
+            let _ = writeln!(out, "            let right = lv2::build_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_c, out_c);
             let _ = writeln!(out, "            Ok(BlockProcessor::Stereo(Box::new(DualMonoProcessor {{ left, right }})))");
             let _ = writeln!(out, "        }}");
             let _ = writeln!(out, "    }}");
@@ -357,62 +459,29 @@ fn write_build_fn(
             let _ = writeln!(out, "}}");
         }
         AudioMode::MonoToStereo => {
-            let in_const = audio_const_lookup(audio_in.first().copied(), "AUDIO_IN");
-            let out_l_const = audio_const_lookup(audio_out.first().copied(), "AUDIO_OUT");
-            let extras: Vec<String> = extra_outs
-                .iter()
-                .map(|i| format!("PORT_AUDIO_OUT_{}", i))
-                .collect();
-            let _ = writeln!(
-                out,
-                "    let extra_outs: &[usize] = &[{}];",
-                extras.join(", ")
-            );
-            let _ = writeln!(out, "    let processor = lv2::build_lv2_processor_with_extras(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,");
-            let _ = writeln!(
-                out,
-                "        &[{}], &[{}], control_ports, extra_outs)?;",
-                in_const, out_l_const
-            );
-            let _ = writeln!(out, "    match layout {{");
-            let _ = writeln!(out, "        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(processor))),");
-            let _ = writeln!(out, "        AudioChannelLayout::Stereo => {{");
-            let _ = writeln!(
-                out,
-                "            // mono in, stereo out — duplicate processing per side"
-            );
-            let _ = writeln!(
-                out,
-                "            Ok(BlockProcessor::Mono(Box::new(processor)))"
-            );
-            let _ = writeln!(out, "        }}");
-            let _ = writeln!(out, "    }}");
+            let in_c = audio_in_consts
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "0".to_string());
+            let out_l = audio_out_consts
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "0".to_string());
+            let extras: Vec<String> = audio_out_consts.iter().skip(1).cloned().collect();
+            let _ = writeln!(out, "    let extra_outs: &[usize] = &[{}];", join(&extras));
+            let _ = writeln!(out, "    let _ = layout;");
+            let _ = writeln!(out, "    let processor = lv2::build_lv2_processor_with_extras(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports, extra_outs)?;", in_c, out_l);
+            let _ = writeln!(out, "    Ok(BlockProcessor::Mono(Box::new(processor)))");
             let _ = writeln!(out, "}}");
         }
         AudioMode::TrueStereo => {
-            let in_l = audio_const_lookup(audio_in.first().copied(), "AUDIO_IN");
-            let in_r = audio_const_lookup(audio_in.get(1).copied(), "AUDIO_IN");
-            let out_l = audio_const_lookup(audio_out.first().copied(), "AUDIO_OUT");
-            let out_r = audio_const_lookup(audio_out.get(1).copied(), "AUDIO_OUT");
-            let _ = writeln!(out, "    let processor = lv2::build_stereo_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,");
-            let _ = writeln!(
-                out,
-                "        &[{}, {}], &[{}, {}], control_ports)?;",
-                in_l, in_r, out_l, out_r
-            );
-            let _ = writeln!(out, "    match layout {{");
-            let _ = writeln!(out, "        AudioChannelLayout::Mono => Ok(BlockProcessor::Stereo(Box::new(processor))),");
-            let _ = writeln!(out, "        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),");
-            let _ = writeln!(out, "    }}");
+            let in_c = join(audio_in_consts);
+            let out_c = join(audio_out_consts);
+            let _ = writeln!(out, "    let processor = lv2::build_stereo_lv2_processor(&lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path, &[{}], &[{}], control_ports)?;", in_c, out_c);
+            let _ = writeln!(out, "    let _ = layout;");
+            let _ = writeln!(out, "    Ok(BlockProcessor::Stereo(Box::new(processor)))");
             let _ = writeln!(out, "}}");
         }
-    }
-}
-
-fn audio_const_lookup(idx: Option<usize>, role: &str) -> String {
-    match idx {
-        Some(i) => format!("PORT_{}_{}", role, i),
-        None => "0".to_string(),
     }
 }
 
@@ -423,6 +492,3 @@ fn strip_kind(path: &str) -> &str {
 fn escape_str(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
-
-#[allow(dead_code)]
-fn _silence(_: BlockType) {}
