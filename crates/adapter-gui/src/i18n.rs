@@ -348,12 +348,11 @@ fn has_any_mo(dir: &Path) -> bool {
 /// safe last resort that activates the macOS font cascade.
 pub fn font_family_for_locale(locale: &str) -> &'static str {
     match locale {
-        // Hiragino Sans on macOS covers CJK Unified Ideographs (kanji /
-        // hanzi shared codepoints), so it works for both Japanese and
-        // Simplified Chinese without femtovg failing to resolve PingFang
-        // SC by name.
         "ja-JP" => "Hiragino Sans",
-        "zh-CN" => "Hiragino Sans",
+        // Hiragino Sans GB is the Simplified-Chinese sibling of Hiragino
+        // Sans on macOS — covers zh-Hans-only codepoints (乐 贝 键 输 链)
+        // that Hiragino Sans (CJK Unified only) renders as .notdef.
+        "zh-CN" => "Hiragino Sans GB",
         "ko-KR" => "Apple SD Gothic Neo",
         "hi-IN" => "Kohinoor Devanagari",
         // pt-BR, en-US, es-ES, fr-FR, de-DE — all Latin
