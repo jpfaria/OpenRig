@@ -47,12 +47,12 @@ OpenRig is on `v0.1.0-dev` — early, but real. The foundation that makes the bi
 
 - **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64).
 - **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel.
-- **560+ registered models** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups.
+- **[560+ registered models](docs/user-guide/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](docs/user-guide/blocks-reference.md))
 - **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full presets from a song name by researching the original signal chain in public sources and writing the YAML.
 
-The full catalog (every model, every parameter, every voicing variant) lives in the [Blocks Reference](docs/user-guide/blocks-reference.md).
+> 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Start with the [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
 
 ## Where it's going
 
@@ -161,7 +161,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 
 - [x] Standalone desktop app for **macOS** (Apple Silicon + Intel), **Linux** (x86_64 + aarch64), and **Windows** (x86_64) — five platform targets from a single codebase
 - [x] **Truly parallel chains** — each input is an isolated audio runtime, no shared buffers, no contended locks, no cross-stream CPU spikes
-- [x] **560+ models** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
+- [x] **[560+ models](docs/user-guide/blocks-reference.md#model-id-quick-reference)** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
 - [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
 - [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
 - [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
