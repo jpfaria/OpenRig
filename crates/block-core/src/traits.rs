@@ -10,6 +10,25 @@ pub trait MonoProcessor: Send + Sync + 'static {
             *sample = self.process_sample(*sample);
         }
     }
+
+    /// Attempt to retune this processor against a new `ParameterSet` without
+    /// dropping its internal state. Default returns `false` — caller must do a
+    /// full rebuild (the processor cannot adapt without a fresh build).
+    ///
+    /// Implementations that DO support live retuning (e.g. EQs whose only state
+    /// is the IIR sample-history of biquads) override this to mutate coefficients
+    /// in place and return `true`. The runtime then keeps the processor — and
+    /// crucially its sample history — alive across the parameter change, which
+    /// suppresses the click users heard when sliders moved (issue #358).
+    ///
+    /// Called on the rebuild thread holding exclusive ownership of `self`.
+    fn try_in_place_update(
+        &mut self,
+        _params: &crate::param::ParameterSet,
+        _sample_rate: f32,
+    ) -> bool {
+        false
+    }
 }
 
 pub trait StereoProcessor: Send + Sync + 'static {

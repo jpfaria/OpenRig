@@ -1,6 +1,6 @@
-use anyhow::{Error, Result};
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     bool_parameter, curve_editor_parameter, enum_parameter, float_parameter, required_bool,
     required_f32, required_string, CurveEditorRole, ModelParameterSchema, ParameterSet,
@@ -28,14 +28,54 @@ struct BandDefault {
 }
 
 const BAND_DEFAULTS: [BandDefault; 8] = [
-    BandDefault { freq: 62.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 125.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 250.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 500.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 1000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 2000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 4000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 8000.0, gain: 0.0, q: 1.0, band_type: "peak" },
+    BandDefault {
+        freq: 62.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 125.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 250.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 500.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 1000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 2000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 4000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 8000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -139,6 +179,45 @@ impl MonoProcessor for EightBandParametricEq {
         }
         x * self.output_gain
     }
+
+    /// Live retune — keeps each `BiquadFilter`'s sample history (`x1..y2`) and
+    /// asks it to ramp toward the new coefficients via
+    /// `BiquadFilter::update_coefficients`. Returns `false` only if a band
+    /// param is missing or invalid (caller falls back to a full rebuild,
+    /// which would also fail validation upstream).
+    ///
+    /// Called from the runtime rebuild thread with exclusive ownership of
+    /// `self`. No alloc, no syscall.
+    fn try_in_place_update(&mut self, params: &ParameterSet, sample_rate: f32) -> bool {
+        for i in 0..8usize {
+            let n = i + 1;
+            let Ok(en) = required_bool(params, &format!("band{n}_enabled")) else {
+                return false;
+            };
+            let Ok(band_type) = required_string(params, &format!("band{n}_type")) else {
+                return false;
+            };
+            let Ok(freq) = required_f32(params, &format!("band{n}_freq")) else {
+                return false;
+            };
+            let Ok(gain) = required_f32(params, &format!("band{n}_gain")) else {
+                return false;
+            };
+            let Ok(q) = required_f32(params, &format!("band{n}_q")) else {
+                return false;
+            };
+            let Ok(kind) = parse_band_kind(&band_type) else {
+                return false;
+            };
+            self.filters[i].update_coefficients(kind, freq, gain, q, sample_rate);
+            self.enabled[i] = en;
+        }
+        let Ok(output_db) = required_f32(params, "output_db") else {
+            return false;
+        };
+        self.output_gain = db_to_lin(output_db);
+        true
+    }
 }
 
 fn parse_band_kind(band_type: &str) -> Result<BiquadKind> {
@@ -190,9 +269,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => anyhow::bail!(
             "filter model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID

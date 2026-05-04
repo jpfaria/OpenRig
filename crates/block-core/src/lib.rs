@@ -22,6 +22,7 @@ mod tests;
 pub use audio_types::{
     new_stream_handle, AudioChannelLayout, ModelAudioMode, StreamEntry, StreamHandle,
 };
+pub use brand_visual::{brand_colors, compose, ModelColorOverride, ModelColorScheme};
 pub use constants::{
     ALL_INSTRUMENTS, BRAND_NATIVE, DEFAULT_INSTRUMENT, EFFECT_TYPE_AMP, EFFECT_TYPE_BODY,
     EFFECT_TYPE_CAB, EFFECT_TYPE_DELAY, EFFECT_TYPE_DYNAMICS, EFFECT_TYPE_FILTER,
@@ -33,8 +34,7 @@ pub use constants::{
 };
 pub use dsp::{
     calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadFilter, BiquadKind,
-    EnvelopeFollower, OnePoleHighPass, OnePoleLowPass,
+    EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
 };
 pub use traits::{BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle, StereoProcessor};
-pub use brand_visual::{brand_colors, compose, ModelColorOverride, ModelColorScheme};
 pub use visual::{KnobLayoutEntry, ModelVisualData};

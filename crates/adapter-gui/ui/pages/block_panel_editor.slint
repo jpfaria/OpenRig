@@ -269,10 +269,18 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Curve Editor (parametric EQ) ──
+    // Height fills the panel below the (collapsed-to-76px) header section.
+    // Without it the EqBandSlider children read parent.height = 0 and render
+    // as invisible 1-pixel-tall bars (issue #358 visual report).
     if root.curve-editor-points.length > 0 : CurveEditorControl {
         x: 8px;
         y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
         width: root.width - 16px;
+        height: Math.max(
+            280px,
+            root.height - root.header-height - root.brand-strip-height
+                - root.panel-height - 16px,
+        );
         points: root.curve-editor-points;
         total-curve: root.eq-total-curve;
         band-curves: root.eq-band-curves;
@@ -284,6 +292,11 @@ export component BlockPanelEditor inherits Rectangle {
         x: 8px;
         y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
         width: root.width - 16px;
+        height: Math.max(
+            280px,
+            root.height - root.header-height - root.brand-strip-height
+                - root.panel-height - 16px,
+        );
         points: root.multi-slider-points;
         update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
     }
