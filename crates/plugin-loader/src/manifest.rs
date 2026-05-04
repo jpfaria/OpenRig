@@ -1,0 +1,344 @@
+//! Plugin manifest schema (YAML).
+//!
+//! A plugin package is a folder containing `manifest.yaml` plus the assets it
+//! references. The manifest declares one of three backends — NAM, IR, or LV2 —
+//! and the loader uses that to know how to instantiate the plugin at runtime.
+//!
+//! # Wire format
+//!
+//! ```yaml
+//! manifest_version: 1
+//! id: my_preamp
+//! display_name: My Preamp
+//! type: preamp
+//! backend: nam
+//! parameters: [...]
+//! captures: [...]
+//! ```
+//!
+//! See issue #287 for the full schema and the rationale behind the `(OS, arch)`
+//! slot matrix used by the LV2 backend.
+
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
+/// Top-level descriptor of a plugin package.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PluginManifest {
+    /// Schema version. Bumped when the manifest layout changes in a way that
+    /// requires migration. Older loaders refuse manifests with a higher value.
+    pub manifest_version: u32,
+
+    /// Stable identifier used by projects, presets, and the registry to
+    /// reference this plugin. Must be unique within the catalog.
+    pub id: String,
+
+    /// Human-readable name shown in the block drawer and editor.
+    pub display_name: String,
+
+    /// Optional author/contact string.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+
+    /// Optional free-form description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Optional "inspired by" hint (e.g. real-world hardware reference).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inspired_by: Option<String>,
+
+    /// Which block category this plugin belongs to.
+    #[serde(rename = "type")]
+    pub block_type: BlockType,
+
+    /// Backend-specific payload. Serialized flat alongside the common fields,
+    /// discriminated by the `backend` tag.
+    #[serde(flatten)]
+    pub backend: Backend,
+}
+
+/// Block category. Mirrors the `block-*` crates in the workspace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockType {
+    GainPedal,
+    Preamp,
+    Amp,
+    Cab,
+    Body,
+    Reverb,
+    Delay,
+    Mod,
+    Filter,
+    Dyn,
+    Wah,
+    Pitch,
+    Util,
+}
+
+/// Backend-specific payload of a plugin.
+///
+/// Serde tags this with `backend: nam|ir|lv2` and flattens the per-variant
+/// fields into the top-level manifest, producing the canonical YAML shape
+/// documented at the module level.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "backend", rename_all = "snake_case")]
+pub enum Backend {
+    /// Neural Amp Modeler captures arranged on a parameter grid.
+    Nam {
+        parameters: Vec<GridParameter>,
+        captures: Vec<GridCapture>,
+    },
+    /// Impulse response captures (e.g. cabinets, acoustic bodies).
+    Ir {
+        #[serde(default)]
+        parameters: Vec<GridParameter>,
+        captures: Vec<GridCapture>,
+    },
+    /// Native LV2 plugin bundle with per-platform binaries.
+    Lv2 {
+        plugin_uri: String,
+        bundle_path: PathBuf,
+        binaries: BTreeMap<Lv2Slot, PathBuf>,
+    },
+}
+
+/// One axis of a NAM/IR capture grid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridParameter {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    pub values: Vec<f64>,
+}
+
+/// One cell of the NAM/IR capture grid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GridCapture {
+    /// Map of parameter name → value identifying this cell on the grid.
+    /// Empty for IR plugins that have no parametric variation.
+    #[serde(default)]
+    pub values: BTreeMap<String, f64>,
+    /// Path to the asset (`.nam` or `.wav`) relative to the plugin folder.
+    pub file: PathBuf,
+}
+
+/// Build target slot for an LV2 binary.
+///
+/// macOS uses a single Universal Binary 2 (fat Mach-O) covering both Intel
+/// and Apple Silicon. Windows and Linux each ship one binary per arch. All
+/// slots are optional — a plugin shipping only a subset of platforms is
+/// marked unavailable on the rest by the loader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Lv2Slot {
+    #[serde(rename = "macos-universal")]
+    MacosUniversal,
+    #[serde(rename = "windows-x86_64")]
+    WindowsX86_64,
+    #[serde(rename = "windows-aarch64")]
+    WindowsAarch64,
+    #[serde(rename = "linux-x86_64")]
+    LinuxX86_64,
+    #[serde(rename = "linux-aarch64")]
+    LinuxAarch64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(yaml: &str) -> PluginManifest {
+        serde_yaml::from_str(yaml).expect("manifest should parse")
+    }
+
+    #[test]
+    fn parses_nam_manifest() {
+        let yaml = r#"
+manifest_version: 1
+id: my_preamp
+display_name: My Preamp
+type: preamp
+backend: nam
+parameters:
+  - name: gain
+    display_name: Gain
+    values: [10, 20, 30]
+captures:
+  - values: { gain: 10 }
+    file: captures/gain10.nam
+  - values: { gain: 20 }
+    file: captures/gain20.nam
+  - values: { gain: 30 }
+    file: captures/gain30.nam
+"#;
+
+        let m = parse(yaml);
+
+        assert_eq!(m.manifest_version, 1);
+        assert_eq!(m.id, "my_preamp");
+        assert_eq!(m.block_type, BlockType::Preamp);
+        match m.backend {
+            Backend::Nam {
+                parameters,
+                captures,
+            } => {
+                assert_eq!(parameters.len(), 1);
+                assert_eq!(parameters[0].name, "gain");
+                assert_eq!(captures.len(), 3);
+                assert_eq!(captures[0].file, PathBuf::from("captures/gain10.nam"));
+            }
+            other => panic!("expected NAM backend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_ir_manifest_with_no_parameters() {
+        let yaml = r#"
+manifest_version: 1
+id: my_cab
+display_name: My Cab
+type: cab
+backend: ir
+captures:
+  - values: {}
+    file: ir/v30_4x12.wav
+"#;
+
+        let m = parse(yaml);
+
+        assert_eq!(m.block_type, BlockType::Cab);
+        match m.backend {
+            Backend::Ir {
+                parameters,
+                captures,
+            } => {
+                assert!(parameters.is_empty(), "IR with no params");
+                assert_eq!(captures.len(), 1);
+            }
+            other => panic!("expected IR backend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_lv2_manifest_with_all_slots() {
+        let yaml = r#"
+manifest_version: 1
+id: my_fuzz
+display_name: My Fuzz
+type: gain_pedal
+backend: lv2
+plugin_uri: http://example.com/plugins/my-fuzz
+bundle_path: bundles/my-fuzz.lv2
+binaries:
+  macos-universal: bundles/my-fuzz.lv2/macos-universal/my-fuzz.dylib
+  windows-x86_64:  bundles/my-fuzz.lv2/windows-x86_64/my-fuzz.dll
+  windows-aarch64: bundles/my-fuzz.lv2/windows-aarch64/my-fuzz.dll
+  linux-x86_64:    bundles/my-fuzz.lv2/linux-x86_64/my-fuzz.so
+  linux-aarch64:   bundles/my-fuzz.lv2/linux-aarch64/my-fuzz.so
+"#;
+
+        let m = parse(yaml);
+
+        assert_eq!(m.block_type, BlockType::GainPedal);
+        match m.backend {
+            Backend::Lv2 {
+                plugin_uri,
+                bundle_path,
+                binaries,
+            } => {
+                assert_eq!(plugin_uri, "http://example.com/plugins/my-fuzz");
+                assert_eq!(bundle_path, PathBuf::from("bundles/my-fuzz.lv2"));
+                assert_eq!(binaries.len(), 5);
+                assert!(binaries.contains_key(&Lv2Slot::MacosUniversal));
+                assert!(binaries.contains_key(&Lv2Slot::LinuxAarch64));
+            }
+            other => panic!("expected LV2 backend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_lv2_manifest_with_partial_slots() {
+        let yaml = r#"
+manifest_version: 1
+id: linux_only_plugin
+display_name: Linux Only
+type: util
+backend: lv2
+plugin_uri: urn:example:linux-only
+bundle_path: bundles/linux-only.lv2
+binaries:
+  linux-x86_64: bundles/linux-only.lv2/linux-x86_64/plugin.so
+  linux-aarch64: bundles/linux-only.lv2/linux-aarch64/plugin.so
+"#;
+
+        let m = parse(yaml);
+
+        match m.backend {
+            Backend::Lv2 { binaries, .. } => {
+                assert_eq!(binaries.len(), 2);
+                assert!(!binaries.contains_key(&Lv2Slot::MacosUniversal));
+                assert!(!binaries.contains_key(&Lv2Slot::WindowsX86_64));
+            }
+            _ => panic!("expected LV2"),
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_backend() {
+        let yaml = r#"
+manifest_version: 1
+id: bad
+display_name: Bad
+type: util
+backend: vst3
+"#;
+        let result: Result<PluginManifest, _> = serde_yaml::from_str(yaml);
+        assert!(result.is_err(), "unknown backend should be rejected");
+    }
+
+    #[test]
+    fn rejects_unknown_block_type() {
+        let yaml = r#"
+manifest_version: 1
+id: bad
+display_name: Bad
+type: synthesizer
+backend: nam
+parameters: []
+captures: []
+"#;
+        let result: Result<PluginManifest, _> = serde_yaml::from_str(yaml);
+        assert!(result.is_err(), "unknown block type should be rejected");
+    }
+
+    #[test]
+    fn round_trip_nam_preserves_data() {
+        let original = PluginManifest {
+            manifest_version: 1,
+            id: "round_trip".to_string(),
+            display_name: "Round Trip".to_string(),
+            author: Some("test".to_string()),
+            description: None,
+            inspired_by: None,
+            block_type: BlockType::Preamp,
+            backend: Backend::Nam {
+                parameters: vec![GridParameter {
+                    name: "gain".to_string(),
+                    display_name: Some("Gain".to_string()),
+                    values: vec![10.0, 20.0],
+                }],
+                captures: vec![GridCapture {
+                    values: BTreeMap::from([("gain".to_string(), 10.0)]),
+                    file: PathBuf::from("captures/g10.nam"),
+                }],
+            },
+        };
+
+        let yaml = serde_yaml::to_string(&original).expect("serialize");
+        let decoded: PluginManifest = serde_yaml::from_str(&yaml).expect("deserialize");
+        assert_eq!(original, decoded);
+    }
+}

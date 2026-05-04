@@ -5,3 +5,7 @@
 //! `MODEL_DEFINITION` codegen path.
 //!
 //! Issue: #287
+
+pub mod manifest;
+
+pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};
