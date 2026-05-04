@@ -178,25 +178,29 @@ impl BlockType {
     }
 
     /// Whether the block-* registry supports an LV2 backend variant + standard
-    /// `build` signature compatible with the codegen template. The crates that
-    /// don't yet declare `Lv2` in their *BackendKind enum are excluded — adding
-    /// LV2 support to them is tracked separately.
+    /// `build` signature compatible with the codegen template. Amp/Cab/Preamp
+    /// have Lv2 variants but their BackendKind enum lives in `registry::` not
+    /// in the crate root — codegen would need to emit the alternate use path.
+    /// Tracked as TODO until the import volume justifies the special-case.
     pub fn supports_lv2_codegen(self) -> bool {
         match self {
-            BlockType::Util => false,   // build sig has StreamHandle + no Lv2 variant
-            BlockType::Amp => false,    // AmpBackendKind has no Lv2 variant yet
-            BlockType::Cab => false,    // CabBackendKind has no Lv2 variant yet
-            BlockType::Preamp => false, // PreampBackendKind has no Lv2 variant yet
+            BlockType::Util => false,
             BlockType::Body => false,
-            BlockType::Wah => false, // existing wah lv2 file is hand-written
+            BlockType::Wah => false,
+            BlockType::Amp => false,
+            BlockType::Cab => false,
+            BlockType::Preamp => false,
             _ => true,
         }
     }
 
     /// True if this crate's ModelDefinition struct requires `validate` +
-    /// `asset_summary` fn-pointers (only block-gain so far).
+    /// `asset_summary` fn-pointers (gain/amp/cab/preamp).
     pub fn needs_validate_and_asset_summary(self) -> bool {
-        matches!(self, BlockType::Gain)
+        matches!(
+            self,
+            BlockType::Gain | BlockType::Amp | BlockType::Cab | BlockType::Preamp
+        )
     }
 
     pub fn effect_type_const(self) -> &'static str {
