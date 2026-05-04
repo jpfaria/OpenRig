@@ -111,7 +111,6 @@ pub fn run_desktop_app(
         .flatten()
         .and_then(|s| s.language);
     crate::i18n::apply_bundled_translation(persisted_language.as_deref());
-    crate::language_wiring::wire(&window);
     window
         .window()
         .set_size(slint::WindowSize::Logical(slint::LogicalSize {
@@ -181,6 +180,45 @@ pub fn run_desktop_app(
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
+
+    // language_wiring needs to know how to push the new font to every Window
+    // (each Slint Window is a separate root with its own Locale global, so a
+    // single set on AppWindow doesn't reach the secondary windows).
+    {
+        use slint::Global;
+        let weak_app = window.as_weak();
+        let weak_proj = project_settings_window.as_weak();
+        let weak_chain_in = chain_input_window.as_weak();
+        let weak_chain_out = chain_output_window.as_weak();
+        let weak_chain_in_groups = chain_input_groups_window.as_weak();
+        let weak_chain_out_groups = chain_output_groups_window.as_weak();
+        let weak_chain_insert = chain_insert_window.as_weak();
+        let weak_block_editor = block_editor_window.as_weak();
+        let weak_tuner = tuner_window.as_weak();
+        let weak_spectrum = spectrum_window.as_weak();
+        let chain_editor_window_for_apply = chain_editor_window.clone();
+        let plugin_info_window_for_apply = plugin_info_window.clone();
+        let apply_font_to_all = move |font: &str| {
+            let f = || -> slint::SharedString { font.into() };
+            if let Some(w) = weak_app.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_proj.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_chain_in.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_chain_out.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_chain_in_groups.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_chain_out_groups.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_chain_insert.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_block_editor.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_tuner.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_spectrum.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = chain_editor_window_for_apply.borrow().as_ref() {
+                crate::Locale::get(w).set_font_family(f());
+            }
+            if let Some(w) = plugin_info_window_for_apply.borrow().as_ref() {
+                crate::Locale::get(w).set_font_family(f());
+            }
+        };
+        crate::language_wiring::wire(&window, apply_font_to_all);
+    }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
         &settings.input_devices,

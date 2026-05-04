@@ -15,7 +15,13 @@ use infra_filesystem::FilesystemStorage;
 use crate::i18n::{display_name, font_family_for_locale, locale_for_runtime, SUPPORTED_LANGUAGES};
 use crate::{AppWindow, Locale};
 
-pub fn wire(window: &AppWindow) {
+/// `apply_font_to_all_windows` is invoked on every language change with the
+/// new font family. The caller (desktop_app) wires it to a closure that
+/// holds weak refs to every secondary Window and propagates the font there
+/// — necessary because each Window is its own Slint root with an isolated
+/// Locale global, so setting Locale on AppWindow alone leaves the rest
+/// rendering with the boot-time font.
+pub fn wire(window: &AppWindow, apply_font_to_all_windows: impl Fn(&str) + 'static) {
     let initial_locale = locale_for_runtime(read_persisted_language().as_deref());
     set_language_options(window, &initial_locale);
     // Boot-time font: must match the locale the bundled translations were
@@ -51,6 +57,7 @@ pub fn wire(window: &AppWindow) {
         let new_font = font_family_for_locale(&new_locale_for_font);
         eprintln!("i18n.font: change locale={} → font_family={}", new_locale_for_font, new_font);
         Locale::get(&window).set_font_family(new_font.into());
+        apply_font_to_all_windows(new_font);
         // Rebuild the dropdown labels in the new UI locale — otherwise
         // the language list itself stays in the previous language and
         // the selector reads "Alemão / Chinês" while the rest of the UI
