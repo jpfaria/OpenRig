@@ -7,7 +7,9 @@
 //! Issue: #287
 
 pub mod manifest;
+pub mod package;
 pub mod validate;
 
 pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};
+pub use package::{current_platform_slot, validate_package, PackageError};
 pub use validate::{validate_manifest, ValidationError, MAX_SUPPORTED_VERSION};
