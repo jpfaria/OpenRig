@@ -25,8 +25,7 @@ unsafe impl<T: Copy + Send> Sync for SpscRing<T> {}
 impl<T: Copy> SpscRing<T> {
     pub fn new(capacity: usize, init: T) -> Self {
         let capacity = capacity.next_power_of_two().max(2);
-        let slots: Box<[UnsafeCell<T>]> =
-            (0..capacity).map(|_| UnsafeCell::new(init)).collect();
+        let slots: Box<[UnsafeCell<T>]> = (0..capacity).map(|_| UnsafeCell::new(init)).collect();
         Self {
             slots,
             mask: capacity - 1,

@@ -52,7 +52,7 @@ component NameInput inherits Rectangle {
         y: 0px;
         width: parent.width - 24px;
         height: parent.height;
-        text: "Ex: Guitarra ao vivo";
+        text: @tr("placeholder-project-name-example");
         color: #555d6a;
         vertical-alignment: center;
         font-size: 13px;
@@ -148,7 +148,7 @@ export component ProjectSetupPage inherits Rectangle {
             y: 28px;
             width: parent.width;
             height: 28px;
-            text: "Novo Projeto";
+            text: @tr("title-new-project");
             color: #f1f4f8;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -161,7 +161,7 @@ export component ProjectSetupPage inherits Rectangle {
             y: 76px;
             width: 120px;
             height: 20px;
-            text: "Nome do projeto";
+            text: @tr("label-project-name");
             color: #8d95a2;
             vertical-alignment: center;
             font-size: 12px;
@@ -201,14 +201,14 @@ export component ProjectSetupPage inherits Rectangle {
         SetupButton {
             x: parent.width - 28px - 120px - 8px - 120px;
             y: 168px;
-            label: "Cancelar";
+            label: @tr("btn-cancel");
             clicked => { root.cancel(); }
         }
 
         SetupButton {
             x: parent.width - 28px - 120px;
             y: 168px;
-            label: "Criar projeto";
+            label: @tr("btn-create-project");
             primary: true;
             enabled: root.can-confirm;
             clicked => { root.confirm(); }

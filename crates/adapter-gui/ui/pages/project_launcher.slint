@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
+import { LanguageSelector } from "../components/language_selector.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -181,7 +182,7 @@ component SearchField inherits Rectangle {
         y: 0px;
         width: parent.width - 24px;
         height: parent.height;
-        text: "Buscar projetos";
+        text: @tr("placeholder-search-projects");
         color: #858d99;
         vertical-alignment: center;
         font-size: 13px;
@@ -214,6 +215,10 @@ export component ProjectLauncherPage inherits Rectangle {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
 
     background: #1f2023;
 
@@ -277,17 +282,17 @@ export component ProjectLauncherPage inherits Rectangle {
         }
 
         IconLauncherButton {
-            x: parent.width - 212px;
+            x: parent.width - 268px;
             y: 6px;
             icon: @image-url("../assets/open-file.svg");
-            tooltip: "Abrir projeto";
+            tooltip: @tr("tooltip-open-project");
             clicked => { root.open-project-file(); }
         }
 
         LauncherButton {
-            x: parent.width - 156px;
+            x: parent.width - 212px;
             y: 6px;
-            label: "Novo projeto";
+            label: @tr("btn-new-project");
             primary: true;
             clicked => { root.create-project-file(); }
         }
@@ -359,5 +364,15 @@ export component ProjectLauncherPage inherits Rectangle {
                 remove(index) => { root.remove-recent-project(index); }
             }
         }
+    }
+
+    // Render last so the dropdown z-orders above the project list.
+    LanguageSelector {
+        x: parent.width - 64px;
+        y: 24px;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.change-language(i); }
     }
 }

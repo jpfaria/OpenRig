@@ -18,12 +18,15 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-slint = { workspace = true, features = ["backend-linuxkms", "renderer-femtovg"] }
+slint = { workspace = true, features = ["backend-linuxkms", "renderer-femtovg", "gettext"] }
 log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 webbrowser.workspace = true
+sys-locale = "0.3"
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+rust-i18n = "3"
 
 [target.'cfg(target_os = "linux")'.dependencies.infra-cpal]
 path = "../infra-cpal"

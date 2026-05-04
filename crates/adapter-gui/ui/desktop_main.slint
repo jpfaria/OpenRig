@@ -1,7 +1,9 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { PluginInfoPanel } from "pages/plugin_info_window.slint";
+import { LanguageSelector } from "components/language_selector.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -24,6 +26,10 @@ export component DesktopMain inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -109,6 +115,8 @@ export component DesktopMain inherits Rectangle {
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
     callback configure-chain(int);
     callback configure-chain-input(int);
     callback configure-chain-output(int);
@@ -191,6 +199,12 @@ export component DesktopMain inherits Rectangle {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    // Fullscreen inline plugin info overlay (windowed mode opens PluginInfoWindow instead).
+    // Wired in fullscreen because secondary windows do not surface reliably on Orange Pi.
+    in property <bool> plugin-info-visible: false;
+    in property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -203,11 +217,15 @@ export component DesktopMain inherits Rectangle {
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
+        change-language(i) => { root.change-language(i); }
     }
 
     if root.show-project-setup : ProjectSetupPage {
@@ -267,6 +285,8 @@ export component DesktopMain inherits Rectangle {
             open-spectrum-window => { root.open-spectrum-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+            move-chain-up(index) => { root.move-chain-up(index); }
+            move-chain-down(index) => { root.move-chain-down(index); }
             configure-chain(index) => { root.configure-chain(index); }
             configure-chain-input(index) => { root.configure-chain-input(index); }
             configure-chain-output(index) => { root.configure-chain-output(index); }
@@ -409,6 +429,43 @@ export component DesktopMain inherits Rectangle {
             height: parent.height;
             background: transparent;
         }
+
+        // Fullscreen inline plugin info overlay — replaces secondary PluginInfoWindow
+        // when in fullscreen, where child windows do not surface (Orange Pi / kiosk).
+        if root.fullscreen && root.plugin-info-visible : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: #0405068a;
+
+            TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                clicked => { root.close-plugin-info(); }
+            }
+
+            PluginInfoPanel {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: Math.min(480px, parent.width - 32px);
+                height: Math.min(560px, parent.height - 32px);
+                screenshot: root.plugin-info-data.screenshot;
+                has-screenshot: root.plugin-info-data.has-screenshot;
+                plugin-name: root.plugin-info-data.plugin-name;
+                brand: root.plugin-info-data.brand;
+                type-label: root.plugin-info-data.type-label;
+                description: root.plugin-info-data.description;
+                license: root.plugin-info-data.license;
+                homepage: root.plugin-info-data.homepage;
+                has-homepage: root.plugin-info-data.has-homepage;
+                show-close-button: true;
+                open-homepage => { root.open-plugin-info-homepage(); }
+                close-window => { root.close-plugin-info(); }
+            }
+        }
     }
 
     if root.show-project-settings : ProjectSettingsPage {
@@ -430,5 +487,20 @@ export component DesktopMain inherits Rectangle {
         refresh-devices => { root.refresh-devices(); }
     }
 
+    // Floating language selector — top-right of every screen EXCEPT the
+    // launcher (the launcher renders its own larger copy inline next to the
+    // open/create-project buttons). Compact mode aligns with the
+    // HeaderIconAction row used in project_chains.slint (24x24 flat at y=14
+    // inside an x=24/width=parent.width-48 header strip).
+    if !root.show-project-launcher : LanguageSelector {
+        x: parent.width - 32px;
+        y: 32px;
+        z: 200;
+        compact: true;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.change-language(i); }
+    }
 }
 

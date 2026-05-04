@@ -10,70 +10,70 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_hermida_zendrive";
 pub const DISPLAY_NAME: &str = "Hermida Zendrive";
-const BRAND: &str = "zendrive";
+const BRAND: &str = "hermida";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "voice1030_gain1030", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain1030.nam" },
-    NamCapture { tone: "voice1030_gain1200", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain1200.nam" },
-    NamCapture { tone: "voice1030_gain130", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain130.nam" },
-    NamCapture { tone: "voice1030_gain300", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain300.nam" },
-    NamCapture { tone: "voice1030_gain500", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain500.nam" },
-    NamCapture { tone: "voice1030_gain700", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain700.nam" },
-    NamCapture { tone: "voice1030_gain900", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain900.nam" },
-    NamCapture { tone: "voice1200_gain1030", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain1030.nam" },
-    NamCapture { tone: "voice1200_gain1200", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain1200.nam" },
-    NamCapture { tone: "voice1200_gain130", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain130.nam" },
-    NamCapture { tone: "voice1200_gain300", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain300.nam" },
-    NamCapture { tone: "voice1200_gain500", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain500.nam" },
-    NamCapture { tone: "voice1200_gain700", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain700.nam" },
-    NamCapture { tone: "voice1200_gain900", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain900.nam" },
-    NamCapture { tone: "voice130_gain1030", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1030.nam" },
-    NamCapture { tone: "voice130_gain1200", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1200.nam" },
-    NamCapture { tone: "voice130_gain1300", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1300.nam" },
-    NamCapture { tone: "voice130_gain300", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain300.nam" },
-    NamCapture { tone: "voice130_gain500", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain500.nam" },
-    NamCapture { tone: "voice130_gain700", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain700.nam" },
-    NamCapture { tone: "voice130_gain900", model_path: "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain900.nam" },
+// Two-axis pack: voice × gain (vol fixed at 100%, tone at 1:30).
+// Clock-position knobs: 130 ≈ low, 1030 ≈ high, 1200 = max.
+// 21 captures cover most combinations; the (voice=1:30, gain=1:30) and
+// (voice ≠ 1:30, gain = 1:00) pairs are holes — `resolve_capture` rejects them.
+const CAPTURES: &[(&str, &str, &str)] = &[
+    // (voice, gain, file)
+    ("130",  "300",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain300.nam"),
+    ("130",  "500",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain500.nam"),
+    ("130",  "700",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain700.nam"),
+    ("130",  "900",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain900.nam"),
+    ("130",  "1030", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1030.nam"),
+    ("130",  "1200", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1200.nam"),
+    ("130",  "1300", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice130_gain1300.nam"),
+    ("1030", "130",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain130.nam"),
+    ("1030", "300",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain300.nam"),
+    ("1030", "500",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain500.nam"),
+    ("1030", "700",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain700.nam"),
+    ("1030", "900",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain900.nam"),
+    ("1030", "1030", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain1030.nam"),
+    ("1030", "1200", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1030_gain1200.nam"),
+    ("1200", "130",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain130.nam"),
+    ("1200", "300",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain300.nam"),
+    ("1200", "500",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain500.nam"),
+    ("1200", "700",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain700.nam"),
+    ("1200", "900",  "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain900.nam"),
+    ("1200", "1030", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain1030.nam"),
+    ("1200", "1200", "pedals/hermida_zendrive/zendrive_vol100_tone130_voice1200_gain1200.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("voice1030_gain1030"),
-        &[
-            ("voice1030_gain1030", "Voice1030 Gain1030"),
-            ("voice1030_gain1200", "Voice1030 Gain1200"),
-            ("voice1030_gain130", "Voice1030 Gain130"),
-            ("voice1030_gain300", "Voice1030 Gain300"),
-            ("voice1030_gain500", "Voice1030 Gain500"),
-            ("voice1030_gain700", "Voice1030 Gain700"),
-            ("voice1030_gain900", "Voice1030 Gain900"),
-            ("voice1200_gain1030", "Voice1200 Gain1030"),
-            ("voice1200_gain1200", "Voice1200 Gain1200"),
-            ("voice1200_gain130", "Voice1200 Gain130"),
-            ("voice1200_gain300", "Voice1200 Gain300"),
-            ("voice1200_gain500", "Voice1200 Gain500"),
-            ("voice1200_gain700", "Voice1200 Gain700"),
-            ("voice1200_gain900", "Voice1200 Gain900"),
-            ("voice130_gain1030", "Voice130 Gain1030"),
-            ("voice130_gain1200", "Voice130 Gain1200"),
-            ("voice130_gain1300", "Voice130 Gain1300"),
-            ("voice130_gain300", "Voice130 Gain300"),
-            ("voice130_gain500", "Voice130 Gain500"),
-            ("voice130_gain700", "Voice130 Gain700"),
-            ("voice130_gain900", "Voice130 Gain900"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "voice",
+            "Voice",
+            Some("Pedal"),
+            Some("1030"),
+            &[
+                ("130",  "1:30"),
+                ("1030", "10:30"),
+                ("1200", "12:00"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Pedal"),
+            Some("700"),
+            &[
+                ("130",  "1:30"),
+                ("300",  "3:00"),
+                ("500",  "5:00"),
+                ("700",  "7:00"),
+                ("900",  "9:00"),
+                ("1030", "10:30"),
+                ("1200", "12:00"),
+                ("1300", "1:00"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -82,9 +82,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -97,16 +97,23 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let voice = required_string(params, "voice").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(v, g, _)| *v == voice && *g == gain)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for voice={} gain={}",
+                MODEL_ID, voice, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

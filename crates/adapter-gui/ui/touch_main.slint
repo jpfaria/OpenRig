@@ -1,7 +1,8 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
@@ -23,6 +24,10 @@ export component TouchMain inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -100,6 +105,8 @@ export component TouchMain inherits Rectangle {
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
     callback configure-chain(int);
     callback configure-chain-input(int);
     callback configure-chain-output(int);
@@ -171,6 +178,11 @@ export component TouchMain inherits Rectangle {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    // Fullscreen inline plugin info overlay (touch is always inline — no secondary window).
+    in property <bool> plugin-info-visible: false;
+    in property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
     // Fullscreen inline I/O endpoint editor
     in property <bool> show-chain-io-editor: false;
     in property <string> chain-io-editor-title;
@@ -275,6 +287,8 @@ export component TouchMain inherits Rectangle {
             open-spectrum-window => { root.open-spectrum-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+            move-chain-up(index) => { root.move-chain-up(index); }
+            move-chain-down(index) => { root.move-chain-down(index); }
             configure-chain(index) => { root.configure-chain(index); }
             configure-chain-input(index) => { root.configure-chain-input(index); }
             configure-chain-output(index) => { root.configure-chain-output(index); }
@@ -560,7 +574,7 @@ export component TouchMain inherits Rectangle {
             mouse-cursor: pointer;
             clicked => { root.keyboard-visible = !root.keyboard-visible; root.kb-shift = false; }
             Text {
-                text: "⌨";
+                text: @tr("⌨");
                 font-size: 22px;
                 color: #ffffff;
                 horizontal-alignment: center;
@@ -585,7 +599,7 @@ export component TouchMain inherits Rectangle {
                 padding: 16px;
                 spacing: 8px;
                 Text {
-                    text: "Carregar Preset";
+                    text: @tr("btn-load-preset");
                     font-size: 16px;
                     color: #ffffff;
                     font-weight: 700;
@@ -624,12 +638,13 @@ export component TouchMain inherits Rectangle {
                                     mouse-cursor: pointer;
                                     clicked => { root.preset-picker-delete(i); }
                                 }
-                                Text {
-                                    text: "✕";
-                                    font-size: 16px;
-                                    color: #cc4444;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
+                                Image {
+                                    x: (parent.width - 18px) / 2;
+                                    y: (parent.height - 18px) / 2;
+                                    width: 18px;
+                                    height: 18px;
+                                    source: @image-url("modules/surrealism-ui/icons/delete.svg");
+                                    colorize: del-area.has-hover ? #ffffff : #cc4444;
                                 }
                             }
                         }
@@ -644,7 +659,7 @@ export component TouchMain inherits Rectangle {
                         clicked => { root.preset-picker-cancel(); }
                     }
                     Text {
-                        text: "Cancelar";
+                        text: @tr("btn-cancel");
                         font-size: 14px;
                         color: #aaaaaa;
                         horizontal-alignment: center;
@@ -652,6 +667,42 @@ export component TouchMain inherits Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    // Plugin info overlay (touch is always inline — no secondary window).
+    if root.plugin-info-visible : Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #0405068a;
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => { root.close-plugin-info(); }
+        }
+
+        PluginInfoPanel {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: Math.min(480px, parent.width - 32px);
+            height: Math.min(560px, parent.height - 32px);
+            screenshot: root.plugin-info-data.screenshot;
+            has-screenshot: root.plugin-info-data.has-screenshot;
+            plugin-name: root.plugin-info-data.plugin-name;
+            brand: root.plugin-info-data.brand;
+            type-label: root.plugin-info-data.type-label;
+            description: root.plugin-info-data.description;
+            license: root.plugin-info-data.license;
+            homepage: root.plugin-info-data.homepage;
+            has-homepage: root.plugin-info-data.has-homepage;
+            show-close-button: true;
+            open-homepage => { root.open-plugin-info-homepage(); }
+            close-window => { root.close-plugin-info(); }
         }
     }
 

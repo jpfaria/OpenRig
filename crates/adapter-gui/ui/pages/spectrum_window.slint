@@ -70,7 +70,7 @@ component SpectrumCard inherits Rectangle {
     if !root.data.active : Text {
         x: 0; y: parent.height / 2 - 6px;
         width: parent.width; height: 14px;
-        text: "—";
+        text: @tr("—");
         color: #2a3340;
         font-family: "Bebas Neue";
         font-size: 14px;
@@ -124,31 +124,31 @@ component SpectrumCard inherits Rectangle {
 
         Text {
             x: 0 * parent.bar-stride; y: 0; width: 20px;
-            text: "20"; color: #4a525e;
+            text: @tr("20"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 14 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "100"; color: #4a525e;
+            text: @tr("100"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 34 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "1k"; color: #4a525e;
+            text: @tr("1k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 54 * parent.bar-stride - 6px; y: 0; width: 20px;
-            text: "10k"; color: #4a525e;
+            text: @tr("10k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 60 * parent.bar-stride - 4px; y: 0; width: 20px;
-            text: "20k"; color: #4a525e;
+            text: @tr("20k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 9px;
             letter-spacing: 0.8px;
         }
@@ -196,7 +196,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 110px; y: 0;
             width: 140px; height: parent.height;
-            text: "SPECTRUM";
+            text: @tr("label-spectrum");
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
@@ -213,15 +213,13 @@ export component SpectrumPanel inherits Rectangle {
             border-width: 1px;
             border-color: #2c323d;
 
-            Text {
-                x: 0; y: 0;
-                width: parent.width; height: parent.height;
-                text: "✕";
-                color: #c5cdd9;
-                font-family: "Inter";
-                font-size: 14px;
-                vertical-alignment: center;
-                horizontal-alignment: center;
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
             }
 
             close-ta := TouchArea {
@@ -240,7 +238,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
-            text: "NO ACTIVE OUTPUTS";
+            text: @tr("status-no-active-outputs");
             color: #4a525e;
             font-family: "Bebas Neue";
             font-size: 16px;
@@ -250,7 +248,7 @@ export component SpectrumPanel inherits Rectangle {
         Text {
             x: 0; y: parent.height / 2 - 4px;
             width: parent.width; height: 20px;
-            text: "Power on the spectrum and enable a chain with a configured output.";
+            text: @tr("status-spectrum-empty-help");
             color: #4a525e;
             font-family: "Inter";
             font-size: 11px;
@@ -278,7 +276,7 @@ export component SpectrumWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
     default-font-family: "Bebas Neue";
     default-font-size: 13px;
-    title: "OpenRig · Spectrum";
+    title: @tr("title-window-spectrum");
     min-width: 560px;
     min-height: 280px;
     preferred-width: 720px;

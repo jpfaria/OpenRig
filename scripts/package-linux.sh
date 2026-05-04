@@ -96,6 +96,19 @@ cp -r data/lv2                             "$S/usr/share/openrig/data/lv2"
 cp -r assets                               "$S/usr/share/openrig/assets"
 cp -r captures                             "$S/usr/share/openrig/captures"
 
+# Bundle gettext .mo translations under FHS share/. The runtime resolver
+# (i18n::resolve_translations_dir) checks <exec_dir>/../share/openrig/
+# translations on Linux, which maps to /usr/share/openrig/translations/
+# when the binary lives at /usr/bin/openrig.
+mkdir -p "$S/usr/share/openrig/translations"
+for lang_dir in crates/adapter-gui/translations/*/LC_MESSAGES; do
+    if [ -d "$lang_dir" ]; then
+        lang="$(basename "$(dirname "$lang_dir")")"
+        mkdir -p "$S/usr/share/openrig/translations/$lang/LC_MESSAGES"
+        cp "$lang_dir"/*.mo "$S/usr/share/openrig/translations/$lang/LC_MESSAGES/" 2>/dev/null || true
+    fi
+done
+
 # ── 3. Package ────────────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════"
@@ -110,6 +123,7 @@ if $BUILD_TARBALL; then
     cp -r "$S/usr/share/openrig/data"           "$OUTPUT_DIR/${D}/data"
     cp -r "$S/usr/share/openrig/assets"         "$OUTPUT_DIR/${D}/assets"
     cp -r "$S/usr/share/openrig/captures"       "$OUTPUT_DIR/${D}/captures"
+    cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"
     tar -czf "$OUTPUT_DIR/${D}.tar.gz" -C "$OUTPUT_DIR" "${D}"
     echo "  → $OUTPUT_DIR/${D}.tar.gz"
 fi

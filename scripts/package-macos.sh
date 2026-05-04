@@ -73,6 +73,19 @@ cp -r data/lv2                 "$APP/Contents/Resources/data"
 cp -r assets                   "$APP/Contents/Resources/assets"
 cp -r captures                 "$APP/Contents/Resources/captures"
 
+# Bundle gettext .mo translations. build.rs writes per-locale catalogs
+# under crates/adapter-gui/translations/<lang>/LC_MESSAGES/; we mirror
+# the layout under Resources/translations so i18n::resolve_translations_dir
+# finds them at runtime via the Mac.app/Resources fallback.
+mkdir -p "$APP/Contents/Resources/translations"
+for lang_dir in crates/adapter-gui/translations/*/LC_MESSAGES; do
+    if [ -d "$lang_dir" ]; then
+        lang="$(basename "$(dirname "$lang_dir")")"
+        mkdir -p "$APP/Contents/Resources/translations/$lang/LC_MESSAGES"
+        cp -r "$lang_dir"/*.mo "$APP/Contents/Resources/translations/$lang/LC_MESSAGES/" 2>/dev/null || true
+    fi
+done
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"

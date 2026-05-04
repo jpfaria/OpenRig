@@ -1,11 +1,12 @@
-use anyhow::{Error, Result};
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
-    bool_parameter, curve_editor_parameter, enum_parameter, required_bool, required_f32,
-    required_string, CurveEditorRole, ModelParameterSchema, ParameterSet, ParameterUnit,
+    bool_parameter, curve_editor_parameter, enum_parameter, float_parameter, required_bool,
+    required_f32, required_string, CurveEditorRole, ModelParameterSchema, ParameterSet,
+    ParameterUnit,
 };
-use block_core::{BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
+use block_core::{db_to_lin, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "eq_eight_band_parametric";
 pub const DISPLAY_NAME: &str = "8-Band Parametric EQ";
@@ -27,14 +28,54 @@ struct BandDefault {
 }
 
 const BAND_DEFAULTS: [BandDefault; 8] = [
-    BandDefault { freq: 62.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 125.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 250.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 500.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 1000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 2000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 4000.0, gain: 0.0, q: 1.0, band_type: "peak" },
-    BandDefault { freq: 8000.0, gain: 0.0, q: 1.0, band_type: "peak" },
+    BandDefault {
+        freq: 62.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 125.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 250.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 500.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 1000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 2000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 4000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
+    BandDefault {
+        freq: 8000.0,
+        gain: 0.0,
+        q: 1.0,
+        band_type: "peak",
+    },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -92,6 +133,24 @@ pub fn model_schema() -> ModelParameterSchema {
         ));
     }
 
+    // Output trim — applied AFTER the cascaded biquads, before returning
+    // the sample. Default 0 dB so existing projects (which don't carry
+    // this parameter in YAML) get unity through `normalized_against`.
+    // Range -24..+12 dB lets the user pull back when their boost curve
+    // (smile, presence push, etc.) is hot enough to engage the chain
+    // limiter and saturate audibly. Without this knob the only way to
+    // compensate was to retune every band — which is what the user hit.
+    parameters.push(float_parameter(
+        "output_db",
+        "Output",
+        Some("Output"),
+        Some(0.0),
+        -24.0,
+        12.0,
+        0.1,
+        ParameterUnit::Decibels,
+    ));
+
     ModelParameterSchema {
         effect_type: "filter".to_string(),
         model: MODEL_ID.to_string(),
@@ -104,9 +163,13 @@ pub fn model_schema() -> ModelParameterSchema {
 pub struct EightBandParametricEq {
     filters: Vec<BiquadFilter>,
     enabled: [bool; 8],
+    /// Linear gain applied AFTER all bands. Pre-computed from `output_db`
+    /// at build time, so the audio thread does no `pow` per sample.
+    output_gain: f32,
 }
 
 impl MonoProcessor for EightBandParametricEq {
+    #[inline]
     fn process_sample(&mut self, input: f32) -> f32 {
         let mut x = input;
         for (filter, &en) in self.filters.iter_mut().zip(self.enabled.iter()) {
@@ -114,7 +177,46 @@ impl MonoProcessor for EightBandParametricEq {
                 x = filter.process(x);
             }
         }
-        x
+        x * self.output_gain
+    }
+
+    /// Live retune — keeps each `BiquadFilter`'s sample history (`x1..y2`) and
+    /// asks it to ramp toward the new coefficients via
+    /// `BiquadFilter::update_coefficients`. Returns `false` only if a band
+    /// param is missing or invalid (caller falls back to a full rebuild,
+    /// which would also fail validation upstream).
+    ///
+    /// Called from the runtime rebuild thread with exclusive ownership of
+    /// `self`. No alloc, no syscall.
+    fn try_in_place_update(&mut self, params: &ParameterSet, sample_rate: f32) -> bool {
+        for i in 0..8usize {
+            let n = i + 1;
+            let Ok(en) = required_bool(params, &format!("band{n}_enabled")) else {
+                return false;
+            };
+            let Ok(band_type) = required_string(params, &format!("band{n}_type")) else {
+                return false;
+            };
+            let Ok(freq) = required_f32(params, &format!("band{n}_freq")) else {
+                return false;
+            };
+            let Ok(gain) = required_f32(params, &format!("band{n}_gain")) else {
+                return false;
+            };
+            let Ok(q) = required_f32(params, &format!("band{n}_q")) else {
+                return false;
+            };
+            let Ok(kind) = parse_band_kind(&band_type) else {
+                return false;
+            };
+            self.filters[i].update_coefficients(kind, freq, gain, q, sample_rate);
+            self.enabled[i] = en;
+        }
+        let Ok(output_db) = required_f32(params, "output_db") else {
+            return false;
+        };
+        self.output_gain = db_to_lin(output_db);
+        true
     }
 }
 
@@ -147,7 +249,14 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
         enabled[i] = en;
     }
 
-    Ok(Box::new(EightBandParametricEq { filters, enabled }))
+    let output_db = required_f32(params, "output_db").map_err(Error::msg)?;
+    let output_gain = db_to_lin(output_db);
+
+    Ok(Box::new(EightBandParametricEq {
+        filters,
+        enabled,
+        output_gain,
+    }))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -160,9 +269,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => anyhow::bail!(
             "filter model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID
@@ -173,7 +282,7 @@ fn build(
 pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: FilterBackendKind::Native,
     schema,
     build,

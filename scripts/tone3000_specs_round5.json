@@ -1,0 +1,17 @@
+[
+  {"make":"Synergy SYN-1","kind":"preamp","slug":"synergy_syn1","display":"SYN-1 Chassis","brand":"synergy","max_captures":4},
+  {"make":"Synergy Bogner Ecstasy","kind":"preamp","slug":"synergy_bogner_ecstasy","display":"Bogner Ecstasy Module","brand":"synergy","max_captures":4},
+  {"make":"Synergy Dumble OS","kind":"preamp","slug":"synergy_dumble_os","display":"Dumble OS Module","brand":"synergy","max_captures":4},
+  {"make":"Synergy Tone King Imperial MKII","kind":"preamp","slug":"synergy_tone_king_imperial_mkii","display":"Tone King Imperial MKII Module","brand":"synergy","max_captures":4},
+  {"make":"Friedman DS Pre-Amp Synergy","kind":"preamp","slug":"synergy_friedman_ds","display":"Friedman DS Module","brand":"synergy","max_captures":4},
+
+  {"make":"JTM50 HW Plexi Style Amp","kind":"amp","slug":"marshall_jtm50_hw_plexi","display":"JTM50 HW (Plexi)","brand":"marshall","max_captures":8},
+  {"make":"Marshall 1959HW","kind":"amp","slug":"marshall_1959hw_handwired","display":"1959HW Handwired","brand":"marshall","max_captures":6},
+  {"make":"Friedman BE 100","kind":"amp","slug":"friedman_be100","display":"BE 100","brand":"friedman","max_captures":6},
+  {"make":"Mesa Boogie Dual Rectifier Rev F","kind":"amp","slug":"mesa_dual_rectifier_rev_f","display":"Dual Rectifier Rev F","brand":"mesa","max_captures":8},
+  {"make":"Mesa Boogie Dual Rectifier Multi-Watt","kind":"amp","slug":"mesa_dual_rectifier_multiwatt","display":"Dual Rectifier Multi-Watt","brand":"mesa","max_captures":8},
+  {"make":"ENGL Powerball II","kind":"amp","slug":"engl_powerball_ii","display":"Powerball II","brand":"engl","max_captures":6},
+  {"make":"Orange Rockerverb mk3","kind":"amp","slug":"orange_rockerverb_mk3","display":"Rockerverb MK3","brand":"orange","max_captures":6},
+  {"make":"Peavey 6505 Plus","kind":"amp","slug":"peavey_6505_plus","display":"6505 Plus","brand":"peavey","max_captures":6},
+  {"make":"EVH 5150IIIS EL34 100w","kind":"amp","slug":"evh_5150iiis_el34_100w","display":"5150IIIS EL34 100W","brand":"evh","max_captures":6}
+]

@@ -1,4 +1,5 @@
 //! Filter implementations.
+pub mod model_visual;
 mod registry;
 
 use anyhow::Result;
@@ -36,15 +37,21 @@ pub fn filter_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn filter_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn filter_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn filter_type_label(model: &str) -> &'static str {
-    filter_model_visual(model).map(|v| v.type_label).unwrap_or("")
+    filter_model_visual(model)
+        .map(|v| v.type_label)
+        .unwrap_or("")
 }
 
 pub fn filter_model_schema(model: &str) -> Result<ModelParameterSchema> {
@@ -116,10 +123,7 @@ mod tests {
         for model in supported_models() {
             let schema = filter_model_schema(model).expect("schema");
             let result = ParameterSet::default().normalized_against(&schema);
-            assert!(
-                result.is_ok(),
-                "defaults for '{model}' should normalize"
-            );
+            assert!(result.is_ok(), "defaults for '{model}' should normalize");
         }
     }
 
@@ -212,7 +216,7 @@ mod tests {
         );
     }
 
-    // ── Guitar EQ ──────────────────────────────────────────────────
+    // ── Guitar EQ (4-band tone shaper, #303) ───────────────────────
 
     #[test]
     fn guitar_eq_schema_has_expected_params() {
@@ -221,8 +225,7 @@ mod tests {
         assert_eq!(schema.model, "native_guitar_eq");
         assert_eq!(schema.audio_mode, ModelAudioMode::DualMono);
         let param_names: Vec<&str> = schema.parameters.iter().map(|p| p.path.as_str()).collect();
-        assert!(param_names.contains(&"low_cut"));
-        assert!(param_names.contains(&"high_cut"));
+        assert_eq!(param_names, vec!["low", "low_mid", "high_mid", "high"]);
     }
 
     #[test]
@@ -236,7 +239,7 @@ mod tests {
     fn guitar_eq_rejects_out_of_range() {
         let schema = filter_model_schema("native_guitar_eq").expect("schema");
         let mut ps = ParameterSet::default();
-        ps.insert("low_cut", ParameterValue::Float(200.0)); // max is 100
+        ps.insert("low", ParameterValue::Float(50.0)); // max is +12 dB
         assert!(ps.normalized_against(&schema).is_err());
     }
 
@@ -258,6 +261,59 @@ mod tests {
         let params = default_params_for("native_guitar_eq");
         let result = build_filter_processor_for_layout(
             "native_guitar_eq",
+            &params,
+            48_000.0,
+            AudioChannelLayout::Stereo,
+        );
+        assert!(result.is_err());
+    }
+
+    // ── Guitar HPF/LPF (formerly "Guitar EQ", renamed in #303) ─────
+
+    #[test]
+    fn guitar_hpf_lpf_schema_has_expected_params() {
+        let schema = filter_model_schema("native_guitar_hpf_lpf").expect("schema");
+        assert_eq!(schema.effect_type, "filter");
+        assert_eq!(schema.model, "native_guitar_hpf_lpf");
+        assert_eq!(schema.audio_mode, ModelAudioMode::DualMono);
+        let param_names: Vec<&str> = schema.parameters.iter().map(|p| p.path.as_str()).collect();
+        assert!(param_names.contains(&"low_cut"));
+        assert!(param_names.contains(&"high_cut"));
+    }
+
+    #[test]
+    fn guitar_hpf_lpf_defaults_normalize() {
+        let schema = filter_model_schema("native_guitar_hpf_lpf").expect("schema");
+        let result = ParameterSet::default().normalized_against(&schema);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn guitar_hpf_lpf_rejects_out_of_range() {
+        let schema = filter_model_schema("native_guitar_hpf_lpf").expect("schema");
+        let mut ps = ParameterSet::default();
+        ps.insert("low_cut", ParameterValue::Float(200.0)); // max is 100
+        assert!(ps.normalized_against(&schema).is_err());
+    }
+
+    #[test]
+    fn guitar_hpf_lpf_build_mono() {
+        let params = default_params_for("native_guitar_hpf_lpf");
+        let proc = build_filter_processor_for_layout(
+            "native_guitar_hpf_lpf",
+            &params,
+            48_000.0,
+            AudioChannelLayout::Mono,
+        );
+        assert!(proc.is_ok());
+        assert!(matches!(proc.unwrap(), BlockProcessor::Mono(_)));
+    }
+
+    #[test]
+    fn guitar_hpf_lpf_build_stereo_fails() {
+        let params = default_params_for("native_guitar_hpf_lpf");
+        let result = build_filter_processor_for_layout(
+            "native_guitar_hpf_lpf",
             &params,
             48_000.0,
             AudioChannelLayout::Stereo,
@@ -333,9 +389,16 @@ mod tests {
         for model in native_filter_models() {
             let params = default_params_for(model);
             let result = build_filter_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
             );
-            assert!(result.is_ok(), "{model} should build mono at 44100Hz: {:?}", result.err());
+            assert!(
+                result.is_ok(),
+                "{model} should build mono at 44100Hz: {:?}",
+                result.err()
+            );
         }
     }
 
@@ -344,8 +407,12 @@ mod tests {
         for model in native_filter_models() {
             let params = default_params_for(model);
             let mut proc = build_filter_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
             let output = process_silence(&mut proc, 1024);
             for (i, s) in output.iter().enumerate() {
                 assert!(s.is_finite(), "{model} mono not finite at sample {i}");
@@ -380,14 +447,21 @@ mod tests {
         for model in native_filter_models() {
             let params = default_params_for(model);
             let mut proc = build_filter_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
             let output = process_sine(&mut proc, 1024, 44_100.0);
             let any_nonzero = output.iter().any(|s| s.abs() > 1e-10);
             for (i, s) in output.iter().enumerate() {
                 assert!(s.is_finite(), "{model} mono sine not finite at frame {i}");
             }
-            assert!(any_nonzero, "{model} mono produced all zeros for sine input");
+            assert!(
+                any_nonzero,
+                "{model} mono produced all zeros for sine input"
+            );
         }
     }
 
@@ -396,8 +470,12 @@ mod tests {
         for model in native_filter_models() {
             let params = default_params_for(model);
             let mut proc = build_filter_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
             let output = process_sine(&mut proc, 1024, 44_100.0);
             for (i, s) in output.iter().enumerate() {
                 assert!(s.is_finite(), "{model} mono block not finite at frame {i}");
@@ -411,7 +489,10 @@ mod tests {
         for model in native_filter_models() {
             let params = default_params_for(model);
             let result = build_filter_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
             );
             assert!(result.is_err(), "{model} should reject stereo layout");
         }

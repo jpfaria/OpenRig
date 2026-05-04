@@ -1,0 +1,85 @@
+# OpenRig — Brazilian Portuguese (source language).
+#
+# Format: rust-i18n v3 YAML.
+# Keys are SEMANTIC TAGS (e.g. error-invalid-block, status-audio-starting).
+# NEVER use a source-language string as a key — keys must be stable
+# identifiers that survive copy edits.
+#
+# The Slint side lives separately in translations/<lang>/adapter-gui.po
+# (gettext) — two catalogs because @tr() only speaks gettext. See docs/i18n.md.
+
+# --- error-* — error messages
+error-block-not-editable: "Esse block ainda não pode ser editado pela GUI."
+error-block-not-select: "Block selecionado não é um select."
+error-invalid-block: "Block inválido."
+error-invalid-chain: "Chain inválida."
+error-invalid-preset-file: "arquivo de preset inválido"
+error-invalid-recent-project: "Projeto recente inválido."
+error-need-input: "É necessário pelo menos uma entrada."
+error-need-input-and-output: "Selecione pelo menos um input e um output antes de continuar."
+error-need-output: "É necessário pelo menos uma saída."
+error-no-chain-editing: "Nenhuma chain em edição."
+error-no-project-loaded: "Nenhum projeto carregado."
+error-project-name-required: "O nome do projeto é obrigatório."
+error-select-device-channels: "Selecione dispositivo e canais."
+error-select-invalid: "Seleção do select inválida."
+error-select-no-options: "Select sem opções válidas."
+error-select-option-missing: "Opção ativa do select não existe."
+insert-error-select-return: "Selecione dispositivo e canais de retorno."
+insert-error-select-send: "Selecione dispositivo e canais de envio."
+
+# --- warn-* — warnings
+warn-add-input: "Adicione pelo menos uma entrada."
+warn-add-output: "Adicione pelo menos uma saída."
+
+# --- status-* — info-level toasts
+status-audio-disconnected: "Dispositivo de áudio desconectado — reconectando..."
+status-audio-reconnected: "Dispositivo de áudio reconectado"
+status-audio-starting: "Iniciando áudio..."
+status-devices-refreshed: "Lista de dispositivos atualizada"
+status-preset-removed: "Preset removido."
+status-preset-saved: "Preset salvo."
+
+# --- title-*, btn-*, default-* — strings injected from Rust into Slint
+title-new-chain: "Nova chain"
+title-configure-chain: "Configurar chain"
+btn-create-chain: "Criar chain"
+btn-save-chain: "Salvar chain"
+default-project-title: "Projeto"
+chain-io-input-title: "Entrada"
+chain-io-output-title: "Saída"
+
+# --- Added by audit (rust_i18n setters)
+btn-add: "Adicionar"
+dialog-open-project: "Abrir projeto"
+dialog-save-project: "Salvar projeto"
+dialog-save-preset: "Salvar preset"
+dialog-load-preset: "Carregar preset na chain"
+dialog-delete-chain: "Excluir chain"
+dialog-delete-block: "Excluir bloco"
+status-project-in-memory: "Projeto em memória"
+
+# --- Added by audit (placeholder strings)
+status-project-path-prefix: "Projeto: %{path}"
+label-channel-numbered: "Canal %{n}"
+error-input-no-device-numbered: "Entrada %{n}: selecione o dispositivo."
+error-input-no-channels-numbered: "Entrada %{n}: selecione pelo menos um canal."
+error-output-no-device-numbered: "Saída %{n}: selecione o dispositivo."
+error-output-no-channels-numbered: "Saída %{n}: selecione pelo menos um canal."
+label-input-numbered: "Input #%{n}"
+label-output-numbered: "Output #%{n}"
+default-chain-name: "Chain %{n}"
+error-vst3-open: "Erro ao abrir plugin VST3: %{err}"
+error-editor-open: "Erro ao abrir editor: %{err}"
+dialog-confirm-delete-chain: "Excluir a chain \"%{name}\"?"
+dialog-confirm-delete-block: "Excluir o bloco \"%{name}\"?"
+status-plugin-error: "Erro de plugin: %{msg}"
+
+default-other-chain: "outra chain"
+error-channel-in-use: "Canal de entrada já em uso por '%{name}'"
+
+error-invalid-recent-project-detail: "Projeto inválido. Corrija ou remova da lista."
+error-channel-in-use-by-other: "Canal de entrada já está em uso por outra chain."
+error-select-option-required-for: "Selecione uma opção para %{label}"
+error-select-invalid-for: "Seleção inválida para %{label}"
+error-invalid-project: "Projeto inválido"

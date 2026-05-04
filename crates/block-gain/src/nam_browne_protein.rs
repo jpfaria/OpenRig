@@ -14,48 +14,52 @@ const BRAND: &str = "browne";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
-    model_path: &'static str,
-}
-
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "blue_gain_1", model_path: "pedals/browne_protein/blue_gain_1.nam" },
-    NamCapture { tone: "blue_gain_2", model_path: "pedals/browne_protein/blue_gain_2.nam" },
-    NamCapture { tone: "blue_gain_3", model_path: "pedals/browne_protein/blue_gain_3.nam" },
-    NamCapture { tone: "blue_gain_4", model_path: "pedals/browne_protein/blue_gain_4.nam" },
-    NamCapture { tone: "blue_gain_5", model_path: "pedals/browne_protein/blue_gain_5.nam" },
-    NamCapture { tone: "blue_gain_6", model_path: "pedals/browne_protein/blue_gain_6.nam" },
-    NamCapture { tone: "green_gain_1", model_path: "pedals/browne_protein/green_gain_1.nam" },
-    NamCapture { tone: "green_gain_2", model_path: "pedals/browne_protein/green_gain_2.nam" },
-    NamCapture { tone: "green_gain_3", model_path: "pedals/browne_protein/green_gain_3.nam" },
-    NamCapture { tone: "green_gain_4", model_path: "pedals/browne_protein/green_gain_4.nam" },
-    NamCapture { tone: "green_gain_5", model_path: "pedals/browne_protein/green_gain_5.nam" },
-    NamCapture { tone: "green_gain_6", model_path: "pedals/browne_protein/green_gain_6.nam" },
+// Two-axis pack: channel × gain.
+// 2 channels (Blue / Green) × 6 gain steps = 12 captures, full grid.
+const CAPTURES: &[(&str, &str, &str)] = &[
+    // (channel, gain, file)
+    ("blue",  "1", "pedals/browne_protein/blue_gain_1.nam"),
+    ("blue",  "2", "pedals/browne_protein/blue_gain_2.nam"),
+    ("blue",  "3", "pedals/browne_protein/blue_gain_3.nam"),
+    ("blue",  "4", "pedals/browne_protein/blue_gain_4.nam"),
+    ("blue",  "5", "pedals/browne_protein/blue_gain_5.nam"),
+    ("blue",  "6", "pedals/browne_protein/blue_gain_6.nam"),
+    ("green", "1", "pedals/browne_protein/green_gain_1.nam"),
+    ("green", "2", "pedals/browne_protein/green_gain_2.nam"),
+    ("green", "3", "pedals/browne_protein/green_gain_3.nam"),
+    ("green", "4", "pedals/browne_protein/green_gain_4.nam"),
+    ("green", "5", "pedals/browne_protein/green_gain_5.nam"),
+    ("green", "6", "pedals/browne_protein/green_gain_6.nam"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("blue_gain_1"),
-        &[
-            ("blue_gain_1", "Blue Gain 1"),
-            ("blue_gain_2", "Blue Gain 2"),
-            ("blue_gain_3", "Blue Gain 3"),
-            ("blue_gain_4", "Blue Gain 4"),
-            ("blue_gain_5", "Blue Gain 5"),
-            ("blue_gain_6", "Blue Gain 6"),
-            ("green_gain_1", "Green Gain 1"),
-            ("green_gain_2", "Green Gain 2"),
-            ("green_gain_3", "Green Gain 3"),
-            ("green_gain_4", "Green Gain 4"),
-            ("green_gain_5", "Green Gain 5"),
-            ("green_gain_6", "Green Gain 6"),
-        ],
-    )];
+    schema.parameters = vec![
+        enum_parameter(
+            "channel",
+            "Channel",
+            Some("Pedal"),
+            Some("blue"),
+            &[
+                ("blue",  "Blue (low gain)"),
+                ("green", "Green (high gain)"),
+            ],
+        ),
+        enum_parameter(
+            "gain",
+            "Gain",
+            Some("Pedal"),
+            Some("3"),
+            &[
+                ("1", "1"),
+                ("2", "2"),
+                ("3", "3"),
+                ("4", "4"),
+                ("5", "5"),
+                ("6", "6"),
+            ],
+        ),
+    ];
     schema
 }
 
@@ -64,9 +68,9 @@ pub fn build_processor_for_model(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let capture = resolve_capture(params)?;
+    let path = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        &nam::resolve_nam_capture(capture.model_path)?,
+        &nam::resolve_nam_capture(path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
@@ -79,16 +83,23 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let capture = resolve_capture(params)?;
-    Ok(format!("model='{}'", capture.model_path))
+    let path = resolve_capture(params)?;
+    Ok(format!("model='{}'", path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
+fn resolve_capture(params: &ParameterSet) -> Result<&'static str> {
+    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     CAPTURES
         .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+        .find(|(c, g, _)| *c == channel && *g == gain)
+        .map(|(_, _, path)| *path)
+        .ok_or_else(|| {
+            anyhow!(
+                "gain '{}' has no capture for channel={} gain={}",
+                MODEL_ID, channel, gain
+            )
+        })
 }
 
 fn schema() -> Result<ModelParameterSchema> {

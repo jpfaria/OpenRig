@@ -1,0 +1,241 @@
+import { MultiSliderPoint, CurveEditorPoint } from "../models.slint";
+
+import "../fonts/BebasNeue.ttf";
+
+// Vertical band slider built from primitives — track + fader cap + value
+// readout. No sprite, so it scales to any height the parent gives it.
+//
+// Cap is drawn as a gray plastic-style pill with a centre slot mark; the
+// track passes behind the cap (recessed track look). Range below the
+// 0 dB centerline is filled in cyan to indicate a boost or cut.
+component EqBandSlider inherits Rectangle {
+    in property <string> path;
+    in property <string> freq-label;
+    in property <float> value;
+    in property <float> min-val;
+    in property <float> max-val;
+    in property <float> step;
+    in property <bool> tight;       // narrow slot — drop labels
+
+    callback changed(string, float);
+
+    private property <float> drag-y0: 0;
+    private property <float> drag-val0: 0;
+    private property <bool> preview-active: false;
+    private property <float> preview-val: 0;
+    private property <float> shown-val:
+        root.preview-active ? root.preview-val : root.value;
+    private property <float> norm: root.max-val > root.min-val
+        ? Math.max(0.0, Math.min(1.0,
+            (root.shown-val - root.min-val) / (root.max-val - root.min-val)))
+        : 0.5;
+
+    // Layout slots
+    private property <length> top-h: root.tight ? 0px : 16px;
+    private property <length> bottom-h: root.tight ? 0px : 14px;
+    private property <length> track-pad: 6px;
+    private property <length> track-y: root.top-h + root.track-pad;
+    private property <length> track-h: root.height - root.top-h - root.bottom-h - 2 * root.track-pad;
+    private property <length> handle-y: root.track-y + (1.0 - root.norm) * root.track-h;
+    private property <length> cap-w: Math.min(Math.max(root.width - 4px, 14px), 26px);
+    private property <length> cap-h: 10px;
+
+    background: transparent;
+
+    // ── dB readout (top) ──
+    if !root.tight : Text {
+        x: 0; y: 0;
+        width: parent.width;
+        height: root.top-h;
+        text: Math.abs(root.shown-val) < 0.05
+            ? "0.0"
+            : root.shown-val >= 0
+                ? "+" + Math.round(root.shown-val * 10) / 10
+                : Math.round(root.shown-val * 10) / 10;
+        color: Math.abs(root.shown-val) < 0.05 ? #6a7185 : #e8edf5;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // ── Track (recessed look: dark base + 1px highlight at top) ──
+    Rectangle {
+        x: (parent.width - 4px) / 2;
+        y: root.track-y;
+        width: 4px;
+        height: root.track-h;
+        background: #07090e;
+        border-width: 1px;
+        border-color: #1a1d27;
+        border-radius: 2px;
+    }
+
+    // ── 0 dB tick (only when range crosses zero) ──
+    if root.min-val < 0 && root.max-val > 0 : Rectangle {
+        x: (parent.width - 14px) / 2;
+        y: root.track-y + root.track-h / 2 - 0.5px;
+        width: 14px;
+        height: 1px;
+        background: #5a6175;
+    }
+
+    // ── Filled segment (centerline → cap) ──
+    Rectangle {
+        property <length> center-y: root.track-y + root.track-h / 2;
+        x: (parent.width - 2px) / 2;
+        y: Math.min(root.handle-y, self.center-y);
+        width: 2px;
+        height: Math.max(1px, Math.abs(root.handle-y - self.center-y));
+        background: #5cb8ff;
+        opacity: 0.8;
+    }
+
+    // ── Cap (plastic gradient, centre slot mark) ──
+    Rectangle {
+        x: (parent.width - root.cap-w) / 2;
+        y: root.handle-y - root.cap-h / 2;
+        width: root.cap-w;
+        height: root.cap-h;
+        border-radius: 2px;
+        background: ta.pressed
+            ? @linear-gradient(180deg, #f4f5f8 0%, #c0c2c8 50%, #898b92 100%)
+            : ta.has-hover
+                ? @linear-gradient(180deg, #ebedf2 0%, #b6b8be 50%, #7e8087 100%)
+                : @linear-gradient(180deg, #d8dae0 0%, #a4a6ac 50%, #6f7178 100%);
+        border-width: 1px;
+        border-color: #1c1e24;
+        // Centre slot
+        Rectangle {
+            x: 3px;
+            y: parent.height / 2 - 0.5px;
+            width: parent.width - 6px;
+            height: 1px;
+            background: #00000060;
+        }
+    }
+
+    // ── Frequency label (bottom) ──
+    if !root.tight : Text {
+        x: 0;
+        y: parent.height - root.bottom-h;
+        width: parent.width;
+        height: root.bottom-h;
+        text: root.freq-label;
+        color: #828a99;
+        font-family: "Bebas Neue";
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        horizontal-alignment: center;
+        overflow: elide;
+    }
+
+    // ── Drag interaction ──
+    ta := TouchArea {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: ta.pressed ? none : ns-resize;
+
+        pointer-event(ev) => {
+            if (ev.kind == PointerEventKind.down) {
+                root.drag-y0 = ta.mouse-y / 1px;
+                root.drag-val0 = root.value;
+                root.preview-active = true;
+                root.preview-val = root.value;
+            }
+            if (ev.kind == PointerEventKind.up) {
+                if (root.preview-active) {
+                    root.changed(root.path, root.preview-val);
+                    root.preview-active = false;
+                }
+            }
+        }
+
+        moved => {
+            if (ta.pressed) {
+                let delta-px = root.drag-y0 - ta.mouse-y / 1px;
+                let range = root.max-val - root.min-val;
+                let raw = root.drag-val0 + delta-px * range / 120.0;
+                let clamped = raw < root.min-val
+                    ? root.min-val
+                    : (raw > root.max-val ? root.max-val : raw);
+                let stepped = root.step > 0.0
+                    ? Math.round(clamped / root.step) * root.step
+                    : clamped;
+                root.preview-val = stepped;
+            }
+        }
+
+        // Double-click resets to 0 dB (range crosses zero) or to mid-range
+        double-clicked => {
+            let target = root.min-val < 0 && root.max-val > 0
+                ? 0
+                : (root.max-val + root.min-val) / 2;
+            root.changed(root.path, target);
+        }
+    }
+}
+
+// Graphic-EQ widget — bands carry only a gain value.
+export component MultiSliderControl inherits Rectangle {
+    in property <[MultiSliderPoint]> points;
+    callback update-parameter(string, float);
+
+    background: transparent;
+
+    private property <length> available-w: root.width;
+    private property <length> slot-w: root.points.length > 0
+        ? Math.max(18px, root.available-w / root.points.length)
+        : 64px;
+    private property <bool> tight-slot: root.slot-w < 32px;
+
+    for point[i] in root.points : EqBandSlider {
+        x: i * root.slot-w;
+        y: 0;
+        width: root.slot-w;
+        height: parent.height;
+        path: point.path;
+        freq-label: point.label;
+        value: point.value;
+        min-val: point.min-val;
+        max-val: point.max-val;
+        step: point.step;
+        tight: root.tight-slot;
+        changed(p, v) => { root.update-parameter(p, v); }
+    }
+}
+
+// Parametric-EQ widget — bands have a gain plus a formatted frequency.
+export component CurveEditorControl inherits Rectangle {
+    in property <[CurveEditorPoint]> points;
+    in property <string> total-curve;     // unused — kept for prop compatibility
+    in property <[string]> band-curves;   // unused — kept for prop compatibility
+    callback update-parameter(string, float);
+
+    background: transparent;
+
+    private property <length> available-w: root.width;
+    private property <length> slot-w: root.points.length > 0
+        ? Math.max(18px, root.available-w / root.points.length)
+        : 64px;
+    private property <bool> tight-slot: root.slot-w < 32px;
+
+    for point[i] in root.points : EqBandSlider {
+        x: i * root.slot-w;
+        y: 0;
+        width: root.slot-w;
+        height: parent.height;
+        path: point.y-path;
+        freq-label: point.x-label;
+        value: point.y-value;
+        min-val: point.y-min;
+        max-val: point.y-max;
+        step: point.y-step > 0 ? point.y-step : 0.1;
+        tight: root.tight-slot;
+        changed(p, v) => { root.update-parameter(p, v); }
+    }
+}

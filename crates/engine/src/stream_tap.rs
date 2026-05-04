@@ -43,7 +43,10 @@ impl StreamTap {
     /// Build a tap for a specific stream. `capacity_per_channel` is the
     /// SPSC ring depth in samples — pick at least `FFT_SIZE × 2` if the
     /// consumer is a spectrum analyzer.
-    pub fn new(stream_index: usize, capacity_per_channel: usize) -> (Self, [Arc<SpscRing<f32>>; 2]) {
+    pub fn new(
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> (Self, [Arc<SpscRing<f32>>; 2]) {
         let l = Arc::new(SpscRing::<f32>::new(capacity_per_channel, 0.0));
         let r = Arc::new(SpscRing::<f32>::new(capacity_per_channel, 0.0));
         (

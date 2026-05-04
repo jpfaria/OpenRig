@@ -187,6 +187,8 @@ export struct CompactBlockItem {
     icon_source: image,
     knob_overlays: [BlockKnobOverlay],
     parameter_items: [BlockParameterItem],
+    multi_slider_points: [MultiSliderPoint],
+    curve_editor_points: [CurveEditorPoint],
     model_labels: [string],
     model_selected_index: int,
     models: [BlockModelPickerItem],
@@ -212,5 +214,19 @@ export struct ChannelOptionItem {
 
 export struct IoGroupItem {
     summary: string,
+}
+
+// Inline plugin info overlay payload (issue #307). Carried as a single struct so the
+// AppWindow → DesktopMain/TouchMain propagation is one binding instead of nine.
+export struct PluginInfoData {
+    screenshot: image,
+    has-screenshot: bool,
+    plugin-name: string,
+    brand: string,
+    type-label: string,
+    description: string,
+    license: string,
+    homepage: string,
+    has-homepage: bool,
 }
 

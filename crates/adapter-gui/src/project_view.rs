@@ -1,7 +1,7 @@
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
@@ -11,59 +11,12 @@ use crate::{
 };
 use crate::state::SelectedBlock;
 use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays};
+use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::AppWindow;
 use crate::ui_state::chain_routing_summary;
 
-pub(crate) fn chain_inputs_tooltip(
-    chain: &Chain,
-    _project: &Project,
-    devices: &[AudioDeviceDescriptor],
-) -> String {
-    // Show only entries from the FIRST InputBlock (chip In)
-    let first_input = chain.first_input();
-    let Some(input) = first_input else {
-        return "No input configured".to_string();
-    };
-    input.entries.iter().enumerate().map(|(ei, entry)| {
-            let device_name = devices
-                .iter()
-                .find(|d| d.id == entry.device_id.0)
-                .map(|d| d.name.as_str())
-                .unwrap_or(&entry.device_id.0);
-            let mode = match entry.mode {
-                ChainInputMode::Mono => "Mono",
-                ChainInputMode::Stereo => "Stereo",
-                ChainInputMode::DualMono => "Dual Mono",
-            };
-            let label = format!("Input #{}", ei + 1);
-            format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
-    }).collect::<Vec<_>>().join("\n")
-}
-
-pub(crate) fn chain_outputs_tooltip(
-    chain: &Chain,
-    _project: &Project,
-    devices: &[AudioDeviceDescriptor],
-) -> String {
-    // Show only entries from the LAST OutputBlock (chip Out)
-    let last_output = chain.last_output();
-    let Some(output) = last_output else {
-        return "No output configured".to_string();
-    };
-    output.entries.iter().enumerate().map(|(ei, entry)| {
-        let device_name = devices
-            .iter()
-            .find(|d| d.id == entry.device_id.0)
-            .map(|d| d.name.as_str())
-            .unwrap_or(&entry.device_id.0);
-        let mode = match entry.mode {
-            ChainOutputMode::Mono => "Mono",
-            ChainOutputMode::Stereo => "Stereo",
-        };
-        let label = format!("Output #{}", ei + 1);
-        format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
-    }).collect::<Vec<_>>().join("\n")
-}
+pub(crate) use crate::project_view_assets::{load_screenshot_image, load_thumbnail_image};
+pub(crate) use crate::project_view_tooltips::{chain_inputs_tooltip, chain_outputs_tooltip};
 
 pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
@@ -128,7 +81,7 @@ pub(crate) fn block_model_picker_items(effect_type: &str, instrument: &str) -> V
                 let brand_display = block_core::capitalize_first(brand);
                 format!("{} {}", brand_display, item.display_name)
             };
-            let visual = crate::visual_config::visual_config_for_model(&item.brand, &item.model_id);
+            let visual = project::catalog::resolve_color_scheme(&item.effect_type, &item.brand, &item.model_id);
             let [r, g, b] = visual.panel_bg;
             let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
             let [r, g, b] = visual.panel_text;
@@ -224,6 +177,8 @@ pub(crate) fn build_compact_blocks(
             let knob_layout =
                 project::catalog::model_knob_layout(&effect_type, &model_id);
             let overlays = build_knob_overlays(knob_layout, &params);
+            let ms_pts = build_multi_slider_points(&effect_type, &model_id, &editor_data.params);
+            let ce_pts = build_curve_editor_points(&effect_type, &model_id, &editor_data.params);
             let icon_kind = supported_block_type(&effect_type)
                 .map(|t| t.icon_kind.to_string())
                 .unwrap_or_default();
@@ -260,13 +215,13 @@ pub(crate) fn build_compact_blocks(
                 enabled: block.enabled,
                 panel_bg: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = crate::visual_config::visual_config_for_model(brand_str, &model_id);
+                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_bg;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
                 panel_text: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = crate::visual_config::visual_config_for_model(brand_str, &model_id);
+                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_text;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
@@ -278,6 +233,8 @@ pub(crate) fn build_compact_blocks(
                 icon_source: slint::Image::default(),
                 knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
                 parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
+                multi_slider_points: ModelRc::from(Rc::new(VecModel::from(ms_pts))),
+                curve_editor_points: ModelRc::from(Rc::new(VecModel::from(ce_pts))),
                 model_labels: {
                     let instrument = chain.instrument.as_str();
                     let items = block_model_picker_items(&effect_type, instrument);
@@ -416,74 +373,6 @@ fn collect_block_param_entries(
         .collect()
 }
 
-pub(crate) fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
-    use std::cell::RefCell;
-    use std::collections::HashMap;
-
-    thread_local! {
-        static CACHE: RefCell<HashMap<(String, String), (slint::Image, f32, f32)>> = RefCell::new(HashMap::new());
-    }
-
-    let key = (effect_type.to_string(), model_id.to_string());
-
-    let cached = CACHE.with(|c| c.borrow().get(&key).cloned());
-    if let Some((img, w, h)) = cached {
-        return (img, true, w, h);
-    }
-
-    match crate::thumbnails::thumbnail_png(effect_type, model_id) {
-        Some(png_bytes) => {
-            match image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png) {
-                Ok(img) => {
-                    let rgba = img.to_rgba8();
-                    let w = rgba.width() as f32;
-                    let h = rgba.height() as f32;
-                    let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
-                        rgba.as_raw(),
-                        rgba.width(),
-                        rgba.height(),
-                    );
-                    let slint_img = slint::Image::from_rgba8(buffer);
-                    CACHE.with(|c| c.borrow_mut().insert(key, (slint_img.clone(), w, h)));
-                    (slint_img, true, w, h)
-                }
-                Err(e) => {
-                    log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
-                    (slint::Image::default(), false, 0.0, 0.0)
-                }
-            }
-        }
-        None => (slint::Image::default(), false, 0.0, 0.0)
-    }
-}
-
-pub(crate) fn load_screenshot_image(effect_type: &str, model_id: &str) -> (slint::Image, bool) {
-    match crate::plugin_info::screenshot_png(effect_type, model_id) {
-        Some(png_bytes) => {
-            match image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png) {
-                Ok(img) => {
-                    let rgba = img.to_rgba8();
-                    let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
-                        rgba.as_raw(),
-                        rgba.width(),
-                        rgba.height(),
-                    );
-                    (slint::Image::from_rgba8(buffer), true)
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Failed to decode screenshot for {}/{}: {}",
-                        effect_type,
-                        model_id,
-                        e
-                    );
-                    (slint::Image::default(), false)
-                }
-            }
-        }
-        None => (slint::Image::default(), false),
-    }
-}
 
 pub(crate) fn replace_project_chains(
     model: &Rc<VecModel<ProjectChainItem>>,
@@ -505,7 +394,7 @@ pub(crate) fn replace_project_chains(
                 title: chain
                     .description
                     .clone()
-                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+                    .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string())
                     .into(),
                 subtitle: chain_routing_summary(chain).into(),
                 enabled: chain.enabled,

@@ -1,5 +1,16 @@
 pub mod input_tap;
 pub mod probe;
 pub mod runtime;
+pub mod runtime_audio_frame;
+pub mod runtime_block_builders;
+pub mod runtime_block_core;
+pub mod runtime_dsp;
+pub mod runtime_endpoints;
+pub mod runtime_graph;
+pub mod runtime_io;
+pub mod runtime_layout;
+pub mod runtime_probe;
+pub mod runtime_segments;
+pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;

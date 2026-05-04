@@ -30,6 +30,162 @@ Os arquivos abaixo contêm o conteúdo **completo e original** de cada capítulo
 
 **Quando precisar de detalhes completos com todos os exemplos, leia o chapter correspondente.**
 
+---
+
+# OpenRig — Rust + Cargo Workflow
+
+Regras específicas de Rust e Cargo que aplicam ao **este projeto**. Princípios de metodologia (zero coupling, single source of truth, separação business/presentation, file organization) vivem em `openrig-code-quality` e são linguagem-agnósticos — esta seção complementa com o que é de Rust/Cargo.
+
+## MANDATORY — Run Static Validation on Every File You Touch
+
+After creating or modifying **any** `.rs` or `.slint` file, run:
+
+```bash
+./scripts/validate.sh path/to/file1.rs path/to/file2.slint ...
+```
+
+Or let it auto-detect changed files from git diff:
+
+```bash
+./scripts/validate.sh
+```
+
+**What it checks:**
+| Check | Rust | Slint |
+|---|---|---|
+| File size | ≤ 600 lines | ≤ 500 lines |
+| Formatting | `cargo fmt --check` | — |
+| Linting | `cargo clippy -D warnings` | — |
+| Compilation | — | `cargo check -p adapter-gui` |
+
+**Rules:**
+- `FAIL` (red) = hard violation — fix before committing, no exceptions
+- `WARN` (yellow) = known debt file — do NOT add more lines to it
+- If a file shows `WARN` and you need to add logic: refactor it into smaller modules first
+
+**Anti-pattern:**
+```
+❌ Modify crates/adapter-gui/src/lib.rs (9441 lines) and add 50 more lines
+   // WRONG: known debt file. Create a new module, move logic there first.
+
+✅ Extract the relevant logic to crates/adapter-gui/src/project.rs (new file)
+   then add your feature there
+```
+
+**Zero tolerance for FAIL:** A task is not done until `validate.sh` exits 0.
+
+## File Size — 600 lines per `.rs` (hard cap)
+
+If a file exceeds 600 lines, it MUST be split before adding anything new. This is the Rust-specific operationalization of the language-agnostic *file organization* rule from `openrig-code-quality`.
+
+## Zero Warnings (OBRIGATORIO)
+
+- [ ] `cargo build` MUST produce zero warnings — no exceptions
+- [ ] Before committing: `cargo build 2>&1 | grep "^warning"` must return empty
+- [ ] Code that introduces warnings is not mergeable
+- [ ] `#[allow(dead_code)]` or `#[allow(unused)]` are NOT acceptable fixes — fix the root cause
+
+**Anti-Pattern:**
+```rust
+❌ cargo build  // with 3 warnings about unused variables
+   // WRONG: warnings are not acceptable, fix them
+
+❌ #[allow(dead_code)]
+   pub fn unused_helper() { ... }
+   // WRONG: suppress warning without fixing root cause
+
+✅ Remove or use the dead code
+✅ cargo build 2>&1 | grep "^warning"  // → empty output
+```
+
+## Cargo Clean em `.solvers/` — OBRIGATORIO antes de build
+
+Workspaces em `.solvers/issue-N/` acumulam estado inconsistente no `target/` ao longo de merges, edições em vários crates, troca de branches, ou uso compartilhado com o Docker builder. Sintomas clássicos:
+
+- `error[E0460]: possibly newer version of crate X which Y depends on`
+- `error[E0463]: can't find crate for <crate>`
+- `rustc panicked at rmeta/decoder.rs ... no encoded ident for item` (ICE)
+- Build parece verde mas run-time dispara "fn X not found" em símbolo que existe
+
+**Regra:** antes de rodar QUALQUER build que o usuário vá consumir (teste local, `build-linux-local.sh`, `build-deb-local.sh`, `build-orange-pi-image.sh`), executar `cargo clean` na raiz do workspace `.solvers/issue-N/` primeiro.
+
+**Quando é obrigatório:**
+- [ ] Após `git merge` de qualquer branch (develop, feature irmã, develop→feature)
+- [ ] Após editar struct/enum fields em mais de 1 crate na mesma sessão
+- [ ] Após `#[cfg(...)]` adicionado/removido em qualquer struct público
+- [ ] Antes do PRIMEIRO `build-*local.sh` numa sessão nova (sempre)
+- [ ] Antes de sugerir o comando pro usuário executar na máquina dele
+
+**Anti-pattern:**
+```
+❌ cargo build --workspace   # após 3 merges sem cargo clean
+   // WRONG: cache inconsistente. Pode passar localmente e quebrar no Docker
+
+❌ Sugerir "./scripts/build-deb-local.sh" sem prefixo de cargo clean
+   // WRONG: quase sempre falha com E0460/E0463 no Docker
+```
+
+**Correct pattern:**
+```
+✅ cd .solvers/issue-N && cargo clean && cargo build --workspace
+✅ cd .solvers/issue-N && cargo clean && ./scripts/build-linux-local.sh --clean ...
+✅ Sugerir pro usuário: "cargo clean && ./scripts/build-deb-local.sh --clean"
+```
+
+O flag `--clean` (ou `--nuke`) do build-linux-local.sh/build-deb-local.sh já cobre a limpeza DENTRO do Docker. Mas cargo clean LOCAL é ainda mais rápido e deve ser reflexo.
+
+**Red flag:** se você rodou `cargo build` e deu verde sem ter feito `cargo clean` após merges ou cfg changes, NÃO confie no resultado. Refaça com clean.
+
+## Platform Isolation — `cfg` Guards (técnica Rust)
+
+Premissa geral de isolamento por plataforma (nunca quebrar áudio em outro SO) vive em `CLAUDE.md` → "Prioridades de Produto" e "Premissa de distribuicao". Esta seção cobre apenas a técnica Rust pra aplicar a premissa.
+
+- [ ] Platform-specific code MUST be behind `#[cfg(target_os = "...")]` or feature flags
+- [ ] Linux/JACK fixes must use `#[cfg(all(target_os = "linux", feature = "jack"))]`
+- [ ] macOS/Windows behavior must not be affected by Linux-only changes
+
+**Anti-Pattern:**
+```rust
+❌ // Changing a cross-platform audio constant to fix Linux behavior
+   const BUFFER_SIZE: usize = 256;  // was 128, changed for JACK stability
+   // WRONG: affects macOS and Windows — use cfg guard
+
+✅ #[cfg(all(target_os = "linux", feature = "jack"))]
+   const BUFFER_SIZE: usize = 256;
+   #[cfg(not(all(target_os = "linux", feature = "jack")))]
+   const BUFFER_SIZE: usize = 128;
+```
+
+## Build.rs Auto-detection (registry pattern)
+
+OpenRig's `block-*` crates use a `build.rs` that scans `src/*.rs` for `pub const MODEL_DEFINITION` and codegens the registry. Practical consequences:
+
+- Adding a new model = drop a `nam_<id>.rs` (or `lv2_<id>.rs`, `ir_<id>.rs`, `native_<id>.rs`) with `MODEL_DEFINITION` const. **No manual registry edit.**
+- File-name prefix matters — `build.rs` may filter by stem (e.g. `starts_with("nam_")`). Renaming a model file silently breaks the build if the new name doesn't match the convention. `grep "starts_with\|stem ==" crates/block-*/build.rs` before renaming.
+
+## Tests — Rust specifics
+
+Princípios gerais de test coverage em `openrig-code-quality`. Aqui o operacional Rust:
+
+- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
+- [ ] Sem framework externo — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
+- [ ] **DSP nativo**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
+- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos; rodar com `cargo test -- --ignored`)
+- [ ] **Registry tests** para `block-*` crates: iterar sobre TODOS os modelos via registry (`schema()`, `validate()`, `build()`)
+- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
+- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
+
+## Safe Refactoring — Rust specifics
+
+- [ ] **Never use `sed -i` on Slint files** (ver `slint-best-practices`). Em `.rs` sed funciona, mas Edit tool ainda é mais seguro.
+- [ ] **After renaming files**: `cargo clean -p <crate> && cargo build` (NÃO incremental — pode deixar binários antigos)
+- [ ] **After changing public struct fields**: update ALL modules that construct the struct (compilador pega, mas antes rebuild garante)
+
+---
+
+# Capítulos do Apollo Rust Best Practices Handbook
+
+A seguir o conteúdo original dos chapters (não-OpenRig-specific).
 
 ---
 # Chapter 1 - Coding Styles and Idioms

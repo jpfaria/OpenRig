@@ -8,65 +8,117 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0"></a>
-  <img src="https://img.shields.io/badge/version-0.1.0-orange.svg" alt="Version: 0.1.0">
+  <img src="https://img.shields.io/badge/version-0.1.0--dev-orange.svg" alt="Version: 0.1.0-dev">
   <img src="https://img.shields.io/badge/rust-2021_edition-brightgreen.svg" alt="Rust: 2021 Edition">
   <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg" alt="Platforms: macOS | Linux | Windows">
   <a href="https://github.com/jpfaria/OpenRig/actions/workflows/test.yml"><img src="https://github.com/jpfaria/OpenRig/actions/workflows/test.yml/badge.svg?branch=develop" alt="Tests"></a>
   <a href="https://codecov.io/gh/jpfaria/OpenRig"><img src="https://codecov.io/gh/jpfaria/OpenRig/branch/develop/graph/badge.svg" alt="Coverage"></a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/sc1.png" alt="OpenRig Project view — multiple parallel chains with amp, pedal, and cab blocks" width="900">
+</p>
+
 ---
 
-## What is OpenRig?
+> **Professional audio shouldn't live inside a black box.**
 
-OpenRig is a virtual pedalboard and rig platform for musicians. Build signal chains with amp models, effects, cabinets, and more — all processed in real time with professional-grade audio quality.
+OpenRig is an open-source real-time audio platform written in Rust. **The software is the product. The hardware is just where it runs.**
 
-Built in Rust for performance and reliability, OpenRig combines four audio backends — Native DSP, Neural Amp Modeler (NAM), Impulse Response (IR), and LV2 plugins — into a single platform that runs on macOS, Linux, and Windows. The long-term vision: one rig that works as a standalone app, a VST3 plugin in your DAW, a server for remote setups, and dedicated hardware on stage.
+## Why OpenRig exists
 
-## Features
+If you want professional guitar processing today, you buy a black box. Helix, Quad Cortex, Axe-Fx — thousands of dollars per musician. Closed firmware. What shipped in the box is what you get, and what you'll never be allowed to change.
 
-- **176 amp and effect models** across 15 block types — preamps, amps, cabinets, gain pedals, delays, reverbs, modulation, dynamics, filters, wah, tuner, pitch correction (autotune), acoustic body resonance, and full rigs
-- **4 audio backends** — Native Rust DSP, Neural Amp Modeler (NAM), Impulse Response (IR), and LV2 open-source plugins
-- **Chain-based signal routing** — build your signal path visually by adding, removing, and reordering blocks
-- **Real-time parameter control** — adjust knobs, sliders, and switches with instant audio feedback
-- **Multiple I/O support** — multiple input and output blocks per chain, each with independent device and channel configuration
-- **Per-chain instrument filtering** — electric guitar, acoustic guitar, bass, voice, keys, drums, or generic
-- **5 platform targets** — macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), Windows (x86_64)
-- **In-app feedback** — report bugs and suggestions directly from the interface
+Multiply that by an entire band and the math stops working.
 
-## Block Types
+OpenRig started from a simple question:
 
-| Type | Models | Backends | Description |
-|------|-------:|----------|-------------|
-| **Preamp** | 5 | Native, NAM | Pre-amplification with gain and EQ |
-| **Amp** | 12 | Native, NAM | Full amplifier (preamp + power amp) |
-| **Cab** | 11 | Native, IR | Speaker cabinet simulation |
-| **Gain** | 13 | Native, NAM, LV2 | Overdrive, distortion, fuzz, boost |
-| **Delay** | 6 | Native | Echo and temporal repetition |
-| **Reverb** | 1 | Native | Ambience and space simulation |
-| **Modulation** | 5 | Native | Chorus, tremolo, vibrato |
-| **Dynamics** | 2 | Native | Compressor and noise gate |
-| **Filter** | 1 | Native | EQ and tonal shaping |
-| **Wah** | 1 | Native | Wah-wah pedal |
-| **Utility** | 1 | Native | Chromatic tuner |
-| **Pitch** | 2 | Native | Real-time pitch correction (autotune) |
-| **Body** | 114 | IR | Acoustic body resonance (Taylor, Martin, Gibson, and more) |
-| **Full Rig** | 1 | NAM | All-in-one amp with effects |
-| **I/O** | — | — | Input and output routing blocks |
+> What if a single node processed the audio of the whole band, and each musician controlled their own chain from their phone?
 
-See the complete [Blocks Reference](docs/user-guide/blocks-reference.md) for all 176 models with parameters and ranges.
+Picture the stage. Guitar, bass, keys, vocals — all plugged into one node. That node can be a pedalboard on the floor, a small box in a gig bag, or a desktop backstage. **The form factor doesn't matter. The software is the same.**
+
+Each musician opens an app on their phone or tablet and controls their own effect chain. Anyone who prefers hardware plugs in a pedalboard that's just a terminal — connected over USB, Bluetooth, or network via gRPC. Only one person in the band needs the hardware. The rest use what's already in their pocket.
+
+That's the destination. Below is what already works, and what's coming next.
+
+## What runs today
+
+OpenRig is on `v0.1.0-dev` — early, but real. The foundation that makes the bigger vision possible already runs in production on every desktop platform:
+
+- **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64).
+- **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel.
+- **560+ registered models** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups.
+- **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
+- **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
+- **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full presets from a song name by researching the original signal chain in public sources and writing the YAML.
+
+The full catalog (every model, every parameter, every voicing variant) lives in the [Blocks Reference](docs/user-guide/blocks-reference.md).
+
+## Where it's going
+
+Desktop is the foundation. The product is the **band on one node**. The path:
+
+- **gRPC server** — so external clients (phone, tablet, dedicated controller, another OpenRig instance) can drive their own chains over the network in real time.
+- **Mobile and tablet app** — the per-musician control surface. Open it, see your chain, turn knobs.
+- **Pedalboard as a node** — Orange Pi-class hardware running OpenRig with audio I/O on board, low-latency Linux underneath.
+- **Pedalboard as a terminal** — same hardware can run as a physical controller for a remote OpenRig node, talking USB / Bluetooth / network.
+- **Multi-musician projects** — one node hosting independent, isolated chains for guitar, bass, keys, vocals — each controlled from a different surface.
+
+Same software in every form factor. The user's tone goes with them — desktop today, gig bag tomorrow, pedalboard at the venue, server in the rehearsal space. Nothing to re-learn. Nothing to re-license.
+
+## Showcase
+
+<p align="center">
+  <img src="docs/assets/sc2.png" alt="Block library — vertical list of pedals and amps with brand-accurate panel art" width="280">&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/sc3.png" alt="Block editor — Marshall JTM45 panel with channel and volume knobs" width="600">
+</p>
+
+Left: block library, organized by brand with hardware-faithful panel art. Right: per-block editor on a Marshall JTM45 capture — exact controls, exact response.
+
+## Quick Start
+
+1. **Install** — [download a release](https://github.com/jpfaria/OpenRig/releases/latest) for your platform, or build from source (see below).
+2. **Configure I/O** — pick your audio interface as input and your monitors/headphones as output.
+3. **Build a chain** — drop blocks between Input and Output (Tuner → EQ → Drive → Amp → Cab → Reverb is a good start).
+4. **Tweak in real time** — click any block to open its editor; turn knobs while you play.
+5. **Save a preset** — presets are plain YAML in `~/.openrig/presets/` (macOS/Linux) or `%APPDATA%\OpenRig\presets\` (Windows). Share by copy-paste.
+
+Full walkthrough: [Quick Start Guide](docs/user-guide/quick-start.md).
+
+## Build Your Tone
+
+A preset is just YAML. Here's the start of a Frusciante-style "Can't Stop" rhythm chain:
+
+```yaml
+id: red_hot_chili_peppers_-_cant_stop_-_rhythm
+name: Red Hot Chili Peppers - Can't Stop (Rhythm)
+blocks:
+  - type: gain
+    enabled: true
+    model: cc_boost            # MXR Micro Amp clean boost
+    params: {}
+  - type: gain
+    enabled: true
+    model: boss_ds1            # Boss DS-2 proxy: tone 7, dist 5
+    params: { tone: 7, dist: 5 }
+  - type: modulation
+    enabled: true
+    model: ensemble_chorus     # CE-1 Chorus Ensemble
+    params: { rate_hz: 0.55, depth: 22.0, mix: 25.0 }
+  - type: amp
+    enabled: true
+    model: marshall_super_100_1966   # Marshall Major proxy
+    params: {}
+  # ...post-amp EQ, reverb, limiter, master volume
+```
+
+Every `model:` ID is registered in the [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) skill generates the full chain from just an artist + song name.
 
 ## Installation
 
 ### Download
 
-| Platform | Architecture | Download |
-|----------|-------------|----------|
-| macOS | Apple Silicon (aarch64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| macOS | Intel (x86_64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | aarch64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Windows | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
+Releases for every supported platform (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) are published on the [Releases page](https://github.com/jpfaria/OpenRig/releases/latest).
 
 ### Build from Source
 
@@ -77,66 +129,42 @@ git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
 
-See the [Installation Guide](docs/user-guide/installation.md) for detailed instructions, platform-specific dependencies, and troubleshooting.
-
-## Quick Start
-
-1. **Launch OpenRig** and create a new project
-2. **Configure audio** — select your input device (guitar interface) and output device (headphones/monitors)
-3. **Build a chain** — add blocks between Input and Output: Preamp → Cab → Delay → Reverb
-4. **Adjust parameters** — click any block to open its editor, tweak knobs in real time
-5. **Play** — your signal chain is processing live audio
-
-See the [Quick Start Guide](docs/user-guide/quick-start.md) for a complete walkthrough.
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│   Adapters — GUI (Slint), Console, Server (gRPC), VST3   │
-├──────────────────────────────────────────────────────────┤
-│   Engine — real-time audio graph, block chain processing  │
-├──────────────────────────────────────────────────────────┤
-│   Application — orchestration, validation, commands       │
-├──────────────────────────────────────────────────────────┤
-│   Domain — blocks, chains, parameters, value objects      │
-└──────────────────────────────────────────────────────────┘
-```
-
-OpenRig is organized as a Rust workspace with **38 crates** in five groups: core domain (5), audio processing blocks (17), backend integration (4), adapters and UI (6), and infrastructure (5). The architecture follows a clean/hexagonal pattern — inner layers define interfaces, outer layers implement them.
-
-See [Architecture](docs/development/architecture.md) for the full crate map, audio signal flow, and design patterns.
+See the [Installation Guide](docs/user-guide/installation.md) for platform-specific dependencies and troubleshooting.
 
 ## Documentation
 
 ### For Musicians
 
-- [Installation Guide](docs/user-guide/installation.md) — download, build, and set up OpenRig
-- [Quick Start](docs/user-guide/quick-start.md) — create your first project and signal chain
-- [Blocks Reference](docs/user-guide/blocks-reference.md) — all 176 models with parameters
-- [Presets](docs/user-guide/presets.md) — create, save, and share chain configurations
+- [Installation Guide](docs/user-guide/installation.md) — download, build, set up
+- [Quick Start](docs/user-guide/quick-start.md) — first project and signal chain
+- [Blocks Reference](docs/user-guide/blocks-reference.md) — every model with canonical IDs and parameters
+- [Presets](docs/user-guide/presets.md) — create, save, share
 
 ### For Developers
 
-- [Architecture](docs/development/architecture.md) — crate map, layers, and design patterns
-- [Building](docs/development/building.md) — full build guide including NAM engine and Docker
+- [Architecture](docs/development/architecture.md) — crate map, layers, design patterns
+- [Building](docs/development/building.md) — full build guide including the NAM engine and Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — how to add new audio models
 - [Audio Backends](docs/development/audio-backends.md) — Native, NAM, IR, and LV2 internals
 
 ## Contributing
 
-OpenRig welcomes contributions. We follow [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) with strict code quality standards — zero warnings, zero coupling, single source of truth.
+OpenRig is open by intent — contributions are welcome and the architecture is designed to make them tractable. Audio processing is split per block type so each model is fully owned by its crate, with zero cross-coupling between brand-specific captures and the rest of the system. The project follows [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) with strict code quality standards: zero warnings, zero coupling, single source of truth.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete guide on branching, commits, PRs, and code standards.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branching, commits, PRs, and code standards.
 
 ## Roadmap
 
-- [x] Standalone Desktop App
-- [ ] VST3/AU Plugin
-- [ ] Server Mode (gRPC)
-- [ ] Dedicated Hardware Unit
-- [ ] Mobile Remote Control
+- [x] Standalone desktop app (macOS, Linux, Windows)
+- [x] Multi-input parallel chains with stream isolation
+- [x] 560+ models across 16 block types, four audio backends in the same graph
+- [ ] gRPC server — remote chain control over the network
+- [ ] Mobile / tablet app — per-musician control surface
+- [ ] Pedalboard form factor (Orange Pi-class hardware, low-latency Linux)
+- [ ] Pedalboard-as-terminal (USB / Bluetooth / network controller for remote nodes)
+- [ ] Multi-musician projects on a single node
+- [ ] VST3 / AU plugin
 
 ## License
 
-OpenRig is licensed under the [GNU General Public License v3.0](LICENSE).
+OpenRig is licensed under the [GNU General Public License v3.0](LICENSE) — the rig you build belongs to you. Forever.

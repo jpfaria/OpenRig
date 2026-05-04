@@ -1,631 +1,28 @@
 import "fonts/CooperHewitt-Semibold.ttf";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { Locale } from "locale_globals.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
+import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
+import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
+import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
+export { Locale }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
-
-export component ProjectSettingsWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in-out property <string> project-name-draft;
-    in-out property <string> status-message;
-    in property <[DeviceSelectionItem]> project-devices;
-    in property <[string]> sample-rate-options;
-    in property <[string]> buffer-size-options;
-    in property <[string]> bit-depth-options;
-    callback update-project-name(string);
-    callback save-audio-settings();
-    callback close-project-settings();
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
-    title: "OpenRig · Configurar projeto";
-    min-width: 860px;
-    min-height: 540px;
-    preferred-width: 1100px;
-    preferred-height: 640px;
-    background: #040708;
-
-    ProjectSettingsPage {
-        width: parent.width;
-        height: parent.height;
-        project-name-draft <=> root.project-name-draft;
-        project-devices: root.project-devices;
-        sample-rate-options: root.sample-rate-options;
-        buffer-size-options: root.buffer-size-options;
-        bit-depth-options: root.bit-depth-options;
-        status-message: root.status-message;
-        update-project-name(value) => { root.update-project-name(value); }
-        save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-    }
-}
-
-export component ChainEditorWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <string> editor-title;
-    in property <string> editor-save-label;
-    in-out property <string> chain-name;
-    in property <[IoGroupItem]> input-groups;
-    in property <[IoGroupItem]> output-groups;
-    in-out property <string> status-message;
-    in property <bool> is-create-mode: true;
-    in-out property <int> selected-instrument-index: 0;
-    callback update-chain-name(string);
-    callback edit-input(int);
-    callback remove-input(int);
-    callback add-input();
-    callback edit-output(int);
-    callback remove-output(int);
-    callback add-output();
-    callback save-chain();
-    callback cancel-chain();
-    callback select-instrument(int);
-    // Inline input endpoint editor
-    in property <bool> show-input-editor: false;
-    in property <[string]> input-device-options;
-    in-out property <int> input-selected-device-index: -1;
-    in property <[ChannelOptionItem]> input-channels;
-    in-out property <string> input-editor-status: "";
-    in-out property <int> input-mode-index: 0;
-    callback input-select-device(int);
-    callback input-toggle-channel(int, bool);
-    callback input-select-mode(int);
-    callback input-save();
-    callback input-cancel();
-    // Inline output endpoint editor
-    in property <bool> show-output-editor: false;
-    in property <[string]> output-device-options;
-    in-out property <int> output-selected-device-index: -1;
-    in property <[ChannelOptionItem]> output-channels;
-    in-out property <string> output-editor-status: "";
-    in-out property <int> output-mode-index: 0;
-    callback output-select-device(int);
-    callback output-toggle-channel(int, bool);
-    callback output-select-mode(int);
-    callback output-save();
-    callback output-cancel();
-    title: "OpenRig · Configurar chain";
-    min-width: 860px;
-    min-height: 540px;
-    preferred-width: 1100px;
-    preferred-height: 640px;
-    background: #040708;
-
-    ChainEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: root.editor-title;
-        save-label: root.editor-save-label;
-        chain-name: root.chain-name;
-        input-groups: root.input-groups;
-        output-groups: root.output-groups;
-        status-message: root.status-message;
-        is-create-mode: root.is-create-mode;
-        selected-instrument-index: root.selected-instrument-index;
-        update-chain-name(value) => { root.update-chain-name(value); }
-        edit-input(index) => { root.edit-input(index); }
-        remove-input(index) => { root.remove-input(index); }
-        add-input => { root.add-input(); }
-        edit-output(index) => { root.edit-output(index); }
-        remove-output(index) => { root.remove-output(index); }
-        add-output => { root.add-output(); }
-        save-chain => { root.save-chain(); }
-        cancel-chain => { root.cancel-chain(); }
-        select-instrument(index) => { root.select-instrument(index); }
-    }
-
-    if root.show-input-editor : ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Entrada";
-        device-options: root.input-device-options;
-        selected-device-index <=> root.input-selected-device-index;
-        channels: root.input-channels;
-        status-message <=> root.input-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.input-mode-index;
-        select-device(index) => { root.input-select-device(index); }
-        toggle-channel(index, selected) => { root.input-toggle-channel(index, selected); }
-        select-mode(index) => { root.input-select-mode(index); }
-        save => { root.input-save(); }
-        cancel => { root.input-cancel(); }
-    }
-
-    if root.show-output-editor : ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Saída";
-        device-options: root.output-device-options;
-        selected-device-index <=> root.output-selected-device-index;
-        channels: root.output-channels;
-        status-message <=> root.output-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.output-mode-index;
-        select-device(index) => { root.output-select-device(index); }
-        toggle-channel(index, selected) => { root.output-toggle-channel(index, selected); }
-        select-mode(index) => { root.output-select-mode(index); }
-        save => { root.output-save(); }
-        cancel => { root.output-cancel(); }
-    }
-}
-
-export component ChainInputWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <[string]> device-options;
-    in-out property <int> selected-device-index;
-    in property <[ChannelOptionItem]> channels;
-    in-out property <string> status-message;
-    in-out property <int> selected-input-mode-index: 0;
-    callback select-device(int);
-    callback toggle-channel(int, bool);
-    callback select-input-mode(int);
-    callback save();
-    callback cancel();
-    title: "OpenRig · Entrada da chain";
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Entrada";
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
-        status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.selected-input-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-input-mode(index); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-    }
-}
-
-export component ChainOutputWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <[string]> device-options;
-    in-out property <int> selected-device-index;
-    in property <[ChannelOptionItem]> channels;
-    in-out property <string> status-message;
-    in-out property <int> selected-output-mode-index: 0;
-    callback select-device(int);
-    callback toggle-channel(int, bool);
-    callback select-output-mode(int);
-    callback save();
-    callback cancel();
-    title: "OpenRig · Saída da chain";
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Saída";
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
-        status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.selected-output-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-output-mode(index); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-    }
-}
-
-export component ChainInputGroupsWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <[IoGroupItem]> groups;
-    in-out property <string> status-message;
-    in property <bool> show-block-controls: false;
-    in property <bool> block-enabled: true;
-    callback edit-group(int);
-    callback remove-group(int);
-    callback add-group();
-    callback save();
-    callback cancel();
-    callback toggle-enabled();
-    callback delete-block();
-    title: "OpenRig \u{00B7} Entradas da chain";
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainIoGroupsPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Entradas";
-        add-label: "+ Adicionar entrada";
-        groups: root.groups;
-        status-message <=> root.status-message;
-        show-block-controls: root.show-block-controls;
-        block-enabled: root.block-enabled;
-        edit-group(index) => { root.edit-group(index); }
-        remove-group(index) => { root.remove-group(index); }
-        add-group => { root.add-group(); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-        toggle-enabled => { root.toggle-enabled(); }
-        delete-block => { root.delete-block(); }
-    }
-}
-
-export component ChainOutputGroupsWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <[IoGroupItem]> groups;
-    in-out property <string> status-message;
-    in property <bool> show-block-controls: false;
-    in property <bool> block-enabled: true;
-    callback edit-group(int);
-    callback remove-group(int);
-    callback add-group();
-    callback save();
-    callback cancel();
-    callback toggle-enabled();
-    callback delete-block();
-    title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainIoGroupsPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Sa\u{00ED}das";
-        add-label: "+ Adicionar sa\u{00ED}da";
-        groups: root.groups;
-        status-message <=> root.status-message;
-        show-block-controls: root.show-block-controls;
-        block-enabled: root.block-enabled;
-        edit-group(index) => { root.edit-group(index); }
-        remove-group(index) => { root.remove-group(index); }
-        add-group => { root.add-group(); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-        toggle-enabled => { root.toggle-enabled(); }
-        delete-block => { root.delete-block(); }
-    }
-}
-
-export component ChainInsertWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    // Send (output devices)
-    in property <[string]> send-device-options;
-    in-out property <int> selected-send-device-index;
-    in property <[ChannelOptionItem]> send-channels;
-    in-out property <int> selected-send-mode-index: 0;
-    // Return (input devices)
-    in property <[string]> return-device-options;
-    in-out property <int> selected-return-device-index;
-    in property <[ChannelOptionItem]> return-channels;
-    in-out property <int> selected-return-mode-index: 0;
-    // Block controls
-    in property <bool> show-block-controls: false;
-    in property <bool> block-enabled: true;
-    in-out property <string> status-message;
-    // Callbacks
-    callback select-send-device(int);
-    callback toggle-send-channel(int, bool);
-    callback select-send-mode(int);
-    callback select-return-device(int);
-    callback toggle-return-channel(int, bool);
-    callback select-return-mode(int);
-    callback toggle-enabled();
-    callback delete-block();
-    callback save();
-    callback cancel();
-
-    title: "OpenRig \u{00B7} Configurar Insert";
-    min-width: 680px;
-    min-height: 580px;
-    preferred-width: 820px;
-    preferred-height: 720px;
-    background: #040708;
-
-    ChainInsertEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: "Configurar Insert";
-        send-device-options: root.send-device-options;
-        selected-send-device-index <=> root.selected-send-device-index;
-        send-channels: root.send-channels;
-        selected-send-mode-index <=> root.selected-send-mode-index;
-        return-device-options: root.return-device-options;
-        selected-return-device-index <=> root.selected-return-device-index;
-        return-channels: root.return-channels;
-        selected-return-mode-index <=> root.selected-return-mode-index;
-        show-block-controls: root.show-block-controls;
-        block-enabled: root.block-enabled;
-        status-message: root.status-message;
-        select-send-device(index) => { root.select-send-device(index); }
-        toggle-send-channel(index, selected) => { root.toggle-send-channel(index, selected); }
-        select-send-mode(index) => { root.select-send-mode(index); }
-        select-return-device(index) => { root.select-return-device(index); }
-        toggle-return-channel(index, selected) => { root.toggle-return-channel(index, selected); }
-        select-return-mode(index) => { root.select-return-mode(index); }
-        toggle-enabled => { root.toggle-enabled(); }
-        delete-block => { root.delete-block(); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-    }
-}
-
-export component BlockEditorWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    in property <[BlockTypePickerItem]> block-type-options;
-    in property <[BlockModelPickerItem]> block-model-options;
-    in property <[BlockModelPickerItem]> filtered-block-model-options;
-    in property <[string]> block-model-option-labels;
-    in property <string> block-drawer-title;
-    in property <string> block-drawer-confirm-label;
-    in property <string> block-drawer-status-message;
-    in property <bool> block-drawer-edit-mode;
-    in property <int> block-drawer-selected-type-index;
-    in-out property <int> block-drawer-selected-model-index;
-    in-out property <string> block-model-search-text;
-    in property <bool> block-drawer-enabled;
-    in property <[BlockParameterItem]> block-parameter-items;
-    in property <[MultiSliderPoint]> multi-slider-points;
-    in property <[CurveEditorPoint]> curve-editor-points;
-    in property <string> eq-total-curve;
-    in property <[string]> eq-band-curves;
-    in property <[BlockKnobOverlay]> block-knob-overlays;
-    in property <string> block-window-title: "OpenRig · Block";
-    callback choose-block-model(int);
-    callback choose-block-model-by-id(string);
-    callback search-block-model(string);
-    callback close-block-drawer();
-    callback save-block-drawer();
-    callback delete-block-drawer();
-    callback show-plugin-info(string, string);
-    callback toggle-block-drawer-enabled();
-    callback update-block-parameter-text(string, string);
-    callback update-block-parameter-number(string, float);
-    callback update-block-parameter-number-text(string, string);
-    callback update-block-parameter-bool(string, bool);
-    callback select-block-parameter-option(string, int);
-    callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
-
-    // Realtime data stream from engine (tuner, meter, analyzer, etc.)
-    in property <BlockStreamData> block-stream-data;
-
-    // Computed: should this block type use the visual panel editor?
-    private property <bool> use-panel-editor:
-        root.block-drawer-selected-type-index >= 0
-        && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
-
-    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
-    property <int> param-count: root.block-parameter-items.length;
-    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
-    private property <bool> has-eq-widget:
-        root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
-    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
-    private property <length> eq-panel-width:
-        multi-slider-points.length > 0 ?
-            Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
-        curve-editor-points.length > 0 ?
-            Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
-            600px;
-    property <length> panel-width:
-        root.use-panel-editor ?
-            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
-            520px;
-    // EQ widget heights: CurveEditor = 200px, MultiSlider = 180px.
-    // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
-    private property <length> eq-widget-height:
-        root.curve-editor-points.length > 0 ? 200px :
-        root.multi-slider-points.length > 0 ? 180px : 0px;
-    // EQ blocks: compact 60px panel (just POWER button, no brand strip).
-    private property <length> eq-extra-height:
-        has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
-
-    title: root.block-window-title;
-    min-width: panel-width;
-    min-height: root.use-panel-editor ? eq-extra-height : 640px;
-    max-width: panel-width;
-    max-height: root.use-panel-editor ? eq-extra-height : 640px;
-    preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
-    background: #040708;
-
-    // Amp head: visual panel editor
-    if root.use-panel-editor : BlockPanelEditor {
-        width: parent.width;
-        height: parent.height;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-knob-overlays: root.block-knob-overlays;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-stream-data: root.block-stream-data;
-        choose-block-model(i) => { root.choose-block-model(i); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
-        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
-    }
-
-    // Other block types: existing form-based editor
-    if !root.use-panel-editor : BlockEditorPanel {
-        width: parent.width;
-        height: parent.height;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        block-stream-data: root.block-stream-data;
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
-        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
-    }
-
-    in-out property <string> toast-message;
-    in-out property <string> toast-level: "info";
-
-    Toast {
-        message: root.toast-message;
-        level: root.toast-level;
-        container-width: root.width;
-        container-height: root.height;
-    }
-}
-
-export component CompactChainViewWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
-    default-font-size: 13px;
-    title: "OpenRig \u{00B7} Chain";
-    min-width: 800px;
-    min-height: 260px;
-    preferred-width: 1000px;
-    preferred-height: 460px;
-    background: #0a0c10;
-
-    in property <string> chain-title;
-    in property <int> chain-index;
-    in property <bool> chain-enabled;
-    in property <[CompactBlockItem]> compact-blocks;
-    in property <[BlockTypePickerItem]> block-type-options;
-
-    // I/O device configuration
-    callback configure-input(int); // chain_index
-    callback configure-output(int); // chain_index
-
-    callback toggle-chain-enabled(int);
-    callback toggle-block-enabled(int, int);
-    callback update-block-parameter-number(int, int, string, float);
-    callback update-block-parameter-bool(int, int, string, bool);
-    callback select-block-parameter-option(int, int, string, int);
-    callback choose-block-model(int, int, int);
-    callback choose-block-model-by-id(int, int, string);
-    callback search-block-model(int, int, string);
-    callback insert-block(int, int);
-    callback reorder-block(int, int, int);
-    callback open-block-detail(int, int);
-    callback close-compact-view();
-    callback choose-block-type(int, int, int);
-    callback remove-block(int, int);
-    callback open-plugin(string); // model-id, for VST3 blocks
-
-    CompactChainViewPage {
-        width: parent.width; height: parent.height;
-        chain-title: root.chain-title;
-        chain-index: root.chain-index;
-        chain-enabled: root.chain-enabled;
-        compact-blocks: root.compact-blocks;
-        block-type-options: root.block-type-options;
-        configure-input(ci) => { root.configure-input(ci); }
-        configure-output(ci) => { root.configure-output(ci); }
-        toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
-        toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
-        update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
-        update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
-        select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
-        choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
-        choose-block-model-by-id(ci, bi, mid) => { root.choose-block-model-by-id(ci, bi, mid); }
-        search-block-model(ci, bi, text) => { root.search-block-model(ci, bi, text); }
-        insert-block(ci, before) => { root.insert-block(ci, before); }
-        reorder-block(ci, from, before) => { root.reorder-block(ci, from, before); }
-        open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
-        close-compact-view => { root.close-compact-view(); }
-        choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
-        remove-block(ci, bi) => { root.remove-block(ci, bi); }
-        open-plugin(model-id) => { root.open-plugin(model-id); }
-    }
-}
+export { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow }
+export { BlockEditorWindow, CompactChainViewWindow }
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    // Helvetica Neue (system) instead of Bebas Neue because the bundled
+    // Latin-only display fonts cause CJK/Devanagari/Hangul characters to
+    // render as tofu boxes when the UI locale is ja-JP / zh-CN / ko-KR /
+    // hi-IN. Helvetica Neue routes through the macOS system fallback
+    // chain (PingFang SC, Hiragino, Apple SD Gothic, etc.).
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <string> app-version;
     in property <bool> show-project-launcher;
@@ -746,6 +143,8 @@ export component AppWindow inherits Window {
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
     callback configure-chain(int);
     callback configure-chain-input(int);
     callback configure-chain-output(int);
@@ -820,6 +219,11 @@ export component AppWindow inherits Window {
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
     callback virtual-key-pressed(string);
+    // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <bool> show-preset-picker: false;
     in property <[string]> preset-picker-items;
     in-out property <int> preset-picker-chain-index: -1;
@@ -830,6 +234,12 @@ export component AppWindow inherits Window {
     in property <string> confirm-delete-block-name: "";
     callback confirm-delete-block();
     callback cancel-delete-block();
+    // Inline plugin info overlay — used in fullscreen / touch where the secondary
+    // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
+    in property <bool> plugin-info-visible: false;
+    in property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -859,6 +269,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -970,6 +384,8 @@ export component AppWindow inherits Window {
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+        move-chain-up(index) => { root.move-chain-up(index); }
+        move-chain-down(index) => { root.move-chain-down(index); }
         configure-chain(index) => { root.configure-chain(index); }
         configure-chain-input(index) => { root.configure-chain-input(index); }
         configure-chain-output(index) => { root.configure-chain-output(index); }
@@ -1020,6 +436,10 @@ export component AppWindow inherits Window {
         remove-chain-output(index) => { root.remove-chain-output(index); }
         add-chain-output => { root.add-chain-output(); }
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
+        plugin-info-visible: root.plugin-info-visible;
+        plugin-info-data: root.plugin-info-data;
+        close-plugin-info => { root.close-plugin-info(); }
+        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
     if touch-optimized : TouchMain {
@@ -1044,6 +464,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -1121,6 +545,8 @@ export component AppWindow inherits Window {
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+        move-chain-up(index) => { root.move-chain-up(index); }
+        move-chain-down(index) => { root.move-chain-down(index); }
         configure-chain(index) => { root.configure-chain(index); }
         configure-chain-input(index) => { root.configure-chain-input(index); }
         configure-chain-output(index) => { root.configure-chain-output(index); }
@@ -1213,81 +639,18 @@ export component AppWindow inherits Window {
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
+        plugin-info-visible: root.plugin-info-visible;
+        plugin-info-data: root.plugin-info-data;
+        close-plugin-info => { root.close-plugin-info(); }
+        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
-    if root.show-confirm-delete-block : Rectangle {
+    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        background: #000000b0;
-        TouchArea { }
-        Rectangle {
-            x: (root.width - self.width) / 2;
-            y: (root.height - self.height) / 2;
-            width: min(root.width * 0.7, 400px);
-            height: 170px;
-            background: #1e1f22;
-            border-radius: 10px;
-            drop-shadow-blur: 16px;
-            drop-shadow-offset-y: 4px;
-            drop-shadow-color: #000000c0;
-            VerticalLayout {
-                padding: 20px;
-                spacing: 12px;
-                Text {
-                    text: "Excluir bloco";
-                    font-size: 16px;
-                    color: #ffffff;
-                    font-weight: 700;
-                    horizontal-alignment: center;
-                }
-                Text {
-                    text: "Excluir \"" + root.confirm-delete-block-name + "\"?";
-                    font-size: 13px;
-                    color: #aaaaaa;
-                    horizontal-alignment: center;
-                    overflow: elide;
-                    wrap: no-wrap;
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        height: 40px;
-                        border-radius: 6px;
-                        background: dlg-cancel-area.has-hover ? #444 : #2d2e32;
-                        dlg-cancel-area := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.cancel-delete-block(); }
-                        }
-                        Text {
-                            text: "Cancelar";
-                            font-size: 13px;
-                            color: #aaaaaa;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                    }
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        height: 40px;
-                        border-radius: 6px;
-                        background: dlg-confirm-area.has-hover ? #c0392b : #e74c3c;
-                        dlg-confirm-area := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.confirm-delete-block(); }
-                        }
-                        Text {
-                            text: "Excluir";
-                            font-size: 13px;
-                            color: #ffffff;
-                            font-weight: 700;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-        }
+        block-name: root.confirm-delete-block-name;
+        cancel => { root.cancel-delete-block(); }
+        confirm => { root.confirm-delete-block(); }
     }
 
     in-out property <string> toast-message;
