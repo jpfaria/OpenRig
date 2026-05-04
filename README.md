@@ -16,6 +16,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="README.pt-BR.md">Português</a> · <a href="README.es-ES.md">Español</a>
+</p>
+
+<p align="center">
   <img src="docs/assets/sc1.png" alt="OpenRig Project view — multiple parallel chains with amp, pedal, and cab blocks" width="900">
 </p>
 
