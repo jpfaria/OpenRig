@@ -14,7 +14,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcess
 
 pub const MODEL_ID: &str = "lv2_fat1";
 pub const DISPLAY_NAME: &str = "x42-Autotune";
-const BRAND: &str = "fat1";
+const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fat1";
 const PLUGIN_DIR: &str = "fat1";

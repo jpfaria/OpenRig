@@ -14,7 +14,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_rkr_bad_synthfilter";
 pub const DISPLAY_NAME: &str = "rkr Synthfilter";
-const BRAND: &str = "rkr";
+const BRAND: &str = "rakarrack";
 
 const PLUGIN_URI: &str = "http://rakarrack.sourceforge.net/effects.html#Synthfilter";
 const PLUGIN_DIR: &str = "rkr-bad";

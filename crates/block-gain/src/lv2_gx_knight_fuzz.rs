@@ -13,7 +13,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcess
 
 pub const MODEL_ID: &str = "lv2_gx_knight_fuzz";
 pub const DISPLAY_NAME: &str = "GxKnightFuzz";
-const BRAND: &str = "gx";
+const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_KnightFuzz_#_KnightFuzz_";
 const PLUGIN_DIR: &str = "gx_KnightFuzz";

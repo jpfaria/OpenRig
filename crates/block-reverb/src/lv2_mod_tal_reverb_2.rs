@@ -14,7 +14,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_mod_tal_reverb_2";
 pub const DISPLAY_NAME: &str = "TAL-Reverb-II";
-const BRAND: &str = "mod";
+const BRAND: &str = "kxstudio";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tal-reverb-2";
 const PLUGIN_DIR: &str = "mod-tal-Reverb-2";

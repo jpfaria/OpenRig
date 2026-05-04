@@ -13,10 +13,10 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_invada_bad_stereo";
-pub const DISPLAY_NAME: &str = "Invada High Pass Filter (stereo)";
+pub const DISPLAY_NAME: &str = "Invada Low Pass Filter (stereo)";
 const BRAND: &str = "invada";
 
-const PLUGIN_URI: &str = "http://invadarecords.com/plugins/lv2/filter/hpf/stereo";
+const PLUGIN_URI: &str = "http://invadarecords.com/plugins/lv2/filter/lpf/stereo";
 const PLUGIN_DIR: &str = "invada-bad";
 
 #[cfg(target_os = "macos")]
