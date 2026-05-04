@@ -419,40 +419,54 @@ pub fn init_translations(persisted_language: Option<&str>) {
     // alone is NOT enough on macOS / glibc-less platforms: libintl re-reads
     // the env on each lookup and ignores in-process setlocale changes.
     //
-    // We set LANGUAGE explicitly because it has the highest priority and
-    // works consistently on Linux/macOS/Windows. This is safe — we own
-    // the process and only adjust at startup, before any UI renders.
-    use gettextrs::{bindtextdomain, setlocale, textdomain, LocaleCategory};
+    // We set LANGUAGE explicitly because it has the highest priority where
+    // libintl is available. Gated to Linux because gettext-rs / libintl
+    // are not first-class on Windows/macOS in our build matrix; on those
+    // platforms Slint @tr(...) falls back to the bundled translations
+    // already activated by `apply_bundled_translation`, and rust-i18n
+    // continues to drive Rust-side strings.
+    #[cfg(target_os = "linux")]
+    {
+        use gettextrs::{bindtextdomain, setlocale, textdomain, LocaleCategory};
 
-    let posix = locale.replace('-', "_");
-    std::env::set_var("LANGUAGE", &posix);
+        let posix = locale.replace('-', "_");
+        std::env::set_var("LANGUAGE", &posix);
 
-    let target = format!("{}.UTF-8", posix);
-    let applied = setlocale(LocaleCategory::LcMessages, target.clone());
-    if applied.is_none() {
-        if setlocale(LocaleCategory::LcMessages, posix.clone()).is_none() {
-            log::warn!(
-                "i18n: setlocale rejected {:?} and {:?} — Slint translations \
-                 will rely on the LANGUAGE env var only",
-                target, posix
-            );
-        }
-    }
-
-    match resolve_translations_dir() {
-        Some(dir) => {
-            log::info!("i18n: gettext translations dir = {}", dir.display());
-            if let Err(e) = bindtextdomain(TEXT_DOMAIN, dir) {
-                log::warn!("i18n: bindtextdomain failed: {}", e);
+        let target = format!("{}.UTF-8", posix);
+        let applied = setlocale(LocaleCategory::LcMessages, target.clone());
+        if applied.is_none() {
+            if setlocale(LocaleCategory::LcMessages, posix.clone()).is_none() {
+                log::warn!(
+                    "i18n: setlocale rejected {:?} and {:?} — Slint translations \
+                     will rely on the LANGUAGE env var only",
+                    target, posix
+                );
             }
         }
-        None => {
-            log::info!("i18n: no gettext translations dir found, Slint will passthrough source");
+
+        match resolve_translations_dir() {
+            Some(dir) => {
+                log::info!("i18n: gettext translations dir = {}", dir.display());
+                if let Err(e) = bindtextdomain(TEXT_DOMAIN, dir) {
+                    log::warn!("i18n: bindtextdomain failed: {}", e);
+                }
+            }
+            None => {
+                log::info!("i18n: no gettext translations dir found, Slint will passthrough source");
+            }
+        }
+
+        if let Err(e) = textdomain(TEXT_DOMAIN) {
+            log::warn!("i18n: textdomain failed: {}", e);
         }
     }
 
-    if let Err(e) = textdomain(TEXT_DOMAIN) {
-        log::warn!("i18n: textdomain failed: {}", e);
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Non-Linux: rely on Slint bundled translations + rust-i18n only.
+        // The `locale` value is consumed by `apply_bundled_translation`
+        // (caller's responsibility) and by the rust_i18n::set_locale above.
+        let _ = locale;
     }
 }
 
@@ -816,6 +830,7 @@ mod tests {
     /// Run with `cargo test -p adapter-gui --lib gettext_resolves -- --ignored`.
     #[test]
     #[ignore = "mutates global gettext state; run with --ignored"]
+    #[cfg(target_os = "linux")]
     fn gettext_resolves_btn_new_project_in_en_us() {
         use gettextrs::{bindtextdomain, dgettext, setlocale, textdomain, LocaleCategory};
 
