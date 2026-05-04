@@ -165,7 +165,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
 - [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
 - [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
-- [x] **Multi-language UI** — English and Brazilian Portuguese today (`en-US`, `pt-BR`), with the i18n framework ready for community translations
+- [x] **Multi-language UI** — 9 languages today: English (`en-US`), Portuguese (`pt-BR`), Spanish (`es-ES`), French (`fr-FR`), German (`de-DE`), Japanese (`ja-JP`), Korean (`ko-KR`), Simplified Chinese (`zh-CN`), and Hindi (`hi-IN`); the i18n framework is ready for community contributions
 - [x] **Per-chain instrument filtering** — electric guitar, acoustic guitar, bass, voice, keys, drums, or generic — surfaces only relevant blocks
 - [x] **Multiple I/O blocks per chain** with independent device and channel configuration per block
 - [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
