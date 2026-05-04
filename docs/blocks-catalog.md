@@ -12,7 +12,7 @@
 | **Reverb** | Ambiência | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
 | **Modulation** | Chorus, flanger, tremolo, vibrato | 16 | Classic/Stereo/Ensemble Chorus, Sine Tremolo, Vibrato (native); TAP Chorus/Flanger/Tremolo/Rotary, MDA Leslie/RingMod/ThruZero, FOMP, CAPS Phaser II, Harmless, Larynx (LV2) |
 | **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
-| **Filter** | EQ, moldagem tonal | 13 | Three Band EQ, Guitar EQ, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
+| **Filter** | EQ, moldagem tonal | 14 | Three Band EQ, Guitar EQ, Guitar HPF/LPF, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
 | **Wah** | Wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + boutique (IR) |
 | **Pitch** | Pitch shift e harmonização | 4 | Harmonizer, x42 Autotune, MDA Detune, MDA RePsycho (LV2) |
@@ -31,7 +31,9 @@
 - **Reverb**: room_size, damping, mix (0–100%)
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
 - **Gate** (`gate_basic`): threshold (-96 a 0 dB), attack_ms (0.1–100), release_ms (1–500), **hold_ms** (0–2000, default 150 — evita cortar decay), **hysteresis_db** (0–20, default 6 — evita chattering)
-- **EQ (Three Band / Guitar EQ)**: low, mid, high (0–100% → -24/+24 dB)
+- **Three Band EQ** (`eq_three_band_basic`): `low_gain`/`mid_gain`/`high_gain` (-12/+12 dB), `low_freq`/`mid_freq`/`high_freq` (Hz), `mid_q` (0.1–6)
+- **Guitar EQ** (`native_guitar_eq`): 4 boost+cut bands tuned for guitar/acoustic/bass — `low` (low-shelf @150 Hz), `low_mid` (peak @500 Hz, Q 0.7), `high_mid` (peak @2.5 kHz, Q 0.7), `high` (high-shelf @6 kHz). Each band -12/+12 dB, default 0.
+- **Guitar HPF/LPF** (`native_guitar_hpf_lpf`): cleanup filter pair — `low_cut` 0–100% sweeps HPF 20→100 Hz, `high_cut` 0–100% sweeps LPF 20 kHz→7 kHz. (Used to be called "Guitar EQ" before the actual tone-shaper took that name in #303.)
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled`, `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz.
 - **Gain pedals**: drive, tone, level
 - **NAM gain pedals com grid**: knobs reais por modelo (`tone`, `sustain`, `drive`, `volume`, `gain`...) mapeiam para captura `.nam` mais próxima na grid. Sufixo `_feather`/`_lite`/`_nano` vira enum `size`. Pedais com nomes nominais (`chainsaw`, `medium`) ou `preset_N` mantêm enum dropdown. Codegen: `tools/gen_pedal_models.py`.
