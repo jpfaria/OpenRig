@@ -37,6 +37,7 @@ members = [
   "crates/adapter-vst3",
   "crates/vst3",
   "tools/build_plugin_bundle",
+  "tools/extract_plugins",
 ]
 resolver = "2"
 
