@@ -246,16 +246,16 @@ mod tests {
 
     #[test]
     fn dry_mix_passes_delayed_input() {
-        // mix=0 returns the delayed real path (Hilbert group delay).
+        // mix=0 returns the delayed real path (Hilbert group delay = N/2 = 31 samples).
         let mut fs = FrequencyShifter::new(50.0, 0.0, 44_100.0);
         let sr = 44_100.0_f32;
         let inputs: Vec<f32> = (0..4096)
             .map(|i| (TAU * 440.0 * i as f32 / sr).sin())
             .collect();
         let outs: Vec<f32> = inputs.iter().map(|&x| fs.process_sample(x)).collect();
-        // After warmup, output equals input shifted by FIR_CENTER+1 samples.
+        // After warmup, output equals input shifted by FIR_CENTER samples.
         for i in (FIR_CENTER + 64)..outs.len() {
-            let expected = inputs[i - (FIR_CENTER + 1)];
+            let expected = inputs[i - FIR_CENTER];
             assert!(
                 (outs[i] - expected).abs() < 1e-5,
                 "mix=0 should be delayed dry: got {} expected {} at {i}",
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn zero_shift_is_close_to_dry() {
         // With shift=0 the analytic signal is multiplied by 1+0j, so
-        // output should match the delayed dry path.
+        // output should match the delayed dry path (group delay = 31 samples).
         let mut fs = FrequencyShifter::new(0.0, 1.0, 44_100.0);
         let sr = 44_100.0_f32;
         let inputs: Vec<f32> = (0..4096)
@@ -276,7 +276,7 @@ mod tests {
             .collect();
         let outs: Vec<f32> = inputs.iter().map(|&x| fs.process_sample(x)).collect();
         for i in (FIR_CENTER + 64)..outs.len() {
-            let expected = inputs[i - (FIR_CENTER + 1)];
+            let expected = inputs[i - FIR_CENTER];
             assert!(
                 (outs[i] - expected).abs() < 1e-4,
                 "shift=0 should be ~dry: got {} expected {} at {i}",

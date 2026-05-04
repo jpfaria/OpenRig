@@ -238,7 +238,6 @@ impl Rotor {
 }
 
 pub struct LeslieRotary {
-    sample_rate: f32,
     speed: f32,
     mix: f32,
     crossover_lp_a: Biquad,
@@ -254,7 +253,6 @@ impl LeslieRotary {
         // LR4 = two cascaded Butterworth 2nd-order (Q = 1/sqrt(2)).
         let q = 1.0 / 2.0_f32.sqrt();
         Self {
-            sample_rate,
             speed: speed.clamp(0.0, 1.0),
             mix: mix.clamp(0.0, 1.0),
             crossover_lp_a: Biquad::lowpass(CROSSOVER_HZ, sample_rate, q),
