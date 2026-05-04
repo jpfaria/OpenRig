@@ -39,8 +39,10 @@ fn main() {
 /// `adapter-gui`). End users never see this identifier — it's just the gettext
 /// catalog name.
 ///
-/// If `msgfmt` is missing, build proceeds with a warning and the app falls
-/// back to source-language passthrough at runtime.
+/// If `msgfmt` is missing (typical on Windows / fresh macOS), this step is
+/// skipped silently with a single one-line note; the runtime falls back to
+/// the bundled translations Slint already embedded via
+/// `with_bundled_translations`, so the app stays fully functional.
 fn compile_translations() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let translations_src = manifest.join("translations");
@@ -48,6 +50,15 @@ fn compile_translations() {
         return;
     }
     println!("cargo:rerun-if-changed=translations");
+
+    if !msgfmt_available() {
+        println!(
+            "cargo:warning=msgfmt not on PATH — skipping .mo generation \
+             (runtime uses Slint bundled translations; install GNU gettext \
+             only if you're packaging .deb / Linux distros that need .mo files)"
+        );
+        return;
+    }
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"));
     let out_translations = out_dir.join("translations");
@@ -78,6 +89,16 @@ fn compile_translations() {
     }
 }
 
+/// Returns true iff `msgfmt --version` runs successfully. Cached for the
+/// lifetime of the build script (cheap — at most one probe per build).
+fn msgfmt_available() -> bool {
+    Command::new("msgfmt")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 fn compile_po(po: &Path, mo_dir: &Path, lang: &str) {
     if let Err(e) = std::fs::create_dir_all(mo_dir) {
         println!("cargo:warning=cannot create {} ({})", mo_dir.display(), e);
@@ -89,13 +110,16 @@ fn compile_po(po: &Path, mo_dir: &Path, lang: &str) {
         .arg(&mo)
         .arg(po)
         .status();
-    match status {
-        Ok(s) if s.success() => {}
-        Ok(_) | Err(_) => {
+    if let Ok(s) = status {
+        if !s.success() {
+            // msgfmt exists but rejected this .po file — that IS a real bug
+            // (malformed catalog). Surface it so the translator can fix it.
             println!(
-                "cargo:warning=msgfmt failed for locale {} — install gettext to enable {} translations",
-                lang, lang
+                "cargo:warning=msgfmt rejected {}/adapter-gui.po (exit {}) — fix the .po file",
+                lang,
+                s.code().unwrap_or(-1)
             );
         }
     }
+    // Err case is unreachable here because msgfmt_available() gates entry.
 }

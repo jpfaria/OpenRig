@@ -25,9 +25,11 @@
 
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::bail;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::{anyhow, Result};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SupportedStreamConfigRange;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -35,6 +37,7 @@ use cpal::traits::DeviceTrait;
 
 use crate::resolved::{ResolvedInputDevice, ResolvedOutputDevice};
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn build_stream_config(
     channels: u16,
     sample_rate: u32,
@@ -47,6 +50,7 @@ pub(crate) fn build_stream_config(
     }
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_input_sample_rate(resolved: &ResolvedInputDevice) -> u32 {
     resolved
         .settings
@@ -55,6 +59,7 @@ pub(crate) fn resolved_input_sample_rate(resolved: &ResolvedInputDevice) -> u32 
         .unwrap_or_else(|| resolved.supported.sample_rate())
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u32 {
     resolved
         .settings
@@ -63,6 +68,7 @@ pub(crate) fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u3
         .unwrap_or_else(|| resolved.supported.sample_rate())
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
     resolved
         .settings

@@ -32,6 +32,10 @@ use project::chain::Chain;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::project::Project;
 
+// Helper kept unconditional by design (see module doc): callers are all in
+// non-JACK code paths, but the helper itself is cross-platform and
+// dependency-free. Allow dead_code so the JACK build doesn't trip lints.
+#[allow(dead_code)]
 pub(crate) fn validate_buffer_size(
     requested: u32,
     supported: &SupportedBufferSize,

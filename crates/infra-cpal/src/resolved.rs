@@ -17,12 +17,18 @@
 use cpal::SupportedStreamConfig;
 use project::device::DeviceSettings;
 
+// Fields are read by non-JACK code (CPAL stream construction, sample-rate
+// resolution, buffer-size resolution); JACK direct backend resolves the same
+// info from the JACK client and ignores these structs' contents, but they're
+// still constructed so the same project plumbing works.
+#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct ResolvedInputDevice {
     pub(crate) settings: Option<DeviceSettings>,
     pub(crate) device: cpal::Device,
     pub(crate) supported: SupportedStreamConfig,
 }
+#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct ResolvedOutputDevice {
     pub(crate) settings: Option<DeviceSettings>,
@@ -111,6 +117,7 @@ pub(crate) fn stream_signatures_require_client_rebuild(
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) const MAX_JACK_FRAMES: usize = 2048;
 
+#[allow(dead_code)]
 pub(crate) struct ResolvedChainAudioConfig {
     pub(crate) inputs: Vec<ResolvedInputDevice>,
     pub(crate) outputs: Vec<ResolvedOutputDevice>,

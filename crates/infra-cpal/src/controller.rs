@@ -18,7 +18,9 @@
 //! tap subscriptions). Splitting by method group would force every
 //! caller of an inherent method to pull in a trait.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use anyhow::anyhow;
 use std::collections::HashMap;
 
 use domain::ids::ChainId;
