@@ -94,7 +94,9 @@ pub(crate) fn build_runtime_block_nodes(
             blocks.push(node);
             continue;
         }
-        if let Some(node) = try_reuse_block_node(&mut reusable_nodes, block, current_layout) {
+        if let Some(node) =
+            try_reuse_block_node(&mut reusable_nodes, block, current_layout, sample_rate)
+        {
             log::info!(
                 "[engine] reuse block {:?} (id={})",
                 block.model_ref().map(|m| m.model),
@@ -141,6 +143,7 @@ fn try_reuse_block_node(
     reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
     block: &project::block::AudioBlock,
     current_layout: AudioChannelLayout,
+    sample_rate: f32,
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
     if node.input_layout != current_layout {
@@ -175,11 +178,65 @@ fn try_reuse_block_node(
         }
         return Some(node);
     }
+    // Issue #358 — params changed but kind/effect_type/model unchanged. Try to
+    // retune the existing processor in place (preserves IIR state, smooths
+    // coefficients), avoiding the click that a full rebuild produces. Only
+    // mono / dual-mono variants are supported today; other variants fall
+    // through to the rebuild path.
+    if try_in_place_param_update(&mut node, block, sample_rate) {
+        log::info!(
+            "[engine] in-place param update for block id={} (no rebuild)",
+            block.id.0
+        );
+        node.block_snapshot = block.clone();
+        return Some(node);
+    }
     log::info!(
         "[engine] cannot reuse block id={}: snapshot differs (params or kind changed)",
         block.id.0
     );
     None
+}
+
+/// Attempt to apply the new `block`'s params to `node`'s existing processor
+/// without dropping it. Returns `true` only if the kind/effect_type/model are
+/// unchanged AND the underlying processor accepts an in-place update.
+///
+/// Caller must update `node.block_snapshot` after a successful call so the
+/// next reuse attempt sees the new params as the "current" state.
+fn try_in_place_param_update(
+    node: &mut BlockRuntimeNode,
+    block: &project::block::AudioBlock,
+    sample_rate: f32,
+) -> bool {
+    if !block.enabled || !node.block_snapshot.enabled {
+        return false;
+    }
+    if std::mem::discriminant(&node.block_snapshot.kind) != std::mem::discriminant(&block.kind) {
+        return false;
+    }
+    let (Some(prev), Some(next)) = (node.block_snapshot.model_ref(), block.model_ref()) else {
+        return false;
+    };
+    if prev.effect_type != next.effect_type || prev.model != next.model {
+        return false;
+    }
+    let RuntimeProcessor::Audio(audio) = &mut node.processor else {
+        return false;
+    };
+    match audio {
+        AudioProcessor::Mono(processor) => processor.try_in_place_update(next.params, sample_rate),
+        AudioProcessor::DualMono { left, right } => {
+            // Both channels share the same params — both must accept the update.
+            // If either rejects, abort: the channels would otherwise diverge.
+            let left_ok = left.try_in_place_update(next.params, sample_rate);
+            let right_ok = right.try_in_place_update(next.params, sample_rate);
+            left_ok && right_ok
+        }
+        // Stereo / StereoFromMono use the StereoProcessor trait — not extended
+        // with try_in_place_update yet (#358 scope). Falls through to rebuild.
+        AudioProcessor::Stereo(_) | AudioProcessor::StereoFromMono(_) => false,
+    }
 }
 
 fn build_block_runtime_node(
@@ -236,9 +293,12 @@ fn build_select_runtime_node(
     let mut option_nodes = Vec::with_capacity(select.options.len());
     let mut resolved_output_layout = None;
     for option in &select.options {
-        let option_node = if let Some(node) =
-            try_reuse_block_node(&mut reusable_option_nodes, option, input_layout)
-        {
+        let option_node = if let Some(node) = try_reuse_block_node(
+            &mut reusable_option_nodes,
+            option,
+            input_layout,
+            sample_rate,
+        ) {
             node
         } else {
             build_block_runtime_node(chain, option, input_layout, sample_rate)?
