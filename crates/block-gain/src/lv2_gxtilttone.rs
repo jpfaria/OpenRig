@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gxtilttone#tilttone";
 const PLUGIN_DIR: &str = "gxtilttone";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gxtilttone.lv2/modgui/thumbnail-gxtilttone.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gxtilttone.dylib";

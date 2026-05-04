@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_fuzz_#fuzz_";
 const PLUGIN_DIR: &str = "gx_fuzz";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_fuzz.lv2/modgui/thumbnail-gxfuzz.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_fuzz.dylib";

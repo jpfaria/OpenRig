@@ -18,6 +18,7 @@ const BRAND: &str = "calf";
 
 const PLUGIN_URI: &str = "http://calf.sourceforge.net/plugins/Phaser";
 const PLUGIN_DIR: &str = "calf";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/calf.lv2/modgui/thumb-calf-phaser.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "calf.dylib";

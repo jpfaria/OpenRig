@@ -18,6 +18,7 @@ const BRAND: &str = "invada";
 
 const PLUGIN_URI: &str = "http://invadarecords.com/plugins/lv2/delay/sum";
 const PLUGIN_DIR: &str = "invada";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/invada.lv2/modgui/thumbnail-invada-delay-munge-sum-lr-in.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "inv_delay.dylib";

@@ -12,6 +12,7 @@ const DOAP_NS: &str = "http://usefulinc.com/ns/doap#";
 const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const ATOM_NS: &str = "http://lv2plug.in/ns/ext/atom#";
 const MOD_NS: &str = "http://moddevices.com/ns/mod#";
+const MODGUI_NS: &str = "http://moddevices.com/ns/modgui#";
 const MIDI_NS: &str = "http://lv2plug.in/ns/ext/midi#";
 const UNITS_UNIT: &str = "http://lv2plug.in/ns/extensions/units#unit";
 
@@ -217,6 +218,32 @@ fn build_plugin(store: &TripleStore, subject: &str, bundle_dir: &str) -> Plugin 
         .first_iri(subject, &binary_pred)
         .map(|iri| iri.rsplit('/').next().unwrap_or(iri).to_string());
 
+    // Walk modgui:gui blank node → modgui:thumbnail to find the icon PNG.
+    let modgui_pred = format!("{MODGUI_NS}gui");
+    let thumbnail_pred = format!("{MODGUI_NS}thumbnail");
+    let thumbnail = store
+        .objects(subject, &modgui_pred)
+        .find_map(|gui| {
+            let gui_subject = match gui {
+                Object::Blank(s) => s.as_str(),
+                Object::Iri(s) => s.as_str(),
+                _ => return None,
+            };
+            store.first_iri(gui_subject, &thumbnail_pred).map(|raw| {
+                raw.trim_start_matches("file://")
+                    .rsplit_once('/')
+                    .map(|(_, name)| name.to_string())
+                    .unwrap_or_else(|| raw.to_string())
+            })
+        })
+        .map(|name| {
+            if name.starts_with("modgui/") {
+                name
+            } else {
+                format!("modgui/{name}")
+            }
+        });
+
     let mut ports = Vec::new();
     let port_objs: Vec<Object> = store.objects(subject, &port_pred).cloned().collect();
     for port_obj in port_objs {
@@ -240,6 +267,7 @@ fn build_plugin(store: &TripleStore, subject: &str, bundle_dir: &str) -> Plugin 
         mod_label,
         plugin_classes,
         ports,
+        thumbnail,
     }
 }
 

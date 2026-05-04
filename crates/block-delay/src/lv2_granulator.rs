@@ -17,6 +17,7 @@ const BRAND: &str = "mayank";
 
 const PLUGIN_URI: &str = "http://faust-lv2.googlecode.com/Granulator";
 const PLUGIN_DIR: &str = "Granulator";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/Granulator.lv2/modgui/thumbnail-granulator.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Granulator.dylib";

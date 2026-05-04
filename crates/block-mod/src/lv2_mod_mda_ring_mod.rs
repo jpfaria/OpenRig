@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/RingMod";
 const PLUGIN_DIR: &str = "mod-mda-RingMod";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-RingMod.lv2/modgui/thumbnail-mda-ringmod.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "RingMod.dylib";

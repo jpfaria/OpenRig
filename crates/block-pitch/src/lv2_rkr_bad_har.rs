@@ -17,6 +17,7 @@ const BRAND: &str = "rakarrack";
 
 const PLUGIN_URI: &str = "http://rakarrack.sourceforge.net/effects.html#har";
 const PLUGIN_DIR: &str = "rkr-bad";
+pub const THUMBNAIL_PATH: Option<&str> = None;
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "plugin.dylib";

@@ -18,6 +18,7 @@ const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fat1";
 const PLUGIN_DIR: &str = "fat1";
+pub const THUMBNAIL_PATH: Option<&str> = None;
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "fat1.dylib";

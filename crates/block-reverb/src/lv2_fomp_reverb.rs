@@ -17,6 +17,7 @@ const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/reverb";
 const PLUGIN_DIR: &str = "fomp";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/fomp.lv2/modgui/thumbnail-reverb.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "reverbs.dylib";

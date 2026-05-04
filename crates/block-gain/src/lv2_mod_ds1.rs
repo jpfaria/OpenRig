@@ -17,6 +17,7 @@ const BRAND: &str = "mod";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/DS1";
 const PLUGIN_DIR: &str = "mod-ds1";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-ds1.lv2/modgui/thumbnail-ds1.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "mod-ds1.dylib";

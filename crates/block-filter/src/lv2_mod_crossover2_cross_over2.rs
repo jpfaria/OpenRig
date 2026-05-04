@@ -17,6 +17,7 @@ const BRAND: &str = "mod";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/CrossOver2";
 const PLUGIN_DIR: &str = "mod-crossover2";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-crossover2.lv2/modgui/thumb-crossover-2.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "mod-crossover2.dylib";

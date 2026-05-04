@@ -17,6 +17,7 @@ const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/mvclpf1";
 const PLUGIN_DIR: &str = "fomp-bad";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/fomp-bad.lv2/modgui/thumbnail-moog-low-pass-filter-1.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "mvclpf24.dylib";

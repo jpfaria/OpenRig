@@ -18,6 +18,7 @@ const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/parametric1";
 const PLUGIN_DIR: &str = "fomp-bad";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/fomp-bad.lv2/modgui/thumbnail-4-band-parametric-filter.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "filters.dylib";

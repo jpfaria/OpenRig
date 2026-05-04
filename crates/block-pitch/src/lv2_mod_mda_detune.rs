@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Detune";
 const PLUGIN_DIR: &str = "mod-mda-Detune";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-Detune.lv2/modgui/thumbnail-mda-detune.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Detune.dylib";

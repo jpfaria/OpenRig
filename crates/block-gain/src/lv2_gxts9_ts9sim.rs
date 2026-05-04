@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gxts9#ts9sim";
 const PLUGIN_DIR: &str = "gxts9";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gxts9.lv2/modgui/thumbnail-gxtubescreamer.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gxts9.dylib";

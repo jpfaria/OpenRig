@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/DubDelay";
 const PLUGIN_DIR: &str = "mod-mda-DubDelay";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-DubDelay.lv2/modgui/thumbnail-mda-dubdelay.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DubDelay.dylib";

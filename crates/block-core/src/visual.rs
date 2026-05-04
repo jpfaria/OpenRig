@@ -25,4 +25,12 @@ pub struct ModelVisualData {
     pub type_label: &'static str,
     pub supported_instruments: &'static [&'static str],
     pub knob_layout: &'static [KnobLayoutEntry],
+    /// Path (relative to project root) to a PNG thumbnail for the catalog
+    /// list. `None` for models without a packaged thumbnail. LV2 wrappers
+    /// pull this from `modgui:thumbnail` declared in the bundle TTL.
+    pub thumbnail_path: Option<&'static str>,
+    /// Whether the model has a usable backend on the current platform.
+    /// `false` means the catalog should render this entry as greyed out
+    /// and the runtime should bypass it when building chains.
+    pub available: bool,
 }

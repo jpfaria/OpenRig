@@ -17,6 +17,7 @@ const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/ToneStack";
 const PLUGIN_DIR: &str = "mod-caps-ToneStack";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-caps-ToneStack.lv2/modgui/thumbnail-c-tonestack-tone-stack-emulation.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ToneStack.dylib";

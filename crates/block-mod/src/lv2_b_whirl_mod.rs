@@ -17,6 +17,7 @@ const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/b_whirl#mod";
 const PLUGIN_DIR: &str = "b_whirl_mod";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/b_whirl_mod/modgui/thumbnail-setbfree-whirl.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "b_whirl.dylib";

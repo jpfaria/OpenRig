@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_hornet_#_hornet_";
 const PLUGIN_DIR: &str = "gx_hornet";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_hornet.lv2/modgui/thumbnail-gxhornet.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_hornet.dylib";

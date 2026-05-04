@@ -17,6 +17,7 @@ const BRAND: &str = "freaked";
 
 const PLUGIN_URI: &str = "http://faust-lv2.googlecode.com/Freakclip";
 const PLUGIN_DIR: &str = "Freakclip";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/Freakclip.lv2/modgui/thumbnail-freakclip.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Freakclip.dylib";

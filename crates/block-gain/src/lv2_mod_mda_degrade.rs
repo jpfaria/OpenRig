@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Degrade";
 const PLUGIN_DIR: &str = "mod-mda-Degrade";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-Degrade.lv2/modgui/thumbnail-mda-degrade.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Degrade.dylib";

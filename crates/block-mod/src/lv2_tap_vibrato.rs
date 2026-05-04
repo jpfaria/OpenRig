@@ -17,6 +17,7 @@ const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/vibrato";
 const PLUGIN_DIR: &str = "tap-vibrato";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/tap-vibrato.lv2/modgui/thumbnail-tap-vibrato.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_vibrato.dylib";

@@ -44,7 +44,7 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
         "// Re-run the tool to regenerate. Manual customisation goes in overrides.yaml."
     );
     let _ = writeln!(out);
-    let _ = writeln!(out, "#![allow(dead_code, unused_imports, unused_variables, clippy::approx_constant, clippy::excessive_precision)]");
+    let _ = writeln!(out, "#![allow(dead_code, unused_imports, unused_variables, clippy::all)]");
     let _ = writeln!(out);
     let _ = writeln!(out, "use crate::registry::{};", registry_type);
     let _ = writeln!(out, "use crate::{};", strip_kind(backend_kind));
@@ -58,6 +58,15 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
     let _ = writeln!(out);
     let _ = writeln!(out, "const PLUGIN_URI: &str = \"{}\";", plugin_uri);
     let _ = writeln!(out, "const PLUGIN_DIR: &str = \"{}\";", plugin_dir);
+    let thumb = match plugin.thumbnail.as_deref() {
+        Some(rel) => format!(
+            "Some(\".plugins/lv2/{bundle}/{rel}\")",
+            bundle = plugin.bundle_dir,
+            rel = escape_str(rel)
+        ),
+        None => "None".to_string(),
+    };
+    let _ = writeln!(out, "pub const THUMBNAIL_PATH: Option<&str> = {};", thumb);
     let _ = writeln!(out);
     let _ = writeln!(out, "#[cfg(target_os = \"macos\")]");
     let _ = writeln!(out, "const PLUGIN_BINARY: &str = \"{}.dylib\";", bin_stem);

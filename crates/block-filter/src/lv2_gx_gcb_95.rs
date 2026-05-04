@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_gcb_95_#_gcb_95_";
 const PLUGIN_DIR: &str = "gx_gcb_95";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_gcb_95.lv2/modgui/thumbnail-gxgcb95.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_gcb_95.dylib";

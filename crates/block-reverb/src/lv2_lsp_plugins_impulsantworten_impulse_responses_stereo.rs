@@ -18,6 +18,7 @@ const BRAND: &str = "lsp";
 
 const PLUGIN_URI: &str = "http://lsp-plug.in/plugins/lv2/impulse_responses_stereo";
 const PLUGIN_DIR: &str = "lsp-plugins-impulsantworten";
+pub const THUMBNAIL_PATH: Option<&str> = None;
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "lsp-plugins-lv2.dylib";

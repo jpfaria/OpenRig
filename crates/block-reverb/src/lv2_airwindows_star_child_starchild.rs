@@ -17,6 +17,7 @@ const BRAND: &str = "airwindows";
 
 const PLUGIN_URI: &str = "https://hannesbraun.net/ns/lv2/airwindows/starchild";
 const PLUGIN_DIR: &str = "Airwindows-StarChild";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/Airwindows-StarChild.lv2/modgui/thumbnail-starchild.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "StarChild.dylib";

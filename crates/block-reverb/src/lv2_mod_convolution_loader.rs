@@ -18,6 +18,7 @@ const BRAND: &str = "mod";
 
 const PLUGIN_URI: &str = "https://mod.audio/plugins/ConvolutionLoader";
 const PLUGIN_DIR: &str = "MOD-ConvolutionLoader";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/MOD-ConvolutionLoader.lv2/modgui/thumbnail.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "MOD-ConvolutionLoader_dsp.dylib";

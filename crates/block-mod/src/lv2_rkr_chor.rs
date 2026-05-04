@@ -18,6 +18,7 @@ const BRAND: &str = "rakarrack";
 
 const PLUGIN_URI: &str = "http://rakarrack.sourceforge.net/effects.html#chor";
 const PLUGIN_DIR: &str = "rkr";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/rkr.lv2/modgui/thumbnail-rkr-flangerchorus.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "rkrlv2.dylib";

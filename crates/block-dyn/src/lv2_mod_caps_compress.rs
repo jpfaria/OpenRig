@@ -17,6 +17,7 @@ const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/Compress";
 const PLUGIN_DIR: &str = "mod-caps-Compress";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-caps-Compress.lv2/modgui/thumbnail-c-compress-mono-compressor.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Compress.dylib";

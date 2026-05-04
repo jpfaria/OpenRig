@@ -17,6 +17,7 @@ const BRAND: &str = "shiro";
 
 const PLUGIN_URI: &str = "https://github.com/ninodewit/SHIRO-Plugins/plugins/pitchotto";
 const PLUGIN_DIR: &str = "Pitchotto";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/Pitchotto.lv2/modgui/thumbnail-pitchotto.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Pitchotto_dsp.dylib";

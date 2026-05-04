@@ -18,6 +18,7 @@ const BRAND: &str = "calf";
 
 const PLUGIN_URI: &str = "http://calf.sourceforge.net/plugins/MultibandCompressor";
 const PLUGIN_DIR: &str = "calf-bad";
+pub const THUMBNAIL_PATH: Option<&str> = None;
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "calf.dylib";

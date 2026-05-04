@@ -18,6 +18,7 @@ const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/zeroconvolv#CfgMono";
 const PLUGIN_DIR: &str = "zeroconvo";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/zeroconvo.lv2/modgui/thumbnail-mono.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "zeroconvolv.dylib";

@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_slowgear_#_slowgear_";
 const PLUGIN_DIR: &str = "gx_slowgear";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_slowgear.lv2/modgui/thumbnail-gxslowgear.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_slowgear.dylib";

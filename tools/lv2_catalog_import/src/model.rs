@@ -16,6 +16,9 @@ pub struct Plugin {
     pub mod_label: Option<String>,
     pub plugin_classes: Vec<String>,
     pub ports: Vec<Port>,
+    /// Path to the modgui thumbnail PNG, relative to the bundle directory.
+    /// Example: "modgui/thumbnail-starchild.png".
+    pub thumbnail: Option<String>,
 }
 
 #[allow(dead_code)]

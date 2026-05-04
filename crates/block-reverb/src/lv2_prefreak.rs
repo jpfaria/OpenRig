@@ -17,6 +17,7 @@ const BRAND: &str = "freaked";
 
 const PLUGIN_URI: &str = "http://faust-lv2.googlecode.com/Prefreak";
 const PLUGIN_DIR: &str = "Prefreak";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/Prefreak.lv2/modgui/thumbnail-prefreak.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Prefreak.dylib";

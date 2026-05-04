@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gxautowah#autowah";
 const PLUGIN_DIR: &str = "gxwah";
+pub const THUMBNAIL_PATH: Option<&str> = None;
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "plugin.dylib";

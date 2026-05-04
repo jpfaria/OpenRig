@@ -17,6 +17,7 @@ const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/cs_phaser1_lfo";
 const PLUGIN_DIR: &str = "fomp";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/fomp.lv2/modgui/thumbnail-cs-phaser-1-with-lfo.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "cs_phaser.dylib";

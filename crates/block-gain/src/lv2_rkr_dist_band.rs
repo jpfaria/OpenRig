@@ -18,6 +18,7 @@ const BRAND: &str = "rakarrack";
 
 const PLUGIN_URI: &str = "http://rakarrack.sourceforge.net/effects.html#DistBand";
 const PLUGIN_DIR: &str = "rkr";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/rkr.lv2/modgui/thumbnail-rkr-distband.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "plugin.dylib";

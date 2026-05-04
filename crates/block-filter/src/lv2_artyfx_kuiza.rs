@@ -18,6 +18,7 @@ const BRAND: &str = "openav";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#kuiza";
 const PLUGIN_DIR: &str = "artyfx";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/artyfx.lv2/modgui/thumbnail-kuiza.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";

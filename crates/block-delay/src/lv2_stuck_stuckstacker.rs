@@ -18,6 +18,7 @@ const BRAND: &str = "infamous";
 
 const PLUGIN_URI: &str = "http://ssj71.github.io/infamousPlugins/plugs.html#stuckstacker";
 const PLUGIN_DIR: &str = "stuck";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/stuck.lv2/modgui/thumbnail-stuck.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "stuck.dylib";

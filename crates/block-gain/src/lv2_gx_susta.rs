@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_susta_#_susta_";
 const PLUGIN_DIR: &str = "gx_susta";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_susta.lv2/modgui/thumbnail-gxsustainer.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_susta.dylib";

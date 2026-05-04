@@ -9,6 +9,7 @@ fn main() {
     let mut compressor_modules = Vec::new();
     let mut gate_modules = Vec::new();
     let mut available_modules = Vec::new();
+    let mut thumbnail_modules = Vec::new();
 
     for entry in fs::read_dir(&src_dir).expect("read src dir") {
         let path = entry.expect("dir entry").path();
@@ -30,13 +31,17 @@ fn main() {
             compressor_modules.push(name.clone());
         }
         if plugin_binary_present(&contents, &lv2_libs_dir) {
-            available_modules.push(name);
+            available_modules.push(name.clone());
+        }
+        if has_thumbnail(&contents) {
+            thumbnail_modules.push(name);
         }
     }
 
     compressor_modules.sort();
     gate_modules.sort();
     available_modules.sort();
+    thumbnail_modules.sort();
 
     let all_modules: Vec<&String> = compressor_modules.iter().chain(gate_modules.iter()).collect();
 
@@ -81,6 +86,13 @@ fn main() {
     generated.push_str("];\n\nconst GATE_MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
     for module_name in &gate_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
+    }
+    generated.push_str("];\n\npub const THUMBNAILS: &[(&str, &str)] = &[\n");
+    for module_name in &thumbnail_modules {
+        generated.push_str(&format!(
+            "    ({}::MODEL_ID, match {}::THUMBNAIL_PATH {{ Some(p) => p, None => \"\" }}),\n",
+            module_name, module_name
+        ));
     }
     generated.push_str("];\n");
 
@@ -146,4 +158,8 @@ fn parse_plugin_binary_const(line: &str) -> Option<String> {
     let rest = line.strip_prefix(prefix)?;
     let end = rest.find('"')?;
     Some(rest[..end].to_string())
+}
+
+fn has_thumbnail(source: &str) -> bool {
+    source.contains("pub const THUMBNAIL_PATH: Option<&str> = Some(")
 }

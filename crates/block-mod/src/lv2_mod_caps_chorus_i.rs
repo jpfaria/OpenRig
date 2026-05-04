@@ -17,6 +17,7 @@ const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/ChorusI";
 const PLUGIN_DIR: &str = "mod-caps-ChorusI";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-caps-ChorusI.lv2/modgui/thumbnail-c-chorusi-mono-chorusflanger.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ChorusI.dylib";

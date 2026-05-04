@@ -18,6 +18,7 @@ const BRAND: &str = "chowdsp";
 
 const PLUGIN_URI: &str = "https://github.com/jatinchowdhury18/KlonCentaur";
 const PLUGIN_DIR: &str = "ChowCentaur";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/ChowCentaur.lv2/modgui/thumbnail.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ChowCentaur.dylib";

@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_mbdelay_#_mbdelay_";
 const PLUGIN_DIR: &str = "gx_mbdelay";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_mbdelay.lv2/modgui/thumbnail-gxmultibanddelay.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_mbdelay.dylib";

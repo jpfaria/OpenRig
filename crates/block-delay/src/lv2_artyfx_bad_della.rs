@@ -18,6 +18,7 @@ const BRAND: &str = "openav";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#della";
 const PLUGIN_DIR: &str = "artyfx-bad";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/artyfx-bad.lv2/modgui/thumbnail-della.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";

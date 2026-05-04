@@ -17,6 +17,7 @@ const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/b_overdrive";
 const PLUGIN_DIR: &str = "b_overdrive";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/b_overdrive/modgui/thumbnail-setbfree-organ-overdrive.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "b_overdrive.dylib";

@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_cstb_#_cstb_";
 const PLUGIN_DIR: &str = "gx_cstb";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_cstb.lv2/modgui/thumbnail-gxcolorsoundtonebender.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_cstb.dylib";

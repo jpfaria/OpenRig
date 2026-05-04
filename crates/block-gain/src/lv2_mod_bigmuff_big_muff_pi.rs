@@ -17,6 +17,7 @@ const BRAND: &str = "mod";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/BigMuffPi";
 const PLUGIN_DIR: &str = "mod-bigmuff";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-bigmuff.lv2/modgui/thumbnail-open-big-muff.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "mod-bigmuff.dylib";

@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_muff_#_muff_";
 const PLUGIN_DIR: &str = "gx_muff";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_muff.lv2/modgui/thumbnail-gxmuff.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_muff.dylib";

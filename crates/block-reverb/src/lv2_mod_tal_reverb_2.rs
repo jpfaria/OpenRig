@@ -18,6 +18,7 @@ const BRAND: &str = "kxstudio";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tal-reverb-2";
 const PLUGIN_DIR: &str = "mod-tal-Reverb-2";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-tal-Reverb-2.lv2/modgui/thumbnail-tal-reverb-ii.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "TAL-Reverb-2.dylib";

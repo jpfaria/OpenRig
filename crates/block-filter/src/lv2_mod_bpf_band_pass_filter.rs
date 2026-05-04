@@ -17,6 +17,7 @@ const BRAND: &str = "mod";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mod-devel/BandPassFilter";
 const PLUGIN_DIR: &str = "mod-bpf";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-bpf.lv2/modgui/thumb-bandpassfilter.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "mod-bpf.dylib";

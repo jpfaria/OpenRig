@@ -18,6 +18,7 @@ const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fil4#stereo";
 const PLUGIN_DIR: &str = "fil4";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/fil4.lv2/modgui/thumbnail-x42-eq-stereo.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "fil4.dylib";

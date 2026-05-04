@@ -18,6 +18,7 @@ const BRAND: &str = "a__bruzas";
 
 const PLUGIN_URI: &str = "http://hippie.lt/lv2/gate";
 const PLUGIN_DIR: &str = "abGate";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/abGate.lv2/modgui/thumbnail-abgate.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gate.dylib";

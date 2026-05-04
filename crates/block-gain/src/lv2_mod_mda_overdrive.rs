@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Overdrive";
 const PLUGIN_DIR: &str = "mod-mda-Overdrive";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-Overdrive.lv2/modgui/thumbnail-mda-overdrive.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Overdrive.dylib";

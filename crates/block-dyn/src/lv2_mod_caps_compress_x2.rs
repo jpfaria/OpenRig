@@ -17,6 +17,7 @@ const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/CompressX2";
 const PLUGIN_DIR: &str = "mod-caps-CompressX2";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-caps-CompressX2.lv2/modgui/thumbnail-c-compressx2-stereo-compressor.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "CompressX2.dylib";

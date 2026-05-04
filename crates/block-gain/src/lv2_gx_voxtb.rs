@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_voxtb_#_voxtb_";
 const PLUGIN_DIR: &str = "gx_voxtb";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gx_voxtb.lv2/modgui/thumbnail-gxvox-tonebender.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_voxtb.dylib";

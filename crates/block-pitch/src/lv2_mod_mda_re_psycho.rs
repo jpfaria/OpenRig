@@ -17,6 +17,7 @@ const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/RePsycho";
 const PLUGIN_DIR: &str = "mod-mda-RePsycho";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/mod-mda-RePsycho.lv2/modgui/thumbnail-mda-repsycho.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "RePsycho.dylib";

@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_switchless_wah#wah";
 const PLUGIN_DIR: &str = "GxSwitchlessWah";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/GxSwitchlessWah.lv2/modgui/thumbnail-gxswitchlesswah.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_switchless_wah.dylib";

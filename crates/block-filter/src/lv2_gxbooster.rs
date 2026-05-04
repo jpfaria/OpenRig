@@ -17,6 +17,7 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gxbooster#booster";
 const PLUGIN_DIR: &str = "gxbooster";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/gxbooster.lv2/modgui/thumbnail-gxbooster.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gxbooster.dylib";

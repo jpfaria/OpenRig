@@ -17,6 +17,7 @@ const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/dynamics-st";
 const PLUGIN_DIR: &str = "tap-dynamics-st";
+pub const THUMBNAIL_PATH: Option<&str> = Some(".plugins/lv2/tap-dynamics-st.lv2/modgui/thumbnail-tap-stereo-dynamics.png");
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_dynamics-st.dylib";
