@@ -8,6 +8,7 @@ fn main() {
     let lv2_libs_dir = lv2_libs_dir(&manifest_dir);
     let mut compressor_modules = Vec::new();
     let mut gate_modules = Vec::new();
+    let mut available_modules = Vec::new();
 
     for entry in fs::read_dir(&src_dir).expect("read src dir") {
         let path = entry.expect("dir entry").path();
@@ -22,20 +23,20 @@ fn main() {
         if !contents.contains("MODEL_DEFINITION") {
             continue;
         }
-        if !plugin_binary_present(&contents, &lv2_libs_dir) {
-            println!("cargo:warning=skip {}: LV2 binary not present for current platform", stem);
-            continue;
-        }
         let name = stem.to_string();
         if stem.contains("gate") {
-            gate_modules.push(name);
+            gate_modules.push(name.clone());
         } else {
-            compressor_modules.push(name);
+            compressor_modules.push(name.clone());
+        }
+        if plugin_binary_present(&contents, &lv2_libs_dir) {
+            available_modules.push(name);
         }
     }
 
     compressor_modules.sort();
     gate_modules.sort();
+    available_modules.sort();
 
     let all_modules: Vec<&String> = compressor_modules.iter().chain(gate_modules.iter()).collect();
 
@@ -49,6 +50,11 @@ fn main() {
 
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &all_modules {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
+    }
+
+    generated.push_str("];\n\npub const AVAILABLE_MODEL_IDS: &[&str] = &[\n");
+    for module_name in &available_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
 

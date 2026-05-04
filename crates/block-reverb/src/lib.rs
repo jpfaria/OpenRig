@@ -37,15 +37,21 @@ pub fn reverb_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn reverb_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn reverb_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn reverb_type_label(model: &str) -> &'static str {
-    reverb_model_visual(model).map(|v| v.type_label).unwrap_or("")
+    reverb_model_visual(model)
+        .map(|v| v.type_label)
+        .unwrap_or("")
 }
 
 pub fn reverb_model_schema(model: &str) -> Result<ModelParameterSchema> {
@@ -72,12 +78,12 @@ pub fn build_reverb_processor_for_layout(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_reverb_processor_for_layout, reverb_brand, reverb_display_name,
-        reverb_model_schema, reverb_model_visual, reverb_type_label, supported_models,
+        build_reverb_processor_for_layout, reverb_brand, reverb_display_name, reverb_model_schema,
+        reverb_model_visual, reverb_type_label, supported_models,
     };
     use block_core::param::ParameterSet;
-    use domain::value_objects::ParameterValue;
     use block_core::AudioChannelLayout;
+    use domain::value_objects::ParameterValue;
 
     // ── registry-level tests ───────────────────────────────────────────
 
@@ -367,9 +373,16 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let result = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
             );
-            assert!(result.is_ok(), "{model} should build mono at 44100Hz: {:?}", result.err());
+            assert!(
+                result.is_ok(),
+                "{model} should build mono at 44100Hz: {:?}",
+                result.err()
+            );
         }
     }
 
@@ -382,9 +395,16 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let result = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
             );
-            assert!(result.is_ok(), "{model} should build stereo at 44100Hz: {:?}", result.err());
+            assert!(
+                result.is_ok(),
+                "{model} should build stereo at 44100Hz: {:?}",
+                result.err()
+            );
         }
     }
 
@@ -396,8 +416,12 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
@@ -420,15 +444,21 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Stereo,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Stereo(ref mut p) => {
                     for i in 0..1024 {
                         let [l, r] = p.process_frame([0.0, 0.0]);
-                        assert!(l.is_finite() && r.is_finite(),
-                            "{model} stereo not finite at sample {i}");
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo not finite at sample {i}"
+                        );
                     }
                 }
                 _ => panic!("{model} expected Stereo processor"),
@@ -444,8 +474,12 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
 
             let sr = 44_100.0_f32;
             let mut any_nonzero = false;
@@ -462,7 +496,10 @@ mod tests {
                 }
                 _ => panic!("{model} expected Mono processor"),
             }
-            assert!(any_nonzero, "{model} mono produced all zeros for sine input");
+            assert!(
+                any_nonzero,
+                "{model} mono produced all zeros for sine input"
+            );
         }
     }
 
@@ -475,8 +512,12 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Stereo,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .expect("build");
 
             let sr = 44_100.0_f32;
             let mut any_nonzero = false;
@@ -485,8 +526,10 @@ mod tests {
                     for i in 0..1024 {
                         let input = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin();
                         let [l, r] = p.process_frame([input, input]);
-                        assert!(l.is_finite() && r.is_finite(),
-                            "{model} stereo not finite at sample {i}");
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo not finite at sample {i}"
+                        );
                         if l.abs() > 1e-10 || r.abs() > 1e-10 {
                             any_nonzero = true;
                         }
@@ -494,7 +537,10 @@ mod tests {
                 }
                 _ => panic!("{model} expected Stereo processor"),
             }
-            assert!(any_nonzero, "{model} stereo produced all zeros for sine input");
+            assert!(
+                any_nonzero,
+                "{model} stereo produced all zeros for sine input"
+            );
         }
     }
 
@@ -506,8 +552,12 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Mono,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
 
             let sr = 44_100.0_f32;
             match &mut processor {
@@ -534,8 +584,12 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model, &params, 44_100.0, AudioChannelLayout::Stereo,
-            ).expect("build");
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .expect("build");
 
             let sr = 44_100.0_f32;
             match &mut processor {
@@ -548,12 +602,18 @@ mod tests {
                         .collect();
                     p.process_block(&mut buffer);
                     for (i, [l, r]) in buffer.iter().enumerate() {
-                        assert!(l.is_finite() && r.is_finite(),
-                            "{model} stereo block not finite at frame {i}");
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo block not finite at frame {i}"
+                        );
                     }
                 }
                 _ => panic!("{model} expected Stereo processor"),
             }
         }
     }
+}
+
+pub fn is_reverb_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
 }

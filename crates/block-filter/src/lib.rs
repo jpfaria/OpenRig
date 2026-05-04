@@ -586,3 +586,7 @@ mod tests {
         assert!(result.is_ok());
     }
 }
+
+pub fn is_filter_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}

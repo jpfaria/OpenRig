@@ -52,6 +52,19 @@ pub(crate) fn build_core_block_runtime_node(
     let params = &core.params;
 
     use block_core::*;
+
+    // Pre-check: if the requested model has no usable backend on the current
+    // platform (e.g. an LV2 plugin whose .dylib/.so/.dll is missing from
+    // libs/lv2/<platform>/), refuse to instantiate. The caller catches this
+    // error and inserts a bypass node marked `faulted` — the chain stays
+    // intact but the block emits silence/passthrough rather than crashing.
+    if !is_model_available_for_effect_type(effect_type, model) {
+        anyhow::bail!(
+            "model '{}' is not available on the current platform (effect_type={})",
+            model,
+            effect_type
+        );
+    }
     match effect_type {
         EFFECT_TYPE_PREAMP => Ok(audio_block_runtime_node(
             block,
@@ -293,5 +306,23 @@ pub(crate) fn build_core_block_runtime_node(
             ))
         }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
+    }
+}
+
+/// Returns true if the model has a usable backend on the current platform.
+/// Effect types whose backing crate doesn't expose an availability check
+/// (preamp/amp/cab/body/ir/util/vst3/full_rig/nam) are treated as always
+/// available — those layers do their own per-instance asset resolution.
+fn is_model_available_for_effect_type(effect_type: &str, model: &str) -> bool {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_REVERB => block_reverb::is_reverb_model_available(model),
+        EFFECT_TYPE_DELAY => block_delay::is_delay_model_available(model),
+        EFFECT_TYPE_MODULATION => block_mod::is_mod_model_available(model),
+        EFFECT_TYPE_FILTER => block_filter::is_filter_model_available(model),
+        EFFECT_TYPE_DYNAMICS => block_dyn::is_dyn_model_available(model),
+        EFFECT_TYPE_GAIN => block_gain::is_gain_model_available(model),
+        EFFECT_TYPE_PITCH => block_pitch::is_pitch_model_available(model),
+        _ => true,
     }
 }

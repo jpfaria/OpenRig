@@ -37,11 +37,15 @@ pub fn mod_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn mod_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn mod_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn mod_type_label(model: &str) -> &'static str {
@@ -72,3 +76,7 @@ pub fn build_modulation_processor_for_layout(
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+pub fn is_mod_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}

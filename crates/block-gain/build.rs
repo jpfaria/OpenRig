@@ -6,8 +6,9 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let src_dir = manifest_dir.join("src");
     let lv2_libs_dir = lv2_libs_dir(&manifest_dir);
-
     let mut model_modules = Vec::new();
+    let mut available_modules = Vec::new();
+
     for entry in fs::read_dir(&src_dir).expect("read src dir") {
         let path = entry.expect("dir entry").path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
@@ -21,22 +22,24 @@ fn main() {
         if !contents.contains("MODEL_DEFINITION") {
             continue;
         }
-        if !plugin_binary_present(&contents, &lv2_libs_dir) {
-            // Auto-generated LV2 wrapper whose binary is not bundled for this
-            // platform → skip so the model never appears in the catalog.
-            println!("cargo:warning=skip {}: LV2 binary not present for current platform", stem);
-            continue;
-        }
         model_modules.push(stem.to_string());
+        if plugin_binary_present(&contents, &lv2_libs_dir) {
+            available_modules.push(stem.to_string());
+        }
     }
 
     model_modules.sort();
+    available_modules.sort();
     let mut generated = String::new();
     for module_name in &model_modules {
         generated.push_str(&format!("#[path = \"{}/{}.rs\"]\nmod {};\n", src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name));
     }
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &model_modules {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
+    }
+    generated.push_str("];\n\npub const AVAILABLE_MODEL_IDS: &[&str] = &[\n");
+    for module_name in &available_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
     generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[GainModelDefinition] = &[\n");

@@ -126,3 +126,7 @@ pub fn build_gate_processor_for_layout(
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+pub fn is_dyn_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}

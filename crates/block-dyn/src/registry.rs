@@ -38,3 +38,11 @@ pub fn find_gate_model_definition(model: &str) -> Result<&'static DynModelDefini
         .find(|definition| definition.id == model)
         .ok_or_else(|| anyhow!("unsupported gate model '{}'", model))
 }
+
+/// Returns true if the model has a usable backend on the current platform.
+/// LV2 wrappers report `false` when their plugin binary is missing from
+/// `libs/lv2/<platform>/`. Native/NAM/IR/VST3 models report `true`.
+pub fn is_model_available(model: &str) -> bool {
+    AVAILABLE_MODEL_IDS.iter().any(|id| *id == model)
+        || !MODEL_DEFINITIONS.iter().any(|d| d.id == model)
+}

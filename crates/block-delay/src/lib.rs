@@ -37,15 +37,21 @@ pub fn delay_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn delay_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn delay_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn delay_type_label(model: &str) -> &'static str {
-    delay_model_visual(model).map(|v| v.type_label).unwrap_or("")
+    delay_model_visual(model)
+        .map(|v| v.type_label)
+        .unwrap_or("")
 }
 
 pub fn delay_model_schema(model: &str) -> Result<ModelParameterSchema> {
@@ -76,8 +82,8 @@ mod tests {
         delay_model_visual, delay_type_label, supported_models,
     };
     use block_core::param::ParameterSet;
-    use domain::value_objects::ParameterValue;
     use block_core::AudioChannelLayout;
+    use domain::value_objects::ParameterValue;
 
     // ── registry-level tests ───────────────────────────────────────────
 
@@ -388,13 +394,9 @@ mod tests {
     fn native_delay_process_silence_mono_produces_finite() {
         for model in native_delay_models() {
             let params = default_params_for(model);
-            let mut processor = build_delay_processor_for_layout(
-                model,
-                &params,
-                44100.0,
-                AudioChannelLayout::Mono,
-            )
-            .expect("build");
+            let mut processor =
+                build_delay_processor_for_layout(model, &params, 44100.0, AudioChannelLayout::Mono)
+                    .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
@@ -415,13 +417,9 @@ mod tests {
     fn native_delay_process_sine_mono_produces_finite() {
         for model in native_delay_models() {
             let params = default_params_for(model);
-            let mut processor = build_delay_processor_for_layout(
-                model,
-                &params,
-                44100.0,
-                AudioChannelLayout::Mono,
-            )
-            .expect("build");
+            let mut processor =
+                build_delay_processor_for_layout(model, &params, 44100.0, AudioChannelLayout::Mono)
+                    .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
@@ -482,8 +480,7 @@ mod tests {
             match &mut processor {
                 block_core::BlockProcessor::Stereo(ref mut p) => {
                     for i in 0..1024 {
-                        let s =
-                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+                        let s = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
                         let [l, r] = p.process_frame([s, s]);
                         assert!(
                             l.is_finite() && r.is_finite(),
@@ -500,13 +497,9 @@ mod tests {
     fn native_delay_process_block_1024_silence_mono_all_finite() {
         for model in native_delay_models() {
             let params = default_params_for(model);
-            let mut processor = build_delay_processor_for_layout(
-                model,
-                &params,
-                44100.0,
-                AudioChannelLayout::Mono,
-            )
-            .expect("build");
+            let mut processor =
+                build_delay_processor_for_layout(model, &params, 44100.0, AudioChannelLayout::Mono)
+                    .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
@@ -528,20 +521,14 @@ mod tests {
     fn native_delay_process_block_1024_sine_mono_all_finite() {
         for model in native_delay_models() {
             let params = default_params_for(model);
-            let mut processor = build_delay_processor_for_layout(
-                model,
-                &params,
-                44100.0,
-                AudioChannelLayout::Mono,
-            )
-            .expect("build");
+            let mut processor =
+                build_delay_processor_for_layout(model, &params, 44100.0, AudioChannelLayout::Mono)
+                    .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
                     let mut buf: Vec<f32> = (0..1024)
-                        .map(|i| {
-                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5
-                        })
+                        .map(|i| (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5)
                         .collect();
                     p.process_block(&mut buf);
                     for (i, &s) in buf.iter().enumerate() {
@@ -572,8 +559,8 @@ mod tests {
                 block_core::BlockProcessor::Stereo(ref mut p) => {
                     let mut buf: Vec<[f32; 2]> = (0..1024)
                         .map(|i| {
-                            let s = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin()
-                                * 0.5;
+                            let s =
+                                (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
                             [s, s]
                         })
                         .collect();
@@ -589,4 +576,8 @@ mod tests {
             }
         }
     }
+}
+
+pub fn is_delay_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
 }
