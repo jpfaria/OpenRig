@@ -22,7 +22,7 @@ pub fn wire(window: &AppWindow) {
     // selected against, otherwise the first frame renders tofu before any
     // language change happens.
     let boot_font = font_family_for_locale(&initial_locale);
-    log::info!("i18n.font: boot locale={} → font_family={}", initial_locale, boot_font);
+    eprintln!("i18n.font: boot locale={} → font_family={}", initial_locale, boot_font);
     Locale::get(window).set_font_family(boot_font.into());
 
     let initial_index = current_language_index();
@@ -49,7 +49,7 @@ pub fn wire(window: &AppWindow) {
         // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
         let new_locale_for_font = locale_for_runtime(lang.as_deref());
         let new_font = font_family_for_locale(&new_locale_for_font);
-        log::info!("i18n.font: change locale={} → font_family={}", new_locale_for_font, new_font);
+        eprintln!("i18n.font: change locale={} → font_family={}", new_locale_for_font, new_font);
         Locale::get(&window).set_font_family(new_font.into());
         // Rebuild the dropdown labels in the new UI locale — otherwise
         // the language list itself stays in the previous language and
