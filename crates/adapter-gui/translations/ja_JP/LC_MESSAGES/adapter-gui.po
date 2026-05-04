@@ -636,7 +636,7 @@ msgstr "キャンセル"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-ok"
-msgstr "OK"
+msgstr "確認"
 
 msgctxt "ChainIoGroupsPage"
 msgid "btn-cancel"
@@ -644,7 +644,7 @@ msgstr "キャンセル"
 
 msgctxt "ChainIoGroupsPage"
 msgid "btn-ok"
-msgstr "OK"
+msgstr "確認"
 
 msgctxt "ProjectSettingsPage"
 msgid "btn-cancel"
@@ -652,7 +652,7 @@ msgstr "キャンセル"
 
 msgctxt "ProjectSettingsPage"
 msgid "btn-ok"
-msgstr "OK"
+msgstr "確認"
 
 msgctxt "ChainInsertEditorPage"
 msgid "btn-cancel"
@@ -660,7 +660,7 @@ msgstr "キャンセル"
 
 msgctxt "ChainInsertEditorPage"
 msgid "btn-ok"
-msgstr "OK"
+msgstr "確認"
 
 msgctxt "BlockEditorWindow"
 msgid "title-window-block-editor"
