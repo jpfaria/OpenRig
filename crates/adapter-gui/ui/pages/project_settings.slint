@@ -117,7 +117,7 @@ component DeviceRow inherits Rectangle {
         if root.device.selected : Text {
             width: parent.width;
             height: parent.height;
-            text: "✓";
+            text: @tr("✓");
             color: #ffffff;
             font-size: 12px;
             font-weight: 700;
@@ -144,7 +144,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: "Hz";
+        text: @tr("label-hz");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -167,7 +167,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 32px;
         height: parent.height;
-        text: "Buffer";
+        text: @tr("label-buffer");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -190,7 +190,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: "Bits";
+        text: @tr("label-bits");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -241,10 +241,9 @@ export component ProjectSettingsPage inherits Rectangle {
         y: 28px;
         width: 120px;
         height: 16px;
-        text: "Nome";
+        text: @tr("label-name");
         color: #7a8694;
         font-size: 11px;
-        font-weight: 600;
     }
 
     FieldBox {
@@ -269,7 +268,7 @@ export component ProjectSettingsPage inherits Rectangle {
         y: 114px;
         width: parent.width - 96px;
         height: 20px;
-        text: "Dispositivos de áudio";
+        text: @tr("title-section-audio-devices");
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
@@ -327,14 +326,14 @@ export component ProjectSettingsPage inherits Rectangle {
     FooterButton {
         x: parent.width - 196px;
         y: parent.height - 52px;
-        label: "Cancelar";
+        label: @tr("btn-cancel");
         clicked => { root.close-project-settings(); }
     }
 
     FooterButton {
         x: parent.width - 92px;
         y: parent.height - 52px;
-        label: "OK";
+        label: @tr("btn-ok");
         primary: true;
         clicked => { root.save-audio-settings(); }
     }

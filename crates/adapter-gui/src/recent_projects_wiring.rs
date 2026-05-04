@@ -26,9 +26,8 @@ use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
     canonical_project_path, load_project_session, mark_recent_project_invalid,
-    project_display_name, project_session_snapshot, project_title_for_path,
-    recent_project_items, register_recent_project, resolve_project_config_path,
-    set_project_dirty,
+    project_display_name, project_session_snapshot, project_title_for_path, recent_project_items,
+    register_recent_project, resolve_project_config_path, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
@@ -100,7 +99,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 .get(index as usize)
                 .cloned()
             else {
-                set_status_error(&window, &toast_timer, "Projeto recente inválido.");
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-invalid-recent-project"),
+                );
                 return;
             };
             if !recent.is_valid {
@@ -109,7 +112,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     &toast_timer,
                     &recent
                         .invalid_reason
-                        .unwrap_or_else(|| "Projeto inválido.".to_string()),
+                        .unwrap_or_else(|| rust_i18n::t!("error-invalid-recent-project").to_string()),
                 );
                 return;
             }
@@ -151,7 +154,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                             .into(),
                     );
                     window.set_project_path_label(
-                        format!("Projeto: {}", canonical_path.display()).into(),
+                        rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
                     );
                     window.set_show_project_launcher(false);
                     window.set_show_project_chains(true);
@@ -172,7 +175,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     set_status_error(
                         &window,
                         &toast_timer,
-                        "Projeto inválido. Corrija ou remova da lista.",
+                        &rust_i18n::t!("error-invalid-recent-project-detail"),
                     );
                 }
             }

@@ -1,9 +1,10 @@
 import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem } from "models.slint";
+import { Locale } from "locale_globals.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
@@ -19,7 +20,7 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
-    title: "OpenRig · Configurar projeto";
+    title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
     preferred-width: 1100px;
@@ -48,7 +49,7 @@ export component ProjectSettingsWindow inherits Window {
 
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <string> editor-title;
     in property <string> editor-save-label;
@@ -92,7 +93,7 @@ export component ChainEditorWindow inherits Window {
     callback output-select-mode(int);
     callback output-save();
     callback output-cancel();
-    title: "OpenRig · Configurar chain";
+    title: @tr("title-window-chain-editor");
     min-width: 860px;
     min-height: 540px;
     preferred-width: 1100px;
@@ -125,7 +126,7 @@ export component ChainEditorWindow inherits Window {
     if root.show-input-editor : ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Entrada";
+        title: @tr("title-section-input");
         device-options: root.input-device-options;
         selected-device-index <=> root.input-selected-device-index;
         channels: root.input-channels;
@@ -143,7 +144,7 @@ export component ChainEditorWindow inherits Window {
     if root.show-output-editor : ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Saída";
+        title: @tr("title-section-output");
         device-options: root.output-device-options;
         selected-device-index <=> root.output-selected-device-index;
         channels: root.output-channels;
@@ -161,7 +162,7 @@ export component ChainEditorWindow inherits Window {
 
 export component ChainInputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -173,7 +174,7 @@ export component ChainInputWindow inherits Window {
     callback select-input-mode(int);
     callback save();
     callback cancel();
-    title: "OpenRig · Entrada da chain";
+    title: @tr("title-window-chain-input");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -183,7 +184,7 @@ export component ChainInputWindow inherits Window {
     ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Entrada";
+        title: @tr("title-section-input");
         device-options: root.device-options;
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
@@ -201,7 +202,7 @@ export component ChainInputWindow inherits Window {
 
 export component ChainOutputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -213,7 +214,7 @@ export component ChainOutputWindow inherits Window {
     callback select-output-mode(int);
     callback save();
     callback cancel();
-    title: "OpenRig · Saída da chain";
+    title: @tr("title-window-chain-output");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -223,7 +224,7 @@ export component ChainOutputWindow inherits Window {
     ChainEndpointEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Saída";
+        title: @tr("title-section-output");
         device-options: root.device-options;
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
@@ -241,7 +242,7 @@ export component ChainOutputWindow inherits Window {
 
 export component ChainInputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -254,7 +255,7 @@ export component ChainInputGroupsWindow inherits Window {
     callback cancel();
     callback toggle-enabled();
     callback delete-block();
-    title: "OpenRig \u{00B7} Entradas da chain";
+    title: @tr("title-window-chain-inputs");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -264,8 +265,8 @@ export component ChainInputGroupsWindow inherits Window {
     ChainIoGroupsPage {
         width: parent.width;
         height: parent.height;
-        title: "Entradas";
-        add-label: "+ Adicionar entrada";
+        title: @tr("title-section-inputs");
+        add-label: @tr("btn-add-input-row");
         groups: root.groups;
         status-message <=> root.status-message;
         show-block-controls: root.show-block-controls;
@@ -282,7 +283,7 @@ export component ChainInputGroupsWindow inherits Window {
 
 export component ChainOutputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -295,7 +296,7 @@ export component ChainOutputGroupsWindow inherits Window {
     callback cancel();
     callback toggle-enabled();
     callback delete-block();
-    title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
+    title: @tr("title-window-chain-outputs");
     min-width: 680px;
     min-height: 500px;
     preferred-width: 820px;
@@ -305,8 +306,8 @@ export component ChainOutputGroupsWindow inherits Window {
     ChainIoGroupsPage {
         width: parent.width;
         height: parent.height;
-        title: "Sa\u{00ED}das";
-        add-label: "+ Adicionar sa\u{00ED}da";
+        title: @tr("title-section-outputs");
+        add-label: @tr("btn-add-output-row");
         groups: root.groups;
         status-message <=> root.status-message;
         show-block-controls: root.show-block-controls;
@@ -323,7 +324,7 @@ export component ChainOutputGroupsWindow inherits Window {
 
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     // Send (output devices)
     in property <[string]> send-device-options;
@@ -351,7 +352,7 @@ export component ChainInsertWindow inherits Window {
     callback save();
     callback cancel();
 
-    title: "OpenRig \u{00B7} Configurar Insert";
+    title: @tr("title-window-chain-insert");
     min-width: 680px;
     min-height: 580px;
     preferred-width: 820px;
@@ -361,7 +362,7 @@ export component ChainInsertWindow inherits Window {
     ChainInsertEditorPage {
         width: parent.width;
         height: parent.height;
-        title: "Configurar Insert";
+        title: @tr("title-section-configure-insert");
         send-device-options: root.send-device-options;
         selected-send-device-index <=> root.selected-send-device-index;
         send-channels: root.send-channels;

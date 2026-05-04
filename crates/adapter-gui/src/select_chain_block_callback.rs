@@ -29,18 +29,19 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::AudioBlockKind;
 
 use crate::audio_devices::{
-    build_insert_return_channel_items, build_insert_send_channel_items,
-    refresh_input_devices, refresh_output_devices, replace_channel_options,
-    selected_device_index,
+    build_insert_return_channel_items, build_insert_send_channel_items, refresh_input_devices,
+    refresh_output_devices, replace_channel_options, selected_device_index,
 };
-use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, build_knob_overlays};
+use crate::block_editor::{
+    block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
+};
 use crate::block_editor_window_setup;
 use crate::chain_editor::{chain_draft_from_chain, insert_mode_to_index};
 use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
 use crate::helpers::{set_status_error, show_child_window, use_inline_block_editor};
 use crate::io_groups::build_io_group_items;
 use crate::project_view::{
-    block_model_picker_items, block_model_picker_labels, block_model_index, block_type_index,
+    block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
     block_type_picker_items, set_selected_block,
 };
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
@@ -139,11 +140,11 @@ pub(crate) fn wire(
         };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
             return;
         };
         let Some(chain) = session.project.chains.get(chain_index as usize) else {
-            set_status_error(&window, &toast_timer, "Chain inválida.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
             return;
         };
         // Convert UI index (position in filtered array without first Input/last Output)
@@ -152,7 +153,7 @@ pub(crate) fn wire(
         log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
         let Some(block) = chain.blocks.get(block_index as usize) else {
             log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
-            set_status_error(&window, &toast_timer, "Block inválido.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
             return;
         };
         // Handle I/O blocks — open I/O groups window with entries of THIS specific block
@@ -250,7 +251,7 @@ pub(crate) fn wire(
             log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
         }
         let Some(editor_data) = block_editor_data(block) else {
-            set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-block-not-editable"));
             return;
         };
         let effect_type = editor_data.effect_type.clone();
@@ -307,7 +308,7 @@ pub(crate) fn wire(
         if is_vst3_block && !model_id.is_empty() {
             match project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate) {
                 Ok(handle) => { vst3_editor_handles.borrow_mut().push(handle); }
-                Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
+                Err(e) => set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string()),
             }
             return;
         }
@@ -414,7 +415,7 @@ pub(crate) fn wire(
             ) {
                 Ok(pair) => pair,
                 Err(e) => {
-                    set_status_error(&window, &toast_timer, &format!("Erro ao abrir editor: {e}"));
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-editor-open", err = e).to_string());
                     return;
                 }
             };

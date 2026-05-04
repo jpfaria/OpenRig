@@ -64,7 +64,11 @@ pub(crate) fn wire(
                 &fresh_output,
                 &session.project.device_settings,
             ));
-            set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
+            set_status_info(
+                &window,
+                &toast_timer,
+                &rust_i18n::t!("status-devices-refreshed"),
+            );
         });
     }
     {
@@ -84,13 +88,17 @@ pub(crate) fn wire(
                 &session.project.device_settings,
             ));
             if let Some(window) = main_window_weak.upgrade() {
-                set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
+                set_status_info(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("status-devices-refreshed"),
+                );
             }
             // Settings window has its own status field — the main-window toast is
             // hidden when the standalone settings window is shown, so also clear
             // any stale status on the settings window itself.
             if let Some(sw) = project_settings_window_weak.upgrade() {
-                sw.set_status_message("Lista de dispositivos atualizada".into());
+                sw.set_status_message(rust_i18n::t!("status-devices-refreshed").to_string().into());
             }
         });
     }

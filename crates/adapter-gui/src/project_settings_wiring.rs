@@ -79,7 +79,11 @@ pub(crate) fn wire(
             let fresh_output = refresh_output_devices(&chain_output_device_options);
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             project_devices.set_vec(build_project_device_rows(
@@ -89,9 +93,8 @@ pub(crate) fn wire(
             ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
             window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
-            settings_window.set_project_name_draft(
-                session.project.name.clone().unwrap_or_default().into(),
-            );
+            settings_window
+                .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             if fullscreen {

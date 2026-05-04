@@ -129,7 +129,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 196px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
-            tooltip: "Expandir blocos";
+            tooltip: @tr("tooltip-expand-blocks");
             clicked => { root.open-compact-chain-view(root.chain-index); }
         }
 
@@ -137,7 +137,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 236px;
             y: 14px;
             icon: @image-url("../assets/sonar.svg");
-            tooltip: "Medir latência real (emite um bipe)";
+            tooltip: @tr("tooltip-measure-latency");
             clicked => { root.probe-chain-latency(root.chain-index); }
         }
 
@@ -166,7 +166,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 156px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
-            tooltip: "Configurar";
+            tooltip: @tr("tooltip-configure");
             clicked => { root.configure-chain(root.chain-index); }
         }
 
@@ -174,7 +174,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 116px;
             y: 14px;
             icon: @image-url("../assets/open-file.svg");
-            tooltip: "Abrir preset";
+            tooltip: @tr("tooltip-open-preset");
             clicked => { root.configure-chain-preset(root.chain-index); }
         }
 
@@ -182,7 +182,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 76px;
             y: 14px;
             icon: @image-url("../assets/save.svg");
-            tooltip: "Salvar preset";
+            tooltip: @tr("tooltip-save-preset");
             clicked => { root.save-chain-preset(root.chain-index); }
         }
 
@@ -190,7 +190,7 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 36px;
             y: 14px;
             icon: @image-url("../assets/trash.svg");
-            tooltip: "Excluir";
+            tooltip: @tr("tooltip-delete");
             clicked => { root.remove-chain(root.chain-index); }
         }
     }
@@ -461,7 +461,7 @@ export component ChainRow inherits Rectangle {
                 y: 2px;
                 width: 26px;
                 height: parent.height;
-                text: "LAT";
+                text: @tr("label-lat");
                 color: root.chain.latency_ms < 10.0 ? #4ade8099
                      : root.chain.latency_ms < 20.0 ? #facc1599
                      : #f8717199;
@@ -510,7 +510,7 @@ export component ChainRow inherits Rectangle {
                     x: 12px;
                     width: parent.width - 24px;
                     height: parent.height;
-                    text: "Entrada";
+                    text: @tr("label-input");
                     color: #edf2f9;
                     font-size: 12px;
                     font-weight: 800;
@@ -556,7 +556,7 @@ export component ChainRow inherits Rectangle {
                     x: 12px;
                     width: parent.width - 24px;
                     height: parent.height;
-                    text: "Saída";
+                    text: @tr("label-output");
                     color: #edf2f9;
                     font-size: 12px;
                     font-weight: 800;

@@ -68,11 +68,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                 return;
             };
             let default_name = chain
@@ -89,7 +93,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 // Desktop: use file dialog
                 let Some(p) = FileDialog::new()
                     .add_filter("OpenRig Preset", &["yaml", "yml"])
-                    .set_title("Salvar preset")
+                    .set_title(rust_i18n::t!("dialog-save-preset").as_ref())
                     .set_directory(&session.presets_path)
                     .set_file_name(format!("{default_name}.yaml"))
                     .save_file()
@@ -99,7 +103,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 p
             };
             match save_chain_blocks_to_preset(chain, &path) {
-                Ok(()) => set_status_info(&window, &toast_timer, "Preset salvo."),
+                Ok(()) => {
+                    set_status_info(&window, &toast_timer, &rust_i18n::t!("status-preset-saved"))
+                }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
@@ -121,7 +127,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             if window.get_touch_optimized() {
@@ -159,7 +169,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // Desktop: use file dialog
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Carregar preset na chain")
+                .set_title(rust_i18n::t!("dialog-load-preset").as_ref())
                 .set_directory(&session.presets_path)
                 .pick_file()
             else {
@@ -186,10 +196,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             new_blocks.push(input);
                         }
                         new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                            !matches!(
-                                b.kind,
-                                AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                            )
+                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
                         }));
                         if let Some(output) = last_output {
                             new_blocks.push(output);
@@ -269,10 +276,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             new_blocks.push(input);
                         }
                         new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                            !matches!(
-                                b.kind,
-                                AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                            )
+                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
                         }));
                         if let Some(output) = last_output {
                             new_blocks.push(output);
@@ -340,7 +344,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         })
                         .collect();
                     window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
-                    set_status_info(&window, &toast_timer, "Preset removido.");
+                    set_status_info(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("status-preset-removed"),
+                    );
                 }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }

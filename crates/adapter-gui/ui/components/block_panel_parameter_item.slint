@@ -271,7 +271,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: 4px;
             width: parent.width - 8px;
             height: parent.height;
-            text: root.param.value_text != "" ? root.param.value_text : "Load";
+            text: root.param.value_text != "" ? root.param.value_text : @tr("btn-load-file");
             color: root.param.value_text != "" ? #8090a0 : #4488cc;
             font-size: 8px;
             font-weight: 600;

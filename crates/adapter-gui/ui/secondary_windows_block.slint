@@ -1,10 +1,11 @@
 import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem } from "models.slint";
+import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
@@ -24,7 +25,7 @@ export component BlockEditorWindow inherits Window {
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
-    in property <string> block-window-title: "OpenRig · Block";
+    in property <string> block-window-title: @tr("title-window-block-editor");
     callback choose-block-model(int);
     callback choose-block-model-by-id(string);
     callback search-block-model(string);
@@ -170,9 +171,9 @@ export component BlockEditorWindow inherits Window {
 
 export component CompactChainViewWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
-    title: "OpenRig \u{00B7} Chain";
+    title: @tr("title-window-chain-view");
     min-width: 800px;
     min-height: 260px;
     preferred-width: 1000px;

@@ -20,7 +20,7 @@ export component BlockStreamMiniDisplay inherits Rectangle {
         // Waiting for signal — shown until pitch is detected
         if !stream-data.active : Text {
             x: 0; y: 0; width: parent.width; height: parent.height;
-            text: "–";
+            text: @tr("–");
             color: #3a4050;
             font-size: 28px; font-weight: 900;
             horizontal-alignment: center;

@@ -59,8 +59,10 @@ pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
     sync_project_runtime, system_language, ui_index_to_real_block_index,
 };
+
 mod defaults;
 pub(crate) use defaults::*;
+
 mod audio_devices;
 mod block_editor;
 mod block_editor_param_items;
@@ -93,7 +95,16 @@ mod desktop_app_chain_wiring;
 mod desktop_app_cli_open;
 mod desktop_app_init;
 mod desktop_app_polling;
+mod i18n;
+mod language_wiring;
 pub use desktop_app::run_desktop_app;
+pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
+
+// Loads every YAML under crates/adapter-gui/locales/ at compile time.
+// Keys MUST be semantic tags (e.g. `t!("error-no-project-loaded")`,
+// never `t!("Nenhum projeto carregado.")`). Default fallback is en-US.
+rust_i18n::i18n!("locales", fallback = "en-US");
+
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;

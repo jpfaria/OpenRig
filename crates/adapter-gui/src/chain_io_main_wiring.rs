@@ -231,7 +231,7 @@ pub(crate) fn wire(
                 set_status_error(
                     &window,
                     &toast_timer,
-                    "Canal de entrada já está em uso por outra chain.",
+                    &rust_i18n::t!("error-channel-in-use-by-other"),
                 );
                 return;
             }
@@ -349,8 +349,8 @@ pub(crate) fn wire(
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             if window.get_fullscreen() {
-                window.set_chain_io_groups_title("Entradas".into());
-                window.set_chain_io_groups_add_label("+ Adicionar entrada".into());
+                window.set_chain_io_groups_title(rust_i18n::t!("title-section-inputs").as_ref().into());
+                window.set_chain_io_groups_add_label(rust_i18n::t!("btn-add-input-row").as_ref().into());
                 window.set_chain_io_groups_items(groups_model);
                 window.set_chain_io_groups_status("".into());
                 window.set_chain_io_groups_show_block_controls(false);
@@ -421,8 +421,8 @@ pub(crate) fn wire(
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             if window.get_fullscreen() {
-                window.set_chain_io_groups_title("Saídas".into());
-                window.set_chain_io_groups_add_label("+ Adicionar saída".into());
+                window.set_chain_io_groups_title(rust_i18n::t!("title-section-outputs").as_ref().into());
+                window.set_chain_io_groups_add_label(rust_i18n::t!("btn-add-output-row").as_ref().into());
                 window.set_chain_io_groups_items(groups_model);
                 window.set_chain_io_groups_status("".into());
                 window.set_chain_io_groups_show_block_controls(false);

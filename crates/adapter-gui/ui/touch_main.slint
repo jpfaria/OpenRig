@@ -24,6 +24,10 @@ export component TouchMain inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -570,7 +574,7 @@ export component TouchMain inherits Rectangle {
             mouse-cursor: pointer;
             clicked => { root.keyboard-visible = !root.keyboard-visible; root.kb-shift = false; }
             Text {
-                text: "⌨";
+                text: @tr("⌨");
                 font-size: 22px;
                 color: #ffffff;
                 horizontal-alignment: center;
@@ -595,7 +599,7 @@ export component TouchMain inherits Rectangle {
                 padding: 16px;
                 spacing: 8px;
                 Text {
-                    text: "Carregar Preset";
+                    text: @tr("btn-load-preset");
                     font-size: 16px;
                     color: #ffffff;
                     font-weight: 700;
@@ -634,12 +638,13 @@ export component TouchMain inherits Rectangle {
                                     mouse-cursor: pointer;
                                     clicked => { root.preset-picker-delete(i); }
                                 }
-                                Text {
-                                    text: "✕";
-                                    font-size: 16px;
-                                    color: #cc4444;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
+                                Image {
+                                    x: (parent.width - 18px) / 2;
+                                    y: (parent.height - 18px) / 2;
+                                    width: 18px;
+                                    height: 18px;
+                                    source: @image-url("modules/surrealism-ui/icons/delete.svg");
+                                    colorize: del-area.has-hover ? #ffffff : #cc4444;
                                 }
                             }
                         }
@@ -654,7 +659,7 @@ export component TouchMain inherits Rectangle {
                         clicked => { root.preset-picker-cancel(); }
                     }
                     Text {
-                        text: "Cancelar";
+                        text: @tr("btn-cancel");
                         font-size: 14px;
                         color: #aaaaaa;
                         horizontal-alignment: center;

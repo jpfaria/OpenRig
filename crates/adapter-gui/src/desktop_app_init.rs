@@ -59,11 +59,11 @@ pub(crate) fn populate_initial_window_state(
     window.set_show_project_settings(false);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
-    window.set_project_title("Projeto".into());
+    window.set_project_title(rust_i18n::t!("default-project-title").as_ref().into());
     window.set_project_name_draft("".into());
     window.set_recent_project_search("".into());
-    window.set_chain_editor_title("Nova chain".into());
-    window.set_chain_editor_save_label("Criar chain".into());
+    window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+    window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -120,7 +120,7 @@ pub(crate) fn populate_initial_window_state(
     window.set_block_picker_title("".into());
     window.set_show_block_drawer(false);
     window.set_block_drawer_title("".into());
-    window.set_block_drawer_confirm_label("Adicionar".into());
+    window.set_block_drawer_confirm_label(rust_i18n::t!("btn-add").as_ref().into());
     window.set_block_drawer_status_message("".into());
     window.set_block_drawer_edit_mode(false);
     window.set_block_drawer_selected_type_index(-1);

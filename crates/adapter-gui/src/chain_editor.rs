@@ -26,7 +26,7 @@ pub(crate) fn create_chain_draft(
     // inputs/outputs with a toast.
     ChainDraft {
         editing_index: None,
-        name: format!("Chain {}", project.chains.len() + 1),
+        name: rust_i18n::t!("default-chain-name", n = project.chains.len() + 1).to_string(),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         inputs: Vec::new(),
         outputs: Vec::new(),
@@ -80,7 +80,7 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
         name: chain
             .description
             .clone()
-            .unwrap_or_else(|| format!("Chain {}", index + 1)),
+            .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string()),
         instrument: chain.instrument.clone(),
         inputs,
         editing_io_block_index: None,
@@ -267,12 +267,12 @@ pub(crate) fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
 pub(crate) fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
-            window.set_chain_editor_title("Nova chain".into());
-            window.set_chain_editor_save_label("Criar chain".into());
+            window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+            window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
         }
         ChainEditorMode::Edit => {
-            window.set_chain_editor_title("Configurar chain".into());
-            window.set_chain_editor_save_label("Salvar chain".into());
+            window.set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
+            window.set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
         }
     }
 }

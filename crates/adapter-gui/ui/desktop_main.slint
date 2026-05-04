@@ -3,6 +3,7 @@ import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
+import { LanguageSelector } from "components/language_selector.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -25,6 +26,10 @@ export component DesktopMain inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -212,11 +217,15 @@ export component DesktopMain inherits Rectangle {
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
+        change-language(i) => { root.change-language(i); }
     }
 
     if root.show-project-setup : ProjectSetupPage {
@@ -478,5 +487,20 @@ export component DesktopMain inherits Rectangle {
         refresh-devices => { root.refresh-devices(); }
     }
 
+    // Floating language selector — top-right of every screen EXCEPT the
+    // launcher (the launcher renders its own larger copy inline next to the
+    // open/create-project buttons). Compact mode aligns with the
+    // HeaderIconAction row used in project_chains.slint (24x24 flat at y=14
+    // inside an x=24/width=parent.width-48 header strip).
+    if !root.show-project-launcher : LanguageSelector {
+        x: parent.width - 32px;
+        y: 32px;
+        z: 200;
+        compact: true;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.change-language(i); }
+    }
 }
 

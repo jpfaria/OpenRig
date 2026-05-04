@@ -285,6 +285,7 @@ fn gui_audio_settings_is_complete_both_populated() {
     let settings = GuiAudioSettings {
         input_devices: vec![make_device("in1", "Input 1")],
         output_devices: vec![make_device("out1", "Output 1")],
+        language: None,
     };
     assert!(settings.is_complete());
 }
@@ -294,6 +295,7 @@ fn gui_audio_settings_is_complete_missing_input() {
     let settings = GuiAudioSettings {
         input_devices: vec![],
         output_devices: vec![make_device("out1", "Output 1")],
+        language: None,
     };
     assert!(!settings.is_complete());
 }
@@ -303,6 +305,7 @@ fn gui_audio_settings_is_complete_missing_output() {
     let settings = GuiAudioSettings {
         input_devices: vec![make_device("in1", "Input 1")],
         output_devices: vec![],
+        language: None,
     };
     assert!(!settings.is_complete());
 }
@@ -318,6 +321,7 @@ fn gui_audio_settings_serde_roundtrip() {
     let settings = GuiAudioSettings {
         input_devices: vec![make_device("in1", "Mic"), make_device("in2", "Line In")],
         output_devices: vec![make_device("out1", "Speakers")],
+        language: None,
     };
     let yaml = serde_yaml::to_string(&settings).unwrap();
     let restored: GuiAudioSettings = serde_yaml::from_str(&yaml).unwrap();
@@ -332,6 +336,7 @@ fn gui_audio_settings_save_and_load_filesystem_roundtrip() {
     let settings = GuiAudioSettings {
         input_devices: vec![make_device("coreaudio:in", "Built-in Mic")],
         output_devices: vec![make_device("coreaudio:out", "Built-in Output")],
+        language: None,
     };
 
     let yaml = serde_yaml::to_string(&settings).unwrap();

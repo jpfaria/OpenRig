@@ -33,7 +33,7 @@ export component BlockPanelEditor inherits Rectangle {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
-    in property <string> block-drawer-confirm-label: "Adicionar";
+    in property <string> block-drawer-confirm-label: @tr("btn-add");
     in property <BlockStreamData> block-stream-data;
 
     callback choose-block-model(int);
@@ -298,7 +298,7 @@ export component BlockPanelEditor inherits Rectangle {
         // Waiting for signal — shown until pitch is detected
         if !root.block-stream-data.active : Text {
             x: 0; y: 0; width: parent.width; height: parent.height;
-            text: "–";
+            text: @tr("–");
             color: #3a4050;
             font-size: 28px; font-weight: 900;
             horizontal-alignment: center;

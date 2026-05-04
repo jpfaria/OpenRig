@@ -236,6 +236,11 @@ pub struct GuiAudioSettings {
     pub input_devices: Vec<GuiAudioDeviceSettings>,
     #[serde(default)]
     pub output_devices: Vec<GuiAudioDeviceSettings>,
+    // The struct name is historical (originally audio-only); the file lives
+    // at gui-settings.yaml and now hosts every per-machine GUI preference.
+    // None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 impl GuiAudioSettings {
@@ -326,6 +331,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
         Self {
             input_devices,
             output_devices,
+            language: None,
         }
     }
 }
@@ -387,6 +393,15 @@ impl FilesystemStorage {
         fs::write(&path, raw)
             .with_context(|| format!("failed to write gui settings to {:?}", path))?;
         Ok(())
+    }
+
+    /// Update only the `language` field of the persisted gui-settings.yaml,
+    /// preserving every other field. Used by the language selector so picking
+    /// a new locale doesn't clobber audio device selection.
+    pub fn save_gui_language(language: Option<String>) -> Result<()> {
+        let mut current = Self::load_gui_audio_settings()?.unwrap_or_default();
+        current.language = language;
+        Self::save_gui_audio_settings(&current)
     }
 
     pub fn load_app_config() -> Result<AppConfig> {

@@ -120,7 +120,8 @@ pub(crate) fn wire(
             };
             // Fixed block (chip In/Out): must keep at least one entry
             if draft.editing_io_block_index.is_none() && draft.inputs.len() <= 1 {
-                groups_window.set_status_message("É necessário pelo menos uma entrada.".into());
+                groups_window
+                    .set_status_message(rust_i18n::t!("error-need-input").to_string().into());
                 return;
             }
             let gi = group_index as usize;
@@ -174,8 +175,7 @@ pub(crate) fn wire(
                 draft.editing_input_index = Some(idx);
                 draft.adding_new_input = true;
                 if let Some(groups_window) = weak_groups_window.upgrade() {
-                    let (input_items, _) =
-                        build_io_group_items(draft, &fresh_input, &fresh_output);
+                    let (input_items, _) = build_io_group_items(draft, &fresh_input, &fresh_output);
                     groups_window.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
                 }
                 idx
@@ -219,30 +219,35 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                groups_window.set_status_message("Nenhum projeto carregado.".into());
+                groups_window.set_status_message(
+                    rust_i18n::t!("error-no-project-loaded").to_string().into(),
+                );
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    groups_window.set_status_message("Nenhuma chain em edição.".into());
+                    groups_window.set_status_message(
+                        rust_i18n::t!("error-no-chain-editing").to_string().into(),
+                    );
                     return;
                 }
             };
             if draft.inputs.is_empty() {
-                groups_window.set_status_message("Adicione pelo menos uma entrada.".into());
+                groups_window
+                    .set_status_message(rust_i18n::t!("warn-add-input").to_string().into());
                 return;
             }
             for (i, input) in draft.inputs.iter().enumerate() {
                 if input.device_id.is_none() {
                     groups_window.set_status_message(
-                        format!("Entrada {}: selecione o dispositivo.", i + 1).into(),
+                        rust_i18n::t!("error-input-no-device-numbered", n = i + 1).to_string().into(),
                     );
                     return;
                 }
                 if input.channels.is_empty() {
                     groups_window.set_status_message(
-                        format!("Entrada {}: selecione pelo menos um canal.", i + 1).into(),
+                        rust_i18n::t!("error-input-no-channels-numbered", n = i + 1).to_string().into(),
                     );
                     return;
                 }

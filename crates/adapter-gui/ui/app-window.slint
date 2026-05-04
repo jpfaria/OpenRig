@@ -1,4 +1,5 @@
 import "fonts/CooperHewitt-Semibold.ttf";
+import { Locale } from "locale_globals.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -9,13 +10,19 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
+export { Locale }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    // Helvetica Neue (system) instead of Bebas Neue because the bundled
+    // Latin-only display fonts cause CJK/Devanagari/Hangul characters to
+    // render as tofu boxes when the UI locale is ja-JP / zh-CN / ko-KR /
+    // hi-IN. Helvetica Neue routes through the macOS system fallback
+    // chain (PingFang SC, Hiragino, Apple SD Gothic, etc.).
+    default-font-family: Locale.font-family;
     default-font-size: 13px;
     in property <string> app-version;
     in property <bool> show-project-launcher;
@@ -212,6 +219,11 @@ export component AppWindow inherits Window {
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
     callback virtual-key-pressed(string);
+    // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback change-language(int);
     in property <bool> show-preset-picker: false;
     in property <[string]> preset-picker-items;
     in-out property <int> preset-picker-chain-index: -1;
@@ -257,6 +269,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -448,6 +464,10 @@ export component AppWindow inherits Window {
         project-chains: root.project-chains;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;

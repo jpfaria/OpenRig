@@ -25,9 +25,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
-use crate::project_view::{
-    block_type_picker_items, build_compact_blocks, real_block_index_to_ui,
-};
+use crate::project_view::{block_type_picker_items, build_compact_blocks, real_block_index_to_ui};
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,
@@ -79,12 +77,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         }
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+            set_status_error(
+                &window,
+                &toast_timer,
+                &rust_i18n::t!("error-no-project-loaded"),
+            );
             return;
         };
         let ci = chain_index as usize;
         let Some(chain) = session.project.chains.get(ci) else {
-            set_status_error(&window, &toast_timer, "Chain inválida.");
+            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
             return;
         };
 
@@ -98,7 +100,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         let title = chain
             .description
             .clone()
-            .unwrap_or_else(|| format!("Chain {}", ci + 1));
+            .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = ci + 1).to_string());
         compact_win.set_chain_title(title.into());
         compact_win.set_chain_index(chain_index);
         compact_win.set_chain_enabled(chain.enabled);
@@ -204,8 +206,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         {
             let weak_main = window.as_weak();
             compact_win.on_choose_block_type(move |ci, before, type_index| {
-                log::debug!("[compact] choose-block-type: chain={}, before={}, type_index={}", ci, before, type_index);
-                let Some(main_win) = weak_main.upgrade() else { return; };
+                log::debug!(
+                    "[compact] choose-block-type: chain={}, before={}, type_index={}",
+                    ci,
+                    before,
+                    type_index
+                );
+                let Some(main_win) = weak_main.upgrade() else {
+                    return;
+                };
                 // Trigger the full insert flow on the main window (sets up draft + opens editor)
                 main_win.invoke_start_block_insert(ci, before);
                 // Select the type that was chosen
@@ -218,7 +227,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             let weak_main = window.as_weak();
             let project_session_detail = project_session.clone();
             compact_win.on_open_block_detail(move |ci, bi| {
-                let Some(main_win) = weak_main.upgrade() else { return; };
+                let Some(main_win) = weak_main.upgrade() else {
+                    return;
+                };
                 // bi is a real block index from CompactBlockItem — convert to UI index
                 // because on_select_chain_block now expects UI indices
                 let session_borrow = project_session_detail.borrow();
@@ -247,27 +258,41 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 slint::TimerMode::Repeated,
                 std::time::Duration::from_millis(80),
                 move || {
-                    let Some(cw) = weak_cw.upgrade() else { return; };
+                    let Some(cw) = weak_cw.upgrade() else {
+                        return;
+                    };
                     let rt_borrow = project_runtime_poll.borrow();
-                    let Some(rt) = rt_borrow.as_ref() else { return; };
+                    let Some(rt) = rt_borrow.as_ref() else {
+                        return;
+                    };
                     let compact_blocks = cw.get_compact_blocks();
                     for i in 0..compact_blocks.row_count() {
                         if let Some(mut item) = compact_blocks.row_data(i) {
                             if item.effect_type == "utility" {
                                 let stream_data = if item.enabled {
                                     let bid = BlockId(item.block_id.to_string());
-                                    let kind: slint::SharedString = project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into();
+                                    let kind: slint::SharedString =
+                                        project::catalog::model_stream_kind(
+                                            item.effect_type.as_str(),
+                                            item.model_id.as_str(),
+                                        )
+                                        .into();
                                     if let Some(entries) = rt.poll_stream(&bid) {
-                                        let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                            key: e.key.clone().into(),
-                                            value: e.value,
-                                            text: e.text.clone().into(),
-                                            peak: e.peak,
-                                        }).collect();
+                                        let slint_entries: Vec<BlockStreamEntry> = entries
+                                            .iter()
+                                            .map(|e| BlockStreamEntry {
+                                                key: e.key.clone().into(),
+                                                value: e.value,
+                                                text: e.text.clone().into(),
+                                                peak: e.peak,
+                                            })
+                                            .collect();
                                         BlockStreamData {
                                             active: true,
                                             stream_kind: kind,
-                                            entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                            entries: ModelRc::from(Rc::new(VecModel::from(
+                                                slint_entries,
+                                            ))),
                                         }
                                     } else {
                                         BlockStreamData {
@@ -278,7 +303,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                                     }
                                 } else {
                                     // Disabled utility block — clear stream so parameters become visible
-                                    BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
+                                    BlockStreamData {
+                                        active: false,
+                                        stream_kind: "".into(),
+                                        entries: ModelRc::default(),
+                                    }
                                 };
                                 item.stream_data = stream_data;
                                 compact_blocks.set_row_data(i, item);
@@ -320,12 +349,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         {
             let vst3_handles = vst3_editor_handles.clone();
             let vst3_sr = vst3_sample_rate;
-            compact_win.on_open_plugin(move |model_id| {
-                match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                    Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                    Err(e) => log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e),
-                }
-            });
+            compact_win.on_open_plugin(
+                move |model_id| match project::vst3_editor::open_vst3_editor(
+                    model_id.as_str(),
+                    vst3_sr,
+                ) {
+                    Ok(handle) => {
+                        vst3_handles.borrow_mut().push(handle);
+                    }
+                    Err(e) => {
+                        log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e)
+                    }
+                },
+            );
         }
 
         show_child_window(window.window(), compact_win.window());

@@ -119,7 +119,7 @@ export component BlockEditorPanel inherits Rectangle {
             x: parent.width - 40px;
             y: 20px;
             icon: @image-url("../assets/trash.svg");
-            tooltip: "Excluir";
+            tooltip: @tr("tooltip-delete");
             clicked => { root.delete-block-drawer(); }
         }
 
@@ -238,7 +238,7 @@ export component BlockEditorPanel inherits Rectangle {
             // Waiting for signal — shown until pitch is detected
             if !root.block-stream-data.active : Text {
                 x: 0; y: 0; width: parent.width; height: parent.height;
-                text: "–";
+                text: @tr("–");
                 color: #3a4050;
                 font-size: 52px; font-weight: 900;
                 horizontal-alignment: center;

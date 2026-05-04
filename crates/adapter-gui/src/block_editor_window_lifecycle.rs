@@ -276,8 +276,8 @@ pub(crate) fn wire(
             let Some(draft) = win_draft.borrow().clone() else { return; };
             let Some(block_index) = draft.block_index else { return; };
             let confirmed = rfd::MessageDialog::new()
-                .set_title("Excluir bloco")
-                .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
+                .set_title(rust_i18n::t!("dialog-delete-block").as_ref())
+                .set_description(rust_i18n::t!("dialog-confirm-delete-block", name = draft.model_id).to_string())
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .set_level(rfd::MessageLevel::Warning)
                 .show();
@@ -336,6 +336,12 @@ pub(crate) fn wire(
                     return;
                 }
             };
+            {
+                use slint::Global;
+                crate::Locale::get(&info_win).set_font_family(
+                    crate::i18n::font_for_persisted_runtime().into(),
+                );
+            }
 
             info_win.set_plugin_name(display_name.into());
             info_win.set_brand(brand.into());

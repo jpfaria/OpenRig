@@ -1,0 +1,874 @@
+# OpenRig — Hindi.
+msgid ""
+msgstr ""
+"Project-Id-Version: OpenRig\n"
+"POT-Creation-Date: 2026-05-01 23:22+0000\n"
+"PO-Revision-Date: 2026-04-30 00:00+0000\n"
+"Language-Team: Hindi\n"
+"Language: hi_IN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: crates/adapter-gui/ui/blocks/header.slint:13
+msgctxt "Header"
+msgid "OpenRig"
+msgstr "OpenRig"
+
+#: crates/adapter-gui/ui/components/block_stream_mini_display.slint:23
+msgctxt "BlockStreamMiniDisplay"
+msgid "–"
+msgstr "–"
+
+#: crates/adapter-gui/ui/components/block_value_widgets.slint:128
+msgctxt "BlockValueStepper"
+msgid "−"
+msgstr "−"
+
+#: crates/adapter-gui/ui/components/block_value_widgets.slint:194
+msgctxt "BlockValueStepper"
+msgid "+"
+msgstr "+"
+
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir bloco"
+msgstr "ब्लॉक हटाएं"
+
+#. pt-BR source string with the placeholder.
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:36
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir \"{}\"?"
+msgstr "\"{}\" हटाएं?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Cancelar"
+msgstr "रद्द करें"
+
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "Excluir"
+msgstr "हटाएं"
+
+#: crates/adapter-gui/ui/components/language_selector.slint:51
+msgctxt "LanguageSelector"
+msgid "accessible-language-selector"
+msgstr "भाषा चयनकर्ता"
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:93
+msgctxt "ModelSelectWithSearch"
+msgid "▼"
+msgstr "▼"
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:149
+msgctxt "ModelSelectWithSearch"
+msgid "🔍"
+msgstr "🔍"
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:177
+msgctxt "ModelSelectWithSearch"
+msgid "Buscar modelos..."
+msgstr "मॉडल खोजें..."
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:197
+msgctxt "ModelSelectWithSearch"
+msgid "✕"
+msgstr "✕"
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:212
+msgctxt "ModelSelectWithSearch"
+msgid "Nenhum modelo encontrado"
+msgstr "कोई मॉडल नहीं मिला"
+
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
+msgctxt "BlockEditorPanel"
+msgid "tooltip-delete"
+msgstr "हटाएं"
+
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:241
+msgctxt "BlockEditorPanel"
+msgid "–"
+msgstr "–"
+
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:301
+msgctxt "BlockPanelEditor"
+msgid "–"
+msgstr "–"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:101
+msgctxt "IoGroupRow"
+msgid "✕"
+msgstr "✕"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:122
+msgctxt "IoGroupRow"
+msgid "›"
+msgstr "›"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:196
+msgctxt "ChainEditorPage"
+msgid "instrument-guitar"
+msgstr "गिटार"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:197
+msgctxt "ChainEditorPage"
+msgid "instrument-acoustic-guitar"
+msgstr "ध्वनिक गिटार"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:198
+msgctxt "ChainEditorPage"
+msgid "instrument-bass"
+msgstr "बास"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:199
+msgctxt "ChainEditorPage"
+msgid "instrument-voice"
+msgstr "आवाज़"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:200
+msgctxt "ChainEditorPage"
+msgid "instrument-keyboard"
+msgstr "कीबोर्ड"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:201
+msgctxt "ChainEditorPage"
+msgid "instrument-drums"
+msgstr "ड्रम"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:202
+msgctxt "ChainEditorPage"
+msgid "instrument-other"
+msgstr "अन्य"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:241
+msgctxt "ChainEditorPage"
+msgid "Nome"
+msgstr "नाम"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:269
+msgctxt "ChainEditorPage"
+msgid "Instrumento"
+msgstr "वाद्ययंत्र"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:348
+msgctxt "ChainEditorPage"
+msgid "Entradas"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:375
+msgctxt "ChainEditorPage"
+msgid "btn-add-input"
+msgstr "+ इनपुट जोड़ें"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:394
+msgctxt "ChainEditorPage"
+msgid "Saidas"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:421
+msgctxt "ChainEditorPage"
+msgid "btn-add-output"
+msgstr "+ आउटपुट जोड़ें"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:448
+msgctxt "ChainEditorPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
+msgctxt "ChannelRow"
+msgid "✓"
+msgstr "✓"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
+msgctxt "ChainEndpointEditorPage"
+msgid "Dispositivo"
+msgstr "डिवाइस"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
+msgctxt "ChainEndpointEditorPage"
+msgid "Modo"
+msgstr "मोड"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
+msgctxt "ChainEndpointEditorPage"
+msgid "Canais"
+msgstr "चैनल"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
+msgctxt "ChainInsertEditorPage"
+msgid "Envio"
+msgstr "भेजें"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
+msgctxt "ChainInsertEditorPage"
+msgid "Dispositivo"
+msgstr "डिवाइस"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
+msgctxt "ChainInsertEditorPage"
+msgid "Modo"
+msgstr "मोड"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
+msgctxt "ChainInsertEditorPage"
+msgid "Canais"
+msgstr "चैनल"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
+msgctxt "ChainInsertEditorPage"
+msgid "Retorno"
+msgstr "वापसी"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:129
+msgctxt "ChainRow"
+msgid "tooltip-expand-blocks"
+msgstr "ब्लॉक विस्तृत करें"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:137
+msgctxt "ChainRow"
+msgid "tooltip-measure-latency"
+msgstr "विलंबता मापें (बीप करता है)"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:145
+msgctxt "ChainRow"
+msgid "tooltip-configure"
+msgstr "कॉन्फ़िगर करें"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:153
+msgctxt "ChainRow"
+msgid "tooltip-open-preset"
+msgstr "प्रीसेट खोलें"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:161
+msgctxt "ChainRow"
+msgid "tooltip-save-preset"
+msgstr "प्रीसेट सहेजें"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:169
+msgctxt "ChainRow"
+msgid "tooltip-delete"
+msgstr "हटाएं"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:440
+msgctxt "ChainRow"
+msgid "LAT"
+msgstr "LAT"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:489
+msgctxt "ChainRow"
+msgid "Entrada"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:535
+msgctxt "ChainRow"
+msgid "Saída"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/pages/compact_block_row.slint:414
+msgctxt "CompactBlockRow"
+msgid "▼"
+msgstr "▼"
+
+#: crates/adapter-gui/ui/pages/compact_block_row.slint:492
+msgctxt "CompactBlockRow"
+msgid "Abrir Plugin"
+msgstr "प्लगइन खोलें"
+
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
+msgctxt "CompactChainViewPage"
+msgid "IN"
+msgstr "IN"
+
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
+msgctxt "CompactChainViewPage"
+msgid "OUT"
+msgstr "OUT"
+
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:162
+msgctxt "CompactChainViewPage"
+msgid "+"
+msgstr "+"
+
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:85
+msgctxt "PluginInfoWindow"
+msgid "·"
+msgstr "·"
+
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:121
+msgctxt "PluginInfoWindow"
+msgid "Description"
+msgstr "विवरण"
+
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:140
+msgctxt "PluginInfoWindow"
+msgid "License:"
+msgstr "लाइसेंस:"
+
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:167
+msgctxt "PluginInfoWindow"
+msgid "↗"
+msgstr "↗"
+
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:173
+msgctxt "PluginInfoWindow"
+msgid "Open Homepage"
+msgstr "होमपेज खोलें"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:130
+msgctxt "ProjectChainsPage"
+msgid "tooltip-back"
+msgstr "वापस"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:138
+msgctxt "ProjectChainsPage"
+msgid "tooltip-spectrum"
+msgstr "Spectrum"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:146
+msgctxt "ProjectChainsPage"
+msgid "tooltip-tuner"
+msgstr "Tuner"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:154
+msgctxt "ProjectChainsPage"
+msgid "tooltip-project-settings"
+msgstr "प्रोजेक्ट"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:163
+msgctxt "ProjectChainsPage"
+msgid "tooltip-save"
+msgstr "सहेजें"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:171
+msgctxt "ProjectChainsPage"
+msgid "tooltip-new-chain"
+msgstr "नई चेन"
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:185
+msgctxt "SearchField"
+msgid "placeholder-search-projects"
+msgstr "प्रोजेक्ट खोजें"
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:287
+msgctxt "ProjectLauncherPage"
+msgid "tooltip-open-project"
+msgstr "प्रोजेक्ट खोलें"
+
+#: crates/adapter-gui/ui/pages/project_launcher.slint:294
+msgctxt "ProjectLauncherPage"
+msgid "btn-new-project"
+msgstr "नया प्रोजेक्ट"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:120
+msgctxt "DeviceRow"
+msgid "✓"
+msgstr "✓"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:147
+msgctxt "DeviceRow"
+msgid "Hz"
+msgstr "Hz"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:170
+msgctxt "DeviceRow"
+msgid "Buffer"
+msgstr "Buffer"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:193
+msgctxt "DeviceRow"
+msgid "Bits"
+msgstr "Bits"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:244
+msgctxt "ProjectSettingsPage"
+msgid "Nome"
+msgstr "नाम"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:272
+msgctxt "ProjectSettingsPage"
+msgid "Dispositivos de áudio"
+msgstr "ऑडियो डिवाइस"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:55
+msgctxt "NameInput"
+msgid "placeholder-project-name-example"
+msgstr "उदा.: लाइव गिटार"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:151
+msgctxt "ProjectSetupPage"
+msgid "title-new-project"
+msgstr "नया प्रोजेक्ट"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:164
+msgctxt "ProjectSetupPage"
+msgid "label-project-name"
+msgstr "प्रोजेक्ट नाम"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:204
+msgctxt "ProjectSetupPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+#: crates/adapter-gui/ui/pages/project_setup.slint:211
+msgctxt "ProjectSetupPage"
+msgid "btn-create-project"
+msgstr "प्रोजेक्ट बनाएं"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:73
+msgctxt "SpectrumCard"
+msgid "—"
+msgstr "—"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:127
+msgctxt "SpectrumCard"
+msgid "20"
+msgstr "20"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:133
+msgctxt "SpectrumCard"
+msgid "100"
+msgstr "100"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:139
+msgctxt "SpectrumCard"
+msgid "1k"
+msgstr "1k"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:145
+msgctxt "SpectrumCard"
+msgid "10k"
+msgstr "10k"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:151
+msgctxt "SpectrumCard"
+msgid "20k"
+msgstr "20k"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:199
+msgctxt "SpectrumPanel"
+msgid "SPECTRUM"
+msgstr "SPECTRUM"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:219
+msgctxt "SpectrumPanel"
+msgid "✕"
+msgstr "✕"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:243
+msgctxt "SpectrumPanel"
+msgid "NO ACTIVE OUTPUTS"
+msgstr "कोई सक्रिय आउटपुट नहीं"
+
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:253
+msgctxt "SpectrumPanel"
+msgid "Power on the spectrum and enable a chain with a configured output."
+msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ चेन सक्षम करें।"
+
+#: crates/adapter-gui/ui/pages/tuner_window.slint:54
+msgctxt "MuteSwitch"
+msgid "MUTE"
+msgstr "MUTE"
+
+#: crates/adapter-gui/ui/pages/tuner_window.slint:316
+msgctxt "TunerPanel"
+msgid "TUNER"
+msgstr "TUNER"
+
+#: crates/adapter-gui/ui/pages/tuner_window.slint:336
+msgctxt "TunerPanel"
+msgid "✕"
+msgstr "✕"
+
+#: crates/adapter-gui/ui/pages/tuner_window.slint:370
+msgctxt "TunerPanel"
+msgid "NO ACTIVE INPUTS"
+msgstr "कोई सक्रिय इनपुट नहीं"
+
+#: crates/adapter-gui/ui/pages/tuner_window.slint:380
+msgctxt "TunerPanel"
+msgid "Enable a chain with a configured input to see its tuners here."
+msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ चेन सक्षम करें।"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:22
+msgctxt "ProjectSettingsWindow"
+msgid "window-title-configure-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:95
+msgctxt "ChainEditorWindow"
+msgid "window-title-configure-chain"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:128
+msgctxt "ChainEditorWindow"
+msgid "title-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:146
+msgctxt "ChainEditorWindow"
+msgid "title-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:176
+msgctxt "ChainInputWindow"
+msgid "window-title-chain-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:186
+msgctxt "ChainInputWindow"
+msgid "title-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:216
+msgctxt "ChainOutputWindow"
+msgid "window-title-chain-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:226
+msgctxt "ChainOutputWindow"
+msgid "title-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:257
+msgctxt "ChainInputGroupsWindow"
+msgid "window-title-chain-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:267
+msgctxt "ChainInputGroupsWindow"
+msgid "title-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:298
+msgctxt "ChainOutputGroupsWindow"
+msgid "window-title-chain-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:308
+msgctxt "ChainOutputGroupsWindow"
+msgid "title-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:354
+msgctxt "ChainInsertWindow"
+msgid "window-title-configure-insert"
+msgstr ""
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:364
+msgctxt "ChainInsertWindow"
+msgid "title-configure-insert"
+msgstr ""
+
+#: crates/adapter-gui/ui/touch_main.slint:563
+msgctxt "TouchMain"
+msgid "⌨"
+msgstr "⌨"
+
+#: crates/adapter-gui/ui/touch_main.slint:588
+msgctxt "TouchMain"
+msgid "Carregar Preset"
+msgstr "प्रीसेट लोड करें"
+
+#: crates/adapter-gui/ui/touch_main.slint:628
+msgctxt "TouchMain"
+msgid "✕"
+msgstr "✕"
+
+#: crates/adapter-gui/ui/touch_main.slint:647
+msgctxt "TouchMain"
+msgid "Cancelar"
+msgstr "रद्द करें"
+msgctxt "ProjectSettingsWindow"
+msgid "title-window-project-settings"
+msgstr "OpenRig · प्रोजेक्ट कॉन्फ़िगर करें"
+
+msgctxt "ChainEditorWindow"
+msgid "title-window-chain-editor"
+msgstr "OpenRig · चेन कॉन्फ़िगर करें"
+
+msgctxt "ChainInputWindow"
+msgid "title-window-chain-input"
+msgstr "OpenRig · चेन इनपुट"
+
+msgctxt "ChainOutputWindow"
+msgid "title-window-chain-output"
+msgstr "OpenRig · चेन आउटपुट"
+
+msgctxt "ChainInputGroupsWindow"
+msgid "title-window-chain-inputs"
+msgstr "OpenRig · चेन इनपुट"
+
+msgctxt "ChainOutputGroupsWindow"
+msgid "title-window-chain-outputs"
+msgstr "OpenRig · चेन आउटपुट"
+
+msgctxt "ChainInsertWindow"
+msgid "title-window-chain-insert"
+msgstr "OpenRig · Insert कॉन्फ़िगर करें"
+
+msgctxt "CompactChainViewWindow"
+msgid "title-window-chain-view"
+msgstr "OpenRig · चेन"
+
+msgctxt "ChainEditorPage"
+msgid "title-new-chain"
+msgstr "नई चेन"
+
+msgctxt "ChainEditorPage"
+msgid "title-configure-chain"
+msgstr "चेन कॉन्फ़िगर करें"
+
+msgctxt "ChainEditorPage"
+msgid "btn-create-chain"
+msgstr "चेन बनाएं"
+
+msgctxt "ChainEditorPage"
+msgid "btn-save-chain"
+msgstr "चेन सहेजें"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ProjectSettingsPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "btn-ok"
+msgstr "ठीक है"
+
+msgctxt "BlockEditorWindow"
+msgid "title-window-block-editor"
+msgstr "OpenRig · Block"
+
+msgctxt "SpectrumWindow"
+msgid "title-window-spectrum"
+msgstr "OpenRig · Spectrum"
+
+msgctxt "TunerWindow"
+msgid "title-window-tuner"
+msgstr "OpenRig · Tuner"
+
+msgctxt "PluginInfoWindow"
+msgid "title-window-plugin-info"
+msgstr "Plugin Info"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-input"
+msgstr "इनपुट"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "title-section-output"
+msgstr "आउटपुट"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-channels"
+msgstr "चैनल"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-device"
+msgstr "डिवाइस"
+
+msgctxt "ChainEndpointEditorPage"
+msgid "label-mode"
+msgstr "मोड"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-inputs"
+msgstr "इनपुट"
+
+msgctxt "ChainIoGroupsPage"
+msgid "title-section-outputs"
+msgstr "आउटपुट"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-input-row"
+msgstr "+ इनपुट जोड़ें"
+
+msgctxt "ChainIoGroupsPage"
+msgid "btn-add-output-row"
+msgstr "+ आउटपुट जोड़ें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "title-section-configure-insert"
+msgstr "Insert कॉन्फ़िगर करें"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-channels"
+msgstr "चैनल"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-device"
+msgstr "डिवाइस"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-mode"
+msgstr "मोड"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-send"
+msgstr "सेंड"
+
+msgctxt "ChainInsertEditorPage"
+msgid "label-return"
+msgstr "रिटर्न"
+
+msgctxt "ChainEditorPage"
+msgid "label-name"
+msgstr "नाम"
+
+msgctxt "ChainEditorPage"
+msgid "label-instrument"
+msgstr "वाद्य यंत्र"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-inputs"
+msgstr "इनपुट"
+
+msgctxt "ChainEditorPage"
+msgid "title-section-outputs"
+msgstr "आउटपुट"
+
+msgctxt "ProjectSettingsPage"
+msgid "label-name"
+msgstr "नाम"
+
+msgctxt "ProjectSettingsPage"
+msgid "title-section-audio-devices"
+msgstr "ऑडियो डिवाइस"
+
+msgctxt "TouchMain"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "TouchMain"
+msgid "btn-load-preset"
+msgstr "प्रीसेट लोड करें"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "btn-delete"
+msgstr "हटाएं"
+
+msgctxt "ConfirmDeleteBlockDialog"
+msgid "title-dialog-delete-block"
+msgstr "ब्लॉक हटाएं"
+
+msgctxt "ChainRow"
+msgid "label-input"
+msgstr "इनपुट"
+
+msgctxt "ChainRow"
+msgid "label-output"
+msgstr "आउटपुट"
+
+msgctxt "ChainRow"
+msgid "label-lat"
+msgstr "LAT"
+
+msgctxt "MuteSwitch"
+msgid "label-mute"
+msgstr "MUTE"
+
+msgctxt "TunerPanel"
+msgid "label-tuner"
+msgstr "TUNER"
+
+msgctxt "TunerPanel"
+msgid "status-no-active-inputs"
+msgstr "NO ACTIVE INPUTS"
+
+msgctxt "TunerPanel"
+msgid "status-tuner-empty-help"
+msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ एक चेन सक्षम करें。"
+
+msgctxt "SpectrumPanel"
+msgid "label-spectrum"
+msgstr "SPECTRUM"
+
+msgctxt "SpectrumPanel"
+msgid "status-no-active-outputs"
+msgstr "NO ACTIVE OUTPUTS"
+
+msgctxt "SpectrumPanel"
+msgid "status-spectrum-empty-help"
+msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ एक चेन सक्षम करें。"
+
+msgctxt "PluginInfoWindow"
+msgid "label-description"
+msgstr "Description"
+
+msgctxt "PluginInfoWindow"
+msgid "label-license"
+msgstr "License:"
+
+msgctxt "PluginInfoWindow"
+msgid "btn-open-homepage"
+msgstr "Open Homepage"
+
+msgctxt "ModelSelectWithSearch"
+msgid "placeholder-search-models"
+msgstr "मॉडल खोजें..."
+
+msgctxt "ModelSelectWithSearch"
+msgid "status-no-models-found"
+msgstr "कोई मॉडल नहीं मिला"
+
+msgctxt "CompactBlockRow"
+msgid "btn-open-plugin"
+msgstr "प्लगइन खोलें"
+
+msgctxt "CompactChainViewPage"
+msgid "label-in"
+msgstr "IN"
+
+msgctxt "CompactChainViewPage"
+msgid "label-out"
+msgstr "OUT"
+
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr "Bits"
+
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr "Buffer"
+
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr "Hz"
+
+msgctxt "BlockPanelEditor"
+msgid "btn-add"
+msgstr "जोड़ें"
+
+msgctxt "BlockPanelParameterItem"
+msgid "btn-load-file"
+msgstr "Load"

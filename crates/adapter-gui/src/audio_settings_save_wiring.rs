@@ -28,6 +28,15 @@ use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::sync_project_runtime;
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
 
+/// Read the persisted `language` field so audio-device saves don't clobber it.
+/// Returns None when settings file is absent or has no language override.
+fn current_language() -> Option<String> {
+    FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .and_then(|s| s.language)
+}
+
 pub(crate) struct AudioSettingsSaveCtx {
     pub input_devices: Rc<VecModel<DeviceSelectionItem>>,
     pub output_devices: Rc<VecModel<DeviceSelectionItem>>,
@@ -44,7 +53,9 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub auto_save: bool,
 }
 
-fn project_device_settings_from_rows(rows: Vec<infra_filesystem::GuiAudioDeviceSettings>) -> Vec<DeviceSettings> {
+fn project_device_settings_from_rows(
+    rows: Vec<infra_filesystem::GuiAudioDeviceSettings>,
+) -> Vec<DeviceSettings> {
     rows.into_iter()
         .map(|device| DeviceSettings {
             device_id: DeviceId(device.device_id),
@@ -119,6 +130,7 @@ pub(crate) fn wire(
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
+                        language: current_language(),
                     };
                     if !settings.is_complete() {
                         set_status_warning(
@@ -139,9 +151,9 @@ pub(crate) fn wire(
                                     &settings.input_devices,
                                     &settings.output_devices,
                                 );
-                                if let Err(e) =
-                                    infra_cpal::apply_device_settings(&session.project.device_settings)
-                                {
+                                if let Err(e) = infra_cpal::apply_device_settings(
+                                    &session.project.device_settings,
+                                ) {
                                     log::warn!("apply_device_settings failed: {e}");
                                 }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
@@ -168,13 +180,18 @@ pub(crate) fn wire(
                     let gui_settings = GuiAudioSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
+                        language: current_language(),
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
                     }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                        set_status_error(
+                            &window,
+                            &toast_timer,
+                            &rust_i18n::t!("error-no-project-loaded"),
+                        );
                         return;
                     };
                     session.project.device_settings =
@@ -250,6 +267,7 @@ pub(crate) fn wire(
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
+                        language: current_language(),
                     };
                     if !settings.is_complete() {
                         settings_window.set_status_message(
@@ -271,13 +289,16 @@ pub(crate) fn wire(
                     let gui_settings = GuiAudioSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
+                        language: current_language(),
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
                     }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        settings_window.set_status_message("Nenhum projeto carregado.".into());
+                        settings_window.set_status_message(
+                            rust_i18n::t!("error-no-project-loaded").to_string().into(),
+                        );
                         return;
                     };
                     session.project.device_settings =

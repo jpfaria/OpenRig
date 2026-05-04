@@ -108,7 +108,11 @@ pub(crate) fn wire(
                 return;
             };
             draft.send_mode = insert_mode_from_index(index);
-            log::debug!("[select_send_mode] index={}, mode={:?}", index, draft.send_mode);
+            log::debug!(
+                "[select_send_mode] index={}, mode={:?}",
+                index,
+                draft.send_mode
+            );
         });
     }
     {
@@ -160,7 +164,11 @@ pub(crate) fn wire(
                 return;
             };
             draft.return_mode = insert_mode_from_index(index);
-            log::debug!("[select_return_mode] index={}, mode={:?}", index, draft.return_mode);
+            log::debug!(
+                "[select_return_mode] index={}, mode={:?}",
+                index,
+                draft.return_mode
+            );
         });
     }
     {
@@ -210,7 +218,13 @@ pub(crate) fn wire(
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     {
@@ -259,7 +273,13 @@ pub(crate) fn wire(
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
             let _ = iw.hide();
         });
     }
@@ -286,11 +306,15 @@ pub(crate) fn wire(
                 return;
             };
             if draft.send_device_id.is_none() || draft.send_channels.is_empty() {
-                iw.set_status_message("Selecione dispositivo e canais de envio.".into());
+                iw.set_status_message(rust_i18n::t!("insert-error-select-send").to_string().into());
                 return;
             }
             if draft.return_device_id.is_none() || draft.return_channels.is_empty() {
-                iw.set_status_message("Selecione dispositivo e canais de retorno.".into());
+                iw.set_status_message(
+                    rust_i18n::t!("insert-error-select-return")
+                        .to_string()
+                        .into(),
+                );
                 return;
             }
             let chain_idx = draft.chain_index;
@@ -334,7 +358,13 @@ pub(crate) fn wire(
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
             iw.set_status_message("".into());
             let _ = iw.hide();
         });

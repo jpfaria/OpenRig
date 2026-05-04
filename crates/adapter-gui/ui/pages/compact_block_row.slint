@@ -411,7 +411,7 @@ export component CompactBlockRow inherits Rectangle {
                 }
                 Text {
                     x: parent.width - 18px; width: 14px; height: parent.height;
-                    text: "\u{25BC}"; color: #ffffff; font-size: 9px;
+                    text: @tr("\u{25BC}"); color: #ffffff; font-size: 9px;
                     vertical-alignment: center; horizontal-alignment: center;
                 }
                 dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
@@ -489,7 +489,7 @@ export component CompactBlockRow inherits Rectangle {
             background: #2563eb;
             Text {
                 width: 100%; height: 100%;
-                text: "Abrir Plugin";
+                text: @tr("btn-open-plugin");
                 color: #ffffff;
                 font-size: 11px;
                 font-weight: 700;

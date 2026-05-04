@@ -96,6 +96,22 @@ try {
     Copy-Item -Recurse "assets"               "$stageDir\assets"
     Copy-Item -Recurse "captures"             "$stageDir\captures"
 
+    # ── Copy gettext .mo translations ──────────────────────────────────────────
+    # Runtime resolver looks at <exec_dir>/translations on Windows.
+    $translationsSource = "crates\adapter-gui\translations"
+    if (Test-Path $translationsSource) {
+        New-Item -ItemType Directory -Force -Path "$stageDir\translations" | Out-Null
+        Get-ChildItem -Directory $translationsSource | ForEach-Object {
+            $lcMessages = Join-Path $_.FullName "LC_MESSAGES"
+            if (Test-Path $lcMessages) {
+                $destLang = Join-Path "$stageDir\translations" $_.Name
+                $destLcm  = Join-Path $destLang "LC_MESSAGES"
+                New-Item -ItemType Directory -Force -Path $destLcm | Out-Null
+                Copy-Item -Recurse "$lcMessages\*.mo" $destLcm -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
     # ── Copy MinGW runtime DLLs (required by libNeuralAudioCAPI.dll) ────────────
     Write-Host "==> Copying MinGW runtime DLLs..."
     $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")

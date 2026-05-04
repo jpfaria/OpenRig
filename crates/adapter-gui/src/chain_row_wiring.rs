@@ -61,22 +61,26 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let chain_name = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
-                    set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-no-project-loaded"),
+                    );
                     return;
                 };
                 let index = index as usize;
                 if index >= session.project.chains.len() {
-                    set_status_error(&window, &toast_timer, "Chain inválida.");
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 }
                 session.project.chains[index]
                     .description
                     .clone()
-                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+                    .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string())
             };
             let confirmed = rfd::MessageDialog::new()
-                .set_title("Excluir chain")
-                .set_description(format!("Excluir a chain \"{}\"?", chain_name))
+                .set_title(rust_i18n::t!("dialog-delete-chain").as_ref())
+                .set_description(rust_i18n::t!("dialog-confirm-delete-chain", name = chain_name).to_string())
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .set_level(rfd::MessageLevel::Warning)
                 .show();
@@ -124,12 +128,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let index = index as usize;
             let Some(chain) = session.project.chains.get(index) else {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                 return;
             };
             let will_enable = !chain.enabled;
@@ -154,12 +162,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                                     })
                                 });
                                 if other_entries_conflict {
-                                    let other_name =
-                                        other.description.as_deref().unwrap_or("outra chain");
+                                    let other_name_default = rust_i18n::t!("default-other-chain").to_string();
+                                    let other_name = other
+                                        .description
+                                        .as_deref()
+                                        .unwrap_or(&other_name_default);
                                     set_status_error(
                                         &window,
                                         &toast_timer,
-                                        &format!("Input channel já em uso por '{}'", other_name),
+                                        &rust_i18n::t!("error-channel-in-use", name = other_name).to_string(),
                                     );
                                     conflict = true;
                                     break 'outer;

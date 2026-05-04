@@ -172,7 +172,7 @@ pub(crate) fn persist_block_editor_draft(
     let selected_select_option_block_id = if draft.is_select {
         Some(
             internal_block_parameter_value(block_parameter_items, SELECT_SELECTED_BLOCK_ID)
-                .ok_or_else(|| anyhow!("Seleção do select inválida."))?,
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-select-invalid")))?,
         )
     } else {
         None
@@ -186,16 +186,16 @@ pub(crate) fn persist_block_editor_draft(
             .project
             .chains
             .get_mut(draft.chain_index)
-            .ok_or_else(|| anyhow!("Chain inválida."))?;
+            .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
         if let Some(block_index) = draft.block_index {
             let block = chain
                 .blocks
                 .get_mut(block_index)
-                .ok_or_else(|| anyhow!("Block inválido."))?;
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-block")))?;
             block.enabled = draft.enabled;
             if draft.is_select {
                 let AudioBlockKind::Select(select) = &mut block.kind else {
-                    return Err(anyhow!("Block selecionado não é um select."));
+                    return Err(anyhow!("{}", rust_i18n::t!("error-block-not-select")));
                 };
                 let selected_option_block_id = selected_select_option_block_id
                     .as_ref()
