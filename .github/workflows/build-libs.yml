@@ -264,19 +264,24 @@ jobs:
             git
 
       - name: Build ${{ matrix.plugin }}
+        env:
+          PLUGIN: ${{ matrix.plugin }}
         run: |
           export OUTPUT_DIR="$(pwd)/output"
           export DEPS_DIR="$(pwd)/deps"
           export BUILD_WORK_DIR="/tmp/openrig-build"
+          # MSYS2/MINGW64 builds natively (no cross prefix), but we still
+          # need lib_ext() to return "dll" — set MINGW_TARGET so the
+          # script detects Windows-native target.
+          export MINGW_TARGET=1
           mkdir -p "$OUTPUT_DIR"
-          bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+          bash scripts/build-lib-internal.sh "$PLUGIN"
 
       - name: Organize output
         run: |
           DEST="libs-output/windows-x64"
           mkdir -p "$DEST"
           cp output/*.dll "$DEST/" 2>/dev/null || true
-          cp output/*.so "$DEST/" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:

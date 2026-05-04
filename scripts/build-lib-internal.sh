@@ -18,6 +18,10 @@ CROSS_COMPILE="${CROSS_COMPILE:-}"
 lib_ext() {
     if [ -n "$CROSS_COMPILE" ] && echo "$CROSS_COMPILE" | grep -q mingw; then
         echo "dll"
+    elif [ -n "${MINGW_TARGET:-}" ]; then
+        # MSYS2/MINGW64 builds natively on Windows runners (no cross prefix)
+        # but the target IS Windows so libraries are .dll, not .so.
+        echo "dll"
     elif [ "$(uname -s)" = "Darwin" ]; then
         echo "dylib"
     else
