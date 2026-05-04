@@ -345,7 +345,7 @@ msgstr "保存"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "新しい chain"
+msgstr "新しい チェーン"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "アクティブな出力なし"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "Spectrum をオンにし、出力が構成された chain を有効にしてください。"
+msgstr "Spectrum をオンにし、出力が構成された チェーン を有効にしてください。"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -588,23 +588,23 @@ msgstr "OpenRig · プロジェクトを構成"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Chainを構成"
+msgstr "OpenRig · チェーンを構成"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Chain入力"
+msgstr "OpenRig · チェーン入力"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Chain出力"
+msgstr "OpenRig · チェーン出力"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Chain入力"
+msgstr "OpenRig · チェーン入力"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Chain出力"
+msgstr "OpenRig · チェーン出力"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -612,23 +612,23 @@ msgstr "OpenRig · Insertを構成"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · チェーン"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "新しいchain"
+msgstr "新しいチェーン"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Chainを構成"
+msgstr "チェーンを構成"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Chainを作成"
+msgstr "チェーンを作成"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Chainを保存"
+msgstr "チェーンを保存"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -808,7 +808,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "入力が構成されたchainを有効にすると、ここにチューナーが表示されます。"
+msgstr "入力が構成されたチェーンを有効にすると、ここにチューナーが表示されます。"
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -820,7 +820,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "スペクトラムを電源ONにし、出力が構成されたchainを有効にしてください。"
+msgstr "スペクトラムを電源ONにし、出力が構成されたチェーンを有効にしてください。"
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

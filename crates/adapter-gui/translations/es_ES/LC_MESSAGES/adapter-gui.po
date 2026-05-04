@@ -345,7 +345,7 @@ msgstr "Guardar"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "Nueva chain"
+msgstr "Nueva cadena"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "SIN SALIDAS ACTIVAS"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "Encienda el spectrum y habilite una chain con una salida configurada."
+msgstr "Encienda el spectrum y habilite una cadena con una salida configurada."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -588,23 +588,23 @@ msgstr "OpenRig · Configurar proyecto"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Configurar chain"
+msgstr "OpenRig · Configurar cadena"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Entrada de la chain"
+msgstr "OpenRig · Entrada de la cadena"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Salida de la chain"
+msgstr "OpenRig · Salida de la cadena"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Entradas de la chain"
+msgstr "OpenRig · Entradas de la cadena"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Salidas de la chain"
+msgstr "OpenRig · Salidas de la cadena"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -612,23 +612,23 @@ msgstr "OpenRig · Configurar Insert"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · Cadena"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "Nueva chain"
+msgstr "Nueva cadena"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Configurar chain"
+msgstr "Configurar cadena"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Crear chain"
+msgstr "Crear cadena"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Guardar chain"
+msgstr "Guardar cadena"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -808,7 +808,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "Habilita una chain con una entrada configurada para ver los afinadores aquí."
+msgstr "Habilita una cadena con una entrada configurada para ver los afinadores aquí."
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -820,7 +820,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "Encienda el espectro y active una chain con una salida configurada."
+msgstr "Encienda el espectro y active una cadena con una salida configurada."
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

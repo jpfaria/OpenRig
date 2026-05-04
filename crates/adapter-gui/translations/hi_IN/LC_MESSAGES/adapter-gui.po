@@ -345,7 +345,7 @@ msgstr "सहेजें"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "नई chain"
+msgstr "नई चेन"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "कोई सक्रिय आउटपुट नहीं"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ chain सक्षम करें।"
+msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ चेन सक्षम करें।"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -490,7 +490,7 @@ msgstr "कोई सक्रिय इनपुट नहीं"
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ chain सक्षम करें।"
+msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ चेन सक्षम करें।"
 
 #: crates/adapter-gui/ui/secondary_windows_chain.slint:22
 msgctxt "ProjectSettingsWindow"
@@ -587,23 +587,23 @@ msgstr "OpenRig · प्रोजेक्ट कॉन्फ़िगर क�
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Chain कॉन्फ़िगर करें"
+msgstr "OpenRig · चेन कॉन्फ़िगर करें"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Chain इनपुट"
+msgstr "OpenRig · चेन इनपुट"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Chain आउटपुट"
+msgstr "OpenRig · चेन आउटपुट"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Chain इनपुट"
+msgstr "OpenRig · चेन इनपुट"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Chain आउटपुट"
+msgstr "OpenRig · चेन आउटपुट"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -611,23 +611,23 @@ msgstr "OpenRig · Insert कॉन्फ़िगर करें"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · चेन"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "नई chain"
+msgstr "नई चेन"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Chain कॉन्फ़िगर करें"
+msgstr "चेन कॉन्फ़िगर करें"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Chain बनाएं"
+msgstr "चेन बनाएं"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Chain सहेजें"
+msgstr "चेन सहेजें"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -807,7 +807,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ एक chain सक्षम करें。"
+msgstr "यहां ट्यूनर देखने के लिए कॉन्फ़िगर किए गए इनपुट के साथ एक चेन सक्षम करें。"
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -819,7 +819,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ एक chain सक्षम करें。"
+msgstr "स्पेक्ट्रम चालू करें और कॉन्फ़िगर किए गए आउटपुट के साथ एक चेन सक्षम करें。"
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

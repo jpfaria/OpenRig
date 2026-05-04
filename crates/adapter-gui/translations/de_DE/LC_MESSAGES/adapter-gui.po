@@ -345,7 +345,7 @@ msgstr "Speichern"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "Neue Chain"
+msgstr "Neue Kette"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -591,23 +591,23 @@ msgstr "OpenRig · Projekt konfigurieren"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Chain konfigurieren"
+msgstr "OpenRig · Kette konfigurieren"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Chain-Eingang"
+msgstr "OpenRig · Kette-Eingang"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Chain-Ausgang"
+msgstr "OpenRig · Kette-Ausgang"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Chain-Eingänge"
+msgstr "OpenRig · Kette-Eingänge"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Chain-Ausgänge"
+msgstr "OpenRig · Kette-Ausgänge"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -615,23 +615,23 @@ msgstr "OpenRig · Insert konfigurieren"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · Kette"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "Neue Chain"
+msgstr "Neue Kette"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Chain konfigurieren"
+msgstr "Kette konfigurieren"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Chain erstellen"
+msgstr "Kette erstellen"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Chain speichern"
+msgstr "Kette speichern"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -811,7 +811,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "Aktivieren Sie eine Chain mit konfiguriertem Eingang, um die Stimmgeräte hier zu sehen."
+msgstr "Aktivieren Sie eine Kette mit konfiguriertem Eingang, um die Stimmgeräte hier zu sehen."
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -823,7 +823,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "Schalten Sie das Spektrum ein und aktivieren Sie eine Chain mit konfiguriertem Ausgang."
+msgstr "Schalten Sie das Spektrum ein und aktivieren Sie eine Kette mit konfiguriertem Ausgang."
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

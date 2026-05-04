@@ -345,7 +345,7 @@ msgstr "저장"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "새 chain"
+msgstr "새 체인"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "활성 출력 없음"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "Spectrum을 켜고 구성된 출력이 있는 chain을 활성화하십시오."
+msgstr "Spectrum을 켜고 구성된 출력이 있는 체인을 활성화하십시오."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -490,7 +490,7 @@ msgstr "활성 입력 없음"
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr "여기서 Tuner를 보려면 구성된 입력이 있는 chain을 활성화하십시오."
+msgstr "여기서 Tuner를 보려면 구성된 입력이 있는 체인을 활성화하십시오."
 
 #: crates/adapter-gui/ui/secondary_windows_chain.slint:22
 msgctxt "ProjectSettingsWindow"
@@ -587,23 +587,23 @@ msgstr "OpenRig · 프로젝트 구성"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Chain 구성"
+msgstr "OpenRig · 체인 구성"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Chain 입력"
+msgstr "OpenRig · 체인 입력"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Chain 출력"
+msgstr "OpenRig · 체인 출력"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Chain 입력"
+msgstr "OpenRig · 체인 입력"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Chain 출력"
+msgstr "OpenRig · 체인 출력"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -611,23 +611,23 @@ msgstr "OpenRig · Insert 구성"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · 체인"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "새 chain"
+msgstr "새 체인"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Chain 구성"
+msgstr "체인 구성"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Chain 만들기"
+msgstr "체인 만들기"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Chain 저장"
+msgstr "체인 저장"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -807,7 +807,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "입력이 구성된 chain을 활성화하면 여기에 튜너가 표시됩니다."
+msgstr "입력이 구성된 체인을 활성화하면 여기에 튜너가 표시됩니다."
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -819,7 +819,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "스펙트럼을 켜고 출력이 구성된 chain을 활성화하세요."
+msgstr "스펙트럼을 켜고 출력이 구성된 체인을 활성화하세요."
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

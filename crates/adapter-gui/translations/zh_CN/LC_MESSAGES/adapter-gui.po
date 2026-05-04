@@ -345,7 +345,7 @@ msgstr "保存"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "新建 chain"
+msgstr "新建 链"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "没有活动输出"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "打开 Spectrum 并启用配置了输出的 chain。"
+msgstr "打开 Spectrum 并启用配置了输出的 链。"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -490,7 +490,7 @@ msgstr "没有活动输入"
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr "启用配置了输入的 chain 以在此处查看 Tuner。"
+msgstr "启用配置了输入的 链 以在此处查看 Tuner。"
 
 #: crates/adapter-gui/ui/secondary_windows_chain.slint:22
 msgctxt "ProjectSettingsWindow"
@@ -587,23 +587,23 @@ msgstr "OpenRig · 配置项目"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · 配置chain"
+msgstr "OpenRig · 配置链"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Chain输入"
+msgstr "OpenRig · 链输入"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Chain输出"
+msgstr "OpenRig · 链输出"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Chain输入"
+msgstr "OpenRig · 链输入"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Chain输出"
+msgstr "OpenRig · 链输出"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -611,23 +611,23 @@ msgstr "OpenRig · 配置Insert"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · 链"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "新建chain"
+msgstr "新建链"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "配置chain"
+msgstr "配置链"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "创建chain"
+msgstr "创建链"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "保存chain"
+msgstr "保存链"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -807,7 +807,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "启用带有配置输入的chain以在此处查看调音器。"
+msgstr "启用带有配置输入的链以在此处查看调音器。"
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -819,7 +819,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "打开频谱并启用带有配置输出的chain。"
+msgstr "打开频谱并启用带有配置输出的链。"
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"

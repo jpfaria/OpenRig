@@ -345,7 +345,7 @@ msgstr "Enregistrer"
 #: crates/adapter-gui/ui/pages/project_chains.slint:171
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
-msgstr "Nouvelle chain"
+msgstr "Nouvelle chaîne"
 
 #: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgctxt "SearchField"
@@ -465,7 +465,7 @@ msgstr "AUCUNE SORTIE ACTIVE"
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:253
 msgctxt "SpectrumPanel"
 msgid "Power on the spectrum and enable a chain with a configured output."
-msgstr "Activez le spectrum et activez une chain avec une sortie configurée."
+msgstr "Activez le spectrum et activez une chaîne avec une sortie configurée."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
 msgctxt "MuteSwitch"
@@ -490,7 +490,7 @@ msgstr "AUCUNE ENTRÉE ACTIVE"
 #: crates/adapter-gui/ui/pages/tuner_window.slint:380
 msgctxt "TunerPanel"
 msgid "Enable a chain with a configured input to see its tuners here."
-msgstr "Activez une chain avec une entrée configurée pour voir ses tuners ici."
+msgstr "Activez une chaîne avec une entrée configurée pour voir ses tuners ici."
 
 #: crates/adapter-gui/ui/secondary_windows_chain.slint:22
 msgctxt "ProjectSettingsWindow"
@@ -587,23 +587,23 @@ msgstr "OpenRig · Configurer le projet"
 
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
-msgstr "OpenRig · Configurer la chain"
+msgstr "OpenRig · Configurer la chaîne"
 
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
-msgstr "OpenRig · Entrée de la chain"
+msgstr "OpenRig · Entrée de la chaîne"
 
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
-msgstr "OpenRig · Sortie de la chain"
+msgstr "OpenRig · Sortie de la chaîne"
 
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
-msgstr "OpenRig · Entrées de la chain"
+msgstr "OpenRig · Entrées de la chaîne"
 
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
-msgstr "OpenRig · Sorties de la chain"
+msgstr "OpenRig · Sorties de la chaîne"
 
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
@@ -611,23 +611,23 @@ msgstr "OpenRig · Configurer Insert"
 
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
-msgstr "OpenRig · Chain"
+msgstr "OpenRig · Chaîne"
 
 msgctxt "ChainEditorPage"
 msgid "title-new-chain"
-msgstr "Nouvelle chain"
+msgstr "Nouvelle chaîne"
 
 msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
-msgstr "Configurer la chain"
+msgstr "Configurer la chaîne"
 
 msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
-msgstr "Créer la chain"
+msgstr "Créer la chaîne"
 
 msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
-msgstr "Enregistrer la chain"
+msgstr "Enregistrer la chaîne"
 
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
@@ -807,7 +807,7 @@ msgstr "NO ACTIVE INPUTS"
 
 msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "Activez une chain avec une entrée configurée pour voir les accordeurs ici."
+msgstr "Activez une chaîne avec une entrée configurée pour voir les accordeurs ici."
 
 msgctxt "SpectrumPanel"
 msgid "label-spectrum"
@@ -819,7 +819,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "Activez le spectre et activez une chain avec une sortie configurée."
+msgstr "Activez le spectre et activez une chaîne avec une sortie configurée."
 
 msgctxt "PluginInfoWindow"
 msgid "label-description"
