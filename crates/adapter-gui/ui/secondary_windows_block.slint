@@ -76,9 +76,14 @@ export component BlockEditorWindow inherits Window {
     private property <length> eq-widget-height:
         root.curve-editor-points.length > 0 ? 280px :
         root.multi-slider-points.length > 0 ? 240px : 0px;
-    // EQ blocks: compact 60px panel (just POWER button, no brand strip).
+    // EQ blocks: compact 76px panel (just POWER button, no brand strip).
+    // Must match `block_panel_editor.slint`'s `panel-height` when
+    // has-eq-widget is true — otherwise the inner BlockPanelEditor expects
+    // 76px for its panel, the EQ widget below starts 16px lower than this
+    // window allows, and the bottom of the EQ (frequency labels) gets cut
+    // off by the window's max-height (issue #358 visual report).
     private property <length> eq-extra-height:
-        has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+        has-eq-widget ? (48px + 76px + 8px + eq-widget-height + 8px) : 275px;
 
     title: root.block-window-title;
     min-width: panel-width;
