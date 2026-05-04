@@ -409,8 +409,8 @@ pub fn derive_model_id(plugin: &Plugin, plugin_override: Option<&PluginOverride>
 /// Generic suffixes that aren't unique enough on their own (mono, stereo, sum, etc.).
 /// When the last URI segment is one of these, prepend the parent segment.
 const URI_GENERIC_SUFFIXES: &[&str] = &[
-    "mono", "stereo", "sum", "left", "right", "l", "r", "m", "s", "in", "out", "lr", "rl",
-    "1", "2", "3", "4", "5",
+    "mono", "stereo", "sum", "left", "right", "l", "r", "m", "s", "in", "out", "lr", "rl", "1",
+    "2", "3", "4", "5",
 ];
 
 fn derive_plugin_slug_from_uri(uri: &str) -> String {
