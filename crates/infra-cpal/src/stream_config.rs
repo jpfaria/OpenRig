@@ -35,6 +35,7 @@ use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::DeviceTrait;
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::{ResolvedInputDevice, ResolvedOutputDevice};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

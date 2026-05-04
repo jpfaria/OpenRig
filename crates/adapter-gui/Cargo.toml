@@ -18,10 +18,13 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-# Base slint without backend-linuxkms (Linux-only) and without gettext
-# (libintl is not portably available — gated to Linux below). Bundled
-# translations via slint::select_bundled_translation still work cross-platform.
-slint = { workspace = true, features = ["renderer-femtovg"] }
+# Workspace dep disables default features so we don't pull `gettext`
+# (which requires libintl on Windows where it's not natively present —
+# resolver=2 unification was still pulling it via slint defaults). We
+# re-enable `backend-default` here since we still need a backend on
+# every platform. Bundled translations via slint::select_bundled_translation
+# still work cross-platform.
+slint = { workspace = true, features = ["backend-default", "renderer-femtovg"] }
 log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
