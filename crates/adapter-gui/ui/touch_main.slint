@@ -638,12 +638,13 @@ export component TouchMain inherits Rectangle {
                                     mouse-cursor: pointer;
                                     clicked => { root.preset-picker-delete(i); }
                                 }
-                                Text {
-                                    text: @tr("✕");
-                                    font-size: 16px;
-                                    color: #cc4444;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
+                                Image {
+                                    x: (parent.width - 18px) / 2;
+                                    y: (parent.height - 18px) / 2;
+                                    width: 18px;
+                                    height: 18px;
+                                    source: @image-url("modules/surrealism-ui/icons/delete.svg");
+                                    colorize: del-area.has-hover ? #ffffff : #cc4444;
                                 }
                             }
                         }

@@ -87,25 +87,27 @@ component IoGroupRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Remove button
+    // Remove button — SVG trash icon (no font glyphs, renders cross-locale).
+    // Uses local assets/trash.svg for visual consistency with chain_io_groups.
     Rectangle {
         x: parent.width - 52px;
         y: 10px;
-        width: 24px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         border-radius: 4px;
+        background: remove-hover.has-hover ? #2a1015 : transparent;
 
-        Text {
-            width: parent.width;
-            height: parent.height;
-            text: @tr("✕");
-            color: #5a6270;
-            font-size: 13px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("../assets/trash.svg");
+            colorize: remove-hover.has-hover ? #ff4455 : #5a6270;
+            image-fit: contain;
         }
 
-        TouchArea {
+        remove-hover := TouchArea {
             width: parent.width;
             height: parent.height;
             mouse-cursor: pointer;
@@ -113,17 +115,14 @@ component IoGroupRow inherits Rectangle {
         }
     }
 
-    // Edit chevron
-    Text {
-        x: parent.width - 20px;
-        y: 0px;
-        width: 20px;
-        height: parent.height;
-        text: @tr("›");
-        color: #4c5566;
-        font-size: 18px;
-        horizontal-alignment: right;
-        vertical-alignment: center;
+    // Edit chevron — SVG (no font glyphs, renders cross-locale)
+    Image {
+        x: parent.width - 18px;
+        y: (parent.height - 14px) / 2;
+        width: 14px;
+        height: 14px;
+        source: @image-url("../modules/surrealism-ui/icons/right.svg");
+        colorize: #4c5566;
     }
 
     TouchArea {
