@@ -1017,6 +1017,9 @@ name = "build_plugin_bundle"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "plugin-loader",
+ "serde_yaml",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
