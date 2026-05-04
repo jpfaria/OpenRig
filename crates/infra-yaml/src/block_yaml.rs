@@ -18,10 +18,9 @@ use crate::chain_yaml::{default_io_yaml_model, ChainInputEntryYaml, ChainOutputE
 use crate::{
     default_amp_model, default_body_model, default_cab_model, default_delay_model,
     default_drive_model, default_dynamics_model, default_enabled, default_filter_model,
-    default_full_rig_model, default_ir_model, default_modulation_model,
-    default_nam_model, default_pitch_model, default_preamp_model, default_reverb_model,
-    default_utility_model, default_wah_model, flatten_parameter_set, generated_block_id,
-    parameter_set_to_yaml_value,
+    default_full_rig_model, default_ir_model, default_modulation_model, default_nam_model,
+    default_pitch_model, default_preamp_model, default_reverb_model, default_utility_model,
+    default_wah_model, flatten_parameter_set, generated_block_id, parameter_set_to_yaml_value,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -293,11 +292,14 @@ impl AudioBlockYaml {
                 channels,
             } => {
                 let entries = if !entries.is_empty() {
-                    entries.into_iter().map(|e| InputEntry {
-                        device_id: DeviceId(e.device_id),
-                        mode: e.mode,
-                        channels: e.channels,
-                    }).collect()
+                    entries
+                        .into_iter()
+                        .map(|e| InputEntry {
+                            device_id: DeviceId(e.device_id),
+                            mode: e.mode,
+                            channels: e.channels,
+                        })
+                        .collect()
                 } else if let Some(device_id) = device_id {
                     vec![InputEntry {
                         device_id: DeviceId(device_id),
@@ -310,10 +312,7 @@ impl AudioBlockYaml {
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,
-                    kind: AudioBlockKind::Input(InputBlock {
-                        model,
-                        entries,
-                    }),
+                    kind: AudioBlockKind::Input(InputBlock { model, entries }),
                 })
             }
             AudioBlockYaml::Output {
@@ -326,11 +325,14 @@ impl AudioBlockYaml {
                 channels,
             } => {
                 let entries = if !entries.is_empty() {
-                    entries.into_iter().map(|e| OutputEntry {
-                        device_id: DeviceId(e.device_id),
-                        mode: e.mode,
-                        channels: e.channels,
-                    }).collect()
+                    entries
+                        .into_iter()
+                        .map(|e| OutputEntry {
+                            device_id: DeviceId(e.device_id),
+                            mode: e.mode,
+                            channels: e.channels,
+                        })
+                        .collect()
                 } else if let Some(device_id) = device_id {
                     vec![OutputEntry {
                         device_id: DeviceId(device_id),
@@ -343,10 +345,7 @@ impl AudioBlockYaml {
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,
-                    kind: AudioBlockKind::Output(OutputBlock {
-                        model,
-                        entries,
-                    }),
+                    kind: AudioBlockKind::Output(OutputBlock { model, entries }),
                 })
             }
             AudioBlockYaml::Insert {
@@ -373,6 +372,7 @@ impl AudioBlockYaml {
             }),
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
+                let model = migrate_legacy_model_id(effect_type, model, &params);
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,
@@ -398,22 +398,86 @@ impl AudioBlockYaml {
                 let enabled = block.enabled;
                 let model = core.model.clone();
                 match core.effect_type.as_str() {
-                    block_core::EFFECT_TYPE_PREAMP => Ok(Self::Preamp { enabled, model, params }),
-                    block_core::EFFECT_TYPE_AMP => Ok(Self::Amp { enabled, model, params }),
-                    block_core::EFFECT_TYPE_FULL_RIG => Ok(Self::FullRig { enabled, model, params }),
-                    block_core::EFFECT_TYPE_CAB => Ok(Self::Cab { enabled, model, params }),
-                    block_core::EFFECT_TYPE_BODY => Ok(Self::Body { enabled, model, params }),
-                    block_core::EFFECT_TYPE_IR => Ok(Self::Ir { enabled, model, params }),
-                    block_core::EFFECT_TYPE_GAIN => Ok(Self::Gain { enabled, model, params }),
-                    block_core::EFFECT_TYPE_DELAY => Ok(Self::Delay { enabled, model, params }),
-                    block_core::EFFECT_TYPE_REVERB => Ok(Self::Reverb { enabled, model, params }),
-                    block_core::EFFECT_TYPE_UTILITY => Ok(Self::Utility { enabled, model, params }),
-                    block_core::EFFECT_TYPE_DYNAMICS => Ok(Self::Dynamics { enabled, model, params }),
-                    block_core::EFFECT_TYPE_FILTER => Ok(Self::Filter { enabled, model, params }),
-                    block_core::EFFECT_TYPE_WAH => Ok(Self::Wah { enabled, model, params }),
-                    block_core::EFFECT_TYPE_MODULATION => Ok(Self::Modulation { enabled, model, params }),
-                    block_core::EFFECT_TYPE_PITCH => Ok(Self::Pitch { enabled, model, params }),
-                    block_core::EFFECT_TYPE_VST3 => Ok(Self::Vst3 { enabled, model, params }),
+                    block_core::EFFECT_TYPE_PREAMP => Ok(Self::Preamp {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_AMP => Ok(Self::Amp {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_FULL_RIG => Ok(Self::FullRig {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_CAB => Ok(Self::Cab {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_BODY => Ok(Self::Body {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_IR => Ok(Self::Ir {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_GAIN => Ok(Self::Gain {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_DELAY => Ok(Self::Delay {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_REVERB => Ok(Self::Reverb {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_UTILITY => Ok(Self::Utility {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_DYNAMICS => Ok(Self::Dynamics {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_FILTER => Ok(Self::Filter {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_WAH => Ok(Self::Wah {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_MODULATION => Ok(Self::Modulation {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_PITCH => Ok(Self::Pitch {
+                        enabled,
+                        model,
+                        params,
+                    }),
+                    block_core::EFFECT_TYPE_VST3 => Ok(Self::Vst3 {
+                        enabled,
+                        model,
+                        params,
+                    }),
                     other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
                 }
             }
@@ -436,14 +500,12 @@ impl AudioBlockYaml {
                                 .strip_prefix(&format!("{}::", block.id.0))
                                 .unwrap_or(option.id.0.as_str())
                                 .to_string(),
-                            block: AudioBlockYaml::from_audio_block(option)
-                                .with_context(|| {
-                                    format!(
-                                        "failed to serialize select option {} for block '{}'",
-                                        index,
-                                        block.id.0
-                                    )
-                                })?,
+                            block: AudioBlockYaml::from_audio_block(option).with_context(|| {
+                                format!(
+                                    "failed to serialize select option {} for block '{}'",
+                                    index, block.id.0
+                                )
+                            })?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -458,12 +520,16 @@ impl AudioBlockYaml {
                 enabled: block.enabled,
                 model: input.model.clone(),
                 name: String::new(),
-                entries: input.entries.iter().map(|e| ChainInputEntryYaml {
-                    name: String::new(),
-                    device_id: e.device_id.0.clone(),
-                    mode: e.mode,
-                    channels: e.channels.clone(),
-                }).collect(),
+                entries: input
+                    .entries
+                    .iter()
+                    .map(|e| ChainInputEntryYaml {
+                        name: String::new(),
+                        device_id: e.device_id.0.clone(),
+                        mode: e.mode,
+                        channels: e.channels.clone(),
+                    })
+                    .collect(),
                 device_id: None,
                 mode: None,
                 channels: None,
@@ -472,12 +538,16 @@ impl AudioBlockYaml {
                 enabled: block.enabled,
                 model: output.model.clone(),
                 name: String::new(),
-                entries: output.entries.iter().map(|e| ChainOutputEntryYaml {
-                    name: String::new(),
-                    device_id: e.device_id.0.clone(),
-                    mode: e.mode,
-                    channels: e.channels.clone(),
-                }).collect(),
+                entries: output
+                    .entries
+                    .iter()
+                    .map(|e| ChainOutputEntryYaml {
+                        name: String::new(),
+                        device_id: e.device_id.0.clone(),
+                        mode: e.mode,
+                        channels: e.channels.clone(),
+                    })
+                    .collect(),
                 device_id: None,
                 mode: None,
                 channels: None,
@@ -500,13 +570,19 @@ impl AudioBlockYaml {
     }
 }
 
-pub(crate) fn load_audio_block_value(value: Value, chain_id: &ChainId, index: usize) -> Option<AudioBlock> {
+pub(crate) fn load_audio_block_value(
+    value: Value,
+    chain_id: &ChainId,
+    index: usize,
+) -> Option<AudioBlock> {
     let yaml = match serde_yaml::from_value::<AudioBlockYaml>(value) {
         Ok(yaml) => yaml,
         Err(error) => {
             log::warn!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
-                chain_id.0, index, error
+                chain_id.0,
+                index,
+                error
             );
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
@@ -524,7 +600,9 @@ pub(crate) fn load_audio_block_value(value: Value, chain_id: &ChainId, index: us
         Err(error) => {
             log::warn!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
-                chain_id.0, index, error
+                chain_id.0,
+                index,
+                error
             );
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
@@ -540,28 +618,129 @@ fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Resul
     normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
 }
 
-pub(crate) fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, String, Value) {
+/// Migrate legacy model identifiers to their current names.
+///
+/// Issue #303: `native_guitar_eq` was an HPF+LPF cleanup filter; the name
+/// is now occupied by the real 4-band tone-shaper EQ, and the original
+/// utility moved to `native_guitar_hpf_lpf`. Legacy projects keep working
+/// because we detect the legacy parameter shape (`low_cut` / `high_cut`)
+/// and remap silently. New projects use whichever id they declared.
+fn migrate_legacy_model_id(effect_type: &'static str, model: String, params: &Value) -> String {
+    if effect_type == block_core::EFFECT_TYPE_FILTER && model == "native_guitar_eq" {
+        let has_legacy_param = params
+            .as_mapping()
+            .map(|m| {
+                m.contains_key(Value::String("low_cut".into()))
+                    || m.contains_key(Value::String("high_cut".into()))
+            })
+            .unwrap_or(false);
+        if has_legacy_param {
+            return "native_guitar_hpf_lpf".to_string();
+        }
+    }
+    model
+}
+
+pub(crate) fn extract_core_block_fields(
+    yaml: AudioBlockYaml,
+) -> (&'static str, bool, String, Value) {
     match yaml {
-        AudioBlockYaml::Preamp { enabled, model, params } => (block_core::EFFECT_TYPE_PREAMP, enabled, model, params),
-        AudioBlockYaml::Amp { enabled, model, params } => (block_core::EFFECT_TYPE_AMP, enabled, model, params),
-        AudioBlockYaml::FullRig { enabled, model, params } => (block_core::EFFECT_TYPE_FULL_RIG, enabled, model, params),
-        AudioBlockYaml::Cab { enabled, model, params } => (block_core::EFFECT_TYPE_CAB, enabled, model, params),
-        AudioBlockYaml::Body { enabled, model, params } => (block_core::EFFECT_TYPE_BODY, enabled, model, params),
-        AudioBlockYaml::Ir { enabled, model, params } => (block_core::EFFECT_TYPE_IR, enabled, model, params),
-        AudioBlockYaml::Gain { enabled, model, params } => (block_core::EFFECT_TYPE_GAIN, enabled, model, params),
-        AudioBlockYaml::Delay { enabled, model, params } => (block_core::EFFECT_TYPE_DELAY, enabled, model, params),
-        AudioBlockYaml::Reverb { enabled, model, params } => (block_core::EFFECT_TYPE_REVERB, enabled, model, params),
-        AudioBlockYaml::Utility { enabled, model, params } => (block_core::EFFECT_TYPE_UTILITY, enabled, model, params),
-        AudioBlockYaml::Dynamics { enabled, model, params } => (block_core::EFFECT_TYPE_DYNAMICS, enabled, model, params),
-        AudioBlockYaml::Filter { enabled, model, params } => (block_core::EFFECT_TYPE_FILTER, enabled, model, params),
-        AudioBlockYaml::Wah { enabled, model, params } => (block_core::EFFECT_TYPE_WAH, enabled, model, params),
-        AudioBlockYaml::Modulation { enabled, model, params } => (block_core::EFFECT_TYPE_MODULATION, enabled, model, params),
-        AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
-        AudioBlockYaml::Vst3 { enabled, model, params } => (block_core::EFFECT_TYPE_VST3, enabled, model, params),
-        AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
-        AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
-        AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),
-        AudioBlockYaml::Output { .. } => unreachable!("Output handled before extract_core_block_fields"),
-        AudioBlockYaml::Insert { .. } => unreachable!("Insert handled before extract_core_block_fields"),
+        AudioBlockYaml::Preamp {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_PREAMP, enabled, model, params),
+        AudioBlockYaml::Amp {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_AMP, enabled, model, params),
+        AudioBlockYaml::FullRig {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_FULL_RIG, enabled, model, params),
+        AudioBlockYaml::Cab {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_CAB, enabled, model, params),
+        AudioBlockYaml::Body {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_BODY, enabled, model, params),
+        AudioBlockYaml::Ir {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_IR, enabled, model, params),
+        AudioBlockYaml::Gain {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_GAIN, enabled, model, params),
+        AudioBlockYaml::Delay {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_DELAY, enabled, model, params),
+        AudioBlockYaml::Reverb {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_REVERB, enabled, model, params),
+        AudioBlockYaml::Utility {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_UTILITY, enabled, model, params),
+        AudioBlockYaml::Dynamics {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_DYNAMICS, enabled, model, params),
+        AudioBlockYaml::Filter {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_FILTER, enabled, model, params),
+        AudioBlockYaml::Wah {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_WAH, enabled, model, params),
+        AudioBlockYaml::Modulation {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_MODULATION, enabled, model, params),
+        AudioBlockYaml::Pitch {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
+        AudioBlockYaml::Vst3 {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_VST3, enabled, model, params),
+        AudioBlockYaml::Nam {
+            enabled,
+            model,
+            params,
+        } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
+        AudioBlockYaml::Select { .. } => {
+            unreachable!("Select handled before extract_core_block_fields")
+        }
+        AudioBlockYaml::Input { .. } => {
+            unreachable!("Input handled before extract_core_block_fields")
+        }
+        AudioBlockYaml::Output { .. } => {
+            unreachable!("Output handled before extract_core_block_fields")
+        }
+        AudioBlockYaml::Insert { .. } => {
+            unreachable!("Insert handled before extract_core_block_fields")
+        }
     }
 }
