@@ -71,11 +71,11 @@ pub enum ValidationError {
         parameter: String,
     },
 
-    #[error("capture grid is incomplete: expected {expected} combinations, found {found} unique")]
-    IncompleteGrid { expected: usize, found: usize },
-
     #[error("capture grid has duplicate entries (cells covered more than once)")]
     DuplicateCaptures,
+
+    #[error("NAM/IR backend declares parameters but ships zero captures")]
+    EmptyCaptureGrid,
 
     #[error("parameter `{name}` declares no values")]
     EmptyParameterValues { name: String },
@@ -186,20 +186,11 @@ fn validate_grid(
         seen_keys.insert(canonical_key(&capture.values));
     }
 
-    let expected = parameters
-        .iter()
-        .map(|parameter| parameter.values.len())
-        .product::<usize>()
-        .max(1);
-
     if seen_keys.len() != captures.len() {
         return Err(ValidationError::DuplicateCaptures);
     }
-    if seen_keys.len() != expected {
-        return Err(ValidationError::IncompleteGrid {
-            expected,
-            found: seen_keys.len(),
-        });
+    if !parameters.is_empty() && captures.is_empty() {
+        return Err(ValidationError::EmptyCaptureGrid);
     }
 
     Ok(())
@@ -435,26 +426,82 @@ mod tests {
     }
 
     #[test]
-    fn rejects_incomplete_grid() {
+    fn accepts_sparse_grid() {
+        // Real-world cabs (e.g. block-cab/ir_ampeg_svt_8x10) declare a 2D
+        // mic × position parameter grid but ship only ~8 of 21 cells —
+        // only the combinations actually captured. Validator must accept.
+        let m = nam_manifest(
+            vec![
+                GridParameter {
+                    name: "mic".to_string(),
+                    display_name: None,
+                    values: vec![
+                        ParameterValue::Text("d6".to_string()),
+                        ParameterValue::Text("57".to_string()),
+                        ParameterValue::Text("4033".to_string()),
+                    ],
+                },
+                GridParameter {
+                    name: "position".to_string(),
+                    display_name: None,
+                    values: vec![
+                        ParameterValue::Text("ah".to_string()),
+                        ParameterValue::Text("a107".to_string()),
+                        ParameterValue::Text("svt_di".to_string()),
+                    ],
+                },
+            ],
+            // Sparse: only 3 of 9 combinations.
+            vec![
+                GridCapture {
+                    values: BTreeMap::from([
+                        ("mic".to_string(), ParameterValue::Text("d6".to_string())),
+                        (
+                            "position".to_string(),
+                            ParameterValue::Text("ah".to_string()),
+                        ),
+                    ]),
+                    file: PathBuf::from("a.wav"),
+                },
+                GridCapture {
+                    values: BTreeMap::from([
+                        ("mic".to_string(), ParameterValue::Text("57".to_string())),
+                        (
+                            "position".to_string(),
+                            ParameterValue::Text("ah".to_string()),
+                        ),
+                    ]),
+                    file: PathBuf::from("b.wav"),
+                },
+                GridCapture {
+                    values: BTreeMap::from([
+                        ("mic".to_string(), ParameterValue::Text("4033".to_string())),
+                        (
+                            "position".to_string(),
+                            ParameterValue::Text("a107".to_string()),
+                        ),
+                    ]),
+                    file: PathBuf::from("c.wav"),
+                },
+            ],
+        );
+        assert_eq!(validate_manifest(&m), Ok(()));
+    }
+
+    #[test]
+    fn rejects_empty_grid_when_parameters_declared() {
         let m = nam_manifest(
             vec![GridParameter {
                 name: "gain".to_string(),
                 display_name: None,
-                values: nums(&[10.0, 20.0, 30.0]),
+                values: nums(&[10.0, 20.0]),
             }],
-            vec![
-                capture_with(&[("gain", 10.0)], "g10.nam"),
-                capture_with(&[("gain", 20.0)], "g20.nam"),
-            ],
+            vec![],
         );
-        let err = validate_manifest(&m).unwrap_err();
-        assert!(matches!(
-            err,
-            ValidationError::IncompleteGrid {
-                expected: 3,
-                found: 2
-            }
-        ));
+        assert_eq!(
+            validate_manifest(&m),
+            Err(ValidationError::EmptyCaptureGrid)
+        );
     }
 
     #[test]
