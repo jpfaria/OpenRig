@@ -1013,16 +1013,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "build_plugin_bundle"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "plugin-loader",
- "serde_yaml",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "built"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1892,15 +1882,6 @@ dependencies = [
  "rayon-core",
  "smallvec",
  "zune-inflate",
-]
-
-[[package]]
-name = "extract_plugins"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "plugin-loader",
- "serde_yaml",
 ]
 
 [[package]]
