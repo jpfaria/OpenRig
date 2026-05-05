@@ -6,11 +6,13 @@
 //!
 //! Issue: #287
 
+pub mod config;
 pub mod discover;
 pub mod manifest;
 pub mod package;
 pub mod validate;
 
+pub use config::{plugins_root_from_config, PluginPathsConfig};
 pub use discover::{discover, DiscoveryError, LoadedPackage};
 pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};
 pub use package::{current_platform_slot, validate_package, PackageError};

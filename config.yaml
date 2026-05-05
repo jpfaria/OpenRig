@@ -1,7 +1,18 @@
 presets_path: ./
 
+# Plugin packages (issue #287). After the migration to OpenRig-plugins,
+# every NAM / IR / LV2 plugin lives under <plugins_root>/<backend>/<id>/
+# as a self-contained package with a manifest.yaml. Resolved relative
+# to this config file's directory; absolute paths pass through.
+# Override at runtime with the OPENRIG_PLUGINS_ROOT environment variable.
+plugins_root: ../OpenRig-plugins/plugins/bundle
+
+# Legacy per-asset-type paths kept for backwards compat with the
+# pre-issue-287 resolve-by-path engine code (libs/lv2 and friends are
+# in OpenRig-plugins now). These will be removed once the runtime
+# loader fully replaces the static MODEL_DEFINITION lookup path.
 paths:
-  lv2_libs: "libs/lv2/macos-universal"
-  lv2_data: "data/lv2"
-  nam_captures: "captures/nam"
-  ir_captures: "captures/ir"
+  lv2_libs: "../OpenRig-plugins/libs/lv2/macos-universal"
+  lv2_data: "../OpenRig-plugins/data/lv2"
+  nam_captures: "../OpenRig-plugins/captures/nam"
+  ir_captures: "../OpenRig-plugins/captures/ir"
