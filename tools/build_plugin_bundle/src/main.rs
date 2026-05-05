@@ -141,15 +141,19 @@ pub enum BuildError {
 /// a sibling temp folder, then rename over the old one.
 pub fn build_bundle(source_root: &Path, bundle_root: &Path) -> io::Result<BuildReport> {
     let mut report = BuildReport::default();
-    let mut entries: Vec<PathBuf> = fs::read_dir(source_root)?
-        .filter_map(|entry| entry.ok().map(|inner| inner.path()))
-        .filter(|path| path.is_dir() && path.join("manifest.yaml").is_file())
-        .collect();
+    let mut entries: Vec<PathBuf> = Vec::new();
+    walk_packages(source_root, &mut entries)?;
     entries.sort();
 
     for source_package in entries {
-        match build_one_package(&source_package, bundle_root) {
-            Ok(package_id) => report.built.push(package_id),
+        let relative = source_package
+            .strip_prefix(source_root)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|_| source_package.clone());
+        match build_one_package(&source_package, bundle_root, &relative) {
+            Ok(_) => {
+                report.built.push(relative.to_string_lossy().to_string());
+            }
             Err(error) => report.failed.push(BuildFailure {
                 source_path: source_package,
                 error,
@@ -160,15 +164,49 @@ pub fn build_bundle(source_root: &Path, bundle_root: &Path) -> io::Result<BuildR
     Ok(report)
 }
 
-fn build_one_package(source_package: &Path, bundle_root: &Path) -> Result<String, BuildError> {
+/// Walk every sub-directory under `root` and collect those that hold a
+/// `manifest.yaml`. Packages can live one level deep (legacy) or two
+/// levels deep (`<root>/<backend>/<id>/manifest.yaml`).
+fn walk_packages(root: &Path, out: &mut Vec<PathBuf>) -> io::Result<()> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        if path.join("manifest.yaml").is_file() {
+            out.push(path);
+        } else {
+            walk_packages(&path, out)?;
+        }
+    }
+    Ok(())
+}
+
+fn build_one_package(
+    source_package: &Path,
+    bundle_root: &Path,
+    relative: &Path,
+) -> Result<String, BuildError> {
     let manifest_path = source_package.join("manifest.yaml");
     let yaml = fs::read_to_string(&manifest_path).map_err(BuildError::ReadManifest)?;
     let manifest: PluginManifest =
         serde_yaml::from_str(&yaml).map_err(BuildError::ParseManifest)?;
     validate_package(source_package, &manifest).map_err(BuildError::Validation)?;
 
-    let destination = bundle_root.join(&manifest.id);
-    let staging = bundle_root.join(format!(".staging.{}", manifest.id));
+    // Bundle layout mirrors the source layout (`<backend>/<id>/`).
+    let destination = bundle_root.join(relative);
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(BuildError::Copy)?;
+    }
+    let staging_name = format!(
+        ".staging.{}",
+        relative.to_string_lossy().replace(['/', '\\'], "__")
+    );
+    let staging = bundle_root.join(staging_name);
     if staging.exists() {
         fs::remove_dir_all(&staging).map_err(BuildError::Copy)?;
     }

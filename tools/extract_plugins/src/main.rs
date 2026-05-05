@@ -137,7 +137,7 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
     let source = fs::read_to_string(source_file)
         .with_context(|| format!("read {}", source_file.display()))?;
 
-    let model_id = read_str_const(&source, "MODEL_ID", true)
+    let raw_model_id = read_str_const(&source, "MODEL_ID", true)
         .ok_or_else(|| anyhow!("missing pub const MODEL_ID"))?;
     let display_name = read_str_const(&source, "DISPLAY_NAME", true)
         .ok_or_else(|| anyhow!("missing pub const DISPLAY_NAME"))?;
@@ -148,16 +148,35 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
         .and_then(|name| name.to_str())
         .ok_or_else(|| anyhow!("source has no filename"))?;
 
-    let mut manifest = if let Some(stem) = filename.strip_prefix("nam_") {
-        let _ = stem;
-        build_grid_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source, "nam")?
-    } else if let Some(stem) = filename.strip_prefix("ir_") {
-        let _ = stem;
-        build_grid_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source, "ir")?
+    // Backend lives in the filename prefix; we use it to (a) decide the
+    // package folder, (b) ensure the manifest id is prefixed.
+    let backend_prefix = if filename.starts_with("nam_") {
+        "nam"
+    } else if filename.starts_with("ir_") {
+        "ir"
     } else if filename.starts_with("lv2_") {
-        build_lv2_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source)?
+        "lv2"
     } else {
         return Err(anyhow!("filename `{filename}` is neither nam_/ir_/lv2_"));
+    };
+
+    // Folder name = id with backend prefix stripped.
+    let folder_id = raw_model_id
+        .strip_prefix(&format!("{backend_prefix}_"))
+        .unwrap_or(&raw_model_id)
+        .to_string();
+    // Manifest id = always prefixed with backend.
+    let model_id = if raw_model_id.starts_with(&format!("{backend_prefix}_")) {
+        raw_model_id.clone()
+    } else {
+        format!("{backend_prefix}_{raw_model_id}")
+    };
+
+    let mut manifest = match backend_prefix {
+        "nam" => build_grid_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source, "nam")?,
+        "ir" => build_grid_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source, "ir")?,
+        "lv2" => build_lv2_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source)?,
+        _ => unreachable!("backend_prefix already validated above"),
     };
 
     // Promote brand from `inspired_by` (where the grid/lv2 builders parked
@@ -190,8 +209,10 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
         manifest.homepage = metadata.homepage.clone();
     }
 
-    write_package(out, &manifest, source_file, &source)?;
-    Ok(model_id)
+    let backend_root = out.join(backend_prefix);
+    fs::create_dir_all(&backend_root)?;
+    write_package(&backend_root, &folder_id, &manifest, source_file, &source)?;
+    Ok(format!("{backend_prefix}/{folder_id}"))
 }
 
 fn locate_thumbnail(model_id: &str, block_type: BlockType) -> Option<PathBuf> {
@@ -1017,11 +1038,12 @@ fn slot_directory_name(slot: &Lv2Slot) -> String {
 
 fn write_package(
     out: &Path,
+    folder_id: &str,
     manifest: &PluginManifest,
     source_file: &Path,
     source_text: &str,
 ) -> Result<()> {
-    let package_dir = out.join(&manifest.id);
+    let package_dir = out.join(folder_id);
     if package_dir.exists() {
         fs::remove_dir_all(&package_dir)?;
     }
