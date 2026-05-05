@@ -203,16 +203,22 @@ fn synthesize_lv2_parameters(
     binaries: &std::collections::BTreeMap<plugin_loader::manifest::Lv2Slot, std::path::PathBuf>,
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::dispatch::Lv2PortRole;
-    // Pick any platform binary to find the bundle directory — we only
-    // need the TTL path; the binary itself isn't loaded here.
-    let Some((_, rel_binary)) = binaries.iter().next() else {
+    // Prefer the deduplicated `<package>/data/` TTL bundle; fall back
+    // to the legacy per-platform layout where TTLs lived next to the
+    // binary. Either layout works.
+    let data_dir = package.root.join("data");
+    let bundle_dir: std::path::PathBuf = if data_dir.is_dir() {
+        data_dir
+    } else if let Some((_, rel_binary)) = binaries.iter().next() {
+        let bin_path = package.root.join(rel_binary);
+        match bin_path.parent() {
+            Some(parent) => parent.to_path_buf(),
+            None => return Vec::new(),
+        }
+    } else {
         return Vec::new();
     };
-    let bin_path = package.root.join(rel_binary);
-    let Some(bundle_dir) = bin_path.parent() else {
-        return Vec::new();
-    };
-    let Ok(ports) = plugin_loader::dispatch::scan_lv2_ports(bundle_dir, plugin_uri) else {
+    let Ok(ports) = plugin_loader::dispatch::scan_lv2_ports(&bundle_dir, plugin_uri) else {
         return Vec::new();
     };
     ports

@@ -87,6 +87,43 @@ captures:
     write(&ir.join("dark.wav"), b"fake");
     write(&ir.join("neutral.wav"), b"fake");
 
+    // LV2 with shared data/ layout (TTLs deduped, binary per-slot).
+    let lv2 = root.join("lv2_test_chorus");
+    write(
+        &lv2.join("manifest.yaml"),
+        br#"manifest_version: 1
+id: lv2_test_chorus_e2e
+display_name: Test Chorus
+brand: testco
+type: mod
+backend: lv2
+plugin_uri: urn:test:chorus
+binaries:
+  macos-universal: platform/macos-universal/chorus.dylib
+"#,
+    );
+    write(
+        &lv2.join("data").join("manifest.ttl"),
+        b"@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:chorus> a lv2:Plugin ; lv2:binary <chorus.so> .\n",
+    );
+    write(
+        &lv2.join("data").join("chorus.ttl"),
+        b"@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:chorus>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [ a lv2:InputPort, lv2:AudioPort ; lv2:index 0 ; lv2:symbol \"in\" ; ] ,\n\
+    [ a lv2:OutputPort, lv2:AudioPort ; lv2:index 1 ; lv2:symbol \"out\" ; ] ,\n\
+    [ a lv2:InputPort, lv2:ControlPort ; lv2:index 2 ; lv2:symbol \"rate\" ; lv2:default 1.5 ; lv2:minimum 0.1 ; lv2:maximum 10.0 ; ] ,\n\
+    [ a lv2:InputPort, lv2:ControlPort ; lv2:index 3 ; lv2:symbol \"depth\" ; lv2:default 50.0 ; lv2:minimum 0.0 ; lv2:maximum 100.0 ; ] .\n",
+    );
+    write(
+        &lv2.join("platform").join("macos-universal").join("chorus.dylib"),
+        b"fake-bin",
+    );
+
+    // ALL fixtures must exist before init() — OnceLock freezes the
+    // catalog on the first call.
     plugin_loader::registry::init(&root);
 
     // ── NAM: two numeric grid axes → two float parameters ──
@@ -103,4 +140,13 @@ captures:
     let cab_names: Vec<&str> = cab_schema.parameters.iter().map(|p| p.path.as_str()).collect();
     assert!(cab_names.contains(&"voicing"), "IR schema missing 'voicing', got: {cab_names:?}");
     assert_eq!(cab_schema.parameters.len(), 1);
+
+    // ── LV2: data/ TTLs + per-platform binary → control ports become float params ──
+    let lv2_schema = project::block::schema_for_block_model("modulation", "lv2_test_chorus_e2e")
+        .expect("LV2 schema should resolve via shared data/ TTLs");
+    let lv2_names: Vec<&str> = lv2_schema.parameters.iter().map(|p| p.path.as_str()).collect();
+    assert!(
+        lv2_names.contains(&"rate") && lv2_names.contains(&"depth"),
+        "LV2 schema should include `rate` and `depth` ControlIn ports from data/chorus.ttl, got: {lv2_names:?}"
+    );
 }

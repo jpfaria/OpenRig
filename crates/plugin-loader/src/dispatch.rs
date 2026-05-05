@@ -498,4 +498,44 @@ mod tests {
         assert_eq!(lv2_control_value("missing", Some(50.0), &user), 50.0);
         assert_eq!(lv2_control_value("missing", None, &user), 0.0);
     }
+
+    #[test]
+    fn scan_lv2_ports_finds_ttls_in_shared_data_dir() {
+        // Real-world bundles dedupe TTLs into `<package>/data/` and
+        // keep `<package>/platform/<slot>/<binary>` per-platform.
+        // scan_lv2_ports must read from `data/` when called with that
+        // path, even if no `.ttl` lives next to the binary itself.
+        use std::fs;
+        let tmp = std::env::temp_dir().join(format!("openrig-lv2-data-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("data")).unwrap();
+        fs::write(
+            tmp.join("data").join("manifest.ttl"),
+            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:binary <plug.so> .\n",
+        ).unwrap();
+        fs::write(
+            tmp.join("data").join("plug.ttl"),
+            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:AudioPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"in\" ;\n\
+    ] ,\n\
+    [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 1 ;\n\
+        lv2:symbol \"gain\" ;\n\
+        lv2:default 0.7 ;\n\
+    ] .\n",
+        ).unwrap();
+
+        let ports = scan_lv2_ports(&tmp.join("data"), "urn:test:plug").expect("ports");
+        assert_eq!(ports.len(), 2, "expected 2 ports from data/, got {ports:?}");
+        let _ = fs::remove_dir_all(&tmp);
+    }
 }

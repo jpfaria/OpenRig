@@ -52,10 +52,18 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    let bundle_path = lib_path
-        .parent()
-        .ok_or_else(|| anyhow!("LV2 binary `{lib_path:?}` has no parent directory"))?
-        .to_path_buf();
+    // Prefer the shared `<package>/data/` bundle (deduplicated TTLs);
+    // fall back to the legacy per-platform layout where TTLs sat next
+    // to the binary.
+    let data_dir = package.root.join("data");
+    let bundle_path = if data_dir.is_dir() {
+        data_dir
+    } else {
+        lib_path
+            .parent()
+            .ok_or_else(|| anyhow!("LV2 binary `{lib_path:?}` has no parent directory"))?
+            .to_path_buf()
+    };
 
     let ports = scan_lv2_ports(&bundle_path, &plugin_uri)?;
 
