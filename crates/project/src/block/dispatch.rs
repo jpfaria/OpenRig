@@ -86,34 +86,13 @@ fn schema_from_disk_package(
         effect_type: effect_type.to_string(),
         model: package.manifest.id.clone(),
         display_name: package.manifest.display_name.clone(),
-        audio_mode: audio_mode_for_backend(package),
+        // Streams are ALWAYS stereo internally (CLAUDE.md invariant #5).
+        // Mono-native plugins (NAM, IR, LV2 1in/1out) run as DualMono:
+        // one instance per channel. Forcing MonoOnly here would make
+        // the engine downmix to mono, violating the stereo invariant.
+        audio_mode: block_core::ModelAudioMode::DualMono,
         parameters,
     })
-}
-
-/// Pick the right `ModelAudioMode` for a disk-backed package's DSP
-/// topology. Hardcoding `DualMono` for every backend caused NAM amps
-/// (mono-only) to be instantiated twice (left + right) and the NAM
-/// C SDK couldn't host two concurrent instances of the same model
-/// without producing runtime feedback (issue #287, "microfonia ao
-/// ativar mesa rectifier").
-fn audio_mode_for_backend(package: &plugin_loader::LoadedPackage) -> block_core::ModelAudioMode {
-    use block_core::ModelAudioMode;
-    use plugin_loader::manifest::Backend;
-    match &package.manifest.backend {
-        // NAM and IR are mono-native: one DSP instance, broadcast to
-        // stereo at the engine layer.
-        Backend::Nam { .. } | Backend::Ir { .. } => ModelAudioMode::MonoOnly,
-        // LV2 audio shape is decided per-bundle by counting AudioIn /
-        // AudioOut ports. We keep DualMono here as the safe default —
-        // most LV2 effects work fine with twin mono runs — but mono
-        // amp-style LV2s (1 in, 1 out) should ideally surface as
-        // MonoOnly. For now this matches pre-#287 LV2 behavior.
-        Backend::Lv2 { .. } => ModelAudioMode::DualMono,
-        // VST3 plugins are typically true stereo.
-        Backend::Vst3 { .. } => ModelAudioMode::TrueStereo,
-        Backend::Native { .. } => ModelAudioMode::DualMono,
-    }
 }
 
 /// Build a `Vec<ParameterSpec>` from a `LoadedPackage` manifest:

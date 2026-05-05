@@ -12,7 +12,7 @@
 //! Default path: ~/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source/lv2
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 const DEFAULT_LV2_DIR: &str =
     "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source/lv2";
