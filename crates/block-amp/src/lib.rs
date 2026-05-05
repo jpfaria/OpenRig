@@ -36,8 +36,15 @@ pub fn build_amp_processor_for_layout(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
+    if let Ok(definition) = registry::find_model_definition(model) {
+        return (definition.build)(params, sample_rate, layout);
+    }
+    if let Some(package) = plugin_loader::registry::find(model) {
+        return package.build_processor(params, sample_rate, layout);
+    }
+    anyhow::bail!("unsupported amp model '{}'", model)
 }
+
 
 pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
     let def = registry::find_model_definition(model_id).ok()?;

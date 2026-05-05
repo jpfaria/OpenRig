@@ -1,3 +1,7 @@
+pub mod from_package;
+
+pub use from_package::{build_from_package, register_builder};
+
 use anyhow::{bail, Context, Result};
 use realfft::{num_complex::Complex32, ComplexToReal, RealFftPlanner, RealToComplex};
 use block_core::{AudioChannelLayout, MonoProcessor, StereoProcessor};

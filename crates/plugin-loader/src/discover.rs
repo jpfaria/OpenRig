@@ -33,38 +33,36 @@ pub struct LoadedPackage {
 impl LoadedPackage {
     /// Instantiate the plugin into a [`BlockProcessor`].
     ///
-    /// Dispatches by manifest backend:
-    /// - `Native { runtime_id }` — looks up the runtime registered by the
-    ///   owning `block-*` crate at startup and calls its `build` fn.
-    /// - `Nam` / `Ir` / `Lv2` / `Vst3` — disk-package backends. Currently
-    ///   not yet wired through the unified loader; the legacy per-block
-    ///   paths still own these. Calling this on a disk package returns
-    ///   an explicit "not yet wired" error so callers can fall back.
+    /// Native plugins dispatch via [`crate::native_runtimes`] (keyed by
+    /// `runtime_id`). Disk-backed backends (NAM / IR / LV2 / VST3) go
+    /// through the [`crate::package_builders`] table, which each
+    /// backend crate populates at startup. The caller doesn't have to
+    /// know which backend it's dealing with.
     pub fn build_processor(
         &self,
         params: &ParameterSet,
         sample_rate: f32,
         layout: AudioChannelLayout,
     ) -> Result<BlockProcessor> {
-        match &self.manifest.backend {
-            Backend::Native { runtime_id } => {
-                let runtime = native_runtimes::get(runtime_id).ok_or_else(|| {
-                    anyhow!(
-                        "no native runtime registered for `{runtime_id}` \
-                         (plugin id `{}`)",
-                        self.manifest.id
-                    )
-                })?;
-                (runtime.build)(params, sample_rate, layout)
-            }
-            Backend::Nam { .. } | Backend::Ir { .. } | Backend::Lv2 { .. } | Backend::Vst3 { .. } => {
-                Err(anyhow!(
-                    "disk-package backend instantiation not yet wired through plugin-loader \
-                     (plugin id `{}`); legacy per-block path still owns this backend",
+        if let Backend::Native { runtime_id } = &self.manifest.backend {
+            let runtime = native_runtimes::get(runtime_id).ok_or_else(|| {
+                anyhow!(
+                    "no native runtime registered for `{runtime_id}` (plugin id `{}`)",
                     self.manifest.id
-                ))
-            }
+                )
+            })?;
+            return (runtime.build)(params, sample_rate, layout);
         }
+        let kind = crate::package_builders::BackendKind::from_backend(&self.manifest.backend)
+            .expect("Native handled above");
+        let builder = crate::package_builders::get(kind).ok_or_else(|| {
+            anyhow!(
+                "no package builder registered for {:?} backend (plugin id `{}`)",
+                kind,
+                self.manifest.id
+            )
+        })?;
+        builder(self, params, sample_rate, layout)
     }
 }
 

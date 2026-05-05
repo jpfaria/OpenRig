@@ -1,4 +1,7 @@
+pub mod from_package;
 pub mod processor;
+
+pub use from_package::{build_from_package, register_builder};
 
 use anyhow::{bail, Result};
 use processor::{params_from_set, NamPluginParams, NamProcessor};

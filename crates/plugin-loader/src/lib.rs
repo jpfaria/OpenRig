@@ -8,9 +8,11 @@
 
 pub mod config;
 pub mod discover;
+pub mod dispatch;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
+pub mod package_builders;
 pub mod registry;
 pub mod validate;
 

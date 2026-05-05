@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }
 anyhow.workspace = true
 log.workspace = true
 libloading = "0.8"

@@ -9,3 +9,6 @@ block-core = { path = "../block-core" }
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+domain = { path = "../domain" }

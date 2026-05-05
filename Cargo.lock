@@ -800,6 +800,7 @@ dependencies = [
  "domain",
  "ir",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -924,6 +925,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "lv2",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -1759,7 +1761,10 @@ dependencies = [
  "block-wah",
  "crossbeam-queue",
  "domain",
+ "ir",
  "log",
+ "lv2",
+ "nam",
  "project",
  "vst3-host",
 ]
@@ -3131,6 +3136,7 @@ dependencies = [
  "block-core",
  "hound",
  "log",
+ "plugin-loader",
  "realfft",
 ]
 
@@ -3537,6 +3543,7 @@ dependencies = [
  "block-core",
  "libloading 0.8.9",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -3686,6 +3693,7 @@ dependencies = [
  "cmake",
  "domain",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -4484,6 +4492,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "serde",
  "serde_yaml",
  "thiserror 1.0.69",

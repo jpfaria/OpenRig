@@ -10,6 +10,11 @@
 /// Call once at process startup, before `plugin_loader::registry::init`
 /// freezes the catalog. Idempotent in practice — each `block-*` crate's
 /// `register_natives()` overwrites its own entries by `runtime_id`.
+///
+/// Also registers the disk-package builders for every backend crate
+/// (NAM, IR, LV2). After this returns, `LoadedPackage::build_processor`
+/// can dispatch any backend without the caller needing to know which
+/// crate handles it.
 pub fn register_all_natives() {
     block_amp::register_natives();
     block_cab::register_natives();
@@ -21,4 +26,8 @@ pub fn register_all_natives() {
     block_preamp::register_natives();
     block_reverb::register_natives();
     block_wah::register_natives();
+
+    nam::register_builder();
+    ir::register_builder();
+    lv2::register_builder();
 }
