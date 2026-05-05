@@ -1149,3 +1149,111 @@ fn normalize_block_params_accepts_disk_package_unknown_to_legacy_validator() {
         normalized.err()
     );
 }
+
+// ── disk-package end-to-end: schema + normalize + audio_descriptors all
+// must accept models that live only in plugin_loader::registry, not in
+// the legacy block-* registries. Single test combines coverage because
+// plugin_loader::registry is OnceLock-backed (init freezes it once).
+// Issue #287.
+#[test]
+fn disk_packages_load_through_full_block_pipeline() {
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::manifest::BlockType;
+    use crate::param::{ModelParameterSchema, ParameterSet};
+    use std::path::PathBuf;
+
+    fn empty_schema(effect_type: &'static str, model_id: &'static str) -> impl Fn() -> anyhow::Result<ModelParameterSchema> {
+        move || Ok(ModelParameterSchema {
+            effect_type: effect_type.into(),
+            model: model_id.into(),
+            display_name: model_id.into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+    fn ok_validate(_: &ParameterSet) -> anyhow::Result<()> { Ok(()) }
+    fn err_build(
+        _: &ParameterSet,
+        _: f32,
+        _: block_core::AudioChannelLayout,
+    ) -> anyhow::Result<block_core::BlockProcessor> {
+        anyhow::bail!("not exercised in this test")
+    }
+
+    fn bare_schema() -> anyhow::Result<ModelParameterSchema> {
+        Ok(ModelParameterSchema {
+            effect_type: "".into(),
+            model: "".into(),
+            display_name: "".into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+
+    // One fake disk package per BlockType the catalog cares about. All
+    // share the same noop NativeRuntime — these tests don't exercise
+    // build, only the load/normalize/schema pipeline.
+    let fixtures: &[(&str, BlockType, &str)] = &[
+        ("preamp", BlockType::Preamp, "test_disk_preamp_e2e"),
+        ("amp", BlockType::Amp, "test_disk_amp_e2e"),
+        ("cab", BlockType::Cab, "test_disk_cab_e2e"),
+        ("body", BlockType::Body, "test_disk_body_e2e"),
+        ("gain", BlockType::GainPedal, "test_disk_gain_e2e"),
+        ("delay", BlockType::Delay, "test_disk_delay_e2e"),
+        ("reverb", BlockType::Reverb, "test_disk_reverb_e2e"),
+        ("modulation", BlockType::Mod, "test_disk_mod_e2e"),
+        ("dynamics", BlockType::Dyn, "test_disk_dyn_e2e"),
+        ("filter", BlockType::Filter, "test_disk_filter_e2e"),
+        ("pitch", BlockType::Pitch, "test_disk_pitch_e2e"),
+        ("wah", BlockType::Wah, "test_disk_wah_e2e"),
+    ];
+    for (_, block_type, id) in fixtures {
+        plugin_loader::registry::register_native_simple(
+            id,
+            id,
+            Some("test"),
+            *block_type,
+            NativeRuntime { schema: bare_schema, validate: ok_validate, build: err_build },
+        );
+    }
+    plugin_loader::registry::init(&PathBuf::from("/nonexistent-test-path"));
+
+    // schema_for_block_model fallback resolves each disk package.
+    for (effect_type, _, id) in fixtures {
+        let schema = crate::block::schema_for_block_model(effect_type, id);
+        assert!(
+            schema.is_ok(),
+            "schema_for_block_model({effect_type}, {id}) should fall through to plugin_loader::registry, got: {:?}",
+            schema.err()
+        );
+    }
+
+    // normalize_block_params accepts each disk package even though the
+    // legacy validate_*_params returns Err for unknown ids.
+    for (effect_type, _, id) in fixtures {
+        let result = crate::block::normalize_block_params(
+            effect_type,
+            id,
+            ParameterSet::default(),
+        );
+        assert!(
+            result.is_ok(),
+            "normalize_block_params({effect_type}, {id}) should accept disk package, got: {:?}",
+            result.err()
+        );
+    }
+
+    // catalog::supported_block_models surfaces every disk package id.
+    for (effect_type, _, id) in fixtures {
+        let models = crate::catalog::supported_block_models(effect_type)
+            .unwrap_or_else(|err| panic!("supported_block_models({effect_type}) failed: {err}"));
+        assert!(
+            models.iter().any(|m| m.model_id == *id),
+            "supported_block_models({effect_type}) should include disk package {id}, got: {:?}",
+            models.iter().map(|m| m.model_id.as_str()).collect::<Vec<_>>()
+        );
+    }
+
+    // Suppress dead-code warnings: helper exists for future param-driven tests.
+    let _ = empty_schema;
+}
