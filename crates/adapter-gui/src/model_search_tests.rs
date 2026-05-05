@@ -1,4 +1,3 @@
-
 use super::*;
 
 fn item(display_name: &str, brand: &str) -> BlockModelPickerItem {

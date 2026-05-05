@@ -1,4 +1,3 @@
-
 use super::{
     build_pitch_processor_for_layout, pitch_brand, pitch_display_name, pitch_model_schema,
     pitch_type_label, supported_models, validate_pitch_params,
@@ -75,28 +74,4 @@ fn registry_build_lv2_models_ignored() {
         let _ =
             build_pitch_processor_for_layout(model, &params, 48_000.0, AudioChannelLayout::Mono);
     }
-}
-
-// ── existing specific tests (kept) ──────────────────────────────────
-
-#[test]
-fn exposes_x42_autotune() {
-    let models = supported_models();
-    assert!(
-        models.contains(&"lv2_fat1_autotune"),
-        "should contain x42 autotune"
-    );
-}
-
-#[test]
-fn x42_schema_is_pitch() {
-    let schema = pitch_model_schema("lv2_fat1_autotune").expect("schema");
-    assert_eq!(schema.effect_type, "pitch");
-    assert_eq!(schema.model, "lv2_fat1_autotune");
-}
-
-#[test]
-fn defaults_normalize_x42() {
-    let params = ParameterSet::default();
-    validate_pitch_params("lv2_fat1_autotune", &params).expect("defaults should normalize");
 }

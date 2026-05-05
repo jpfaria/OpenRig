@@ -1,4 +1,3 @@
-
 use super::{
     build_gain_processor_for_layout, gain_brand, gain_display_name, gain_model_schema,
     gain_type_label, supported_models, validate_gain_params,
