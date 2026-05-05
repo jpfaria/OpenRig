@@ -116,19 +116,16 @@ fn block_type_for_crate(crate_name: &str) -> Option<BlockType> {
     })
 }
 
-/// Plugin source files all start with one of the backend prefixes used by
-/// the registry pattern: `nam_`, `ir_`, `lv2_`, or `native_`.
+/// Plugin source files start with one of three backend prefixes the tool
+/// can migrate: `nam_`, `ir_`, or `lv2_`. `native_*.rs` files exist in the
+/// repo too but they're DSP-in-engine, not external packages — silently
+/// skipped so they don't show up in the failure report.
 fn is_plugin_source_file(filename: &str) -> bool {
     if !filename.ends_with(".rs") {
         return false;
     }
-    matches!(
-        filename
-            .split('_')
-            .next()
-            .map(|prefix| prefix.to_string()),
-        Some(prefix) if matches!(prefix.as_str(), "nam" | "ir" | "lv2" | "native")
-    )
+    let stem_prefix = filename.split('_').next().unwrap_or("");
+    matches!(stem_prefix, "nam" | "ir" | "lv2")
 }
 
 fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Result<String> {
@@ -564,14 +561,32 @@ fn build_grid_manifest(
 ) -> Result<PluginManifest> {
     let parameters = read_enum_parameters(source);
 
-    // Some plugins are single-capture and skip the array literal: they hold
-    // a `const CAPTURE_PATH: &str = "..."` instead. Treat those as a one-cell
-    // grid with no parameters before falling through to the array path.
-    if let Some(single_path) = read_str_const(source, "CAPTURE_PATH", false) {
-        let captures = vec![GridCapture {
-            values: BTreeMap::new(),
-            file: PathBuf::from(strip_path_prefix(&single_path, flavor)),
-        }];
+    // Prefer the `const CAPTURES: &[T] = &[...]` array when present — it
+    // carries the full grid with parameter values. Only fall back to the
+    // const-CAPTURE_<NAME> pattern (single or multi flat captures, no
+    // parameters) when the array literal is genuinely absent.
+    if let Some(captures_body) = read_captures_block(source) {
+        let entries = read_capture_entries(captures_body);
+        return build_grid_manifest_from_entries(
+            model_id,
+            display_name,
+            brand,
+            block_type,
+            flavor,
+            parameters,
+            entries,
+        );
+    }
+
+    let const_captures = scan_const_capture_paths(source);
+    if !const_captures.is_empty() {
+        let captures: Vec<GridCapture> = const_captures
+            .into_iter()
+            .map(|raw| GridCapture {
+                values: BTreeMap::new(),
+                file: PathBuf::from(strip_path_prefix(&raw, flavor)),
+            })
+            .collect();
         let backend = match flavor {
             "nam" => Backend::Nam {
                 parameters: vec![],
@@ -595,9 +610,18 @@ fn build_grid_manifest(
         });
     }
 
-    let captures_body = read_captures_block(source)
-        .ok_or_else(|| anyhow!("no `const CAPTURES` block found in source"))?;
-    let entries = read_capture_entries(captures_body);
+    Err(anyhow!("no captures found (neither array nor `const CAPTURE_*`)"))
+}
+
+fn build_grid_manifest_from_entries(
+    model_id: &str,
+    display_name: &str,
+    brand: Option<&str>,
+    block_type: BlockType,
+    flavor: &str,
+    parameters: Vec<GridParameter>,
+    entries: Vec<&str>,
+) -> Result<PluginManifest> {
 
     // For NAM/IR captures, the file path is the LAST string literal in each
     // entry; the parameter values precede it. We use the parameter list to
@@ -658,6 +682,37 @@ fn build_grid_manifest(
         block_type,
         backend,
     })
+}
+
+/// Pull every `[pub] const CAPTURE_<NAME>: &str = "..."` value out of the
+/// source, in source order. Used by single-capture and multi-named-capture
+/// plugins (e.g. `pot_boost` with one `CAPTURE_PATH`, or `vox_ac30` with
+/// `CAPTURE_STANDARD` and `CAPTURE_CLEAN_65PRINCE`).
+fn scan_const_capture_paths(source: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(offset) = source[cursor..].find("const CAPTURE") {
+        let abs = cursor + offset;
+        let line_end = source[abs..]
+            .find('\n')
+            .map(|relative| abs + relative)
+            .unwrap_or(source.len());
+        // The `const CAPTURE...` line may continue onto the next line if
+        // the literal is wrapped, so scan from the const start until we
+        // find a `"` and read it as a string literal.
+        let after = &source[abs..];
+        let needle_eq = after.find('=');
+        if let Some(eq_offset) = needle_eq {
+            let from_eq = &after[eq_offset..];
+            if let Some(quote_offset) = from_eq.find('"') {
+                if let Some(value) = read_string_literal(&from_eq[quote_offset..]) {
+                    found.push(value);
+                }
+            }
+        }
+        cursor = line_end + 1;
+    }
+    found
 }
 
 /// Source paths look like `cabs/<model>/file.wav` or
@@ -868,25 +923,34 @@ fn resolve_nam_capture_source(
     source_text: &str,
     in_pkg_path: &Path,
 ) -> Result<PathBuf> {
-    // captures[N].file in the manifest is `captures/<basename.nam>`. Look up
-    // the full source path in the original CAPTURES block by basename match.
     let basename = in_pkg_path
         .file_name()
         .ok_or_else(|| anyhow!("no basename for {}", in_pkg_path.display()))?
         .to_string_lossy()
         .to_string();
-    let captures_body = read_captures_block(source_text)
-        .ok_or_else(|| anyhow!("no captures block"))?;
-    for entry in read_capture_entries(captures_body) {
-        let literals = read_string_literals_in(entry);
-        if let Some(path_str) = literals.last() {
-            if Path::new(path_str)
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                == Some(basename.clone())
-            {
-                return Ok(PathBuf::from(NAM_CAPTURES_ROOT).join(path_str));
+    // 1. Try the array literal path used by grid-style sources.
+    if let Some(captures_body) = read_captures_block(source_text) {
+        for entry in read_capture_entries(captures_body) {
+            let literals = read_string_literals_in(entry);
+            if let Some(path_str) = literals.last() {
+                if Path::new(path_str)
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    == Some(basename.clone())
+                {
+                    return Ok(PathBuf::from(NAM_CAPTURES_ROOT).join(path_str));
+                }
             }
+        }
+    }
+    // 2. Fall back to the const CAPTURE_<NAME> pattern.
+    for raw in scan_const_capture_paths(source_text) {
+        if Path::new(&raw)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            == Some(basename.clone())
+        {
+            return Ok(PathBuf::from(NAM_CAPTURES_ROOT).join(&raw));
         }
     }
     Err(anyhow!("could not resolve NAM source for {basename}"))
@@ -902,29 +966,50 @@ fn resolve_ir_capture_source(
         .ok_or_else(|| anyhow!("no basename"))?
         .to_string_lossy()
         .to_string();
-    let captures_body = read_captures_block(source_text)
-        .ok_or_else(|| anyhow!("no captures block"))?;
-    for entry in read_capture_entries(captures_body) {
-        let literals = read_string_literals_in(entry);
-        if let Some(path_str) = literals.last() {
-            if let Some(name) = Path::new(path_str).file_name() {
-                if name.to_string_lossy() == basename {
-                    let candidate = PathBuf::from(IR_CAPTURES_ROOT).join(path_str);
-                    if candidate.is_file() {
-                        return Ok(candidate);
-                    }
-                    // Fallback: source has stale `_3` suffix that the real
-                    // file lacks. Try stripping it and re-resolving.
-                    let stripped = path_str.replace("_3.wav", ".wav");
-                    let candidate_stripped = PathBuf::from(IR_CAPTURES_ROOT).join(&stripped);
-                    if candidate_stripped.is_file() {
-                        return Ok(candidate_stripped);
-                    }
-                }
+    let mut paths: Vec<String> = Vec::new();
+    if let Some(body) = read_captures_block(source_text) {
+        for entry in read_capture_entries(body) {
+            for literal in read_string_literals_in(entry) {
+                paths.push(literal);
+            }
+        }
+    }
+    for raw in scan_const_capture_paths(source_text) {
+        paths.push(raw);
+    }
+    for raw in paths {
+        if Path::new(&raw)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            != Some(basename.clone())
+        {
+            continue;
+        }
+        let candidate = PathBuf::from(IR_CAPTURES_ROOT).join(&raw);
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+        // Fallback: source has stale `_<N>` suffix the real file lacks.
+        // Strip any `_<digit>.wav` suffix and retry.
+        if let Some(stripped) = strip_take_suffix(&raw) {
+            let candidate_stripped = PathBuf::from(IR_CAPTURES_ROOT).join(&stripped);
+            if candidate_stripped.is_file() {
+                return Ok(candidate_stripped);
             }
         }
     }
     Err(anyhow!("could not resolve IR source for {basename}"))
+}
+
+/// Trim a single trailing `_<digits>` before the file extension. Lets us
+/// match `foo.wav` from a stale `foo_3.wav` reference.
+fn strip_take_suffix(path: &str) -> Option<String> {
+    let (stem, ext) = path.rsplit_once('.')?;
+    let (head, suffix) = stem.rsplit_once('_')?;
+    if !suffix.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!("{head}.{ext}"))
 }
 
 fn copy_asset(src: &Path, dst: &Path) -> Result<()> {
