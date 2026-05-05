@@ -1,5 +1,6 @@
 pub mod model_visual;
 mod registry;
+pub use registry::register_natives;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};

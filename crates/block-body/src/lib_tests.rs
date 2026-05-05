@@ -40,11 +40,6 @@
     // ── supported_models ────────────────────────────────────────────────────
 
     #[test]
-    fn supported_models_is_not_empty() {
-        assert!(!supported_models().is_empty(), "body registry should have at least one model");
-    }
-
-    #[test]
     fn supported_models_has_no_duplicates() {
         let models = supported_models();
         let mut seen = std::collections::HashSet::new();

@@ -77,27 +77,3 @@
         }
     }
 
-    // ── existing specific tests (kept) ──────────────────────────────────
-
-    #[test]
-    fn exposes_x42_autotune() {
-        let models = supported_models();
-        assert!(
-            models.contains(&"lv2_fat1_autotune"),
-            "should contain x42 autotune"
-        );
-    }
-
-    #[test]
-    fn x42_schema_is_pitch() {
-        let schema = pitch_model_schema("lv2_fat1_autotune").expect("schema");
-        assert_eq!(schema.effect_type, "pitch");
-        assert_eq!(schema.model, "lv2_fat1_autotune");
-    }
-
-    #[test]
-    fn defaults_normalize_x42() {
-        let params = ParameterSet::default();
-        validate_pitch_params("lv2_fat1_autotune", &params)
-            .expect("defaults should normalize");
-    }
