@@ -168,6 +168,7 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
     // separately and keep the longest list.
     let mut best: Vec<Lv2Port> = Vec::new();
     let mut any_ttl = false;
+    let mut texts: Vec<String> = Vec::new();
     for entry in fs::read_dir(bundle_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -178,13 +179,13 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
         let Ok(text) = fs::read_to_string(&path) else {
             continue;
         };
-        let Some(block) = extract_plugin_block(&text, plugin_uri) else {
-            continue;
-        };
-        let ports = parse_ports(&block);
-        if ports.len() > best.len() {
-            best = ports;
+        if let Some(block) = extract_plugin_block(&text, plugin_uri) {
+            let ports = parse_ports(&block);
+            if ports.len() > best.len() {
+                best = ports;
+            }
         }
+        texts.push(text);
     }
     if !any_ttl {
         return Err(anyhow!(
@@ -192,13 +193,121 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
             bundle_dir.display()
         ));
     }
+
+    // Fallback: many real bundles ship a manifest.yaml whose
+    // `plugin_uri` does not match the URI declared inside the TTL
+    // (e.g. MDA Leslie's manifest says drobilla.net but the TTL
+    // declares moddevices.com). When the requested URI matches
+    // nothing AND the bundle declares exactly one `a lv2:Plugin`,
+    // use that single plugin's ports — surfacing knobs in the GUI is
+    // worth more than enforcing a typo'd manifest URI.
     if best.is_empty() {
+        if let Some(ports) = ports_for_only_plugin_in_bundle(&texts) {
+            eprintln!(
+                "LV2 bundle `{}`: requested URI `{plugin_uri}` not found; falling back to the only declared plugin (manifest URI is likely wrong)",
+                bundle_dir.display()
+            );
+            return Ok(ports);
+        }
         return Err(anyhow!(
             "plugin URI `{plugin_uri}` has no port declarations in any .ttl under `{}`",
             bundle_dir.display()
         ));
     }
     Ok(best)
+}
+
+/// If the bundle declares exactly one `a lv2:Plugin` subject across
+/// all of its TTLs, return that plugin's ports. Otherwise return
+/// `None` — multiple plugins make it ambiguous which one the user
+/// meant to load, and we'd rather fail loudly than guess.
+fn ports_for_only_plugin_in_bundle(texts: &[String]) -> Option<Vec<Lv2Port>> {
+    let mut hits: Vec<&str> = Vec::new();
+    for text in texts {
+        for block in find_plugin_blocks(text) {
+            // Skip blocks that declare zero ports — usually
+            // `manifest.ttl` pointer entries that say "this plugin
+            // exists, here's its binary" without enumerating ports.
+            if !parse_ports(block).is_empty() {
+                hits.push(block);
+            }
+        }
+    }
+    if hits.len() == 1 {
+        return Some(parse_ports(hits[0]));
+    }
+    None
+}
+
+/// Iterator over substrings of a TTL document that correspond to a
+/// `subject ... a lv2:Plugin ... .` statement. The returned slice
+/// starts right after the subject token and runs to the terminating
+/// `.`, which is exactly the shape `parse_ports` expects.
+fn find_plugin_blocks(text: &str) -> Vec<&str> {
+    let mut out: Vec<&str> = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(rel) = text[cursor..].find("lv2:Plugin") {
+        let abs = cursor + rel;
+        // Walk back from `lv2:Plugin` to confirm this is `a lv2:Plugin`
+        // and not a different predicate that happens to share the
+        // suffix (e.g. `lv2:PluginType`). Skip past the `a` keyword
+        // and any whitespace separating it from the rest.
+        let prefix = text[..abs].trim_end();
+        if !prefix.ends_with(" a") && !prefix.ends_with("\ta") && !prefix.ends_with("\na") {
+            cursor = abs + "lv2:Plugin".len();
+            continue;
+        }
+        // Find the start of the statement: previous `.` at depth 0.
+        let stmt_start = previous_statement_start(text, abs);
+        // Skip over the subject: the block begins right at the start
+        // of the statement (after any whitespace), which is exactly
+        // what extract_plugin_block returns when given an absolute
+        // URI. parse_ports walks the `[ ... ]` blocks anyway, so the
+        // subject prefix doesn't interfere.
+        let stmt_end = next_statement_terminator(text, abs);
+        out.push(&text[stmt_start..stmt_end]);
+        cursor = stmt_end;
+    }
+    out
+}
+
+fn previous_statement_start(text: &str, idx: usize) -> usize {
+    let bytes = text.as_bytes();
+    let mut i = idx;
+    let mut in_uri = false;
+    let mut in_string = false;
+    while i > 0 {
+        i -= 1;
+        let ch = bytes[i] as char;
+        match ch {
+            '>' if !in_string => in_uri = true,
+            '<' if !in_string => in_uri = false,
+            '"' if !in_uri => in_string = !in_string,
+            '.' if !in_uri && !in_string => return i + 1,
+            _ => {}
+        }
+    }
+    0
+}
+
+fn next_statement_terminator(text: &str, idx: usize) -> usize {
+    let mut depth: i32 = 0;
+    let mut in_uri = false;
+    let mut in_string = false;
+    for (offset, ch) in text[idx..].char_indices() {
+        match ch {
+            '"' if !in_uri => in_string = !in_string,
+            '<' if !in_string && !in_uri => in_uri = true,
+            '>' if !in_string && in_uri => in_uri = false,
+            '[' if !in_uri && !in_string => depth += 1,
+            ']' if !in_uri && !in_string => depth = (depth - 1).max(0),
+            '.' if depth == 0 && !in_uri && !in_string => {
+                return idx + offset;
+            }
+            _ => {}
+        }
+    }
+    text.len()
 }
 
 /// Substring of `combined` that starts at the plugin URI and runs until

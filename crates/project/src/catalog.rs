@@ -220,7 +220,19 @@ pub fn resolve_color_scheme(effect_type: &str, brand: &str, model_id: &str) -> M
 pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
     let mut types: Vec<_> = block_registry()
         .into_iter()
-        .filter(|entry| !(entry.supported_models)().is_empty())
+        .filter(|entry| {
+            // Include the type if it has either native models OR
+            // disk-backed packages registered for it. Block types that
+            // migrated entirely to disk packages (e.g. block-body) have
+            // an empty native slice but still need to appear in the GUI.
+            // Issue #287.
+            if !(entry.supported_models)().is_empty() {
+                return true;
+            }
+            block_type_for_effect_type(entry.effect_type)
+                .map(|bt| !plugin_loader::registry::packages_for(bt).is_empty())
+                .unwrap_or(false)
+        })
         .map(|entry| BlockTypeCatalogEntry {
             effect_type: entry.effect_type,
             display_label: entry.display_label,

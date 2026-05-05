@@ -287,3 +287,51 @@ fomp:cs_phaser1\n\
     );
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn scan_lv2_ports_falls_back_to_only_plugin_when_uri_mismatches() {
+    // Real bundles in OpenRig-plugins (MDA Leslie, MDA RoundPan, MDA
+    // Stereo, etc.) ship a manifest.yaml whose `plugin_uri` does not
+    // match the URI declared inside the bundle's `<plugin>.ttl`. For
+    // MDA Leslie the manifest carries `http://drobilla.net/plugins/mda/Leslie`
+    // but the TTL says `http://moddevices.com/plugins/mda/Leslie`.
+    //
+    // When this happens AND the bundle contains exactly one `a lv2:Plugin`
+    // declaration, the parser must fall back to that single plugin so
+    // the GUI still sees its control ports — otherwise dozens of LV2
+    // packages surface zero parameters even though the binary works.
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-uri-mismatch-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+         @prefix mda: <http://moddevices.com/plugins/mda/> .\n\
+         mda:Leslie\n\
+             a lv2:Plugin ;\n\
+             lv2:port [\n\
+                 a lv2:InputPort, lv2:AudioPort ;\n\
+                 lv2:index 0 ;\n\
+                 lv2:symbol \"in\" ;\n\
+             ] ,\n\
+             [\n\
+                 a lv2:InputPort, lv2:ControlPort ;\n\
+                 lv2:index 1 ;\n\
+                 lv2:symbol \"speed\" ;\n\
+                 lv2:default 0.5 ;\n\
+             ] .\n",
+    )
+    .unwrap();
+
+    // Manifest carries the WRONG URI (drobilla.net) while the TTL
+    // declares the plugin under moddevices.com. Same shape as MDA Leslie.
+    let ports = scan_lv2_ports(&tmp, "http://drobilla.net/plugins/mda/Leslie")
+        .expect("expected fallback to find the only plugin in the bundle");
+    assert_eq!(
+        ports.len(),
+        2,
+        "expected parser to fall back to the only plugin in the bundle when manifest URI doesn't match; got {ports:?}"
+    );
+    let _ = fs::remove_dir_all(&tmp);
+}
