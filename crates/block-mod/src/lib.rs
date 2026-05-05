@@ -92,3 +92,15 @@ mod tests;
 pub fn register_natives() {
     registry::register_natives();
 }
+
+pub fn is_mod_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for a model.
+pub fn mod_thumbnail(model: &str) -> Option<&'static str> {
+    registry::THUMBNAILS
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, path)| *path)
+}
