@@ -5,8 +5,8 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }
 domain = { path = "../domain" }
-infra-filesystem = { path = "../infra-filesystem" }
 log.workspace = true
 [build-dependencies]
 cmake = "0.1"

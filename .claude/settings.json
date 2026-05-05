@@ -1,11 +1,21 @@
 {
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false,
+    "clangd-lsp@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": false,
+    "andrej-karpathy-skills@karpathy-skills": false,
+    "hookify@claude-plugins-official": false,
+    "claude-md-management@claude-plugins-official": false,
+    "security-guidance@claude-plugins-official": false
+  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig CLAUDE.md ordena que estas skills sejam carregadas sempre que houver código Rust ou Slint envolvido. Invoque-as via Skill tool no início da sessão, em uma única mensagem com chamadas paralelas: openrig-code-quality, rust-best-practices, slint-best-practices. As skills situacionais (superpowers:brainstorming, test-driven-development, systematic-debugging, executing-plans, verification-before-completion, receiving-code-review, finishing-a-development-branch, writing-skills, dispatching-parallel-agents) permanecem sob demanda quando a situação correspondente surgir, conforme CLAUDE.md.\"}}'"
+            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills openrig-code-quality, rust-best-practices, slint-best-practices quando tocar c\u00f3digo Rust/Slint.\"}}'"
           }
         ]
       }
@@ -21,17 +31,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(git push*)",
-            "command": "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if echo \"$branch\" | grep -qE '^(feature|bugfix)/issue-[0-9]+$'; then N=$(echo \"$branch\" | sed -E 's|^(feature\\|bugfix)/issue-||'); jq -n --arg n \"$N\" '{hookSpecificOutput:{hookEventName:\"PostToolUse\",additionalContext:(\"You just pushed to issue branch #\"+$n+\". Per CLAUDE.md issue traceability rules, you MUST run `gh issue comment \"+$n+\"` now with: (a) commit hashes pushed, (b) files changed, (c) any decisions, conflicts, or findings since the last comment. Do not respond with new content until that comment is posted.\")}}'; fi"
-          }
-        ]
-      }
-    ]
+    "PostToolUse": []
   }
 }

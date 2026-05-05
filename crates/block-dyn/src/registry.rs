@@ -39,10 +39,38 @@ pub fn find_gate_model_definition(model: &str) -> Result<&'static DynModelDefini
         .ok_or_else(|| anyhow!("unsupported gate model '{}'", model))
 }
 
-/// Returns true if the model has a usable backend on the current platform.
-/// LV2 wrappers report `false` when their plugin binary is missing from
-/// `libs/lv2/<platform>/`. Native/NAM/IR/VST3 models report `true`.
-pub fn is_model_available(model: &str) -> bool {
-    AVAILABLE_MODEL_IDS.iter().any(|id| *id == model)
-        || !MODEL_DEFINITIONS.iter().any(|d| d.id == model)
+fn noop_validate(_: &block_core::param::ParameterSet) -> anyhow::Result<()> { Ok(()) }
+
+/// Push every native model into the unified plugin-loader registry.
+/// Disk-backed models (NAM/IR/LV2/VST3) stay in the legacy per-block path
+/// until the disk-backend dispatchers move into plugin-loader too.
+///
+/// Issue: #287
+pub fn register_natives() {
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::registry::register_native_simple;
+
+    for definition in MODEL_DEFINITIONS {
+        if !matches!(definition.backend_kind, DynBackendKind::Native) {
+            continue;
+        }
+        let runtime = NativeRuntime {
+            schema: definition.schema,
+            validate: noop_validate,
+            build: definition.build,
+        };
+        let brand = if definition.brand.is_empty() {
+            Some("openrig")
+        } else {
+            Some(definition.brand)
+        };
+        register_native_simple(
+            definition.id,
+            definition.display_name,
+            brand,
+            BlockType::Dyn,
+            runtime,
+        );
+    }
 }

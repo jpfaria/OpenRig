@@ -15,7 +15,7 @@ blocks:
     low_cut: 88.0
 - type: amp
   enabled: true
-  model: vox_ac30
+  model: nam_vox_ac30
   params:
     character: standard
 - type: reverb

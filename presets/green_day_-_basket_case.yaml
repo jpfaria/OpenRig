@@ -29,7 +29,7 @@ blocks:
     tone: 7.0
 - type: amp
   enabled: true
-  model: bogner_ecstasy
+  model: nam_bogner_ecstasy
   params:
     cabinet: 4x12_v30
     gain: drive

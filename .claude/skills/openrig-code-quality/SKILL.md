@@ -7,6 +7,34 @@ description: Use when writing, editing, or refactoring code in this project — 
 
 Methodology rules for ANY code in this project. Apply BEFORE writing, not after. No exceptions.
 
+---
+
+## LEI — TDD obrigatório, sempre teste primeiro
+
+**Antes de tocar QUALQUER linha de código de produção:**
+
+1. **Escreva o teste que prova o bug ou valida a feature.** Reproduz o sintoma exato relatado pelo usuário.
+2. **Rode o teste e confirme RED.** Se passa de primeira, o teste está cobrindo o caso errado — refaz.
+3. **SÓ ENTÃO** edita código de produção pra fazer o teste passar (GREEN).
+4. **Refatora** se necessário, mantendo tests verdes.
+
+Sem exceções. Vale pra:
+- Fix de bug (mesmo "trivial").
+- Feature nova.
+- Refactor que muda comportamento observável.
+- Mudança em parser, registry, dispatch, qualquer caminho de dados.
+
+Anti-padrões proibidos:
+```
+❌ "vou tentar essa correção" → edita prod → roda app → quebra → tenta outra
+❌ "depois eu adiciono o teste" → ship sem cobertura → regride na próxima sessão
+❌ teste escrito DEPOIS do fix passando — não prova nada
+```
+
+Pegou usuário 5 ciclos pra cobrar isso. Não pegue de novo.
+
+---
+
 This skill is **language-agnostic**: it covers methodology principles (decoupling, ownership, naming, file organization) that apply identically to Rust, Slint, Python, shell, YAML, etc. Language-specific rules (Cargo workflow, Slint-only gotchas) live in:
 
 - `rust-best-practices` — Rust idioms + OpenRig Cargo workflow (validate.sh, cargo clean, zero warnings, cfg guards)

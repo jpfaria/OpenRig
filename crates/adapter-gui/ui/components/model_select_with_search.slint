@@ -295,6 +295,14 @@ export component ModelSelectWithSearch inherits Rectangle {
                             root.select(model.model_id);
                             popup.close();
                         }
+                        // Let wheel/trackpad scroll bubble up to the
+                        // outer Flickable — without this, the row's
+                        // TouchArea swallows the scroll event and the
+                        // dropdown becomes unscrollable when there are
+                        // more models than fit on screen.
+                        scroll-event(_) => {
+                            reject
+                        }
                     }
                 }
             }

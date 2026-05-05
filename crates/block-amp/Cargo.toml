@@ -9,4 +9,5 @@ nam = { path = "../nam" }
 block-preamp = { path = "../block-preamp" }
 block-cab = { path = "../block-cab" }
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }
 lv2 = { path = "../lv2" }

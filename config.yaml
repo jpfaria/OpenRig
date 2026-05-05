@@ -1,7 +1,8 @@
 presets_path: ./
 
-paths:
-  lv2_libs: "libs/lv2/macos-universal"
-  lv2_data: "data/lv2"
-  nam_captures: "captures/nam"
-  ir_captures: "captures/ir"
+# Plugin packages (issue #287). After the migration to OpenRig-plugins,
+# every NAM / IR / LV2 plugin lives under <plugins_root>/<backend>/<id>/
+# as a self-contained package with a manifest.yaml. Resolved relative
+# to this config file's directory; absolute paths pass through.
+# Override at runtime with the OPENRIG_PLUGINS_ROOT environment variable.
+plugins_root:  /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source
