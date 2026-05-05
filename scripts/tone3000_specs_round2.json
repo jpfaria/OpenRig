@@ -1,21 +1,5 @@
 [
   {
-    "make": "Mesa Boogie Dual Rectifier",
-    "kind": "amp",
-    "slug": "mesa_boogie_dual_rectifier",
-    "display": "Dual Rectifier",
-    "brand": "mesa",
-    "max_captures": 8
-  },
-  {
-    "make": "Laney",
-    "kind": "amp",
-    "slug": "laney",
-    "display": "Laney",
-    "brand": "laney",
-    "max_captures": 8
-  },
-  {
     "make": "Peavey 6505",
     "kind": "amp",
     "slug": "peavey_6505",
