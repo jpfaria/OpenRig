@@ -117,12 +117,17 @@ pub enum BlockType {
 
 /// Backend-specific payload of a plugin.
 ///
-/// Serde tags this with `backend: nam|ir|lv2` and flattens the per-variant
-/// fields into the top-level manifest, producing the canonical YAML shape
-/// documented at the module level.
+/// Serde tags this with `backend: native|nam|ir|lv2|vst3` and flattens
+/// the per-variant fields into the top-level manifest, producing the
+/// canonical YAML shape documented at the module level.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum Backend {
+    /// Native Rust DSP compiled into the binary. The `runtime_id` keys
+    /// into the in-memory `native_runtimes` table that each `block-*`
+    /// crate populates at startup, where the actual schema/validate/build
+    /// fn pointers live. No assets ship on disk.
+    Native { runtime_id: String },
     /// Neural Amp Modeler captures arranged on a parameter grid.
     Nam {
         parameters: Vec<GridParameter>,

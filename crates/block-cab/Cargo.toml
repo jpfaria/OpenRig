@@ -9,3 +9,4 @@ domain = { path = "../domain" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
 lv2 = { path = "../lv2" }
+plugin-loader = { path = "../plugin-loader" }

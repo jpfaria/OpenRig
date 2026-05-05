@@ -18,6 +18,13 @@ pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
 }
 
+/// Push every native cab model into the unified plugin-loader registry.
+/// Called by `adapter-gui` at startup before plugin discovery freezes
+/// the catalog.
+pub fn register_natives() {
+    registry::register_natives();
+}
+
 pub fn cab_backend_kind(model: &str) -> Result<CabBackendKind> {
     Ok(registry::find_model_definition(model)?.backend_kind)
 }

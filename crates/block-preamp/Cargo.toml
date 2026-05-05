@@ -6,3 +6,4 @@ edition.workspace = true
 anyhow.workspace = true
 nam = { path = "../nam" }
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }

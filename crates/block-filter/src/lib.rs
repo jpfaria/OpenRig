@@ -586,3 +586,10 @@ mod tests {
         assert!(result.is_ok());
     }
 }
+
+/// Push every native model into the unified plugin-loader registry.
+/// Called by `adapter-gui` at startup before plugin discovery freezes
+/// the catalog.
+pub fn register_natives() {
+    registry::register_natives();
+}

@@ -67,6 +67,10 @@ pub fn validate_package(
     }
 
     match &manifest.backend {
+        Backend::Native { .. } => {
+            // Native plugins ship no files on disk — the runtime_id keys
+            // into the in-binary `native_runtimes` table at startup.
+        }
         Backend::Nam { captures, .. } | Backend::Ir { captures, .. } => {
             for (capture_index, capture) in captures.iter().enumerate() {
                 let absolute = package_root.join(&capture.file);

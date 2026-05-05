@@ -85,6 +85,9 @@ pub enum ValidationError {
 
     #[error("VST3 parameter `{name}` declares max < min")]
     Vst3InvalidRange { name: String },
+
+    #[error("Native plugin `runtime_id` must not be empty")]
+    EmptyNativeRuntimeId,
 }
 
 /// Validate a manifest's internal consistency.
@@ -106,6 +109,12 @@ pub fn validate_manifest(manifest: &PluginManifest) -> Result<(), ValidationErro
     }
 
     match &manifest.backend {
+        Backend::Native { runtime_id } => {
+            if runtime_id.trim().is_empty() {
+                return Err(ValidationError::EmptyNativeRuntimeId);
+            }
+            Ok(())
+        }
         Backend::Nam {
             parameters,
             captures,

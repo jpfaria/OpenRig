@@ -53,22 +53,8 @@ fn make_device(id: &str, name: &str) -> GuiAudioDeviceSettings {
 // ── AssetPaths ──────────────────────────────────────────────────────
 
 #[test]
-fn asset_paths_default_has_platform_lv2_libs() {
-    let paths = AssetPaths::default();
-    assert!(
-        paths.lv2_libs.starts_with("libs/lv2/"),
-        "lv2_libs should start with libs/lv2/, got: {}",
-        paths.lv2_libs
-    );
-}
-
-#[test]
 fn asset_paths_default_fields_not_empty() {
     let paths = AssetPaths::default();
-    assert!(!paths.lv2_libs.is_empty());
-    assert!(!paths.lv2_data.is_empty());
-    assert!(!paths.nam_captures.is_empty());
-    assert!(!paths.ir_captures.is_empty());
     assert!(!paths.thumbnails.is_empty());
     assert!(!paths.screenshots.is_empty());
     assert!(!paths.metadata.is_empty());
@@ -77,10 +63,6 @@ fn asset_paths_default_fields_not_empty() {
 #[test]
 fn asset_paths_serde_roundtrip_preserves_values() {
     let paths = AssetPaths {
-        lv2_libs: "custom/lv2/libs".into(),
-        lv2_data: "custom/lv2/data".into(),
-        nam_captures: "custom/nam".into(),
-        ir_captures: "custom/ir".into(),
         thumbnails: "custom/thumbs".into(),
         screenshots: "custom/screens".into(),
         metadata: "custom/meta".into(),
@@ -100,19 +82,11 @@ fn asset_paths_deserialize_empty_yaml_uses_defaults() {
 #[test]
 fn resolve_asset_paths_absolute_left_unchanged() {
     let paths = AssetPaths {
-        lv2_libs: "/absolute/lv2/libs".into(),
-        lv2_data: "/absolute/lv2/data".into(),
-        nam_captures: "/absolute/nam".into(),
-        ir_captures: "/absolute/ir".into(),
         thumbnails: "/absolute/thumbs".into(),
         screenshots: "/absolute/screens".into(),
         metadata: "/absolute/meta".into(),
     };
     let resolved = resolve_asset_paths(paths.clone());
-    assert_eq!(resolved.lv2_libs, "/absolute/lv2/libs");
-    assert_eq!(resolved.lv2_data, "/absolute/lv2/data");
-    assert_eq!(resolved.nam_captures, "/absolute/nam");
-    assert_eq!(resolved.ir_captures, "/absolute/ir");
     assert_eq!(resolved.thumbnails, "/absolute/thumbs");
     assert_eq!(resolved.screenshots, "/absolute/screens");
     assert_eq!(resolved.metadata, "/absolute/meta");
@@ -122,18 +96,17 @@ fn resolve_asset_paths_absolute_left_unchanged() {
 fn resolve_asset_paths_relative_gets_root_prepended() {
     let paths = AssetPaths::default();
     let resolved = resolve_asset_paths(paths.clone());
-    // Relative paths should become absolute after resolution
     assert!(
-        std::path::Path::new(&resolved.lv2_libs).is_absolute() || resolved.lv2_libs.contains('/'),
-        "resolved lv2_libs should have root prepended: {}",
-        resolved.lv2_libs
+        std::path::Path::new(&resolved.thumbnails).is_absolute()
+            || resolved.thumbnails.contains('/'),
+        "resolved thumbnails should have root prepended: {}",
+        resolved.thumbnails
     );
-    // The resolved path should end with the original relative path
     assert!(
-        resolved.lv2_libs.ends_with(&paths.lv2_libs),
+        resolved.thumbnails.ends_with(&paths.thumbnails),
         "resolved path '{}' should end with '{}'",
-        resolved.lv2_libs,
-        paths.lv2_libs
+        resolved.thumbnails,
+        paths.thumbnails
     );
 }
 
@@ -256,7 +229,7 @@ fn app_config_save_and_load_filesystem_roundtrip() {
     let config = AppConfig {
         recent_projects: vec![make_entry("/test/proj.yaml", "TestProj")],
         paths: AssetPaths {
-            lv2_libs: "my/lv2".into(),
+            thumbnails: "my/thumbs".into(),
             ..AssetPaths::default()
         },
     };

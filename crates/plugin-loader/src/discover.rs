@@ -12,16 +12,60 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::manifest::PluginManifest;
+use anyhow::{anyhow, Result};
+use block_core::param::ParameterSet;
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+use crate::manifest::{Backend, PluginManifest};
+use crate::native_runtimes;
 use crate::package::{validate_package, PackageError};
 
 /// A package that loaded and validated successfully.
 #[derive(Debug, Clone)]
 pub struct LoadedPackage {
     /// Absolute (or caller-relative) path to the package directory.
+    /// Empty for native plugins (they have no on-disk root).
     pub root: PathBuf,
     /// Parsed manifest.
     pub manifest: PluginManifest,
+}
+
+impl LoadedPackage {
+    /// Instantiate the plugin into a [`BlockProcessor`].
+    ///
+    /// Dispatches by manifest backend:
+    /// - `Native { runtime_id }` — looks up the runtime registered by the
+    ///   owning `block-*` crate at startup and calls its `build` fn.
+    /// - `Nam` / `Ir` / `Lv2` / `Vst3` — disk-package backends. Currently
+    ///   not yet wired through the unified loader; the legacy per-block
+    ///   paths still own these. Calling this on a disk package returns
+    ///   an explicit "not yet wired" error so callers can fall back.
+    pub fn build_processor(
+        &self,
+        params: &ParameterSet,
+        sample_rate: f32,
+        layout: AudioChannelLayout,
+    ) -> Result<BlockProcessor> {
+        match &self.manifest.backend {
+            Backend::Native { runtime_id } => {
+                let runtime = native_runtimes::get(runtime_id).ok_or_else(|| {
+                    anyhow!(
+                        "no native runtime registered for `{runtime_id}` \
+                         (plugin id `{}`)",
+                        self.manifest.id
+                    )
+                })?;
+                (runtime.build)(params, sample_rate, layout)
+            }
+            Backend::Nam { .. } | Backend::Ir { .. } | Backend::Lv2 { .. } | Backend::Vst3 { .. } => {
+                Err(anyhow!(
+                    "disk-package backend instantiation not yet wired through plugin-loader \
+                     (plugin id `{}`); legacy per-block path still owns this backend",
+                    self.manifest.id
+                ))
+            }
+        }
+    }
 }
 
 /// One reason a single package failed to load.

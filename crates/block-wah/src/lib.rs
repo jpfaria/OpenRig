@@ -262,3 +262,10 @@ mod tests {
         assert_eq!(wah_type_label("nonexistent"), "");
     }
 }
+
+/// Push every native model into the unified plugin-loader registry.
+/// Called by `adapter-gui` at startup before plugin discovery freezes
+/// the catalog.
+pub fn register_natives() {
+    registry::register_natives();
+}

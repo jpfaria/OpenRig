@@ -60,10 +60,17 @@ pub fn run_desktop_app(
     let plugins_root =
         plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!("loading plugin packages from {}", plugins_root.display());
+    // Native plugins (compiled-in DSP) register first; disk-package
+    // discovery in `init` below pushes its results into the same
+    // catalog, so by the time `packages()` is read everything lives in
+    // one place.
+    engine::native_registry::register_all_natives();
     plugin_loader::registry::init(&plugins_root);
     log::info!(
-        "plugin catalog ready: {} package(s) loaded",
-        plugin_loader::registry::packages().len()
+        "plugin catalog ready: {} plugin(s) loaded ({} native, {} disk package(s))",
+        plugin_loader::registry::len(),
+        plugin_loader::registry::native_count(),
+        plugin_loader::registry::len() - plugin_loader::registry::native_count(),
     );
     // Open VST3 editor handles (kept alive so the OS window stays open).
     let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
