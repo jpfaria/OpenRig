@@ -1052,3 +1052,52 @@ fn build_audio_block_kind_unsupported_type_errors() {
     assert!(result.unwrap_err().contains("unsupported block type"));
 }
 
+
+#[test]
+fn schema_for_block_model_falls_back_to_disk_package() {
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::manifest::BlockType;
+    use std::path::PathBuf;
+
+    fn fake_schema() -> anyhow::Result<crate::param::ModelParameterSchema> {
+        Ok(crate::param::ModelParameterSchema {
+            effect_type: block_core::EFFECT_TYPE_REVERB.into(),
+            model: "test_disk_reverb_xyz".into(),
+            display_name: "Test Disk Reverb".into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+    fn fake_validate(_: &crate::param::ParameterSet) -> anyhow::Result<()> {
+        Ok(())
+    }
+    fn fake_build(
+        _: &crate::param::ParameterSet,
+        _: f32,
+        _: block_core::AudioChannelLayout,
+    ) -> anyhow::Result<block_core::BlockProcessor> {
+        anyhow::bail!("not used")
+    }
+
+    plugin_loader::registry::register_native_simple(
+        "test_disk_reverb_xyz",
+        "Test Disk Reverb",
+        Some("test"),
+        BlockType::Reverb,
+        NativeRuntime {
+            schema: fake_schema,
+            validate: fake_validate,
+            build: fake_build,
+        },
+    );
+    plugin_loader::registry::init(&PathBuf::from("/nonexistent-test-path"));
+
+    // Legacy block_reverb registry has no test_disk_reverb_xyz entry.
+    // The fallback in schema_for_block_model should resolve via
+    // plugin_loader::registry, returning a minimal schema with empty
+    // parameter list.
+    let schema = crate::block::schema_for_block_model("reverb", "test_disk_reverb_xyz")
+        .expect("disk-package schema should fall through plugin_loader::registry");
+    assert_eq!(schema.model, "test_disk_reverb_xyz");
+    assert_eq!(schema.display_name, "Test Disk Reverb");
+}

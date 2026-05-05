@@ -76,6 +76,34 @@ pub fn schema_for_block_model(
     effect_type: &str,
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
+    schema_for_block_model_legacy(effect_type, model)
+        .or_else(|legacy_err| schema_from_disk_package(effect_type, model, legacy_err))
+}
+
+/// Fallback: if the legacy block-* registry doesn't recognise the model,
+/// try `plugin_loader::registry`. Synthesizes a minimal schema (empty
+/// parameter list — `ParameterSet::normalized_against` tolerates unknown
+/// params) so disk-backed blocks can load and audio paths can dispatch.
+/// Issue: #287.
+fn schema_from_disk_package(
+    effect_type: &str,
+    model: &str,
+    legacy_err: String,
+) -> Result<ModelParameterSchema, String> {
+    let package = plugin_loader::registry::find(model).ok_or(legacy_err)?;
+    Ok(ModelParameterSchema {
+        effect_type: effect_type.to_string(),
+        model: package.manifest.id.clone(),
+        display_name: package.manifest.display_name.clone(),
+        audio_mode: block_core::ModelAudioMode::DualMono,
+        parameters: Vec::new(),
+    })
+}
+
+fn schema_for_block_model_legacy(
+    effect_type: &str,
+    model: &str,
+) -> Result<ModelParameterSchema, String> {
     use block_core::*;
     match effect_type {
         EFFECT_TYPE_PREAMP => preamp_model_schema(model).map_err(|error| error.to_string()),
