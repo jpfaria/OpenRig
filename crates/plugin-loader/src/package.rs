@@ -29,6 +29,9 @@ pub enum PackageError {
 
     #[error("LV2 binary for slot {slot:?} (`{file}`) not found in package root")]
     MissingBinarySlot { slot: Lv2Slot, file: PathBuf },
+
+    #[error("VST3 bundle directory `{bundle}` not found in package root")]
+    MissingVst3Bundle { bundle: PathBuf },
 }
 
 /// Returns the [`Lv2Slot`] this binary should pick up at runtime, or [`None`]
@@ -84,6 +87,14 @@ pub fn validate_package(
                         file: file.clone(),
                     });
                 }
+            }
+        }
+        Backend::Vst3 { bundle, .. } => {
+            let absolute = package_root.join(bundle);
+            if !absolute.is_dir() {
+                return Err(PackageError::MissingVst3Bundle {
+                    bundle: bundle.clone(),
+                });
             }
         }
     }

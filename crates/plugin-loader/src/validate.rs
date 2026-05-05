@@ -79,6 +79,12 @@ pub enum ValidationError {
 
     #[error("parameter name must not be empty")]
     EmptyParameterName,
+
+    #[error("VST3 plugin `bundle` path must not be empty")]
+    EmptyVst3Bundle,
+
+    #[error("VST3 parameter `{name}` declares max < min")]
+    Vst3InvalidRange { name: String },
 }
 
 /// Validate a manifest's internal consistency.
@@ -117,6 +123,22 @@ pub fn validate_manifest(manifest: &PluginManifest) -> Result<(), ValidationErro
             }
             if binaries.is_empty() {
                 return Err(ValidationError::NoLv2Slots);
+            }
+            Ok(())
+        }
+        Backend::Vst3 { bundle, parameters } => {
+            if bundle.as_os_str().is_empty() {
+                return Err(ValidationError::EmptyVst3Bundle);
+            }
+            for parameter in parameters {
+                if parameter.name.trim().is_empty() {
+                    return Err(ValidationError::EmptyParameterName);
+                }
+                if parameter.max < parameter.min {
+                    return Err(ValidationError::Vst3InvalidRange {
+                        name: parameter.name.clone(),
+                    });
+                }
             }
             Ok(())
         }

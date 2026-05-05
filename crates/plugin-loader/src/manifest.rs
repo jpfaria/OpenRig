@@ -143,6 +143,43 @@ pub enum Backend {
         plugin_uri: String,
         binaries: BTreeMap<Lv2Slot, PathBuf>,
     },
+    /// Native VST3 plugin bundle. Cross-platform `.vst3` directory with
+    /// `Contents/<arch>/<plugin>` inside, ships as a single bundle inside
+    /// the package at `bundles/<name>.vst3/`. The host loads the first
+    /// audio plugin class from the bundle and routes the user's parameter
+    /// set to the VST3 numeric IDs declared in `parameters[].vst3_id`.
+    Vst3 {
+        bundle: PathBuf,
+        parameters: Vec<Vst3Parameter>,
+    },
+}
+
+/// One parameter of a VST3 plugin, with the bridge between OpenRig's
+/// schema-friendly value range (`min`..`max`, optional discrete `step`)
+/// and the VST3 host's normalized 0.0..1.0 value space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Vst3Parameter {
+    /// Stable identifier under which the user's `ParameterSet` keys this
+    /// parameter (e.g. "drive", "saturation", "mix").
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// VST3 numeric parameter ID, exposed by the plugin's
+    /// `IEditController::getParameterCount()` enumeration.
+    pub vst3_id: u32,
+    pub min: f64,
+    pub max: f64,
+    pub default: f64,
+    /// Optional step for discrete UI knobs (1.0 percent, 0.5 dB, etc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
+    /// Optional scale: VST3 normalized value = user_value / scale.
+    /// Set to 100.0 for percent-unit parameters; None = pass-through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale: Option<f64>,
+    /// Free-form unit hint shown next to the value (percent, db, hz, ms).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
 }
 
 /// A single value on a capture-grid axis.
