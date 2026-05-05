@@ -105,17 +105,9 @@ fn synthesize_parameters_from_manifest(
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam {
-            parameters,
-            ..
+        Backend::Nam { parameters, .. } | Backend::Ir { parameters, .. } => {
+            parameters.iter().map(grid_parameter_to_spec).collect()
         }
-        | Backend::Ir {
-            parameters,
-            ..
-        } => parameters
-            .iter()
-            .map(grid_parameter_to_spec)
-            .collect(),
         Backend::Lv2 {
             plugin_uri,
             binaries,
@@ -139,12 +131,11 @@ fn synthesize_parameters_from_manifest(
     }
 }
 
-fn grid_parameter_to_spec(parameter: &plugin_loader::manifest::GridParameter) -> block_core::param::ParameterSpec {
+fn grid_parameter_to_spec(
+    parameter: &plugin_loader::manifest::GridParameter,
+) -> block_core::param::ParameterSpec {
     use plugin_loader::manifest::ParameterValue;
-    let label = parameter
-        .display_name
-        .as_deref()
-        .unwrap_or(&parameter.name);
+    let label = parameter.display_name.as_deref().unwrap_or(&parameter.name);
     let all_numeric = parameter
         .values
         .iter()
@@ -229,6 +220,13 @@ fn synthesize_lv2_parameters(
             let min = port.minimum.unwrap_or(0.0);
             let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
             let default = port.default_value.unwrap_or((min + max) / 2.0);
+            // step = 0 means "continuous" (no snap-to-grid). LV2
+            // ControlPorts are continuous unless the TTL marks them
+            // `lv2:portProperty lv2:integer` or `lv2:enumeration` —
+            // we don't parse those flags yet, and in any case the
+            // synthesized step was `(max-min)/100` which generated
+            // bogus grids (e.g. Contour 20-20000 → step 199.8) that
+            // rejected the TTL default itself.
             block_core::param::float_parameter(
                 &port.symbol,
                 &label,
@@ -236,7 +234,7 @@ fn synthesize_lv2_parameters(
                 Some(default),
                 min,
                 max,
-                ((max - min) / 100.0).max(0.001),
+                0.0,
                 block_core::param::ParameterUnit::None,
             )
         })
@@ -264,9 +262,7 @@ fn schema_for_block_model_legacy(
         EFFECT_TYPE_FILTER => filter_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_WAH => wah_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
-        EFFECT_TYPE_MODULATION => {
-            modulation_model_schema(model).map_err(|error| error.to_string())
-        }
+        EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
         x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
@@ -315,16 +311,25 @@ pub fn build_audio_block_kind(
     let model = model.to_string();
     use block_core::*;
     let kind = match effect_type {
-        EFFECT_TYPE_PREAMP | EFFECT_TYPE_AMP | EFFECT_TYPE_FULL_RIG | EFFECT_TYPE_CAB
-        | EFFECT_TYPE_BODY | EFFECT_TYPE_IR | EFFECT_TYPE_GAIN | EFFECT_TYPE_DYNAMICS
-        | EFFECT_TYPE_FILTER | EFFECT_TYPE_WAH | EFFECT_TYPE_PITCH | EFFECT_TYPE_MODULATION
-        | EFFECT_TYPE_DELAY | EFFECT_TYPE_REVERB | EFFECT_TYPE_UTILITY => {
-            AudioBlockKind::Core(CoreBlock {
-                effect_type: effect_type.to_string(),
-                model,
-                params,
-            })
-        }
+        EFFECT_TYPE_PREAMP
+        | EFFECT_TYPE_AMP
+        | EFFECT_TYPE_FULL_RIG
+        | EFFECT_TYPE_CAB
+        | EFFECT_TYPE_BODY
+        | EFFECT_TYPE_IR
+        | EFFECT_TYPE_GAIN
+        | EFFECT_TYPE_DYNAMICS
+        | EFFECT_TYPE_FILTER
+        | EFFECT_TYPE_WAH
+        | EFFECT_TYPE_PITCH
+        | EFFECT_TYPE_MODULATION
+        | EFFECT_TYPE_DELAY
+        | EFFECT_TYPE_REVERB
+        | EFFECT_TYPE_UTILITY => AudioBlockKind::Core(CoreBlock {
+            effect_type: effect_type.to_string(),
+            model,
+            params,
+        }),
         EFFECT_TYPE_NAM => AudioBlockKind::Nam(NamBlock { model, params }),
         x if x == EFFECT_TYPE_VST3 => AudioBlockKind::Core(CoreBlock {
             effect_type: EFFECT_TYPE_VST3.to_string(),
