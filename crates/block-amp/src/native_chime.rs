@@ -73,61 +73,6 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
     native_core::asset_summary(MODEL_ID, params)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn default_params() -> block_core::param::ParameterSet {
-        let schema = native_core::model_schema(MODEL_ID, DISPLAY_NAME, DEFAULTS);
-        block_core::param::ParameterSet::default()
-            .normalized_against(&schema)
-            .expect("defaults should normalize")
-    }
-
-    #[test]
-    fn process_frame_silence_output_is_finite() {
-        let params = default_params();
-        let mut proc = match build(&params, 44100.0, AudioChannelLayout::Mono).unwrap() {
-            BlockProcessor::Mono(p) => p,
-            _ => panic!("expected Mono"),
-        };
-        for i in 0..1024 {
-            let out = proc.process_sample(0.0);
-            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
-        }
-    }
-
-    #[test]
-    fn process_frame_sine_output_is_finite() {
-        let params = default_params();
-        let mut proc = match build(&params, 44100.0, AudioChannelLayout::Mono).unwrap() {
-            BlockProcessor::Mono(p) => p,
-            _ => panic!("expected Mono"),
-        };
-        for i in 0..1024 {
-            let input = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
-            let out = proc.process_sample(input);
-            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
-        }
-    }
-
-    #[test]
-    fn process_block_1024_frames_all_finite() {
-        let params = default_params();
-        let mut proc = match build(&params, 44100.0, AudioChannelLayout::Mono).unwrap() {
-            BlockProcessor::Mono(p) => p,
-            _ => panic!("expected Mono"),
-        };
-        let mut buf = vec![0.0_f32; 1024];
-        for (i, sample) in buf.iter_mut().enumerate() {
-            *sample = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
-        }
-        proc.process_block(&mut buf);
-        for (i, &s) in buf.iter().enumerate() {
-            assert!(s.is_finite(), "non-finite at index {i}: {s}");
-        }
-    }
-}
-
 pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
@@ -148,3 +93,7 @@ pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
         block_core::KnobLayoutEntry { param_key: "room_mix",  svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
     ],
 };
+
+#[cfg(test)]
+#[path = "native_chime_tests.rs"]
+mod tests;
