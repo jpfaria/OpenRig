@@ -30,6 +30,8 @@ const NAM_CAPTURES_ROOT: &str = "captures/nam";
 const IR_CAPTURES_ROOT: &str = "captures/ir";
 const LV2_DATA_ROOT: &str = "data/lv2";
 const LV2_BIN_ROOT: &str = "libs/lv2";
+const THUMBNAILS_ROOT: &str = "assets/blocks/thumbnails";
+const PHOTOS_ROOT: &str = "assets/models/photos";
 
 fn main() -> Result<()> {
     let out = PathBuf::from(SOURCE_DIR);
@@ -143,7 +145,7 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
         .and_then(|name| name.to_str())
         .ok_or_else(|| anyhow!("source has no filename"))?;
 
-    let manifest = if let Some(stem) = filename.strip_prefix("nam_") {
+    let mut manifest = if let Some(stem) = filename.strip_prefix("nam_") {
         let _ = stem;
         build_grid_manifest(&model_id, &display_name, brand.as_deref(), block_type, &source, "nam")?
     } else if let Some(stem) = filename.strip_prefix("ir_") {
@@ -155,8 +157,57 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
         return Err(anyhow!("filename `{filename}` is neither nam_/ir_/lv2_"));
     };
 
+    // Promote brand from `inspired_by` (where the grid/lv2 builders parked
+    // it) into the dedicated `brand` field, where it semantically belongs.
+    manifest.brand = manifest.inspired_by.clone();
+    manifest.inspired_by = None;
+
+    // Probe the asset directories for matching thumbnail/photo files. The
+    // probe is best-effort: if a file is missing the manifest just leaves
+    // the field as None.
+    if let Some(thumb_src) = locate_thumbnail(&model_id, block_type) {
+        manifest.thumbnail = Some(PathBuf::from("assets/thumbnail.png"));
+        manifest
+            .description
+            .get_or_insert_with(|| format!("{} {}", brand.as_deref().unwrap_or(""), display_name).trim().to_string());
+        // Defer copy until write_package; stash in a side-channel via the
+        // path itself — nothing else uses `thumbnail.png` so the resolver
+        // can re-find the source by ID.
+        let _ = thumb_src;
+    }
+    if let Some(_photo_src) = locate_photo(&model_id) {
+        manifest.photo = Some(PathBuf::from("assets/photo.png"));
+    }
+
     write_package(out, &manifest, source_file, &source)?;
     Ok(model_id)
+}
+
+fn locate_thumbnail(model_id: &str, block_type: BlockType) -> Option<PathBuf> {
+    let dir = match block_type {
+        BlockType::GainPedal => "gain",
+        BlockType::Preamp => "preamp",
+        BlockType::Amp => "amp",
+        BlockType::Cab => "cab",
+        BlockType::Body => "body",
+        BlockType::Reverb => "reverb",
+        BlockType::Delay => "delay",
+        BlockType::Mod => "modulation",
+        BlockType::Filter => "filter",
+        BlockType::Dyn => "dynamics",
+        BlockType::Wah => "wah",
+        BlockType::Pitch => "pitch",
+        BlockType::Util => "util",
+    };
+    let candidate = PathBuf::from(THUMBNAILS_ROOT)
+        .join(dir)
+        .join(format!("{model_id}.png"));
+    candidate.is_file().then_some(candidate)
+}
+
+fn locate_photo(model_id: &str) -> Option<PathBuf> {
+    let candidate = PathBuf::from(PHOTOS_ROOT).join(format!("{model_id}.png"));
+    candidate.is_file().then_some(candidate)
 }
 
 // ─── source-file scanners ────────────────────────────────────────────────────
@@ -605,6 +656,9 @@ fn build_grid_manifest(
             author: None,
             description: None,
             inspired_by: brand.map(str::to_string),
+            brand: None,
+            thumbnail: None,
+            photo: None,
             block_type,
             backend,
         });
@@ -679,6 +733,9 @@ fn build_grid_manifest_from_entries(
         author: None,
         description: None,
         inspired_by: brand.map(str::to_string),
+        brand: None,
+        thumbnail: None,
+        photo: None,
         block_type,
         backend,
     })
@@ -788,6 +845,9 @@ fn build_lv2_manifest(
         author: None,
         description: None,
         inspired_by: brand.map(str::to_string),
+        brand: None,
+        thumbnail: None,
+        photo: None,
         block_type,
         backend: Backend::Lv2 {
             plugin_uri,
@@ -900,6 +960,25 @@ fn write_package(
                 let src = PathBuf::from(LV2_BIN_ROOT).join(host_dir).join(filename);
                 fs::copy(&src, &dst).with_context(|| format!("copy {}", src.display()))?;
             }
+        }
+    }
+
+    if let Some(thumb_dest) = &manifest.thumbnail {
+        if let Some(src) = locate_thumbnail(&manifest.id, manifest.block_type) {
+            let dst = package_dir.join(thumb_dest);
+            if let Some(parent) = dst.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&src, &dst)?;
+        }
+    }
+    if let Some(photo_dest) = &manifest.photo {
+        if let Some(src) = locate_photo(&manifest.id) {
+            let dst = package_dir.join(photo_dest);
+            if let Some(parent) = dst.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&src, &dst)?;
         }
     }
 

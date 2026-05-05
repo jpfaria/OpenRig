@@ -50,6 +50,19 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inspired_by: Option<String>,
 
+    /// Manufacturer / brand of the device this plugin models.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
+
+    /// Thumbnail image (PNG) shown in block drawers, relative to the
+    /// package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thumbnail: Option<PathBuf>,
+
+    /// Hero photo of the device, relative to the package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub photo: Option<PathBuf>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,
