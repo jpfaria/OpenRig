@@ -140,16 +140,14 @@ export component ModelSelectWithSearch inherits Rectangle {
                 border-color: #2a2a40;
                 border-radius: 6px;
 
-                // Magnifier glyph (decorative).
-                Text {
-                    x: 8px;
-                    y: 0;
-                    width: 18px;
-                    height: parent.height;
-                    text: @tr("🔍");
-                    font-size: 18px;
-                    vertical-alignment: center;
-                    horizontal-alignment: center;
+                // Magnifier icon (flat SVG, colorized).
+                Image {
+                    x: 10px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
                 }
 
                 input := TextInput {
