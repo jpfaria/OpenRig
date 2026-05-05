@@ -98,29 +98,18 @@ pub enum DiscoveryError {
 
 /// Discover every package under `bundle_root`.
 ///
-/// `bundle_root` is expected to be the canonical `plugins/bundle/` directory
-/// (or a test-time equivalent). Each immediate sub-directory containing a
-/// `manifest.yaml` is treated as a package. Other entries (loose files,
-/// directories without a manifest) are silently skipped — they're not
-/// errors, just non-packages.
+/// Walks the directory tree recursively. A directory containing a
+/// `manifest.yaml` is treated as a package and not descended into; the
+/// repo layout groups packages by backend (`<root>/<backend>/<id>/...`),
+/// so the walker has to look more than one level deep, and packages
+/// themselves often contain asset sub-trees that must not be re-scanned.
 ///
 /// Per-package failures are collected, not propagated, so a single broken
 /// package doesn't hide the rest of the catalog. The outer `io::Result`
 /// fails only when the bundle root itself can't be read.
 pub fn discover(bundle_root: &Path) -> io::Result<Vec<Result<LoadedPackage, DiscoveryError>>> {
     let mut results = Vec::new();
-    for entry in fs::read_dir(bundle_root)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let manifest_path = path.join("manifest.yaml");
-        if !manifest_path.is_file() {
-            continue;
-        }
-        results.push(load_package(&path, &manifest_path));
-    }
+    walk(bundle_root, &mut results)?;
     results.sort_by(|left, right| {
         let left_root: &Path = match left {
             Ok(loaded) => &loaded.root,
@@ -133,6 +122,26 @@ pub fn discover(bundle_root: &Path) -> io::Result<Vec<Result<LoadedPackage, Disc
         left_root.cmp(right_root)
     });
     Ok(results)
+}
+
+/// Recurse into `dir`. If `dir/manifest.yaml` exists, treat `dir` as a
+/// package (load it, don't descend). Otherwise list entries and recurse
+/// into each sub-directory. Loose files at any level are skipped.
+fn walk(dir: &Path, results: &mut Vec<Result<LoadedPackage, DiscoveryError>>) -> io::Result<()> {
+    let manifest_path = dir.join("manifest.yaml");
+    if manifest_path.is_file() {
+        results.push(load_package(dir, &manifest_path));
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        walk(&path, results)?;
+    }
+    Ok(())
 }
 
 fn discovery_error_root(error: &DiscoveryError) -> &Path {
