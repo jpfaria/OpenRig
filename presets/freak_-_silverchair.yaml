@@ -26,7 +26,7 @@ blocks:
     threshold: 60.0
 - type: gain
   enabled: false
-  model: bluesbreaker
+  model: nam_bluesbreaker
   params:
     eq:
       bass: 5.0
