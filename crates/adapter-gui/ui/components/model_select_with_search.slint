@@ -45,7 +45,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         height: parent.height;
         text: root.selected-button-label;
         color: #d8e0ff;
-        font-size: 17px;
+        font-size: 19px;
         font-weight: 700;
         vertical-alignment: center;
         overflow: elide;
@@ -148,7 +148,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     width: 18px;
                     height: parent.height;
                     text: @tr("🔍");
-                    font-size: 16px;
+                    font-size: 18px;
                     vertical-alignment: center;
                     horizontal-alignment: center;
                 }
@@ -160,7 +160,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     height: parent.height;
                     text <=> root.search-text;
                     color: #d8e0ff;
-                    font-size: 16px;
+                    font-size: 18px;
                     horizontal-alignment: left;
                     vertical-alignment: center;
                     single-line: true;
@@ -177,7 +177,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     height: parent.height;
                     text: @tr("placeholder-search-models");
                     color: #6a6a82;
-                    font-size: 16px;
+                    font-size: 18px;
                     vertical-alignment: center;
                 }
 
@@ -250,7 +250,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                             : model.display_name;
                         color: model.model_id == root.selected-model.model_id
                             ? #7788ff : #b0bce0;
-                        font-size: 16px;
+                        font-size: 19px;
                         font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
                         vertical-alignment: center;
                         overflow: elide;
