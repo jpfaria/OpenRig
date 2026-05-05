@@ -39,35 +39,26 @@ pub fn normalize_block_params(
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
     use block_core::*;
-    match effect_type {
-        EFFECT_TYPE_PREAMP => {
-            validate_preamp_params(model, &normalized).map_err(|error| error.to_string())?
+    let result: Result<(), anyhow::Error> = match effect_type {
+        EFFECT_TYPE_PREAMP => validate_preamp_params(model, &normalized),
+        EFFECT_TYPE_AMP => validate_amp_params(model, &normalized),
+        EFFECT_TYPE_FULL_RIG => validate_full_rig_params(model, &normalized),
+        EFFECT_TYPE_CAB => validate_cab_params(model, &normalized),
+        EFFECT_TYPE_BODY => validate_body_params(model, &normalized),
+        EFFECT_TYPE_IR => validate_ir_params(model, &normalized),
+        EFFECT_TYPE_GAIN => validate_gain_params(model, &normalized),
+        EFFECT_TYPE_WAH => validate_wah_params(model, &normalized),
+        EFFECT_TYPE_PITCH => validate_pitch_params(model, &normalized),
+        _ => Ok(()),
+    };
+    if let Err(error) = result {
+        // Disk packages don't live in the legacy block-* registry that
+        // validate_*_params consults, so an Err here is expected for
+        // disk-backed models — accept them and let the package builder
+        // surface any real param mismatch at instantiation time. Issue #287.
+        if plugin_loader::registry::find(model).is_none() {
+            return Err(error.to_string());
         }
-        EFFECT_TYPE_AMP => {
-            validate_amp_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_FULL_RIG => {
-            validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_CAB => {
-            validate_cab_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_BODY => {
-            validate_body_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_IR => {
-            validate_ir_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_GAIN => {
-            validate_gain_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_WAH => {
-            validate_wah_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_PITCH => {
-            validate_pitch_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        _ => {}
     }
     Ok(normalized)
 }

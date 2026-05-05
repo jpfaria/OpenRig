@@ -1101,3 +1101,51 @@ fn schema_for_block_model_falls_back_to_disk_package() {
     assert_eq!(schema.model, "test_disk_reverb_xyz");
     assert_eq!(schema.display_name, "Test Disk Reverb");
 }
+
+#[test]
+fn normalize_block_params_accepts_disk_package_unknown_to_legacy_validator() {
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::manifest::BlockType;
+    use std::path::PathBuf;
+
+    fn fake_schema() -> anyhow::Result<crate::param::ModelParameterSchema> {
+        Ok(crate::param::ModelParameterSchema {
+            effect_type: block_core::EFFECT_TYPE_PREAMP.into(),
+            model: "test_disk_pkg_norm".into(),
+            display_name: "Test Disk Norm".into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+    fn fake_validate(_: &crate::param::ParameterSet) -> anyhow::Result<()> { Ok(()) }
+    fn fake_build(
+        _: &crate::param::ParameterSet,
+        _: f32,
+        _: block_core::AudioChannelLayout,
+    ) -> anyhow::Result<block_core::BlockProcessor> {
+        anyhow::bail!("not used")
+    }
+
+    plugin_loader::registry::register_native_simple(
+        "test_disk_pkg_norm",
+        "Test Disk Norm",
+        Some("test"),
+        BlockType::Preamp,
+        NativeRuntime { schema: fake_schema, validate: fake_validate, build: fake_build },
+    );
+    plugin_loader::registry::init(&PathBuf::from("/nonexistent-test-path"));
+
+    // block_preamp's static registry doesn't know this model, so the
+    // legacy validate_preamp_params returns Err. The fallback should
+    // accept it because it lives in plugin_loader::registry.
+    let normalized = crate::block::normalize_block_params(
+        "preamp",
+        "test_disk_pkg_norm",
+        crate::param::ParameterSet::default(),
+    );
+    assert!(
+        normalized.is_ok(),
+        "expected normalize_block_params to accept disk package, got: {:?}",
+        normalized.err()
+    );
+}
