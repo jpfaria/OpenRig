@@ -99,9 +99,12 @@ pub enum Backend {
         captures: Vec<GridCapture>,
     },
     /// Native LV2 plugin bundle with per-platform binaries.
+    ///
+    /// Binaries live under `platform/<slot>/<filename>` inside the package.
+    /// LV2 metadata (TTL files) ships alongside each binary in the same
+    /// `platform/<slot>/` directory.
     Lv2 {
         plugin_uri: String,
-        bundle_path: PathBuf,
         binaries: BTreeMap<Lv2Slot, PathBuf>,
     },
 }
@@ -278,7 +281,6 @@ display_name: My Fuzz
 type: gain_pedal
 backend: lv2
 plugin_uri: http://example.com/plugins/my-fuzz
-bundle_path: bundles/my-fuzz.lv2
 binaries:
   macos-universal: bundles/my-fuzz.lv2/macos-universal/my-fuzz.dylib
   windows-x86_64:  bundles/my-fuzz.lv2/windows-x86_64/my-fuzz.dll
@@ -293,11 +295,9 @@ binaries:
         match m.backend {
             Backend::Lv2 {
                 plugin_uri,
-                bundle_path,
                 binaries,
             } => {
                 assert_eq!(plugin_uri, "http://example.com/plugins/my-fuzz");
-                assert_eq!(bundle_path, PathBuf::from("bundles/my-fuzz.lv2"));
                 assert_eq!(binaries.len(), 5);
                 assert!(binaries.contains_key(&Lv2Slot::MacosUniversal));
                 assert!(binaries.contains_key(&Lv2Slot::LinuxAarch64));
@@ -315,7 +315,6 @@ display_name: Linux Only
 type: util
 backend: lv2
 plugin_uri: urn:example:linux-only
-bundle_path: bundles/linux-only.lv2
 binaries:
   linux-x86_64: bundles/linux-only.lv2/linux-x86_64/plugin.so
   linux-aarch64: bundles/linux-only.lv2/linux-aarch64/plugin.so

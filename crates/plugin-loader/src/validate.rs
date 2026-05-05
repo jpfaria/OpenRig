@@ -35,9 +35,6 @@ pub enum ValidationError {
     #[error("LV2 plugin `plugin_uri` must not be empty")]
     EmptyLv2PluginUri,
 
-    #[error("LV2 plugin `bundle_path` must not be empty")]
-    EmptyLv2BundlePath,
-
     #[error("LV2 plugin must declare at least one platform binary slot")]
     NoLv2Slots,
 
@@ -113,14 +110,10 @@ pub fn validate_manifest(manifest: &PluginManifest) -> Result<(), ValidationErro
         } => validate_grid(parameters, captures),
         Backend::Lv2 {
             plugin_uri,
-            bundle_path,
             binaries,
         } => {
             if plugin_uri.trim().is_empty() {
                 return Err(ValidationError::EmptyLv2PluginUri);
-            }
-            if bundle_path.as_os_str().is_empty() {
-                return Err(ValidationError::EmptyLv2BundlePath);
             }
             if binaries.is_empty() {
                 return Err(ValidationError::NoLv2Slots);
@@ -237,10 +230,9 @@ mod tests {
             block_type: BlockType::GainPedal,
             backend: Backend::Lv2 {
                 plugin_uri: "urn:test:plugin".to_string(),
-                bundle_path: PathBuf::from("bundles/test.lv2"),
                 binaries: BTreeMap::from([(
                     Lv2Slot::LinuxX86_64,
-                    PathBuf::from("bundles/test.lv2/linux-x86_64/plugin.so"),
+                    PathBuf::from("platform/linux-x86_64/plugin.so"),
                 )]),
             },
         }

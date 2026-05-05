@@ -27,9 +27,6 @@ pub enum PackageError {
     #[error("capture #{capture_index} file `{file}` not found in package root")]
     MissingCaptureFile { capture_index: usize, file: PathBuf },
 
-    #[error("LV2 bundle directory `{0}` not found in package root")]
-    MissingBundleDir(PathBuf),
-
     #[error("LV2 binary for slot {slot:?} (`{file}`) not found in package root")]
     MissingBinarySlot { slot: Lv2Slot, file: PathBuf },
 }
@@ -78,15 +75,7 @@ pub fn validate_package(
                 }
             }
         }
-        Backend::Lv2 {
-            bundle_path,
-            binaries,
-            ..
-        } => {
-            let bundle_absolute = package_root.join(bundle_path);
-            if !bundle_absolute.is_dir() {
-                return Err(PackageError::MissingBundleDir(bundle_path.clone()));
-            }
+        Backend::Lv2 { binaries, .. } => {
             for (slot, file) in binaries {
                 let absolute = package_root.join(file);
                 if !absolute.is_file() {
@@ -235,7 +224,6 @@ mod tests {
             block_type: BlockType::GainPedal,
             backend: Backend::Lv2 {
                 plugin_uri: "urn:test:plugin".to_string(),
-                bundle_path: PathBuf::from("bundles/test.lv2"),
                 binaries: BTreeMap::from([(
                     Lv2Slot::LinuxX86_64,
                     PathBuf::from("bundles/test.lv2/linux-x86_64/plugin.so"),
@@ -243,30 +231,6 @@ mod tests {
             },
         };
         assert!(validate_package(&tmp.path, &manifest).is_ok());
-    }
-
-    #[test]
-    fn rejects_lv2_package_with_missing_bundle_dir() {
-        let tmp = TempDir::new("lv2_no_bundle");
-        let manifest = PluginManifest {
-            manifest_version: 1,
-            id: "lv2_test".to_string(),
-            display_name: "LV2 Test".to_string(),
-            author: None,
-            description: None,
-            inspired_by: None,
-            block_type: BlockType::GainPedal,
-            backend: Backend::Lv2 {
-                plugin_uri: "urn:test:plugin".to_string(),
-                bundle_path: PathBuf::from("bundles/missing.lv2"),
-                binaries: BTreeMap::from([(
-                    Lv2Slot::LinuxX86_64,
-                    PathBuf::from("bundles/missing.lv2/linux-x86_64/plugin.so"),
-                )]),
-            },
-        };
-        let err = validate_package(&tmp.path, &manifest).unwrap_err();
-        assert!(matches!(err, PackageError::MissingBundleDir(_)));
     }
 
     #[test]
@@ -283,7 +247,6 @@ mod tests {
             block_type: BlockType::GainPedal,
             backend: Backend::Lv2 {
                 plugin_uri: "urn:test:plugin".to_string(),
-                bundle_path: PathBuf::from("bundles/test.lv2"),
                 binaries: BTreeMap::from([(
                     Lv2Slot::LinuxX86_64,
                     PathBuf::from("bundles/test.lv2/linux-x86_64/missing.so"),

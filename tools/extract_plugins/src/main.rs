@@ -660,7 +660,6 @@ fn build_lv2_manifest(
     let binary_filename = read_lv2_binary_filename(source)
         .ok_or_else(|| anyhow!("could not extract LV2 binary filename"))?;
 
-    let bundle_path = PathBuf::from(format!("bundles/{model_id}.lv2"));
     let mut binaries = BTreeMap::new();
     let host_to_slot: &[(&str, Lv2Slot)] = &[
         ("macos-universal", Lv2Slot::MacosUniversal),
@@ -675,7 +674,7 @@ fn build_lv2_manifest(
             .join(filename_for_platform(&binary_filename, host_dir));
         if candidate.is_file() {
             let slot_name = slot_directory_name(slot);
-            let in_pkg = bundle_path
+            let in_pkg = PathBuf::from("platform")
                 .join(slot_name)
                 .join(filename_for_platform(&binary_filename, host_dir));
             binaries.insert(*slot, in_pkg);
@@ -698,7 +697,6 @@ fn build_lv2_manifest(
         block_type,
         backend: Backend::Lv2 {
             plugin_uri,
-            bundle_path,
             binaries,
         },
     })
@@ -782,29 +780,25 @@ fn write_package(
                 )?;
             }
         }
-        Backend::Lv2 {
-            bundle_path,
-            binaries,
-            ..
-        } => {
-            // Copy TTLs from data/lv2/<dir>/ into bundle_path
+        Backend::Lv2 { binaries, .. } => {
+            // Copy TTLs from data/lv2/<dir>/ into each platform/<slot>/ dir
             let plugin_dir = read_str_const(source_text, "PLUGIN_DIR", false)
                 .ok_or_else(|| anyhow!("PLUGIN_DIR missing for LV2 copy"))?;
             let ttl_source = PathBuf::from(LV2_DATA_ROOT).join(&plugin_dir);
-            let bundle_dest = package_dir.join(bundle_path);
-            fs::create_dir_all(&bundle_dest)?;
-            if ttl_source.is_dir() {
-                for entry in fs::read_dir(&ttl_source)? {
-                    let entry = entry?;
-                    if entry.file_type()?.is_file() {
-                        fs::copy(entry.path(), bundle_dest.join(entry.file_name()))?;
-                    }
-                }
-            }
-            // Copy per-slot binaries
             for (slot, in_pkg) in binaries {
                 let dst = package_dir.join(in_pkg);
-                fs::create_dir_all(dst.parent().unwrap())?;
+                let dst_parent = dst
+                    .parent()
+                    .ok_or_else(|| anyhow!("binary path has no parent"))?;
+                fs::create_dir_all(dst_parent)?;
+                if ttl_source.is_dir() {
+                    for entry in fs::read_dir(&ttl_source)? {
+                        let entry = entry?;
+                        if entry.file_type()?.is_file() {
+                            fs::copy(entry.path(), dst_parent.join(entry.file_name()))?;
+                        }
+                    }
+                }
                 let host_dir = host_dir_for_slot(slot);
                 let filename = in_pkg
                     .file_name()
