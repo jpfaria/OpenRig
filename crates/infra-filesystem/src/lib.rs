@@ -153,6 +153,17 @@ pub struct AppConfig {
     pub recent_projects: Vec<RecentProjectEntry>,
     #[serde(default)]
     pub paths: AssetPaths,
+    /// Per-machine audio input devices. Migrated from the historical
+    /// `gui-settings.yaml` (deleted automatically on first load).
+    #[serde(default)]
+    pub input_devices: Vec<GuiAudioDeviceSettings>,
+    /// Per-machine audio output devices.
+    #[serde(default)]
+    pub output_devices: Vec<GuiAudioDeviceSettings>,
+    /// Language override (`pt-BR`, `en-US`, etc.). `None` follows OS
+    /// locale.
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -309,62 +320,117 @@ impl FilesystemStorage {
         Ok(base_dir.join("OpenRig").join("config.yaml"))
     }
 
+    /// Read GUI audio settings (input/output devices + language) from
+    /// the unified `config.yaml`. Issue #287: previously these lived in
+    /// a separate `gui-settings.yaml`, now folded into `AppConfig`.
     pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
-        let path = Self::gui_settings_path()?;
-        log::info!("loading gui audio settings from {:?}", path);
-        if !path.exists() {
-            log::debug!("gui audio settings file not found, returning None");
+        let config = Self::load_app_config()?;
+        if config.input_devices.is_empty()
+            && config.output_devices.is_empty()
+            && config.language.is_none()
+        {
             return Ok(None);
         }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("failed to read gui settings from {:?}", path))?;
-        let settings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
-            Ok(settings) => settings,
-            Err(_) => {
-                log::warn!("failed to parse gui settings as current format, trying legacy format");
-                let legacy = serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw)
-                    .with_context(|| format!("failed to parse gui settings from {:?}", path))?;
-                legacy.into()
-            }
-        };
-        Ok(Some(settings))
+        Ok(Some(GuiAudioSettings {
+            input_devices: config.input_devices,
+            output_devices: config.output_devices,
+            language: config.language,
+        }))
     }
 
+    /// Persist GUI audio settings into `config.yaml`, preserving the
+    /// other AppConfig fields (recent_projects, paths).
     pub fn save_gui_audio_settings(settings: &GuiAudioSettings) -> Result<()> {
-        let path = Self::gui_settings_path()?;
-        log::info!("saving gui audio settings to {:?}", path);
-        let parent = path
-            .parent()
-            .context("gui settings path has no parent directory")?;
-        log::debug!("ensuring directory exists: {:?}", parent);
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create gui settings directory {:?}", parent))?;
-        let raw = serde_yaml::to_string(settings)?;
-        fs::write(&path, raw)
-            .with_context(|| format!("failed to write gui settings to {:?}", path))?;
-        Ok(())
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.input_devices = settings.input_devices.clone();
+        config.output_devices = settings.output_devices.clone();
+        config.language = settings.language.clone();
+        Self::save_app_config(&config)
     }
 
-    /// Update only the `language` field of the persisted gui-settings.yaml,
-    /// preserving every other field. Used by the language selector so picking
-    /// a new locale doesn't clobber audio device selection.
+    /// Update only the `language` field, preserving every other config
+    /// field. Used by the language selector so picking a new locale
+    /// doesn't clobber audio device selection.
     pub fn save_gui_language(language: Option<String>) -> Result<()> {
-        let mut current = Self::load_gui_audio_settings()?.unwrap_or_default();
-        current.language = language;
-        Self::save_gui_audio_settings(&current)
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.language = language;
+        Self::save_app_config(&config)
     }
 
     pub fn load_app_config() -> Result<AppConfig> {
         let path = Self::app_config_path()?;
         log::info!("loading app config from {:?}", path);
-        if !path.exists() {
+        let mut config = if path.exists() {
+            let raw = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read app config from {:?}", path))?;
+            serde_yaml::from_str::<AppConfig>(&raw)
+                .with_context(|| format!("failed to parse app config from {:?}", path))?
+        } else {
             log::debug!("app config file not found, using defaults");
-            return Ok(AppConfig::default());
+            AppConfig::default()
+        };
+        // Issue #287: migrate the historical `gui-settings.yaml` into
+        // `config.yaml` on first load, then delete the legacy file. Any
+        // fields already in config.yaml win — old gui-settings only
+        // fills empty slots.
+        Self::migrate_gui_settings_into(&mut config)?;
+        Ok(config)
+    }
+
+    /// Best-effort migration: read `gui-settings.yaml` if it still
+    /// exists, fold its fields into the current AppConfig (only when
+    /// the AppConfig slot is empty), persist, then remove the legacy
+    /// file. Failures log but do not propagate so a corrupted legacy
+    /// file can't block boot.
+    fn migrate_gui_settings_into(config: &mut AppConfig) -> Result<()> {
+        let legacy_path = Self::gui_settings_path()?;
+        if !legacy_path.exists() {
+            return Ok(());
         }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("failed to read app config from {:?}", path))?;
-        serde_yaml::from_str(&raw)
-            .with_context(|| format!("failed to parse app config from {:?}", path))
+        let raw = match fs::read_to_string(&legacy_path) {
+            Ok(content) => content,
+            Err(error) => {
+                log::warn!(
+                    "could not read legacy gui-settings.yaml at {:?}: {error}",
+                    legacy_path
+                );
+                return Ok(());
+            }
+        };
+        let legacy: GuiAudioSettings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
+            Ok(value) => value,
+            Err(_) => match serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw) {
+                Ok(legacy) => legacy.into(),
+                Err(error) => {
+                    log::warn!(
+                        "legacy gui-settings.yaml at {:?} unreadable, leaving in place: {error}",
+                        legacy_path
+                    );
+                    return Ok(());
+                }
+            },
+        };
+        if config.input_devices.is_empty() {
+            config.input_devices = legacy.input_devices;
+        }
+        if config.output_devices.is_empty() {
+            config.output_devices = legacy.output_devices;
+        }
+        if config.language.is_none() {
+            config.language = legacy.language;
+        }
+        // Persist the merged result before deleting the source so a
+        // crash mid-migration doesn't lose data.
+        Self::save_app_config(config)?;
+        if let Err(error) = fs::remove_file(&legacy_path) {
+            log::warn!(
+                "merged gui-settings.yaml into config.yaml but couldn't remove legacy file at {:?}: {error}",
+                legacy_path
+            );
+        } else {
+            log::info!("migrated gui-settings.yaml into config.yaml; removed legacy file");
+        }
+        Ok(())
     }
 
     pub fn save_app_config(config: &AppConfig) -> Result<()> {

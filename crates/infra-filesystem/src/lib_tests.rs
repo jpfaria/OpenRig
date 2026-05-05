@@ -208,6 +208,7 @@ fn app_config_serde_roundtrip() {
     let config = AppConfig {
         recent_projects: vec![make_entry("/a.yaml", "A"), make_entry("/b.yaml", "B")],
         paths: AssetPaths::default(),
+        ..Default::default()
     };
     let yaml = serde_yaml::to_string(&config).unwrap();
     let restored: AppConfig = serde_yaml::from_str(&yaml).unwrap();
@@ -232,6 +233,7 @@ fn app_config_save_and_load_filesystem_roundtrip() {
             thumbnails: "my/thumbs".into(),
             ..AssetPaths::default()
         },
+        ..Default::default()
     };
 
     let yaml = serde_yaml::to_string(&config).unwrap();
@@ -492,4 +494,34 @@ fn app_config_path_ends_with_expected_filename() {
         "unexpected app config path: {:?}",
         path
     );
+}
+
+// ── unified config.yaml — gui-settings.yaml migration (#287) ───────────
+
+#[test]
+fn app_config_serdes_unified_audio_and_language_fields() {
+    let cfg = AppConfig {
+        recent_projects: Vec::new(),
+        paths: AssetPaths::default(),
+        input_devices: vec![make_device("in1", "Mic 1")],
+        output_devices: vec![make_device("out1", "Speakers")],
+        language: Some("pt-BR".into()),
+    };
+    let yaml = serde_yaml::to_string(&cfg).unwrap();
+    assert!(yaml.contains("input_devices"));
+    assert!(yaml.contains("output_devices"));
+    assert!(yaml.contains("language: pt-BR"));
+    let restored: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(cfg, restored);
+}
+
+#[test]
+fn app_config_deserializes_yaml_without_audio_fields() {
+    // Older config.yaml predating the unification only had recent_projects.
+    let yaml = "recent_projects:\n- project_path: /x\n  project_name: X\n";
+    let cfg: AppConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.recent_projects.len(), 1);
+    assert!(cfg.input_devices.is_empty());
+    assert!(cfg.output_devices.is_empty());
+    assert!(cfg.language.is_none());
 }
