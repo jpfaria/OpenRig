@@ -78,7 +78,8 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
-            librsvg2-bin imagemagick
+            librsvg2-bin imagemagick \
+            gettext
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -138,7 +139,8 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
-            librsvg2-bin imagemagick
+            librsvg2-bin imagemagick \
+            gettext
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -290,14 +292,15 @@ jobs:
             OWNER="${REPO%%/*}"
             NAME="${REPO#*/}"
 
-            ITEMS=$(gh api graphql -f query='
+            # Only fetch issues — this project merges feature/bugfix branches
+            # directly into develop without PRs, so milestone.pullRequests is
+            # always empty. The PR query also hits a GraphQL backend bug that
+            # consistently returns "Something went wrong" 500.
+            ISSUES_JSON=$(gh api graphql -f query='
               query($owner: String!, $name: String!, $number: Int!) {
                 repository(owner: $owner, name: $name) {
                   milestone(number: $number) {
                     issues(states: CLOSED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
-                      nodes { number title labels(first: 20) { nodes { name } } }
-                    }
-                    pullRequests(states: MERGED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
                       nodes { number title labels(first: 20) { nodes { name } } }
                     }
                   }
@@ -309,8 +312,8 @@ jobs:
             # — not user-facing changes).
             FILTER='select(([.labels.nodes[].name] | any(. == "duplicate" or . == "internal")) | not)'
 
-            PRS=$(echo "$ITEMS" | jq -r ".data.repository.milestone.pullRequests.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
-            ISSUES=$(echo "$ITEMS" | jq -r ".data.repository.milestone.issues.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
+            PRS=""
+            ISSUES=$(echo "$ISSUES_JSON" | jq -r ".data.repository.milestone.issues.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
 
             NOTES="## What's Changed"
             if [ -n "$PRS" ]; then

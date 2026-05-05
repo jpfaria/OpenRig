@@ -1,0 +1,121 @@
+# Manual classification overrides for LV2 plugins.
+# Two scopes: per-bundle (applies to every plugin in the bundle) and per-plugin (URI key).
+#
+# bundle scope keys:
+#   brand: <string>     — override brand string (otherwise derived from bundle name)
+#   skip: true          — skip every plugin in this bundle (e.g. instruments)
+#   skip_reason: <text> — surfaced in dry-run report
+#
+# plugin scope keys (key = full plugin URI):
+#   block_type: reverb|delay|mod|filter|dyn|pitch|gain|util|wah|preamp|amp|cab|body
+#   skip: true | false
+#   skip_reason: <text>
+#   display_name: <text>
+#   model_id: <text>     — manual model id (defaults to lv2_<bundle>_<symbol>)
+#   brand: <text>
+
+bundles:
+  # NAM has a dedicated native backend; the LV2 wrapper would conflict.
+  neural_amp_modeler.lv2:
+    skip: true
+    skip_reason: NAM is integrated via the dedicated `nam` crate, not as an LV2 plugin.
+
+  # AIDA-X has its own integration tracked in #144.
+  rt-neural-generic.lv2:
+    skip: true
+    skip_reason: AIDA-X integration is tracked separately under issue #144.
+
+  # MOD platform "-bad" bundles are beta/test variants of the regular bundle.
+  # They duplicate plugins with same display names but a slightly different URI.
+  artyfx-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates artyfx.lv2.
+  calf-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates calf.lv2.
+  fomp-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates fomp.lv2.
+  invada-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates invada-studio.lv2.
+  rkr-bad.lv2:
+    skip: true
+    skip_reason: Beta/test bundle that duplicates rkr.lv2.
+
+  # MOD ports of mda-lv2 plugins use a different URI but ship the same DSP as
+  # the upstream drobilla mda-lv2 bundle (already registered manually).
+  mod-mda-Ambience.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Ambience.
+  mod-mda-Degrade.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Degrade.
+  mod-mda-Detune.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Detune.
+  mod-mda-DubDelay.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA DubDelay.
+  mod-mda-Overdrive.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Overdrive.
+  mod-mda-RePsycho.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA RePsycho.
+  mod-mda-RingMod.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA RingMod.
+  mod-mda-ThruZero.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA ThruZero.
+  mod-mda-Leslie.lv2:
+    skip: true
+    skip_reason: Duplicates drobilla mda-lv2 MDA Leslie.
+
+plugins:
+  # SimulatorPlugin overrides — primary classification known but ambiguous to the auto-classifier.
+  http://calf.sourceforge.net/plugins/RotarySpeaker:
+    block_type: mod
+  http://calf.sourceforge.net/plugins/TapeSimulator:
+    block_type: gain
+  http://gareus.org/oss/lv2/calf/RotarySpeaker:
+    block_type: mod
+  http://gareus.org/oss/lv2/calf/TapeSimulator:
+    block_type: gain
+  http://guitarix.sourceforge.net/plugins/gx_amp_stereo_#GxAmplifier_st:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_amp_#_GxAmplifier:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_cabinet#CABINET:
+    block_type: cab
+  http://guitarix.sourceforge.net/plugins/gx_jcm800pre_st_#_jcm800pre_st_:
+    block_type: preamp
+  http://guitarix.sourceforge.net/plugins/gx_jcm800pre_#_jcm800pre_:
+    block_type: preamp
+  http://guitarix.sourceforge.net/plugins/gx_redeye_#_redeye_:
+    block_type: amp
+  http://guitarix.sourceforge.net/plugins/gx_studiopre_st_#_studiopre_st_:
+    block_type: preamp
+  http://moddevices.com/plugins/mod-devel/CabinetLoader:
+    block_type: cab
+  http://moddevices.com/plugins/caps/AmpVTS:
+    block_type: amp
+  http://moddevices.com/plugins/caps/CabinetIV:
+    block_type: cab
+  http://moddevices.com/plugins/caps/ToneStack:
+    block_type: filter
+  http://moddevices.com/plugins/tap/tubewarmth:
+    block_type: gain
+
+  # EnvelopePlugin overrides
+  http://www.openavproductions.com/artyfx#ducka:
+    block_type: dyn
+  http://calf.sourceforge.net/plugins/TransientDesigner:
+    block_type: dyn
+  http://gareus.org/oss/lv2/calf/TransientDesigner:
+    block_type: dyn
+
+  # SpatialPlugin overrides
+  http://moddevices.com/plugins/tap/autopan:
+    block_type: mod

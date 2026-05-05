@@ -19,15 +19,27 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-slint = { workspace = true, features = ["backend-linuxkms", "renderer-femtovg", "gettext"] }
+# Workspace dep disables default features so we don't pull `gettext`
+# (which requires libintl on Windows where it's not natively present —
+# resolver=2 unification was still pulling it via slint defaults). We
+# re-enable `backend-default` here since we still need a backend on
+# every platform. Bundled translations via slint::select_bundled_translation
+# still work cross-platform.
+slint = { workspace = true, features = ["backend-default", "renderer-femtovg"] }
 log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 webbrowser.workspace = true
 sys-locale = "0.3"
-gettext-rs = { version = "0.7", features = ["gettext-system"] }
 rust-i18n = "3"
+
+# Linux gets the KMS backend, Slint runtime gettext, and gettext-rs (which
+# pulls gettext-sys + libintl). On Windows/macOS this whole block is dropped
+# so we don't try to autoconf-build gettext where it isn't natively present.
+[target.'cfg(target_os = "linux")'.dependencies]
+slint = { workspace = true, features = ["backend-linuxkms", "gettext"] }
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
 
 [target.'cfg(target_os = "linux")'.dependencies.infra-cpal]
 path = "../infra-cpal"

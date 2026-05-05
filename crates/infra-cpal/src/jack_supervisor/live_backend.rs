@@ -339,7 +339,7 @@ impl JackBackend for LiveJackBackend {
         //
         // sched_setaffinity is async-signal-safe per POSIX, so calling it
         // from the post-fork pre-execve hook is sound.
-        let big_cores = crate::detect_big_cores();
+        let big_cores = crate::cpu_affinity::detect_big_cores();
         if !big_cores.is_empty() {
             use std::os::unix::process::CommandExt;
             unsafe {

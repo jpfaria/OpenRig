@@ -79,3 +79,9 @@ pub fn register_natives() {
         );
     }
 }
+
+/// Returns true if the model has a usable backend on the current platform.
+pub fn is_model_available(model: &str) -> bool {
+    AVAILABLE_MODEL_IDS.iter().any(|id| *id == model)
+        || !MODEL_DEFINITIONS.iter().any(|d| d.id == model)
+}

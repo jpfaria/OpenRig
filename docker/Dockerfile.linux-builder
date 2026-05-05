@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
     cmake git \
     fakeroot rpm ruby-dev build-essential \
     librsvg2-bin imagemagick \
+    gettext \
     && rm -rf /var/lib/apt/lists/*
 
 RUN gem install fpm --no-document

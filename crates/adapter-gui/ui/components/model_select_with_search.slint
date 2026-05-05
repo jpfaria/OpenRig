@@ -229,6 +229,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     width: parent.width - 8px;
                     height: 26px;
                     border-radius: 5px;
+                    opacity: model.available ? 1.0 : 0.4;
                     background: model.model_id == root.selected-model.model_id
                         ? #14142a : transparent;
 

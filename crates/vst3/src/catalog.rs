@@ -117,6 +117,8 @@ pub fn vst3_model_visual(model_id: &str) -> Option<ModelVisualData> {
         type_label: "VST3",
         supported_instruments: block_core::ALL_INSTRUMENTS,
         knob_layout: &[],
+        thumbnail_path: None,
+        available: true,
     })
 }
 

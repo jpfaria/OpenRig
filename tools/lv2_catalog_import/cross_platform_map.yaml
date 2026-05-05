@@ -1,0 +1,64 @@
+# Bundles with known cross-platform equivalents (VST3/CLAP).
+# Bundles NOT listed here are treated as `lv2-linux-only`:
+# the model ships in the catalog on all 3 OSes but the runtime only loads
+# the LV2 .so on Linux. Mac/Win surface the model as "unavailable".
+#
+# Schema:
+#   bundles:
+#     <bundle_dir.lv2>:
+#       vst3_equivalent: <vst3 bundle name or repo url>
+#       clap_equivalent: <clap bundle name or repo url>
+#       notes: <text>
+
+bundles:
+  Airwindows-StarChild.lv2:
+    vst3_equivalent: airwin2rack (consolidated VST3)
+    clap_equivalent: airwin2rack
+    notes: |
+      Airwindows ships ~349 algorithms in a single VST3 (airwin2rack).
+      Each algorithm is selected via the "Algorithm" parameter.
+
+  ChowCentaur.lv2:
+    vst3_equivalent: ChowCentaur.vst3
+    clap_equivalent: ChowCentaur.clap
+    notes: ChowDSP DAWPlugin bundle ships VST3+CLAP+AU for Mac/Win/Linux.
+
+  ChowKick.lv2:
+    vst3_equivalent: ChowKick.vst3
+    clap_equivalent: ChowKick.clap
+    notes: ChowDSP DAWPlugin bundle.
+
+  CHOWTapeModel.lv2:
+    vst3_equivalent: CHOWTapeModel.vst3
+    clap_equivalent: CHOWTapeModel.clap
+    notes: ChowDSP DAWPlugin bundle (already partly registered as VST3 in OpenRig today).
+
+  ChowMatrix.lv2:
+    vst3_equivalent: ChowMatrix.vst3
+    clap_equivalent: ChowMatrix.clap
+
+  ChowPhaser.lv2:
+    vst3_equivalent: ChowPhaser.vst3
+    clap_equivalent: ChowPhaser.clap
+
+  Dragonfly-Hall-Reverb.lv2:
+    vst3_equivalent: DragonflyHallReverb.vst3
+    notes: DISTRHO ships VST3 for Mac/Win/Linux.
+
+  Dragonfly-Plate-Reverb.lv2:
+    vst3_equivalent: DragonflyPlateReverb.vst3
+
+  Dragonfly-Room-Reverb.lv2:
+    vst3_equivalent: DragonflyRoomReverb.vst3
+
+  Dragonfly-Early-Reflections.lv2:
+    vst3_equivalent: DragonflyEarlyReflections.vst3
+
+  wolf-shaper.lv2:
+    vst3_equivalent: WolfShaper.vst3
+    notes: DISTRHO ships VST3.
+
+  master_me.lv2:
+    vst3_equivalent: master_me.vst3
+    clap_equivalent: master_me.clap
+    notes: trummerschlunk ships cross-platform VST3+CLAP.

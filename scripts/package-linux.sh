@@ -184,7 +184,7 @@ if $BUILD_APPIMAGE; then
         'Exec=openrig' \
         'Icon=openrig' \
         'Type=Application' \
-        'Categories=Audio;Music;' \
+        'Categories=AudioVideo;Audio;Music;' \
         > "$APPDIR/openrig.desktop"
 
     rsvg-convert -w 256 -h 256 \
