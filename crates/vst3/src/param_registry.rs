@@ -8,8 +8,8 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
-use vst3::Steinberg::Vst::IEditController;
 use vst3::ComPtr;
+use vst3::Steinberg::Vst::IEditController;
 
 use crate::param_channel::{vst3_param_channel, Vst3ParamChannel};
 
@@ -52,11 +52,14 @@ pub fn register_vst3_gui_context(
     registry()
         .write()
         .expect("vst3 param registry poisoned")
-        .insert(model_id.to_string(), Vst3GuiContext {
-            param_channel: channel.clone(),
-            controller,
-            library,
-        });
+        .insert(
+            model_id.to_string(),
+            Vst3GuiContext {
+                param_channel: channel.clone(),
+                controller,
+                library,
+            },
+        );
     log::debug!("VST3 registry: registered context for '{}'", model_id);
     channel
 }

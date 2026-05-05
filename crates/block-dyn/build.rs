@@ -13,7 +13,10 @@ fn main() {
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
             continue;
         }
-        let stem = path.file_stem().and_then(|stem| stem.to_str()).expect("file stem");
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .expect("file stem");
         if matches!(stem, "lib" | "registry") {
             continue;
         }
@@ -35,13 +38,18 @@ fn main() {
     compressor_modules.sort();
     gate_modules.sort();
 
-    let all_modules: Vec<&String> = compressor_modules.iter().chain(gate_modules.iter()).collect();
+    let all_modules: Vec<&String> = compressor_modules
+        .iter()
+        .chain(gate_modules.iter())
+        .collect();
 
     let mut generated = String::new();
     for module_name in &all_modules {
         generated.push_str(&format!(
             "#[path = \"{}/{}.rs\"]\nmod {};\n",
-            src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name
+            src_dir.to_string_lossy().replace("\\", "/"),
+            module_name,
+            module_name
         ));
     }
 

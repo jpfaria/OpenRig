@@ -50,8 +50,7 @@ pub fn install_handler(
         let device = session.project.device_settings.first();
         let sample_rate = device.map(|d| d.sample_rate as f32).unwrap_or(48_000.0);
         let buffer_frames = device.map(|d| d.buffer_size_frames as usize).unwrap_or(256);
-        let ms =
-            engine::probe::measure_chain_dsp_latency_ms(chain, sample_rate, buffer_frames);
+        let ms = engine::probe::measure_chain_dsp_latency_ms(chain, sample_rate, buffer_frames);
         let expiry = Instant::now() + Duration::from_secs(10);
         probe_windows.borrow_mut().insert(index as usize, expiry);
         if let Some(mut item) = project_chains.row_data(index as usize) {

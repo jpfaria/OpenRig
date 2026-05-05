@@ -1,11 +1,11 @@
 use crate::GENERIC_NAM_MODEL_ID;
 use anyhow::{bail, Result};
-use domain::value_objects::ParameterValue;
 use block_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
     ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
 use block_core::{db_to_lin, ModelAudioMode, MonoProcessor};
+use domain::value_objects::ParameterValue;
 
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
@@ -190,7 +190,10 @@ struct NeuralModel {
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
 // standard dylib link directive.
-#[cfg_attr(target_os = "windows", link(name = "libNeuralAudioCAPI", kind = "raw-dylib"))]
+#[cfg_attr(
+    target_os = "windows",
+    link(name = "libNeuralAudioCAPI", kind = "raw-dylib")
+)]
 unsafe extern "C" {
     // wchar_t is u32 on macOS/Linux, u16 on Windows
     #[cfg(not(target_os = "windows"))]
@@ -228,12 +231,19 @@ impl NamProcessor {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
         let model = {
-            let wide_path: Vec<u32> = model_path.chars().map(|c| c as u32).chain(std::iter::once(0)).collect();
+            let wide_path: Vec<u32> = model_path
+                .chars()
+                .map(|c| c as u32)
+                .chain(std::iter::once(0))
+                .collect();
             unsafe { CreateModelFromFile(wide_path.as_ptr()) }
         };
         #[cfg(target_os = "windows")]
         let model = {
-            let wide_path: Vec<u16> = model_path.encode_utf16().chain(std::iter::once(0)).collect();
+            let wide_path: Vec<u16> = model_path
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
             unsafe { CreateModelFromFile(wide_path.as_ptr()) }
         };
         if model.is_null() {
@@ -248,7 +258,9 @@ impl NamProcessor {
 
         log::info!(
             "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB",
-            model_path, recommended_input_db, recommended_output_db
+            model_path,
+            recommended_input_db,
+            recommended_output_db
         );
 
         Ok(Self {

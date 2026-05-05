@@ -218,9 +218,7 @@ impl TunerSession {
                 // amplitude regardless of the user's pickup output level
                 // or device input gain. Cap the gain at 30 dB so a noisy
                 // silence does not get amplified into spurious detections.
-                let peak = buf
-                    .iter()
-                    .fold(0.0_f32, |a, &s| a.max(s.abs()));
+                let peak = buf.iter().fold(0.0_f32, |a, &s| a.max(s.abs()));
                 if peak > 0.001 {
                     const TARGET_PEAK: f32 = 0.3;
                     const MAX_GAIN: f32 = 32.0; // ≈ 30 dB

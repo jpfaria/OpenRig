@@ -186,8 +186,7 @@ impl SpectrumAnalyzer {
 
         let hann: Vec<f32> = (0..FFT_SIZE)
             .map(|i| {
-                0.5 * (1.0
-                    - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos())
+                0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos())
             })
             .collect();
 

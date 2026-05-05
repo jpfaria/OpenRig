@@ -87,7 +87,6 @@ pub fn build_dynamics_processor_for_layout(
     anyhow::bail!("unsupported dyn model '{}'", model)
 }
 
-
 pub fn compressor_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_compressor_model_definition(model)?.schema)()
 }

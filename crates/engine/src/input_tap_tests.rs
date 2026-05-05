@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn new_returns_one_ring_per_subscribed_channel() {
     let (tap, handles) = InputTap::new(0, 4, &[0, 2], 256);

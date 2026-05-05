@@ -4,8 +4,8 @@ use block_core::param::{
     ParameterSet, ParameterUnit,
 };
 use block_core::{
-    db_to_lin, AudioChannelLayout, EnvelopeFollower, ModelAudioMode, MonoProcessor,
-    OnePoleHighPass, OnePoleLowPass, BlockProcessor, StereoProcessor,
+    db_to_lin, AudioChannelLayout, BlockProcessor, EnvelopeFollower, ModelAudioMode, MonoProcessor,
+    OnePoleHighPass, OnePoleLowPass, StereoProcessor,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -261,12 +261,7 @@ pub fn model_schema(
                 1.0,
                 ParameterUnit::Percent,
             ),
-            bool_parameter(
-                "bright",
-                "Bright",
-                Some("Switches"),
-                Some(defaults.bright),
-            ),
+            bool_parameter("bright", "Bright", Some("Switches"), Some(defaults.bright)),
             float_parameter(
                 "sag",
                 "Sag",

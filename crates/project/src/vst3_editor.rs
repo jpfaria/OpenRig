@@ -37,7 +37,10 @@ pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn Plug
     }
 
     // Fallback: load a standalone instance (no param-channel communication).
-    log::debug!("VST3 editor: no engine context for '{}', loading standalone instance", model_id);
+    log::debug!(
+        "VST3 editor: no engine context for '{}', loading standalone instance",
+        model_id
+    );
     let uid = vst3_host::resolve_uid_for_model(model_id)?;
     let handle = vst3_host::open_vst3_editor_window_standalone(
         &entry.info.bundle_path,

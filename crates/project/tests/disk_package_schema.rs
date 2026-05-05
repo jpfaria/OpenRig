@@ -118,7 +118,9 @@ binaries:
     [ a lv2:InputPort, lv2:ControlPort ; lv2:index 3 ; lv2:symbol \"depth\" ; lv2:default 50.0 ; lv2:minimum 0.0 ; lv2:maximum 100.0 ; ] .\n",
     );
     write(
-        &lv2.join("platform").join("macos-universal").join("chorus.dylib"),
+        &lv2.join("platform")
+            .join("macos-universal")
+            .join("chorus.dylib"),
         b"fake-bin",
     );
 
@@ -129,22 +131,43 @@ binaries:
     // ── NAM: two numeric grid axes → two float parameters ──
     let amp_schema = project::block::schema_for_block_model("amp", "nam_test_amp_e2e")
         .expect("NAM schema should resolve via plugin_loader fallback");
-    let amp_names: Vec<&str> = amp_schema.parameters.iter().map(|p| p.path.as_str()).collect();
-    assert!(amp_names.contains(&"gain"), "NAM schema missing 'gain', got: {amp_names:?}");
-    assert!(amp_names.contains(&"volume"), "NAM schema missing 'volume', got: {amp_names:?}");
+    let amp_names: Vec<&str> = amp_schema
+        .parameters
+        .iter()
+        .map(|p| p.path.as_str())
+        .collect();
+    assert!(
+        amp_names.contains(&"gain"),
+        "NAM schema missing 'gain', got: {amp_names:?}"
+    );
+    assert!(
+        amp_names.contains(&"volume"),
+        "NAM schema missing 'volume', got: {amp_names:?}"
+    );
     assert_eq!(amp_schema.parameters.len(), 2);
 
     // ── IR: one text axis → one enum parameter ──
     let cab_schema = project::block::schema_for_block_model("cab", "ir_test_cab_e2e")
         .expect("IR schema should resolve");
-    let cab_names: Vec<&str> = cab_schema.parameters.iter().map(|p| p.path.as_str()).collect();
-    assert!(cab_names.contains(&"voicing"), "IR schema missing 'voicing', got: {cab_names:?}");
+    let cab_names: Vec<&str> = cab_schema
+        .parameters
+        .iter()
+        .map(|p| p.path.as_str())
+        .collect();
+    assert!(
+        cab_names.contains(&"voicing"),
+        "IR schema missing 'voicing', got: {cab_names:?}"
+    );
     assert_eq!(cab_schema.parameters.len(), 1);
 
     // ── LV2: data/ TTLs + per-platform binary → control ports become float params ──
     let lv2_schema = project::block::schema_for_block_model("modulation", "lv2_test_chorus_e2e")
         .expect("LV2 schema should resolve via shared data/ TTLs");
-    let lv2_names: Vec<&str> = lv2_schema.parameters.iter().map(|p| p.path.as_str()).collect();
+    let lv2_names: Vec<&str> = lv2_schema
+        .parameters
+        .iter()
+        .map(|p| p.path.as_str())
+        .collect();
     assert!(
         lv2_names.contains(&"rate") && lv2_names.contains(&"depth"),
         "LV2 schema should include `rate` and `depth` ControlIn ports from data/chorus.ttl, got: {lv2_names:?}"

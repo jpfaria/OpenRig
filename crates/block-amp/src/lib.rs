@@ -45,7 +45,6 @@ pub fn build_amp_processor_for_layout(
     anyhow::bail!("unsupported amp model '{}'", model)
 }
 
-
 pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
     let def = registry::find_model_definition(model_id).ok()?;
     Some(ModelVisualData {
@@ -62,7 +61,9 @@ pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn amp_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn amp_brand(model: &str) -> Result<&'static str> {

@@ -12,7 +12,10 @@ fn main() {
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
             continue;
         }
-        let stem = path.file_stem().and_then(|stem| stem.to_str()).expect("file stem");
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .expect("file stem");
         if matches!(stem, "lib" | "registry") {
             continue;
         }
@@ -28,7 +31,12 @@ fn main() {
     model_modules.sort();
     let mut generated = String::new();
     for module_name in &model_modules {
-        generated.push_str(&format!("#[path = \"{}/{}.rs\"]\npub mod {};\n", src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name));
+        generated.push_str(&format!(
+            "#[path = \"{}/{}.rs\"]\npub mod {};\n",
+            src_dir.to_string_lossy().replace("\\", "/"),
+            module_name,
+            module_name
+        ));
     }
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &model_modules {

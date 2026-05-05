@@ -134,7 +134,11 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {

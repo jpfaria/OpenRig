@@ -44,13 +44,7 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    build_processor_with_assets_for_layout(
-        model_path_str,
-        None,
-        plugin_params,
-        sample_rate,
-        layout,
-    )
+    build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 
 /// Register this crate's builder in the global package-builders table.

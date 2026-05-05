@@ -1,16 +1,16 @@
+use crate::{CurveEditorPoint, MultiSliderPoint};
 use project::block::schema_for_block_model;
-use project::param::{CurveEditorRole, ParameterDomain, ParameterWidget, ParameterSet};
-use crate::{MultiSliderPoint, CurveEditorPoint};
+use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterWidget};
 
 pub(crate) const BAND_COLORS: &[slint::Color] = &[
-    slint::Color::from_argb_u8(255, 232, 77, 77),    // red
-    slint::Color::from_argb_u8(255, 77, 184, 232),   // cyan
-    slint::Color::from_argb_u8(255, 119, 232, 77),   // green
-    slint::Color::from_argb_u8(255, 232, 184, 77),   // orange
-    slint::Color::from_argb_u8(255, 184, 77, 232),   // purple
-    slint::Color::from_argb_u8(255, 77, 232, 184),   // teal
-    slint::Color::from_argb_u8(255, 232, 77, 184),   // pink
-    slint::Color::from_argb_u8(255, 184, 232, 77),   // lime
+    slint::Color::from_argb_u8(255, 232, 77, 77),  // red
+    slint::Color::from_argb_u8(255, 77, 184, 232), // cyan
+    slint::Color::from_argb_u8(255, 119, 232, 77), // green
+    slint::Color::from_argb_u8(255, 232, 184, 77), // orange
+    slint::Color::from_argb_u8(255, 184, 77, 232), // purple
+    slint::Color::from_argb_u8(255, 77, 232, 184), // teal
+    slint::Color::from_argb_u8(255, 232, 77, 184), // pink
+    slint::Color::from_argb_u8(255, 184, 232, 77), // lime
 ];
 
 pub(crate) fn build_multi_slider_points(
@@ -184,8 +184,12 @@ pub(crate) fn gain_to_y(gain_db: f32) -> f32 {
     (norm.clamp(0.0, 1.0) * EQ_SVG_H).round()
 }
 
-pub(crate) fn db_to_linear(db: f32) -> f32 { 10.0_f32.powf(db / 20.0) }
-pub(crate) fn linear_to_db(lin: f32) -> f32 { 20.0 * lin.max(1e-10).log10() }
+pub(crate) fn db_to_linear(db: f32) -> f32 {
+    10.0_f32.powf(db / 20.0)
+}
+pub(crate) fn linear_to_db(lin: f32) -> f32 {
+    20.0 * lin.max(1e-10).log10()
+}
 
 pub(crate) fn biquad_kind_for_group(group: &str) -> block_core::BiquadKind {
     let lower = group.to_lowercase();
@@ -262,7 +266,9 @@ pub(crate) fn compute_eq_curves(
             if spec.group.as_deref().unwrap_or("") != group {
                 continue;
             }
-            let ParameterWidget::CurveEditor { role } = &spec.widget else { continue };
+            let ParameterWidget::CurveEditor { role } = &spec.widget else {
+                continue;
+            };
             let val = params
                 .get(&spec.path)
                 .and_then(|v| v.as_f32())
@@ -276,9 +282,11 @@ pub(crate) fn compute_eq_curves(
         }
 
         let kind = biquad_kind_for_group(group);
-        let filter = block_core::BiquadFilter::new(kind, freq_hz, gain_db, q.max(0.01), EQ_VIZ_SAMPLE_RATE);
+        let filter =
+            block_core::BiquadFilter::new(kind, freq_hz, gain_db, q.max(0.01), EQ_VIZ_SAMPLE_RATE);
 
-        let band_dbs: Vec<f32> = freqs.iter()
+        let band_dbs: Vec<f32> = freqs
+            .iter()
             .map(|&f| filter.magnitude_db(f, EQ_VIZ_SAMPLE_RATE))
             .collect();
 

@@ -15,8 +15,7 @@ use vst3::Steinberg::Vst::{
     SymbolicSampleSizes_,
 };
 use vst3::Steinberg::{
-    IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
-    kResultOk,
+    kResultOk, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
 };
 use vst3::{ComPtr, ComWrapper, Interface};
 
@@ -117,8 +116,11 @@ impl Vst3Plugin {
         // 2. dlopen the binary.
         // Safety: libloading loads a shared library. The returned library is
         // kept alive for the entire lifetime of `Vst3Plugin`.
-        let library = Arc::new(unsafe { libloading::Library::new(&binary_path) }
-            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?);
+        let library = Arc::new(
+            unsafe { libloading::Library::new(&binary_path) }.with_context(|| {
+                format!("failed to dlopen VST3 binary: {}", binary_path.display())
+            })?,
+        );
 
         // 3. Get the GetPluginFactory symbol.
         // Safety: the symbol must exist and have the correct signature. This is
@@ -134,8 +136,7 @@ impl Vst3Plugin {
 
         // Take ownership of the factory pointer (COM ref count = 1 from the call).
         // Safety: factory_raw is a valid, non-null IPluginFactory* returned by the plugin.
-        let factory: ComPtr<IPluginFactory> =
-            unsafe { ComPtr::from_raw_unchecked(factory_raw) };
+        let factory: ComPtr<IPluginFactory> = unsafe { ComPtr::from_raw_unchecked(factory_raw) };
 
         // 4. Find the class whose UID matches plugin_uid.
         let class_count = unsafe { factory.countClasses() };
@@ -160,12 +161,10 @@ impl Vst3Plugin {
         // 5. Create IComponent instance.
         let mut component_raw: *mut c_void = ptr::null_mut();
         let cid_ptr = class_tuid.as_ptr() as *const c_char;
-        let icomponent_iid_ptr =
-            IComponent::IID.as_ptr() as *const c_char;
+        let icomponent_iid_ptr = IComponent::IID.as_ptr() as *const c_char;
 
-        let res = unsafe {
-            factory.createInstance(cid_ptr, icomponent_iid_ptr, &mut component_raw)
-        };
+        let res =
+            unsafe { factory.createInstance(cid_ptr, icomponent_iid_ptr, &mut component_raw) };
         if res != kResultOk || component_raw.is_null() {
             bail!("IPluginFactory::createInstance failed (result={})", res);
         }
@@ -203,9 +202,7 @@ impl Vst3Plugin {
         // Some plugins ignore this call and use their own default.
         let mut in_arr = speaker_arr;
         let mut out_arr = speaker_arr;
-        let _res = unsafe {
-            audio_processor.setBusArrangements(&mut in_arr, 1, &mut out_arr, 1)
-        };
+        let _res = unsafe { audio_processor.setBusArrangements(&mut in_arr, 1, &mut out_arr, 1) };
 
         // 9. setupProcessing
         // SymbolicSampleSizes_ and MediaTypes_ are DefaultEnumType (u32 on macOS/Linux,
@@ -219,7 +216,10 @@ impl Vst3Plugin {
         };
         let res = unsafe { audio_processor.setupProcessing(&setup as *const _ as *mut _) };
         if res != kResultOk {
-            log::warn!("IAudioProcessor::setupProcessing returned {} (non-fatal)", res);
+            log::warn!(
+                "IAudioProcessor::setupProcessing returned {} (non-fatal)",
+                res
+            );
         }
 
         // 10. Activate audio buses (bus 0 in and out).
@@ -228,40 +228,36 @@ impl Vst3Plugin {
         let dir_input = BusDirections_::kInput as i32;
         let dir_output = BusDirections_::kOutput as i32;
 
-        let num_in_buses = unsafe {
-            component.getBusCount(media_audio, dir_input)
-        };
-        let num_out_buses = unsafe {
-            component.getBusCount(media_audio, dir_output)
-        };
+        let num_in_buses = unsafe { component.getBusCount(media_audio, dir_input) };
+        let num_out_buses = unsafe { component.getBusCount(media_audio, dir_output) };
 
         for i in 0..num_in_buses {
-            let _ = unsafe {
-                component.activateBus(media_audio, dir_input, i, 1u8)
-            };
+            let _ = unsafe { component.activateBus(media_audio, dir_input, i, 1u8) };
         }
         for i in 0..num_out_buses {
-            let _ = unsafe {
-                component.activateBus(media_audio, dir_output, i, 1u8)
-            };
+            let _ = unsafe { component.activateBus(media_audio, dir_output, i, 1u8) };
         }
 
         // Determine actual channel count from bus info.
         let num_input_channels = if num_in_buses > 0 {
             let mut bus_info: BusInfo = unsafe { std::mem::zeroed() };
-            let res = unsafe {
-                component.getBusInfo(media_audio, dir_input, 0, &mut bus_info)
-            };
-            if res == kResultOk { bus_info.channelCount } else { n_ch }
+            let res = unsafe { component.getBusInfo(media_audio, dir_input, 0, &mut bus_info) };
+            if res == kResultOk {
+                bus_info.channelCount
+            } else {
+                n_ch
+            }
         } else {
             n_ch
         };
         let num_output_channels = if num_out_buses > 0 {
             let mut bus_info: BusInfo = unsafe { std::mem::zeroed() };
-            let res = unsafe {
-                component.getBusInfo(media_audio, dir_output, 0, &mut bus_info)
-            };
-            if res == kResultOk { bus_info.channelCount } else { n_ch }
+            let res = unsafe { component.getBusInfo(media_audio, dir_output, 0, &mut bus_info) };
+            if res == kResultOk {
+                bus_info.channelCount
+            } else {
+                n_ch
+            }
         } else {
             n_ch
         };
@@ -275,46 +271,48 @@ impl Vst3Plugin {
         // 12. setProcessing(true)
         let res = unsafe { audio_processor.setProcessing(1u8) };
         if res != kResultOk {
-            log::warn!("IAudioProcessor::setProcessing(true) returned {} (non-fatal)", res);
+            log::warn!(
+                "IAudioProcessor::setProcessing(true) returned {} (non-fatal)",
+                res
+            );
         }
 
         // 13. Get IEditController.
         // First try QueryInterface on the component itself (single-object plugins).
-        let (controller, controller_is_separate) =
-            if let Some(ctrl) = component.cast::<IEditController>() {
-                log::debug!("VST3: controller via QueryInterface (same object)");
-                (ctrl, false)
-            } else {
-                // The component reports a separate controller class ID.
-                let mut ctrl_class_id: TUID = unsafe { std::mem::zeroed() };
-                let res = unsafe { component.getControllerClassId(&mut ctrl_class_id) };
-                if res != kResultOk {
-                    bail!("plugin has no IEditController and getControllerClassId failed");
-                }
+        let (controller, controller_is_separate) = if let Some(ctrl) =
+            component.cast::<IEditController>()
+        {
+            log::debug!("VST3: controller via QueryInterface (same object)");
+            (ctrl, false)
+        } else {
+            // The component reports a separate controller class ID.
+            let mut ctrl_class_id: TUID = unsafe { std::mem::zeroed() };
+            let res = unsafe { component.getControllerClassId(&mut ctrl_class_id) };
+            if res != kResultOk {
+                bail!("plugin has no IEditController and getControllerClassId failed");
+            }
 
-                let mut ctrl_raw: *mut c_void = ptr::null_mut();
-                let ctrl_cid_ptr = ctrl_class_id.as_ptr() as *const c_char;
-                let ictrl_iid_ptr = IEditController::IID.as_ptr() as *const c_char;
+            let mut ctrl_raw: *mut c_void = ptr::null_mut();
+            let ctrl_cid_ptr = ctrl_class_id.as_ptr() as *const c_char;
+            let ictrl_iid_ptr = IEditController::IID.as_ptr() as *const c_char;
 
-                let res = unsafe {
-                    factory.createInstance(ctrl_cid_ptr, ictrl_iid_ptr, &mut ctrl_raw)
-                };
-                if res != kResultOk || ctrl_raw.is_null() {
-                    bail!("failed to create separate IEditController (result={})", res);
-                }
+            let res = unsafe { factory.createInstance(ctrl_cid_ptr, ictrl_iid_ptr, &mut ctrl_raw) };
+            if res != kResultOk || ctrl_raw.is_null() {
+                bail!("failed to create separate IEditController (result={})", res);
+            }
 
-                // Safety: createInstance returned a valid IEditController*.
-                let ctrl: ComPtr<IEditController> =
-                    unsafe { ComPtr::from_raw_unchecked(ctrl_raw as *mut IEditController) };
+            // Safety: createInstance returned a valid IEditController*.
+            let ctrl: ComPtr<IEditController> =
+                unsafe { ComPtr::from_raw_unchecked(ctrl_raw as *mut IEditController) };
 
-                let res = unsafe { ctrl.initialize(ptr::null_mut()) };
-                if res != kResultOk {
-                    log::warn!("IEditController::initialize returned {} (non-fatal)", res);
-                }
+            let res = unsafe { ctrl.initialize(ptr::null_mut()) };
+            if res != kResultOk {
+                log::warn!("IEditController::initialize returned {} (non-fatal)", res);
+            }
 
-                log::debug!("VST3: controller created as separate object");
-                (ctrl, true)
-            };
+            log::debug!("VST3: controller created as separate object");
+            (ctrl, true)
+        };
 
         // 14. Connect component ↔ controller via IConnectionPoint.
         // Required by the VST3 spec so the controller can query component
@@ -336,7 +334,12 @@ impl Vst3Plugin {
         for &(id, normalized) in initial_params {
             let res = unsafe { controller.setParamNormalized(id, normalized) };
             if res != kResultOk {
-                log::warn!("setParamNormalized({}, {}) returned {}", id, normalized, res);
+                log::warn!(
+                    "setParamNormalized({}, {}) returned {}",
+                    id,
+                    normalized,
+                    res
+                );
             }
         }
 
@@ -394,10 +397,8 @@ impl Vst3Plugin {
         let n = n_samples.min(self.block_size) as i32;
 
         // Build planar channel pointer arrays.
-        let mut input_channels: [*mut f32; 2] =
-            [input_l.as_mut_ptr(), input_r.as_mut_ptr()];
-        let mut output_channels: [*mut f32; 2] =
-            [output_l.as_mut_ptr(), output_r.as_mut_ptr()];
+        let mut input_channels: [*mut f32; 2] = [input_l.as_mut_ptr(), input_r.as_mut_ptr()];
+        let mut output_channels: [*mut f32; 2] = [output_l.as_mut_ptr(), output_r.as_mut_ptr()];
 
         let num_in = self.num_input_channels.max(1).min(2) as usize;
         let num_out = self.num_output_channels.max(1).min(2) as usize;
@@ -452,7 +453,10 @@ impl Vst3Plugin {
         // retain any pointers from it after process() returns.
         let res = unsafe { self.audio_processor.process(&mut process_data) };
         if res != kResultOk {
-            log::trace!("IAudioProcessor::process returned {} (non-zero, may be normal)", res);
+            log::trace!(
+                "IAudioProcessor::process returned {} (non-zero, may be normal)",
+                res
+            );
         }
     }
 
@@ -460,7 +464,12 @@ impl Vst3Plugin {
     pub fn set_param(&self, id: u32, normalized: f64) -> Result<()> {
         let res = unsafe { self.controller.setParamNormalized(id, normalized) };
         if res != kResultOk {
-            bail!("setParamNormalized({}, {}) returned {}", id, normalized, res);
+            bail!(
+                "setParamNormalized({}, {}) returned {}",
+                id,
+                normalized,
+                res
+            );
         }
         Ok(())
     }

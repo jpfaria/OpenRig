@@ -342,9 +342,9 @@ fn catalog_model_entries_have_supported_instruments() {
 
 #[test]
 fn supported_block_models_includes_disk_package_for_block_type() {
-    use plugin_loader::native_runtimes::NativeRuntime;
-    use plugin_loader::manifest::BlockType;
     use crate::param::ParameterSet;
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
     use std::path::PathBuf;
 
     fn fake_schema() -> anyhow::Result<block_core::param::ModelParameterSchema> {
@@ -390,6 +390,9 @@ fn supported_block_models_includes_disk_package_for_block_type() {
         models.iter().any(|m| m.model_id == "test_disk_pkg_preamp"),
         "expected disk-package model 'test_disk_pkg_preamp' to surface in supported_block_models, \
          got: {:?}",
-        models.iter().map(|m| m.model_id.as_str()).collect::<Vec<_>>()
+        models
+            .iter()
+            .map(|m| m.model_id.as_str())
+            .collect::<Vec<_>>()
     );
 }

@@ -117,10 +117,14 @@ pub fn insertion_slot_indices(block_count: usize) -> Vec<usize> {
 }
 
 pub fn chain_routing_summary(chain: &Chain) -> String {
-    let input_channels: Vec<usize> = chain.input_blocks().into_iter()
+    let input_channels: Vec<usize> = chain
+        .input_blocks()
+        .into_iter()
         .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
         .collect();
-    let output_channels: Vec<usize> = chain.output_blocks().into_iter()
+    let output_channels: Vec<usize> = chain
+        .output_blocks()
+        .into_iter()
         .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
         .collect();
     format!(

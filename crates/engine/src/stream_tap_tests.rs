@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn new_returns_two_rings() {
     let (_tap, handles) = StreamTap::new(0, 256);

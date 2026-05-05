@@ -9,18 +9,22 @@ use crate::block_editor::{block_editor_data, block_parameter_items_for_editor};
 use crate::project_ops::build_device_settings_from_gui;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SelectBlock};
 use project::catalog::supported_block_models;
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
-};
 use project::param::ParameterSet;
 use slint::Model;
 #[test]
 fn select_block_editor_uses_selected_option_model() {
     let delay_models = delay_model_ids();
-    let first_model = delay_models.first().expect("delay catalog must not be empty");
+    let first_model = delay_models
+        .first()
+        .expect("delay catalog must not be empty");
     let second_model = delay_models.get(1).unwrap_or(first_model);
-    let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
+    let block = select_delay_block(
+        "chain:0:block:0",
+        first_model.as_str(),
+        second_model.as_str(),
+    );
     let editor_data = block_editor_data(&block).expect("select should expose editor data");
     assert!(editor_data.is_select);
     assert_eq!(editor_data.effect_type, "delay");
@@ -34,9 +38,15 @@ fn select_block_editor_uses_selected_option_model() {
 #[test]
 fn select_block_editor_includes_active_option_picker() {
     let delay_models = delay_model_ids();
-    let first_model = delay_models.first().expect("delay catalog must not be empty");
+    let first_model = delay_models
+        .first()
+        .expect("delay catalog must not be empty");
     let second_model = delay_models.get(1).unwrap_or(first_model);
-    let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
+    let block = select_delay_block(
+        "chain:0:block:0",
+        first_model.as_str(),
+        second_model.as_str(),
+    );
     let editor_data = block_editor_data(&block).expect("select should expose editor data");
     let items = block_parameter_items_for_editor(&editor_data);
     let selector = items
@@ -86,9 +96,9 @@ fn delay_model_ids() -> Vec<String> {
 // --- ui_index_to_real_block_index tests ---
 
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
+use domain::ids::{ChainId, DeviceId};
 use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
-use domain::ids::{ChainId, DeviceId};
 
 fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
     Chain {
@@ -96,11 +106,15 @@ fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
-        blocks: block_kinds.into_iter().enumerate().map(|(i, kind)| AudioBlock {
-            id: BlockId(format!("block:{}", i)),
-            enabled: true,
-            kind,
-        }).collect(),
+        blocks: block_kinds
+            .into_iter()
+            .enumerate()
+            .map(|(i, kind)| AudioBlock {
+                id: BlockId(format!("block:{}", i)),
+                enabled: true,
+                kind,
+            })
+            .collect(),
     }
 }
 
@@ -153,11 +167,7 @@ fn ui_index_maps_correctly_with_standard_chain() {
 
 #[test]
 fn ui_index_past_end_returns_before_last_output() {
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), effect_kind("delay"), output_kind()]);
     // UI sees [Delay(0)], asking for UI index 1 (past end) → before Output = real 2
     assert_eq!(ui_index_to_real_block_index(&chain, 1), 2);
 }
@@ -200,10 +210,7 @@ fn ui_index_with_extra_output_in_middle() {
 #[test]
 fn ui_index_with_no_io_blocks() {
     // [Comp, Delay] — no I/O blocks at all
-    let chain = test_chain(vec![
-        effect_kind("dynamics"),
-        effect_kind("delay"),
-    ]);
+    let chain = test_chain(vec![effect_kind("dynamics"), effect_kind("delay")]);
     assert_eq!(ui_index_to_real_block_index(&chain, 0), 0);
     assert_eq!(ui_index_to_real_block_index(&chain, 1), 1);
 }
@@ -211,10 +218,7 @@ fn ui_index_with_no_io_blocks() {
 #[test]
 fn ui_index_with_only_io_blocks() {
     // [Input, Output] — no effect blocks
-    let chain = test_chain(vec![
-        input_kind(),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), output_kind()]);
     // UI sees nothing, asking for 0 → before Output = real 1
     assert_eq!(ui_index_to_real_block_index(&chain, 0), 1);
 }
@@ -240,7 +244,9 @@ fn save_input_entries_does_not_move_middle_io_blocks() {
     ]);
 
     // The save path with editing_io_block_index = None finds FIRST InputBlock
-    let target_idx = chain.blocks.iter()
+    let target_idx = chain
+        .blocks
+        .iter()
         .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
         .unwrap();
     assert_eq!(target_idx, 0);
@@ -327,8 +333,8 @@ fn unit_label_returns_correct_suffix_for_all_variants() {
 
 // --- insert_mode_to_index / insert_mode_from_index ---
 
-use crate::chain_editor::insert_mode_to_index;
 use crate::chain_editor::insert_mode_from_index;
+use crate::chain_editor::insert_mode_to_index;
 
 #[test]
 fn insert_mode_mono_roundtrip() {
@@ -358,7 +364,10 @@ use super::chain_editor::normalized_chain_description;
 
 #[test]
 fn normalized_chain_description_trims_whitespace() {
-    assert_eq!(normalized_chain_description("  Guitar 1  "), Some("Guitar 1".to_string()));
+    assert_eq!(
+        normalized_chain_description("  Guitar 1  "),
+        Some("Guitar 1".to_string())
+    );
 }
 
 #[test]
@@ -455,8 +464,16 @@ use infra_cpal::AudioDeviceDescriptor;
 #[test]
 fn selected_device_index_finds_matching_device() {
     let devices = vec![
-        AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
-        AudioDeviceDescriptor { id: "dev_b".into(), name: "B".into(), channels: 4 },
+        AudioDeviceDescriptor {
+            id: "dev_a".into(),
+            name: "A".into(),
+            channels: 2,
+        },
+        AudioDeviceDescriptor {
+            id: "dev_b".into(),
+            name: "B".into(),
+            channels: 4,
+        },
     ];
     assert_eq!(selected_device_index(&devices, Some("dev_b")), 1);
 }
@@ -466,9 +483,11 @@ fn selected_device_index_falls_back_to_zero_when_single_device() {
     // When there is exactly one device and the saved ID doesn't match,
     // auto-select it (index 0) so the user doesn't have to manually
     // pick the only option (common on single-device setups like Orange Pi).
-    let devices = vec![
-        AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
-    ];
+    let devices = vec![AudioDeviceDescriptor {
+        id: "dev_a".into(),
+        name: "A".into(),
+        channels: 2,
+    }];
     assert_eq!(selected_device_index(&devices, Some("dev_x")), 0);
 }
 
@@ -477,17 +496,27 @@ fn selected_device_index_returns_negative_when_not_found_multiple_devices() {
     // When there are multiple devices and none match, return -1
     // so the UI shows "Select device" instead of picking one arbitrarily.
     let devices = vec![
-        AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
-        AudioDeviceDescriptor { id: "dev_b".into(), name: "B".into(), channels: 4 },
+        AudioDeviceDescriptor {
+            id: "dev_a".into(),
+            name: "A".into(),
+            channels: 2,
+        },
+        AudioDeviceDescriptor {
+            id: "dev_b".into(),
+            name: "B".into(),
+            channels: 4,
+        },
     ];
     assert_eq!(selected_device_index(&devices, Some("dev_x")), -1);
 }
 
 #[test]
 fn selected_device_index_returns_negative_for_none() {
-    let devices = vec![
-        AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
-    ];
+    let devices = vec![AudioDeviceDescriptor {
+        id: "dev_a".into(),
+        name: "A".into(),
+        channels: 2,
+    }];
     assert_eq!(selected_device_index(&devices, None), -1);
 }
 
@@ -512,21 +541,14 @@ fn real_block_index_to_ui_maps_effect_blocks_correctly() {
 
 #[test]
 fn real_block_index_to_ui_hidden_blocks_return_none() {
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), effect_kind("delay"), output_kind()]);
     assert_eq!(real_block_index_to_ui(&chain, 0), None); // first input hidden
     assert_eq!(real_block_index_to_ui(&chain, 2), None); // last output hidden
 }
 
 #[test]
 fn real_block_index_to_ui_out_of_range_returns_none() {
-    let chain = test_chain(vec![
-        input_kind(),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), output_kind()]);
     assert_eq!(real_block_index_to_ui(&chain, 99), None);
 }
 
@@ -617,7 +639,9 @@ fn save_output_entries_finds_last_output_block() {
     ]);
 
     // The save path with editing_io_block_index = None finds LAST OutputBlock
-    let target_idx = chain.blocks.iter()
+    let target_idx = chain
+        .blocks
+        .iter()
         .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
         .unwrap();
     assert_eq!(target_idx, 4);
@@ -666,7 +690,8 @@ fn parse_cli_args_extracts_path_and_auto_save_flag() {
     assert_eq!(path, None);
     assert!(auto_save);
 
-    let (path, auto_save, _) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+    let (path, auto_save, _) =
+        parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
     assert!(auto_save);
 
@@ -684,7 +709,8 @@ fn parse_cli_args_fullscreen_flag() {
     let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen"]);
     assert!(fullscreen);
 
-    let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen", "--auto-save", "/tmp/p.yaml"]);
+    let (path, auto_save, fullscreen) =
+        parse_cli_args_from(&["openrig", "--fullscreen", "--auto-save", "/tmp/p.yaml"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
     assert!(auto_save);
     assert!(fullscreen);
@@ -735,7 +761,10 @@ fn sync_recent_projects_empty_name_becomes_untitled() {
         ..Default::default()
     };
     sync_recent_projects(&mut config);
-    assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    assert_eq!(
+        config.recent_projects[0].project_name,
+        UNTITLED_PROJECT_NAME
+    );
 }
 
 #[test]
@@ -803,7 +832,10 @@ fn register_recent_project_removes_duplicate_and_reinserts_at_front() {
 fn register_recent_project_empty_name_becomes_untitled() {
     let mut config = AppConfig::default();
     register_recent_project(&mut config, &std::path::PathBuf::from("/x.yaml"), "  ");
-    assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    assert_eq!(
+        config.recent_projects[0].project_name,
+        UNTITLED_PROJECT_NAME
+    );
 }
 
 // --- mark_recent_project_invalid ---
@@ -821,7 +853,11 @@ fn mark_recent_project_invalid_sets_flag_and_reason() {
         }],
         ..Default::default()
     };
-    mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "File corrupted");
+    mark_recent_project_invalid(
+        &mut config,
+        &std::path::PathBuf::from("/p.yaml"),
+        "File corrupted",
+    );
     assert!(!config.recent_projects[0].is_valid);
     assert_eq!(
         config.recent_projects[0].invalid_reason.as_deref(),
@@ -870,29 +906,38 @@ use super::project_view::chain_inputs_tooltip;
 
 #[test]
 fn chain_inputs_tooltip_shows_device_name_and_channels() {
-    let chain = test_chain(vec![
-        input_kind(),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), output_kind()]);
     let project = Project {
         name: None,
         device_settings: vec![],
         chains: vec![chain.clone()],
     };
-    let devices = vec![
-        AudioDeviceDescriptor { id: "dev".into(), name: "USB Audio".into(), channels: 2 },
-    ];
+    let devices = vec![AudioDeviceDescriptor {
+        id: "dev".into(),
+        name: "USB Audio".into(),
+        channels: 2,
+    }];
     let tooltip = chain_inputs_tooltip(&chain, &project, &devices);
-    assert!(tooltip.contains("USB Audio"), "tooltip should contain device name: {}", tooltip);
-    assert!(tooltip.contains("Mono"), "tooltip should contain mode: {}", tooltip);
-    assert!(tooltip.contains("1"), "tooltip should contain channel number: {}", tooltip);
+    assert!(
+        tooltip.contains("USB Audio"),
+        "tooltip should contain device name: {}",
+        tooltip
+    );
+    assert!(
+        tooltip.contains("Mono"),
+        "tooltip should contain mode: {}",
+        tooltip
+    );
+    assert!(
+        tooltip.contains("1"),
+        "tooltip should contain channel number: {}",
+        tooltip
+    );
 }
 
 #[test]
 fn chain_inputs_tooltip_no_input_block() {
-    let chain = test_chain(vec![
-        effect_kind("delay"),
-    ]);
+    let chain = test_chain(vec![effect_kind("delay")]);
     let project = Project {
         name: None,
         device_settings: vec![],
@@ -904,10 +949,7 @@ fn chain_inputs_tooltip_no_input_block() {
 
 #[test]
 fn chain_inputs_tooltip_unknown_device_shows_id() {
-    let chain = test_chain(vec![
-        input_kind(),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), output_kind()]);
     let project = Project {
         name: None,
         device_settings: vec![],
@@ -915,7 +957,11 @@ fn chain_inputs_tooltip_unknown_device_shows_id() {
     };
     // No devices → falls back to device_id
     let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
-    assert!(tooltip.contains("dev"), "should fall back to device id: {}", tooltip);
+    assert!(
+        tooltip.contains("dev"),
+        "should fall back to device id: {}",
+        tooltip
+    );
 }
 
 // --- chain_outputs_tooltip ---
@@ -924,28 +970,33 @@ use super::project_view::chain_outputs_tooltip;
 
 #[test]
 fn chain_outputs_tooltip_shows_device_and_channels() {
-    let chain = test_chain(vec![
-        input_kind(),
-        output_kind(),
-    ]);
+    let chain = test_chain(vec![input_kind(), output_kind()]);
     let project = Project {
         name: None,
         device_settings: vec![],
         chains: vec![chain.clone()],
     };
-    let devices = vec![
-        AudioDeviceDescriptor { id: "dev".into(), name: "Headphones".into(), channels: 2 },
-    ];
+    let devices = vec![AudioDeviceDescriptor {
+        id: "dev".into(),
+        name: "Headphones".into(),
+        channels: 2,
+    }];
     let tooltip = chain_outputs_tooltip(&chain, &project, &devices);
-    assert!(tooltip.contains("Headphones"), "should contain device name: {}", tooltip);
-    assert!(tooltip.contains("Stereo"), "should contain mode: {}", tooltip);
+    assert!(
+        tooltip.contains("Headphones"),
+        "should contain device name: {}",
+        tooltip
+    );
+    assert!(
+        tooltip.contains("Stereo"),
+        "should contain mode: {}",
+        tooltip
+    );
 }
 
 #[test]
 fn chain_outputs_tooltip_no_output_block() {
-    let chain = test_chain(vec![
-        effect_kind("delay"),
-    ]);
+    let chain = test_chain(vec![effect_kind("delay")]);
     let project = Project {
         name: None,
         device_settings: vec![],
@@ -1027,7 +1078,11 @@ fn build_device_settings_deduplicates_same_device_id() {
         ..GuiAudioDeviceSettings::default()
     }];
     let result = build_device_settings_from_gui(&input, &output);
-    assert_eq!(result.len(), 1, "same device_id in input+output should produce 1 entry");
+    assert_eq!(
+        result.len(),
+        1,
+        "same device_id in input+output should produce 1 entry"
+    );
     assert_eq!(result[0].device_id.0, "alsa:hw:CARD=Q26,DEV=0");
 }
 
@@ -1051,7 +1106,11 @@ fn build_device_settings_keeps_distinct_devices() {
         ..GuiAudioDeviceSettings::default()
     }];
     let result = build_device_settings_from_gui(&input, &output);
-    assert_eq!(result.len(), 2, "different device_ids should produce 2 entries");
+    assert_eq!(
+        result.len(),
+        2,
+        "different device_ids should produce 2 entries"
+    );
 }
 
 #[test]
@@ -1075,6 +1134,9 @@ fn build_device_settings_input_takes_precedence_on_duplicate() {
     }];
     let result = build_device_settings_from_gui(&input, &output);
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].sample_rate, 48000, "input settings should take precedence");
+    assert_eq!(
+        result[0].sample_rate, 48000,
+        "input settings should take precedence"
+    );
     assert_eq!(result[0].buffer_size_frames, 128);
 }

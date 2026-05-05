@@ -28,7 +28,10 @@ pub fn wire(window: &AppWindow, apply_font_to_all_windows: impl Fn(&str) + 'stat
     // selected against, otherwise the first frame renders tofu before any
     // language change happens.
     let boot_font = font_family_for_locale(&initial_locale);
-    eprintln!("i18n.font: boot locale={} → font_family={}", initial_locale, boot_font);
+    eprintln!(
+        "i18n.font: boot locale={} → font_family={}",
+        initial_locale, boot_font
+    );
     Locale::get(window).set_font_family(boot_font.into());
 
     let initial_index = current_language_index();
@@ -55,7 +58,10 @@ pub fn wire(window: &AppWindow, apply_font_to_all_windows: impl Fn(&str) + 'stat
         // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
         let new_locale_for_font = locale_for_runtime(lang.as_deref());
         let new_font = font_family_for_locale(&new_locale_for_font);
-        eprintln!("i18n.font: change locale={} → font_family={}", new_locale_for_font, new_font);
+        eprintln!(
+            "i18n.font: change locale={} → font_family={}",
+            new_locale_for_font, new_font
+        );
         Locale::get(&window).set_font_family(new_font.into());
         apply_font_to_all_windows(new_font);
         // Rebuild the dropdown labels in the new UI locale — otherwise

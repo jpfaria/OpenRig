@@ -1,13 +1,16 @@
 use crate::ids::*;
 use crate::value_objects::*;
 
-
 // ── ChainId ──────────────────────────────────────────────────
 
 #[test]
 fn chain_id_generate_has_prefix() {
     let id = ChainId::generate();
-    assert!(id.0.starts_with("chain:"), "expected 'chain:' prefix, got: {}", id.0);
+    assert!(
+        id.0.starts_with("chain:"),
+        "expected 'chain:' prefix, got: {}",
+        id.0
+    );
 }
 
 #[test]

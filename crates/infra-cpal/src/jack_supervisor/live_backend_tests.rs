@@ -1,6 +1,5 @@
 use super::*;
 
-
 // These tests exercise only the pure helpers — no real jackd is launched.
 // Integration tests that actually spawn `jackd` are marked `#[ignore]`
 // and run under `cargo test -- --ignored`.

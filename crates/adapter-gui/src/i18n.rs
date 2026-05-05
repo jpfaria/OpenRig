@@ -34,16 +34,46 @@ pub const TEXT_DOMAIN: &str = "adapter-gui";
 /// strings for empty msgstr — the UI blanks out instead of falling back
 /// to msgid like classic gettext).
 pub const SUPPORTED_LANGUAGES: &[Language] = &[
-    Language { code: "auto",  display: "Auto" },
-    Language { code: "de-DE", display: "Alemão" },
-    Language { code: "zh-CN", display: "Chinês" },
-    Language { code: "ko-KR", display: "Coreano" },
-    Language { code: "es-ES", display: "Espanhol" },
-    Language { code: "fr-FR", display: "Francês" },
-    Language { code: "hi-IN", display: "Hindi" },
-    Language { code: "en-US", display: "Inglês (US)" },
-    Language { code: "ja-JP", display: "Japonês" },
-    Language { code: "pt-BR", display: "Português (Brasil)" },
+    Language {
+        code: "auto",
+        display: "Auto",
+    },
+    Language {
+        code: "de-DE",
+        display: "Alemão",
+    },
+    Language {
+        code: "zh-CN",
+        display: "Chinês",
+    },
+    Language {
+        code: "ko-KR",
+        display: "Coreano",
+    },
+    Language {
+        code: "es-ES",
+        display: "Espanhol",
+    },
+    Language {
+        code: "fr-FR",
+        display: "Francês",
+    },
+    Language {
+        code: "hi-IN",
+        display: "Hindi",
+    },
+    Language {
+        code: "en-US",
+        display: "Inglês (US)",
+    },
+    Language {
+        code: "ja-JP",
+        display: "Japonês",
+    },
+    Language {
+        code: "pt-BR",
+        display: "Português (Brasil)",
+    },
 ];
 
 /// Locales with real translations populated in both gettext (`.po`) and
@@ -392,7 +422,11 @@ pub fn apply_bundled_translation(persisted_language: Option<&str>) {
     let posix = locale.replace('-', "_");
     match slint::select_bundled_translation(&posix) {
         Ok(()) => log::info!("i18n: slint bundled translation = {}", posix),
-        Err(e) => log::warn!("i18n: slint select_bundled_translation({}) failed: {}", posix, e),
+        Err(e) => log::warn!(
+            "i18n: slint select_bundled_translation({}) failed: {}",
+            posix,
+            e
+        ),
     }
 }
 
@@ -434,7 +468,8 @@ pub fn init_translations(persisted_language: Option<&str>) {
             log::warn!(
                 "i18n: setlocale rejected {:?} and {:?} — Slint translations \
                  will rely on the LANGUAGE env var only",
-                target, posix
+                target,
+                posix
             );
         }
     }

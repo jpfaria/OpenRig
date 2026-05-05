@@ -40,7 +40,9 @@ pub(crate) fn try_auto_open(
     app_config: &Rc<RefCell<AppConfig>>,
     recent_projects: &Rc<VecModel<RecentProjectItem>>,
 ) {
-    let Some(cli_path) = cli_project_path else { return };
+    let Some(cli_path) = cli_project_path else {
+        return;
+    };
     match open_cli_project(cli_path) {
         Ok(session) => {
             let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
@@ -57,11 +59,19 @@ pub(crate) fn try_auto_open(
             *saved_project_snapshot.borrow_mut() = snapshot;
             register_recent_project(&mut app_config.borrow_mut(), &canonical_path, &display_name);
             let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-            recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects, ""));
+            recent_projects.set_vec(recent_project_items(
+                &app_config.borrow().recent_projects,
+                "",
+            ));
             set_project_dirty(window, project_dirty, false);
             window.set_project_title(title.into());
             window.set_project_path_label(
-                rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
+                rust_i18n::t!(
+                    "status-project-path-prefix",
+                    path = canonical_path.display()
+                )
+                .to_string()
+                .into(),
             );
             window.set_show_project_launcher(false);
             window.set_show_project_setup(false);

@@ -172,10 +172,8 @@ impl SpectrumSession {
                 if let AudioBlockKind::Input(input) = &block.kind {
                     for entry in &input.entries {
                         let label = short_device_label(&entry.device_id.0);
-                        if matches!(
-                            entry.mode,
-                            project::chain::ChainInputMode::Mono
-                        ) && entry.channels.len() > 1
+                        if matches!(entry.mode, project::chain::ChainInputMode::Mono)
+                            && entry.channels.len() > 1
                         {
                             // The engine splits this mono entry into one
                             // stream per channel — produce a per-channel
@@ -211,8 +209,7 @@ impl SpectrumSession {
                     .cloned()
                     .unwrap_or_else(|| format!("stream {}", stream_index + 1));
 
-                let rings = controller
-                    .subscribe_stream_tap(&chain.id, stream_index, RING_CAPACITY);
+                let rings = controller.subscribe_stream_tap(&chain.id, stream_index, RING_CAPACITY);
                 let Some([l_ring, r_ring]) = rings else {
                     log::warn!(
                         "spectrum_session: subscribe_stream_tap returned None for chain '{}' stream {}",

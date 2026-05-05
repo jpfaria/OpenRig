@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn server_name_roundtrips_through_string_and_ref() {
     let a = ServerName::from("card1");

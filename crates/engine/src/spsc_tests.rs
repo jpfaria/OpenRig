@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn new_rounds_capacity_up_to_power_of_two() {
     let ring = SpscRing::<u32>::new(3, 0);

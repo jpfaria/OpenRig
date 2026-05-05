@@ -133,8 +133,8 @@ fn read_screenshot_cached(effect_type: &str, model_id: &str) -> Option<Vec<u8>> 
         return entry.clone();
     }
 
-    let result = resolve_screenshot_path(effect_type, model_id)
-        .and_then(|path| std::fs::read(&path).ok());
+    let result =
+        resolve_screenshot_path(effect_type, model_id).and_then(|path| std::fs::read(&path).ok());
 
     map.insert(key, result.clone());
     result

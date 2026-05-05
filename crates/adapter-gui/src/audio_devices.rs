@@ -1,16 +1,17 @@
+use crate::state::{InputGroupDraft, InsertDraft, OutputGroupDraft};
+use crate::{
+    ChannelOptionItem, DeviceSelectionItem, DEFAULT_BIT_DEPTH, DEFAULT_BUFFER_SIZE_FRAMES,
+    DEFAULT_SAMPLE_RATE, SUPPORTED_BIT_DEPTHS, SUPPORTED_BUFFER_SIZES, SUPPORTED_SAMPLE_RATES,
+};
 use anyhow::{anyhow, Result};
-use infra_cpal::{AudioDeviceDescriptor, list_input_device_descriptors, list_output_device_descriptors};
+use infra_cpal::{
+    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
+};
 use infra_filesystem::GuiAudioDeviceSettings;
 use project::device::DeviceSettings;
 use slint::{Model, SharedString, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{
-    ChannelOptionItem, DeviceSelectionItem,
-    DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE_FRAMES, DEFAULT_BIT_DEPTH,
-    SUPPORTED_SAMPLE_RATES, SUPPORTED_BUFFER_SIZES, SUPPORTED_BIT_DEPTHS,
-};
-use crate::state::{InputGroupDraft, InsertDraft, OutputGroupDraft};
 
 pub(crate) fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
@@ -48,7 +49,10 @@ pub(crate) fn ensure_devices_loaded(
     }
 }
 
-pub(crate) fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {
+pub(crate) fn selected_device_index(
+    devices: &[AudioDeviceDescriptor],
+    selected_id: Option<&str>,
+) -> i32 {
     let exact = selected_id
         .and_then(|sid| devices.iter().position(|device| device.id == sid))
         .map(|index| index as i32);
@@ -116,8 +120,16 @@ pub(crate) fn build_input_channel_items(
         return Vec::new();
     };
     // Try exact match first, then fallback to single device
-    let device = input_devices.iter().find(|d| &d.id == device_id)
-        .or_else(|| if input_devices.len() == 1 { input_devices.first() } else { None });
+    let device = input_devices
+        .iter()
+        .find(|d| &d.id == device_id)
+        .or_else(|| {
+            if input_devices.len() == 1 {
+                input_devices.first()
+            } else {
+                None
+            }
+        });
     let Some(device) = device else {
         return Vec::new();
     };
@@ -128,7 +140,9 @@ pub(crate) fn build_input_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
+                .to_string()
+                .into(),
             selected: input_group.channels.contains(&channel),
             available: true,
         })
@@ -142,22 +156,35 @@ pub(crate) fn build_output_channel_items(
     let Some(device_id) = output_group.device_id.as_ref() else {
         return Vec::new();
     };
-    let device = output_devices.iter().find(|d| &d.id == device_id)
-        .or_else(|| if output_devices.len() == 1 { output_devices.first() } else { None });
+    let device = output_devices
+        .iter()
+        .find(|d| &d.id == device_id)
+        .or_else(|| {
+            if output_devices.len() == 1 {
+                output_devices.first()
+            } else {
+                None
+            }
+        });
     let Some(device) = device else {
         return Vec::new();
     };
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
+                .to_string()
+                .into(),
             selected: output_group.channels.contains(&channel),
             available: true,
         })
         .collect()
 }
 
-pub(crate) fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
+pub(crate) fn replace_channel_options(
+    model: &Rc<VecModel<ChannelOptionItem>>,
+    items: Vec<ChannelOptionItem>,
+) {
     model.set_vec(items);
 }
 
@@ -174,7 +201,9 @@ pub(crate) fn build_insert_send_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
+                .to_string()
+                .into(),
             selected: draft.send_channels.contains(&channel),
             available: true,
         })
@@ -194,14 +223,20 @@ pub(crate) fn build_insert_return_channel_items(
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1).to_string().into(),
+            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
+                .to_string()
+                .into(),
             selected: draft.return_channels.contains(&channel),
             available: true,
         })
         .collect()
 }
 
-pub(crate) fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {
+pub(crate) fn toggle_device_row(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    index: usize,
+    selected: bool,
+) {
     if let Some(mut row) = model.row_data(index) {
         row.selected = selected;
         model.set_row_data(index, row);
@@ -296,7 +331,9 @@ pub(crate) fn default_device_settings(device_id: String, name: String) -> GuiAud
     }
 }
 
-pub(crate) fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
+pub(crate) fn normalize_device_settings(
+    mut settings: GuiAudioDeviceSettings,
+) -> GuiAudioDeviceSettings {
     if !SUPPORTED_SAMPLE_RATES.contains(&settings.sample_rate) {
         settings.sample_rate = DEFAULT_SAMPLE_RATE;
     }

@@ -46,7 +46,10 @@ impl StereoLv2Processor {
         atom_ports: &[usize],
     ) -> Self {
         assert!(audio_in_ports.len() == 2, "stereo requires 2 audio inputs");
-        assert!(audio_out_ports.len() == 2, "stereo requires 2 audio outputs");
+        assert!(
+            audio_out_ports.len() == 2,
+            "stereo requires 2 audio outputs"
+        );
 
         let mut in_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut in_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
@@ -64,10 +67,22 @@ impl StereoLv2Processor {
         }
 
         unsafe {
-            plugin.connect_port(audio_in_ports[0] as u32, in_buf_l.as_mut_ptr() as *mut c_void);
-            plugin.connect_port(audio_in_ports[1] as u32, in_buf_r.as_mut_ptr() as *mut c_void);
-            plugin.connect_port(audio_out_ports[0] as u32, out_buf_l.as_mut_ptr() as *mut c_void);
-            plugin.connect_port(audio_out_ports[1] as u32, out_buf_r.as_mut_ptr() as *mut c_void);
+            plugin.connect_port(
+                audio_in_ports[0] as u32,
+                in_buf_l.as_mut_ptr() as *mut c_void,
+            );
+            plugin.connect_port(
+                audio_in_ports[1] as u32,
+                in_buf_r.as_mut_ptr() as *mut c_void,
+            );
+            plugin.connect_port(
+                audio_out_ports[0] as u32,
+                out_buf_l.as_mut_ptr() as *mut c_void,
+            );
+            plugin.connect_port(
+                audio_out_ports[1] as u32,
+                out_buf_r.as_mut_ptr() as *mut c_void,
+            );
         }
 
         for (i, (port_idx, _)) in control_ports.iter().enumerate() {

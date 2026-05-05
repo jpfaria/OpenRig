@@ -1,8 +1,8 @@
+use crate::UtilBackendKind;
 use anyhow::{anyhow, Result};
 use block_core::param::ModelParameterSchema;
 use block_core::param::ParameterSet;
 use block_core::{AudioChannelLayout, BlockProcessor, StreamHandle};
-use crate::UtilBackendKind;
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
@@ -12,7 +12,11 @@ pub struct UtilModelDefinition {
     pub brand: &'static str,
     pub backend_kind: UtilBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
-    pub build: fn(&ParameterSet, usize, AudioChannelLayout) -> Result<(BlockProcessor, Option<StreamHandle>)>,
+    pub build: fn(
+        &ParameterSet,
+        usize,
+        AudioChannelLayout,
+    ) -> Result<(BlockProcessor, Option<StreamHandle>)>,
     pub supported_instruments: &'static [&'static str],
     pub knob_layout: &'static [block_core::KnobLayoutEntry],
     /// Stream kind produced by this model's StreamHandle. Empty string if no stream.

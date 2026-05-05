@@ -13,7 +13,10 @@ fn main() {
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
             continue;
         }
-        let stem = path.file_stem().and_then(|stem| stem.to_str()).expect("file stem");
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .expect("file stem");
         if matches!(stem, "lib" | "registry") {
             continue;
         }
@@ -27,7 +30,10 @@ fn main() {
 
         // Check for platform marker: `// @platform: <os>` restricts a file to
         // a specific OS. Files without this marker are included on all platforms.
-        if let Some(line) = contents.lines().find(|l| l.trim().starts_with("// @platform:")) {
+        if let Some(line) = contents
+            .lines()
+            .find(|l| l.trim().starts_with("// @platform:"))
+        {
             let platform = line.trim().trim_start_matches("// @platform:").trim();
             if platform != target_os {
                 continue;
@@ -40,7 +46,12 @@ fn main() {
     model_modules.sort();
     let mut generated = String::new();
     for module_name in &model_modules {
-        generated.push_str(&format!("#[path = \"{}/{}.rs\"]\nmod {};\n", src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name));
+        generated.push_str(&format!(
+            "#[path = \"{}/{}.rs\"]\nmod {};\n",
+            src_dir.to_string_lossy().replace("\\", "/"),
+            module_name,
+            module_name
+        ));
     }
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &model_modules {

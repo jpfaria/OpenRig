@@ -1,6 +1,5 @@
 use super::*;
 
-
 fn name() -> ServerName {
     ServerName::from("test")
 }

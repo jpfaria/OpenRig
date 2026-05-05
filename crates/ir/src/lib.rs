@@ -3,8 +3,8 @@ pub mod from_package;
 pub use from_package::{build_from_package, register_builder};
 
 use anyhow::{bail, Context, Result};
-use realfft::{num_complex::Complex32, ComplexToReal, RealFftPlanner, RealToComplex};
 use block_core::{AudioChannelLayout, MonoProcessor, StereoProcessor};
+use realfft::{num_complex::Complex32, ComplexToReal, RealFftPlanner, RealToComplex};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -158,7 +158,10 @@ fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
     }
     log::info!(
         "truncating IR '{}' from {} to {} samples with {}‑sample fade‑out",
-        path, samples.len(), MAX_IR_SAMPLES, FADE_OUT_SAMPLES
+        path,
+        samples.len(),
+        MAX_IR_SAMPLES,
+        FADE_OUT_SAMPLES
     );
     samples.truncate(MAX_IR_SAMPLES);
     let fade_start = MAX_IR_SAMPLES.saturating_sub(FADE_OUT_SAMPLES);
@@ -177,7 +180,10 @@ fn resample_if_needed(samples: Vec<f32>, ir_rate: u32, runtime_rate: f32, path: 
     }
     log::info!(
         "resampling IR '{}' from {}Hz to {}Hz ({} samples)",
-        path, ir_rate, runtime_rate, samples.len()
+        path,
+        ir_rate,
+        runtime_rate,
+        samples.len()
     );
     let ratio = runtime_rate as f64 / ir_rate as f64;
     let new_len = (samples.len() as f64 * ratio).round() as usize;
@@ -203,7 +209,11 @@ fn resample_if_needed(samples: Vec<f32>, ir_rate: u32, runtime_rate: f32, path: 
             sum += samples[idx as usize] as f64 * w;
             weight_sum += w;
         }
-        let value = if weight_sum.abs() > 1e-10 { sum / weight_sum } else { 0.0 };
+        let value = if weight_sum.abs() > 1e-10 {
+            sum / weight_sum
+        } else {
+            0.0
+        };
         resampled.push(value as f32);
     }
     resampled
@@ -279,18 +289,21 @@ impl FftBlockConvolver {
         // Forward FFT of input partition (zero-padded)
         state.fft_input.fill(0.0);
         state.fft_input[..ps].copy_from_slice(&state.input_buf[..ps]);
-        state.forward
+        state
+            .forward
             .process(&mut state.fft_input, &mut state.fft_scratch)
             .expect("forward FFT");
 
         // Store in frequency delay line (ring buffer)
         state.fdl_write = (state.fdl_write + 1) % state.num_partitions;
         let write_offset = state.fdl_write * spectrum_len;
-        state.fdl[write_offset..write_offset + spectrum_len]
-            .copy_from_slice(&state.fft_scratch);
+        state.fdl[write_offset..write_offset + spectrum_len].copy_from_slice(&state.fft_scratch);
 
         // Multiply-accumulate across all IR partitions
-        state.accum.iter_mut().for_each(|c| *c = Complex32::default());
+        state
+            .accum
+            .iter_mut()
+            .for_each(|c| *c = Complex32::default());
         for p in 0..state.num_partitions {
             let fdl_idx = (state.fdl_write + state.num_partitions - p) % state.num_partitions;
             let fdl_off = fdl_idx * spectrum_len;
@@ -301,7 +314,8 @@ impl FftBlockConvolver {
         }
 
         // Inverse FFT
-        state.inverse
+        state
+            .inverse
             .process(&mut state.accum, &mut state.fft_output)
             .expect("inverse FFT");
 
@@ -335,7 +349,9 @@ impl FftBlockConvolver {
             let start = p * ps;
             let end = (start + ps).min(self.ir.len());
             buf[..end - start].copy_from_slice(&self.ir[start..end]);
-            forward.process(&mut buf, &mut out).expect("IR partition FFT");
+            forward
+                .process(&mut buf, &mut out)
+                .expect("IR partition FFT");
             let offset = p * spectrum_len;
             ir_partitions[offset..offset + spectrum_len].copy_from_slice(&out);
         }
@@ -346,7 +362,11 @@ impl FftBlockConvolver {
 
         log::debug!(
             "IR convolver: {} samples, {} partitions of {}, fft_len={}, output_buf={}",
-            self.ir.len(), num_partitions, ps, fft_len, output_buf_len
+            self.ir.len(),
+            num_partitions,
+            ps,
+            fft_len,
+            output_buf_len
         );
 
         self.state = Some(PartitionedState {
@@ -484,4 +504,3 @@ pub mod test_support {
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
-

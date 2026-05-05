@@ -1,8 +1,11 @@
 use std::path::Path;
 
 fn main() {
-    plugin_loader::registry::init(Path::new("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source"));
-    let yaml = std::fs::read_to_string("/Users/joao.faria/.openrig/project.yaml").expect("read project.yaml");
+    plugin_loader::registry::init(Path::new(
+        "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
+    ));
+    let yaml = std::fs::read_to_string("/Users/joao.faria/.openrig/project.yaml")
+        .expect("read project.yaml");
     let mut current_type = String::new();
     let mut tested = 0;
     let mut failed = Vec::new();
