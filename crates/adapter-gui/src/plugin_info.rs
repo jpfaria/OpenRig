@@ -37,10 +37,46 @@ pub fn plugin_metadata(lang: &str, model_id: &str) -> PluginMetadata {
         map.insert(lang.to_string(), loaded);
     }
 
-    map.get(lang)
-        .and_then(|m| m.get(model_id))
+    // Disk-package metadata wins over the legacy bulk YAML (issue
+    // #287): each package can ship its own assets/metadata.yaml with
+    // localized description / license / homepage. The migration
+    // populated them from the bulk YAML keyed by legacy ids.
+    if let Some(meta) = load_disk_package_metadata(lang, model_id) {
+        return meta;
+    }
+    if let Some(meta) = map.get(lang).and_then(|m| m.get(model_id)).cloned() {
+        return meta;
+    }
+    // Last-resort fallback: top-level manifest fields (single-language).
+    if let Some(package) = plugin_loader::registry::find(model_id) {
+        return PluginMetadata {
+            description: package.manifest.description.clone().unwrap_or_default(),
+            license: package.manifest.license.clone().unwrap_or_default(),
+            homepage: package.manifest.homepage.clone().unwrap_or_default(),
+        };
+    }
+    PluginMetadata::default()
+}
+
+#[derive(Deserialize)]
+struct DiskPackageMetadataFile {
+    #[serde(default)]
+    i18n: HashMap<String, PluginMetadata>,
+}
+
+fn load_disk_package_metadata(lang: &str, model_id: &str) -> Option<PluginMetadata> {
+    let package = plugin_loader::registry::find(model_id)?;
+    let path = package.root.join("assets").join("metadata.yaml");
+    if !path.exists() {
+        return None;
+    }
+    let content = std::fs::read_to_string(&path).ok()?;
+    let parsed: DiskPackageMetadataFile = serde_yaml::from_str(&content).ok()?;
+    parsed
+        .i18n
+        .get(lang)
         .cloned()
-        .unwrap_or_default()
+        .or_else(|| parsed.i18n.get("en-US").cloned())
 }
 
 fn load_metadata_file(lang: &str) -> Option<HashMap<String, PluginMetadata>> {
