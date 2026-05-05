@@ -5,4 +5,4 @@ presets_path: ./
 # as a self-contained package with a manifest.yaml. Resolved relative
 # to this config file's directory; absolute paths pass through.
 # Override at runtime with the OPENRIG_PLUGINS_ROOT environment variable.
-plugins_root: ../OpenRig-plugins/plugins/bundle
+plugins_root: ../OpenRig-plugins/plugins/source
