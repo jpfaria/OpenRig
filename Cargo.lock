@@ -52,6 +52,7 @@ dependencies = [
  "infra-filesystem",
  "infra-yaml",
  "log",
+ "plugin-loader",
  "project",
  "rfd",
  "rust-i18n",
@@ -685,6 +686,7 @@ dependencies = [
  "block-preamp",
  "lv2",
  "nam",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -696,6 +698,7 @@ dependencies = [
  "domain",
  "ir",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -707,6 +710,7 @@ dependencies = [
  "domain",
  "ir",
  "lv2",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -728,6 +732,7 @@ dependencies = [
  "block-core",
  "domain",
  "lv2",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -740,6 +745,7 @@ dependencies = [
  "domain",
  "log",
  "lv2",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -752,6 +758,7 @@ dependencies = [
  "domain",
  "log",
  "lv2",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -774,6 +781,7 @@ dependencies = [
  "log",
  "lv2",
  "nam",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -795,6 +803,7 @@ dependencies = [
  "block-core",
  "domain",
  "lv2",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -814,6 +823,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "lv2",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -824,6 +834,7 @@ dependencies = [
  "block-core",
  "lv2",
  "nam",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -835,6 +846,7 @@ dependencies = [
  "domain",
  "log",
  "lv2",
+ "plugin-loader",
  "vst3-host",
 ]
 
@@ -858,6 +870,7 @@ dependencies = [
  "block-core",
  "domain",
  "lv2",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -1687,7 +1700,10 @@ dependencies = [
  "block-wah",
  "crossbeam-queue",
  "domain",
+ "ir",
  "log",
+ "lv2",
+ "nam",
  "project",
  "vst3-host",
 ]
@@ -3049,8 +3065,8 @@ dependencies = [
  "anyhow",
  "block-core",
  "hound",
- "infra-filesystem",
  "log",
+ "plugin-loader",
  "realfft",
 ]
 
@@ -3455,9 +3471,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
- "infra-filesystem",
  "libloading 0.8.9",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -3620,8 +3636,8 @@ dependencies = [
  "block-core",
  "cmake",
  "domain",
- "infra-filesystem",
  "log",
+ "plugin-loader",
 ]
 
 [[package]]
@@ -4455,6 +4471,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
+name = "plugin-loader"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "domain",
+ "serde",
+ "serde_yaml",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "png"
 version = "0.17.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4616,6 +4644,7 @@ dependencies = [
  "block-wah",
  "domain",
  "log",
+ "plugin-loader",
  "serde",
  "vst3-host",
 ]

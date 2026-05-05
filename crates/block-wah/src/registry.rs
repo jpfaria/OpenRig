@@ -26,3 +26,37 @@ pub fn find_model_definition(model: &str) -> Result<&'static WahModelDefinition>
         .find(|definition| definition.id == model)
         .ok_or_else(|| anyhow!("unsupported wah model '{}'", model))
 }
+
+/// Push every native model into the unified plugin-loader registry.
+/// Disk-backed models (NAM/IR/LV2/VST3) stay in the legacy per-block path
+/// until the disk-backend dispatchers move into plugin-loader too.
+///
+/// Issue: #287
+pub fn register_natives() {
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::registry::register_native_simple;
+
+    for definition in MODEL_DEFINITIONS {
+        if !matches!(definition.backend_kind, WahBackendKind::Native) {
+            continue;
+        }
+        let runtime = NativeRuntime {
+            schema: definition.schema,
+            validate: definition.validate,
+            build: definition.build,
+        };
+        let brand = if definition.brand.is_empty() {
+            Some("openrig")
+        } else {
+            Some(definition.brand)
+        };
+        register_native_simple(
+            definition.id,
+            definition.display_name,
+            brand,
+            BlockType::Wah,
+            runtime,
+        );
+    }
+}

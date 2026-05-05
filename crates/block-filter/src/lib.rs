@@ -74,8 +74,15 @@ pub fn build_filter_processor_for_layout(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
+    if let Ok(definition) = registry::find_model_definition(model) {
+        return (definition.build)(params, sample_rate, layout);
+    }
+    if let Some(package) = plugin_loader::registry::find(model) {
+        return package.build_processor(params, sample_rate, layout);
+    }
+    anyhow::bail!("unsupported filter model '{}'", model)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -589,12 +596,18 @@ mod tests {
     }
 }
 
+/// Push every native model into the unified plugin-loader registry.
+/// Called by `adapter-gui` at startup before plugin discovery freezes
+/// the catalog.
+pub fn register_natives() {
+    registry::register_natives();
+}
+
 pub fn is_filter_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
 
-/// Returns the catalog thumbnail path (relative to project root) for a model,
-/// or `None` if the model has no thumbnail registered.
+/// Returns the catalog thumbnail path (relative to project root) for a model.
 pub fn filter_thumbnail(model: &str) -> Option<&'static str> {
     registry::THUMBNAILS
         .iter()

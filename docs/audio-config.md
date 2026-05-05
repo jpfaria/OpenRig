@@ -26,13 +26,25 @@ chains:
 
 Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32. YAML antigo (`inputs:`/`outputs:` separados, `input_device_id`/`output_device_id` únicos) é migrado automaticamente.
 
-## Per-machine device settings (gui-settings.yaml)
+## Per-machine device settings (config.yaml)
 
-Sample rate, buffer size, bit depth são **per-machine**, não per-project. Ficam em:
+Sample rate, buffer size, bit depth, language são **per-machine**, não per-project. Vivem no `config.yaml` unificado (#287):
 
-- macOS: `~/Library/Application Support/OpenRig/gui-settings.yaml`
-- Windows: `%APPDATA%\OpenRig\gui-settings.yaml`
-- Linux: `~/.config/OpenRig/gui-settings.yaml`
+- macOS: `~/Library/Application Support/OpenRig/config.yaml`
+- Windows: `%APPDATA%\OpenRig\config.yaml`
+- Linux: `~/.config/OpenRig/config.yaml`
+
+Schema:
+
+```yaml
+recent_projects: [...]
+paths: { thumbnails, screenshots, metadata }
+input_devices: [{ device_id, name, sample_rate, buffer_size_frames, bit_depth, ... }]
+output_devices: [...]
+language: pt-BR  # ou en-US, ou null para seguir o OS
+```
+
+`gui-settings.yaml` legado é migrado automaticamente para `config.yaml` no primeiro boot e removido — sem ação manual.
 
 `load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
 

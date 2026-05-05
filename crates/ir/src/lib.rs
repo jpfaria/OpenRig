@@ -1,7 +1,10 @@
+pub mod from_package;
+
+pub use from_package::{build_from_package, register_builder};
+
 use anyhow::{bail, Context, Result};
 use realfft::{num_complex::Complex32, ComplexToReal, RealFftPlanner, RealToComplex};
 use block_core::{AudioChannelLayout, MonoProcessor, StereoProcessor};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -450,35 +453,10 @@ impl StereoProcessor for StereoIrProcessor {
     }
 }
 
-/// Resolve an IR capture path relative to the configured `ir_captures` root.
-///
-/// `relative_path` is the portion after `captures/ir/`, e.g.
-/// `"cabs/marshall_4x12_v30/ev_mix_b.wav"`.  Searches relative to the
-/// executable first, then falls back to the config path directly.
-///
-/// All curated IR captures are loaded from the filesystem at runtime.
-pub fn resolve_ir_capture(relative_path: &str) -> Result<String> {
-    let paths = infra_filesystem::asset_paths();
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(&paths.ir_captures).join(relative_path)),
-        Some(PathBuf::from(&paths.ir_captures).join(relative_path)),
-    ];
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-    bail!(
-        "IR capture '{}' not found in '{}'",
-        relative_path,
-        paths.ir_captures
-    )
-}
+// resolve_ir_capture removed in issue #287: its only callers were the
+// per-plugin `ir_*.rs` files in crates/block-*/src/, which moved to
+// OpenRig-plugins. Plugin-loader resolves capture paths relative to the
+// loaded package root.
 
 #[cfg(test)]
 pub mod test_support {

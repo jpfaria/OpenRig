@@ -337,3 +337,59 @@ fn catalog_model_entries_have_supported_instruments() {
         );
     }
 }
+
+// --- disk-backed packages also surface to GUI (issue #287) ---
+
+#[test]
+fn supported_block_models_includes_disk_package_for_block_type() {
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::manifest::BlockType;
+    use crate::param::ParameterSet;
+    use std::path::PathBuf;
+
+    fn fake_schema() -> anyhow::Result<block_core::param::ModelParameterSchema> {
+        Ok(block_core::param::ModelParameterSchema {
+            effect_type: block_core::EFFECT_TYPE_PREAMP.into(),
+            model: "test_disk_pkg_preamp".into(),
+            display_name: "Test Disk Preamp".into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+    fn fake_validate(_: &ParameterSet) -> anyhow::Result<()> {
+        Ok(())
+    }
+    fn fake_build(
+        _: &ParameterSet,
+        _: f32,
+        _: block_core::AudioChannelLayout,
+    ) -> anyhow::Result<block_core::BlockProcessor> {
+        anyhow::bail!("not used in this test")
+    }
+
+    plugin_loader::registry::register_native_simple(
+        "test_disk_pkg_preamp",
+        "Test Disk Preamp",
+        Some("test"),
+        BlockType::Preamp,
+        NativeRuntime {
+            schema: fake_schema,
+            validate: fake_validate,
+            build: fake_build,
+        },
+    );
+    // init() is OnceLock-backed — first caller wins. An earlier test
+    // may have called it already, in which case our register_native
+    // entry was queued before init and is still observable via
+    // packages(). If init wasn't called yet, this call freezes the
+    // registry now.
+    plugin_loader::registry::init(&PathBuf::from("/nonexistent-test-path"));
+
+    let models = supported_block_models("preamp").expect("preamp catalog");
+    assert!(
+        models.iter().any(|m| m.model_id == "test_disk_pkg_preamp"),
+        "expected disk-package model 'test_disk_pkg_preamp' to surface in supported_block_models, \
+         got: {:?}",
+        models.iter().map(|m| m.model_id.as_str()).collect::<Vec<_>>()
+    );
+}

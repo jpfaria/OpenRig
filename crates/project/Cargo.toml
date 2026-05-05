@@ -9,6 +9,7 @@ log.workspace = true
 serde.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }
 block-gain = { path = "../block-gain" }
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }

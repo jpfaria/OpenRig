@@ -127,26 +127,17 @@ O script detecta o eMMC (`/dev/mmcblk1`), pede confirmação e usa `armbian-inst
 
 ---
 
-## Validação local (Apple Silicon)
+## Validação local
 
-Para validar a imagem numa VM ARM64 com tela e áudio antes de gravar no hardware:
-
-```bash
-./scripts/validate-utm.sh
-```
-
-Instala e configura automaticamente uma VM UTM com:
-- Ubuntu 22.04 ARM64
-- Display VirtioGPU
-- Áudio VirtioSound
-- OpenRig baixado automaticamente no primeiro boot
-
-Após o boot: login `openrig / openrig`, depois `openrig-start`.
+Build do `.deb` no Mac (Docker cross-compile) e teste direto no Orange Pi:
 
 ```bash
-# Recriar VM do zero
-./scripts/validate-utm.sh --reinstall
+./scripts/build-deb-local.sh           # gera output/deb/openrig_*.deb
+scp output/deb/openrig_*.deb root@<pi-ip>:/tmp/
+ssh root@<pi-ip> 'dpkg -i /tmp/openrig_*.deb'
 ```
+
+A validação UTM (VM ARM64 no macOS) foi removida — o ciclo `.deb` → SSH → Pi é o caminho oficial.
 
 ---
 
@@ -171,7 +162,7 @@ orange-pi/
 scripts/
   build-orange-pi-image.sh           ← gera a imagem Armbian
   flash-sd.sh                        ← grava no SD card (macOS)
-  validate-utm.sh                    ← VM UTM ARM64 para validação local
+  build-deb-local.sh                 ← cross-compile .deb pra deploy via scp+dpkg
 ```
 
 ---

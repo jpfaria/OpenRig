@@ -9,6 +9,9 @@ arc-swap.workspace = true
 crossbeam-queue.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
+nam = { path = "../nam" }
+ir = { path = "../ir" }
+lv2 = { path = "../lv2" }
 block-gain = { path = "../block-gain" }
 block-delay = { path = "../block-delay" }
 block-mod = { path = "../block-mod" }

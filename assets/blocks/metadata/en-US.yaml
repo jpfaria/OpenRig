@@ -726,24 +726,3 @@ plugins:
     description: "Neural capture of the ZT Lunchbox Jr — ultra-compact solid-state amp with surprisingly full sound."
     license: "MIT"
     homepage: "https://github.com/sdatkinson/neural-amp-modeler"
-  # ── New IR Cabs ───────────────────────────────────────────────────────────────
-  evil_chug_blackstar_prs:
-    description: "Impulse response of a high-gain cabinet loaded with Blackstar and PRS speakers for heavy tones."
-    license: "Proprietary - OpenRig"
-    homepage: "https://github.com/jpfaria/OpenRig"
-  g12m_greenback_multi_mic:
-    description: "Impulse response of a Celestion G12M Greenback cabinet captured with multiple microphone positions."
-    license: "Proprietary - OpenRig"
-    homepage: "https://github.com/jpfaria/OpenRig"
-  mesa_standard_4x12_v30:
-    description: "Impulse response of a Mesa/Boogie Standard 4x12 cabinet with Celestion V30 speakers."
-    license: "Proprietary - OpenRig"
-    homepage: "https://github.com/jpfaria/OpenRig"
-  roland_jc_120_cab:
-    description: "Impulse response of the Roland JC-120 Jazz Chorus cabinet with dual 12-inch speakers."
-    license: "Proprietary - OpenRig"
-    homepage: "https://github.com/jpfaria/OpenRig"
-  vox_ac50_2x12:
-    description: "Impulse response of a Vox AC50 2x12 cabinet with Goodmans speakers."
-    license: "Proprietary - OpenRig"
-    homepage: "https://github.com/jpfaria/OpenRig"

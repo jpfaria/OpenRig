@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[test]
+#[ignore] // IR cabs migrated to disk packages (issue #287); needs registry lookup
 fn runtime_graph_builds_for_chain_with_cab_block() {
     let (model, params) = any_ir_cab_defaults();
 

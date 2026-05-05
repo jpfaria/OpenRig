@@ -26,6 +26,7 @@ members = [
   "crates/ir",
   "crates/block-ir",
   "crates/block-wah",
+  "crates/plugin-loader",
   "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",
