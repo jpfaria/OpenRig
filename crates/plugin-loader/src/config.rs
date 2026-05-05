@@ -2,20 +2,20 @@
 //!
 //! Order of precedence:
 //!   1. `OPENRIG_PLUGINS_ROOT` environment variable.
-//!   2. `plugins_root:` field in the project-root `config.yaml`.
-//!   3. Sibling-cloned default `../OpenRig-plugins/plugins/source` (the
-//!      layout used during issue #287 development).
+//!   2. `plugins_root:` field in `config.yaml` (relative paths resolve
+//!      against the config file's directory; absolute paths pass through).
+//!   3. Last-resort default `<config dir>/plugins` — picks up whatever
+//!      `plugins/` directory ships next to the config in the current
+//!      install layout. The cross-platform layout (.app bundle / .deb /
+//!      .msi) all place a `plugins/` directory next to the deployed
+//!      `config.yaml`, so this works without per-OS hardcoding.
 //!
-//! The config.yaml shape this reads from looks like:
+//! Dev workflows set `plugins_root:` explicitly to point at a
+//! sibling-cloned `OpenRig-plugins` checkout, e.g.
 //!
 //! ```yaml
-//! plugins_root: ../OpenRig-plugins/plugins/bundle
+//! plugins_root: ../OpenRig-plugins/plugins/source
 //! ```
-//!
-//! Older `paths:` entries (lv2_libs, nam_captures, ir_captures, lv2_data)
-//! aren't read here — they belong to the legacy resolve-by-asset-type
-//! path that the runtime loader replaces. Issue #287 will retire those
-//! entries once the engine has fully switched to package-based loading.
 //!
 //! Issue: #287
 
@@ -40,13 +40,11 @@ pub struct PluginPathsConfig {
 ///
 /// `config_path` should point at the project's `config.yaml`. When
 /// `OPENRIG_PLUGINS_ROOT` is set in the environment, that wins outright.
-/// Otherwise the file's `plugins_root` field is honored. If neither is
-/// present, falls back to the sibling layout used during issue #287
-/// development: `<config dir>/../OpenRig-plugins/plugins/source`.
-/// (`plugins/bundle/` was the staged identity-copy output of the
-/// optional build_plugin_bundle step; the engine now reads
-/// `plugins/source/` directly since the build step adds no
-/// transformation yet.)
+/// Otherwise the file's `plugins_root` field is honored. As a
+/// last-resort fallback, returns `<config_dir>/plugins` — install
+/// layouts (.app bundle, .deb, .msi) all place a `plugins/` directory
+/// next to the deployed `config.yaml`, so dev needs to override
+/// explicitly via the field or env var.
 pub fn plugins_root_from_config(config_path: &Path) -> PathBuf {
     if let Ok(env_value) = std::env::var("OPENRIG_PLUGINS_ROOT") {
         let trimmed = env_value.trim();
@@ -70,5 +68,5 @@ pub fn plugins_root_from_config(config_path: &Path) -> PathBuf {
             }
         }
     }
-    config_dir.join("../OpenRig-plugins/plugins/source")
+    config_dir.join("plugins")
 }
