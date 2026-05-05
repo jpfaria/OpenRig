@@ -4,27 +4,20 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// Central configuration for all asset directories.
+/// Central configuration for asset directories used by the engine and GUI.
 ///
-/// Each field holds a path (absolute or relative to the executable) where the
-/// corresponding asset category lives.  When the app starts it loads these
-/// values from `config.yaml` (falling back to sensible per-platform defaults)
-/// and stores them in a global `OnceLock` so every crate can access them
+/// Each field holds a path (absolute or relative to the executable) where
+/// the corresponding asset category lives. When the app starts it loads
+/// these values from `config.yaml` (falling back to sensible defaults) and
+/// stores them in a global `OnceLock` so every crate can access them
 /// without passing config around.
+///
+/// Plugin assets — NAM/IR captures, LV2 binaries and metadata — moved to
+/// the OpenRig-plugins repo in issue #287 and are resolved via
+/// [`plugin_loader::config::plugins_root_from_config`], NOT through this
+/// struct. Only UI-side asset categories live here now.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssetPaths {
-    /// Directory containing prebuilt LV2 shared libraries (.dylib/.so/.dll).
-    #[serde(default = "default_lv2_libs")]
-    pub lv2_libs: String,
-    /// Directory containing LV2 plugin data (TTL metadata, presets).
-    #[serde(default = "default_lv2_data")]
-    pub lv2_data: String,
-    /// Root directory for NAM capture files (.nam).
-    #[serde(default = "default_nam_captures")]
-    pub nam_captures: String,
-    /// Root directory for IR capture files (.wav).
-    #[serde(default = "default_ir_captures")]
-    pub ir_captures: String,
     /// Root directory for block thumbnails (PNG images).
     #[serde(default = "default_thumbnails")]
     pub thumbnails: String,
@@ -39,50 +32,11 @@ pub struct AssetPaths {
 impl Default for AssetPaths {
     fn default() -> Self {
         Self {
-            lv2_libs: default_lv2_libs(),
-            lv2_data: default_lv2_data(),
-            nam_captures: default_nam_captures(),
-            ir_captures: default_ir_captures(),
             thumbnails: default_thumbnails(),
             screenshots: default_screenshots(),
             metadata: default_metadata(),
         }
     }
-}
-
-fn default_lv2_libs() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        "libs/lv2/macos-universal".to_string()
-    }
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    {
-        "libs/lv2/linux-x86_64".to_string()
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    {
-        "libs/lv2/linux-aarch64".to_string()
-    }
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        "libs/lv2/windows-x64".to_string()
-    }
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    {
-        "libs/lv2/windows-arm64".to_string()
-    }
-}
-
-fn default_lv2_data() -> String {
-    "data/lv2".to_string()
-}
-
-fn default_nam_captures() -> String {
-    "captures/nam".to_string()
-}
-
-fn default_ir_captures() -> String {
-    "captures/ir".to_string()
 }
 
 fn default_thumbnails() -> String {
@@ -156,10 +110,6 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         }
     }
     AssetPaths {
-        lv2_libs: resolve(&root, paths.lv2_libs),
-        lv2_data: resolve(&root, paths.lv2_data),
-        nam_captures: resolve(&root, paths.nam_captures),
-        ir_captures: resolve(&root, paths.ir_captures),
         thumbnails: resolve(&root, paths.thumbnails),
         screenshots: resolve(&root, paths.screenshots),
         metadata: resolve(&root, paths.metadata),

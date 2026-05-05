@@ -139,81 +139,8 @@ pub fn build_stereo_lv2_processor_with_atoms(
     ))
 }
 
-/// Platform-specific default directory for prebuilt LV2 shared libraries,
-/// relative to the project root.
-pub fn default_lv2_lib_dir() -> &'static str {
-    #[cfg(target_os = "macos")]
-    {
-        "libs/lv2/macos-universal"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    {
-        "libs/lv2/linux-x86_64"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    {
-        "libs/lv2/linux-aarch64"
-    }
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        "libs/lv2/windows-x64"
-    }
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    {
-        "libs/lv2/windows-arm64"
-    }
-}
-
-/// Resolve the full filesystem path to an LV2 shared library binary.
-///
-/// Searches relative to the executable (`../../<lv2_libs>/<binary>`) first,
-/// then falls back to treating `lv2_libs` as a standalone path.
-pub fn resolve_lv2_lib(binary_name: &str) -> Result<String> {
-    let paths = infra_filesystem::asset_paths();
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(&paths.lv2_libs).join(binary_name)),
-        Some(std::path::PathBuf::from(&paths.lv2_libs).join(binary_name)),
-    ];
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        binary_name,
-        paths.lv2_libs
-    )
-}
-
-/// Resolve the full filesystem path to an LV2 data directory.
-///
-/// Searches relative to the executable (`../../<lv2_data>/<dir>`)
-/// first, then falls back to treating `lv2_data` as a standalone path.
-pub fn resolve_lv2_bundle(bundle_dir: &str) -> Result<String> {
-    let paths = infra_filesystem::asset_paths();
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(&paths.lv2_data).join(bundle_dir)),
-        Some(std::path::PathBuf::from(&paths.lv2_data).join(bundle_dir)),
-    ];
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-    anyhow::bail!(
-        "LV2 data '{}' not found in '{}'",
-        bundle_dir,
-        paths.lv2_data
-    )
-}
+// LV2 path resolvers (resolve_lv2_lib, resolve_lv2_bundle, default_lv2_lib_dir)
+// removed in issue #287: their only callers were the per-plugin
+// `lv2_*.rs` files in crates/block-*/src/, which moved to OpenRig-plugins.
+// Plugin-loader handles binary/bundle path resolution via the package root
+// in each loaded manifest now.

@@ -3119,7 +3119,6 @@ dependencies = [
  "anyhow",
  "block-core",
  "hound",
- "infra-filesystem",
  "log",
  "realfft",
 ]
@@ -3525,7 +3524,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
- "infra-filesystem",
  "libloading 0.8.9",
  "log",
 ]
@@ -3676,7 +3674,6 @@ dependencies = [
  "block-core",
  "cmake",
  "domain",
- "infra-filesystem",
  "log",
 ]
 
