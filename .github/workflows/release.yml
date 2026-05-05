@@ -78,7 +78,8 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
-            librsvg2-bin imagemagick
+            librsvg2-bin imagemagick \
+            gettext
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -138,7 +139,8 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
-            librsvg2-bin imagemagick
+            librsvg2-bin imagemagick \
+            gettext
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
