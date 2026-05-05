@@ -148,7 +148,10 @@ mod tests {
             peak_in = peak_in.max(x.abs());
             peak_out = peak_out.max(lp.abs());
         }
-        assert!(peak_out < 0.1 * peak_in, "LP didn't attenuate: out {peak_out} vs in {peak_in}");
+        assert!(
+            peak_out < 0.1 * peak_in,
+            "LP didn't attenuate: out {peak_out} vs in {peak_in}"
+        );
     }
 
     #[test]

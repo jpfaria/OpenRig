@@ -289,6 +289,7 @@ fn supported_languages_contains_source_and_english() {
 /// `cfg!(debug_assertions)`, which made `cargo run --release` (or any
 /// non-bundled run) skip every candidate, so dgettext silently echoed
 /// the msgid back — surfacing as "BTN-NEW-PROJECT" in the UI.
+#[cfg(target_os = "linux")]
 #[test]
 fn resolve_translations_dir_finds_source_tree_in_any_profile() {
     let dir = resolve_translations_dir();
@@ -368,6 +369,7 @@ fn translation_dirs_use_posix_underscore_not_bcp47_hyphen() {
 /// Run with `cargo test -p adapter-gui --lib gettext_resolves -- --ignored`.
 #[test]
 #[ignore = "mutates global gettext state; run with --ignored"]
+#[cfg(target_os = "linux")]
 fn gettext_resolves_btn_new_project_in_en_us() {
     use gettextrs::{bindtextdomain, dgettext, setlocale, textdomain, LocaleCategory};
 

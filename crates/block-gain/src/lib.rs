@@ -88,7 +88,6 @@ pub fn build_gain_processor_for_layout(
     anyhow::bail!("unsupported gain model '{}'", model)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{

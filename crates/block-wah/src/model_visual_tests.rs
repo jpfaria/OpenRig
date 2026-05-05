@@ -1,4 +1,3 @@
-
 use super::*;
 #[test]
 fn cry_classic_pinned() {

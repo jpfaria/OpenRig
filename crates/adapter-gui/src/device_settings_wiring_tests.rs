@@ -1,4 +1,3 @@
-
 use super::*;
 use slint::Model;
 

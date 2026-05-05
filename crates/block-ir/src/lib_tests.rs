@@ -1,4 +1,3 @@
-
 use crate::{ir_model_schema, supported_models};
 
 #[test]

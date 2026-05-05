@@ -1,4 +1,3 @@
-
 use super::*;
 #[test]
 fn eq_three_band_basic_pinned() {

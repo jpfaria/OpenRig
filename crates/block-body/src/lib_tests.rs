@@ -1,4 +1,3 @@
-
 use crate::{
     body_asset_summary, body_backend_kind, body_brand, body_display_name, body_model_schema,
     body_model_visual, body_type_label, build_body_processor_for_layout, supported_models,

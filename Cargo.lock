@@ -832,7 +832,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
- "lv2",
  "nam",
  "plugin-loader",
 ]

@@ -83,7 +83,6 @@ pub fn build_delay_processor_for_layout(
     anyhow::bail!("unsupported delay model '{}'", model)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{

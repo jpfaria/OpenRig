@@ -1,4 +1,3 @@
-
 use super::*;
 
 fn parse(yaml: &str) -> PluginManifest {

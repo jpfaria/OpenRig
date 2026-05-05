@@ -83,7 +83,6 @@ pub fn build_reverb_processor_for_layout(
     anyhow::bail!("unsupported reverb model '{}'", model)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{

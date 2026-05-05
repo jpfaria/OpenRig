@@ -1,4 +1,3 @@
-
 use super::*;
 #[test]
 fn plate_foundation_pinned() {

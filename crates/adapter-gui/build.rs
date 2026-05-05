@@ -110,11 +110,7 @@ fn compile_po(po: &Path, mo_dir: &Path, lang: &str) {
         return;
     }
     let mo = mo_dir.join("adapter-gui.mo");
-    let status = Command::new("msgfmt")
-        .arg("-o")
-        .arg(&mo)
-        .arg(po)
-        .status();
+    let status = Command::new("msgfmt").arg("-o").arg(&mo).arg(po).status();
     if let Ok(s) = status {
         if !s.success() {
             // msgfmt exists but rejected this .po file — that IS a real bug

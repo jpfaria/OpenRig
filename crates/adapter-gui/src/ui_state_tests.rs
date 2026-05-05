@@ -1,4 +1,3 @@
-
 use super::{block_drawer_state, chain_routing_summary, insertion_slot_indices, BlockDrawerMode};
 use domain::ids::{ChainId, DeviceId};
 use project::block::{
