@@ -245,3 +245,45 @@ lv2:port [\n\
     assert_eq!(ports.len(), 2, "expected 2 ports from data/, got {ports:?}");
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn scan_lv2_ports_resolves_prefixed_plugin_names() {
+    // Real-world TTLs (Fomp, Calf, Caps...) declare the plugin using a
+    // turtle prefix:local form (`fomp:cs_phaser1`) instead of the
+    // expanded `<http://drobilla.net/plugins/fomp/cs_phaser1>` form.
+    // The manifest still carries the absolute URI, so the parser must
+    // expand `@prefix` declarations and match either form.
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-prefix-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+@prefix fomp: <http://drobilla.net/plugins/fomp/> .\n\
+fomp:cs_phaser1\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:AudioPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"in\" ;\n\
+    ] ,\n\
+    [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 1 ;\n\
+        lv2:symbol \"fb_gain\" ;\n\
+        lv2:default 0.0 ;\n\
+        lv2:minimum -1.0 ;\n\
+        lv2:maximum 1.0 ;\n\
+    ] .\n",
+    )
+    .unwrap();
+
+    let ports = scan_lv2_ports(&tmp, "http://drobilla.net/plugins/fomp/cs_phaser1").expect("ports");
+    assert_eq!(
+        ports.len(),
+        2,
+        "expected parser to expand `fomp:` prefix and match the absolute URI; got {ports:?}"
+    );
+    let _ = fs::remove_dir_all(&tmp);
+}

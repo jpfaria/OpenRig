@@ -208,10 +208,29 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
 /// - `< ... >` URI quoting — periods inside URLs like
 ///   `<http://lv2plug.in/...>` are NOT statement terminators.
 /// - `" ... "` literal strings — same reason.
+///
+/// Also resolves turtle prefixed names: real bundles often declare
+/// the plugin as `fomp:cs_phaser1` (after `@prefix fomp: <...> .`)
+/// instead of the absolute `<URI>` form the manifest carries. We
+/// expand `@prefix` declarations and look for both forms.
 fn extract_plugin_block(combined: &str, plugin_uri: &str) -> Option<String> {
-    let needle = format!("<{plugin_uri}>");
-    let start = combined.find(&needle)?;
-    let after = &combined[start + needle.len()..];
+    let mut candidates: Vec<String> = vec![format!("<{plugin_uri}>")];
+    for (prefix_name, base) in parse_turtle_prefixes(combined) {
+        if let Some(local) = plugin_uri.strip_prefix(&base) {
+            // Local-name characters per turtle spec are quite permissive;
+            // we just guard against an empty local (would match the
+            // bare prefix declaration itself).
+            if !local.is_empty() {
+                candidates.push(format!("{prefix_name}:{local}"));
+            }
+        }
+    }
+
+    let (start, needle_len) = candidates
+        .iter()
+        .filter_map(|n| combined.find(n.as_str()).map(|idx| (idx, n.len())))
+        .min_by_key(|&(idx, _)| idx)?;
+    let after = &combined[start + needle_len..];
     let mut depth: i32 = 0;
     let mut in_uri = false;
     let mut in_string = false;
@@ -231,6 +250,38 @@ fn extract_plugin_block(combined: &str, plugin_uri: &str) -> Option<String> {
         }
     }
     Some(after[..end].to_string())
+}
+
+/// Extract `@prefix <name>: <<base>> .` declarations from a turtle
+/// document. Returns `(name, base)` pairs in document order. Only
+/// well-formed lines are recognised — malformed prefixes are ignored
+/// silently rather than failing the whole scan.
+fn parse_turtle_prefixes(combined: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for raw_line in combined.lines() {
+        let line = raw_line.trim_start();
+        let Some(rest) = line.strip_prefix("@prefix") else {
+            continue;
+        };
+        let rest = rest.trim_start();
+        let Some(colon_idx) = rest.find(':') else {
+            continue;
+        };
+        let name = rest[..colon_idx].trim().to_string();
+        let after_colon = rest[colon_idx + 1..].trim_start();
+        let Some(uri_start) = after_colon.find('<') else {
+            continue;
+        };
+        let after_open = &after_colon[uri_start + 1..];
+        let Some(uri_end) = after_open.find('>') else {
+            continue;
+        };
+        let base = after_open[..uri_end].to_string();
+        if !name.is_empty() {
+            out.push((name, base));
+        }
+    }
+    out
 }
 
 fn parse_ports(plugin_block: &str) -> Vec<Lv2Port> {
