@@ -13,6 +13,7 @@ domain = { path = "../domain" }
 engine = { path = "../engine" }
 feature-dsp = { path = "../feature-dsp" }
 infra-cpal = { path = "../infra-cpal" }
+plugin-loader = { path = "../plugin-loader" }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true

@@ -10,6 +10,7 @@ pub mod config;
 pub mod discover;
 pub mod manifest;
 pub mod package;
+pub mod registry;
 pub mod validate;
 
 pub use config::{plugins_root_from_config, PluginPathsConfig};

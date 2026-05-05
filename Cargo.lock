@@ -141,6 +141,7 @@ dependencies = [
  "infra-filesystem",
  "infra-yaml",
  "log",
+ "plugin-loader",
  "project",
  "rfd",
  "rust-i18n",

@@ -54,6 +54,17 @@ pub fn run_desktop_app(
     let loaded_config = load_and_sync_app_config()?;
     let resolved_paths = infra_filesystem::resolve_asset_paths(loaded_config.paths.clone());
     infra_filesystem::init_asset_paths(resolved_paths);
+    // Discover every plugin package shipped under the configured
+    // plugins_root and cache it process-wide. Block-* crates query this
+    // catalog to surface plugin manifests in the GUI.
+    let plugins_root =
+        plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
+    log::info!("loading plugin packages from {}", plugins_root.display());
+    plugin_loader::registry::init(&plugins_root);
+    log::info!(
+        "plugin catalog ready: {} package(s) loaded",
+        plugin_loader::registry::packages().len()
+    );
     // Open VST3 editor handles (kept alive so the OS window stays open).
     let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
         Rc::new(RefCell::new(Vec::new()));
