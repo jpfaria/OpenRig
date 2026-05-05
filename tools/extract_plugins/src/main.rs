@@ -35,24 +35,100 @@ fn main() -> Result<()> {
     let out = PathBuf::from(SOURCE_DIR);
     fs::create_dir_all(&out)?;
 
-    // For now we extract three concrete plugins to prove the pipeline:
-    // one NAM, one IR, one LV2. The selection is at the call site so the
-    // *extraction* logic stays generic and reusable.
-    let targets = [
-        ("crates/block-amp/src/nam_ampeg_svt_classic.rs", BlockType::Amp),
-        ("crates/block-cab/src/ir_ampeg_svt_8x10.rs", BlockType::Cab),
-        ("crates/block-mod/src/lv2_caps_phaser2.rs", BlockType::Mod),
-    ];
+    let crates_root = Path::new("crates");
+    let mut total = 0usize;
+    let mut succeeded = 0usize;
+    let mut failures: Vec<(PathBuf, String)> = Vec::new();
 
-    for (source_path, block_type) in targets {
-        match extract_and_emit(Path::new(source_path), block_type, &out) {
-            Ok(id) => println!("  ok    {} -> plugins/source/{id}", source_path),
-            Err(error) => eprintln!("  FAIL  {source_path}: {error:?}"),
+    for crate_entry in fs::read_dir(crates_root)? {
+        let crate_entry = crate_entry?;
+        let crate_path = crate_entry.path();
+        let crate_name = match crate_entry.file_name().to_str() {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
+        let Some(block_type) = block_type_for_crate(&crate_name) else {
+            continue;
+        };
+        let src_dir = crate_path.join("src");
+        if !src_dir.is_dir() {
+            continue;
+        }
+        for source_entry in fs::read_dir(&src_dir)? {
+            let source_entry = source_entry?;
+            let source_path = source_entry.path();
+            let Some(filename) = source_path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if !is_plugin_source_file(filename) {
+                continue;
+            }
+            total += 1;
+            match extract_and_emit(&source_path, block_type, &out) {
+                Ok(_id) => {
+                    succeeded += 1;
+                }
+                Err(error) => {
+                    failures.push((source_path.clone(), format!("{error:#}")));
+                }
+            }
         }
     }
 
+    println!("\nProcessed: {total} source files");
+    println!("Succeeded: {succeeded}");
+    println!("Failed:    {}", failures.len());
+    if !failures.is_empty() {
+        println!("\nFailures:");
+        for (path, error) in &failures {
+            println!("  - {}: {error}", path.display());
+        }
+    }
     println!("\nNext: cargo run -p build_plugin_bundle");
     Ok(())
+}
+
+/// Map a crate directory name (e.g. `block-amp`) to the [`BlockType`] every
+/// plugin in that crate belongs to. Returns `None` for crates that don't
+/// host plugin sources (e.g. `block-core`, `block-routing`, infra crates).
+fn block_type_for_crate(crate_name: &str) -> Option<BlockType> {
+    Some(match crate_name {
+        "block-amp" => BlockType::Amp,
+        "block-preamp" => BlockType::Preamp,
+        "block-cab" => BlockType::Cab,
+        "block-body" => BlockType::Body,
+        "block-gain" => BlockType::GainPedal,
+        "block-mod" => BlockType::Mod,
+        "block-delay" => BlockType::Delay,
+        "block-reverb" => BlockType::Reverb,
+        "block-filter" => BlockType::Filter,
+        "block-dyn" => BlockType::Dyn,
+        "block-pitch" => BlockType::Pitch,
+        "block-wah" => BlockType::Wah,
+        "block-util" => BlockType::Util,
+        // block-ir is the generic IR loader; not migrated as a plugin.
+        // block-nam is the NAM library wrapper; not a plugin.
+        // block-core / block-routing / block-full-rig / feature-dsp / nam /
+        // ir / vst3 / lv2 / infra-* / adapter-* / engine / domain /
+        // application / project / ui-openrig — none of these host plugin
+        // source files in the *_<id>.rs convention this tool reads.
+        _ => return None,
+    })
+}
+
+/// Plugin source files all start with one of the backend prefixes used by
+/// the registry pattern: `nam_`, `ir_`, `lv2_`, or `native_`.
+fn is_plugin_source_file(filename: &str) -> bool {
+    if !filename.ends_with(".rs") {
+        return false;
+    }
+    matches!(
+        filename
+            .split('_')
+            .next()
+            .map(|prefix| prefix.to_string()),
+        Some(prefix) if matches!(prefix.as_str(), "nam" | "ir" | "lv2" | "native")
+    )
 }
 
 fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Result<String> {
