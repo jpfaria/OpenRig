@@ -292,9 +292,10 @@ jobs:
             OWNER="${REPO%%/*}"
             NAME="${REPO#*/}"
 
-            # Split into two queries — the combined milestone(issues + PRs +
-            # labels) query hits GitHub's GraphQL complexity limit and fails
-            # with a non-descriptive "Something went wrong" 500.
+            # Only fetch issues — this project merges feature/bugfix branches
+            # directly into develop without PRs, so milestone.pullRequests is
+            # always empty. The PR query also hits a GraphQL backend bug that
+            # consistently returns "Something went wrong" 500.
             ISSUES_JSON=$(gh api graphql -f query='
               query($owner: String!, $name: String!, $number: Int!) {
                 repository(owner: $owner, name: $name) {
@@ -306,23 +307,12 @@ jobs:
                 }
               }' -F owner="$OWNER" -F name="$NAME" -F number="$MILESTONE_NUMBER")
 
-            PRS_JSON=$(gh api graphql -f query='
-              query($owner: String!, $name: String!, $number: Int!) {
-                repository(owner: $owner, name: $name) {
-                  milestone(number: $number) {
-                    pullRequests(states: MERGED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
-                      nodes { number title labels(first: 20) { nodes { name } } }
-                    }
-                  }
-                }
-              }' -F owner="$OWNER" -F name="$NAME" -F number="$MILESTONE_NUMBER")
-
             # Exclude items labeled "duplicate" (work shipped in the twin
             # issue) or "internal" (CI, build, scripts, project tooling
             # — not user-facing changes).
             FILTER='select(([.labels.nodes[].name] | any(. == "duplicate" or . == "internal")) | not)'
 
-            PRS=$(echo "$PRS_JSON" | jq -r ".data.repository.milestone.pullRequests.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
+            PRS=""
             ISSUES=$(echo "$ISSUES_JSON" | jq -r ".data.repository.milestone.issues.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
 
             NOTES="## What's Changed"
