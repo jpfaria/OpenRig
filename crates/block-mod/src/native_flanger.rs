@@ -30,8 +30,29 @@ use block_core::{ModelAudioMode, MonoProcessor};
 pub const MODEL_ID: &str = "flanger_classic";
 pub const DISPLAY_NAME: &str = "Classic Flanger";
 
-const MAX_DELAY_MS: f32 = 12.0;
-const BASE_DELAY_MS: f32 = 1.0;
+/// Voicing of a flanger variant. Each named instance carries the
+/// hidden tone choices (delay range, feedback ceiling) that — together
+/// with the user-facing knobs — produce a distinct timbre. New
+/// variants live in `native_flanger_*.rs` files and consume `Flanger`
+/// via `with_tuning(...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct FlangerTuning {
+    /// Minimum delay (= shortest swept comb-filter notch).
+    pub base_ms: f32,
+    /// Maximum delay at full depth.
+    pub max_ms: f32,
+    /// Hard clamp on the feedback gain magnitude (BIBO bound).
+    pub feedback_clamp: f32,
+}
+
+impl FlangerTuning {
+    /// 1–12 ms sweep, ±0.95 feedback. The "MXR / EHX small box" voice.
+    pub const CLASSIC: Self = Self {
+        base_ms: 1.0,
+        max_ms: 12.0,
+        feedback_clamp: 0.95,
+    };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FlangerParams {
@@ -126,19 +147,37 @@ pub struct Flanger {
 
 impl Flanger {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
-        let max_samples = ((MAX_DELAY_MS / 1000.0) * sample_rate).ceil() as usize + 8;
-        let base_samples = (BASE_DELAY_MS / 1000.0) * sample_rate;
-        let sweep_samples = ((MAX_DELAY_MS - BASE_DELAY_MS) / 1000.0) * sample_rate;
+        Self::with_tuning(
+            rate_hz,
+            depth,
+            feedback,
+            mix,
+            sample_rate,
+            FlangerTuning::CLASSIC,
+        )
+    }
+
+    pub fn with_tuning(
+        rate_hz: f32,
+        depth: f32,
+        feedback: f32,
+        mix: f32,
+        sample_rate: f32,
+        tuning: FlangerTuning,
+    ) -> Self {
+        let max_samples = ((tuning.max_ms / 1000.0) * sample_rate).ceil() as usize + 8;
+        let base_samples = (tuning.base_ms / 1000.0) * sample_rate;
+        let sweep_samples = ((tuning.max_ms - tuning.base_ms) / 1000.0) * sample_rate;
+        let fb_clamp = tuning.feedback_clamp.clamp(0.0, 0.99);
         Self {
             depth: depth.clamp(0.0, 1.0),
-            feedback: feedback.clamp(-0.95, 0.95),
+            feedback: feedback.clamp(-fb_clamp, fb_clamp),
             mix: mix.clamp(0.0, 1.0),
             base_samples,
             sweep_samples,
             buffer: vec![0.0; max_samples],
             write_idx: 0,
             lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
-            // 5 Hz HP — kills DC drift in feedback without colouring.
             feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),
         }
     }

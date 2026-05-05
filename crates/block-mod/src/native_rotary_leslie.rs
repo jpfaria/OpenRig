@@ -40,20 +40,58 @@ use std::f32::consts::TAU;
 pub const MODEL_ID: &str = "rotary_leslie";
 pub const DISPLAY_NAME: &str = "Rotary Leslie";
 
-const CROSSOVER_HZ: f32 = 800.0;
+/// Voicing of a rotary-speaker variant. Variants live in
+/// `native_rotary_leslie_*.rs` and instantiate `LeslieRotary::with_tuning(...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct LeslieTuning {
+    /// Crossover frequency between the bass drum and the high horn.
+    pub crossover_hz: f32,
 
-const HORN_DELAY_BASE_MS: f32 = 0.7;
-const HORN_DELAY_DEPTH_MS: f32 = 0.4;
-const DRUM_DELAY_BASE_MS: f32 = 1.5;
-const DRUM_DELAY_DEPTH_MS: f32 = 0.9;
+    /// Horn rotor base delay (samples computed from sample rate).
+    pub horn_delay_base_ms: f32,
+    /// Horn rotor Doppler depth (peak-to-peak).
+    pub horn_delay_depth_ms: f32,
+    /// Drum rotor base delay.
+    pub drum_delay_base_ms: f32,
+    /// Drum rotor Doppler depth.
+    pub drum_delay_depth_ms: f32,
 
-const HORN_AM_DEPTH: f32 = 0.35;
-const DRUM_AM_DEPTH: f32 = 0.20;
+    /// Horn AM depth in [0, 1] — louder when rotor faces a mic.
+    pub horn_am_depth: f32,
+    /// Drum AM depth in [0, 1].
+    pub drum_am_depth: f32,
 
-const HORN_RATE_SLOW_HZ: f32 = 0.83;
-const HORN_RATE_FAST_HZ: f32 = 6.40;
-const DRUM_RATE_SLOW_HZ: f32 = 0.67;
-const DRUM_RATE_FAST_HZ: f32 = 5.70;
+    /// Horn rate at speed=0 (chorale).
+    pub horn_rate_slow_hz: f32,
+    /// Horn rate at speed=1 (tremolo).
+    pub horn_rate_fast_hz: f32,
+    /// Drum rate at speed=0.
+    pub drum_rate_slow_hz: f32,
+    /// Drum rate at speed=1.
+    pub drum_rate_fast_hz: f32,
+
+    /// Time-constant for motor inertia (rate smoother). Larger = the
+    /// rotor takes longer to spin up/down on speed change.
+    pub motor_tau_seconds: f32,
+}
+
+impl LeslieTuning {
+    /// Real Leslie 122 motor rates + balanced AM/Doppler depths.
+    pub const CLASSIC: Self = Self {
+        crossover_hz: 800.0,
+        horn_delay_base_ms: 0.7,
+        horn_delay_depth_ms: 0.4,
+        drum_delay_base_ms: 1.5,
+        drum_delay_depth_ms: 0.9,
+        horn_am_depth: 0.35,
+        drum_am_depth: 0.20,
+        horn_rate_slow_hz: 0.83,
+        horn_rate_fast_hz: 6.40,
+        drum_rate_slow_hz: 0.67,
+        drum_rate_fast_hz: 5.70,
+        motor_tau_seconds: 0.5,
+    };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LeslieParams {
@@ -183,6 +221,7 @@ struct Rotor {
     lfo: Lfo,
     sample_rate: f32,
     rate_hz: f32,
+    motor_tau_seconds: f32,
 }
 
 impl Rotor {
@@ -193,6 +232,7 @@ impl Rotor {
         am_depth: f32,
         rate_hz: f32,
         phase_offset: f32,
+        motor_tau_seconds: f32,
     ) -> Self {
         let max_samples =
             (((base_delay_ms + depth_ms) / 1000.0) * sample_rate).ceil() as usize + 8;
@@ -207,6 +247,7 @@ impl Rotor {
             lfo,
             sample_rate,
             rate_hz,
+            motor_tau_seconds: motor_tau_seconds.max(0.01),
         }
     }
 
@@ -236,9 +277,8 @@ impl Rotor {
     }
 
     fn step(&mut self, input: f32, target_rate_hz: f32) -> [f32; 2] {
-        // Single-pole smoothing on rate to spin-up/down like a motor
-        // (tau ≈ 0.5 s independent of sample rate).
-        let tau_samples = 0.5 * self.sample_rate;
+        // Single-pole smoothing on rate to spin-up/down like a motor.
+        let tau_samples = self.motor_tau_seconds * self.sample_rate;
         let alpha = 1.0 / tau_samples;
         self.rate_hz += (target_rate_hz - self.rate_hz) * alpha;
         self.lfo.set_rate(self.rate_hz);
@@ -272,45 +312,59 @@ pub struct LeslieRotary {
     drum: Rotor,
     dc_blocker_l: DcBlocker,
     dc_blocker_r: DcBlocker,
+    horn_rate_slow_hz: f32,
+    horn_rate_fast_hz: f32,
+    drum_rate_slow_hz: f32,
+    drum_rate_fast_hz: f32,
 }
 
 impl LeslieRotary {
     pub fn new(speed: f32, mix: f32, sample_rate: f32) -> Self {
+        Self::with_tuning(speed, mix, sample_rate, LeslieTuning::CLASSIC)
+    }
+
+    pub fn with_tuning(speed: f32, mix: f32, sample_rate: f32, tuning: LeslieTuning) -> Self {
         // LR4 = two cascaded Butterworth 2nd-order (Q = 1/sqrt(2)).
         let q = 1.0 / 2.0_f32.sqrt();
         Self {
             speed: speed.clamp(0.0, 1.0),
             mix: mix.clamp(0.0, 1.0),
-            crossover_lp_a: Biquad::lowpass(CROSSOVER_HZ, sample_rate, q),
-            crossover_lp_b: Biquad::lowpass(CROSSOVER_HZ, sample_rate, q),
-            crossover_hp_a: Biquad::highpass(CROSSOVER_HZ, sample_rate, q),
-            crossover_hp_b: Biquad::highpass(CROSSOVER_HZ, sample_rate, q),
+            crossover_lp_a: Biquad::lowpass(tuning.crossover_hz, sample_rate, q),
+            crossover_lp_b: Biquad::lowpass(tuning.crossover_hz, sample_rate, q),
+            crossover_hp_a: Biquad::highpass(tuning.crossover_hz, sample_rate, q),
+            crossover_hp_b: Biquad::highpass(tuning.crossover_hz, sample_rate, q),
             horn: Rotor::new(
                 sample_rate,
-                HORN_DELAY_BASE_MS,
-                HORN_DELAY_DEPTH_MS,
-                HORN_AM_DEPTH,
-                HORN_RATE_SLOW_HZ,
+                tuning.horn_delay_base_ms,
+                tuning.horn_delay_depth_ms,
+                tuning.horn_am_depth,
+                tuning.horn_rate_slow_hz,
                 0.0,
+                tuning.motor_tau_seconds,
             ),
             drum: Rotor::new(
                 sample_rate,
-                DRUM_DELAY_BASE_MS,
-                DRUM_DELAY_DEPTH_MS,
-                DRUM_AM_DEPTH,
-                DRUM_RATE_SLOW_HZ,
+                tuning.drum_delay_base_ms,
+                tuning.drum_delay_depth_ms,
+                tuning.drum_am_depth,
+                tuning.drum_rate_slow_hz,
                 std::f32::consts::PI,
+                tuning.motor_tau_seconds,
             ),
             dc_blocker_l: DcBlocker::new(5.0, sample_rate),
             dc_blocker_r: DcBlocker::new(5.0, sample_rate),
+            horn_rate_slow_hz: tuning.horn_rate_slow_hz,
+            horn_rate_fast_hz: tuning.horn_rate_fast_hz,
+            drum_rate_slow_hz: tuning.drum_rate_slow_hz,
+            drum_rate_fast_hz: tuning.drum_rate_fast_hz,
         }
     }
 
     fn target_rates(&self) -> (f32, f32) {
         let s = self.speed;
         (
-            HORN_RATE_SLOW_HZ + s * (HORN_RATE_FAST_HZ - HORN_RATE_SLOW_HZ),
-            DRUM_RATE_SLOW_HZ + s * (DRUM_RATE_FAST_HZ - DRUM_RATE_SLOW_HZ),
+            self.horn_rate_slow_hz + s * (self.horn_rate_fast_hz - self.horn_rate_slow_hz),
+            self.drum_rate_slow_hz + s * (self.drum_rate_fast_hz - self.drum_rate_slow_hz),
         )
     }
 
@@ -338,6 +392,12 @@ impl LeslieRotary {
 /// stereo Leslie engine (-3 dB so a centered tone keeps unity).
 pub struct LeslieMono {
     inner: LeslieRotary,
+}
+
+impl LeslieMono {
+    pub fn new(inner: LeslieRotary) -> Self {
+        Self { inner }
+    }
 }
 
 impl MonoProcessor for LeslieMono {

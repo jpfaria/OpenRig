@@ -37,9 +37,33 @@ use std::f32::consts::PI;
 pub const MODEL_ID: &str = "phaser_classic";
 pub const DISPLAY_NAME: &str = "Classic Phaser";
 
-const STAGES: usize = 6;
-const MIN_FREQ_HZ: f32 = 200.0;
-const MAX_FREQ_HZ: f32 = 2_000.0;
+/// Voicing of a phaser variant — number of all-pass sections, sweep
+/// frequency range, and JFET-skew strength. Variants live in
+/// `native_phaser_*.rs` and instantiate `Phaser::with_tuning(...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct PhaserTuning {
+    /// Number of cascaded all-pass sections (more = sharper notches,
+    /// more midrange "shimmer").
+    pub stages: usize,
+    /// Bottom of the LFO sweep in Hz.
+    pub min_freq_hz: f32,
+    /// Top of the LFO sweep in Hz.
+    pub max_freq_hz: f32,
+    /// Strength of the JFET sweep skew. 0 = pure log-linear sweep,
+    /// 1 = full tanh skew. Default voice mixes 0.7 shaped + 0.3
+    /// linear; variants tune this knob to taste.
+    pub skew_strength: f32,
+}
+
+impl PhaserTuning {
+    /// 6-stage, 200–2000 Hz, 70 % JFET skew. The "MXR Phase 90" voice.
+    pub const CLASSIC: Self = Self {
+        stages: 6,
+        min_freq_hz: 200.0,
+        max_freq_hz: 2_000.0,
+        skew_strength: 0.7,
+    };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PhaserParams {
@@ -126,22 +150,46 @@ pub struct Phaser {
     mix: f32,
     sample_rate: f32,
     lfo: Lfo,
-    stage_z: [f32; STAGES],
+    stage_z: Vec<f32>,
     feedback_z: f32,
     feedback_dc_blocker: DcBlocker,
+    skew_strength: f32,
+    log_min: f32,
+    log_max: f32,
 }
 
 impl Phaser {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
+        Self::with_tuning(
+            rate_hz,
+            depth,
+            feedback,
+            mix,
+            sample_rate,
+            PhaserTuning::CLASSIC,
+        )
+    }
+
+    pub fn with_tuning(
+        rate_hz: f32,
+        depth: f32,
+        feedback: f32,
+        mix: f32,
+        sample_rate: f32,
+        tuning: PhaserTuning,
+    ) -> Self {
         Self {
             depth: depth.clamp(0.0, 1.0),
             feedback: feedback.clamp(-0.95, 0.95),
             mix: mix.clamp(0.0, 1.0),
             sample_rate,
             lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
-            stage_z: [0.0; STAGES],
+            stage_z: vec![0.0; tuning.stages.max(1)],
             feedback_z: 0.0,
             feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),
+            skew_strength: tuning.skew_strength.clamp(0.0, 1.0),
+            log_min: tuning.min_freq_hz.ln(),
+            log_max: tuning.max_freq_hz.ln(),
         }
     }
 
@@ -152,29 +200,24 @@ impl Phaser {
     /// JFET-like sweep skew. `t` in [0, 1] (raw LFO unipolar). Output
     /// in [0, 1] but biased toward the upper portion of the sweep,
     /// emulating the exponential V→R curve of the 2N5952 in pinch-off.
-    fn shape_sweep(t: f32) -> f32 {
-        // tanh skew normalised so the curve passes exactly through
-        // (0,0), (0.5,0.5) and (1,1) — only the slope is shaped, not
-        // the endpoints.
+    /// Per-instance skew strength so each variant can dial in a taste.
+    fn shape_sweep(&self, t: f32) -> f32 {
         const K: f32 = 2.5;
         let centered = t * 2.0 - 1.0;
         let denom = K.tanh();
-        let raw = (centered * K).tanh() / denom * 0.5 + 0.5;
-        // Blend 70% shaped + 30% linear so the bottom of the sweep
-        // still feels musical (shaped-only collapses too fast).
-        0.7 * raw + 0.3 * t
+        let shaped = (centered * K).tanh() / denom * 0.5 + 0.5;
+        let s = self.skew_strength;
+        s * shaped + (1.0 - s) * t
     }
 }
 
 impl MonoProcessor for Phaser {
     fn process_sample(&mut self, input: f32) -> f32 {
         let lfo_raw = self.lfo.next_unipolar();
-        let lfo_shaped = Self::shape_sweep(lfo_raw);
+        let lfo_shaped = self.shape_sweep(lfo_raw);
 
-        // Sweep break frequency on a log scale, then JFET-shape it.
-        let log_min = MIN_FREQ_HZ.ln();
-        let log_max = MAX_FREQ_HZ.ln();
-        let log_freq = log_min + (log_max - log_min) * self.depth * lfo_shaped;
+        // Sweep break frequency on the per-instance log range, JFET-shaped.
+        let log_freq = self.log_min + (self.log_max - self.log_min) * self.depth * lfo_shaped;
         let break_hz = log_freq.exp();
 
         // First-order all-pass coefficient via bilinear substitution:
@@ -318,11 +361,11 @@ mod tests {
 
     #[test]
     fn shape_sweep_fixed_points() {
-        // Endpoints should still be 0 and 1.
-        assert!((Phaser::shape_sweep(0.0)).abs() < 0.01);
-        assert!((Phaser::shape_sweep(1.0) - 1.0).abs() < 0.01);
-        // Midpoint should be near 0.5 too.
-        let mid = Phaser::shape_sweep(0.5);
+        // Endpoints should still be 0 and 1 regardless of skew strength.
+        let ph = Phaser::new(0.5, 0.7, 0.5, 0.5, 44_100.0);
+        assert!((ph.shape_sweep(0.0)).abs() < 0.01);
+        assert!((ph.shape_sweep(1.0) - 1.0).abs() < 0.01);
+        let mid = ph.shape_sweep(0.5);
         assert!((mid - 0.5).abs() < 0.05, "mid: {mid}");
     }
 }
