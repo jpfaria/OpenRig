@@ -51,7 +51,7 @@ export component BlockPanelHeader inherits Rectangle {
     // Model selector with embedded search (fills middle)
     ModelSelectWithSearch {
         x: 100px;
-        y: (parent.height - 34px) / 2;
+        y: (parent.height - 40px) / 2;
         width: parent.width - 100px - root.badge-width - (root.edit-mode ? 80px : 48px);
         filtered-models: root.filtered-models;
         selected-model: root.selected-model;
