@@ -128,6 +128,17 @@ fn resolve_screenshot_path(effect_type: &str, model_id: &str) -> Option<PathBuf>
             return Some(candidate.clone());
         }
     }
+    // Disk-package fallback (issue #287): plugin packages ship their
+    // own screenshot under `<package_root>/assets/screenshot.png` (or
+    // whatever path the manifest declares).
+    if let Some(package) = plugin_loader::registry::find(model_id) {
+        if let Some(rel) = package.manifest.screenshot.as_ref() {
+            let candidate = package.root.join(rel);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
     None
 }
 

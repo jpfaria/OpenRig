@@ -25,6 +25,17 @@ fn resolve_thumbnail_path(effect_type: &str, model_id: &str) -> Option<PathBuf> 
             return Some(candidate.clone());
         }
     }
+    // Disk-package fallback (issue #287): plugin packages ship their
+    // own thumbnail under `<package_root>/assets/thumbnail.png` (or
+    // whatever path the manifest declares).
+    if let Some(package) = plugin_loader::registry::find(model_id) {
+        if let Some(rel) = package.manifest.thumbnail.as_ref() {
+            let candidate = package.root.join(rel);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
     None
 }
 
