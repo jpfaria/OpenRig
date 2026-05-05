@@ -19,7 +19,6 @@ const CAPTURES: &[(&str, &str, &str)] = &[
     ("at2020", "room_right", "cabs/mesa_os_4x12_v30/room_right_at2020.wav"),
     ("sm57",   "take_1",     "cabs/mesa_os_4x12_v30/sm57_1.wav"),
     ("sm57",   "take_2",     "cabs/mesa_os_4x12_v30/sm57_2.wav"),
-    ("sm57",   "m160_mix",   "cabs/mesa_os_4x12_v30/sm57_m160_mix.wav"),
     ("sm58",   "take_1",     "cabs/mesa_os_4x12_v30/sm58_1.wav"),
     ("sm58",   "take_2",     "cabs/mesa_os_4x12_v30/sm58_2.wav"),
 ];
@@ -52,7 +51,6 @@ pub fn model_schema() -> ModelParameterSchema {
                     ("take_2",     "Take 2"),
                     ("room_left",  "Room Left"),
                     ("room_right", "Room Right"),
-                    ("m160_mix",   "M160 Mix"),
                 ],
             ),
         ],

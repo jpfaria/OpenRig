@@ -28,7 +28,6 @@ pub const CAPTURES: &[G12mGreenback2x12Capture] = &[
     capture!("sm57_dark",  "cabs/g12m_greenback_2x12/sm57_dark.wav"),
     capture!("sm57_dark_2","cabs/g12m_greenback_2x12/sm57_dark_2.wav"),
     capture!("sm57_fat",   "cabs/g12m_greenback_2x12/sm57_fat.wav"),
-    capture!("oc818",      "cabs/g12m_greenback_2x12/oc818.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -46,7 +45,6 @@ pub fn model_schema() -> ModelParameterSchema {
                 ("sm57_dark",  "SM57 Dark"),
                 ("sm57_dark_2","SM57 Dark 2"),
                 ("sm57_fat",   "SM57 Fat"),
-                ("oc818",      "OC818"),
             ],
         )],
     }

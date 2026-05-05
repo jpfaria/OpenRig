@@ -19,7 +19,7 @@ const CAPTURES: &[(&str, &str, &str)] = &[
     ("flat_g6",    "Flat (Gain 6)","amps/eden_e300t/e300t_flat_gain_6.nam"),
     ("eq_1_g6",    "EQ 1 (Gain 6)","amps/eden_e300t/e300t_eq_1_gain_6_bass_2_mid_3_shift_on_treb_0.nam"),
     ("eq_2_g6",    "EQ 2 (Gain 6)","amps/eden_e300t/e300t_eq_2_gain_6_bass_3_mid_2_shift_on_treb_0.nam"),
-    ("wtdi",       "WTDI",         "amps/eden_e300t/wtdi_3.nam"),
+    ("wtdi",       "WTDI",         "amps/eden_e300t/wtdi.nam"),
     ("wtdi_2",     "WTDI 2",       "amps/eden_e300t/wtdi_2.nam"),
 ];
 
