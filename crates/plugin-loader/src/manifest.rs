@@ -63,6 +63,22 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub photo: Option<PathBuf>,
 
+    /// In-app screenshot showing the plugin UI, relative to the package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub screenshot: Option<PathBuf>,
+
+    /// Brand logo image, relative to the package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_logo: Option<PathBuf>,
+
+    /// SPDX-style license identifier or vendor-specific tag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+
+    /// Upstream project / vendor URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub homepage: Option<String>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,

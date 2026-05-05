@@ -32,6 +32,9 @@ const LV2_DATA_ROOT: &str = "data/lv2";
 const LV2_BIN_ROOT: &str = "libs/lv2";
 const THUMBNAILS_ROOT: &str = "assets/blocks/thumbnails";
 const PHOTOS_ROOT: &str = "assets/models/photos";
+const SCREENSHOTS_ROOT: &str = "assets/blocks/screenshots";
+const BRANDS_ROOT: &str = "assets/brands";
+const METADATA_FILE: &str = "assets/blocks/metadata/en-US.yaml";
 
 fn main() -> Result<()> {
     let out = PathBuf::from(SOURCE_DIR);
@@ -162,21 +165,29 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
     manifest.brand = manifest.inspired_by.clone();
     manifest.inspired_by = None;
 
-    // Probe the asset directories for matching thumbnail/photo files. The
-    // probe is best-effort: if a file is missing the manifest just leaves
-    // the field as None.
-    if let Some(thumb_src) = locate_thumbnail(&model_id, block_type) {
+    // Probe the asset directories for matching files. Best-effort: missing
+    // assets just leave the corresponding manifest field as None.
+    if locate_thumbnail(&model_id, block_type).is_some() {
         manifest.thumbnail = Some(PathBuf::from("assets/thumbnail.png"));
-        manifest
-            .description
-            .get_or_insert_with(|| format!("{} {}", brand.as_deref().unwrap_or(""), display_name).trim().to_string());
-        // Defer copy until write_package; stash in a side-channel via the
-        // path itself — nothing else uses `thumbnail.png` so the resolver
-        // can re-find the source by ID.
-        let _ = thumb_src;
     }
-    if let Some(_photo_src) = locate_photo(&model_id) {
+    if locate_photo(&model_id).is_some() {
         manifest.photo = Some(PathBuf::from("assets/photo.png"));
+    }
+    if locate_screenshot(&model_id, block_type).is_some() {
+        manifest.screenshot = Some(PathBuf::from("assets/screenshot.png"));
+    }
+    if let Some(brand_value) = &manifest.brand {
+        if let Some((src, ext)) = locate_brand_logo(brand_value) {
+            let _ = src;
+            manifest.brand_logo = Some(PathBuf::from(format!("assets/brand_logo.{ext}")));
+        }
+    }
+    if let Some(metadata) = lookup_metadata(&model_id) {
+        if manifest.description.is_none() {
+            manifest.description = metadata.description.clone();
+        }
+        manifest.license = metadata.license.clone();
+        manifest.homepage = metadata.homepage.clone();
     }
 
     write_package(out, &manifest, source_file, &source)?;
@@ -208,6 +219,93 @@ fn locate_thumbnail(model_id: &str, block_type: BlockType) -> Option<PathBuf> {
 fn locate_photo(model_id: &str) -> Option<PathBuf> {
     let candidate = PathBuf::from(PHOTOS_ROOT).join(format!("{model_id}.png"));
     candidate.is_file().then_some(candidate)
+}
+
+fn locate_screenshot(model_id: &str, block_type: BlockType) -> Option<PathBuf> {
+    let dir = match block_type {
+        BlockType::GainPedal => "gain",
+        BlockType::Preamp => "preamp",
+        BlockType::Amp => "amp",
+        BlockType::Cab => "cab",
+        BlockType::Body => "body",
+        BlockType::Reverb => "reverb",
+        BlockType::Delay => "delay",
+        BlockType::Mod => "modulation",
+        BlockType::Filter => "filter",
+        BlockType::Dyn => "dynamics",
+        BlockType::Wah => "wah",
+        BlockType::Pitch => "pitch",
+        BlockType::Util => "utility",
+    };
+    let candidate = PathBuf::from(SCREENSHOTS_ROOT)
+        .join(dir)
+        .join(format!("{model_id}.png"));
+    candidate.is_file().then_some(candidate)
+}
+
+/// Brand logos can be `.svg` or `.png`. Returns the path plus its extension
+/// so the package writer can preserve the original format.
+fn locate_brand_logo(brand: &str) -> Option<(PathBuf, &'static str)> {
+    for ext in ["svg", "png"] {
+        let candidate = PathBuf::from(BRANDS_ROOT)
+            .join(brand)
+            .join(format!("logo.{ext}"));
+        if candidate.is_file() {
+            return Some((candidate, ext));
+        }
+    }
+    None
+}
+
+/// Lazily-parsed metadata index. Keys by plugin id, holds whatever fields
+/// the YAML carries for that id.
+#[derive(Default, Clone)]
+struct PluginMetadata {
+    description: Option<String>,
+    license: Option<String>,
+    homepage: Option<String>,
+}
+
+fn lookup_metadata(model_id: &str) -> Option<PluginMetadata> {
+    use std::sync::OnceLock;
+    static INDEX: OnceLock<BTreeMap<String, PluginMetadata>> = OnceLock::new();
+    let index = INDEX.get_or_init(|| {
+        let bytes = match fs::read(METADATA_FILE) {
+            Ok(bytes) => bytes,
+            Err(_) => return BTreeMap::new(),
+        };
+        let value: serde_yaml::Value = match serde_yaml::from_slice(&bytes) {
+            Ok(value) => value,
+            Err(_) => return BTreeMap::new(),
+        };
+        let plugins = value.get("plugins").and_then(|node| node.as_mapping());
+        let mut out = BTreeMap::new();
+        if let Some(plugins) = plugins {
+            for (key, entry) in plugins {
+                let Some(id) = key.as_str() else { continue };
+                let mapping = match entry.as_mapping() {
+                    Some(mapping) => mapping,
+                    None => continue,
+                };
+                let read_str = |field: &str| -> Option<String> {
+                    mapping
+                        .get(serde_yaml::Value::String(field.to_string()))
+                        .and_then(|node| node.as_str())
+                        .map(str::to_string)
+                };
+                out.insert(
+                    id.to_string(),
+                    PluginMetadata {
+                        description: read_str("description"),
+                        license: read_str("license"),
+                        homepage: read_str("homepage"),
+                    },
+                );
+            }
+        }
+        out
+    });
+    index.get(model_id).cloned()
 }
 
 // ─── source-file scanners ────────────────────────────────────────────────────
@@ -659,6 +757,10 @@ fn build_grid_manifest(
             brand: None,
             thumbnail: None,
             photo: None,
+            screenshot: None,
+            brand_logo: None,
+            license: None,
+            homepage: None,
             block_type,
             backend,
         });
@@ -736,6 +838,10 @@ fn build_grid_manifest_from_entries(
         brand: None,
         thumbnail: None,
         photo: None,
+        screenshot: None,
+        brand_logo: None,
+        license: None,
+        homepage: None,
         block_type,
         backend,
     })
@@ -848,6 +954,10 @@ fn build_lv2_manifest(
         brand: None,
         thumbnail: None,
         photo: None,
+        screenshot: None,
+        brand_logo: None,
+        license: None,
+        homepage: None,
         block_type,
         backend: Backend::Lv2 {
             plugin_uri,
@@ -979,6 +1089,26 @@ fn write_package(
                 fs::create_dir_all(parent)?;
             }
             fs::copy(&src, &dst)?;
+        }
+    }
+    if let Some(screenshot_dest) = &manifest.screenshot {
+        if let Some(src) = locate_screenshot(&manifest.id, manifest.block_type) {
+            let dst = package_dir.join(screenshot_dest);
+            if let Some(parent) = dst.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&src, &dst)?;
+        }
+    }
+    if let Some(brand_logo_dest) = &manifest.brand_logo {
+        if let Some(brand_value) = &manifest.brand {
+            if let Some((src, _ext)) = locate_brand_logo(brand_value) {
+                let dst = package_dir.join(brand_logo_dest);
+                if let Some(parent) = dst.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::copy(&src, &dst)?;
+            }
         }
     }
 
