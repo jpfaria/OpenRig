@@ -14,11 +14,13 @@
 //!
 //! See `docs/i18n.md` for the full flow and the rationale for two catalogs.
 
+#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 
 /// gettext text domain for the Slint side — must match Slint's default
 /// (`CARGO_PKG_NAME`). End users never see this; it's just the .mo file
-/// name on disk.
+/// name on disk. Linux-only: Windows/macOS rely on bundled translations.
+#[cfg(target_os = "linux")]
 pub const TEXT_DOMAIN: &str = "adapter-gui";
 
 /// Languages exposed in the language selector UI. Order matters:
@@ -279,6 +281,10 @@ fn normalize(raw: &str) -> String {
 /// 3. `<exec_dir>/../share/openrig/translations` (Linux FHS / .deb)
 /// 4. `<exec_dir>/../Resources/translations` (Mac.app fallback)
 /// 5. `CARGO_MANIFEST_DIR/translations` (debug builds running via `cargo run`)
+///
+/// Linux-only: only the libintl/gettext consumer needs this. Other platforms
+/// rely on Slint bundled translations.
+#[cfg(target_os = "linux")]
 pub fn resolve_translations_dir() -> Option<PathBuf> {
     if let Ok(env_dir) = std::env::var("OPENRIG_TRANSLATIONS_DIR") {
         let p = PathBuf::from(env_dir);
@@ -321,6 +327,7 @@ pub fn resolve_translations_dir() -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "linux")]
 fn has_any_mo(dir: &Path) -> bool {
     let Ok(rd) = std::fs::read_dir(dir) else {
         return false;

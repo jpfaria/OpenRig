@@ -52,10 +52,16 @@ fn compile_translations() {
     println!("cargo:rerun-if-changed=translations");
 
     if !msgfmt_available() {
+        // .mo files are only consumed by libintl/gettext, which we only
+        // wire on Linux (see crates/adapter-gui/Cargo.toml + i18n.rs).
+        // On Mac/Windows the runtime uses Slint's bundled translations,
+        // so the absence of msgfmt is expected and not worth surfacing.
+        // Only warn on Linux where it actually matters for .deb packaging.
+        #[cfg(target_os = "linux")]
         println!(
             "cargo:warning=msgfmt not on PATH — skipping .mo generation \
-             (runtime uses Slint bundled translations; install GNU gettext \
-             only if you're packaging .deb / Linux distros that need .mo files)"
+             (install GNU gettext to package .deb / Linux distros that \
+             need .mo files; runtime falls back to Slint bundled translations)"
         );
         return;
     }

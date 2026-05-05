@@ -49,23 +49,61 @@ mkdir -p "$BUILD_WORK_DIR"
 
 # --- Helpers ---
 
+# Returns 0 if $1 is a binary that matches the current target architecture.
+# Some upstream LV2 source trees ship prebuilt .so files (typically x86_64)
+# alongside their Makefiles. Without this filter those prebuilts leak into
+# libs/lv2/linux-aarch64/ on the ARM runner — appimagetool then refuses
+# the AppDir because it sees mixed architectures.
+binary_matches_target() {
+    local f="$1"
+    local desc
+    desc="$(file -b "$f" 2>/dev/null)" || return 1
+
+    # Cross-compile to mingw → expect PE32+ DLL
+    if [ -n "$CROSS_COMPILE" ] && echo "$CROSS_COMPILE" | grep -q mingw; then
+        echo "$desc" | grep -qE "PE32\+? executable.*Windows"
+        return $?
+    fi
+    # Native MinGW (MSYS2) → also PE
+    if [ -n "${MINGW_TARGET:-}" ]; then
+        echo "$desc" | grep -qE "PE32\+? executable.*Windows"
+        return $?
+    fi
+    # macOS → Mach-O (any arch counts; we ship universal binaries)
+    if [ "$(uname -s)" = "Darwin" ]; then
+        echo "$desc" | grep -q "Mach-O"
+        return $?
+    fi
+    # Linux native → must match the host's machine arch
+    local host_arch
+    host_arch="$(uname -m)"
+    case "$host_arch" in
+        aarch64|arm64)  echo "$desc" | grep -qE "ELF.*ARM aarch64" ;;
+        x86_64|amd64)   echo "$desc" | grep -qE "ELF.*x86-64" ;;
+        *)              return 0 ;; # unknown host arch — accept and let CI catch it
+    esac
+}
+
 # Collect built libs from a directory
 collect_libs() {
     local search_dir="$1"
     shift
-    # Only copy libs whose extension matches the current target platform.
-    # Without this filter, a leftover .dylib from a previous host build can
-    # leak into libs/lv2/windows-x64/ when building inside the mingw Docker
-    # container — some upstream make recipes ship pre-built artifacts in
-    # the source tree that we don't want to redistribute as the wrong OS.
+    # Filter both by extension (.so/.dylib/.dll) AND by binary architecture.
+    # Without the architecture filter, prebuilt artifacts shipped in upstream
+    # source trees (e.g. setBfree b_*.so x86_64 binaries committed alongside
+    # the Makefile) leak into libs/lv2/<platform>/ for the wrong arch.
     if [ $# -eq 0 ]; then
         find "$search_dir" -name "*.${LIB_EXT}" | while read -r f; do
-            cp "$f" "$OUTPUT_DIR/"
+            if binary_matches_target "$f"; then
+                cp "$f" "$OUTPUT_DIR/"
+            fi
         done
     else
         for pattern in "$@"; do
             find "$search_dir" \( -name "${pattern}.${LIB_EXT}" -o -name "lib${pattern}.${LIB_EXT}" \) | while read -r f; do
-                cp "$f" "$OUTPUT_DIR/"
+                if binary_matches_target "$f"; then
+                    cp "$f" "$OUTPUT_DIR/"
+                fi
             done
         done
     fi

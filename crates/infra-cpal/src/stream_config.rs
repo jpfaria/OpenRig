@@ -35,7 +35,9 @@ use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::DeviceTrait;
 
-use crate::resolved::{ResolvedInputDevice, ResolvedOutputDevice};
+use crate::resolved::ResolvedOutputDevice;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::resolved::ResolvedInputDevice;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn build_stream_config(
