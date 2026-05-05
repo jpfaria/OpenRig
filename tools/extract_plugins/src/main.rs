@@ -990,6 +990,160 @@ fn extract_capture_args(entry: &str, enum_paths: &BTreeMap<String, (String, Stri
     out
 }
 
+/// Patch the schema so the captures it lists are valid against
+/// `validate_manifest`. Three classes of mismatch show up in the
+/// hand-written .rs sources:
+///
+/// 1. **Capture binds an undeclared parameter** — e.g. `panama_shaman`
+///    captures use `gain_level` but the schema only lists `voicing` and
+///    `gain`. The new parameter is appended with whichever values the
+///    captures actually use.
+///
+/// 2. **Capture value not in declared values** — e.g. `ceriatone_centura`
+///    declares `treble: [0..100]` integer steps but captures use `1.3`.
+///    The fractional value is appended to the param's value list.
+///
+/// 3. **Duplicate cells** — multiple captures share the same parameter
+///    tuple (different audio "takes" or filename-suffix variants like
+///    `_c`/`_s`/`_xs` whose distinguishing axis isn't represented in the
+///    schema). For a strict-grid manifest there's nothing to do but keep
+///    the first per cell — duplicates are dropped with a warning.
+fn repair_grid_schema(
+    parameters: &mut Vec<GridParameter>,
+    captures: &mut Vec<GridCapture>,
+) {
+    use std::collections::BTreeSet;
+
+    // 1. Add missing parameters derived from capture keys.
+    let declared: BTreeSet<String> =
+        parameters.iter().map(|param| param.name.clone()).collect();
+    let mut needed: BTreeMap<String, Vec<ParameterValue>> = BTreeMap::new();
+    for capture in captures.iter() {
+        for (name, value) in &capture.values {
+            if declared.contains(name) {
+                continue;
+            }
+            let bucket = needed.entry(name.clone()).or_default();
+            if !bucket.contains(value) {
+                bucket.push(value.clone());
+            }
+        }
+    }
+    for (name, values) in needed {
+        parameters.push(GridParameter {
+            name,
+            display_name: None,
+            values,
+        });
+    }
+
+    // 2. Extend declared values to cover every observed capture value.
+    for parameter in parameters.iter_mut() {
+        for capture in captures.iter() {
+            if let Some(value) = capture.values.get(&parameter.name) {
+                if !parameter.values.contains(value) {
+                    parameter.values.push(value.clone());
+                }
+            }
+        }
+    }
+
+    // 3. Drop schema parameters no capture binds. Some sources declare an
+    // enum_parameter (e.g. `voicing`) whose value is implicit in another
+    // bound enum (`gain_level: br_lg`) — every capture would otherwise
+    // fail validation for missing the unbound axis.
+    let used: BTreeSet<String> = captures
+        .iter()
+        .flat_map(|capture| capture.values.keys().cloned())
+        .collect();
+    parameters.retain(|param| used.contains(&param.name));
+
+    // 4. Deduplicate captures by parameter-tuple cell. Order-preserving:
+    // first-wins, matching the runtime `.iter().find(...)` semantics in the
+    // hand-written .rs sources.
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let original_len = captures.len();
+    captures.retain(|capture| seen.insert(capture_cell_fingerprint(&capture.values)));
+    if captures.len() < original_len {
+        let dropped = original_len - captures.len();
+        eprintln!(
+            "warn: dropped {dropped} duplicate capture(s) (same parameter cell as a kept capture)"
+        );
+    }
+}
+
+/// Map a `const CAPTURE_<NAME>` (or `NAM_FILE` / `IR_FILE`) to the
+/// schema's enum parameter value the capture represents.
+///
+/// Sources with multiple `const CAPTURE_<NAME>` declarations alongside an
+/// `enum_parameter("mic", ..., &[("sm57_royer", ...), ("room", ...)])`
+/// expect the runtime to pick a capture by mic value. To preserve that
+/// axis in the manifest we map `CAPTURE_SM57_ROYER` → `mic = "sm57_royer"`
+/// by lowercasing the suffix and matching it against the declared enum
+/// values, in the order parameters were declared.
+///
+/// Returns an empty map for single-capture conventions
+/// (`CAPTURE_PATH`, `NAM_FILE`, `IR_FILE`) and for any `CAPTURE_<NAME>`
+/// whose suffix doesn't match a schema enum value.
+fn bind_const_capture_to_schema(
+    const_name: &str,
+    parameters: &[GridParameter],
+) -> BTreeMap<String, ParameterValue> {
+    // Strip the prefix and lowercase to derive the candidate enum key.
+    let suffix_raw = const_name
+        .strip_prefix("CAPTURE_")
+        .or_else(|| const_name.strip_prefix("NAM_FILE"))
+        .or_else(|| const_name.strip_prefix("IR_FILE"))
+        .unwrap_or(const_name);
+    let key = suffix_raw.to_ascii_lowercase();
+    if key.is_empty() || key == "path" {
+        return BTreeMap::new();
+    }
+    // First pass: exact suffix-to-value match.
+    for parameter in parameters {
+        for declared in &parameter.values {
+            if let ParameterValue::Text(value) = declared {
+                if value == &key {
+                    let mut bound = BTreeMap::new();
+                    bound.insert(parameter.name.clone(), ParameterValue::Text(key.clone()));
+                    return bound;
+                }
+            }
+        }
+    }
+    // Second pass: declared value is a prefix of the suffix
+    // (e.g. CAPTURE_OD808_SM57 → suffix `od808_sm57`, prefix-matches the
+    // declared `od808` enum value, where `_sm57` is metadata not in the
+    // schema).
+    for parameter in parameters {
+        for declared in &parameter.values {
+            if let ParameterValue::Text(value) = declared {
+                let prefix = format!("{value}_");
+                if key.starts_with(&prefix) {
+                    let mut bound = BTreeMap::new();
+                    bound.insert(parameter.name.clone(), ParameterValue::Text(value.clone()));
+                    return bound;
+                }
+            }
+        }
+    }
+    BTreeMap::new()
+}
+
+/// Stable, hashable fingerprint of a capture's parameter tuple. BTreeMap
+/// iteration is sorted by key, so equal tuples produce identical strings.
+fn capture_cell_fingerprint(values: &BTreeMap<String, ParameterValue>) -> String {
+    let mut parts: Vec<String> = Vec::with_capacity(values.len());
+    for (name, value) in values {
+        let value_str = match value {
+            ParameterValue::Text(text) => text.clone(),
+            ParameterValue::Number(number) => format!("{:e}", number),
+        };
+        parts.push(format!("{name}={value_str}"));
+    }
+    parts.join("|")
+}
+
 // ─── manifest builders ───────────────────────────────────────────────────────
 
 fn build_grid_manifest(
@@ -1026,20 +1180,22 @@ fn build_grid_manifest(
 
     let const_captures = scan_const_capture_paths(source);
     if !const_captures.is_empty() {
-        let captures: Vec<GridCapture> = const_captures
+        let mut parameters = parameters;
+        let mut captures: Vec<GridCapture> = const_captures
             .into_iter()
-            .map(|raw| GridCapture {
-                values: BTreeMap::new(),
+            .map(|(const_name, raw)| GridCapture {
+                values: bind_const_capture_to_schema(&const_name, &parameters),
                 file: PathBuf::from(strip_path_prefix(&raw, flavor)),
             })
             .collect();
+        repair_grid_schema(&mut parameters, &mut captures);
         let backend = match flavor {
             "nam" => Backend::Nam {
-                parameters: vec![],
+                parameters,
                 captures,
             },
             "ir" => Backend::Ir {
-                parameters: vec![],
+                parameters,
                 captures,
             },
             other => return Err(anyhow!("unknown grid flavor `{other}`")),
@@ -1073,7 +1229,7 @@ fn build_grid_manifest_from_entries(
     brand: Option<&str>,
     block_type: BlockType,
     flavor: &str,
-    parameters: Vec<GridParameter>,
+    mut parameters: Vec<GridParameter>,
     entries: Vec<String>,
     enum_paths: &BTreeMap<String, (String, String)>,
 ) -> Result<PluginManifest> {
@@ -1138,6 +1294,8 @@ fn build_grid_manifest_from_entries(
         });
     }
 
+    repair_grid_schema(&mut parameters, &mut captures);
+
     let backend = match flavor {
         "nam" => Backend::Nam {
             parameters,
@@ -1171,7 +1329,11 @@ fn build_grid_manifest_from_entries(
 }
 
 /// Pull every single-capture path declared as a top-level const out of the
-/// source, in source order. Three naming conventions are common:
+/// source, in source order. Returns each entry's const name (e.g.
+/// `CAPTURE_SM57_ROYER`, `NAM_FILE`) alongside the path so callers can map
+/// it back to a schema enum value.
+///
+/// Naming conventions covered:
 ///
 /// - `CAPTURE_PATH`, `CAPTURE_<NAME>`, `CAPTURES_*` — older multi-NAM and
 ///   single-CAPTURE_* sources.
@@ -1180,25 +1342,33 @@ fn build_grid_manifest_from_entries(
 ///
 /// Only invoked when the array literal `const CAPTURES: &[T] = &[...]` is
 /// absent — array sources are parsed by [`read_captures_block`] instead.
-fn scan_const_capture_paths(source: &str) -> Vec<String> {
-    let needles = ["const CAPTURE", "const NAM_FILE", "const IR_FILE"];
+fn scan_const_capture_paths(source: &str) -> Vec<(String, String)> {
+    let prefixes = ["const CAPTURE", "const NAM_FILE", "const IR_FILE"];
     let mut found = Vec::new();
-    for needle in needles {
+    for prefix in prefixes {
         let mut cursor = 0usize;
-        while let Some(offset) = source[cursor..].find(needle) {
+        while let Some(offset) = source[cursor..].find(prefix) {
             let abs = cursor + offset;
             let line_end = source[abs..]
                 .find('\n')
                 .map(|relative| abs + relative)
                 .unwrap_or(source.len());
-            // The const line may wrap onto the next line if the literal
-            // breaks. Scan from the const start until we find `=` then `"`.
             let after = &source[abs..];
+
+            // Recover the const name (everything between `const ` and `:` /
+            // `=` / whitespace). Used by the caller to bind the capture to a
+            // schema enum value when the suffix matches.
+            let name_after = after.trim_start_matches("const ");
+            let name_end = name_after
+                .find(|ch: char| ch == ':' || ch == ' ' || ch == '=' || ch == '\n')
+                .unwrap_or(name_after.len());
+            let const_name = name_after[..name_end].to_string();
+
             if let Some(eq_offset) = after.find('=') {
                 let from_eq = &after[eq_offset..];
                 if let Some(quote_offset) = from_eq.find('"') {
                     if let Some(value) = read_string_literal(&from_eq[quote_offset..]) {
-                        found.push(value);
+                        found.push((const_name, value));
                     }
                 }
             }
@@ -1485,7 +1655,7 @@ fn resolve_nam_capture_source(
         }
     }
     // 2. Fall back to the const CAPTURE_<NAME> pattern.
-    for raw in scan_const_capture_paths(source_text) {
+    for (_, raw) in scan_const_capture_paths(source_text) {
         if Path::new(&raw)
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -1515,7 +1685,7 @@ fn resolve_ir_capture_source(
             }
         }
     }
-    for raw in scan_const_capture_paths(source_text) {
+    for (_, raw) in scan_const_capture_paths(source_text) {
         paths.push(raw);
     }
     for raw in paths {
