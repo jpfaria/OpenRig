@@ -246,157 +246,303 @@ fn read_captures_block(source: &str) -> Option<&str> {
     None
 }
 
-/// Inside a CAPTURES body, walk top-level entries. Each entry is either a
-/// `(...)` tuple or a `capture!(...)` macro call. Returns the inner argument
-/// list (between `(` and matching `)`) for each entry. Comments are stripped
-/// per line before scanning.
+/// Inside a CAPTURES body, walk top-level entries. Three shapes show up in
+/// the codebase:
+///
+/// - `(v1, v2, "path")`        — anonymous tuple literals
+/// - `capture!(v1, "path")`    — `capture!` macro invocations
+/// - `TypeName { f1: v1, .. }` — named struct literals (e.g. `ScrDiCapture { ... }`)
+///
+/// Returns the inner content of each entry (between the matching opener and
+/// closer) regardless of brace style. Comments are not stripped — string
+/// literal extraction below ignores them by construction.
 fn read_capture_entries(body: &str) -> Vec<&str> {
     let mut entries = Vec::new();
     let mut cursor = 0usize;
     let bytes = body.as_bytes();
     while cursor < bytes.len() {
-        // Find next `(` skipping whitespace and `,`.
+        // Find the next `(` or `{` that opens a top-level entry.
+        let mut opener: Option<u8> = None;
         while cursor < bytes.len() {
             let byte = bytes[cursor];
-            if byte == b'(' {
+            if byte == b'(' || byte == b'{' {
+                opener = Some(byte);
                 break;
             }
             cursor += 1;
         }
-        if cursor >= bytes.len() {
+        let Some(open_byte) = opener else {
             break;
-        }
+        };
+        let close_byte = if open_byte == b'(' { b')' } else { b'}' };
         let inner_start = cursor + 1;
         let mut depth = 1usize;
         let mut scan = inner_start;
         while scan < bytes.len() && depth > 0 {
-            match bytes[scan] {
-                b'(' => depth += 1,
-                b')' => {
-                    depth -= 1;
-                    if depth == 0 {
+            let byte = bytes[scan];
+            // String literals can contain `()` / `{}` — skip past them so
+            // their contents don't perturb the depth counter.
+            if byte == b'"' {
+                scan += 1;
+                let mut escaped = false;
+                while scan < bytes.len() {
+                    let inner_byte = bytes[scan];
+                    if escaped {
+                        escaped = false;
+                    } else if inner_byte == b'\\' {
+                        escaped = true;
+                    } else if inner_byte == b'"' {
                         break;
                     }
+                    scan += 1;
                 }
-                _ => {}
+                scan += 1;
+                continue;
+            }
+            if byte == open_byte {
+                depth += 1;
+            } else if byte == close_byte {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
             }
             scan += 1;
         }
         if depth != 0 {
             break;
         }
-        let inner = &body[inner_start..scan];
-        entries.push(inner);
+        entries.push(&body[inner_start..scan]);
         cursor = scan + 1;
     }
     entries
 }
 
+/// Either a string literal or a numeric literal, in the order they appear
+/// inside an argument list. Captures pair their parameter values with their
+/// file path; some sources use string-valued parameters (`capture("ah", "path")`),
+/// others numeric (`capture(25, "path")`), so we surface both.
+#[derive(Debug, Clone)]
+enum Literal {
+    String(String),
+    Number(f64),
+}
+
 /// Pull every double-quoted literal out of an arg list.
 fn read_string_literals_in(args: &str) -> Vec<String> {
+    read_literals_in(args)
+        .into_iter()
+        .filter_map(|literal| match literal {
+            Literal::String(value) => Some(value),
+            Literal::Number(_) => None,
+        })
+        .collect()
+}
+
+/// Pull both string and numeric literals from an arg list, in source order.
+fn read_literals_in(args: &str) -> Vec<Literal> {
     let mut out = Vec::new();
     let mut cursor = 0usize;
     let bytes = args.as_bytes();
     while cursor < bytes.len() {
-        if bytes[cursor] != b'"' {
-            cursor += 1;
-            continue;
-        }
-        let start = cursor + 1;
-        let mut scan = start;
-        let mut escaped = false;
-        while scan < bytes.len() {
-            let byte = bytes[scan];
-            if escaped {
-                escaped = false;
+        let byte = bytes[cursor];
+        if byte == b'"' {
+            let start = cursor + 1;
+            let mut scan = start;
+            let mut escaped = false;
+            while scan < bytes.len() {
+                let inner = bytes[scan];
+                if escaped {
+                    escaped = false;
+                } else if inner == b'\\' {
+                    escaped = true;
+                } else if inner == b'"' {
+                    break;
+                }
                 scan += 1;
-                continue;
             }
-            if byte == b'\\' {
-                escaped = true;
-                scan += 1;
-                continue;
-            }
-            if byte == b'"' {
+            if scan >= bytes.len() {
                 break;
             }
-            scan += 1;
+            out.push(Literal::String(args[start..scan].to_string()));
+            cursor = scan + 1;
+            continue;
         }
-        if scan >= bytes.len() {
-            break;
+        // Numeric literal: optional sign, digits, optional `.digits`.
+        let is_digit = byte.is_ascii_digit();
+        let is_negative = byte == b'-' && cursor + 1 < bytes.len() && bytes[cursor + 1].is_ascii_digit();
+        if is_digit || is_negative {
+            // Reject identifiers that happen to start with digits — only
+            // accept when preceded by whitespace, comma, `(`, `[`, `,`.
+            let prev = if cursor == 0 {
+                None
+            } else {
+                Some(bytes[cursor - 1])
+            };
+            let valid_prefix = prev
+                .map(|prev| matches!(prev, b'(' | b',' | b' ' | b'\n' | b'\t' | b'[' | b'='))
+                .unwrap_or(true);
+            if !valid_prefix {
+                cursor += 1;
+                continue;
+            }
+            let start = cursor;
+            let mut scan = start;
+            if bytes[scan] == b'-' {
+                scan += 1;
+            }
+            while scan < bytes.len() && bytes[scan].is_ascii_digit() {
+                scan += 1;
+            }
+            if scan < bytes.len() && bytes[scan] == b'.' {
+                scan += 1;
+                while scan < bytes.len() && bytes[scan].is_ascii_digit() {
+                    scan += 1;
+                }
+            }
+            if let Ok(value) = args[start..scan].parse::<f64>() {
+                out.push(Literal::Number(value));
+            }
+            cursor = scan;
+            continue;
         }
-        out.push(args[start..scan].to_string());
-        cursor = scan + 1;
+        cursor += 1;
     }
     out
 }
 
-/// Walk the source for `enum_parameter("name", "Display", ..., &[(v,l), ...])`
+/// Walk the source for `enum_parameter(...)` and `float_parameter(...)`
 /// invocations and return one [`GridParameter`] per call, in source order.
+///
+/// `enum_parameter(name, display, group, default, &[(v, l), ...])` lists its
+/// values explicitly. `float_parameter(name, display, group, default, min,
+/// max, step, unit)` doesn't — we materialize the discrete points by
+/// stepping `min..=max` by `step`, which is what the hosting NAM/IR
+/// captures expect.
 fn read_enum_parameters(source: &str) -> Vec<GridParameter> {
     let mut parameters = Vec::new();
-    let mut cursor = 0usize;
-    let needle = "enum_parameter(";
-    while let Some(found) = source[cursor..].find(needle) {
-        let arg_start = cursor + found + needle.len();
-        let mut depth = 1usize;
-        let mut scan = arg_start;
-        let bytes = source.as_bytes();
-        while scan < bytes.len() && depth > 0 {
-            match bytes[scan] {
-                b'(' => depth += 1,
-                b')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
+    for invocation in find_function_invocations(source, &["enum_parameter", "float_parameter"]) {
+        let args = invocation.args;
+        let literals = read_literals_in(args);
+        let strings: Vec<&String> = literals
+            .iter()
+            .filter_map(|literal| match literal {
+                Literal::String(value) => Some(value),
+                Literal::Number(_) => None,
+            })
+            .collect();
+        if strings.len() < 2 {
+            continue;
+        }
+        let name = strings[0].clone();
+        let display = strings[1].clone();
+
+        let values = match invocation.callee {
+            "enum_parameter" => {
+                let Some(slice_offset) = args.find("&[") else {
+                    continue;
+                };
+                let slice_segment = &args[slice_offset..];
+                let slice_literals = read_string_literals_in(slice_segment);
+                if slice_literals.is_empty() {
+                    continue;
                 }
-                _ => {}
+                slice_literals
+                    .into_iter()
+                    .step_by(2)
+                    .map(ParameterValue::Text)
+                    .collect()
             }
-            scan += 1;
-        }
-        if depth != 0 {
-            break;
-        }
-        let args = &source[arg_start..scan];
-        // `enum_parameter(name, display, group, default, &[(v, l), ...])`
-        // produces literals in order:
-        //   [0] name
-        //   [1] display_name
-        //   [2] group string (inside Some("..."))   ← skipped
-        //   [3] default value (inside Some("..."))  ← skipped
-        //   [4..] alternating value, label, value, label, ...
-        // Some calls pass `None` for group or default — when that happens
-        // those literal slots collapse, so we anchor on the values slice
-        // by finding the start of the `&[` block instead of indexing.
-        let literals = read_string_literals_in(args);
-        let values_slice_start = match args.find("&[") {
-            Some(offset) => offset,
-            None => {
-                cursor = scan + 1;
-                continue;
+            "float_parameter" => {
+                // Numeric literals, in order: default (Some(_)), min, max, step.
+                let numbers: Vec<f64> = literals
+                    .iter()
+                    .filter_map(|literal| match literal {
+                        Literal::Number(value) => Some(*value),
+                        Literal::String(_) => None,
+                    })
+                    .collect();
+                if numbers.len() < 4 {
+                    continue;
+                }
+                let min = numbers[1];
+                let max = numbers[2];
+                let step = numbers[3];
+                materialize_discrete_range(min, max, step)
+                    .into_iter()
+                    .map(ParameterValue::Number)
+                    .collect()
             }
+            _ => continue,
         };
-        let values_segment = &args[values_slice_start..];
-        let values_literals = read_string_literals_in(values_segment);
-        if literals.len() >= 2 && !values_literals.is_empty() {
-            let name = literals[0].clone();
-            let display = literals[1].clone();
-            // Inside `&[(v, l), (v, l), ...]` literals alternate v, l.
-            let values: Vec<ParameterValue> = values_literals
-                .iter()
-                .step_by(2)
-                .map(|value| ParameterValue::Text(value.clone()))
-                .collect();
-            parameters.push(GridParameter {
-                name,
-                display_name: Some(display),
-                values,
-            });
-        }
-        cursor = scan + 1;
+
+        parameters.push(GridParameter {
+            name,
+            display_name: Some(display),
+            values,
+        });
     }
     parameters
+}
+
+struct Invocation<'a> {
+    callee: &'a str,
+    args: &'a str,
+}
+
+/// Find every top-level invocation `name(...)` in the source for any of the
+/// callees in `names`. Returns the inner argument string of each match in
+/// source order.
+fn find_function_invocations<'a>(source: &'a str, names: &[&'a str]) -> Vec<Invocation<'a>> {
+    let mut result = Vec::new();
+    for name in names {
+        let needle = format!("{name}(");
+        let mut cursor = 0usize;
+        while let Some(found) = source[cursor..].find(&needle) {
+            let arg_start = cursor + found + needle.len();
+            let bytes = source.as_bytes();
+            let mut depth = 1usize;
+            let mut scan = arg_start;
+            while scan < bytes.len() && depth > 0 {
+                match bytes[scan] {
+                    b'(' => depth += 1,
+                    b')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                scan += 1;
+            }
+            if depth != 0 {
+                break;
+            }
+            result.push(Invocation {
+                callee: name,
+                args: &source[arg_start..scan],
+            });
+            cursor = scan + 1;
+        }
+    }
+    result
+}
+
+fn materialize_discrete_range(min: f64, max: f64, step: f64) -> Vec<f64> {
+    if step <= 0.0 || max < min {
+        return vec![min];
+    }
+    let mut values = Vec::new();
+    let mut current = min;
+    // Floating-point safety: stop when we've passed max by more than half a
+    // step, and round each point to the nearest 1e-6 to keep the YAML clean.
+    while current <= max + step * 0.5 {
+        let rounded = (current * 1e6).round() / 1e6;
+        values.push(rounded);
+        current += step;
+    }
+    values
 }
 
 // ─── manifest builders ───────────────────────────────────────────────────────
@@ -419,18 +565,31 @@ fn build_grid_manifest(
     // know how many values to bind by position.
     let mut captures: Vec<GridCapture> = Vec::new();
     for entry in entries {
-        let literals = read_string_literals_in(entry);
+        let literals = read_literals_in(entry);
         if literals.is_empty() {
             continue;
         }
-        let file_relative = literals.last().unwrap().clone();
-        let value_strs = &literals[..literals.len() - 1];
+        // The last string literal is always the asset path. Everything
+        // before that — strings or numbers, in source order — feeds the
+        // declared parameters by position.
+        let last_string_index = literals
+            .iter()
+            .rposition(|literal| matches!(literal, Literal::String(_)));
+        let Some(file_index) = last_string_index else {
+            continue;
+        };
+        let file_relative = match &literals[file_index] {
+            Literal::String(value) => value.clone(),
+            Literal::Number(_) => continue,
+        };
+        let value_literals = &literals[..file_index];
         let mut values = BTreeMap::new();
-        for (parameter, value) in parameters.iter().zip(value_strs.iter()) {
-            values.insert(
-                parameter.name.clone(),
-                ParameterValue::Text(value.clone()),
-            );
+        for (parameter, literal) in parameters.iter().zip(value_literals.iter()) {
+            let parameter_value = match literal {
+                Literal::String(text) => ParameterValue::Text(text.clone()),
+                Literal::Number(number) => ParameterValue::Number(*number),
+            };
+            values.insert(parameter.name.clone(), parameter_value);
         }
         captures.push(GridCapture {
             values,
