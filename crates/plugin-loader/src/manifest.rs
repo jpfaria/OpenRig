@@ -79,6 +79,13 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
 
+    /// URLs identifying where the captures bundled in this package were
+    /// downloaded from (e.g. tone3000 capture pages). One entry per source.
+    /// Empty/absent for plugins whose captures aren't tracked back to a
+    /// public URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sources: Option<Vec<String>>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,
@@ -398,6 +405,14 @@ captures: []
             author: Some("test".to_string()),
             description: None,
             inspired_by: None,
+            brand: None,
+            thumbnail: None,
+            photo: None,
+            screenshot: None,
+            brand_logo: None,
+            license: None,
+            homepage: None,
+            sources: None,
             block_type: BlockType::Preamp,
             backend: Backend::Nam {
                 parameters: vec![GridParameter {

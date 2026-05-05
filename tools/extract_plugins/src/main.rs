@@ -208,6 +208,9 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
         manifest.license = metadata.license.clone();
         manifest.homepage = metadata.homepage.clone();
     }
+    manifest.sources = lookup_capture_sources(&folder_id);
+
+    drop_unshippable_captures(&mut manifest, source_file, &source)?;
 
     let backend_root = out.join(backend_prefix);
     fs::create_dir_all(&backend_root)?;
@@ -327,6 +330,78 @@ fn lookup_metadata(model_id: &str) -> Option<PluginMetadata> {
         out
     });
     index.get(model_id).cloned()
+}
+
+/// Build the capture-source URL list for a given plugin slug, combining
+/// every `scripts/tone3000_specs*.json` spec file into one index keyed by
+/// the slug (which equals the package folder id once the backend prefix is
+/// stripped). Each tone id maps to a `https://www.tone3000.com/tones/<id>`
+/// URL — these are the public capture pages where the bundled NAM/IR files
+/// originally came from.
+fn lookup_capture_sources(folder_id: &str) -> Option<Vec<String>> {
+    use std::collections::BTreeSet;
+    use std::sync::OnceLock;
+    static INDEX: OnceLock<BTreeMap<String, Vec<String>>> = OnceLock::new();
+    let index = INDEX.get_or_init(|| {
+        let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let scripts_dir = Path::new("scripts");
+        let entries = match fs::read_dir(scripts_dir) {
+            Ok(entries) => entries,
+            Err(_) => return BTreeMap::new(),
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !name.starts_with("tone3000_specs") || !name.ends_with(".json") {
+                continue;
+            }
+            let Ok(bytes) = fs::read(&path) else {
+                continue;
+            };
+            let value: serde_yaml::Value = match serde_yaml::from_slice(&bytes) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            let Some(arr) = value.as_sequence() else {
+                continue;
+            };
+            for entry in arr {
+                let Some(mapping) = entry.as_mapping() else {
+                    continue;
+                };
+                let slug = match mapping
+                    .get(serde_yaml::Value::String("slug".to_string()))
+                    .and_then(|node| node.as_str())
+                {
+                    Some(value) => value,
+                    None => continue,
+                };
+                let tone_ids: Vec<i64> = mapping
+                    .get(serde_yaml::Value::String("tone_ids".to_string()))
+                    .and_then(|node| node.as_sequence())
+                    .map(|seq| seq.iter().filter_map(|node| node.as_i64()).collect())
+                    .unwrap_or_default();
+                if tone_ids.is_empty() {
+                    continue;
+                }
+                let bucket = out.entry(slug.to_string()).or_default();
+                for tone_id in tone_ids {
+                    bucket.insert(format!("https://www.tone3000.com/tones/{tone_id}"));
+                }
+            }
+        }
+        out.into_iter()
+            .map(|(slug, urls)| (slug, urls.into_iter().collect()))
+            .collect()
+    });
+    let urls = index.get(folder_id)?;
+    if urls.is_empty() {
+        None
+    } else {
+        Some(urls.clone())
+    }
 }
 
 // ─── source-file scanners ────────────────────────────────────────────────────
@@ -782,6 +857,7 @@ fn build_grid_manifest(
             brand_logo: None,
             license: None,
             homepage: None,
+            sources: None,
             block_type,
             backend,
         });
@@ -863,38 +939,46 @@ fn build_grid_manifest_from_entries(
         brand_logo: None,
         license: None,
         homepage: None,
+        sources: None,
         block_type,
         backend,
     })
 }
 
-/// Pull every `[pub] const CAPTURE_<NAME>: &str = "..."` value out of the
-/// source, in source order. Used by single-capture and multi-named-capture
-/// plugins (e.g. `pot_boost` with one `CAPTURE_PATH`, or `vox_ac30` with
-/// `CAPTURE_STANDARD` and `CAPTURE_CLEAN_65PRINCE`).
+/// Pull every single-capture path declared as a top-level const out of the
+/// source, in source order. Three naming conventions are common:
+///
+/// - `CAPTURE_PATH`, `CAPTURE_<NAME>`, `CAPTURES_*` — older multi-NAM and
+///   single-CAPTURE_* sources.
+/// - `NAM_FILE` — single-capture NAM sources (e.g. `nam_engl_thunder_50`).
+/// - `IR_FILE` — single-capture IR sources (e.g. `ir_vox_ac50_2x12`).
+///
+/// Only invoked when the array literal `const CAPTURES: &[T] = &[...]` is
+/// absent — array sources are parsed by [`read_captures_block`] instead.
 fn scan_const_capture_paths(source: &str) -> Vec<String> {
+    let needles = ["const CAPTURE", "const NAM_FILE", "const IR_FILE"];
     let mut found = Vec::new();
-    let mut cursor = 0usize;
-    while let Some(offset) = source[cursor..].find("const CAPTURE") {
-        let abs = cursor + offset;
-        let line_end = source[abs..]
-            .find('\n')
-            .map(|relative| abs + relative)
-            .unwrap_or(source.len());
-        // The `const CAPTURE...` line may continue onto the next line if
-        // the literal is wrapped, so scan from the const start until we
-        // find a `"` and read it as a string literal.
-        let after = &source[abs..];
-        let needle_eq = after.find('=');
-        if let Some(eq_offset) = needle_eq {
-            let from_eq = &after[eq_offset..];
-            if let Some(quote_offset) = from_eq.find('"') {
-                if let Some(value) = read_string_literal(&from_eq[quote_offset..]) {
-                    found.push(value);
+    for needle in needles {
+        let mut cursor = 0usize;
+        while let Some(offset) = source[cursor..].find(needle) {
+            let abs = cursor + offset;
+            let line_end = source[abs..]
+                .find('\n')
+                .map(|relative| abs + relative)
+                .unwrap_or(source.len());
+            // The const line may wrap onto the next line if the literal
+            // breaks. Scan from the const start until we find `=` then `"`.
+            let after = &source[abs..];
+            if let Some(eq_offset) = after.find('=') {
+                let from_eq = &after[eq_offset..];
+                if let Some(quote_offset) = from_eq.find('"') {
+                    if let Some(value) = read_string_literal(&from_eq[quote_offset..]) {
+                        found.push(value);
+                    }
                 }
             }
+            cursor = line_end + 1;
         }
-        cursor = line_end + 1;
     }
     found
 }
@@ -979,6 +1063,7 @@ fn build_lv2_manifest(
         brand_logo: None,
         license: None,
         homepage: None,
+        sources: None,
         block_type,
         backend: Backend::Lv2 {
             plugin_uri,
@@ -1248,5 +1333,62 @@ fn copy_asset(src: &Path, dst: &Path) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     fs::copy(src, dst).with_context(|| format!("copy {} -> {}", src.display(), dst.display()))?;
+    Ok(())
+}
+
+/// Walks the manifest's captures and removes entries whose source asset is
+/// missing on disk. Real-world data has stale `_<N>` references and dropped
+/// mic positions — keeping the rest of the package usable matters more than
+/// failing the whole migration on one stale path. Errors only when zero
+/// captures survive the sweep.
+fn drop_unshippable_captures(
+    manifest: &mut PluginManifest,
+    source_file: &Path,
+    source_text: &str,
+) -> Result<()> {
+    match &mut manifest.backend {
+        Backend::Nam { captures, .. } => {
+            let original = std::mem::take(captures);
+            let mut kept = Vec::with_capacity(original.len());
+            for capture in original {
+                match resolve_nam_capture_source(source_file, source_text, &capture.file) {
+                    Ok(src) if src.is_file() => kept.push(capture),
+                    Ok(src) => eprintln!(
+                        "warn: dropping NAM capture (missing on disk): {} -> {}",
+                        source_file.display(),
+                        src.display()
+                    ),
+                    Err(error) => eprintln!(
+                        "warn: dropping NAM capture (unresolved): {} -> {} ({error})",
+                        source_file.display(),
+                        capture.file.display()
+                    ),
+                }
+            }
+            if kept.is_empty() {
+                return Err(anyhow!("no NAM captures resolvable on disk"));
+            }
+            *captures = kept;
+        }
+        Backend::Ir { captures, .. } => {
+            let original = std::mem::take(captures);
+            let mut kept = Vec::with_capacity(original.len());
+            for capture in original {
+                match resolve_ir_capture_source(source_file, source_text, &capture.file) {
+                    Ok(_) => kept.push(capture),
+                    Err(error) => eprintln!(
+                        "warn: dropping IR capture: {} -> {} ({error})",
+                        source_file.display(),
+                        capture.file.display()
+                    ),
+                }
+            }
+            if kept.is_empty() {
+                return Err(anyhow!("no IR captures resolvable on disk"));
+            }
+            *captures = kept;
+        }
+        Backend::Lv2 { .. } => {}
+    }
     Ok(())
 }
