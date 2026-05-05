@@ -288,7 +288,7 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .find(|entry| entry.effect_type == effect_type)
         .ok_or_else(|| format!("unsupported effect type '{}'", effect_type))?;
 
-    (entry.supported_models)()
+    let mut result: Vec<BlockModelCatalogEntry> = (entry.supported_models)()
         .iter()
         .map(|model_id| {
             let schema = schema_for_block_model(effect_type, model_id)?;
@@ -322,7 +322,76 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 knob_layout: visual.as_ref().map(|v| v.knob_layout).unwrap_or(&[]),
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+
+    // Merge in disk-backed packages whose `block_type` matches this
+    // `effect_type`. Native models still pass through the static
+    // `entry.supported_models` slice above; disk packages were absent
+    // from that slice and so wouldn't surface to the GUI before this
+    // change. Issue #287.
+    if let Some(block_type) = block_type_for_effect_type(effect_type) {
+        let already: std::collections::HashSet<String> =
+            result.iter().map(|e| e.model_id.clone()).collect();
+        for package in plugin_loader::registry::packages_for(block_type) {
+            if already.contains(&package.manifest.id) {
+                continue;
+            }
+            let visual = (entry.model_visual)(package.manifest.id.as_str());
+            let type_label = visual
+                .as_ref()
+                .map(|v| v.type_label.to_string())
+                .unwrap_or_else(|| backend_label_for(&package.manifest.backend).to_string());
+            result.push(BlockModelCatalogEntry {
+                effect_type: effect_type.to_string(),
+                model_id: package.manifest.id.clone(),
+                display_name: package.manifest.display_name.clone(),
+                brand: package.manifest.brand.clone().unwrap_or_default(),
+                type_label,
+                supported_instruments: block_core::ALL_INSTRUMENTS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                knob_layout: &[],
+            });
+        }
+    }
+    Ok(result)
+}
+
+/// Map a stable `effect_type` string to the discriminant the
+/// plugin-loader registry uses. Returns `None` for `effect_type` values
+/// that don't correspond to a [`plugin_loader::manifest::BlockType`]
+/// variant — those don't have disk-package support.
+fn block_type_for_effect_type(effect_type: &str) -> Option<plugin_loader::manifest::BlockType> {
+    use block_core::*;
+    use plugin_loader::manifest::BlockType;
+    Some(match effect_type {
+        s if s == EFFECT_TYPE_PREAMP => BlockType::Preamp,
+        s if s == EFFECT_TYPE_AMP => BlockType::Amp,
+        s if s == EFFECT_TYPE_CAB => BlockType::Cab,
+        s if s == EFFECT_TYPE_BODY => BlockType::Body,
+        s if s == EFFECT_TYPE_GAIN => BlockType::GainPedal,
+        s if s == EFFECT_TYPE_DELAY => BlockType::Delay,
+        s if s == EFFECT_TYPE_REVERB => BlockType::Reverb,
+        s if s == EFFECT_TYPE_MODULATION => BlockType::Mod,
+        s if s == EFFECT_TYPE_DYNAMICS => BlockType::Dyn,
+        s if s == EFFECT_TYPE_FILTER => BlockType::Filter,
+        s if s == EFFECT_TYPE_WAH => BlockType::Wah,
+        s if s == EFFECT_TYPE_PITCH => BlockType::Pitch,
+        s if s == EFFECT_TYPE_UTILITY => BlockType::Util,
+        _ => return None,
+    })
+}
+
+fn backend_label_for(backend: &plugin_loader::manifest::Backend) -> &'static str {
+    use plugin_loader::manifest::Backend;
+    match backend {
+        Backend::Native { .. } => "NATIVE",
+        Backend::Nam { .. } => "NAM",
+        Backend::Ir { .. } => "IR",
+        Backend::Lv2 { .. } => "LV2",
+        Backend::Vst3 { .. } => "VST3",
+    }
 }
 
 /// Returns the stream kind produced by a model's StreamHandle.
