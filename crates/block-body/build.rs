@@ -21,6 +21,9 @@ fn main() {
         if matches!(stem, "lib" | "registry") {
             continue;
         }
+        if stem.ends_with("_tests") {
+            continue;
+        }
 
         let contents = fs::read_to_string(&path).expect("read source");
         if contents.contains("MODEL_DEFINITION") {
