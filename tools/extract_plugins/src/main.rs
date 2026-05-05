@@ -164,26 +164,33 @@ fn extract_and_emit(source_file: &Path, block_type: BlockType, out: &Path) -> Re
 
 // ─── source-file scanners ────────────────────────────────────────────────────
 
-/// Find the value of a `[pub] const NAME: &str = "...";` line.
+/// Find the value of a `[pub] const NAME: &str = "...";` declaration.
+///
+/// Handles both single-line forms and the multi-line variant common in
+/// GxPlugins where the value is wrapped onto the next line:
+///
+/// ```ignore
+/// const PLUGIN_URI: &str =
+///     "http://...";
+/// ```
 fn read_str_const(source: &str, name: &str, must_be_pub: bool) -> Option<String> {
-    let needle = if must_be_pub {
-        format!("pub const {name}: &str = ")
+    let candidates: &[String] = if must_be_pub {
+        &[format!("pub const {name}: &str =")]
     } else {
-        format!("const {name}: &str = ")
+        &[
+            format!("const {name}: &str ="),
+            format!("pub const {name}: &str ="),
+        ]
     };
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with(&needle) {
-            let rest = &trimmed[needle.len()..];
-            return read_string_literal(rest);
-        }
-        // also allow non-pub when caller permitted pub-or-not via must_be_pub=false
-        if !must_be_pub {
-            let alt = format!("pub const {name}: &str = ");
-            if trimmed.starts_with(&alt) {
-                let rest = &trimmed[alt.len()..];
-                return read_string_literal(rest);
-            }
+
+    for candidate in candidates {
+        if let Some(start) = source.find(candidate.as_str()) {
+            // Skip past the candidate prefix; then scan forward for the
+            // first `"` (the start of the literal). Whitespace/newlines
+            // between `=` and `"` are accepted.
+            let after = &source[start + candidate.len()..];
+            let quote_offset = after.find('"')?;
+            return read_string_literal(&after[quote_offset..]);
         }
     }
     None
@@ -556,6 +563,38 @@ fn build_grid_manifest(
     flavor: &str,
 ) -> Result<PluginManifest> {
     let parameters = read_enum_parameters(source);
+
+    // Some plugins are single-capture and skip the array literal: they hold
+    // a `const CAPTURE_PATH: &str = "..."` instead. Treat those as a one-cell
+    // grid with no parameters before falling through to the array path.
+    if let Some(single_path) = read_str_const(source, "CAPTURE_PATH", false) {
+        let captures = vec![GridCapture {
+            values: BTreeMap::new(),
+            file: PathBuf::from(strip_path_prefix(&single_path, flavor)),
+        }];
+        let backend = match flavor {
+            "nam" => Backend::Nam {
+                parameters: vec![],
+                captures,
+            },
+            "ir" => Backend::Ir {
+                parameters: vec![],
+                captures,
+            },
+            other => return Err(anyhow!("unknown grid flavor `{other}`")),
+        };
+        return Ok(PluginManifest {
+            manifest_version: 1,
+            id: model_id.to_string(),
+            display_name: display_name.to_string(),
+            author: None,
+            description: None,
+            inspired_by: brand.map(str::to_string),
+            block_type,
+            backend,
+        });
+    }
+
     let captures_body = read_captures_block(source)
         .ok_or_else(|| anyhow!("no `const CAPTURES` block found in source"))?;
     let entries = read_capture_entries(captures_body);
