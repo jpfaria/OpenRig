@@ -9,6 +9,7 @@
 pub mod config;
 pub mod discover;
 pub mod dispatch;
+pub mod dispatch_infer;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;

@@ -319,7 +319,7 @@ captures:
 
         let results = discover(&tmp.path).expect("read dir");
         assert_eq!(results.len(), 1);
-        let err = results[0].as_ref().err().expect("validation error");
+        let err = results[0].as_ref().expect_err("validation error");
         match err {
             DiscoveryError::Package { source, .. } => match source {
                 PackageError::MissingCaptureFile { .. } => {}

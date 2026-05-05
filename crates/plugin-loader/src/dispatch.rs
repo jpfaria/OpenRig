@@ -224,7 +224,7 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
 fn ports_for_only_plugin_in_bundle(texts: &[String]) -> Option<Vec<Lv2Port>> {
     let mut hits: Vec<&str> = Vec::new();
     for text in texts {
-        for block in find_plugin_blocks(text) {
+        for block in find_plugin_blocks_in_text(text) {
             // Skip blocks that declare zero ports — usually
             // `manifest.ttl` pointer entries that say "this plugin
             // exists, here's its binary" without enumerating ports.
@@ -243,7 +243,7 @@ fn ports_for_only_plugin_in_bundle(texts: &[String]) -> Option<Vec<Lv2Port>> {
 /// `subject ... a lv2:Plugin ... .` statement. The returned slice
 /// starts right after the subject token and runs to the terminating
 /// `.`, which is exactly the shape `parse_ports` expects.
-fn find_plugin_blocks(text: &str) -> Vec<&str> {
+pub(crate) fn find_plugin_blocks_in_text(text: &str) -> Vec<&str> {
     let mut out: Vec<&str> = Vec::new();
     let mut cursor = 0usize;
     while let Some(rel) = text[cursor..].find("lv2:Plugin") {
@@ -365,7 +365,7 @@ fn extract_plugin_block(combined: &str, plugin_uri: &str) -> Option<String> {
 /// document. Returns `(name, base)` pairs in document order. Only
 /// well-formed lines are recognised — malformed prefixes are ignored
 /// silently rather than failing the whole scan.
-fn parse_turtle_prefixes(combined: &str) -> Vec<(String, String)> {
+pub(crate) fn parse_turtle_prefixes(combined: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for raw_line in combined.lines() {
         let line = raw_line.trim_start();
@@ -393,7 +393,7 @@ fn parse_turtle_prefixes(combined: &str) -> Vec<(String, String)> {
     out
 }
 
-fn parse_ports(plugin_block: &str) -> Vec<Lv2Port> {
+pub(crate) fn parse_ports(plugin_block: &str) -> Vec<Lv2Port> {
     let mut ports = Vec::new();
     let bytes = plugin_block.as_bytes();
     let mut i = 0;
