@@ -794,6 +794,202 @@ fn materialize_discrete_range(min: f64, max: f64, step: f64) -> Vec<f64> {
     values
 }
 
+/// Build a map from `<Path>::<Variant>` (e.g. `GainLevel::BrLg`) to the
+/// `(parameter_name, value)` pair the source binds it to.
+///
+/// Source convention: each enum has a `parse_<name>(s) -> Result<Enum>` fn
+/// whose match body lists `"br_lg" => Ok(GainLevel::BrLg)` arms. We walk
+/// every such arm and return the reverse: `GainLevel::BrLg` →
+/// `("gain_level", "br_lg")`. The parameter name is `snake_case(<Path>)`,
+/// which the diezel/svt-style plugins follow by convention.
+fn build_enum_path_map(source: &str) -> BTreeMap<String, (String, String)> {
+    let mut map = BTreeMap::new();
+    let bytes = source.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        let Some(quote_offset) = source[cursor..].find('"') else {
+            break;
+        };
+        let lit_start = cursor + quote_offset + 1;
+        let mut scan = lit_start;
+        let mut escaped = false;
+        while scan < bytes.len() {
+            let b = bytes[scan];
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                break;
+            }
+            scan += 1;
+        }
+        if scan >= bytes.len() {
+            break;
+        }
+        let lit_end = scan;
+        let lit_value = source[lit_start..lit_end].to_string();
+        cursor = lit_end + 1;
+
+        let after = source[cursor..].trim_start();
+        if !after.starts_with("=>") {
+            continue;
+        }
+        let after_arrow = after[2..].trim_start();
+        let payload = after_arrow.strip_prefix("Ok(").unwrap_or(after_arrow);
+        let chars: Vec<char> = payload.chars().collect();
+        let mut end = 0usize;
+        while end < chars.len() {
+            let ch = chars[end];
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == ':' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        if end == 0 {
+            continue;
+        }
+        let path: String = chars[..end].iter().collect();
+        if !path.contains("::") {
+            continue;
+        }
+        let enum_name = path.split("::").next().unwrap_or(&path);
+        let param_name = pascal_to_snake_case(enum_name);
+        map.entry(path).or_insert((param_name, lit_value));
+    }
+    map
+}
+
+/// Convert `PascalCase` → `snake_case`. Used to derive the parameter name
+/// a Rust enum belongs to (e.g. `GainLevel` → `gain_level` matches a
+/// schema-declared `enum_parameter("gain_level", ...)`).
+fn pascal_to_snake_case(input: &str) -> String {
+    let mut out = String::with_capacity(input.len() + 4);
+    for (i, ch) in input.chars().enumerate() {
+        if ch.is_ascii_uppercase() {
+            if i > 0 {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// One token extracted from a capture-entry argument list: either a
+/// positional literal (string or number with no parameter binding) or a
+/// named binding decoded from a Rust enum path like `Channel::Ch2`.
+#[derive(Debug, Clone)]
+enum EntryArg {
+    Positional(Literal),
+    Named { name: String, value: String },
+}
+
+/// Walk a capture-entry argument list and emit one [`EntryArg`] per
+/// recognised token, in source order. Skips inside string literals so the
+/// content of `"..."` is never re-scanned. Comments and unrecognised
+/// identifiers are silently skipped — the caller only needs values.
+fn extract_capture_args(entry: &str, enum_paths: &BTreeMap<String, (String, String)>) -> Vec<EntryArg> {
+    let mut out = Vec::new();
+    let bytes = entry.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'"' {
+            // String literal — preserve as positional.
+            let start = i + 1;
+            let mut scan = start;
+            let mut escaped = false;
+            while scan < bytes.len() {
+                let inner = bytes[scan];
+                if escaped {
+                    escaped = false;
+                } else if inner == b'\\' {
+                    escaped = true;
+                } else if inner == b'"' {
+                    break;
+                }
+                scan += 1;
+            }
+            if scan >= bytes.len() {
+                break;
+            }
+            out.push(EntryArg::Positional(Literal::String(
+                entry[start..scan].to_string(),
+            )));
+            i = scan + 1;
+            continue;
+        }
+        // Numeric literal.
+        let is_digit = b.is_ascii_digit();
+        let is_neg = b == b'-' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_digit();
+        if is_digit || is_neg {
+            let prev = if i == 0 { None } else { Some(bytes[i - 1]) };
+            let valid_prefix = prev
+                .map(|p| matches!(p, b'(' | b',' | b' ' | b'\n' | b'\t' | b'[' | b'='))
+                .unwrap_or(true);
+            if valid_prefix {
+                let start = i;
+                let mut scan = start;
+                if bytes[scan] == b'-' {
+                    scan += 1;
+                }
+                while scan < bytes.len() && bytes[scan].is_ascii_digit() {
+                    scan += 1;
+                }
+                if scan < bytes.len() && bytes[scan] == b'.' {
+                    scan += 1;
+                    while scan < bytes.len() && bytes[scan].is_ascii_digit() {
+                        scan += 1;
+                    }
+                }
+                if let Ok(value) = entry[start..scan].parse::<f64>() {
+                    out.push(EntryArg::Positional(Literal::Number(value)));
+                }
+                i = scan;
+                continue;
+            }
+        }
+        // Identifier — possibly a Rust path like `Channel::Ch2`.
+        if b.is_ascii_alphabetic() || b == b'_' {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            let mut path_end = i;
+            while path_end + 2 <= bytes.len() && bytes[path_end] == b':' && bytes[path_end + 1] == b':' {
+                let try_ident = path_end + 2;
+                if try_ident >= bytes.len()
+                    || !(bytes[try_ident].is_ascii_alphabetic() || bytes[try_ident] == b'_')
+                {
+                    break;
+                }
+                let mut j = try_ident;
+                while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                    j += 1;
+                }
+                path_end = j;
+            }
+            let token = &entry[start..path_end];
+            if token.contains("::") {
+                if let Some((param, value)) = enum_paths.get(token) {
+                    out.push(EntryArg::Named {
+                        name: param.clone(),
+                        value: value.clone(),
+                    });
+                }
+            }
+            i = path_end;
+            continue;
+        }
+        i += 1;
+    }
+    out
+}
+
 // ─── manifest builders ───────────────────────────────────────────────────────
 
 fn build_grid_manifest(
@@ -805,13 +1001,17 @@ fn build_grid_manifest(
     flavor: &str,
 ) -> Result<PluginManifest> {
     let parameters = read_enum_parameters(source);
+    let enum_paths = build_enum_path_map(source);
 
     // Prefer the `const CAPTURES: &[T] = &[...]` array when present — it
     // carries the full grid with parameter values. Only fall back to the
     // const-CAPTURE_<NAME> pattern (single or multi flat captures, no
     // parameters) when the array literal is genuinely absent.
     if let Some(captures_body) = read_captures_block(source) {
-        let entries = read_capture_entries(captures_body);
+        let entries: Vec<String> = read_capture_entries(captures_body)
+            .into_iter()
+            .map(str::to_string)
+            .collect();
         return build_grid_manifest_from_entries(
             model_id,
             display_name,
@@ -820,6 +1020,7 @@ fn build_grid_manifest(
             flavor,
             parameters,
             entries,
+            &enum_paths,
         );
     }
 
@@ -873,40 +1074,64 @@ fn build_grid_manifest_from_entries(
     block_type: BlockType,
     flavor: &str,
     parameters: Vec<GridParameter>,
-    entries: Vec<&str>,
+    entries: Vec<String>,
+    enum_paths: &BTreeMap<String, (String, String)>,
 ) -> Result<PluginManifest> {
 
-    // For NAM/IR captures, the file path is the LAST string literal in each
-    // entry; the parameter values precede it. We use the parameter list to
-    // know how many values to bind by position.
+    // Each entry's args are a mix of positional literals (strings/numbers)
+    // and named bindings decoded from Rust enum paths (`GainLevel::BrLg`).
+    // The last positional string literal is the asset path. Named args
+    // bind directly to their parameter; remaining positional values fill
+    // unbound parameters in source order. This handles three real-world
+    // shapes seen in the codebase:
+    //
+    //   1. `("sm57", "path/to/file.wav")` — purely positional
+    //   2. `(Channel::Ch2, GainLevel::BrLg, Boost::None, "path.nam")` — purely named
+    //   3. `(Channel::Ch2, "alt", "path.nam")` — mixed
     let mut captures: Vec<GridCapture> = Vec::new();
     for entry in entries {
-        let literals = read_literals_in(entry);
-        if literals.is_empty() {
-            continue;
-        }
-        // The last string literal is always the asset path. Everything
-        // before that — strings or numbers, in source order — feeds the
-        // declared parameters by position.
-        let last_string_index = literals
+        let args = extract_capture_args(&entry, enum_paths);
+        let last_positional_string = args
             .iter()
-            .rposition(|literal| matches!(literal, Literal::String(_)));
-        let Some(file_index) = last_string_index else {
+            .rposition(|arg| matches!(arg, EntryArg::Positional(Literal::String(_))));
+        let Some(file_index) = last_positional_string else {
             continue;
         };
-        let file_relative = match &literals[file_index] {
-            Literal::String(value) => value.clone(),
-            Literal::Number(_) => continue,
+        let file_relative = match &args[file_index] {
+            EntryArg::Positional(Literal::String(value)) => value.clone(),
+            _ => continue,
         };
-        let value_literals = &literals[..file_index];
-        let mut values = BTreeMap::new();
-        for (parameter, literal) in parameters.iter().zip(value_literals.iter()) {
+
+        let mut values: BTreeMap<String, ParameterValue> = BTreeMap::new();
+        let mut positional_buffer: Vec<Literal> = Vec::new();
+        for (idx, arg) in args.iter().enumerate() {
+            if idx == file_index {
+                continue;
+            }
+            match arg {
+                EntryArg::Named { name, value } => {
+                    values.insert(name.clone(), ParameterValue::Text(value.clone()));
+                }
+                EntryArg::Positional(literal) => positional_buffer.push(literal.clone()),
+            }
+        }
+        // Fill remaining parameters positionally, skipping ones already
+        // resolved via named bindings.
+        let mut buf_iter = positional_buffer.into_iter();
+        for parameter in &parameters {
+            if values.contains_key(&parameter.name) {
+                continue;
+            }
+            let Some(literal) = buf_iter.next() else {
+                break;
+            };
             let parameter_value = match literal {
-                Literal::String(text) => ParameterValue::Text(text.clone()),
-                Literal::Number(number) => ParameterValue::Number(*number),
+                Literal::String(text) => ParameterValue::Text(text),
+                Literal::Number(number) => ParameterValue::Number(number),
             };
             values.insert(parameter.name.clone(), parameter_value);
         }
+
         captures.push(GridCapture {
             values,
             file: PathBuf::from(strip_path_prefix(&file_relative, flavor)),
