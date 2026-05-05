@@ -10,13 +10,6 @@
 //!      .msi) all place a `plugins/` directory next to the deployed
 //!      `config.yaml`, so this works without per-OS hardcoding.
 //!
-//! Dev workflows set `plugins_root:` explicitly to point at a
-//! sibling-cloned `OpenRig-plugins` checkout, e.g.
-//!
-//! ```yaml
-//! plugins_root: ../OpenRig-plugins/plugins/source
-//! ```
-//!
 //! Issue: #287
 
 use std::path::{Path, PathBuf};
