@@ -1,3 +1,4 @@
+import { ScrollView } from "std-widgets.slint";
 import { BlockModelPickerItem } from "../models.slint";
 
 // Reusable model picker with embedded search field.
@@ -216,11 +217,12 @@ export component ModelSelectWithSearch inherits Rectangle {
             }
 
             // Filtered list.
-            if root.filtered-models.length > 0 : Flickable {
+            if root.filtered-models.length > 0 : ScrollView {
                 x: 0;
                 y: 54px;
                 width: parent.width;
                 height: parent.height - 54px;
+                viewport-width: self.width;
                 viewport-height: root.filtered-models.length * 36px + 8px;
 
                 for model[i] in root.filtered-models : Rectangle {
@@ -295,11 +297,10 @@ export component ModelSelectWithSearch inherits Rectangle {
                             root.select(model.model_id);
                             popup.close();
                         }
-                        // Let wheel/trackpad scroll bubble up to the
-                        // outer Flickable — without this, the row's
-                        // TouchArea swallows the scroll event and the
-                        // dropdown becomes unscrollable when there are
-                        // more models than fit on screen.
+                        // Bubble wheel/trackpad scroll up to the outer
+                        // ScrollView — without this, the row's TouchArea
+                        // swallows the scroll event and the dropdown
+                        // stops scrolling when the cursor is over a row.
                         scroll-event(_) => {
                             reject
                         }
