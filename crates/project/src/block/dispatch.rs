@@ -72,23 +72,169 @@ pub fn schema_for_block_model(
 }
 
 /// Fallback: if the legacy block-* registry doesn't recognise the model,
-/// try `plugin_loader::registry`. Synthesizes a minimal schema (empty
-/// parameter list — `ParameterSet::normalized_against` tolerates unknown
-/// params) so disk-backed blocks can load and audio paths can dispatch.
-/// Issue: #287.
+/// try `plugin_loader::registry`. Synthesizes a parameter schema from
+/// the manifest data so the GUI can render knobs for disk-backed
+/// plugins. Issue: #287.
 fn schema_from_disk_package(
     effect_type: &str,
     model: &str,
     legacy_err: String,
 ) -> Result<ModelParameterSchema, String> {
     let package = plugin_loader::registry::find(model).ok_or(legacy_err)?;
+    let parameters = synthesize_parameters_from_manifest(package);
     Ok(ModelParameterSchema {
         effect_type: effect_type.to_string(),
         model: package.manifest.id.clone(),
         display_name: package.manifest.display_name.clone(),
         audio_mode: block_core::ModelAudioMode::DualMono,
-        parameters: Vec::new(),
+        parameters,
     })
+}
+
+/// Build a `Vec<ParameterSpec>` from a `LoadedPackage` manifest:
+/// - NAM/IR: each grid axis becomes a float (numeric values) or enum
+///   (text values) parameter spanning the declared min..max.
+/// - LV2: scan the bundle's TTL files and emit a float param per
+///   `ControlIn` port using its TTL min/max/default.
+/// - VST3: each declared `Vst3Parameter` becomes a 0..1 float param.
+/// - Native: nothing — natives go through the legacy schema path so
+///   this branch shouldn't fire in practice; return empty to avoid a
+///   panic if it ever does.
+fn synthesize_parameters_from_manifest(
+    package: &plugin_loader::LoadedPackage,
+) -> Vec<block_core::param::ParameterSpec> {
+    use plugin_loader::manifest::Backend;
+    match &package.manifest.backend {
+        Backend::Nam {
+            parameters,
+            ..
+        }
+        | Backend::Ir {
+            parameters,
+            ..
+        } => parameters
+            .iter()
+            .map(grid_parameter_to_spec)
+            .collect(),
+        Backend::Lv2 {
+            plugin_uri,
+            binaries,
+        } => synthesize_lv2_parameters(package, plugin_uri, binaries),
+        Backend::Vst3 { parameters, .. } => parameters
+            .iter()
+            .map(|param| {
+                block_core::param::float_parameter(
+                    &param.name,
+                    param.display_name.as_deref().unwrap_or(&param.name),
+                    None,
+                    Some(param.default as f32),
+                    param.min as f32,
+                    param.max as f32,
+                    param.step.unwrap_or(0.01) as f32,
+                    block_core::param::ParameterUnit::None,
+                )
+            })
+            .collect(),
+        Backend::Native { .. } => Vec::new(),
+    }
+}
+
+fn grid_parameter_to_spec(parameter: &plugin_loader::manifest::GridParameter) -> block_core::param::ParameterSpec {
+    use plugin_loader::manifest::ParameterValue;
+    let label = parameter
+        .display_name
+        .as_deref()
+        .unwrap_or(&parameter.name);
+    let all_numeric = parameter
+        .values
+        .iter()
+        .all(|v| matches!(v, ParameterValue::Number(_)));
+    if all_numeric && !parameter.values.is_empty() {
+        let numbers: Vec<f64> = parameter
+            .values
+            .iter()
+            .filter_map(|v| match v {
+                ParameterValue::Number(n) => Some(*n),
+                _ => None,
+            })
+            .collect();
+        let min = numbers.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = numbers.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let default = numbers.first().copied().unwrap_or(min);
+        let step = if numbers.len() > 1 {
+            (numbers[1] - numbers[0]).abs() as f32
+        } else {
+            1.0_f32
+        };
+        block_core::param::float_parameter(
+            &parameter.name,
+            label,
+            None,
+            Some(default as f32),
+            min as f32,
+            max as f32,
+            step.max(0.01),
+            block_core::param::ParameterUnit::None,
+        )
+    } else {
+        let options: Vec<(String, String)> = parameter
+            .values
+            .iter()
+            .map(|value| {
+                let s = match value {
+                    ParameterValue::Text(t) => t.clone(),
+                    ParameterValue::Number(n) => n.to_string(),
+                };
+                (s.clone(), s)
+            })
+            .collect();
+        let option_refs: Vec<(&str, &str)> = options
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let default = options.first().map(|(k, _)| k.as_str());
+        block_core::param::enum_parameter(&parameter.name, label, None, default, &option_refs)
+    }
+}
+
+fn synthesize_lv2_parameters(
+    package: &plugin_loader::LoadedPackage,
+    plugin_uri: &str,
+    binaries: &std::collections::BTreeMap<plugin_loader::manifest::Lv2Slot, std::path::PathBuf>,
+) -> Vec<block_core::param::ParameterSpec> {
+    use plugin_loader::dispatch::Lv2PortRole;
+    // Pick any platform binary to find the bundle directory — we only
+    // need the TTL path; the binary itself isn't loaded here.
+    let Some((_, rel_binary)) = binaries.iter().next() else {
+        return Vec::new();
+    };
+    let bin_path = package.root.join(rel_binary);
+    let Some(bundle_dir) = bin_path.parent() else {
+        return Vec::new();
+    };
+    let Ok(ports) = plugin_loader::dispatch::scan_lv2_ports(bundle_dir, plugin_uri) else {
+        return Vec::new();
+    };
+    ports
+        .into_iter()
+        .filter(|port| port.role == Lv2PortRole::ControlIn)
+        .map(|port| {
+            let label = port.name.clone().unwrap_or_else(|| port.symbol.clone());
+            let min = port.minimum.unwrap_or(0.0);
+            let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
+            let default = port.default_value.unwrap_or((min + max) / 2.0);
+            block_core::param::float_parameter(
+                &port.symbol,
+                &label,
+                None,
+                Some(default),
+                min,
+                max,
+                ((max - min) / 100.0).max(0.001),
+                block_core::param::ParameterUnit::None,
+            )
+        })
+        .collect()
 }
 
 fn schema_for_block_model_legacy(

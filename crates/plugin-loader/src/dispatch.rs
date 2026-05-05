@@ -122,6 +122,9 @@ pub struct Lv2Port {
     pub symbol: String,
     pub role: Lv2PortRole,
     pub default_value: Option<f32>,
+    pub minimum: Option<f32>,
+    pub maximum: Option<f32>,
+    pub name: Option<String>,
 }
 
 /// Parse every `<plugin>.ttl` (and `manifest.ttl`) inside `bundle_dir`
@@ -238,11 +241,17 @@ fn parse_port_block(block: &str) -> Option<Lv2Port> {
         return None;
     }
     let default_value = capture_after(block, "lv2:default").and_then(|raw| raw.parse::<f32>().ok());
+    let minimum = capture_after(block, "lv2:minimum").and_then(|raw| raw.parse::<f32>().ok());
+    let maximum = capture_after(block, "lv2:maximum").and_then(|raw| raw.parse::<f32>().ok());
+    let name = capture_quoted(block, "lv2:name");
     Some(Lv2Port {
         index,
         symbol,
         role,
         default_value,
+        minimum,
+        maximum,
+        name,
     })
 }
 
