@@ -150,35 +150,51 @@ pub struct Lv2Port {
 /// be skipped. For the curated bundles shipped by OpenRig this is
 /// adequate.
 pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port>> {
-    let mut combined = String::new();
-    let mut found_files = false;
-    if bundle_dir.is_dir() {
-        for entry in fs::read_dir(bundle_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("ttl") {
-                continue;
-            }
-            if let Ok(text) = fs::read_to_string(&path) {
-                combined.push_str(&text);
-                combined.push('\n');
-                found_files = true;
-            }
-        }
-    }
-    if !found_files {
+    if !bundle_dir.is_dir() {
         return Err(anyhow!(
             "no .ttl files in LV2 bundle directory `{}`",
             bundle_dir.display()
         ));
     }
-    let plugin_block = extract_plugin_block(&combined, plugin_uri).ok_or_else(|| {
-        anyhow!(
-            "plugin URI `{plugin_uri}` not found in TTL files under `{}`",
+    // The same plugin URI typically appears in multiple .ttl files
+    // inside a bundle: `manifest.ttl` declares the plugin and points at
+    // the binary (no ports), `<plugin>_dsp.ttl` carries the actual port
+    // declarations, preset .ttls re-reference the URI to attach values.
+    // We need the block with the most ports — parse each file
+    // separately and keep the longest list.
+    let mut best: Vec<Lv2Port> = Vec::new();
+    let mut any_ttl = false;
+    for entry in fs::read_dir(bundle_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("ttl") {
+            continue;
+        }
+        any_ttl = true;
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Some(block) = extract_plugin_block(&text, plugin_uri) else {
+            continue;
+        };
+        let ports = parse_ports(&block);
+        if ports.len() > best.len() {
+            best = ports;
+        }
+    }
+    if !any_ttl {
+        return Err(anyhow!(
+            "no .ttl files in LV2 bundle directory `{}`",
             bundle_dir.display()
-        )
-    })?;
-    Ok(parse_ports(&plugin_block))
+        ));
+    }
+    if best.is_empty() {
+        return Err(anyhow!(
+            "plugin URI `{plugin_uri}` has no port declarations in any .ttl under `{}`",
+            bundle_dir.display()
+        ));
+    }
+    Ok(best)
 }
 
 /// Substring of `combined` that starts at the plugin URI and runs until
@@ -428,6 +444,50 @@ mod tests {
         assert_eq!(control.len(), 1);
         assert_eq!(control[0].symbol, "gain");
         assert_eq!(control[0].default_value, Some(0.5));
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+
+    #[test]
+    fn scan_lv2_ports_picks_block_with_ports_when_uri_appears_in_multiple_ttls() {
+        use std::fs;
+        let tmp = std::env::temp_dir().join(format!("openrig-ttl-multi-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        // manifest.ttl: alphabetically first — declares URI but NO ports.
+        // This mirrors the real LV2 bundle layout where manifest.ttl is
+        // a tiny pointer and <plugin>_dsp.ttl carries the port info.
+        fs::write(
+            tmp.join("manifest.ttl"),
+            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:binary <plug.so> .\n",
+        ).unwrap();
+        fs::write(
+            tmp.join("plug.ttl"),
+            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:AudioPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"in\" ;\n\
+    ] ,\n\
+    [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 1 ;\n\
+        lv2:symbol \"gain\" ;\n\
+        lv2:default 0.7 ;\n\
+    ] .\n",
+        ).unwrap();
+
+        let ports = scan_lv2_ports(&tmp, "urn:test:plug").expect("ports");
+        assert_eq!(
+            ports.len(),
+            2,
+            "expected scan to find ports declared in plug.ttl even though manifest.ttl mentions the URI first; got {ports:?}"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
