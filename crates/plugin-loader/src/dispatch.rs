@@ -63,7 +63,11 @@ fn snap_user_value(parameter: &GridParameter, params: &ParameterSet) -> Paramete
         }
     }
     if let Some(user_number) = params.get_f32(&parameter.name) {
-        let mut best = parameter.values.first().cloned().unwrap_or(ParameterValue::Number(0.0));
+        let mut best = parameter
+            .values
+            .first()
+            .cloned()
+            .unwrap_or(ParameterValue::Number(0.0));
         let mut best_dist = f64::INFINITY;
         for declared in &parameter.values {
             if let ParameterValue::Number(declared_value) = declared {
@@ -198,19 +202,28 @@ pub fn scan_lv2_ports(bundle_dir: &Path, plugin_uri: &str) -> Result<Vec<Lv2Port
 }
 
 /// Substring of `combined` that starts at the plugin URI and runs until
-/// its terminating `.` (or end of string) — every TTL plugin block ends
-/// with a `.` separator.
+/// its terminating `.` separator. Tracks three kinds of nesting so
+/// turtle quirks don't break the walker:
+/// - `[ ... ]` blank-node depth (port descriptors).
+/// - `< ... >` URI quoting — periods inside URLs like
+///   `<http://lv2plug.in/...>` are NOT statement terminators.
+/// - `" ... "` literal strings — same reason.
 fn extract_plugin_block(combined: &str, plugin_uri: &str) -> Option<String> {
     let needle = format!("<{plugin_uri}>");
     let start = combined.find(&needle)?;
     let after = &combined[start + needle.len()..];
     let mut depth: i32 = 0;
+    let mut in_uri = false;
+    let mut in_string = false;
     let mut end = after.len();
     for (idx, ch) in after.char_indices() {
         match ch {
-            '[' => depth += 1,
-            ']' => depth = (depth - 1).max(0),
-            '.' if depth == 0 => {
+            '"' if !in_uri => in_string = !in_string,
+            '<' if !in_string && !in_uri => in_uri = true,
+            '>' if !in_string && in_uri => in_uri = false,
+            '[' if !in_uri && !in_string => depth += 1,
+            ']' if !in_uri && !in_string => depth = (depth - 1).max(0),
+            '.' if depth == 0 && !in_uri && !in_string => {
                 end = idx;
                 break;
             }
@@ -346,196 +359,5 @@ pub fn lv2_control_value(symbol: &str, default: Option<f32>, params: &ParameterS
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::manifest::ParameterValue as ManifestParameterValue;
-    use domain::value_objects::ParameterValue as DomainValue;
-
-    fn cap(values: &[(&str, f64)], file: &str) -> GridCapture {
-        GridCapture {
-            values: values
-                .iter()
-                .map(|(k, v)| ((*k).to_string(), ManifestParameterValue::Number(*v)))
-                .collect(),
-            file: file.into(),
-        }
-    }
-
-    fn pset(pairs: &[(&str, f32)]) -> ParameterSet {
-        let mut p = ParameterSet::default();
-        for (k, v) in pairs {
-            p.insert(*k, DomainValue::Float(*v));
-        }
-        p
-    }
-
-    #[test]
-    fn resolve_capture_picks_exact_numeric_match() {
-        let parameters = vec![GridParameter {
-            name: "gain".into(),
-            display_name: None,
-            values: vec![ManifestParameterValue::Number(10.0), ManifestParameterValue::Number(20.0)],
-        }];
-        let captures = vec![cap(&[("gain", 10.0)], "g10.nam"), cap(&[("gain", 20.0)], "g20.nam")];
-        let chosen = resolve_capture(&parameters, &captures, &pset(&[("gain", 20.0)])).unwrap();
-        assert_eq!(chosen.file.to_str(), Some("g20.nam"));
-    }
-
-    #[test]
-    fn resolve_capture_snaps_to_nearest_numeric() {
-        let parameters = vec![GridParameter {
-            name: "gain".into(),
-            display_name: None,
-            values: vec![
-                ManifestParameterValue::Number(10.0),
-                ManifestParameterValue::Number(50.0),
-                ManifestParameterValue::Number(90.0),
-            ],
-        }];
-        let captures = vec![
-            cap(&[("gain", 10.0)], "low.nam"),
-            cap(&[("gain", 50.0)], "mid.nam"),
-            cap(&[("gain", 90.0)], "high.nam"),
-        ];
-        let chosen = resolve_capture(&parameters, &captures, &pset(&[("gain", 47.0)])).unwrap();
-        assert_eq!(chosen.file.to_str(), Some("mid.nam"));
-    }
-
-    #[test]
-    fn resolve_capture_returns_first_when_no_parameters() {
-        let captures = vec![cap(&[], "only.wav"), cap(&[], "other.wav")];
-        let chosen = resolve_capture(&[], &captures, &ParameterSet::default()).unwrap();
-        assert_eq!(chosen.file.to_str(), Some("only.wav"));
-    }
-
-    #[test]
-    fn scan_lv2_ports_extracts_audio_and_control_indices() {
-        use std::fs;
-        let tmp = std::env::temp_dir().join(format!("openrig-ttl-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        let ttl = "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
-<urn:test:plug>\n\
-    a lv2:Plugin ;\n\
-    lv2:port [\n\
-        a lv2:InputPort, lv2:AudioPort ;\n\
-        lv2:index 0 ;\n\
-        lv2:symbol \"in_l\" ;\n\
-    ] ,\n\
-    [\n\
-        a lv2:OutputPort, lv2:AudioPort ;\n\
-        lv2:index 1 ;\n\
-        lv2:symbol \"out_l\" ;\n\
-    ] ,\n\
-    [\n\
-        a lv2:InputPort, lv2:ControlPort ;\n\
-        lv2:index 2 ;\n\
-        lv2:symbol \"gain\" ;\n\
-        lv2:default 0.5 ;\n\
-    ] .\n";
-        fs::write(tmp.join("plug.ttl"), ttl).unwrap();
-        let ports = scan_lv2_ports(&tmp, "urn:test:plug").unwrap();
-        assert_eq!(ports.len(), 3);
-        let audio_in: Vec<_> = ports.iter().filter(|p| p.role == Lv2PortRole::AudioIn).collect();
-        assert_eq!(audio_in.len(), 1);
-        assert_eq!(audio_in[0].index, 0);
-        assert_eq!(audio_in[0].symbol, "in_l");
-        let control: Vec<_> = ports.iter().filter(|p| p.role == Lv2PortRole::ControlIn).collect();
-        assert_eq!(control.len(), 1);
-        assert_eq!(control[0].symbol, "gain");
-        assert_eq!(control[0].default_value, Some(0.5));
-        let _ = fs::remove_dir_all(&tmp);
-    }
-
-
-    #[test]
-    fn scan_lv2_ports_picks_block_with_ports_when_uri_appears_in_multiple_ttls() {
-        use std::fs;
-        let tmp = std::env::temp_dir().join(format!("openrig-ttl-multi-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        // manifest.ttl: alphabetically first — declares URI but NO ports.
-        // This mirrors the real LV2 bundle layout where manifest.ttl is
-        // a tiny pointer and <plugin>_dsp.ttl carries the port info.
-        fs::write(
-            tmp.join("manifest.ttl"),
-            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
-<urn:test:plug>\n\
-    a lv2:Plugin ;\n\
-    lv2:binary <plug.so> .\n",
-        ).unwrap();
-        fs::write(
-            tmp.join("plug.ttl"),
-            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
-<urn:test:plug>\n\
-    a lv2:Plugin ;\n\
-    lv2:port [\n\
-        a lv2:InputPort, lv2:AudioPort ;\n\
-        lv2:index 0 ;\n\
-        lv2:symbol \"in\" ;\n\
-    ] ,\n\
-    [\n\
-        a lv2:InputPort, lv2:ControlPort ;\n\
-        lv2:index 1 ;\n\
-        lv2:symbol \"gain\" ;\n\
-        lv2:default 0.7 ;\n\
-    ] .\n",
-        ).unwrap();
-
-        let ports = scan_lv2_ports(&tmp, "urn:test:plug").expect("ports");
-        assert_eq!(
-            ports.len(),
-            2,
-            "expected scan to find ports declared in plug.ttl even though manifest.ttl mentions the URI first; got {ports:?}"
-        );
-        let _ = fs::remove_dir_all(&tmp);
-    }
-
-    #[test]
-    fn lv2_control_value_falls_back_through_chain() {
-        let user = pset(&[("dry_level", 80.0)]);
-        assert_eq!(lv2_control_value("dry_level", Some(50.0), &user), 80.0);
-        assert_eq!(lv2_control_value("missing", Some(50.0), &user), 50.0);
-        assert_eq!(lv2_control_value("missing", None, &user), 0.0);
-    }
-
-    #[test]
-    fn scan_lv2_ports_finds_ttls_in_shared_data_dir() {
-        // Real-world bundles dedupe TTLs into `<package>/data/` and
-        // keep `<package>/platform/<slot>/<binary>` per-platform.
-        // scan_lv2_ports must read from `data/` when called with that
-        // path, even if no `.ttl` lives next to the binary itself.
-        use std::fs;
-        let tmp = std::env::temp_dir().join(format!("openrig-lv2-data-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(tmp.join("data")).unwrap();
-        fs::write(
-            tmp.join("data").join("manifest.ttl"),
-            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
-<urn:test:plug>\n\
-    a lv2:Plugin ;\n\
-    lv2:binary <plug.so> .\n",
-        ).unwrap();
-        fs::write(
-            tmp.join("data").join("plug.ttl"),
-            "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
-<urn:test:plug>\n\
-    a lv2:Plugin ;\n\
-    lv2:port [\n\
-        a lv2:InputPort, lv2:AudioPort ;\n\
-        lv2:index 0 ;\n\
-        lv2:symbol \"in\" ;\n\
-    ] ,\n\
-    [\n\
-        a lv2:InputPort, lv2:ControlPort ;\n\
-        lv2:index 1 ;\n\
-        lv2:symbol \"gain\" ;\n\
-        lv2:default 0.7 ;\n\
-    ] .\n",
-        ).unwrap();
-
-        let ports = scan_lv2_ports(&tmp.join("data"), "urn:test:plug").expect("ports");
-        assert_eq!(ports.len(), 2, "expected 2 ports from data/, got {ports:?}");
-        let _ = fs::remove_dir_all(&tmp);
-    }
-}
+#[path = "dispatch_tests.rs"]
+mod tests;
