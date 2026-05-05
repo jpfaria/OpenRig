@@ -1,4 +1,3 @@
-import { ScrollView } from "std-widgets.slint";
 import { BlockModelPickerItem } from "../models.slint";
 
 // Reusable model picker with embedded search field.
@@ -216,8 +215,10 @@ export component ModelSelectWithSearch inherits Rectangle {
                 horizontal-alignment: center;
             }
 
-            // Filtered list.
-            if root.filtered-models.length > 0 : ScrollView {
+            // Filtered list. Flickable supports wheel/trackpad scroll
+            // without rendering a visible scrollbar — the visual noise
+            // of std-widgets ScrollView's track was rejected.
+            if root.filtered-models.length > 0 : Flickable {
                 x: 0;
                 y: 54px;
                 width: parent.width;
