@@ -65,13 +65,17 @@ pub(crate) fn wire(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                chain_window.set_status_message(rust_i18n::t!("error-no-project-loaded").to_string().into());
+                chain_window.set_status_message(
+                    rust_i18n::t!("error-no-project-loaded").to_string().into(),
+                );
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    chain_window.set_status_message(rust_i18n::t!("error-no-chain-editing").to_string().into());
+                    chain_window.set_status_message(
+                        rust_i18n::t!("error-no-chain-editing").to_string().into(),
+                    );
                     return;
                 }
             };
@@ -80,19 +84,24 @@ pub(crate) fn wire(
                 return;
             }
             if draft.outputs.is_empty() {
-                chain_window.set_status_message(rust_i18n::t!("warn-add-output").to_string().into());
+                chain_window
+                    .set_status_message(rust_i18n::t!("warn-add-output").to_string().into());
                 return;
             }
             for (i, input) in draft.inputs.iter().enumerate() {
                 if input.device_id.is_none() {
                     chain_window.set_status_message(
-                        rust_i18n::t!("error-input-no-device-numbered", n = i + 1).to_string().into(),
+                        rust_i18n::t!("error-input-no-device-numbered", n = i + 1)
+                            .to_string()
+                            .into(),
                     );
                     return;
                 }
                 if input.channels.is_empty() {
                     chain_window.set_status_message(
-                        rust_i18n::t!("error-input-no-channels-numbered", n = i + 1).to_string().into(),
+                        rust_i18n::t!("error-input-no-channels-numbered", n = i + 1)
+                            .to_string()
+                            .into(),
                     );
                     return;
                 }
@@ -100,13 +109,17 @@ pub(crate) fn wire(
             for (i, output) in draft.outputs.iter().enumerate() {
                 if output.device_id.is_none() {
                     chain_window.set_status_message(
-                        rust_i18n::t!("error-output-no-device-numbered", n = i + 1).to_string().into(),
+                        rust_i18n::t!("error-output-no-device-numbered", n = i + 1)
+                            .to_string()
+                            .into(),
                     );
                     return;
                 }
                 if output.channels.is_empty() {
                     chain_window.set_status_message(
-                        rust_i18n::t!("error-output-no-channels-numbered", n = i + 1).to_string().into(),
+                        rust_i18n::t!("error-output-no-channels-numbered", n = i + 1)
+                            .to_string()
+                            .into(),
                     );
                     return;
                 }

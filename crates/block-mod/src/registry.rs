@@ -26,7 +26,9 @@ pub fn find_model_definition(model: &str) -> Result<&'static ModModelDefinition>
         .ok_or_else(|| anyhow!("unsupported tremolo model '{}'", model))
 }
 
-fn noop_validate(_: &block_core::param::ParameterSet) -> anyhow::Result<()> { Ok(()) }
+fn noop_validate(_: &block_core::param::ParameterSet) -> anyhow::Result<()> {
+    Ok(())
+}
 
 /// Push every native model into the unified plugin-loader registry.
 /// Disk-backed models (NAM/IR/LV2/VST3) stay in the legacy per-block path

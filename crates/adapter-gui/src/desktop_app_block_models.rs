@@ -42,12 +42,15 @@ pub(crate) struct BlockEditorModels {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
 }
 
-pub(crate) fn init(window: &AppWindow, block_editor_window: &BlockEditorWindow) -> BlockEditorModels {
-    let block_type_options =
-        Rc::new(VecModel::from(block_type_picker_items(block_core::INST_GENERIC)));
+pub(crate) fn init(
+    window: &AppWindow,
+    block_editor_window: &BlockEditorWindow,
+) -> BlockEditorModels {
+    let block_type_options = Rc::new(VecModel::from(block_type_picker_items(
+        block_core::INST_GENERIC,
+    )));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
-    let filtered_block_model_options =
-        Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
+    let filtered_block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
     let multi_slider_points = Rc::new(VecModel::from(Vec::<MultiSliderPoint>::new()));

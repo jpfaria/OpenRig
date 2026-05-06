@@ -1,3 +1,12 @@
+use crate::block_editor::{
+    block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model,
+    build_knob_overlays,
+};
+use crate::eq::{build_curve_editor_points, build_multi_slider_points};
+use crate::state::SelectedBlock;
+use crate::ui_state::chain_routing_summary;
+use crate::AppWindow;
+use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
@@ -5,15 +14,6 @@ use project::chain::Chain;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
-use crate::{
-    BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem,
-    ProjectChainItem,
-};
-use crate::state::SelectedBlock;
-use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points};
-use crate::AppWindow;
-use crate::ui_state::chain_routing_summary;
 
 pub(crate) use crate::project_view_assets::{load_screenshot_image, load_thumbnail_image};
 pub(crate) use crate::project_view_tooltips::{chain_inputs_tooltip, chain_outputs_tooltip};
@@ -33,7 +33,8 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
             icon_source: slint::Image::default(),
         })
         .filter(|item| {
-            instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
+            instrument == block_core::INST_GENERIC
+                || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
         })
         .collect();
     // Add I/O block types
@@ -67,12 +68,23 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
     items
 }
 
-pub(crate) fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
+pub(crate) fn block_model_picker_items(
+    effect_type: &str,
+    instrument: &str,
+) -> Vec<BlockModelPickerItem> {
     let all_models = supported_block_models(effect_type).unwrap_or_default();
-    log::trace!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
+    log::trace!(
+        "[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}",
+        effect_type,
+        instrument,
+        all_models.len()
+    );
     all_models
         .into_iter()
-        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
+        .filter(|item| {
+            instrument == block_core::INST_GENERIC
+                || item.supported_instruments.iter().any(|i| i == instrument)
+        })
         .map(|item| {
             let brand = &item.brand;
             let label = if brand.is_empty() || brand == block_core::BRAND_NATIVE {
@@ -81,7 +93,11 @@ pub(crate) fn block_model_picker_items(effect_type: &str, instrument: &str) -> V
                 let brand_display = block_core::capitalize_first(brand);
                 format!("{} {}", brand_display, item.display_name)
             };
-            let visual = project::catalog::resolve_color_scheme(&item.effect_type, &item.brand, &item.model_id);
+            let visual = project::catalog::resolve_color_scheme(
+                &item.effect_type,
+                &item.brand,
+                &item.model_id,
+            );
             let [r, g, b] = visual.panel_bg;
             let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
             let [r, g, b] = visual.panel_text;
@@ -106,10 +122,7 @@ pub(crate) fn block_model_picker_items(effect_type: &str, instrument: &str) -> V
                 model_font: visual.model_font.into(),
                 photo_offset_x: visual.photo_offset_x,
                 photo_offset_y: visual.photo_offset_y,
-                available: project::catalog::is_model_available(
-                    &item.effect_type,
-                    &item.model_id,
-                ),
+                available: project::catalog::is_model_available(&item.effect_type, &item.model_id),
                 thumbnail_path: project::catalog::model_thumbnail(
                     &item.effect_type,
                     &item.model_id,
@@ -125,7 +138,11 @@ pub(crate) fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<S
     items.iter().map(|item| item.label.clone()).collect()
 }
 
-pub(crate) fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>, chain: Option<&Chain>) {
+pub(crate) fn set_selected_block(
+    window: &AppWindow,
+    selected_block: Option<&SelectedBlock>,
+    chain: Option<&Chain>,
+) {
     if let Some(selected_block) = selected_block {
         let ui_index = chain
             .and_then(|c| real_block_index_to_ui(c, selected_block.block_index))
@@ -147,7 +164,10 @@ pub(crate) fn block_type_index(effect_type: &str, instrument: &str) -> i32 {
         .unwrap_or(-1)
 }
 
-pub(crate) fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id: &str) -> i32 {
+pub(crate) fn block_model_index_from_items(
+    items: &VecModel<BlockModelPickerItem>,
+    model_id: &str,
+) -> i32 {
     for i in 0..items.row_count() {
         if let Some(item) = items.row_data(i) {
             if item.model_id.as_str() == model_id {
@@ -162,16 +182,16 @@ pub(crate) fn block_model_index(effect_type: &str, model_id: &str, instrument: &
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
-        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
+        .filter(|item| {
+            instrument == block_core::INST_GENERIC
+                || item.supported_instruments.iter().any(|i| i == instrument)
+        })
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
 
-pub(crate) fn build_compact_blocks(
-    project: &Project,
-    chain_index: usize,
-) -> Vec<CompactBlockItem> {
+pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec<CompactBlockItem> {
     let Some(chain) = project.chains.get(chain_index) else {
         return Vec::new();
     };
@@ -184,8 +204,7 @@ pub(crate) fn build_compact_blocks(
             let effect_type = editor_data.effect_type.clone();
             let model_id = editor_data.model_id.clone();
             let params = block_parameter_items_for_editor(&editor_data);
-            let knob_layout =
-                project::catalog::model_knob_layout(&effect_type, &model_id);
+            let knob_layout = project::catalog::model_knob_layout(&effect_type, &model_id);
             let overlays = build_knob_overlays(knob_layout, &params);
             let ms_pts = build_multi_slider_points(&effect_type, &model_id, &editor_data.params);
             let ce_pts = build_curve_editor_points(&effect_type, &model_id, &editor_data.params);
@@ -194,11 +213,7 @@ pub(crate) fn build_compact_blocks(
                 .unwrap_or_default();
             let visual = project::catalog::supported_block_models(&effect_type)
                 .ok()
-                .and_then(|models| {
-                    models
-                        .into_iter()
-                        .find(|m| m.model_id == model_id)
-                });
+                .and_then(|models| models.into_iter().find(|m| m.model_id == model_id));
 
             Some(CompactBlockItem {
                 chain_index: chain_index as i32,
@@ -225,13 +240,15 @@ pub(crate) fn build_compact_blocks(
                 enabled: block.enabled,
                 panel_bg: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
+                    let vc =
+                        project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_bg;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
                 panel_text: {
                     let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc = project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
+                    let vc =
+                        project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
                     let [r, g, b] = vc.panel_text;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
@@ -254,7 +271,11 @@ pub(crate) fn build_compact_blocks(
                 model_selected_index: {
                     let instrument = chain.instrument.as_str();
                     let items = block_model_picker_items(&effect_type, instrument);
-                    items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
+                    items
+                        .iter()
+                        .position(|i| i.model_id.as_str() == model_id)
+                        .map(|i| i as i32)
+                        .unwrap_or(-1)
                 },
                 models: {
                     let instrument = chain.instrument.as_str();
@@ -273,9 +294,11 @@ pub(crate) fn build_compact_blocks(
         .collect()
 }
 
-pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) -> crate::ChainBlockItem {
-    use crate::ChainBlockItem;
+pub(crate) fn chain_block_item_from_block(
+    block: &project::block::AudioBlock,
+) -> crate::ChainBlockItem {
     use crate::ui_state::block_family_for_kind;
+    use crate::ChainBlockItem;
     let (kind, label) = match &block.kind {
         AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
         AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
@@ -295,11 +318,18 @@ pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) ->
     let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
 
     // I/O and Insert blocks are not registered effect types, so resolve icon_kind/type_label directly
-    let is_io = matches!(block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_));
+    let is_io = matches!(
+        block.kind,
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+    );
     let resolved_icon_kind: String = if is_io {
         kind.clone()
     } else {
-        block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core").to_string()
+        block_type
+            .as_ref()
+            .map(|e| e.icon_kind)
+            .unwrap_or("core")
+            .to_string()
     };
     let resolved_type_label: &str = if is_io {
         match &block.kind {
@@ -383,7 +413,6 @@ fn collect_block_param_entries(
         .collect()
 }
 
-
 pub(crate) fn replace_project_chains(
     model: &Rc<VecModel<ProjectChainItem>>,
     project: &Project,
@@ -404,13 +433,22 @@ pub(crate) fn replace_project_chains(
                 title: chain
                     .description
                     .clone()
-                    .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string())
+                    .unwrap_or_else(|| {
+                        rust_i18n::t!("default-chain-name", n = index + 1).to_string()
+                    })
                     .into(),
                 subtitle: chain_routing_summary(chain).into(),
                 enabled: chain.enabled,
                 block_count_label: {
-                    let effect_block_count = chain.blocks.iter()
-                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+                    let effect_block_count = chain
+                        .blocks
+                        .iter()
+                        .filter(|b| {
+                            !matches!(
+                                &b.kind,
+                                AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
+                            )
+                        })
                         .count();
                     if effect_block_count == 1 {
                         "1 block".into()
@@ -419,30 +457,53 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let input_chs: Vec<usize> = chain.input_blocks().into_iter()
-                        .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
+                    let input_chs: Vec<usize> = chain
+                        .input_blocks()
+                        .into_iter()
+                        .flat_map(|(_, ib)| {
+                            ib.entries.iter().flat_map(|e| e.channels.iter().copied())
+                        })
                         .collect();
                     chain_endpoint_label("In", &input_chs).into()
                 },
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
                 output_label: {
-                    let output_chs: Vec<usize> = chain.output_blocks().into_iter()
-                        .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
+                    let output_chs: Vec<usize> = chain
+                        .output_blocks()
+                        .into_iter()
+                        .flat_map(|(_, ob)| {
+                            ob.entries.iter().flat_map(|e| e.channels.iter().copied())
+                        })
                         .collect();
                     chain_endpoint_label("Out", &output_chs).into()
                 },
-                output_tooltip: chain_outputs_tooltip(chain, project, output_devices)
-                .into(),
+                output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
                 latency_ms,
                 blocks: {
-                    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-                    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
-                    log::info!("[replace_project_chains] chain[{}] '{}' UI blocks:", index, chain.description.as_deref().unwrap_or(""));
+                    let first_input_idx = chain
+                        .blocks
+                        .iter()
+                        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+                    let last_output_idx = chain
+                        .blocks
+                        .iter()
+                        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    log::info!(
+                        "[replace_project_chains] chain[{}] '{}' UI blocks:",
+                        index,
+                        chain.description.as_deref().unwrap_or("")
+                    );
                     for (real_idx, b) in chain.blocks.iter().enumerate() {
                         if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
                             continue;
                         }
-                        log::info!("[replace_project_chains]   real_index={} kind={}", real_idx, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+                        log::info!(
+                            "[replace_project_chains]   real_index={} kind={}",
+                            real_idx,
+                            b.model_ref()
+                                .map(|m| format!("{}/{}", m.effect_type, m.model))
+                                .unwrap_or_else(|| "io/insert".to_string())
+                        );
                     }
                     ModelRc::from(Rc::new(VecModel::from(
                         chain
@@ -485,8 +546,14 @@ pub(crate) fn format_channel_list(channels: &[usize]) -> String {
 
 /// Map a real chain.blocks index to the UI block index (which excludes hidden first Input and last Output).
 pub(crate) fn real_block_index_to_ui(chain: &Chain, real_index: usize) -> Option<usize> {
-    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    let first_input_idx = chain
+        .blocks
+        .iter()
+        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    let last_output_idx = chain
+        .blocks
+        .iter()
+        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
     let mut visible_count = 0;
     for (idx, _) in chain.blocks.iter().enumerate() {
         if Some(idx) == first_input_idx || Some(idx) == last_output_idx {

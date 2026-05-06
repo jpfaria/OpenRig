@@ -21,6 +21,9 @@ fn main() {
         if matches!(stem, "lib" | "registry" | "native_core") {
             continue;
         }
+        if stem.ends_with("_tests") {
+            continue;
+        }
 
         let contents = fs::read_to_string(&path).expect("read source");
         if contents.contains("MODEL_DEFINITION") {
@@ -32,9 +35,14 @@ fn main() {
 
     let mut generated = String::new();
     for module_name in &model_modules {
-        generated.push_str(&format!("#[path = \"{}/{}.rs\"]
+        generated.push_str(&format!(
+            "#[path = \"{}/{}.rs\"]
 mod {};
-", src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name));
+",
+            src_dir.to_string_lossy().replace("\\", "/"),
+            module_name,
+            module_name
+        ));
     }
 
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");

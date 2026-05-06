@@ -14,9 +14,7 @@ use slint::{SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use crate::state::{
-    BlockEditorDraft, ChainDraft, IoBlockInsertDraft, ProjectSession,
-};
+use crate::state::{BlockEditorDraft, ChainDraft, IoBlockInsertDraft, ProjectSession};
 use crate::{
     AppWindow, ChainEditorWindow, ChainInputGroupsWindow, ChainInputWindow,
     ChainOutputGroupsWindow, ChainOutputWindow, ChannelOptionItem, CompactChainViewWindow,

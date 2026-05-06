@@ -57,8 +57,7 @@ pub fn run_desktop_app(
     // Discover every plugin package shipped under the configured
     // plugins_root and cache it process-wide. Block-* crates query this
     // catalog to surface plugin manifests in the GUI.
-    let plugins_root =
-        plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
+    let plugins_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!("loading plugin packages from {}", plugins_root.display());
     // Native plugins (compiled-in DSP) register first; disk-package
     // discovery in `init` below pushes its results into the same
@@ -218,16 +217,36 @@ pub fn run_desktop_app(
         let plugin_info_window_for_apply = plugin_info_window.clone();
         let apply_font_to_all = move |font: &str| {
             let f = || -> slint::SharedString { font.into() };
-            if let Some(w) = weak_app.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_proj.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_chain_in.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_chain_out.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_chain_in_groups.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_chain_out_groups.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_chain_insert.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_block_editor.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_tuner.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
-            if let Some(w) = weak_spectrum.upgrade() { crate::Locale::get(&w).set_font_family(f()); }
+            if let Some(w) = weak_app.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_proj.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_chain_in.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_chain_out.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_chain_in_groups.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_chain_out_groups.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_chain_insert.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_block_editor.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_tuner.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_spectrum.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
             if let Some(w) = chain_editor_window_for_apply.borrow().as_ref() {
                 crate::Locale::get(w).set_font_family(f());
             }

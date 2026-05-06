@@ -76,11 +76,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 session.project.chains[index]
                     .description
                     .clone()
-                    .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string())
+                    .unwrap_or_else(|| {
+                        rust_i18n::t!("default-chain-name", n = index + 1).to_string()
+                    })
             };
             let confirmed = rfd::MessageDialog::new()
                 .set_title(rust_i18n::t!("dialog-delete-chain").as_ref())
-                .set_description(rust_i18n::t!("dialog-confirm-delete-chain", name = chain_name).to_string())
+                .set_description(
+                    rust_i18n::t!("dialog-confirm-delete-chain", name = chain_name).to_string(),
+                )
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .set_level(rfd::MessageLevel::Warning)
                 .show();
@@ -162,15 +166,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                                     })
                                 });
                                 if other_entries_conflict {
-                                    let other_name_default = rust_i18n::t!("default-other-chain").to_string();
-                                    let other_name = other
-                                        .description
-                                        .as_deref()
-                                        .unwrap_or(&other_name_default);
+                                    let other_name_default =
+                                        rust_i18n::t!("default-other-chain").to_string();
+                                    let other_name =
+                                        other.description.as_deref().unwrap_or(&other_name_default);
                                     set_status_error(
                                         &window,
                                         &toast_timer,
-                                        &rust_i18n::t!("error-channel-in-use", name = other_name).to_string(),
+                                        &rust_i18n::t!("error-channel-in-use", name = other_name)
+                                            .to_string(),
                                     );
                                     conflict = true;
                                     break 'outer;

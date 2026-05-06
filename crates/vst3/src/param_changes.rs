@@ -15,11 +15,10 @@ use std::ptr;
 use vst3::{
     Class, ComWrapper,
     Steinberg::Vst::{
-        IParamValueQueue, IParamValueQueueTrait,
-        IParameterChanges, IParameterChangesTrait,
+        IParamValueQueue, IParamValueQueueTrait, IParameterChanges, IParameterChangesTrait,
         ParamID, ParamValue,
     },
-    Steinberg::{kResultOk, kInvalidArgument},
+    Steinberg::{kInvalidArgument, kResultOk},
 };
 
 // ---------------------------------------------------------------------------
@@ -34,7 +33,10 @@ pub struct HostParamValueQueue {
 
 impl HostParamValueQueue {
     pub fn new(id: u32, value: f64) -> Self {
-        Self { id, value: Cell::new(value) }
+        Self {
+            id,
+            value: Cell::new(value),
+        }
     }
 }
 
@@ -58,12 +60,7 @@ impl IParamValueQueueTrait for HostParamValueQueue {
     }
 
     #[allow(non_snake_case)]
-    unsafe fn getPoint(
-        &self,
-        index: i32,
-        sampleOffset: *mut i32,
-        value: *mut ParamValue,
-    ) -> i32 {
+    unsafe fn getPoint(&self, index: i32, sampleOffset: *mut i32, value: *mut ParamValue) -> i32 {
         if index != 0 {
             return kInvalidArgument;
         }
@@ -73,12 +70,7 @@ impl IParamValueQueueTrait for HostParamValueQueue {
     }
 
     #[allow(non_snake_case)]
-    unsafe fn addPoint(
-        &self,
-        _sampleOffset: i32,
-        value: ParamValue,
-        _index: *mut i32,
-    ) -> i32 {
+    unsafe fn addPoint(&self, _sampleOffset: i32, value: ParamValue, _index: *mut i32) -> i32 {
         // Allow the plugin to write back its current value (some plugins do this).
         self.value.set(value);
         kResultOk
@@ -104,7 +96,6 @@ impl HostParameterChanges {
                 .collect(),
         }
     }
-
 }
 
 unsafe impl Send for HostParameterChanges {}

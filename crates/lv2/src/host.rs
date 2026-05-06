@@ -79,9 +79,7 @@ impl UridMap {
 
 unsafe extern "C" fn urid_map_callback(handle: *mut c_void, uri: *const c_char) -> u32 {
     let map = unsafe { &mut *(handle as *mut UridMap) };
-    let uri_str = unsafe { CStr::from_ptr(uri) }
-        .to_str()
-        .unwrap_or("");
+    let uri_str = unsafe { CStr::from_ptr(uri) }.to_str().unwrap_or("");
     map.map(uri_str)
 }
 
@@ -106,19 +104,25 @@ struct LV2OptionsOption {
 #[repr(C)]
 struct LV2WorkerSchedule {
     handle: *mut c_void,
-    schedule_work: Option<unsafe extern "C" fn(handle: *mut c_void, size: u32, data: *const c_void) -> i32>,
+    schedule_work:
+        Option<unsafe extern "C" fn(handle: *mut c_void, size: u32, data: *const c_void) -> i32>,
 }
 
 #[repr(C)]
 struct LV2WorkerInterface {
-    work: Option<unsafe extern "C" fn(
-        instance: LV2Handle,
-        respond: Option<unsafe extern "C" fn(handle: LV2Handle, size: u32, data: *const c_void) -> i32>,
-        respond_handle: LV2Handle,
-        size: u32,
-        data: *const c_void,
-    ) -> i32>,
-    work_response: Option<unsafe extern "C" fn(instance: LV2Handle, size: u32, body: *const c_void) -> i32>,
+    work: Option<
+        unsafe extern "C" fn(
+            instance: LV2Handle,
+            respond: Option<
+                unsafe extern "C" fn(handle: LV2Handle, size: u32, data: *const c_void) -> i32,
+            >,
+            respond_handle: LV2Handle,
+            size: u32,
+            data: *const c_void,
+        ) -> i32,
+    >,
+    work_response:
+        Option<unsafe extern "C" fn(instance: LV2Handle, size: u32, body: *const c_void) -> i32>,
     end_run: Option<unsafe extern "C" fn(instance: LV2Handle) -> i32>,
 }
 
@@ -127,18 +131,38 @@ struct WorkerState {
     worker_interface: *const LV2WorkerInterface,
 }
 
-unsafe extern "C" fn worker_schedule_callback(ws_handle: *mut c_void, size: u32, data: *const c_void) -> i32 {
-    if ws_handle.is_null() { return 0; }
+unsafe extern "C" fn worker_schedule_callback(
+    ws_handle: *mut c_void,
+    size: u32,
+    data: *const c_void,
+) -> i32 {
+    if ws_handle.is_null() {
+        return 0;
+    }
     let state = unsafe { &*(ws_handle as *const WorkerState) };
     let iface = unsafe { &*state.worker_interface };
     if let Some(work_fn) = iface.work {
-        unsafe { work_fn(state.handle, Some(worker_respond_callback), ws_handle, size, data) };
+        unsafe {
+            work_fn(
+                state.handle,
+                Some(worker_respond_callback),
+                ws_handle,
+                size,
+                data,
+            )
+        };
     }
     0
 }
 
-unsafe extern "C" fn worker_respond_callback(ws_handle: LV2Handle, size: u32, data: *const c_void) -> i32 {
-    if ws_handle.is_null() { return 0; }
+unsafe extern "C" fn worker_respond_callback(
+    ws_handle: LV2Handle,
+    size: u32,
+    data: *const c_void,
+) -> i32 {
+    if ws_handle.is_null() {
+        return 0;
+    }
     let state = unsafe { &*(ws_handle as *const WorkerState) };
     let iface = unsafe { &*state.worker_interface };
     if let Some(work_response_fn) = iface.work_response {
@@ -196,12 +220,7 @@ unsafe impl Send for Lv2Plugin {}
 unsafe impl Sync for Lv2Plugin {}
 
 impl Lv2Plugin {
-    pub fn load(
-        lib_path: &str,
-        uri: &str,
-        sample_rate: f64,
-        bundle_path: &str,
-    ) -> Result<Self> {
+    pub fn load(lib_path: &str, uri: &str, sample_rate: f64, bundle_path: &str) -> Result<Self> {
         // 1. dlopen
         let library = unsafe { libloading::Library::new(lib_path) }
             .with_context(|| format!("failed to load LV2 library: {lib_path}"))?;
@@ -216,7 +235,9 @@ impl Lv2Plugin {
         let mut descriptor: *const LV2Descriptor = ptr::null();
         for idx in 0..128 {
             let desc = unsafe { lv2_descriptor_fn(idx) };
-            if desc.is_null() { break; }
+            if desc.is_null() {
+                break;
+            }
             let desc_uri = unsafe { CStr::from_ptr((*desc).uri) }
                 .to_str()
                 .unwrap_or("");
@@ -249,22 +270,38 @@ impl Lv2Plugin {
 
         let options_array: Vec<LV2OptionsOption> = vec![
             LV2OptionsOption {
-                context: 0, subject: 0,
-                key: urid_sample_rate_key, size: 4, type_: urid_atom_float,
+                context: 0,
+                subject: 0,
+                key: urid_sample_rate_key,
+                size: 4,
+                type_: urid_atom_float,
                 value: options_sample_rate.as_ref() as *const f32 as *const c_void,
             },
             LV2OptionsOption {
-                context: 0, subject: 0,
-                key: urid_min_block_key, size: 4, type_: urid_atom_int,
+                context: 0,
+                subject: 0,
+                key: urid_min_block_key,
+                size: 4,
+                type_: urid_atom_int,
                 value: options_min_block.as_ref() as *const i32 as *const c_void,
             },
             LV2OptionsOption {
-                context: 0, subject: 0,
-                key: urid_max_block_key, size: 4, type_: urid_atom_int,
+                context: 0,
+                subject: 0,
+                key: urid_max_block_key,
+                size: 4,
+                type_: urid_atom_int,
                 value: options_max_block.as_ref() as *const i32 as *const c_void,
             },
             // Terminator
-            LV2OptionsOption { context: 0, subject: 0, key: 0, size: 0, type_: 0, value: ptr::null() },
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: 0,
+                size: 0,
+                type_: 0,
+                value: ptr::null(),
+            },
         ];
 
         // 6. Build CStrings and features
@@ -314,7 +351,12 @@ impl Lv2Plugin {
             .context("LV2 descriptor has no instantiate function")?;
 
         let handle = unsafe {
-            instantiate(descriptor, sample_rate, bundle_path_cstr.as_ptr(), feature_ptrs.as_ptr())
+            instantiate(
+                descriptor,
+                sample_rate,
+                bundle_path_cstr.as_ptr(),
+                feature_ptrs.as_ptr(),
+            )
         };
 
         if handle.is_null() {

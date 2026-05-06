@@ -51,7 +51,17 @@ pub fn build_lv2_processor_with_extras(
     control_ports: &[(usize, f32)],
     extra_out_ports: &[usize],
 ) -> Result<Lv2Processor> {
-    build_lv2_processor_full(lib_path, uri, sample_rate, bundle_path, audio_in_ports, audio_out_ports, control_ports, &[], extra_out_ports)
+    build_lv2_processor_full(
+        lib_path,
+        uri,
+        sample_rate,
+        bundle_path,
+        audio_in_ports,
+        audio_out_ports,
+        control_ports,
+        &[],
+        extra_out_ports,
+    )
 }
 
 /// Build a mono LV2 processor with atom ports AND extra output ports.

@@ -101,9 +101,8 @@ pub(crate) fn wire(
             };
             {
                 use slint::Global;
-                crate::Locale::get(&info_win).set_font_family(
-                    crate::i18n::font_for_persisted_runtime().into(),
-                );
+                crate::Locale::get(&info_win)
+                    .set_font_family(crate::i18n::font_for_persisted_runtime().into());
             }
 
             info_win.set_plugin_name(display_name.into());

@@ -1,14 +1,14 @@
-use infra_cpal::AudioDeviceDescriptor;
-use slint::{ModelRc, VecModel};
-use std::rc::Rc;
-use crate::{AppWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, IoGroupItem};
-use crate::state::{ChainDraft, InputGroupDraft, OutputGroupDraft};
-use crate::chain_editor::{endpoint_summary, input_mode_to_index, output_mode_to_index};
 use crate::audio_devices::{
     build_input_channel_items, build_output_channel_items, replace_channel_options,
     selected_device_index,
 };
+use crate::chain_editor::{endpoint_summary, input_mode_to_index, output_mode_to_index};
+use crate::state::{ChainDraft, InputGroupDraft, OutputGroupDraft};
 use crate::ChannelOptionItem;
+use crate::{AppWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, IoGroupItem};
+use infra_cpal::AudioDeviceDescriptor;
+use slint::{ModelRc, VecModel};
+use std::rc::Rc;
 
 pub(crate) fn build_io_group_items(
     draft: &ChainDraft,
@@ -19,11 +19,8 @@ pub(crate) fn build_io_group_items(
         .inputs
         .iter()
         .map(|input| {
-            let summary = endpoint_summary(
-                input.device_id.as_deref(),
-                &input.channels,
-                input_devices,
-            );
+            let summary =
+                endpoint_summary(input.device_id.as_deref(), &input.channels, input_devices);
             IoGroupItem {
                 summary: summary.into(),
             }

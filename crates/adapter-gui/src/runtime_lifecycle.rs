@@ -60,11 +60,7 @@ pub(crate) fn sync_live_chain_runtime(
     chain_id: &ChainId,
 ) -> Result<()> {
     log::debug!("sync_live_chain_runtime: chain_id='{}'", chain_id.0);
-    let chain = session
-        .project
-        .chains
-        .iter()
-        .find(|c| &c.id == chain_id);
+    let chain = session.project.chains.iter().find(|c| &c.id == chain_id);
     let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
     // If chain is being enabled and no runtime exists, create one
     if chain_enabled {
@@ -128,8 +124,14 @@ pub(crate) fn system_language() -> String {
 
 /// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
 pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
-    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    let first_input_idx = chain
+        .blocks
+        .iter()
+        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    let last_output_idx = chain
+        .blocks
+        .iter()
+        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
     let mut visible_count = 0;
     for (real_idx, _) in chain.blocks.iter().enumerate() {
         if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {

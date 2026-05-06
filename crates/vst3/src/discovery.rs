@@ -28,7 +28,10 @@ fn read_moduleinfo(bundle_path: &Path) -> Option<Vec<Vst3PluginInfo>> {
     let mut pos = 0;
     while let Some(class_start) = raw[pos..].find("\"CID\"") {
         let base = pos + class_start;
-        let chunk_end = raw[base..].find('}').map(|i| base + i + 1).unwrap_or(raw.len());
+        let chunk_end = raw[base..]
+            .find('}')
+            .map(|i| base + i + 1)
+            .unwrap_or(raw.len());
         let chunk = &raw[base..chunk_end];
 
         let category = extract_json_string(chunk, "Category").unwrap_or_default();
@@ -56,7 +59,11 @@ fn read_moduleinfo(bundle_path: &Path) -> Option<Vec<Vst3PluginInfo>> {
         pos = chunk_end;
     }
 
-    if results.is_empty() { None } else { Some(results) }
+    if results.is_empty() {
+        None
+    } else {
+        Some(results)
+    }
 }
 
 /// Extract a JSON string value for a given key (simple, no full parser needed).
@@ -133,7 +140,12 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
         // User-level
         if let Some(home) = dirs_home() {
-            paths.push(home.join("Library").join("Audio").join("Plug-Ins").join("VST3"));
+            paths.push(
+                home.join("Library")
+                    .join("Audio")
+                    .join("Plug-Ins")
+                    .join("VST3"),
+            );
         }
         // System-level
         paths.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
@@ -200,7 +212,11 @@ fn dirs_home() -> Option<PathBuf> {
 pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>> {
     // Strategy 1: moduleinfo.json (no dylib load, full UID).
     if let Some(infos) = read_moduleinfo(bundle_path) {
-        log::debug!("VST3 scan (moduleinfo): {} classes in {}", infos.len(), bundle_path.display());
+        log::debug!(
+            "VST3 scan (moduleinfo): {} classes in {}",
+            infos.len(),
+            bundle_path.display()
+        );
         return Ok(infos);
     }
 
@@ -209,9 +225,16 @@ pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>>
     // "needs dylib load" by leaving uid = [0; 16].
     let name = read_info_plist_vendor(bundle_path);
     if name.is_empty() {
-        anyhow::bail!("no moduleinfo.json and no CFBundleName in {}", bundle_path.display());
+        anyhow::bail!(
+            "no moduleinfo.json and no CFBundleName in {}",
+            bundle_path.display()
+        );
     }
-    log::debug!("VST3 scan (Info.plist fallback): '{}' in {}", name, bundle_path.display());
+    log::debug!(
+        "VST3 scan (Info.plist fallback): '{}' in {}",
+        name,
+        bundle_path.display()
+    );
     Ok(vec![Vst3PluginInfo {
         uid: [0u8; 16], // unknown until user loads it
         name,

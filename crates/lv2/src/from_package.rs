@@ -13,9 +13,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{
-    AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
-};
+use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
 use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2PortRole};
 use plugin_loader::manifest::{Backend, Lv2Slot};
 use plugin_loader::LoadedPackage;
@@ -90,7 +88,12 @@ pub fn build_from_package(
     let control_ports: Vec<(usize, f32)> = ports
         .iter()
         .filter(|p| p.role == Lv2PortRole::ControlIn)
-        .map(|p| (p.index, lv2_control_value(&p.symbol, p.default_value, params)))
+        .map(|p| {
+            (
+                p.index,
+                lv2_control_value(&p.symbol, p.default_value, params),
+            )
+        })
         .collect();
     let mut atom_ports: Vec<usize> = atom_in.iter().chain(atom_out.iter()).copied().collect();
     atom_ports.sort_unstable();
@@ -179,7 +182,10 @@ fn build_mono_input(
         AudioChannelLayout::Stereo => {
             let left = make()?;
             let right = make()?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 {
+                left,
+                right,
+            })))
         }
     }
 }
@@ -227,7 +233,9 @@ fn build_stereo_input(
         AudioChannelLayout::Mono => {
             // Stereo plugin in a mono chain: feed both inputs from the
             // mono sample and average the outputs.
-            Ok(BlockProcessor::Mono(Box::new(StereoAsMono { inner: make()? })))
+            Ok(BlockProcessor::Mono(Box::new(StereoAsMono {
+                inner: make()?,
+            })))
         }
     }
 }

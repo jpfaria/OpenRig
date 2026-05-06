@@ -110,9 +110,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 set_status_error(
                     &window,
                     &toast_timer,
-                    &recent
-                        .invalid_reason
-                        .unwrap_or_else(|| rust_i18n::t!("error-invalid-recent-project").to_string()),
+                    &recent.invalid_reason.unwrap_or_else(|| {
+                        rust_i18n::t!("error-invalid-recent-project").to_string()
+                    }),
                 );
                 return;
             }
@@ -154,7 +154,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                             .into(),
                     );
                     window.set_project_path_label(
-                        rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
+                        rust_i18n::t!(
+                            "status-project-path-prefix",
+                            path = canonical_path.display()
+                        )
+                        .to_string()
+                        .into(),
                     );
                     window.set_show_project_launcher(false);
                     window.set_show_project_chains(true);

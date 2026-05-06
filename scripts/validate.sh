@@ -10,6 +10,8 @@
 #   2. Rust formatting (cargo fmt --check)
 #   3. Rust linting   (cargo clippy -D warnings)
 #   4. Slint compilation (cargo check -p adapter-gui)
+#   5. Inline test modules — production .rs files must not contain
+#      `#[cfg(test)] mod tests {`. Tests live in <module>_tests.rs.
 #
 # Exit: 0 = pass, 1 = violations found
 
@@ -197,6 +199,33 @@ if $SLINT_CHANGED; then
   else
     fail "adapter-gui: Slint compilation errors"
   fi
+fi
+
+# ─── 5. INLINE TEST MODULES ─────────────────────────────────────────────────
+# Production .rs files must not contain `#[cfg(test)] mod tests {`. Tests
+# live in <module>_tests.rs and are wired via `#[cfg(test)] #[path = "..."]
+# mod tests;`. See issue #394.
+if [ -n "$RS_FILES" ]; then
+  echo ""
+  echo -e "${BOLD}── 5. Inline Test Modules ──${NC}"
+  for file in $RS_FILES; do
+    [ -f "$file" ] || continue
+    case "$file" in
+      *_tests.rs|*/tests/*) continue ;;
+    esac
+    # Match `#[cfg(test)]` followed (after optional whitespace/newline) by
+    # `mod tests {`. Avoid `#[path = "..."] mod tests;` declarations.
+    if awk '
+      /^#\[cfg\(test\)\]\s*$/ { flag = 1; next }
+      flag && /^mod\s+tests\s*\{/ { found = 1; exit }
+      flag && /\S/ { flag = 0 }
+      END { exit !found }
+    ' "$file"; then
+      fail "$(basename "$file"): contains \`#[cfg(test)] mod tests { ... }\` — extract to $(basename "${file%.rs}")_tests.rs"
+    else
+      ok "$(basename "$file"): no inline test module"
+    fi
+  done
 fi
 
 # ─── RESULT ─────────────────────────────────────────────────────────────────

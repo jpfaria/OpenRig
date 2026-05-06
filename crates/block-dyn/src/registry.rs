@@ -39,7 +39,9 @@ pub fn find_gate_model_definition(model: &str) -> Result<&'static DynModelDefini
         .ok_or_else(|| anyhow!("unsupported gate model '{}'", model))
 }
 
-fn noop_validate(_: &block_core::param::ParameterSet) -> anyhow::Result<()> { Ok(()) }
+fn noop_validate(_: &block_core::param::ParameterSet) -> anyhow::Result<()> {
+    Ok(())
+}
 
 /// Push every native model into the unified plugin-loader registry.
 /// Disk-backed models (NAM/IR/LV2/VST3) stay in the legacy per-block path

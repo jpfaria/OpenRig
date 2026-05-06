@@ -531,9 +531,20 @@ fn validate_project_with_delay_block_succeeds() {
 
 #[test]
 fn validate_project_with_reverb_block_succeeds() {
+    // Pick a reverb that fits the mono-in / stereo-out chain below. New
+    // entries (cathedral, dattorro, fdn-jot, freeverb, etc.) declare
+    // ModelAudioMode::TrueStereo, which validate_project rejects with a
+    // mono-only InputBlock — so we filter for the first non-TrueStereo
+    // model rather than relying on alphabetical ordering.
     let reverb_model = block_reverb::supported_models()
-        .first()
-        .expect("block-reverb must expose at least one model");
+        .iter()
+        .copied()
+        .find(|model| {
+            project::block::schema_for_block_model("reverb", model)
+                .map(|s| s.audio_mode != block_core::ModelAudioMode::TrueStereo)
+                .unwrap_or(false)
+        })
+        .expect("block-reverb must expose at least one non-TrueStereo model");
     let schema = project::block::schema_for_block_model("reverb", reverb_model)
         .expect("reverb schema should exist");
     let params = ParameterSet::default()

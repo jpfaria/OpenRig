@@ -1,7 +1,7 @@
+use crate::{AppWindow, BlockEditorWindow};
 use slint::{ComponentHandle, Timer, TimerMode};
 use std::fmt::Display;
 use std::time::Duration;
-use crate::{AppWindow, BlockEditorWindow};
 
 pub(crate) fn log_gui_message(context: &str, message: &str) {
     log::info!("[adapter-gui] {context}: {message}");
@@ -14,9 +14,10 @@ pub(crate) fn log_gui_error(context: &str, error: impl Display) {
 pub(crate) fn show_child_window(parent_window: &slint::Window, child_window: &slint::Window) {
     let pos = parent_window.position();
     log::warn!("[UI] show_child_window: parent_pos=({},{})", pos.x, pos.y);
-    child_window.set_position(slint::WindowPosition::Physical(
-        slint::PhysicalPosition { x: pos.x + 40, y: pos.y + 40 },
-    ));
+    child_window.set_position(slint::WindowPosition::Physical(slint::PhysicalPosition {
+        x: pos.x + 40,
+        y: pos.y + 40,
+    }));
     match child_window.show() {
         Ok(_) => log::warn!("[UI] show_child_window: success"),
         Err(e) => log::error!("[UI] show_child_window: FAILED: {e}"),
@@ -89,7 +90,10 @@ pub(crate) fn clear_status(window: &AppWindow, toast_timer: &Timer) {
     window.set_toast_level("info".into());
 }
 
-pub(crate) fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEditorWindow) {
+pub(crate) fn sync_block_editor_window(
+    window: &AppWindow,
+    block_editor_window: &BlockEditorWindow,
+) {
     block_editor_window.set_block_type_options(window.get_block_type_options());
     block_editor_window.set_block_model_options(window.get_block_model_options());
     block_editor_window.set_block_model_option_labels(window.get_block_model_option_labels());
@@ -97,12 +101,10 @@ pub(crate) fn sync_block_editor_window(window: &AppWindow, block_editor_window: 
     block_editor_window.set_block_drawer_confirm_label(window.get_block_drawer_confirm_label());
     block_editor_window.set_block_drawer_status_message(window.get_block_drawer_status_message());
     block_editor_window.set_block_drawer_edit_mode(window.get_block_drawer_edit_mode());
-    block_editor_window.set_block_drawer_selected_type_index(
-        window.get_block_drawer_selected_type_index(),
-    );
-    block_editor_window.set_block_drawer_selected_model_index(
-        window.get_block_drawer_selected_model_index(),
-    );
+    block_editor_window
+        .set_block_drawer_selected_type_index(window.get_block_drawer_selected_type_index());
+    block_editor_window
+        .set_block_drawer_selected_model_index(window.get_block_drawer_selected_model_index());
     block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
     block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }

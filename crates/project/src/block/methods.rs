@@ -55,9 +55,9 @@ impl AudioBlock {
                 }
                 Ok(())
             }
-            AudioBlockKind::Input(_)
-            | AudioBlockKind::Output(_)
-            | AudioBlockKind::Insert(_) => Ok(()),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
+                Ok(())
+            }
         }
     }
 
@@ -74,9 +74,9 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .parameter_descriptors(),
-            AudioBlockKind::Input(_)
-            | AudioBlockKind::Output(_)
-            | AudioBlockKind::Insert(_) => Ok(Vec::new()),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
+                Ok(Vec::new())
+            }
         }
     }
 
@@ -95,9 +95,9 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .audio_descriptors(),
-            AudioBlockKind::Input(_)
-            | AudioBlockKind::Output(_)
-            | AudioBlockKind::Insert(_) => Ok(Vec::new()),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
+                Ok(Vec::new())
+            }
         }
     }
 

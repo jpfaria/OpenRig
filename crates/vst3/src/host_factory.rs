@@ -6,10 +6,8 @@ use anyhow::{bail, Context, Result};
 use std::ffi::CStr;
 use std::path::Path;
 
-use vst3::Steinberg::{
-    IPluginFactory, IPluginFactoryTrait, PClassInfo, kResultOk,
-};
 use vst3::ComPtr;
+use vst3::Steinberg::{kResultOk, IPluginFactory, IPluginFactoryTrait, PClassInfo};
 
 use crate::host::{Vst3Plugin, Vst3PluginClass};
 use crate::host_utils::{bundle_binary_path, cstr_array_to_string, tuid_to_bytes};
@@ -26,9 +24,7 @@ impl Vst3Plugin {
     ) -> Result<(libloading::Library, Vec<Vst3PluginClass>)> {
         let binary_path = bundle_binary_path(bundle_path)?;
         let library = unsafe { libloading::Library::new(&binary_path) }
-            .with_context(|| {
-                format!("failed to dlopen VST3 binary: {}", binary_path.display())
-            })?;
+            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?;
 
         let get_factory: libloading::Symbol<unsafe extern "C" fn() -> *mut IPluginFactory> =
             unsafe { library.get(b"GetPluginFactory\0") }
@@ -38,8 +34,7 @@ impl Vst3Plugin {
         if factory_raw.is_null() {
             bail!("GetPluginFactory returned null");
         }
-        let factory: ComPtr<IPluginFactory> =
-            unsafe { ComPtr::from_raw_unchecked(factory_raw) };
+        let factory: ComPtr<IPluginFactory> = unsafe { ComPtr::from_raw_unchecked(factory_raw) };
 
         let count = unsafe { factory.countClasses() };
         let mut classes = Vec::new();
@@ -80,8 +75,7 @@ impl Vst3Plugin {
         if factory_raw.is_null() {
             return String::new();
         }
-        let factory: ComPtr<IPluginFactory> =
-            unsafe { ComPtr::from_raw_unchecked(factory_raw) };
+        let factory: ComPtr<IPluginFactory> = unsafe { ComPtr::from_raw_unchecked(factory_raw) };
 
         let mut finfo: vst3::Steinberg::PFactoryInfo = unsafe { std::mem::zeroed() };
         if unsafe { factory.getFactoryInfo(&mut finfo) } != kResultOk {

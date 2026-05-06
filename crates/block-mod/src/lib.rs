@@ -81,7 +81,6 @@ pub fn build_modulation_processor_for_layout(
     anyhow::bail!("unsupported wah model '{}'", model)
 }
 
-
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;

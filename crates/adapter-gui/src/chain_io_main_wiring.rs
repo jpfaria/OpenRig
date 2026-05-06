@@ -102,10 +102,7 @@ pub(crate) fn wire(
             // Now use immutable references
             if project_session.borrow().is_some() {
                 if let Some(input_group) = draft.inputs.get(gi) {
-                    let channel_items = build_input_channel_items(
-                        input_group,
-                        &fresh_input,
-                    );
+                    let channel_items = build_input_channel_items(input_group, &fresh_input);
                     replace_channel_options(&chain_input_channels, channel_items.clone());
                     // Fullscreen: sync channels to inline endpoint editor.
                     // Re-assign the same shared Rc<VecModel> so toggle handlers
@@ -349,8 +346,12 @@ pub(crate) fn wire(
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             if window.get_fullscreen() {
-                window.set_chain_io_groups_title(rust_i18n::t!("title-section-inputs").as_ref().into());
-                window.set_chain_io_groups_add_label(rust_i18n::t!("btn-add-input-row").as_ref().into());
+                window.set_chain_io_groups_title(
+                    rust_i18n::t!("title-section-inputs").as_ref().into(),
+                );
+                window.set_chain_io_groups_add_label(
+                    rust_i18n::t!("btn-add-input-row").as_ref().into(),
+                );
                 window.set_chain_io_groups_items(groups_model);
                 window.set_chain_io_groups_status("".into());
                 window.set_chain_io_groups_show_block_controls(false);
@@ -421,8 +422,12 @@ pub(crate) fn wire(
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             if window.get_fullscreen() {
-                window.set_chain_io_groups_title(rust_i18n::t!("title-section-outputs").as_ref().into());
-                window.set_chain_io_groups_add_label(rust_i18n::t!("btn-add-output-row").as_ref().into());
+                window.set_chain_io_groups_title(
+                    rust_i18n::t!("title-section-outputs").as_ref().into(),
+                );
+                window.set_chain_io_groups_add_label(
+                    rust_i18n::t!("btn-add-output-row").as_ref().into(),
+                );
                 window.set_chain_io_groups_items(groups_model);
                 window.set_chain_io_groups_status("".into());
                 window.set_chain_io_groups_show_block_controls(false);

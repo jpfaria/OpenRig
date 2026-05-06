@@ -13,9 +13,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProces
 use plugin_loader::manifest::Backend;
 use plugin_loader::LoadedPackage;
 
-use crate::{
-    build_mono_ir_processor_from_wav, build_stereo_ir_processor_from_wav, IrAsset,
-};
+use crate::{build_mono_ir_processor_from_wav, build_stereo_ir_processor_from_wav, IrAsset};
 
 /// Build a [`BlockProcessor`] from a disk-backed IR package.
 pub fn build_from_package(

@@ -1,3 +1,4 @@
+use crate::BlockEditorWindow;
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use project::project::Project;
@@ -5,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use slint::Timer;
 use std::path::PathBuf;
 use std::rc::Rc;
-use crate::BlockEditorWindow;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProjectPaths {

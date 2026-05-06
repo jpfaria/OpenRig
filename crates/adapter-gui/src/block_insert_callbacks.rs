@@ -31,8 +31,8 @@ use crate::project_view::{block_model_picker_items, block_type_picker_items, set
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem,
-    BlockTypePickerItem, CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
+    CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
 };
 
 pub(crate) struct BlockInsertCallbacksCtx {
@@ -181,7 +181,12 @@ pub(crate) fn wire(
             let Some(model) = models.get(index as usize) else {
                 return;
             };
-            log::debug!("on_choose_block_model: index={}, model_id='{}', effect_type='{}'", index, model.model_id, model.effect_type);
+            log::debug!(
+                "on_choose_block_model: index={}, model_id='{}', effect_type='{}'",
+                index,
+                model.model_id,
+                model.effect_type
+            );
             draft.model_id = model.model_id.to_string();
             draft.effect_type = model.effect_type.to_string();
             let new_params = block_parameter_items_for_model(
@@ -189,19 +194,40 @@ pub(crate) fn wire(
                 &model.model_id,
                 &ParameterSet::default(),
             );
-            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+            let overlays = build_knob_overlays(
+                project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
+                &new_params,
+            );
             block_parameter_items.set_vec(new_params);
-            multi_slider_points.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
-            curve_editor_points.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
-            let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &ParameterSet::default());
-            eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+            multi_slider_points.set_vec(build_multi_slider_points(
+                &model.effect_type,
+                &model.model_id,
+                &ParameterSet::default(),
+            ));
+            curve_editor_points.set_vec(build_curve_editor_points(
+                &model.effect_type,
+                &model.model_id,
+                &ParameterSet::default(),
+            ));
+            let (eq_total, eq_bands) = compute_eq_curves(
+                &model.effect_type,
+                &model.model_id,
+                &ParameterSet::default(),
+            );
+            eq_band_curves.set_vec(
+                eq_bands
+                    .into_iter()
+                    .map(SharedString::from)
+                    .collect::<Vec<_>>(),
+            );
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
             if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                block_editor_window
+                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {

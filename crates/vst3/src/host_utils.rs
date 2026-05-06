@@ -22,11 +22,7 @@ pub(crate) fn cstr_array_to_string(buf: &[c_char]) -> String {
 
 /// Read a UTF-16 `char16` (`u16`) array into a `String`.
 pub(crate) fn char16_array_to_string(buf: &[u16]) -> String {
-    let utf16: Vec<u16> = buf
-        .iter()
-        .take_while(|&&c| c != 0)
-        .copied()
-        .collect();
+    let utf16: Vec<u16> = buf.iter().take_while(|&&c| c != 0).copied().collect();
     String::from_utf16_lossy(&utf16)
 }
 

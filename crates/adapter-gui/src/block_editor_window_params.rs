@@ -100,7 +100,9 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_update_block_parameter_number(move |path, value| {
-            let Some(win) = weak_win.upgrade() else { return; };
+            let Some(win) = weak_win.upgrade() else {
+                return;
+            };
             set_block_parameter_number(&win_param_items, path.as_str(), value);
             // Update overlay value so the knob indicator re-renders instantly
             for i in 0..win_knob_overlays.row_count() {
@@ -117,8 +119,14 @@ pub(crate) fn wire(
             // would reset the TouchArea pressed state and break drag interactions).
             if let Some(draft) = win_draft.borrow().as_ref() {
                 let params = build_params_from_items(&win_param_items);
-                let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
-                win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+                let (eq_total, eq_bands) =
+                    compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
+                win_eq_band_curves.set_vec(
+                    eq_bands
+                        .into_iter()
+                        .map(SharedString::from)
+                        .collect::<Vec<_>>(),
+                );
                 win.set_eq_total_curve(eq_total.into());
                 // Update matching curve editor point in-place by path
                 let path_str = path.as_str();
@@ -150,13 +158,25 @@ pub(crate) fn wire(
                     }
                 }
             }
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.number",
                     auto_save,
                 );
@@ -179,17 +199,33 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_update_block_parameter_number_text(move |path, value_text| {
-            let Some(_win) = weak_win.upgrade() else { return; };
+            let Some(_win) = weak_win.upgrade() else {
+                return;
+            };
             let normalized = value_text.replace(',', ".");
-            let Ok(value) = normalized.parse::<f32>() else { return; };
+            let Ok(value) = normalized.parse::<f32>() else {
+                return;
+            };
             set_block_parameter_number(&win_param_items, path.as_str(), value);
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.number-text",
                     auto_save,
                 );
@@ -212,15 +248,29 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_update_block_parameter_bool(move |path, value| {
-            let Some(_win) = weak_win.upgrade() else { return; };
+            let Some(_win) = weak_win.upgrade() else {
+                return;
+            };
             set_block_parameter_bool(&win_param_items, path.as_str(), value);
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.bool",
                     auto_save,
                 );
@@ -243,15 +293,29 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_update_block_parameter_text(move |path, value| {
-            let Some(_win) = weak_win.upgrade() else { return; };
+            let Some(_win) = weak_win.upgrade() else {
+                return;
+            };
             set_block_parameter_text(&win_param_items, path.as_str(), value.as_str());
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.text",
                     auto_save,
                 );
@@ -274,15 +338,29 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_select_block_parameter_option(move |path, index| {
-            let Some(_win) = weak_win.upgrade() else { return; };
+            let Some(_win) = weak_win.upgrade() else {
+                return;
+            };
             set_block_parameter_option(&win_param_items, path.as_str(), index);
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.option",
                     auto_save,
                 );
@@ -305,22 +383,42 @@ pub(crate) fn wire(
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         win.on_pick_block_parameter_file(move |path| {
-            let Some(_win) = weak_win.upgrade() else { return; };
+            let Some(_win) = weak_win.upgrade() else {
+                return;
+            };
             let extensions = block_parameter_extensions(&win_param_items, path.as_str());
             let mut dialog = FileDialog::new();
             if !extensions.is_empty() {
                 let refs: Vec<&str> = extensions.iter().map(|v| v.as_str()).collect();
                 dialog = dialog.add_filter("Arquivos suportados", &refs);
             }
-            let Some(file) = dialog.pick_file() else { return; };
-            set_block_parameter_text(&win_param_items, path.as_str(), file.to_string_lossy().as_ref());
-            if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+            let Some(file) = dialog.pick_file() else {
+                return;
+            };
+            set_block_parameter_text(
+                &win_param_items,
+                path.as_str(),
+                file.to_string_lossy().as_ref(),
+            );
+            if win_draft
+                .borrow()
+                .as_ref()
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
-                    &win_timer, weak_win.clone(), weak_main.clone(),
-                    win_draft.clone(), win_param_items.clone(),
-                    project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                    saved_project_snapshot.clone(), project_dirty.clone(),
-                    input_chain_devices.clone(), output_chain_devices.clone(),
+                    &win_timer,
+                    weak_win.clone(),
+                    weak_main.clone(),
+                    win_draft.clone(),
+                    win_param_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-window.file",
                     auto_save,
                 );
@@ -334,8 +432,12 @@ pub(crate) fn wire(
         let vst3_sr = vst3_sample_rate;
         win.on_open_vst3_editor(move |model_id| {
             match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                Err(e) => { log::error!("VST3 editor: failed '{}': {}", model_id, e); }
+                Ok(handle) => {
+                    vst3_handles.borrow_mut().push(handle);
+                }
+                Err(e) => {
+                    log::error!("VST3 editor: failed '{}': {}", model_id, e);
+                }
             }
         });
     }

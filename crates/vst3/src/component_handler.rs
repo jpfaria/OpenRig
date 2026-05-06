@@ -8,8 +8,8 @@
 
 use vst3::{
     Class, ComWrapper,
-    Steinberg::Vst::{IComponentHandler, IComponentHandlerTrait, ParamID, ParamValue},
     Steinberg::kResultOk,
+    Steinberg::Vst::{IComponentHandler, IComponentHandlerTrait, ParamID, ParamValue},
 };
 
 use crate::param_channel::Vst3ParamChannel;
@@ -49,7 +49,10 @@ impl IComponentHandlerTrait for ComponentHandler {
 
     #[allow(non_snake_case)]
     unsafe fn performEdit(&self, id: ParamID, valueNormalized: ParamValue) -> i32 {
-        self.channel.push(Vst3ParamUpdate { id, normalized: valueNormalized });
+        self.channel.push(Vst3ParamUpdate {
+            id,
+            normalized: valueNormalized,
+        });
         kResultOk
     }
 

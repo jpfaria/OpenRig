@@ -44,7 +44,10 @@ pub fn render_model_def(plugin: &Plugin, classification: &Classification) -> Opt
         "// Re-run the tool to regenerate. Manual customisation goes in overrides.yaml."
     );
     let _ = writeln!(out);
-    let _ = writeln!(out, "#![allow(dead_code, unused_imports, unused_variables, clippy::all)]");
+    let _ = writeln!(
+        out,
+        "#![allow(dead_code, unused_imports, unused_variables, clippy::all)]"
+    );
     let _ = writeln!(out);
     let _ = writeln!(out, "use crate::registry::{};", registry_type);
     let _ = writeln!(out, "use crate::{};", strip_kind(backend_kind));

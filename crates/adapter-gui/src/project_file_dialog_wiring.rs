@@ -125,7 +125,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                             .into(),
                     );
                     window.set_project_path_label(
-                        rust_i18n::t!("status-project-path-prefix", path = canonical_path.display()).to_string().into(),
+                        rust_i18n::t!(
+                            "status-project-path-prefix",
+                            path = canonical_path.display()
+                        )
+                        .to_string()
+                        .into(),
                     );
                     window.set_show_project_launcher(false);
                     window.set_show_project_setup(false);
@@ -194,7 +199,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title(name.into());
-            window.set_project_path_label(rust_i18n::t!("status-project-in-memory").as_ref().into());
+            window
+                .set_project_path_label(rust_i18n::t!("status-project-in-memory").as_ref().into());
             window.set_show_project_setup(false);
             window.set_show_project_launcher(false);
             window.set_show_project_chains(true);
@@ -277,7 +283,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         session.project.name.clone().unwrap_or_default().into(),
                     );
                     window.set_project_path_label(
-                        rust_i18n::t!("status-project-path-prefix", path = project_path.display()).to_string().into(),
+                        rust_i18n::t!("status-project-path-prefix", path = project_path.display())
+                            .to_string()
+                            .into(),
                     );
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(&window, &project_dirty, false);
