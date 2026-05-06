@@ -24,7 +24,6 @@ fn marshall_panel_bg_pinned() {
     let m = brand_colors("marshall").unwrap();
     assert_eq!(m.panel_bg, [0xb8, 0x98, 0x40]);
     assert_eq!(m.panel_text, [0x5a, 0x4a, 0x20]);
-    assert_eq!(m.photo_offset_y, -0.2);
 }
 
 #[test]

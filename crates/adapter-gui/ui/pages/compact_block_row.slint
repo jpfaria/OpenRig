@@ -96,7 +96,7 @@ export component CompactBlockRow inherits Rectangle {
         selected-model: root.block-data.model-selected-index >= 0
             && root.block-data.model-selected-index < root.block-data.models.length
             ? root.block-data.models[root.block-data.model-selected-index]
-            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
         select(model-id) => {
             root.choose-model-by-id(root.block-data.chain-index, root.block-data.block-index, model-id);
         }

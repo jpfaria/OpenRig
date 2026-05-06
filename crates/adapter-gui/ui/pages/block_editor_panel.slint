@@ -141,7 +141,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected-model: root.block-drawer-selected-model-index >= 0
                 && root.block-drawer-selected-model-index < root.block-model-options.length
                 ? root.block-model-options[root.block-drawer-selected-model-index]
-                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
             search-text <=> root.block-model-search-text;
             select(model-id) => { root.choose-block-model-by-id(model-id); }
             search-text-changed(text) => { root.search-block-model(text); }
@@ -192,7 +192,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected-model: root.block-drawer-selected-model-index >= 0
                 && root.block-drawer-selected-model-index < root.block-model-options.length
                 ? root.block-model-options[root.block-drawer-selected-model-index]
-                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
             search-text <=> root.block-model-search-text;
             select(model-id) => { root.choose-block-model-by-id(model-id); }
             search-text-changed(text) => { root.search-block-model(text); }

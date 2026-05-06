@@ -14,8 +14,6 @@ fn item(display_name: &str, brand: &str) -> BlockModelPickerItem {
         panel_text: slint::Color::from_argb_u8(255, 255, 255, 255),
         brand_strip_bg: slint::Color::from_argb_u8(255, 0, 0, 0),
         model_font: "".into(),
-        photo_offset_x: 0.0,
-        photo_offset_y: 0.0,
         available: true,
         thumbnail_path: "".into(),
     }

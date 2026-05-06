@@ -120,8 +120,6 @@ pub(crate) fn block_model_picker_items(
                 panel_text,
                 brand_strip_bg,
                 model_font: visual.model_font.into(),
-                photo_offset_x: visual.photo_offset_x,
-                photo_offset_y: visual.photo_offset_y,
                 available: project::catalog::is_model_available(&item.effect_type, &item.model_id),
                 thumbnail_path: project::catalog::model_thumbnail(
                     &item.effect_type,
