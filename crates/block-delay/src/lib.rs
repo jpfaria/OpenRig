@@ -33,7 +33,7 @@ pub fn delay_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
-        thumbnail_path: delay_thumbnail(model_id),
+        thumbnail_path: None,
         available: registry::is_model_available(model_id),
     })
 }
@@ -94,13 +94,6 @@ pub fn is_delay_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
 
-/// Returns the catalog thumbnail path (relative to project root) for a model.
-pub fn delay_thumbnail(model: &str) -> Option<&'static str> {
-    registry::THUMBNAILS
-        .iter()
-        .find(|(id, _)| *id == model)
-        .map(|(_, path)| *path)
-}
 
 #[cfg(test)]
 #[path = "lib_tests.rs"]

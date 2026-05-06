@@ -8,7 +8,6 @@ fn main() {
     let lv2_libs_dir = lv2_libs_dir(&manifest_dir);
     let mut model_modules = Vec::new();
     let mut available_modules = Vec::new();
-    let mut thumbnail_modules = Vec::new();
 
     for entry in fs::read_dir(&src_dir).expect("read src dir") {
         let path = entry.expect("dir entry").path();
@@ -33,14 +32,10 @@ fn main() {
         if plugin_binary_present(&contents, &lv2_libs_dir) {
             available_modules.push(stem.to_string());
         }
-        if has_thumbnail(&contents) {
-            thumbnail_modules.push(stem.to_string());
-        }
     }
 
     model_modules.sort();
     available_modules.sort();
-    thumbnail_modules.sort();
     let mut generated = String::new();
     for module_name in &model_modules {
         generated.push_str(&format!(
@@ -61,13 +56,6 @@ fn main() {
     generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[ReverbModelDefinition] = &[\n");
     for module_name in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
-    }
-    generated.push_str("];\n\npub const THUMBNAILS: &[(&str, &str)] = &[\n");
-    for module_name in &thumbnail_modules {
-        generated.push_str(&format!(
-            "    ({}::MODEL_ID, match {}::THUMBNAIL_PATH {{ Some(p) => p, None => \"\" }}),\n",
-            module_name, module_name
-        ));
     }
     generated.push_str("];\n");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("out dir"));
@@ -139,6 +127,3 @@ fn parse_plugin_binary_const(line: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-fn has_thumbnail(source: &str) -> bool {
-    source.contains("pub const THUMBNAIL_PATH: Option<&str> = Some(")
-}

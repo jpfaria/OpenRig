@@ -121,12 +121,7 @@ pub(crate) fn block_model_picker_items(
                 brand_strip_bg,
                 model_font: visual.model_font.into(),
                 available: project::catalog::is_model_available(&item.effect_type, &item.model_id),
-                thumbnail_path: project::catalog::model_thumbnail(
-                    &item.effect_type,
-                    &item.model_id,
-                )
-                .unwrap_or("")
-                .into(),
+                thumbnail_path: "".into(),
             }
         })
         .collect()
