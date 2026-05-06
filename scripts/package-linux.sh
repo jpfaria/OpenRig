@@ -85,16 +85,21 @@ S="$OUTPUT_DIR/stage"
 rm -rf "$S" "$OUTPUT_DIR/AppDir" "$OUTPUT_DIR/appimagetool"
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$S/usr/bin"
-mkdir -p "$S/usr/lib/openrig/libs/lv2"
 mkdir -p "$S/usr/lib/openrig/libs/nam"
-mkdir -p "$S/usr/share/openrig/data"
+mkdir -p "$S/usr/share/openrig"
 
 cp target/release/adapter-gui              "$S/usr/bin/openrig"
-cp -r "libs/lv2/linux-${ARCH}"             "$S/usr/lib/openrig/libs/lv2/linux-${ARCH}"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
-cp -r data/lv2                             "$S/usr/share/openrig/data/lv2"
 cp -r assets                               "$S/usr/share/openrig/assets"
-cp -r captures                             "$S/usr/share/openrig/captures"
+
+# Plugin bundle — extracted on first launch by plugin-loader::install.
+# Path matches infra_filesystem::detect_data_root() which returns
+# /usr/share/openrig on Linux installs.
+if [ -f plugins/openrig-plugins.zip ]; then
+    cp plugins/openrig-plugins.zip "$S/usr/share/openrig/plugins.zip"
+else
+    echo "WARN: plugins/openrig-plugins.zip not found — run OpenRig-plugins/scripts/bundle-into-openrig.sh first"
+fi
 
 # Bundle gettext .mo translations under FHS share/. The runtime resolver
 # (i18n::resolve_translations_dir) checks <exec_dir>/../share/openrig/
@@ -120,10 +125,10 @@ if $BUILD_TARBALL; then
     mkdir -p "$OUTPUT_DIR/${D}"
     cp  "$S/usr/bin/openrig"                    "$OUTPUT_DIR/${D}/openrig"
     cp -r "$S/usr/lib/openrig/libs"             "$OUTPUT_DIR/${D}/libs"
-    cp -r "$S/usr/share/openrig/data"           "$OUTPUT_DIR/${D}/data"
     cp -r "$S/usr/share/openrig/assets"         "$OUTPUT_DIR/${D}/assets"
-    cp -r "$S/usr/share/openrig/captures"       "$OUTPUT_DIR/${D}/captures"
     cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"
+    [ -f "$S/usr/share/openrig/plugins.zip" ] && \
+        cp    "$S/usr/share/openrig/plugins.zip" "$OUTPUT_DIR/${D}/plugins.zip"
     tar -czf "$OUTPUT_DIR/${D}.tar.gz" -C "$OUTPUT_DIR" "${D}"
     echo "  → $OUTPUT_DIR/${D}.tar.gz"
 fi
@@ -171,9 +176,7 @@ if $BUILD_APPIMAGE; then
         '#!/bin/bash' \
         'HERE="$(dirname "$(readlink -f "${0}")")"' \
         'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
-        'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
         'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
-        'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
         'exec "$HERE/usr/bin/openrig" "$@"' \
         > "$APPDIR/AppRun"
     chmod +x "$APPDIR/AppRun"

@@ -10,6 +10,7 @@ pub mod config;
 pub mod discover;
 pub mod dispatch;
 pub mod dispatch_infer;
+pub mod install;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
@@ -19,6 +20,7 @@ pub mod validate;
 
 pub use config::{plugins_root_from_config, PluginPathsConfig};
 pub use discover::{discover, DiscoveryError, LoadedPackage};
+pub use install::{extract_bundle_if_needed, has_extracted_packages};
 pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};
 pub use native_runtimes::{NativeBuildFn, NativeRuntime, NativeSchemaFn, NativeValidateFn};
 pub use package::{current_platform_slot, validate_package, PackageError};

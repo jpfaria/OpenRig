@@ -6,9 +6,11 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 block-core = { path = "../block-core" }
+log = "0.4"
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 domain = { path = "../domain" }
