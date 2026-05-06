@@ -10,12 +10,12 @@
 //! `class_name` is the plugin's display name with spaces replaced by `_`.
 //! This scheme is stable as long as the plugin is installed at the same path.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
 use crate::discovery::{scan_system_vst3, Vst3PluginInfo};
 use crate::host::Vst3Plugin;
 use block_core::ModelVisualData;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 /// A discovered VST3 plugin with its stable runtime model ID.
 #[derive(Debug, Clone)]
@@ -78,7 +78,13 @@ pub fn init_vst3_catalog(sample_rate: f64) {
                 let display_name = leak(info.name.clone());
                 let brand = leak(info.vendor.clone());
                 let category = leak(info.category.clone());
-                Vst3CatalogEntry { model_id, display_name, brand, category, info }
+                Vst3CatalogEntry {
+                    model_id,
+                    display_name,
+                    brand,
+                    category,
+                    info,
+                }
             })
             .collect()
     });
@@ -111,6 +117,8 @@ pub fn vst3_model_visual(model_id: &str) -> Option<ModelVisualData> {
         type_label: "VST3",
         supported_instruments: block_core::ALL_INSTRUMENTS,
         knob_layout: &[],
+        thumbnail_path: None,
+        available: true,
     })
 }
 
@@ -146,9 +154,18 @@ pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
     }
 
     // Lazy resolution via enumerate_classes (performs dlopen).
-    log::info!("VST3: lazy UID resolution for '{}' in {}", class_name, bundle_path.display());
-    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path)
-        .map_err(|e| anyhow::anyhow!("failed to enumerate classes in {}: {}", bundle_path.display(), e))?;
+    log::info!(
+        "VST3: lazy UID resolution for '{}' in {}",
+        class_name,
+        bundle_path.display()
+    );
+    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path).map_err(|e| {
+        anyhow::anyhow!(
+            "failed to enumerate classes in {}: {}",
+            bundle_path.display(),
+            e
+        )
+    })?;
 
     // Cache all classes from this bundle.
     let mut cache = uid_cache().lock().unwrap();
@@ -162,10 +179,16 @@ pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
         .iter()
         .find(|c| c.name == class_name)
         .map(|c| c.uid)
-        .ok_or_else(|| anyhow::anyhow!(
-            "class '{}' not found in bundle {} (found: {})",
-            class_name,
-            bundle_path.display(),
-            classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(", ")
-        ))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "class '{}' not found in bundle {} (found: {})",
+                class_name,
+                bundle_path.display(),
+                classes
+                    .iter()
+                    .map(|c| c.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })
 }

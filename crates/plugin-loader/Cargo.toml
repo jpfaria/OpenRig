@@ -1,0 +1,14 @@
+[package]
+name = "plugin-loader"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+block-core = { path = "../block-core" }
+serde.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+domain = { path = "../domain" }

@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 fn main() {
-    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let manifest_dir =
+        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let project_root = manifest_dir.join("../..");
 
     // Determine platform-specific libs directory
@@ -24,7 +25,10 @@ fn main() {
     // Try prebuilt lib first
     let lib_source_dir = if prebuilt_lib.exists() && has_lib(&prebuilt_lib) {
         println!("cargo:rustc-link-search=native={}", prebuilt_lib.display());
-        println!("cargo:warning=Using prebuilt NeuralAudioCAPI from {}", prebuilt_lib.display());
+        println!(
+            "cargo:warning=Using prebuilt NeuralAudioCAPI from {}",
+            prebuilt_lib.display()
+        );
         prebuilt_lib.clone()
     } else {
         // Compile from source
@@ -100,7 +104,11 @@ fn has_lib(dir: &Path) -> bool {
 fn copy_lib_to_target(lib_dir: &Path, lib_name: &str) {
     let src = lib_dir.join(lib_name);
     if !src.exists() {
-        println!("cargo:warning=Cannot copy {} to target dir: source not found at {}", lib_name, src.display());
+        println!(
+            "cargo:warning=Cannot copy {} to target dir: source not found at {}",
+            lib_name,
+            src.display()
+        );
         return;
     }
 
@@ -118,7 +126,12 @@ fn copy_lib_to_target(lib_dir: &Path, lib_name: &str) {
 
     let dst = target_dir.join(lib_name);
     if let Err(e) = std::fs::copy(&src, &dst) {
-        println!("cargo:warning=Failed to copy {} to {}: {}", lib_name, dst.display(), e);
+        println!(
+            "cargo:warning=Failed to copy {} to {}: {}",
+            lib_name,
+            dst.display(),
+            e
+        );
     } else {
         println!("cargo:warning=Copied {} to {}", lib_name, dst.display());
     }
@@ -138,7 +151,11 @@ fn copy_compiled_lib(build_dir: &Path, target_dir: &Path) {
         if let Err(e) = std::fs::copy(&src_file, &dst_file) {
             println!("cargo:warning=Failed to cache lib: {e}");
         } else {
-            println!("cargo:warning=Cached {} to {}", lib_name, target_dir.display());
+            println!(
+                "cargo:warning=Cached {} to {}",
+                lib_name,
+                target_dir.display()
+            );
         }
     }
 }

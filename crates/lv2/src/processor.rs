@@ -59,7 +59,14 @@ impl Lv2Processor {
         control_ports: &[(usize, f32)],
         atom_ports: &[usize],
     ) -> Self {
-        Self::with_extra_ports(plugin, audio_in_ports, audio_out_ports, control_ports, atom_ports, &[])
+        Self::with_extra_ports(
+            plugin,
+            audio_in_ports,
+            audio_out_ports,
+            control_ports,
+            atom_ports,
+            &[],
+        )
     }
 
     /// Create a processor with atom ports and extra (dummy) output ports.
@@ -95,40 +102,28 @@ impl Lv2Processor {
         // Connect atom/MIDI sidechain ports
         for &port_idx in atom_ports {
             unsafe {
-                plugin.connect_port(
-                    port_idx as u32,
-                    atom_buf.as_mut_ptr() as *mut c_void,
-                );
+                plugin.connect_port(port_idx as u32, atom_buf.as_mut_ptr() as *mut c_void);
             }
         }
 
         // Connect audio input ports
         for &port_idx in audio_in_ports {
             unsafe {
-                plugin.connect_port(
-                    port_idx as u32,
-                    in_buf.as_mut_ptr() as *mut c_void,
-                );
+                plugin.connect_port(port_idx as u32, in_buf.as_mut_ptr() as *mut c_void);
             }
         }
 
         // Connect audio output ports
         for &port_idx in audio_out_ports {
             unsafe {
-                plugin.connect_port(
-                    port_idx as u32,
-                    out_buf.as_mut_ptr() as *mut c_void,
-                );
+                plugin.connect_port(port_idx as u32, out_buf.as_mut_ptr() as *mut c_void);
             }
         }
 
         // Connect extra output ports to dummy buffer (prevents writes to unconnected memory)
         for &port_idx in extra_out_ports {
             unsafe {
-                plugin.connect_port(
-                    port_idx as u32,
-                    dummy_out_buf.as_mut_ptr() as *mut c_void,
-                );
+                plugin.connect_port(port_idx as u32, dummy_out_buf.as_mut_ptr() as *mut c_void);
             }
         }
 

@@ -1,7 +1,10 @@
 //! Image asset loaders for thumbnails and screenshots — lifted out of
 //! project_view.rs so the parent module stays under the size cap.
 
-pub(crate) fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
+pub(crate) fn load_thumbnail_image(
+    effect_type: &str,
+    model_id: &str,
+) -> (slint::Image, bool, f32, f32) {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -33,12 +36,17 @@ pub(crate) fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint:
                     (slint_img, true, w, h)
                 }
                 Err(e) => {
-                    log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
+                    log::warn!(
+                        "Failed to decode thumbnail for {}/{}: {}",
+                        effect_type,
+                        model_id,
+                        e
+                    );
                     (slint::Image::default(), false, 0.0, 0.0)
                 }
             }
         }
-        None => (slint::Image::default(), false, 0.0, 0.0)
+        None => (slint::Image::default(), false, 0.0, 0.0),
     }
 }
 

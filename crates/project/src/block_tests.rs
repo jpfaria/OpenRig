@@ -25,14 +25,16 @@ fn project_contract_exposes_family_schemas() {
 
     for (effect_type, models) in families {
         for model in models {
-            let schema =
-                schema_for_block_model(effect_type, model).expect("schema should exist");
+            let schema = schema_for_block_model(effect_type, model).expect("schema should exist");
             assert_eq!(schema.model, *model);
             assert_eq!(
                 schema.effect_type, effect_type,
                 "schema for {effect_type}:{model} should expose matching family"
             );
-            assert!(!schema.parameters.is_empty(), "schema for {effect_type}:{model} should expose parameters");
+            assert!(
+                !schema.parameters.is_empty(),
+                "schema for {effect_type}:{model} should expose parameters"
+            );
         }
     }
 }
@@ -50,8 +52,7 @@ fn project_contract_normalizes_defaults_for_supported_families() {
 
     for (effect_type, models) in families {
         for model in models {
-            let schema =
-                schema_for_block_model(effect_type, model).expect("schema should exist");
+            let schema = schema_for_block_model(effect_type, model).expect("schema should exist");
             let normalized = normalize_block_params(effect_type, model, ParameterSet::default());
             let has_complete_defaults = schema
                 .parameters
@@ -204,7 +205,6 @@ fn input_block_supports_multiple_entries() {
         model: "standard".to_string(),
         entries: vec![
             InputEntry {
-
                 device_id: DeviceId("scarlett".into()),
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
@@ -342,8 +342,12 @@ fn insert_block_clone_equality() {
     };
     let cloned = block.clone();
     assert_eq!(block, cloned);
-    assert!(matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out"));
-    assert!(matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in"));
+    assert!(
+        matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out")
+    );
+    assert!(
+        matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in")
+    );
 }
 
 #[test]
@@ -507,9 +511,7 @@ fn validate_params_core_block_valid_model() {
         .first()
         .expect("at least one delay model");
     let schema = schema_for_block_model("delay", model).unwrap();
-    let params = ParameterSet::default()
-        .normalized_against(&schema)
-        .unwrap();
+    let params = ParameterSet::default().normalized_against(&schema).unwrap();
     let block = AudioBlock {
         id: BlockId("b:core".into()),
         enabled: true,
@@ -792,7 +794,10 @@ fn parameter_descriptors_core_returns_params() {
     let model = block_delay::supported_models().first().unwrap();
     let blk = delay_block("b:core", model);
     let descs = blk.parameter_descriptors().unwrap();
-    assert!(!descs.is_empty(), "delay block should have parameter descriptors");
+    assert!(
+        !descs.is_empty(),
+        "delay block should have parameter descriptors"
+    );
 }
 
 #[test]
@@ -848,7 +853,9 @@ fn select_block_rejects_nested_select_option() {
             options: vec![nested_select],
         }),
     };
-    let err = block.validate_params().expect_err("nested select should fail");
+    let err = block
+        .validate_params()
+        .expect_err("nested select should fail");
     assert!(err.contains("select, input, output, or insert"));
 }
 
@@ -870,7 +877,9 @@ fn select_block_rejects_input_option() {
             options: vec![input_opt],
         }),
     };
-    let err = block.validate_params().expect_err("input option should fail");
+    let err = block
+        .validate_params()
+        .expect_err("input option should fail");
     assert!(err.contains("select, input, output, or insert"));
 }
 
@@ -892,7 +901,9 @@ fn select_block_rejects_output_option() {
             options: vec![output_opt],
         }),
     };
-    let err = block.validate_params().expect_err("output option should fail");
+    let err = block
+        .validate_params()
+        .expect_err("output option should fail");
     assert!(err.contains("select, input, output, or insert"));
 }
 
@@ -923,7 +934,9 @@ fn select_block_rejects_insert_option() {
             options: vec![insert_opt],
         }),
     };
-    let err = block.validate_params().expect_err("insert option should fail");
+    let err = block
+        .validate_params()
+        .expect_err("insert option should fail");
     assert!(err.contains("select, input, output, or insert"));
 }
 
@@ -978,11 +991,14 @@ fn schema_covers_all_static_effect_types() {
         ("modulation", block_mod::supported_models()),
     ];
     for (effect_type, models) in types_and_models {
-        assert!(
-            !models.is_empty(),
-            "{effect_type} should have at least one model"
-        );
-        let schema = schema_for_block_model(effect_type, models[0]).unwrap();
+        // Some block crates currently expose no native models — their
+        // catalog lives in plugin-loader / disk packages instead. Skip
+        // those rather than fail; the fallback path is exercised by
+        // `disk_packages_load_through_full_block_pipeline` below.
+        let Some(model) = models.first() else {
+            continue;
+        };
+        let schema = schema_for_block_model(effect_type, model).unwrap();
         assert_eq!(schema.effect_type, effect_type);
     }
 }
@@ -1025,9 +1041,7 @@ fn input_block_stereo_duplicate_channel_detected() {
 fn build_audio_block_kind_core_types() {
     let model = block_delay::supported_models().first().unwrap();
     let schema = schema_for_block_model("delay", model).unwrap();
-    let params = ParameterSet::default()
-        .normalized_against(&schema)
-        .unwrap();
+    let params = ParameterSet::default().normalized_against(&schema).unwrap();
     let kind = super::build_audio_block_kind("delay", model, params).unwrap();
     assert!(matches!(kind, AudioBlockKind::Core(_)));
 }
@@ -1036,12 +1050,8 @@ fn build_audio_block_kind_core_types() {
 fn build_audio_block_kind_nam_type() {
     // build_audio_block_kind just constructs the enum variant without
     // validating params, so we can use empty params here.
-    let kind = super::build_audio_block_kind(
-        "nam",
-        "neural_amp_modeler",
-        ParameterSet::default(),
-    )
-    .unwrap();
+    let kind = super::build_audio_block_kind("nam", "neural_amp_modeler", ParameterSet::default())
+        .unwrap();
     assert!(matches!(kind, AudioBlockKind::Nam(_)));
 }
 
@@ -1052,3 +1062,120 @@ fn build_audio_block_kind_unsupported_type_errors() {
     assert!(result.unwrap_err().contains("unsupported block type"));
 }
 
+// ── disk-package end-to-end: schema + normalize + audio_descriptors all
+// must accept models that live only in plugin_loader::registry, not in
+// the legacy block-* registries. Single test combines coverage because
+// plugin_loader::registry is OnceLock-backed (init freezes it once).
+// Issue #287.
+#[test]
+fn disk_packages_load_through_full_block_pipeline() {
+    use crate::param::{ModelParameterSchema, ParameterSet};
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use std::path::PathBuf;
+
+    fn empty_schema(
+        effect_type: &'static str,
+        model_id: &'static str,
+    ) -> impl Fn() -> anyhow::Result<ModelParameterSchema> {
+        move || {
+            Ok(ModelParameterSchema {
+                effect_type: effect_type.into(),
+                model: model_id.into(),
+                display_name: model_id.into(),
+                audio_mode: block_core::ModelAudioMode::DualMono,
+                parameters: Vec::new(),
+            })
+        }
+    }
+    fn ok_validate(_: &ParameterSet) -> anyhow::Result<()> {
+        Ok(())
+    }
+    fn err_build(
+        _: &ParameterSet,
+        _: f32,
+        _: block_core::AudioChannelLayout,
+    ) -> anyhow::Result<block_core::BlockProcessor> {
+        anyhow::bail!("not exercised in this test")
+    }
+
+    fn bare_schema() -> anyhow::Result<ModelParameterSchema> {
+        Ok(ModelParameterSchema {
+            effect_type: "".into(),
+            model: "".into(),
+            display_name: "".into(),
+            audio_mode: block_core::ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+
+    // One fake disk package per BlockType the catalog cares about. All
+    // share the same noop NativeRuntime — these tests don't exercise
+    // build, only the load/normalize/schema pipeline.
+    let fixtures: &[(&str, BlockType, &str)] = &[
+        ("preamp", BlockType::Preamp, "test_disk_preamp_e2e"),
+        ("amp", BlockType::Amp, "test_disk_amp_e2e"),
+        ("cab", BlockType::Cab, "test_disk_cab_e2e"),
+        ("body", BlockType::Body, "test_disk_body_e2e"),
+        ("gain", BlockType::GainPedal, "test_disk_gain_e2e"),
+        ("delay", BlockType::Delay, "test_disk_delay_e2e"),
+        ("reverb", BlockType::Reverb, "test_disk_reverb_e2e"),
+        ("modulation", BlockType::Mod, "test_disk_mod_e2e"),
+        ("dynamics", BlockType::Dyn, "test_disk_dyn_e2e"),
+        ("filter", BlockType::Filter, "test_disk_filter_e2e"),
+        ("pitch", BlockType::Pitch, "test_disk_pitch_e2e"),
+        ("wah", BlockType::Wah, "test_disk_wah_e2e"),
+    ];
+    for (_, block_type, id) in fixtures {
+        plugin_loader::registry::register_native_simple(
+            id,
+            id,
+            Some("test"),
+            *block_type,
+            NativeRuntime {
+                schema: bare_schema,
+                validate: ok_validate,
+                build: err_build,
+            },
+        );
+    }
+    plugin_loader::registry::init(&PathBuf::from("/nonexistent-test-path"));
+
+    // schema_for_block_model fallback resolves each disk package.
+    for (effect_type, _, id) in fixtures {
+        let schema = crate::block::schema_for_block_model(effect_type, id);
+        assert!(
+            schema.is_ok(),
+            "schema_for_block_model({effect_type}, {id}) should fall through to plugin_loader::registry, got: {:?}",
+            schema.err()
+        );
+    }
+
+    // normalize_block_params accepts each disk package even though the
+    // legacy validate_*_params returns Err for unknown ids.
+    for (effect_type, _, id) in fixtures {
+        let result = crate::block::normalize_block_params(effect_type, id, ParameterSet::default());
+        assert!(
+            result.is_ok(),
+            "normalize_block_params({effect_type}, {id}) should accept disk package, got: {:?}",
+            result.err()
+        );
+    }
+
+    // catalog::supported_block_models surfaces every disk package id.
+    for (effect_type, _, id) in fixtures {
+        let models = crate::catalog::supported_block_models(effect_type)
+            .unwrap_or_else(|err| panic!("supported_block_models({effect_type}) failed: {err}"));
+        assert!(
+            models.iter().any(|m| m.model_id == *id),
+            "supported_block_models({effect_type}) should include disk package {id}, got: {:?}",
+            models
+                .iter()
+                .map(|m| m.model_id.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    // Suppress dead-code warnings: helper exists for future param-driven tests.
+    let _ = empty_schema;
+}

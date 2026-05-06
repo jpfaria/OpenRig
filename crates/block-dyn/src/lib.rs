@@ -33,6 +33,8 @@ pub fn dyn_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
+        thumbnail_path: dyn_thumbnail(model_id),
+        available: registry::is_model_available(model_id),
     })
 }
 
@@ -78,7 +80,13 @@ pub fn build_dynamics_processor_for_layout(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
+    if let Ok(definition) = registry::find_model_definition(model) {
+        return (definition.build)(params, sample_rate, layout);
+    }
+    if let Some(package) = plugin_loader::registry::find(model) {
+        return package.build_processor(params, sample_rate, layout);
+    }
+    anyhow::bail!("unsupported dyn model '{}'", model)
 }
 
 pub fn compressor_model_schema(model: &str) -> Result<ModelParameterSchema> {
@@ -126,3 +134,22 @@ pub fn build_gate_processor_for_layout(
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+/// Push every native model into the unified plugin-loader registry.
+/// Called by `adapter-gui` at startup before plugin discovery freezes
+/// the catalog.
+pub fn register_natives() {
+    registry::register_natives();
+}
+
+pub fn is_dyn_model_available(model: &str) -> bool {
+    registry::is_model_available(model)
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for a model.
+pub fn dyn_thumbnail(model: &str) -> Option<&'static str> {
+    registry::THUMBNAILS
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, path)| *path)
+}

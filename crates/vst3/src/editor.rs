@@ -9,9 +9,9 @@
 use anyhow::{bail, Result};
 use std::path::Path;
 use std::sync::Arc;
-use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
-use vst3::Steinberg::IPlugViewTrait;
 use vst3::ComPtr;
+use vst3::Steinberg::IPlugViewTrait;
+use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
 
 use crate::component_handler::ComponentHandler;
 use crate::host::Vst3Plugin;
@@ -91,10 +91,19 @@ pub fn open_vst3_editor_window(
 
         let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
         if res != kResultOk {
-            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+            bail!(
+                "plugin '{}' does not support NSView GUI (result={})",
+                plugin_name,
+                res
+            );
         }
 
-        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        let mut rect = ViewRect {
+            left: 0,
+            top: 0,
+            right: 800,
+            bottom: 600,
+        };
         unsafe { view.getSize(&mut rect) };
         let width = (rect.right - rect.left).max(200) as f64;
         let height = (rect.bottom - rect.top).max(100) as f64;
@@ -166,7 +175,8 @@ pub fn open_vst3_editor_window_standalone(
 
         // No param channel — engine not running.
         let component_handler = {
-            let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+            let wrapper =
+                ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
             unsafe {
                 use vst3::Steinberg::Vst::IComponentHandler;
                 if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
@@ -181,10 +191,19 @@ pub fn open_vst3_editor_window_standalone(
 
         let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
         if res != kResultOk {
-            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+            bail!(
+                "plugin '{}' does not support NSView GUI (result={})",
+                plugin_name,
+                res
+            );
         }
 
-        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        let mut rect = ViewRect {
+            left: 0,
+            top: 0,
+            right: 800,
+            bottom: 600,
+        };
         unsafe { view.getSize(&mut rect) };
         let width = (rect.right - rect.left).max(200) as f64;
         let height = (rect.bottom - rect.top).max(100) as f64;
@@ -247,7 +266,10 @@ mod macos {
         fn new(x: f64, y: f64, w: f64, h: f64) -> Self {
             NSRect {
                 origin: CGPoint { x, y },
-                size: CGSize { width: w, height: h },
+                size: CGSize {
+                    width: w,
+                    height: h,
+                },
             }
         }
     }
@@ -319,7 +341,14 @@ mod macos {
     macro_rules! msg_init_window {
         ($obj:expr, $rect:expr, $style:expr) => {{
             let f: MsgSend1R = std::mem::transmute(objc_msgSend as *const ());
-            f($obj, sel("initWithContentRect:styleMask:backing:defer:"), $rect, $style, NS_BACKING_BUFFERED, false)
+            f(
+                $obj,
+                sel("initWithContentRect:styleMask:backing:defer:"),
+                $rect,
+                $style,
+                NS_BACKING_BUFFERED,
+                false,
+            )
         }};
     }
 
@@ -338,8 +367,11 @@ mod macos {
                 // Set title
                 let ns_str_cls = cls("NSString");
                 let title_cstr = CString::new(title).unwrap();
-                let ns_title =
-                    msg1v!(ns_str_cls, sel("stringWithUTF8String:"), title_cstr.as_ptr() as *mut c_void);
+                let ns_title = msg1v!(
+                    ns_str_cls,
+                    sel("stringWithUTF8String:"),
+                    title_cstr.as_ptr() as *mut c_void
+                );
                 msg1v!(self.0, sel("setTitle:"), ns_title);
 
                 // Make key and order front
@@ -371,7 +403,11 @@ mod macos {
     }
 
     /// Create a native NSWindow for the plugin GUI.
-    pub fn create_editor_window(plugin_name: &str, width: f64, height: f64) -> Result<OwnedNsWindow> {
+    pub fn create_editor_window(
+        plugin_name: &str,
+        width: f64,
+        height: f64,
+    ) -> Result<OwnedNsWindow> {
         unsafe {
             // Ensure NSApp is initialized (it should be since Slint is running).
             let ns_app_cls = cls("NSApplication");

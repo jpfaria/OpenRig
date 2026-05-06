@@ -136,6 +136,7 @@ export component BlockEditorPanel inherits Rectangle {
             x: 20px;
             y: 74px;
             width: parent.width - 40px;
+            popup-height: 480px;
             filtered-models: root.filtered-block-model-options;
             selected-model: root.block-drawer-selected-model-index >= 0
                 && root.block-drawer-selected-model-index < root.block-model-options.length
@@ -148,7 +149,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
-            y: 112px;
+            y: 120px;
             width: parent.width - 40px;
             height: 16px;
             text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
@@ -161,9 +162,9 @@ export component BlockEditorPanel inherits Rectangle {
         // Parâmetros do amp head
         if root.is-preamp : ScrollView {
             x: 20px;
-            y: 132px + (parent.width - 16px) / 4 + 12px;
+            y: 140px + (parent.width - 16px) / 4 + 12px;
             width: parent.width - 40px;
-            height: parent.height - (132px + (parent.width - 16px) / 4 + 12px) - (root.block-drawer-edit-mode ? 20px : 74px);
+            height: parent.height - (140px + (parent.width - 16px) / 4 + 12px) - (root.block-drawer-edit-mode ? 20px : 74px);
             viewport-width: self.width;
             viewport-height: root.block-parameter-items.length * 96px;
 
@@ -186,6 +187,7 @@ export component BlockEditorPanel inherits Rectangle {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
+            popup-height: 480px;
             filtered-models: root.filtered-block-model-options;
             selected-model: root.block-drawer-selected-model-index >= 0
                 && root.block-drawer-selected-model-index < root.block-model-options.length
@@ -198,7 +200,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
-            y: 118px;
+            y: 124px;
             width: parent.width - 40px;
             height: 16px;
             text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
@@ -208,7 +210,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.curve-editor-points.length > 0 : CurveEditorControl {
             x: 8px;
-            y: 142px;
+            y: 148px;
             width: parent.width - 16px;
             points: root.curve-editor-points;
             total-curve: root.eq-total-curve;
@@ -218,7 +220,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
             x: 8px;
-            y: 142px;
+            y: 148px;
             width: parent.width - 16px;
             points: root.multi-slider-points;
             update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
@@ -227,7 +229,7 @@ export component BlockEditorPanel inherits Rectangle {
         // ── Stream display (tuner, spectrum) — for non-preamp utility blocks ──
         if !root.is-preamp && root.has-tuner-stream : Rectangle {
             x: 20px;
-            y: 142px;
+            y: 148px;
             width: parent.width - 40px;
             height: 200px;
             background: #0a0c14;
@@ -296,7 +298,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
             x: 20px;
-            y: 142px;
+            y: 148px;
             width: parent.width - 40px;
             height: 200px;
             background: #06060e;
@@ -325,9 +327,9 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
             x: 20px;
-            y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 354px : 138px;
+            y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 360px : 144px;
             width: parent.width - 40px;
-            height: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? (parent.height - 374px) : (parent.height - 158px);
+            height: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? (parent.height - 380px) : (parent.height - 164px);
             viewport-width: self.width;
             viewport-height: root.block-parameter-items.length * 96px;
 

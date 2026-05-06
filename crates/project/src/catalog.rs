@@ -220,7 +220,19 @@ pub fn resolve_color_scheme(effect_type: &str, brand: &str, model_id: &str) -> M
 pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
     let mut types: Vec<_> = block_registry()
         .into_iter()
-        .filter(|entry| !(entry.supported_models)().is_empty())
+        .filter(|entry| {
+            // Include the type if it has either native models OR
+            // disk-backed packages registered for it. Block types that
+            // migrated entirely to disk packages (e.g. block-body) have
+            // an empty native slice but still need to appear in the GUI.
+            // Issue #287.
+            if !(entry.supported_models)().is_empty() {
+                return true;
+            }
+            block_type_for_effect_type(entry.effect_type)
+                .map(|bt| !plugin_loader::registry::packages_for(bt).is_empty())
+                .unwrap_or(false)
+        })
         .map(|entry| BlockTypeCatalogEntry {
             effect_type: entry.effect_type,
             display_label: entry.display_label,
@@ -288,7 +300,7 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .find(|entry| entry.effect_type == effect_type)
         .ok_or_else(|| format!("unsupported effect type '{}'", effect_type))?;
 
-    (entry.supported_models)()
+    let mut result: Vec<BlockModelCatalogEntry> = (entry.supported_models)()
         .iter()
         .map(|model_id| {
             let schema = schema_for_block_model(effect_type, model_id)?;
@@ -322,7 +334,76 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 knob_layout: visual.as_ref().map(|v| v.knob_layout).unwrap_or(&[]),
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+
+    // Merge in disk-backed packages whose `block_type` matches this
+    // `effect_type`. Native models still pass through the static
+    // `entry.supported_models` slice above; disk packages were absent
+    // from that slice and so wouldn't surface to the GUI before this
+    // change. Issue #287.
+    if let Some(block_type) = block_type_for_effect_type(effect_type) {
+        let already: std::collections::HashSet<String> =
+            result.iter().map(|e| e.model_id.clone()).collect();
+        for package in plugin_loader::registry::packages_for(block_type) {
+            if already.contains(&package.manifest.id) {
+                continue;
+            }
+            let visual = (entry.model_visual)(package.manifest.id.as_str());
+            let type_label = visual
+                .as_ref()
+                .map(|v| v.type_label.to_string())
+                .unwrap_or_else(|| backend_label_for(&package.manifest.backend).to_string());
+            result.push(BlockModelCatalogEntry {
+                effect_type: effect_type.to_string(),
+                model_id: package.manifest.id.clone(),
+                display_name: package.manifest.display_name.clone(),
+                brand: package.manifest.brand.clone().unwrap_or_default(),
+                type_label,
+                supported_instruments: block_core::ALL_INSTRUMENTS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                knob_layout: &[],
+            });
+        }
+    }
+    Ok(result)
+}
+
+/// Map a stable `effect_type` string to the discriminant the
+/// plugin-loader registry uses. Returns `None` for `effect_type` values
+/// that don't correspond to a [`plugin_loader::manifest::BlockType`]
+/// variant — those don't have disk-package support.
+fn block_type_for_effect_type(effect_type: &str) -> Option<plugin_loader::manifest::BlockType> {
+    use block_core::*;
+    use plugin_loader::manifest::BlockType;
+    Some(match effect_type {
+        s if s == EFFECT_TYPE_PREAMP => BlockType::Preamp,
+        s if s == EFFECT_TYPE_AMP => BlockType::Amp,
+        s if s == EFFECT_TYPE_CAB => BlockType::Cab,
+        s if s == EFFECT_TYPE_BODY => BlockType::Body,
+        s if s == EFFECT_TYPE_GAIN => BlockType::GainPedal,
+        s if s == EFFECT_TYPE_DELAY => BlockType::Delay,
+        s if s == EFFECT_TYPE_REVERB => BlockType::Reverb,
+        s if s == EFFECT_TYPE_MODULATION => BlockType::Mod,
+        s if s == EFFECT_TYPE_DYNAMICS => BlockType::Dyn,
+        s if s == EFFECT_TYPE_FILTER => BlockType::Filter,
+        s if s == EFFECT_TYPE_WAH => BlockType::Wah,
+        s if s == EFFECT_TYPE_PITCH => BlockType::Pitch,
+        s if s == EFFECT_TYPE_UTILITY => BlockType::Util,
+        _ => return None,
+    })
+}
+
+fn backend_label_for(backend: &plugin_loader::manifest::Backend) -> &'static str {
+    use plugin_loader::manifest::Backend;
+    match backend {
+        Backend::Native { .. } => "NATIVE",
+        Backend::Nam { .. } => "NAM",
+        Backend::Ir { .. } => "IR",
+        Backend::Lv2 { .. } => "LV2",
+        Backend::Vst3 { .. } => "VST3",
+    }
 }
 
 /// Returns the stream kind produced by a model's StreamHandle.
@@ -450,3 +531,33 @@ pub fn build_block_kind(
 #[cfg(test)]
 #[path = "catalog_tests.rs"]
 mod tests;
+
+/// Returns true if the model has a usable backend on the current platform.
+pub fn is_model_available(effect_type: &str, model_id: &str) -> bool {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_REVERB => block_reverb::is_reverb_model_available(model_id),
+        EFFECT_TYPE_DELAY => block_delay::is_delay_model_available(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::is_mod_model_available(model_id),
+        EFFECT_TYPE_FILTER => block_filter::is_filter_model_available(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::is_dyn_model_available(model_id),
+        EFFECT_TYPE_GAIN => block_gain::is_gain_model_available(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::is_pitch_model_available(model_id),
+        _ => true,
+    }
+}
+
+/// Returns the catalog thumbnail path (relative to project root) for an LV2 model.
+pub fn model_thumbnail(effect_type: &str, model_id: &str) -> Option<&'static str> {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_REVERB => block_reverb::reverb_thumbnail(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_thumbnail(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_thumbnail(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_thumbnail(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_thumbnail(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_thumbnail(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_thumbnail(model_id),
+        _ => None,
+    }
+}

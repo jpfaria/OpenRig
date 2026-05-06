@@ -18,6 +18,10 @@ CROSS_COMPILE="${CROSS_COMPILE:-}"
 lib_ext() {
     if [ -n "$CROSS_COMPILE" ] && echo "$CROSS_COMPILE" | grep -q mingw; then
         echo "dll"
+    elif [ -n "${MINGW_TARGET:-}" ]; then
+        # MSYS2/MINGW64 builds natively on Windows runners (no cross prefix)
+        # but the target IS Windows so libraries are .dll, not .so.
+        echo "dll"
     elif [ "$(uname -s)" = "Darwin" ]; then
         echo "dylib"
     else
@@ -45,20 +49,61 @@ mkdir -p "$BUILD_WORK_DIR"
 
 # --- Helpers ---
 
+# Returns 0 if $1 is a binary that matches the current target architecture.
+# Some upstream LV2 source trees ship prebuilt .so files (typically x86_64)
+# alongside their Makefiles. Without this filter those prebuilts leak into
+# libs/lv2/linux-aarch64/ on the ARM runner — appimagetool then refuses
+# the AppDir because it sees mixed architectures.
+binary_matches_target() {
+    local f="$1"
+    local desc
+    desc="$(file -b "$f" 2>/dev/null)" || return 1
+
+    # Cross-compile to mingw → expect PE32+ DLL
+    if [ -n "$CROSS_COMPILE" ] && echo "$CROSS_COMPILE" | grep -q mingw; then
+        echo "$desc" | grep -qE "PE32\+? executable.*Windows"
+        return $?
+    fi
+    # Native MinGW (MSYS2) → also PE
+    if [ -n "${MINGW_TARGET:-}" ]; then
+        echo "$desc" | grep -qE "PE32\+? executable.*Windows"
+        return $?
+    fi
+    # macOS → Mach-O (any arch counts; we ship universal binaries)
+    if [ "$(uname -s)" = "Darwin" ]; then
+        echo "$desc" | grep -q "Mach-O"
+        return $?
+    fi
+    # Linux native → must match the host's machine arch
+    local host_arch
+    host_arch="$(uname -m)"
+    case "$host_arch" in
+        aarch64|arm64)  echo "$desc" | grep -qE "ELF.*ARM aarch64" ;;
+        x86_64|amd64)   echo "$desc" | grep -qE "ELF.*x86-64" ;;
+        *)              return 0 ;; # unknown host arch — accept and let CI catch it
+    esac
+}
+
 # Collect built libs from a directory
 collect_libs() {
     local search_dir="$1"
     shift
-    # Remaining args are name patterns (without extension)
+    # Filter both by extension (.so/.dylib/.dll) AND by binary architecture.
+    # Without the architecture filter, prebuilt artifacts shipped in upstream
+    # source trees (e.g. setBfree b_*.so x86_64 binaries committed alongside
+    # the Makefile) leak into libs/lv2/<platform>/ for the wrong arch.
     if [ $# -eq 0 ]; then
-        # Collect all shared libs
-        find "$search_dir" \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) | while read -r f; do
-            cp "$f" "$OUTPUT_DIR/"
+        find "$search_dir" -name "*.${LIB_EXT}" | while read -r f; do
+            if binary_matches_target "$f"; then
+                cp "$f" "$OUTPUT_DIR/"
+            fi
         done
     else
         for pattern in "$@"; do
-            find "$search_dir" \( -name "${pattern}.so" -o -name "${pattern}.dylib" -o -name "${pattern}.dll" -o -name "lib${pattern}.so" -o -name "lib${pattern}.dylib" -o -name "lib${pattern}.dll" \) | while read -r f; do
-                cp "$f" "$OUTPUT_DIR/"
+            find "$search_dir" \( -name "${pattern}.${LIB_EXT}" -o -name "lib${pattern}.${LIB_EXT}" \) | while read -r f; do
+                if binary_matches_target "$f"; then
+                    cp "$f" "$OUTPUT_DIR/"
+                fi
             done
         done
     fi

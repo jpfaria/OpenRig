@@ -26,6 +26,7 @@ members = [
   "crates/ir",
   "crates/block-ir",
   "crates/block-wah",
+  "crates/plugin-loader",
   "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",
@@ -35,6 +36,7 @@ members = [
   "crates/adapter-gui",
   "crates/adapter-vst3",
   "crates/vst3",
+  "tools/lv2_catalog_import",
 ]
 resolver = "2"
 
@@ -56,7 +58,7 @@ prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
 crossbeam-queue = "0.3"
-slint = "1.14"
+slint = { version = "1.14", default-features = false, features = ["std", "compat-1-2"] }
 slint-build = "1.14"
 log = "0.4"
 env_logger = "0.11"

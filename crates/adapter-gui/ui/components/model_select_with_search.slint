@@ -11,14 +11,14 @@ export component ModelSelectWithSearch inherits Rectangle {
     in property <[BlockModelPickerItem]> filtered-models;
     in property <BlockModelPickerItem> selected-model;
     in-out property <string> search-text;
-    in property <length> popup-height: 300px;
+    in property <length> popup-height: 220px;
 
     // ── outputs ───────────────────────────────────────────────────────
     callback select(string);
     callback search-text-changed(string);
 
     // ── closed-button visuals ─────────────────────────────────────────
-    height: 34px;
+    height: 40px;
     background: #060610;
     border-width: 1px;
     border-color: #252538;
@@ -44,7 +44,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         height: parent.height;
         text: root.selected-button-label;
         color: #d8e0ff;
-        font-size: 13px;
+        font-size: 19px;
         font-weight: 700;
         vertical-alignment: center;
         overflow: elide;
@@ -52,9 +52,9 @@ export component ModelSelectWithSearch inherits Rectangle {
 
     if root.selected-model.type_label != "" : Rectangle {
         x: parent.width - 22px - 48px;
-        y: (parent.height - 18px) / 2;
+        y: (parent.height - 22px) / 2;
         width: 42px;
-        height: 18px;
+        height: 22px;
         border-radius: 3px;
         background: root.selected-model.type_label == "NATIVE" ? #0d2a0d
             : root.selected-model.type_label == "NAM" ? #0d1a2e
@@ -77,7 +77,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                 : root.selected-model.type_label == "IR" ? #aa44ff
                 : root.selected-model.type_label == "LV2" ? #44ddaa
                 : #ff8833;
-            font-size: 7px;
+            font-size: 10px;
             font-weight: 800;
             letter-spacing: 0.5px;
             vertical-alignment: center;
@@ -92,7 +92,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         height: parent.height;
         text: @tr("▼");
         color: #ffffff;
-        font-size: 11px;
+        font-size: 14px;
         vertical-alignment: center;
         horizontal-alignment: center;
     }
@@ -134,22 +134,20 @@ export component ModelSelectWithSearch inherits Rectangle {
                 x: 6px;
                 y: 6px;
                 width: parent.width - 12px;
-                height: 32px;
+                height: 40px;
                 background: #14142a;
                 border-width: 1px;
                 border-color: #2a2a40;
                 border-radius: 6px;
 
-                // Magnifier glyph (decorative).
-                Text {
-                    x: 8px;
-                    y: 0;
-                    width: 18px;
-                    height: parent.height;
-                    text: @tr("🔍");
-                    font-size: 12px;
-                    vertical-alignment: center;
-                    horizontal-alignment: center;
+                // Magnifier icon (flat SVG, colorized).
+                Image {
+                    x: 10px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
                 }
 
                 input := TextInput {
@@ -159,7 +157,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     height: parent.height;
                     text <=> root.search-text;
                     color: #d8e0ff;
-                    font-size: 12px;
+                    font-size: 18px;
                     horizontal-alignment: left;
                     vertical-alignment: center;
                     single-line: true;
@@ -176,7 +174,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     height: parent.height;
                     text: @tr("placeholder-search-models");
                     color: #6a6a82;
-                    font-size: 12px;
+                    font-size: 18px;
                     vertical-alignment: center;
                 }
 
@@ -205,30 +203,34 @@ export component ModelSelectWithSearch inherits Rectangle {
             // Empty state.
             if root.filtered-models.length == 0 : Text {
                 x: 0;
-                y: 50px;
+                y: 58px;
                 width: parent.width;
-                height: 32px;
+                height: 36px;
                 text: @tr("status-no-models-found");
                 color: #6a6a82;
-                font-size: 12px;
+                font-size: 16px;
                 vertical-alignment: center;
                 horizontal-alignment: center;
             }
 
-            // Filtered list.
+            // Filtered list. Flickable supports wheel/trackpad scroll
+            // without rendering a visible scrollbar — the visual noise
+            // of std-widgets ScrollView's track was rejected.
             if root.filtered-models.length > 0 : Flickable {
                 x: 0;
-                y: 46px;
+                y: 54px;
                 width: parent.width;
-                height: parent.height - 46px;
-                viewport-height: root.filtered-models.length * 26px + 8px;
+                height: parent.height - 54px;
+                viewport-width: self.width;
+                viewport-height: root.filtered-models.length * 36px + 8px;
 
                 for model[i] in root.filtered-models : Rectangle {
                     x: 4px;
-                    y: 4px + i * 26px;
+                    y: 4px + i * 36px;
                     width: parent.width - 8px;
-                    height: 26px;
+                    height: 36px;
                     border-radius: 5px;
+                    opacity: model.available ? 1.0 : 0.4;
                     background: model.model_id == root.selected-model.model_id
                         ? #14142a : transparent;
 
@@ -247,7 +249,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                             : model.display_name;
                         color: model.model_id == root.selected-model.model_id
                             ? #7788ff : #b0bce0;
-                        font-size: 11px;
+                        font-size: 19px;
                         font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
                         vertical-alignment: center;
                         overflow: elide;
@@ -255,9 +257,9 @@ export component ModelSelectWithSearch inherits Rectangle {
 
                     if model.type_label != "" : Rectangle {
                         x: parent.width - 54px;
-                        y: (parent.height - 18px) / 2;
+                        y: (parent.height - 22px) / 2;
                         width: 42px;
-                        height: 18px;
+                        height: 22px;
                         border-radius: 3px;
                         background: model.type_label == "NATIVE" ? #0d2a0d
                             : model.type_label == "NAM" ? #0d1a2e
@@ -280,7 +282,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                                 : model.type_label == "IR" ? #aa44ff
                                 : model.type_label == "LV2" ? #44ddaa
                                 : #ff8833;
-                            font-size: 7px;
+                            font-size: 10px;
                             font-weight: 800;
                             letter-spacing: 0.5px;
                             vertical-alignment: center;
@@ -293,6 +295,13 @@ export component ModelSelectWithSearch inherits Rectangle {
                         clicked => {
                             root.select(model.model_id);
                             popup.close();
+                        }
+                        // Bubble wheel/trackpad scroll up to the outer
+                        // ScrollView — without this, the row's TouchArea
+                        // swallows the scroll event and the dropdown
+                        // stops scrolling when the cursor is over a row.
+                        scroll-event(_) => {
+                            reject
                         }
                     }
                 }

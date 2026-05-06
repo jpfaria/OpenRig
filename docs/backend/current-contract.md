@@ -137,6 +137,6 @@ Global adapter data is not part of the runtime project model.
 Current examples:
 
 - `~/.config/OpenRig/config.yaml`
-- `~/.config/OpenRig/gui-settings.yaml`
+- `~/.config/OpenRig/config.yaml`
 
 These are adapter-side persistence files and should not shape the `project` crate model.

@@ -9,3 +9,4 @@ log.workspace = true
 domain = { path = "../domain" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }

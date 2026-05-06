@@ -113,9 +113,8 @@ pub(crate) fn wire(
             };
             {
                 use slint::Global;
-                crate::Locale::get(&editor_window).set_font_family(
-                    crate::i18n::font_for_persisted_runtime().into(),
-                );
+                crate::Locale::get(&editor_window)
+                    .set_font_family(crate::i18n::font_for_persisted_runtime().into());
             }
             setup_chain_editor_callbacks(
                 &editor_window,
@@ -143,7 +142,11 @@ pub(crate) fn wire(
             let editor_window = ce_borrow.as_ref().unwrap();
             let borrow = project_session.borrow();
             let Some(session) = borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let devs_in = input_chain_devices.borrow();
@@ -227,9 +230,8 @@ pub(crate) fn wire(
             };
             {
                 use slint::Global;
-                crate::Locale::get(&editor_window).set_font_family(
-                    crate::i18n::font_for_persisted_runtime().into(),
-                );
+                crate::Locale::get(&editor_window)
+                    .set_font_family(crate::i18n::font_for_persisted_runtime().into());
             }
             setup_chain_editor_callbacks(
                 &editor_window,
@@ -257,7 +259,11 @@ pub(crate) fn wire(
             let editor_window = ce_borrow.as_ref().unwrap();
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {

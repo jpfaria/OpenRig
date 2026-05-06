@@ -3,7 +3,7 @@ name: guitar 1
 blocks:
 - type: gain
   enabled: true
-  model: blues_overdrive_bd_2
+  model: nam_blues_overdrive_bd_2
   params:
     gain_percent: 75.0
 - type: dynamics

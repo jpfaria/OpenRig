@@ -10,20 +10,27 @@ fn catalog_exposes_supported_types() {
         .map(|entry| entry.effect_type)
         .collect::<Vec<_>>();
 
+    // Types that always have native models registered.
     assert!(effect_types.contains(&"preamp"));
     assert!(effect_types.contains(&"delay"));
-    assert!(effect_types.contains(&"nam"));
-    assert!(effect_types.contains(&"ir"));
     assert!(effect_types.contains(&"wah"));
-    assert!(effect_types.contains(&"pitch"));
+    // `nam`, `ir`, `pitch` only appear when their native registries have
+    // entries OR when disk packages are loaded; in this test process the
+    // packages aren't discovered, so they may legitimately be absent.
 }
 
 #[test]
 fn catalog_mirrors_core_supported_models() {
+    // The end-to-end disk-package test registers a synthetic preamp into
+    // plugin_loader::registry; since the registry is OnceLock-backed, it
+    // remains visible to this test when run in the same binary. Filter
+    // synthetic `test_*` entries before comparing — this test only cares
+    // that catalog mirrors the NATIVE registries.
     let amp_model_ids = supported_block_models("preamp")
         .expect("preamp catalog")
         .into_iter()
         .map(|entry| entry.model_id)
+        .filter(|id| !id.starts_with("test_"))
         .collect::<Vec<_>>();
     let expected = block_preamp::supported_models()
         .iter()
@@ -36,6 +43,7 @@ fn catalog_mirrors_core_supported_models() {
         .expect("delay catalog")
         .into_iter()
         .map(|entry| entry.model_id)
+        .filter(|id| !id.starts_with("test_"))
         .collect::<Vec<_>>();
     let expected = block_delay::supported_models()
         .iter()
@@ -71,21 +79,29 @@ fn model_display_name_unknown_model_returns_empty() {
 
 #[test]
 fn model_display_name_all_effect_types_known_model() {
-    let type_model_pairs: Vec<(&str, &str)> = vec![
-        ("delay", block_delay::supported_models()[0]),
-        ("reverb", block_reverb::supported_models()[0]),
-        ("gain", block_gain::supported_models()[0]),
-        ("dynamics", block_dyn::supported_models()[0]),
-        ("filter", block_filter::supported_models()[0]),
-        ("wah", block_wah::supported_models()[0]),
-        ("pitch", block_pitch::supported_models()[0]),
-        ("modulation", block_mod::supported_models()[0]),
-        ("amp", block_amp::supported_models()[0]),
-        ("cab", block_cab::supported_models()[0]),
-        ("body", block_body::supported_models()[0]),
-        ("ir", block_ir::supported_models()[0]),
-        ("nam", block_nam::supported_models()[0]),
+    // Build pairs only for crates that currently expose at least one
+    // native model. `body`, `ir`, `nam`, `pitch` migrated their catalog
+    // to disk packages and may have an empty native registry — skip them
+    // rather than index out of bounds.
+    let crates: &[(&str, &[&str])] = &[
+        ("delay", block_delay::supported_models()),
+        ("reverb", block_reverb::supported_models()),
+        ("gain", block_gain::supported_models()),
+        ("dynamics", block_dyn::supported_models()),
+        ("filter", block_filter::supported_models()),
+        ("wah", block_wah::supported_models()),
+        ("pitch", block_pitch::supported_models()),
+        ("modulation", block_mod::supported_models()),
+        ("amp", block_amp::supported_models()),
+        ("cab", block_cab::supported_models()),
+        ("body", block_body::supported_models()),
+        ("ir", block_ir::supported_models()),
+        ("nam", block_nam::supported_models()),
     ];
+    let type_model_pairs: Vec<(&str, &str)> = crates
+        .iter()
+        .filter_map(|(t, models)| models.first().map(|m| (*t, *m)))
+        .collect();
     for (effect_type, model_id) in type_model_pairs {
         let name = super::model_display_name(effect_type, model_id);
         assert!(
@@ -113,21 +129,29 @@ fn model_brand_unknown_type_returns_empty() {
 
 #[test]
 fn model_brand_all_effect_types() {
-    let type_model_pairs: Vec<(&str, &str)> = vec![
-        ("delay", block_delay::supported_models()[0]),
-        ("reverb", block_reverb::supported_models()[0]),
-        ("gain", block_gain::supported_models()[0]),
-        ("dynamics", block_dyn::supported_models()[0]),
-        ("filter", block_filter::supported_models()[0]),
-        ("wah", block_wah::supported_models()[0]),
-        ("pitch", block_pitch::supported_models()[0]),
-        ("modulation", block_mod::supported_models()[0]),
-        ("amp", block_amp::supported_models()[0]),
-        ("cab", block_cab::supported_models()[0]),
-        ("body", block_body::supported_models()[0]),
-        ("ir", block_ir::supported_models()[0]),
-        ("nam", block_nam::supported_models()[0]),
+    // Build pairs only for crates that currently expose at least one
+    // native model. `body`, `ir`, `nam`, `pitch` migrated their catalog
+    // to disk packages and may have an empty native registry — skip them
+    // rather than index out of bounds.
+    let crates: &[(&str, &[&str])] = &[
+        ("delay", block_delay::supported_models()),
+        ("reverb", block_reverb::supported_models()),
+        ("gain", block_gain::supported_models()),
+        ("dynamics", block_dyn::supported_models()),
+        ("filter", block_filter::supported_models()),
+        ("wah", block_wah::supported_models()),
+        ("pitch", block_pitch::supported_models()),
+        ("modulation", block_mod::supported_models()),
+        ("amp", block_amp::supported_models()),
+        ("cab", block_cab::supported_models()),
+        ("body", block_body::supported_models()),
+        ("ir", block_ir::supported_models()),
+        ("nam", block_nam::supported_models()),
     ];
+    let type_model_pairs: Vec<(&str, &str)> = crates
+        .iter()
+        .filter_map(|(t, models)| models.first().map(|m| (*t, *m)))
+        .collect();
     for (effect_type, model_id) in type_model_pairs {
         // Should not panic for any known effect type
         let _ = super::model_brand(effect_type, model_id);
@@ -154,21 +178,29 @@ fn model_type_label_unknown_type_returns_empty() {
 
 #[test]
 fn model_type_label_all_effect_types() {
-    let type_model_pairs: Vec<(&str, &str)> = vec![
-        ("delay", block_delay::supported_models()[0]),
-        ("reverb", block_reverb::supported_models()[0]),
-        ("gain", block_gain::supported_models()[0]),
-        ("dynamics", block_dyn::supported_models()[0]),
-        ("filter", block_filter::supported_models()[0]),
-        ("wah", block_wah::supported_models()[0]),
-        ("pitch", block_pitch::supported_models()[0]),
-        ("modulation", block_mod::supported_models()[0]),
-        ("amp", block_amp::supported_models()[0]),
-        ("cab", block_cab::supported_models()[0]),
-        ("body", block_body::supported_models()[0]),
-        ("ir", block_ir::supported_models()[0]),
-        ("nam", block_nam::supported_models()[0]),
+    // Build pairs only for crates that currently expose at least one
+    // native model. `body`, `ir`, `nam`, `pitch` migrated their catalog
+    // to disk packages and may have an empty native registry — skip them
+    // rather than index out of bounds.
+    let crates: &[(&str, &[&str])] = &[
+        ("delay", block_delay::supported_models()),
+        ("reverb", block_reverb::supported_models()),
+        ("gain", block_gain::supported_models()),
+        ("dynamics", block_dyn::supported_models()),
+        ("filter", block_filter::supported_models()),
+        ("wah", block_wah::supported_models()),
+        ("pitch", block_pitch::supported_models()),
+        ("modulation", block_mod::supported_models()),
+        ("amp", block_amp::supported_models()),
+        ("cab", block_cab::supported_models()),
+        ("body", block_body::supported_models()),
+        ("ir", block_ir::supported_models()),
+        ("nam", block_nam::supported_models()),
     ];
+    let type_model_pairs: Vec<(&str, &str)> = crates
+        .iter()
+        .filter_map(|(t, models)| models.first().map(|m| (*t, *m)))
+        .collect();
     for (effect_type, model_id) in type_model_pairs {
         let label = super::model_type_label(effect_type, model_id);
         assert!(
@@ -337,3 +369,11 @@ fn catalog_model_entries_have_supported_instruments() {
         );
     }
 }
+
+// Disk-backed package surfacing in the GUI catalog is exercised
+// end-to-end by `crate::block::tests::disk_packages_load_through_full_block_pipeline`,
+// which registers a synthetic package once and walks schema → normalize →
+// audio_descriptors → catalog. plugin_loader::registry is OnceLock-backed
+// (init freezes the catalog), so a per-feature companion test here would
+// race the freeze and drop its entry — the combined test is the canonical
+// coverage.

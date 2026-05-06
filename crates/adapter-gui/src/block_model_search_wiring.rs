@@ -36,10 +36,17 @@ pub(crate) fn wire(
                 &block_model_options,
                 model_id.as_str(),
             ) else {
-                log::warn!("[search] model_id '{}' not found in main window list", model_id);
+                log::warn!(
+                    "[search] model_id '{}' not found in main window list",
+                    model_id
+                );
                 return;
             };
-            log::info!("[search] main window: resolved '{}' → idx {}", model_id, idx);
+            log::info!(
+                "[search] main window: resolved '{}' → idx {}",
+                model_id,
+                idx
+            );
             if let Some(win) = weak_window.upgrade() {
                 win.set_block_drawer_selected_model_index(idx);
                 win.invoke_choose_block_model(idx);
@@ -71,7 +78,11 @@ pub(crate) fn wire(
                 );
                 return;
             };
-            log::info!("[search] block_editor_window: resolved '{}' → idx {}", model_id, idx);
+            log::info!(
+                "[search] block_editor_window: resolved '{}' → idx {}",
+                model_id,
+                idx
+            );
             if let Some(win) = weak_block_editor_window.upgrade() {
                 win.set_block_drawer_selected_model_index(idx);
                 win.invoke_choose_block_model(idx);

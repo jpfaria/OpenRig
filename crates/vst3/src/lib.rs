@@ -11,34 +11,39 @@
 //! The API mirrors the `lv2` crate so block crates can use either backend
 //! interchangeably.
 
+pub mod catalog;
+pub mod component_handler;
+pub mod discovery;
+pub mod editor;
 mod host;
 mod host_factory;
 mod host_utils;
-mod processor;
-mod stereo;
 mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
-pub mod component_handler;
-pub mod discovery;
-pub mod catalog;
-pub mod editor;
+mod processor;
+mod stereo;
 
-pub use host::{Vst3Plugin, Vst3ParamInfo, Vst3PluginClass};
-pub use editor::{Vst3EditorHandle, open_vst3_editor_window, open_vst3_editor_window_standalone};
+pub use catalog::{
+    find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model, vst3_catalog,
+    vst3_model_ids, vst3_model_visual, Vst3CatalogEntry,
+};
+pub use discovery::{
+    resolve_vst3_bundle, scan_system_vst3, scan_vst3_bundle, scan_vst3_bundle_light,
+    system_vst3_paths, Vst3PluginInfo,
+};
+pub use editor::{open_vst3_editor_window, open_vst3_editor_window_standalone, Vst3EditorHandle};
+pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
+pub use param_channel::{vst3_param_channel, Vst3ParamChannel, Vst3ParamUpdate};
+pub use param_registry::{
+    lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context, Vst3GuiContext,
+};
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
-pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_vst3_bundle_light, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};
-pub use catalog::{
-    Vst3CatalogEntry, init_vst3_catalog, vst3_catalog, find_vst3_plugin,
-    vst3_model_ids, vst3_model_visual, make_model_id, resolve_uid_for_model,
-};
-pub use param_channel::{Vst3ParamChannel, Vst3ParamUpdate, vst3_param_channel};
-pub use param_registry::{Vst3GuiContext, register_vst3_gui_context, lookup_vst3_gui_context, lookup_vst3_channel};
 
 use anyhow::Result;
-use std::path::Path;
 use block_core::{AudioChannelLayout, BlockProcessor};
+use std::path::Path;
 
 /// Build a ready-to-use VST3 `BlockProcessor`.
 ///
@@ -58,26 +63,18 @@ pub fn build_vst3_processor(
 
     match layout {
         AudioChannelLayout::Mono => {
-            let plugin = Vst3Plugin::load(
-                bundle_path,
-                plugin_uid,
-                sample_rate,
-                2,
-                BLOCK_SIZE,
-                params,
-            )?;
-            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, None))))
+            let plugin =
+                Vst3Plugin::load(bundle_path, plugin_uid, sample_rate, 2, BLOCK_SIZE, params)?;
+            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(
+                plugin, None,
+            ))))
         }
         AudioChannelLayout::Stereo => {
-            let plugin = Vst3Plugin::load(
-                bundle_path,
-                plugin_uid,
-                sample_rate,
-                2,
-                BLOCK_SIZE,
-                params,
-            )?;
-            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, None))))
+            let plugin =
+                Vst3Plugin::load(bundle_path, plugin_uid, sample_rate, 2, BLOCK_SIZE, params)?;
+            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(
+                plugin, None,
+            ))))
         }
     }
 }
@@ -100,26 +97,20 @@ pub fn build_vst3_processor_with_channel(
 
     match layout {
         AudioChannelLayout::Mono => {
-            let plugin = Vst3Plugin::load(
-                bundle_path,
-                plugin_uid,
-                sample_rate,
-                2,
-                BLOCK_SIZE,
-                params,
-            )?;
-            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, Some(param_channel)))))
+            let plugin =
+                Vst3Plugin::load(bundle_path, plugin_uid, sample_rate, 2, BLOCK_SIZE, params)?;
+            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(
+                plugin,
+                Some(param_channel),
+            ))))
         }
         AudioChannelLayout::Stereo => {
-            let plugin = Vst3Plugin::load(
-                bundle_path,
-                plugin_uid,
-                sample_rate,
-                2,
-                BLOCK_SIZE,
-                params,
-            )?;
-            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel)))))
+            let plugin =
+                Vst3Plugin::load(bundle_path, plugin_uid, sample_rate, 2, BLOCK_SIZE, params)?;
+            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(
+                plugin,
+                Some(param_channel),
+            ))))
         }
     }
 }
@@ -139,8 +130,9 @@ pub fn build_vst3_processor_from_plugin(
         AudioChannelLayout::Mono => {
             BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, Some(param_channel))))
         }
-        AudioChannelLayout::Stereo => {
-            BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel))))
-        }
+        AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(
+            plugin,
+            Some(param_channel),
+        ))),
     }
 }

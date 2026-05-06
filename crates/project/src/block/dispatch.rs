@@ -39,40 +39,213 @@ pub fn normalize_block_params(
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
     use block_core::*;
-    match effect_type {
-        EFFECT_TYPE_PREAMP => {
-            validate_preamp_params(model, &normalized).map_err(|error| error.to_string())?
+    let result: Result<(), anyhow::Error> = match effect_type {
+        EFFECT_TYPE_PREAMP => validate_preamp_params(model, &normalized),
+        EFFECT_TYPE_AMP => validate_amp_params(model, &normalized),
+        EFFECT_TYPE_FULL_RIG => validate_full_rig_params(model, &normalized),
+        EFFECT_TYPE_CAB => validate_cab_params(model, &normalized),
+        EFFECT_TYPE_BODY => validate_body_params(model, &normalized),
+        EFFECT_TYPE_IR => validate_ir_params(model, &normalized),
+        EFFECT_TYPE_GAIN => validate_gain_params(model, &normalized),
+        EFFECT_TYPE_WAH => validate_wah_params(model, &normalized),
+        EFFECT_TYPE_PITCH => validate_pitch_params(model, &normalized),
+        _ => Ok(()),
+    };
+    if let Err(error) = result {
+        // Disk packages don't live in the legacy block-* registry that
+        // validate_*_params consults, so an Err here is expected for
+        // disk-backed models — accept them and let the package builder
+        // surface any real param mismatch at instantiation time. Issue #287.
+        if plugin_loader::registry::find(model).is_none() {
+            return Err(error.to_string());
         }
-        EFFECT_TYPE_AMP => {
-            validate_amp_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_FULL_RIG => {
-            validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_CAB => {
-            validate_cab_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_BODY => {
-            validate_body_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_IR => {
-            validate_ir_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_GAIN => {
-            validate_gain_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_WAH => {
-            validate_wah_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        EFFECT_TYPE_PITCH => {
-            validate_pitch_params(model, &normalized).map_err(|error| error.to_string())?
-        }
-        _ => {}
     }
     Ok(normalized)
 }
 
 pub fn schema_for_block_model(
+    effect_type: &str,
+    model: &str,
+) -> Result<ModelParameterSchema, String> {
+    schema_for_block_model_legacy(effect_type, model)
+        .or_else(|legacy_err| schema_from_disk_package(effect_type, model, legacy_err))
+}
+
+/// Fallback: if the legacy block-* registry doesn't recognise the model,
+/// try `plugin_loader::registry`. Synthesizes a parameter schema from
+/// the manifest data so the GUI can render knobs for disk-backed
+/// plugins. Issue: #287.
+fn schema_from_disk_package(
+    effect_type: &str,
+    model: &str,
+    legacy_err: String,
+) -> Result<ModelParameterSchema, String> {
+    let package = plugin_loader::registry::find(model).ok_or(legacy_err)?;
+    let parameters = synthesize_parameters_from_manifest(package);
+    Ok(ModelParameterSchema {
+        effect_type: effect_type.to_string(),
+        model: package.manifest.id.clone(),
+        display_name: package.manifest.display_name.clone(),
+        // Streams are ALWAYS stereo internally (CLAUDE.md invariant #5).
+        // Mono-native plugins (NAM, IR, LV2 1in/1out) run as DualMono:
+        // one instance per channel. Forcing MonoOnly here would make
+        // the engine downmix to mono, violating the stereo invariant.
+        audio_mode: block_core::ModelAudioMode::DualMono,
+        parameters,
+    })
+}
+
+/// Build a `Vec<ParameterSpec>` from a `LoadedPackage` manifest:
+/// - NAM/IR: each grid axis becomes a float (numeric values) or enum
+///   (text values) parameter spanning the declared min..max.
+/// - LV2: scan the bundle's TTL files and emit a float param per
+///   `ControlIn` port using its TTL min/max/default.
+/// - VST3: each declared `Vst3Parameter` becomes a 0..1 float param.
+/// - Native: nothing — natives go through the legacy schema path so
+///   this branch shouldn't fire in practice; return empty to avoid a
+///   panic if it ever does.
+fn synthesize_parameters_from_manifest(
+    package: &plugin_loader::LoadedPackage,
+) -> Vec<block_core::param::ParameterSpec> {
+    use plugin_loader::manifest::Backend;
+    match &package.manifest.backend {
+        Backend::Nam { parameters, .. } | Backend::Ir { parameters, .. } => {
+            parameters.iter().map(grid_parameter_to_spec).collect()
+        }
+        Backend::Lv2 {
+            plugin_uri,
+            binaries,
+        } => synthesize_lv2_parameters(package, plugin_uri, binaries),
+        Backend::Vst3 { parameters, .. } => parameters
+            .iter()
+            .map(|param| {
+                block_core::param::float_parameter(
+                    &param.name,
+                    param.display_name.as_deref().unwrap_or(&param.name),
+                    None,
+                    Some(param.default as f32),
+                    param.min as f32,
+                    param.max as f32,
+                    param.step.unwrap_or(0.01) as f32,
+                    block_core::param::ParameterUnit::None,
+                )
+            })
+            .collect(),
+        Backend::Native { .. } => Vec::new(),
+    }
+}
+
+fn grid_parameter_to_spec(
+    parameter: &plugin_loader::manifest::GridParameter,
+) -> block_core::param::ParameterSpec {
+    use plugin_loader::manifest::ParameterValue;
+    let label = parameter.display_name.as_deref().unwrap_or(&parameter.name);
+    let all_numeric = parameter
+        .values
+        .iter()
+        .all(|v| matches!(v, ParameterValue::Number(_)));
+    if all_numeric && !parameter.values.is_empty() {
+        let numbers: Vec<f64> = parameter
+            .values
+            .iter()
+            .filter_map(|v| match v {
+                ParameterValue::Number(n) => Some(*n),
+                _ => None,
+            })
+            .collect();
+        let min = numbers.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = numbers.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let default = numbers.first().copied().unwrap_or(min);
+        let step = if numbers.len() > 1 {
+            (numbers[1] - numbers[0]).abs() as f32
+        } else {
+            1.0_f32
+        };
+        block_core::param::float_parameter(
+            &parameter.name,
+            label,
+            None,
+            Some(default as f32),
+            min as f32,
+            max as f32,
+            step.max(0.01),
+            block_core::param::ParameterUnit::None,
+        )
+    } else {
+        let options: Vec<(String, String)> = parameter
+            .values
+            .iter()
+            .map(|value| {
+                let s = match value {
+                    ParameterValue::Text(t) => t.clone(),
+                    ParameterValue::Number(n) => n.to_string(),
+                };
+                (s.clone(), s)
+            })
+            .collect();
+        let option_refs: Vec<(&str, &str)> = options
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let default = options.first().map(|(k, _)| k.as_str());
+        block_core::param::enum_parameter(&parameter.name, label, None, default, &option_refs)
+    }
+}
+
+fn synthesize_lv2_parameters(
+    package: &plugin_loader::LoadedPackage,
+    plugin_uri: &str,
+    binaries: &std::collections::BTreeMap<plugin_loader::manifest::Lv2Slot, std::path::PathBuf>,
+) -> Vec<block_core::param::ParameterSpec> {
+    use plugin_loader::dispatch::Lv2PortRole;
+    // Prefer the deduplicated `<package>/data/` TTL bundle; fall back
+    // to the legacy per-platform layout where TTLs lived next to the
+    // binary. Either layout works.
+    let data_dir = package.root.join("data");
+    let bundle_dir: std::path::PathBuf = if data_dir.is_dir() {
+        data_dir
+    } else if let Some((_, rel_binary)) = binaries.iter().next() {
+        let bin_path = package.root.join(rel_binary);
+        match bin_path.parent() {
+            Some(parent) => parent.to_path_buf(),
+            None => return Vec::new(),
+        }
+    } else {
+        return Vec::new();
+    };
+    let Ok(ports) = plugin_loader::dispatch::scan_lv2_ports(&bundle_dir, plugin_uri) else {
+        return Vec::new();
+    };
+    ports
+        .into_iter()
+        .filter(|port| port.role == Lv2PortRole::ControlIn)
+        .map(|port| {
+            let label = port.name.clone().unwrap_or_else(|| port.symbol.clone());
+            let min = port.minimum.unwrap_or(0.0);
+            let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
+            let default = port.default_value.unwrap_or((min + max) / 2.0);
+            // step = 0 means "continuous" (no snap-to-grid). LV2
+            // ControlPorts are continuous unless the TTL marks them
+            // `lv2:portProperty lv2:integer` or `lv2:enumeration` —
+            // we don't parse those flags yet, and in any case the
+            // synthesized step was `(max-min)/100` which generated
+            // bogus grids (e.g. Contour 20-20000 → step 199.8) that
+            // rejected the TTL default itself.
+            block_core::param::float_parameter(
+                &port.symbol,
+                &label,
+                None,
+                Some(default),
+                min,
+                max,
+                0.0,
+                block_core::param::ParameterUnit::None,
+            )
+        })
+        .collect()
+}
+
+fn schema_for_block_model_legacy(
     effect_type: &str,
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
@@ -93,9 +266,7 @@ pub fn schema_for_block_model(
         EFFECT_TYPE_FILTER => filter_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_WAH => wah_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
-        EFFECT_TYPE_MODULATION => {
-            modulation_model_schema(model).map_err(|error| error.to_string())
-        }
+        EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
         x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
@@ -144,16 +315,25 @@ pub fn build_audio_block_kind(
     let model = model.to_string();
     use block_core::*;
     let kind = match effect_type {
-        EFFECT_TYPE_PREAMP | EFFECT_TYPE_AMP | EFFECT_TYPE_FULL_RIG | EFFECT_TYPE_CAB
-        | EFFECT_TYPE_BODY | EFFECT_TYPE_IR | EFFECT_TYPE_GAIN | EFFECT_TYPE_DYNAMICS
-        | EFFECT_TYPE_FILTER | EFFECT_TYPE_WAH | EFFECT_TYPE_PITCH | EFFECT_TYPE_MODULATION
-        | EFFECT_TYPE_DELAY | EFFECT_TYPE_REVERB | EFFECT_TYPE_UTILITY => {
-            AudioBlockKind::Core(CoreBlock {
-                effect_type: effect_type.to_string(),
-                model,
-                params,
-            })
-        }
+        EFFECT_TYPE_PREAMP
+        | EFFECT_TYPE_AMP
+        | EFFECT_TYPE_FULL_RIG
+        | EFFECT_TYPE_CAB
+        | EFFECT_TYPE_BODY
+        | EFFECT_TYPE_IR
+        | EFFECT_TYPE_GAIN
+        | EFFECT_TYPE_DYNAMICS
+        | EFFECT_TYPE_FILTER
+        | EFFECT_TYPE_WAH
+        | EFFECT_TYPE_PITCH
+        | EFFECT_TYPE_MODULATION
+        | EFFECT_TYPE_DELAY
+        | EFFECT_TYPE_REVERB
+        | EFFECT_TYPE_UTILITY => AudioBlockKind::Core(CoreBlock {
+            effect_type: effect_type.to_string(),
+            model,
+            params,
+        }),
         EFFECT_TYPE_NAM => AudioBlockKind::Nam(NamBlock { model, params }),
         x if x == EFFECT_TYPE_VST3 => AudioBlockKind::Core(CoreBlock {
             effect_type: EFFECT_TYPE_VST3.to_string(),

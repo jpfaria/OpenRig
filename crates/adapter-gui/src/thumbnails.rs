@@ -25,6 +25,17 @@ fn resolve_thumbnail_path(effect_type: &str, model_id: &str) -> Option<PathBuf> 
             return Some(candidate.clone());
         }
     }
+    // Disk-package fallback (issue #287): plugin packages ship their
+    // own thumbnail under `<package_root>/assets/thumbnail.png` (or
+    // whatever path the manifest declares).
+    if let Some(package) = plugin_loader::registry::find(model_id) {
+        if let Some(rel) = package.manifest.thumbnail.as_ref() {
+            let candidate = package.root.join(rel);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
     None
 }
 
@@ -55,26 +66,13 @@ fn read_cached(effect_type: &str, model_id: &str) -> Option<Vec<u8>> {
         return entry.clone();
     }
 
-    let result = resolve_thumbnail_path(effect_type, model_id)
-        .and_then(|path| std::fs::read(&path).ok());
+    let result =
+        resolve_thumbnail_path(effect_type, model_id).and_then(|path| std::fs::read(&path).ok());
 
     map.insert(key, result.clone());
     result
 }
 
 #[cfg(test)]
-mod tests {
-    // Note: resolve_thumbnail_path, thumbnail_png, and read_cached all depend
-    // on infra_filesystem::asset_paths() being initialized, which requires
-    // global state setup. These are integration-level functions rather than
-    // pure functions, so we skip them here.
-    //
-    // The cache logic and path construction are implicitly tested when the
-    // full GUI runs.
-
-    #[test]
-    fn module_compiles_and_exports_thumbnail_png() {
-        // Verify the public API exists and has the expected signature
-        let _: fn(&str, &str) -> Option<Vec<u8>> = super::thumbnail_png;
-    }
-}
+#[path = "thumbnails_tests.rs"]
+mod tests;

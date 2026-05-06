@@ -5,8 +5,8 @@
 //! update through this lock-free queue so the audio thread can apply it without
 //! any locking on the hot path.
 
-use std::sync::Arc;
 use crossbeam_queue::SegQueue;
+use std::sync::Arc;
 
 /// A single parameter change sent by the plugin's GUI.
 #[derive(Debug, Clone, Copy)]

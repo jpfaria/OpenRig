@@ -42,9 +42,9 @@ use crate::state::{
 use crate::sync_live_chain_runtime;
 use crate::ui_state::block_drawer_state;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem,
-    ChainInputWindow, ChainInsertWindow, ChainOutputWindow, ChannelOptionItem,
-    CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ChainInputWindow,
+    ChainInsertWindow, ChainOutputWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint,
+    ProjectChainItem,
 };
 
 pub(crate) struct BlockChooseTypeCallbackCtx {
@@ -121,14 +121,21 @@ pub(crate) fn wire(
         let Some(window) = weak_window.upgrade() else {
             return;
         };
-        let instrument = block_editor_draft.borrow().as_ref()
+        let instrument = block_editor_draft
+            .borrow()
+            .as_ref()
             .map(|d| d.instrument.clone())
             .unwrap_or_else(|| block_core::DEFAULT_INSTRUMENT.to_string());
         let block_types = block_type_picker_items(&instrument);
         let Some(block_type) = block_types.get(index as usize) else {
             return;
         };
-        log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
+        log::debug!(
+            "on_choose_block_type: index={}, type='{}', instrument='{}'",
+            index,
+            block_type.effect_type,
+            instrument
+        );
 
         // Handle I/O and Insert block types: open the dedicated window instead of the block editor
         let effect_type_str = block_type.effect_type.as_str();
@@ -136,12 +143,18 @@ pub(crate) fn wire(
             // Insert block: create directly with empty endpoints
             let (chain_index, before_index) = {
                 let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else { return; };
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
                 (draft.chain_index, draft.before_index)
             };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
-            let Some(chain) = session.project.chains.get(chain_index) else { return; };
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            let Some(chain) = session.project.chains.get(chain_index) else {
+                return;
+            };
             let block_id = domain::ids::BlockId(format!("{}:insert:{}", chain.id.0, before_index));
             drop(session_borrow);
             let insert_block = project::block::AudioBlock {
@@ -162,15 +175,30 @@ pub(crate) fn wire(
                 }),
             };
             let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
-            let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                return;
+            };
             chain.blocks.insert(before_index, insert_block);
             let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("insert block create error: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
             window.set_show_block_type_picker(false);
             // Open the insert window to configure the newly created block
             drop(session_borrow);
@@ -204,7 +232,9 @@ pub(crate) fn wire(
         if effect_type_str == "input" || effect_type_str == "output" {
             let (chain_index, before_index) = {
                 let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else { return; };
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
                 (draft.chain_index, draft.before_index)
             };
             // Store the I/O insert draft
@@ -294,15 +324,34 @@ pub(crate) fn wire(
             &model.model_id,
             &ParameterSet::default(),
         );
-        let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+        let overlays = build_knob_overlays(
+            project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
+            &new_params,
+        );
         block_parameter_items.set_vec(new_params);
-        multi_slider_points.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
-        curve_editor_points.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
-        let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &ParameterSet::default());
-        eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+        multi_slider_points.set_vec(build_multi_slider_points(
+            &model.effect_type,
+            &model.model_id,
+            &ParameterSet::default(),
+        ));
+        curve_editor_points.set_vec(build_curve_editor_points(
+            &model.effect_type,
+            &model.model_id,
+            &ParameterSet::default(),
+        ));
+        let (eq_total, eq_bands) = compute_eq_curves(
+            &model.effect_type,
+            &model.model_id,
+            &ParameterSet::default(),
+        );
+        eq_band_curves.set_vec(
+            eq_bands
+                .into_iter()
+                .map(SharedString::from)
+                .collect::<Vec<_>>(),
+        );
         window.set_eq_total_curve(eq_total.into());
-        let drawer_state =
-            block_drawer_state(None, &model.effect_type, Some(&model.model_id));
+        let drawer_state = block_drawer_state(None, &model.effect_type, Some(&model.model_id));
         window.set_block_drawer_title(drawer_state.title.into());
         window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
         window.set_block_drawer_edit_mode(false);
@@ -316,7 +365,8 @@ pub(crate) fn wire(
         } else {
             window.set_show_block_drawer(false);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                block_editor_window
+                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
                 show_child_window(window.window(), block_editor_window.window());
             }

@@ -1,10 +1,10 @@
+use crate::state::{ChainDraft, ChainEditorMode, InputGroupDraft, OutputGroupDraft};
+use crate::AppWindow;
+use domain::ids::DeviceId;
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::{AudioBlockKind, InputEntry, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::project::Project;
-use domain::ids::DeviceId;
-use crate::AppWindow;
-use crate::state::{ChainDraft, ChainEditorMode, InputGroupDraft, OutputGroupDraft};
 
 const INSTRUMENT_KEYS: &[&str] = &[
     block_core::INST_ELECTRIC_GUITAR,
@@ -46,7 +46,11 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
             .entries
             .iter()
             .map(|entry| InputGroupDraft {
-                device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                device_id: if entry.device_id.0.is_empty() {
+                    None
+                } else {
+                    Some(entry.device_id.0.clone())
+                },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
@@ -64,7 +68,11 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
             .entries
             .iter()
             .map(|entry| OutputGroupDraft {
-                device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                device_id: if entry.device_id.0.is_empty() {
+                    None
+                } else {
+                    Some(entry.device_id.0.clone())
+                },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
@@ -98,8 +106,13 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
         // preserve all other blocks (effects, DSP) as-is.
         let mut blocks = existing.blocks.clone();
         // Update first InputBlock entries from draft
-        if let Some(pos) = blocks.iter().position(|b| matches!(b.kind, AudioBlockKind::Input(_))) {
-            let new_entries: Vec<InputEntry> = draft.inputs.iter()
+        if let Some(pos) = blocks
+            .iter()
+            .position(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+        {
+            let new_entries: Vec<InputEntry> = draft
+                .inputs
+                .iter()
                 .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
                 .map(|ig| InputEntry {
                     device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
@@ -114,11 +127,16 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             }
         }
         // Update last OutputBlock entries from draft
-        let last_output_pos = blocks.iter().enumerate().rev()
+        let last_output_pos = blocks
+            .iter()
+            .enumerate()
+            .rev()
             .find(|(_, b)| matches!(b.kind, AudioBlockKind::Output(_)))
             .map(|(i, _)| i);
         if let Some(pos) = last_output_pos {
-            let new_entries: Vec<OutputEntry> = draft.outputs.iter()
+            let new_entries: Vec<OutputEntry> = draft
+                .outputs
+                .iter()
                 .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
                 .map(|og| OutputEntry {
                     device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
@@ -283,7 +301,12 @@ pub(crate) fn endpoint_summary(
     devices: &[AudioDeviceDescriptor],
 ) -> String {
     let device_name = device_id
-        .and_then(|id| devices.iter().find(|device| device.id == id).map(|device| device.name.clone()))
+        .and_then(|id| {
+            devices
+                .iter()
+                .find(|device| device.id == id)
+                .map(|device| device.name.clone())
+        })
         .or_else(|| device_id.map(|id| id.to_string()))
         .unwrap_or_else(|| "Nenhum dispositivo".to_string());
     let channels = if channels.is_empty() {

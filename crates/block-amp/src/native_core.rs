@@ -1,14 +1,16 @@
 use anyhow::Result;
-use block_preamp::native_core::{
-    build_native_head_mono_processor, NativeAmpHeadProfile, NativeAmpHeadSettings,
+use block_cab::native_core::{
+    build_native_cab_mono_processor, NativeCabProfile, NativeCabSettings,
 };
-use block_cab::native_core::{build_native_cab_mono_processor, NativeCabProfile, NativeCabSettings};
 use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,
     ParameterSet, ParameterUnit,
 };
 use block_core::{
-    AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
+use block_preamp::native_core::{
+    build_native_head_mono_processor, NativeAmpHeadProfile, NativeAmpHeadSettings,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -146,12 +148,7 @@ pub fn model_schema(
                 1.0,
                 ParameterUnit::Percent,
             ),
-            bool_parameter(
-                "bright",
-                "Bright",
-                Some("Switches"),
-                Some(defaults.bright),
-            ),
+            bool_parameter("bright", "Bright", Some("Switches"), Some(defaults.bright)),
             float_parameter(
                 "sag",
                 "Sag",

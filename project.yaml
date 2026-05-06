@@ -17,7 +17,7 @@ chains:
             channels: [0]
 
       - type: preamp
-        model: marshall_jcm_800_2203
+        model: nam_marshall_jcm_800_2203
         enabled: true
         params:
           volume: 70.0

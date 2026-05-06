@@ -3,8 +3,8 @@ use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{
-    db_to_lin, AudioChannelLayout, ModelAudioMode, MonoProcessor, OnePoleHighPass, OnePoleLowPass,
-    BlockProcessor, StereoProcessor,
+    db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
+    OnePoleLowPass, StereoProcessor,
 };
 
 #[derive(Debug, Clone, Copy)]

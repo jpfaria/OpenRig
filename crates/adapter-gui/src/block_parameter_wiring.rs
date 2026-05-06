@@ -33,8 +33,8 @@ use crate::project_view::{
 };
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem,
-    ProjectChainItem, SELECT_SELECTED_BLOCK_ID,
+    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem,
+    SELECT_SELECTED_BLOCK_ID,
 };
 
 pub(crate) struct BlockParameterCtx {
@@ -113,7 +113,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.number-text",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }
@@ -203,7 +203,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.text",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }
@@ -234,8 +234,14 @@ pub(crate) fn wire(
             }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 let params = build_params_from_items(&block_parameter_items);
-                let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
-                eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+                let (eq_total, eq_bands) =
+                    compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
+                eq_band_curves.set_vec(
+                    eq_bands
+                        .into_iter()
+                        .map(SharedString::from)
+                        .collect::<Vec<_>>(),
+                );
                 window.set_eq_total_curve(eq_total.into());
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
@@ -251,7 +257,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.number",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }
@@ -294,7 +300,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.bool",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }
@@ -320,8 +326,10 @@ pub(crate) fn wire(
             };
             set_block_parameter_option(&block_parameter_items, path.as_str(), index);
             if path.as_str() == SELECT_SELECTED_BLOCK_ID {
-                let selected_option_block_id =
-                    internal_block_parameter_value(&block_parameter_items, SELECT_SELECTED_BLOCK_ID);
+                let selected_option_block_id = internal_block_parameter_value(
+                    &block_parameter_items,
+                    SELECT_SELECTED_BLOCK_ID,
+                );
                 if let (Some(draft), Some(selected_option_block_id)) = (
                     block_editor_draft.borrow_mut().as_mut(),
                     selected_option_block_id,
@@ -341,16 +349,22 @@ pub(crate) fn wire(
                                     ) {
                                         draft.effect_type = editor_data.effect_type.clone();
                                         draft.model_id = editor_data.model_id.clone();
-                                        let items = block_model_picker_items(&editor_data.effect_type, &draft.instrument);
+                                        let items = block_model_picker_items(
+                                            &editor_data.effect_type,
+                                            &draft.instrument,
+                                        );
                                         select_block_model_option_labels
                                             .set_vec(block_model_picker_labels(&items));
                                         select_block_model_options.set_vec(items);
-                                        block_parameter_items
-                                            .set_vec(block_parameter_items_for_editor(&editor_data));
-                                        window.set_block_drawer_selected_type_index(block_type_index(
-                                            &editor_data.effect_type,
-                                            &draft.instrument,
-                                        ));
+                                        block_parameter_items.set_vec(
+                                            block_parameter_items_for_editor(&editor_data),
+                                        );
+                                        window.set_block_drawer_selected_type_index(
+                                            block_type_index(
+                                                &editor_data.effect_type,
+                                                &draft.instrument,
+                                            ),
+                                        );
                                         window.set_block_drawer_selected_model_index(
                                             block_model_index(
                                                 &editor_data.effect_type,
@@ -381,7 +395,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.option",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }
@@ -436,7 +450,7 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.file",
-                    auto_save,
+                        auto_save,
                     );
                 }
             }

@@ -73,12 +73,20 @@ pub(crate) fn block_parameter_values(
             }
             "enum" => {
                 if row.selected_option_index < 0 {
-                    return Err(anyhow!("{}", rust_i18n::t!("error-select-option-required-for", label = row.label)));
+                    return Err(anyhow!(
+                        "{}",
+                        rust_i18n::t!("error-select-option-required-for", label = row.label)
+                    ));
                 }
                 let selected = row
                     .option_values
                     .row_data(row.selected_option_index as usize)
-                    .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-select-invalid-for", label = row.label)))?;
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "{}",
+                            rust_i18n::t!("error-select-invalid-for", label = row.label)
+                        )
+                    })?;
                 domain::value_objects::ParameterValue::String(selected.to_string())
             }
             "text" | "path" => {

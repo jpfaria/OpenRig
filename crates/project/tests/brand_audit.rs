@@ -49,11 +49,9 @@ fn all_block_models_declare_non_empty_brand() {
     assert_models_have_brand("block-body", block_body::supported_models(), |m| {
         block_body::body_model_visual(m).map(|v| v.brand)
     });
-    assert_models_have_brand(
-        "block-full-rig",
-        block_full_rig::supported_models(),
-        |m| block_full_rig::full_rig_model_visual(m).map(|v| v.brand),
-    );
+    assert_models_have_brand("block-full-rig", block_full_rig::supported_models(), |m| {
+        block_full_rig::full_rig_model_visual(m).map(|v| v.brand)
+    });
     assert_models_have_brand("block-delay", block_delay::supported_models(), |m| {
         block_delay::delay_model_visual(m).map(|v| v.brand)
     });
