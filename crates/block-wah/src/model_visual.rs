@@ -10,8 +10,6 @@ pub fn model_color_override(model_id: &str) -> Option<ModelColorOverride> {
             panel_text: Some([0xc8, 0xa0, 0x70]),
             brand_strip_bg: Some([0x22, 0x16, 0x0e]),
             model_font: Some("Permanent Marker"),
-            photo_offset_x: Some(0.0),
-            photo_offset_y: Some(0.0),
         }),
         _ => None,
     }

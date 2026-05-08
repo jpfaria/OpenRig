@@ -59,6 +59,14 @@ pub fn run_desktop_app(
     // catalog to surface plugin manifests in the GUI.
     let plugins_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!("loading plugin packages from {}", plugins_root.display());
+    // First-launch extraction: if the installer shipped a bundle next to
+    // the data root and the destination is empty, expand it before the
+    // registry scans. No-op in dev (plugins_root already populated) and
+    // when running without a bundled zip.
+    let bundle_zip = infra_filesystem::detect_data_root().join("plugins.zip");
+    if let Err(err) = plugin_loader::extract_bundle_if_needed(&plugins_root, &bundle_zip) {
+        log::warn!("plugin bundle: extraction failed: {err}");
+    }
     // Native plugins (compiled-in DSP) register first; disk-package
     // discovery in `init` below pushes its results into the same
     // catalog, so by the time `packages()` is read everything lives in

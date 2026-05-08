@@ -10,8 +10,6 @@ pub fn model_color_override(model_id: &str) -> Option<ModelColorOverride> {
             panel_text: Some([0x88, 0xa0, 0xc0]),
             brand_strip_bg: Some([0x16, 0x1c, 0x22]),
             model_font: Some("Orbitron"),
-            photo_offset_x: Some(0.0),
-            photo_offset_y: Some(0.0),
         }),
         _ => None,
     }

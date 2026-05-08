@@ -16,6 +16,7 @@ tools/__pycache__/
 # Compiled gettext catalogs — regenerated from .po by build.rs / scripts.
 crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 
-# Plugin packages — generated at dev-time by tools/build_plugin_bundle from
-# plugins/source/. Never versioned. See issue #287.
+# Plugin bundle — generated at build-time by OpenRig-plugins'
+# scripts/bundle-into-openrig.sh. Shipped inside the installer, extracted
+# into the OS plugins dir on first launch. Never versioned.
 /plugins/

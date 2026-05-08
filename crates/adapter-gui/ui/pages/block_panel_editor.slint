@@ -105,17 +105,6 @@ export component BlockPanelEditor inherits Rectangle {
         : root.selected-icon-kind == "utility" ? @image-url("../assets/tuner.svg")
         : @image-url("../assets/gear.svg");
 
-    private property <float> photo-offset-x:
-        root.block-drawer-selected-model-index >= 0
-        && root.block-drawer-selected-model-index < root.block-model-options.length
-        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_x
-        : 0.0;
-    private property <float> photo-offset-y:
-        root.block-drawer-selected-model-index >= 0
-        && root.block-drawer-selected-model-index < root.block-model-options.length
-        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_y
-        : 0.0;
-
     // Badge dimensions (for computing ModelSelector right boundary)
     private property <length> badge-width:
         root.selected-type-label == "" ? 0px : 56px;
@@ -141,7 +130,7 @@ export component BlockPanelEditor inherits Rectangle {
         selected-model: root.block-drawer-selected-model-index >= 0
             && root.block-drawer-selected-model-index < root.block-model-options.length
             ? root.block-model-options[root.block-drawer-selected-model-index]
-            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "", photo_offset_x: 0, photo_offset_y: 0 };
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
         search-text <=> root.block-model-search-text;
         type-label: root.selected-type-label;
         icon-kind: root.selected-icon-kind;
@@ -195,8 +184,6 @@ export component BlockPanelEditor inherits Rectangle {
             brand-strip-bg: root.brand-strip-bg;
             panel-text: root.panel-text;
             selected-model-label: root.selected-model-label;
-            photo-offset-x: root.photo-offset-x;
-            photo-offset-y: root.photo-offset-y;
             selected-icon-source: root.selected-icon-source;
             model-font: root.model-font;
         }

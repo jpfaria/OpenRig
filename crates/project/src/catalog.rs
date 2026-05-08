@@ -547,17 +547,3 @@ pub fn is_model_available(effect_type: &str, model_id: &str) -> bool {
     }
 }
 
-/// Returns the catalog thumbnail path (relative to project root) for an LV2 model.
-pub fn model_thumbnail(effect_type: &str, model_id: &str) -> Option<&'static str> {
-    use block_core::*;
-    match effect_type {
-        EFFECT_TYPE_REVERB => block_reverb::reverb_thumbnail(model_id),
-        EFFECT_TYPE_DELAY => block_delay::delay_thumbnail(model_id),
-        EFFECT_TYPE_MODULATION => block_mod::mod_thumbnail(model_id),
-        EFFECT_TYPE_FILTER => block_filter::filter_thumbnail(model_id),
-        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_thumbnail(model_id),
-        EFFECT_TYPE_GAIN => block_gain::gain_thumbnail(model_id),
-        EFFECT_TYPE_PITCH => block_pitch::pitch_thumbnail(model_id),
-        _ => None,
-    }
-}

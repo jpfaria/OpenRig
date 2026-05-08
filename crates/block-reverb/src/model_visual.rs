@@ -10,8 +10,6 @@ pub fn model_color_override(model_id: &str) -> Option<ModelColorOverride> {
             panel_text: Some([0x90, 0xa8, 0xc8]),
             brand_strip_bg: Some([0x14, 0x1a, 0x22]),
             model_font: Some("Dancing Script"),
-            photo_offset_x: Some(0.0),
-            photo_offset_y: Some(0.0),
         }),
         _ => None,
     }

@@ -30,7 +30,7 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
-        thumbnail_path: pitch_thumbnail(model_id),
+        thumbnail_path: None,
         available: registry::is_model_available(model_id),
     })
 }
@@ -90,15 +90,6 @@ pub fn build_pitch_processor_for_layout(
 
 pub fn is_pitch_model_available(model: &str) -> bool {
     registry::is_model_available(model)
-}
-
-/// Returns the catalog thumbnail path (relative to project root) for a model,
-/// or `None` if the model has no thumbnail registered.
-pub fn pitch_thumbnail(model: &str) -> Option<&'static str> {
-    registry::THUMBNAILS
-        .iter()
-        .find(|(id, _)| *id == model)
-        .map(|(_, path)| *path)
 }
 
 #[cfg(test)]
