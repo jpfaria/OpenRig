@@ -19,9 +19,10 @@ jobs:
   # --------------------------------------------------------------------------
   # Plugin bundle: clones the private OpenRig-plugins repo, validates and
   # packs every package into a single zip, uploads as artifact for each
-  # platform job to embed inside its installer. PLUGINS_PAT is a
-  # fine-grained PAT scoped to read-only Contents on jpfaria/OpenRig-plugins
-  # (issue #399 — see the security comment).
+  # platform job to embed inside its installer. PLUGINS_DEPLOY_KEY is an
+  # SSH deploy key scoped read-only to jpfaria/OpenRig-plugins — not tied
+  # to any user account, revoked independently if leaked (issue #399 —
+  # see the security comment).
   # --------------------------------------------------------------------------
   bundle-plugins:
     name: Bundle plugins
@@ -31,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jpfaria/OpenRig-plugins
-          token: ${{ secrets.PLUGINS_PAT }}
+          ssh-key: ${{ secrets.PLUGINS_DEPLOY_KEY }}
           path: openrig-plugins
           lfs: true
 
