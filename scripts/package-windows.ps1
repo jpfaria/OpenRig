@@ -94,15 +94,15 @@ try {
     # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
     # ship via openrig-plugins.zip (extracted on first launch).
 
-    # Bundle plugins zip. plugin_loader::extract_bundle_if_needed extracts
-    # this on first launch. detect_data_root() returns <exe_dir> on
-    # Windows, so the file lands next to openrig.exe.
-    if (Test-Path "plugins\openrig-plugins.zip") {
-        Copy-Item "plugins\openrig-plugins.zip" "$stageDir\plugins.zip"
-        $size = (Get-Item "$stageDir\plugins.zip").Length / 1MB
-        Write-Host ("    bundled plugins.zip ({0:N1} MB)" -f $size)
+    # Bundle plugins as a pre-extracted directory next to openrig.exe.
+    # plugin_loader::registry::init_many scans <exe_dir>/plugins plus
+    # the user-writable root.
+    if (Test-Path "plugins\source") {
+        Copy-Item -Recurse "plugins\source" "$stageDir\plugins"
+        $count = (Get-ChildItem -Recurse -Filter "manifest.yaml" "$stageDir\plugins").Count
+        Write-Host ("    bundled plugins ({0} package(s))" -f $count)
     } else {
-        Write-Host "    NOTE: plugins\openrig-plugins.zip not found — bundle ships without plugins"
+        Write-Host "    NOTE: plugins\source\ not found — bundle ships without plugins"
     }
 
     # ── Copy gettext .mo translations ──────────────────────────────────────────

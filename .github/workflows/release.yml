@@ -46,14 +46,19 @@ jobs:
           key: bundle-plugins-cargo-${{ hashFiles('openrig-plugins/Cargo.lock') }}
           restore-keys: bundle-plugins-cargo-
 
-      - name: Pack plugins
+      - name: Validate plugins
         working-directory: openrig-plugins
-        run: cargo run --release --bin pack_plugins -- --bundle ../openrig-plugins.zip
+        # pack_plugins iterates plugins/source/, validates every package's
+        # manifest schema and asset references, and exits non-zero on any
+        # failure. We discard the produced per-package zips — installers
+        # ship the validated source tree directly so the runtime doesn't
+        # need an extraction step.
+        run: cargo run --release --bin pack_plugins
 
       - uses: actions/upload-artifact@v4
         with:
-          name: openrig-plugins-bundle
-          path: openrig-plugins.zip
+          name: openrig-plugins-tree
+          path: openrig-plugins/plugins/source
           if-no-files-found: error
           retention-days: 7
 
@@ -69,11 +74,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Download plugin bundle
+      - name: Download plugin tree
         uses: actions/download-artifact@v4
         with:
-          name: openrig-plugins-bundle
-          path: plugins
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -118,11 +123,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Download plugin bundle
+      - name: Download plugin tree
         uses: actions/download-artifact@v4
         with:
-          name: openrig-plugins-bundle
-          path: plugins
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Install system dependencies
         run: |
@@ -186,11 +191,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Download plugin bundle
+      - name: Download plugin tree
         uses: actions/download-artifact@v4
         with:
-          name: openrig-plugins-bundle
-          path: plugins
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Install system dependencies
         run: |
@@ -254,11 +259,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Download plugin bundle
+      - name: Download plugin tree
         uses: actions/download-artifact@v4
         with:
-          name: openrig-plugins-bundle
-          path: plugins
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Cache Cargo
         uses: actions/cache@v4

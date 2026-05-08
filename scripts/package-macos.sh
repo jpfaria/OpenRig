@@ -71,17 +71,17 @@ cp -r assets                   "$APP/Contents/Resources/assets"
 # data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
 # ship via openrig-plugins.zip (extracted on first launch).
 
-# Bundle plugins zip. plugin_loader::extract_bundle_if_needed extracts
-# this on first launch into the per-user plugins dir. detect_data_root()
-# resolves <.app>/Contents/Resources on macOS, so the file must land
-# next to assets/data/captures. Skip silently in dev when the zip
-# wasn't produced — registry::init falls back to whatever's already in
-# the per-user plugins dir.
-if [ -f plugins/openrig-plugins.zip ]; then
-    cp plugins/openrig-plugins.zip "$APP/Contents/Resources/plugins.zip"
-    echo "    bundled plugins.zip ($(du -h "$APP/Contents/Resources/plugins.zip" | cut -f1))"
+# Bundle plugins as a pre-extracted directory. plugin_loader::registry::
+# init_many scans <.app>/Contents/Resources/plugins (this path) plus the
+# user-writable root in parallel. No first-launch extraction step.
+# Skip silently in dev when the source tree isn't checked out alongside
+# OpenRig — registry::init falls back to the user root only.
+if [ -d plugins/source ]; then
+    cp -r plugins/source "$APP/Contents/Resources/plugins"
+    PLUGIN_COUNT=$(find "$APP/Contents/Resources/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
+    echo "    bundled plugins ($PLUGIN_COUNT package(s))"
 else
-    echo "    NOTE: plugins/openrig-plugins.zip not found — .app ships without bundled plugins"
+    echo "    NOTE: plugins/source/ not found — .app ships without bundled plugins"
 fi
 
 # Bundle gettext .mo translations. build.rs writes per-locale catalogs
