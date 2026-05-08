@@ -335,10 +335,26 @@ jobs:
       contents: write
       issues: write
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
         with:
+          name: openrig-macos
           path: artifacts
-          merge-multiple: true
+      - name: Download Linux x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-linux-x86_64
+          path: artifacts
+      - name: Download Linux aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-linux-aarch64
+          path: artifacts
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-windows-x64
+          path: artifacts
 
       - name: Generate release notes from milestone
         id: notes
