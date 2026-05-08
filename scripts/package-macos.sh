@@ -48,7 +48,6 @@ rm -rf "$APP" dist/dmg_contents dist/OpenRig-*.dmg
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Frameworks"
-mkdir -p "$APP/Contents/Resources/libs/lv2"
 mkdir -p "$APP/Contents/Resources/libs/nam"
 
 echo "==> Creating universal binary with lipo..."
@@ -67,11 +66,23 @@ install_name_tool \
     "$APP/Contents/MacOS/openrig" 2>/dev/null || true
 
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
-cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal"
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
-cp -r data/lv2                 "$APP/Contents/Resources/data"
 cp -r assets                   "$APP/Contents/Resources/assets"
-cp -r captures                 "$APP/Contents/Resources/captures"
+# data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
+# ship via openrig-plugins.zip (extracted on first launch).
+
+# Bundle plugins zip. plugin_loader::extract_bundle_if_needed extracts
+# this on first launch into the per-user plugins dir. detect_data_root()
+# resolves <.app>/Contents/Resources on macOS, so the file must land
+# next to assets/data/captures. Skip silently in dev when the zip
+# wasn't produced — registry::init falls back to whatever's already in
+# the per-user plugins dir.
+if [ -f plugins/openrig-plugins.zip ]; then
+    cp plugins/openrig-plugins.zip "$APP/Contents/Resources/plugins.zip"
+    echo "    bundled plugins.zip ($(du -h "$APP/Contents/Resources/plugins.zip" | cut -f1))"
+else
+    echo "    NOTE: plugins/openrig-plugins.zip not found — .app ships without bundled plugins"
+fi
 
 # Bundle gettext .mo translations. build.rs writes per-locale catalogs
 # under crates/adapter-gui/translations/<lang>/LC_MESSAGES/; we mirror

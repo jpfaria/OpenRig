@@ -88,13 +88,22 @@ try {
     Copy-Item "target\release\adapter-gui.exe"              "$stageDir\openrig.exe"
     Copy-Item "libs\nam\windows-x64\libNeuralAudioCAPI.dll" "$stageDir\"
 
-    New-Item -ItemType Directory -Force "$stageDir\libs\lv2" | Out-Null
     New-Item -ItemType Directory -Force "$stageDir\libs\nam" | Out-Null
-    Copy-Item -Recurse "libs\lv2\windows-x64" "$stageDir\libs\lv2\windows-x64"
     Copy-Item -Recurse "libs\nam\windows-x64" "$stageDir\libs\nam\windows-x64"
-    Copy-Item -Recurse "data"                 "$stageDir\data"
     Copy-Item -Recurse "assets"               "$stageDir\assets"
-    Copy-Item -Recurse "captures"             "$stageDir\captures"
+    # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
+    # ship via openrig-plugins.zip (extracted on first launch).
+
+    # Bundle plugins zip. plugin_loader::extract_bundle_if_needed extracts
+    # this on first launch. detect_data_root() returns <exe_dir> on
+    # Windows, so the file lands next to openrig.exe.
+    if (Test-Path "plugins\openrig-plugins.zip") {
+        Copy-Item "plugins\openrig-plugins.zip" "$stageDir\plugins.zip"
+        $size = (Get-Item "$stageDir\plugins.zip").Length / 1MB
+        Write-Host ("    bundled plugins.zip ({0:N1} MB)" -f $size)
+    } else {
+        Write-Host "    NOTE: plugins\openrig-plugins.zip not found — bundle ships without plugins"
+    }
 
     # ── Copy gettext .mo translations ──────────────────────────────────────────
     # Runtime resolver looks at <exec_dir>/translations on Windows.
