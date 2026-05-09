@@ -1,8 +1,7 @@
-//! Tests for `from_package` (issue #402 phase 2).
+//! Tests for `from_package` (issue #402).
 
 use super::*;
 use block_core::param::ParameterSet;
-use domain::value_objects::ParameterValue;
 use plugin_loader::manifest::{Backend, BlockType, GridCapture, PluginManifest};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -36,45 +35,48 @@ fn nam_manifest(output_gain_db: Option<f32>) -> PluginManifest {
 }
 
 #[test]
-fn manifest_output_gain_db_is_summed_onto_user_output_db() {
+fn manifest_output_gain_db_is_applied_directly() {
     let manifest = nam_manifest(Some(-3.5));
-    let mut params = ParameterSet::default();
-    params.insert("output_db", ParameterValue::Float(6.0));
+    let params = ParameterSet::default();
 
     let effective =
         effective_plugin_params(&manifest, &params).expect("effective params should succeed");
 
-    // 6.0 (user) + (-3.5) (manifest correction) = 2.5
+    // No user knob — pure manifest correction on top of NAM defaults.
     let actual = effective.output_level_db;
     assert!(
-        (actual - 2.5).abs() < 1e-6,
-        "expected 2.5 dB, got {actual} dB"
+        (actual - (-3.5)).abs() < 1e-6,
+        "expected -3.5 dB (manifest correction), got {actual} dB"
     );
 }
 
 #[test]
-fn manifest_output_gain_db_absent_is_treated_as_zero() {
+fn manifest_output_gain_db_absent_yields_default_output_level() {
     let manifest = nam_manifest(None);
-    let mut params = ParameterSet::default();
-    params.insert("output_db", ParameterValue::Float(4.0));
-
-    let effective = effective_plugin_params(&manifest, &params).expect("ok");
-    let actual = effective.output_level_db;
-    assert!(
-        (actual - 4.0).abs() < 1e-6,
-        "expected 4.0 dB (user only), got {actual} dB"
-    );
-}
-
-#[test]
-fn manifest_output_gain_db_alone_when_user_omits_output_db() {
-    let manifest = nam_manifest(Some(2.0));
     let params = ParameterSet::default();
 
     let effective = effective_plugin_params(&manifest, &params).expect("ok");
     let actual = effective.output_level_db;
     assert!(
+        (actual - DEFAULT_PLUGIN_PARAMS.output_level_db).abs() < 1e-6,
+        "expected default output_level_db ({}), got {actual}",
+        DEFAULT_PLUGIN_PARAMS.output_level_db
+    );
+}
+
+#[test]
+fn user_params_do_not_affect_output_level_db() {
+    // Even if a stale preset still carries `output_db: 6.0`, we ignore
+    // it — the user has no knob anymore (issue #402: "always 100%").
+    use domain::value_objects::ParameterValue;
+    let manifest = nam_manifest(Some(2.0));
+    let mut params = ParameterSet::default();
+    params.insert("output_db", ParameterValue::Float(99.0));
+
+    let effective = effective_plugin_params(&manifest, &params).expect("ok");
+    let actual = effective.output_level_db;
+    assert!(
         (actual - 2.0).abs() < 1e-6,
-        "expected 2.0 dB (manifest only), got {actual} dB"
+        "expected manifest-only 2.0 dB, got {actual} dB"
     );
 }
