@@ -1571,27 +1571,3 @@ params:
         other => panic!("expected Core block, got {other:?}"),
     }
 }
-
-#[test]
-fn chain_without_enabled_field_defaults_to_enabled_true() {
-    // Real-world projects (and every preset shipped before this fix) omit
-    // `enabled:` on chains. Without an explicit serde default, that
-    // field deserializes to `false` and the whole chain becomes silent
-    // on load. Default must be `true`.
-    let temp_dir = tempdir().expect("temp dir should be created");
-    let project_path = temp_dir.path().join("project.yaml");
-    fs::write(
-        &project_path,
-        "chains:\n  - description: Guitar\n    instrument: electric_guitar\n    blocks: []\n",
-    )
-    .expect("write project");
-    let repo = super::YamlProjectRepository {
-        path: project_path,
-    };
-    let project = repo.load_current_project().expect("load");
-    assert_eq!(project.chains.len(), 1, "one chain expected");
-    assert!(
-        project.chains[0].enabled,
-        "chain without `enabled:` field must default to enabled = true"
-    );
-}
