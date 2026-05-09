@@ -11,6 +11,7 @@ pub mod discover;
 pub mod dispatch;
 pub mod dispatch_infer;
 pub mod install;
+pub mod loudness_norm;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
