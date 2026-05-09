@@ -8,12 +8,45 @@
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
 use plugin_loader::manifest::{Backend, GridParameter};
 use plugin_loader::LoadedPackage;
 
 use crate::build_processor_with_assets_for_layout;
 use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
+
+/// True passthrough for the NAM block when the user knob is at zero.
+/// Issue #400 follow-up: -60 dB attenuation via `output_level_db` was not
+/// enough to suppress the NAM model's bias/noise once the downstream AMP
+/// (Mesa Rectifier `drive_red` etc.) amplified it back into audible territory.
+/// Returning a passthrough makes the block behave EXACTLY as if it were
+/// disabled — the user-validated baseline that doesn't produce microphonics.
+struct PassthroughMono;
+impl MonoProcessor for PassthroughMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        input
+    }
+    fn process_block(&mut self, _buffer: &mut [f32]) {
+        // Identity: leave buffer untouched.
+    }
+}
+
+struct PassthroughStereo;
+impl StereoProcessor for PassthroughStereo {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        input
+    }
+    fn process_block(&mut self, _buffer: &mut [[f32; 2]]) {
+        // Identity: leave buffer untouched.
+    }
+}
+
+fn passthrough(layout: AudioChannelLayout) -> BlockProcessor {
+    match layout {
+        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(PassthroughMono)),
+        AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(PassthroughStereo)),
+    }
+}
 
 /// Build a [`BlockProcessor`] from a disk-backed NAM package.
 pub fn build_from_package(
@@ -32,6 +65,22 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
+    // Issue #400 follow-up: if the user knob is at zero, return a true
+    // passthrough WITHOUT loading or running the NAM model. The model's
+    // internal bias/noise — even attenuated by -60 dB on output_gain —
+    // was being amplified back into audible territory by downstream
+    // high-gain amps, causing acoustic feedback that the user could not
+    // silence by lowering knobs. Passthrough = identical behavior to a
+    // disabled block (the only configuration the user validated as
+    // microphonics-free).
+    let level_pct = normalized_knob("level", params, parameters);
+    let drive_pct = normalized_knob("drive", params, parameters);
+    if level_pct.map(|p| p <= 0.0).unwrap_or(false)
+        || drive_pct.map(|p| p <= 0.0).unwrap_or(false)
+    {
+        return Ok(passthrough(layout));
+    }
+
     let capture = plugin_loader::dispatch::resolve_capture(parameters, captures, params)
         .ok_or_else(|| {
             anyhow!(
@@ -69,21 +118,14 @@ pub fn build_from_package(
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 
-/// If `name` (e.g. "level" or "drive") is declared as a numeric knob axis in
-/// `parameters` AND the user provided a value, returns the dB equivalent on
-/// the standard logarithmic taper:
-///   - 0% of declared max → -60 dB (silence floor)
-///   - 50% of declared max → -6 dB
-///   - 100% of declared max → 0 dB (unity, preserves the capture's own gain)
-///
-/// Returns `None` if the knob is not in the schema or the user omitted it,
-/// signalling "leave plugin_params alone" so explicitly set `input_db`/
-/// `output_db` keys still take effect.
-fn derive_db_from_knob(
+/// User's value normalized to [0.0, 1.0] against the schema's declared max.
+/// Returns `None` if the knob is missing from the schema or absent in user
+/// params (so callers can fall back to defaults).
+fn normalized_knob(
     name: &str,
     params: &ParameterSet,
     parameters: &[GridParameter],
-) -> Option<f32> {
+) -> Option<f64> {
     let user_value = f64::from(params.get_f32(name)?);
     let max_declared = parameters
         .iter()
@@ -98,7 +140,21 @@ fn derive_db_from_knob(
     if max_declared <= 0.0 || !max_declared.is_finite() {
         return None;
     }
-    let normalized = (user_value / max_declared).clamp(0.0, 1.0);
+    Some((user_value / max_declared).clamp(0.0, 1.0))
+}
+
+/// If `name` (e.g. "level" or "drive") is declared as a numeric knob axis in
+/// `parameters` AND the user provided a value, returns the dB equivalent on
+/// the standard logarithmic taper:
+///   - 0% of declared max → -60 dB (silence floor)
+///   - 50% of declared max → -6 dB
+///   - 100% of declared max → 0 dB (unity, preserves the capture's own gain)
+fn derive_db_from_knob(
+    name: &str,
+    params: &ParameterSet,
+    parameters: &[GridParameter],
+) -> Option<f32> {
+    let normalized = normalized_knob(name, params, parameters)?;
     if normalized <= 0.0 {
         return Some(-60.0);
     }
@@ -233,5 +289,53 @@ mod tests {
         let mut ps = ParameterSet::default();
         ps.insert("gain_percent", BlockParameterValue::Float(50.0));
         assert!(derive_db_from_knob("gain_percent", &ps, &parameters).is_none());
+    }
+
+    // ── Passthrough tests (microphonics fix) ──────────────────────────
+
+    #[test]
+    fn passthrough_mono_returns_input_unchanged() {
+        let mut p = PassthroughMono;
+        for sample in [-1.0, -0.5, 0.0, 0.0001, 0.5, 1.0] {
+            assert_eq!(p.process_sample(sample), sample);
+        }
+    }
+
+    #[test]
+    fn passthrough_stereo_returns_input_unchanged() {
+        let mut p = PassthroughStereo;
+        let frame = [0.42, -0.31];
+        assert_eq!(p.process_frame(frame), frame);
+    }
+
+    #[test]
+    fn passthrough_mono_block_is_no_op() {
+        let mut p = PassthroughMono;
+        let mut buffer = vec![0.1, -0.2, 0.3, -0.4];
+        let original = buffer.clone();
+        p.process_block(&mut buffer);
+        assert_eq!(buffer, original);
+    }
+
+    #[test]
+    fn normalized_knob_returns_zero_at_zero() {
+        let parameters = ts9_like_parameters();
+        let ps = params_with(Some(0.0), None);
+        assert_eq!(normalized_knob("level", &ps, &parameters), Some(0.0));
+    }
+
+    #[test]
+    fn normalized_knob_returns_one_at_max() {
+        let parameters = ts9_like_parameters();
+        let ps = params_with(Some(10.0), None);
+        assert_eq!(normalized_knob("level", &ps, &parameters), Some(1.0));
+    }
+
+    #[test]
+    fn normalized_knob_clamps_above_max() {
+        // User somehow sets level=99 in a 0–10 grid: clamp to 1.0.
+        let parameters = ts9_like_parameters();
+        let ps = params_with(Some(99.0), None);
+        assert_eq!(normalized_knob("level", &ps, &parameters), Some(1.0));
     }
 }
