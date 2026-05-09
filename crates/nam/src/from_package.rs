@@ -38,17 +38,25 @@ use plugin_loader::LoadedPackage;
 use crate::build_processor_with_assets_for_layout;
 use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
 
-/// Sample-peak ceiling every NAM normalizes to (issue #402).
-const TARGET_PEAK_DBFS: f32 = -1.0;
+/// Sample-peak ceiling every NAM is allowed to reach (issue #402).
+///
+/// Conservative — quieter than -1 / -3 dBFS, so high-gain stacks don't
+/// blow up when chained (TS9 → Bogner caused acoustic feedback at -3
+/// dBFS). The normalization NEVER amplifies; gains > 1.0 are clamped
+/// to unity. NAMs already quieter than the target keep their natural
+/// level — only the loud ones are pulled down to match. Result: all
+/// NAMs sit at or below the same ceiling, nothing adds gain.
+const TARGET_PEAK_DBFS: f32 = -6.0;
 
-/// Pink noise reference signal level — quiet enough that even high-gain
-/// preamps don't slam the limiter during the probe, loud enough that
-/// silence-stage NAMs measure a real peak.
-const PROBE_REFERENCE_LUFS: f32 = -18.0;
+/// Pink noise reference signal level — chosen to mirror real playing
+/// level, so high-gain preamps actually saturate during the probe and
+/// expose a representative peak. -18 LUFS was too quiet: high-gain
+/// preamps under-measured peak and got over-amplified at play time.
+const PROBE_REFERENCE_LUFS: f32 = -12.0;
 
-/// Probe length. 1 s at 48 kHz = 48 000 samples per capture, paid once
-/// per unique `.nam` file (cached).
-const PROBE_DURATION_SAMPLES: usize = 48_000;
+/// Probe length. 2 s at 48 kHz = 96 000 samples per capture. Long
+/// enough that envelope followers and slow saturation stages settle.
+const PROBE_DURATION_SAMPLES: usize = 96_000;
 
 /// Per-capture gain cache keyed by the absolute path of the `.nam`
 /// file. Process-global, lives until exit.
@@ -116,6 +124,12 @@ fn cached_or_measure_gain(
     let pink = pink_noise_at(PROBE_REFERENCE_LUFS, PROBE_DURATION_SAMPLES);
     let peak = measure_peak(probe, &pink);
     let gain = compute_gain_to_target(peak, TARGET_PEAK_DBFS);
+    let gain_db = 20.0 * gain.log10();
+    let peak_db = if peak > 1e-9 { 20.0 * peak.log10() } else { f32::NEG_INFINITY };
+    log::info!(
+        "nam loudness: {} -> raw peak {peak_db:+.2} dBFS, gain {gain_db:+.2} dB",
+        cache_key.display()
+    );
     gain_cache()
         .lock()
         .unwrap()
@@ -147,15 +161,24 @@ fn measure_peak(mut processor: BlockProcessor, pink: &[f32]) -> f32 {
     peak
 }
 
-/// Compute the linear gain needed to bring a measured `peak` to the
-/// `target_dbfs` ceiling. Pure function, cache-friendly, easy to test.
+/// Linear gain that brings a measured `peak` down to the `target_dbfs`
+/// ceiling — but **never amplifies**. NAMs already quieter than the
+/// target keep their natural level (gain clamped to 1.0); only loud
+/// NAMs are attenuated. Pure function, cache-friendly, easy to test.
+///
+/// Why never amplify: chained NAMs (e.g. NAM gain pedal → NAM amp)
+/// would otherwise stack their boosts and blow up — the user reported
+/// acoustic feedback when the chain was TS9 → Bogner Ecstasy at a
+/// lower (more aggressive) target. Attenuation-only keeps every NAM
+/// at-or-below the ceiling without adding energy to the signal path.
 pub fn compute_gain_to_target(peak: f32, target_dbfs: f32) -> f32 {
     if peak <= 1e-9 {
-        // Capture stuck at silence — wrapping in 0 dB avoids amplifying noise.
+        // Capture stuck at silence — leave it alone, never amplify noise.
         return 1.0;
     }
     let target_linear = 10f32.powf(target_dbfs / 20.0);
-    target_linear / peak
+    let raw = target_linear / peak;
+    raw.min(1.0)
 }
 
 fn wrap_with_gain(inner: BlockProcessor, gain: f32) -> BlockProcessor {
