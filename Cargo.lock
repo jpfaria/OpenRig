@@ -4527,6 +4527,7 @@ dependencies = [
  "block-wah",
  "domain",
  "log",
+ "nam",
  "plugin-loader",
  "serde",
  "vst3-host",

@@ -27,3 +27,4 @@ block-ir = { path = "../block-ir" }
 block-wah = { path = "../block-wah" }
 block-pitch = { path = "../block-pitch" }
 vst3-host = { path = "../vst3" }
+nam = { path = "../nam" }

@@ -144,7 +144,10 @@ binaries:
         amp_names.contains(&"volume"),
         "NAM schema missing 'volume', got: {amp_names:?}"
     );
-    assert_eq!(amp_schema.parameters.len(), 2);
+    // 2 grid axes (gain/volume) + the 8 NAM-standard plugin params
+    // (input_db/output_db/noise_gate.{enabled,threshold_db}/eq.{enabled,bass,middle,treble})
+    // restored by the disk-package synthesizer post-#287 migration. Issue #401.
+    assert_eq!(amp_schema.parameters.len(), 10);
 
     // ── IR: one text axis → one enum parameter ──
     let cab_schema = project::block::schema_for_block_model("cab", "ir_test_cab_e2e")

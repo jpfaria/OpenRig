@@ -109,7 +109,22 @@ fn synthesize_parameters_from_manifest(
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam { parameters, .. } | Backend::Ir { parameters, .. } => {
+        Backend::Nam { parameters, .. } => {
+            // Pre-#287 (when NAM amps lived in `block-preamp/src/nam_*.rs`),
+            // every NAM model exposed two layers of knobs: the per-capture
+            // grid (e.g. `mode`, `character` for nam_boss_ds_2) AND the 8
+            // universal NAM plugin knobs (input/output level, noise gate,
+            // EQ on/off + bass/mid/treble) added by `nam::plugin_parameter_specs()`.
+            // The migration to disk packages dropped the second layer, so
+            // every NAM in the GUI lost its standard knobs (~96 packages —
+            // 21 with empty grids ended up with zero knobs at all). Merge
+            // the standard set back in. Issue #401.
+            let mut specs: Vec<block_core::param::ParameterSpec> =
+                parameters.iter().map(grid_parameter_to_spec).collect();
+            specs.extend(nam::processor::plugin_parameter_specs());
+            specs
+        }
+        Backend::Ir { parameters, .. } => {
             parameters.iter().map(grid_parameter_to_spec).collect()
         }
         Backend::Lv2 {
