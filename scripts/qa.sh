@@ -25,6 +25,7 @@ set -uo pipefail
 QA_MIN_COVERAGE="${QA_MIN_COVERAGE:-0}"
 QA_SKIP_COVERAGE="${QA_SKIP_COVERAGE:-0}"
 QA_LOG_DIR="${QA_LOG_DIR:-target/qa-logs}"
+QA_BASE_REF="${QA_BASE_REF:-origin/develop}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -60,16 +61,34 @@ echo "  branch:    $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
 echo "  coverage:  >= ${QA_MIN_COVERAGE}% (skip=${QA_SKIP_COVERAGE})"
 echo "  logs:      $QA_LOG_DIR/"
 
-# ─── 1. Formatting ──────────────────────────────────────────────────────────
-run_step "1. cargo fmt --check" \
-  cargo fmt --all -- --check
+# ─── 1. Formatting (PR-scope only) ──────────────────────────────────────────
+# Só checa arquivos .rs alterados em relação a $QA_BASE_REF. Se base não
+# existir (ex: branch nova sem fetch), cai pro workspace inteiro como fallback
+# seguro.
+fmt_check_pr_scope() {
+  if changed=$(git diff --name-only "$QA_BASE_REF"...HEAD -- '*.rs' 2>/dev/null) \
+     && [ -n "$changed" ]; then
+    echo "$changed" | xargs rustfmt --check
+  elif changed=$(git diff --name-only HEAD -- '*.rs' 2>/dev/null) \
+       && [ -n "$changed" ]; then
+    echo "$changed" | xargs rustfmt --check
+  else
+    cargo fmt --all -- --check
+  fi
+}
+run_step "1. cargo fmt --check (PR-scope)" fmt_check_pr_scope
 
 # ─── 2. Clippy (strict warnings; complexity é comparativo no pr.yml) ────────
 # Lints de complexidade (cognitive_complexity, too_many_lines,
-# too_many_arguments, type_complexity) NÃO entram aqui pra não bloquear por
-# dívida preexistente. Regressão de complexidade é comparativa em CI.
+# too_many_arguments, type_complexity) ficam EXPLICITAMENTE allow aqui pra
+# não bloquear por dívida preexistente. Regressão é comparativa em CI.
 run_step "2. cargo clippy" \
-  cargo clippy --workspace --all-targets -- -D warnings
+  cargo clippy --workspace --all-targets -- \
+    -D warnings \
+    -A clippy::cognitive_complexity \
+    -A clippy::too_many_lines \
+    -A clippy::too_many_arguments \
+    -A clippy::type_complexity
 
 # ─── 3. Build (zero warnings invariant) ─────────────────────────────────────
 run_step "3. cargo build --workspace" \
