@@ -1,0 +1,17 @@
+[package]
+name = "nam_loudness_audit"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "nam_loudness_audit"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+block-core = { path = "../../crates/block-core" }
+domain = { path = "../../crates/domain" }
+ebur128 = "0.1"
+nam = { path = "../../crates/nam" }
+plugin-loader = { path = "../../crates/plugin-loader" }
+serde_yaml = "0.9"
