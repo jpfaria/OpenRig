@@ -347,6 +347,7 @@ fn build_select_runtime_node(
         } else {
             FadeState::Active
         },
+        fade_dry_buffer: Vec::new(),
         faulted: false,
     })
 }
@@ -365,6 +366,7 @@ pub(crate) fn bypass_runtime_node(
         processor: RuntimeProcessor::Bypass,
         stream_handle: None,
         fade_state: FadeState::Bypassed,
+        fade_dry_buffer: Vec::new(),
         faulted: false,
     }
 }
@@ -387,6 +389,7 @@ pub(crate) fn audio_block_runtime_node(
         fade_state: FadeState::FadingIn {
             frames_remaining: FADE_IN_FRAMES,
         },
+        fade_dry_buffer: Vec::new(),
         faulted: false,
     }
 }

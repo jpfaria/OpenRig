@@ -391,7 +391,15 @@ fn process_audio_block(
         }
         FadeState::FadingIn { frames_remaining } => {
             // Crossfade: dry → wet (block fading in)
-            let dry: Vec<AudioFrame> = frames.to_vec();
+            // Issue #400 bug #4: reuse pre-allocated buffer instead of
+            // `frames.to_vec()` (which allocates on every audio callback).
+            // `mem::take` swaps with Vec::new() (zero alloc); clear() keeps
+            // capacity; extend_from_slice() only reallocs if capacity is
+            // exceeded — after the first call, capacity is sufficient and
+            // this path is alloc-free.
+            let mut dry = std::mem::take(&mut block.fade_dry_buffer);
+            dry.clear();
+            dry.extend_from_slice(frames);
             apply_block_processor(block, frames, error_queue);
             let fade_total = FADE_IN_FRAMES as f32;
             for (i, frame) in frames.iter_mut().enumerate() {
@@ -405,6 +413,7 @@ fn process_audio_block(
                 let dry_gain = 1.0 - wet_gain;
                 blend_frame(frame, dry[i], dry_gain, wet_gain);
             }
+            block.fade_dry_buffer = dry;
             let new_remaining = frames_remaining.saturating_sub(frames.len());
             block.fade_state = if new_remaining == 0 {
                 FadeState::Active
@@ -416,8 +425,11 @@ fn process_audio_block(
         }
         FadeState::FadingOut { frames_remaining } => {
             // Crossfade: wet → dry (block fading out / being disabled)
-            // We still process audio so we can fade out smoothly
-            let dry: Vec<AudioFrame> = frames.to_vec();
+            // We still process audio so we can fade out smoothly.
+            // Issue #400 bug #4: same alloc-free pattern as FadingIn.
+            let mut dry = std::mem::take(&mut block.fade_dry_buffer);
+            dry.clear();
+            dry.extend_from_slice(frames);
             apply_block_processor(block, frames, error_queue);
             let fade_total = FADE_IN_FRAMES as f32;
             for (i, frame) in frames.iter_mut().enumerate() {
@@ -432,6 +444,7 @@ fn process_audio_block(
                 let dry_gain = 1.0 - wet_gain;
                 blend_frame(frame, dry[i], dry_gain, wet_gain);
             }
+            block.fade_dry_buffer = dry;
             let new_remaining = frames_remaining.saturating_sub(frames.len());
             block.fade_state = if new_remaining == 0 {
                 FadeState::Bypassed
