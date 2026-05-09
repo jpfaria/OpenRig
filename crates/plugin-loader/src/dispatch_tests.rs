@@ -335,3 +335,110 @@ fn scan_lv2_ports_falls_back_to_only_plugin_when_uri_mismatches() {
     );
     let _ = fs::remove_dir_all(&tmp);
 }
+
+// ── lv2:portProperty / lv2:scalePoint / pprop:rangeSteps (issue #401) ───
+
+#[test]
+fn parses_toggle_port_property() {
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-toggle-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"bypass\" ;\n\
+        lv2:default 0 ;\n\
+        lv2:minimum 0 ;\n\
+        lv2:maximum 1 ;\n\
+        lv2:portProperty lv2:integer, lv2:toggled ;\n\
+    ] .\n",
+    )
+    .unwrap();
+    let port = scan_lv2_ports(&tmp, "urn:test:plug")
+        .expect("scan ok")
+        .into_iter()
+        .find(|p| p.symbol == "bypass")
+        .expect("bypass port present");
+    assert!(port.is_toggle, "lv2:toggled flag must be detected");
+    assert!(port.is_integer, "lv2:integer flag must be detected");
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn parses_enumeration_with_scale_points() {
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-enum-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"mode\" ;\n\
+        lv2:default 0 ;\n\
+        lv2:minimum 0 ;\n\
+        lv2:maximum 2 ;\n\
+        lv2:portProperty lv2:integer, lv2:enumeration ;\n\
+        lv2:scalePoint [ rdfs:label \"Auto\" ; rdf:value 0 ; ] ;\n\
+        lv2:scalePoint [ rdfs:label \"MIDI\" ; rdf:value 1 ; ] ;\n\
+        lv2:scalePoint [ rdfs:label \"Manual\" ; rdf:value 2 ; ] ;\n\
+    ] .\n",
+    )
+    .unwrap();
+    let port = scan_lv2_ports(&tmp, "urn:test:plug")
+        .expect("scan ok")
+        .into_iter()
+        .find(|p| p.symbol == "mode")
+        .expect("mode port present");
+    assert!(port.is_enumeration, "lv2:enumeration flag must be detected");
+    assert_eq!(port.scale_points.len(), 3);
+    assert_eq!(port.scale_points[0].value, 0.0);
+    assert_eq!(port.scale_points[0].label, "Auto");
+    assert_eq!(port.scale_points[1].label, "MIDI");
+    assert_eq!(port.scale_points[2].label, "Manual");
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn parses_range_steps() {
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-rangesteps-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+@prefix pprop: <http://lv2plug.in/ns/ext/port-props#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:InputPort, lv2:ControlPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"tuning\" ;\n\
+        lv2:default 440.0 ;\n\
+        lv2:minimum 400.0 ;\n\
+        lv2:maximum 480.0 ;\n\
+        pprop:rangeSteps 401 ;\n\
+    ] .\n",
+    )
+    .unwrap();
+    let port = scan_lv2_ports(&tmp, "urn:test:plug")
+        .expect("scan ok")
+        .into_iter()
+        .find(|p| p.symbol == "tuning")
+        .expect("tuning port present");
+    assert_eq!(port.range_steps, Some(401));
+    let _ = fs::remove_dir_all(&tmp);
+}

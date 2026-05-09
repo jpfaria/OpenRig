@@ -129,6 +129,28 @@ pub struct Lv2Port {
     pub minimum: Option<f32>,
     pub maximum: Option<f32>,
     pub name: Option<String>,
+    /// `lv2:portProperty lv2:toggled` — value is bool (0/1).
+    pub is_toggle: bool,
+    /// `lv2:portProperty lv2:integer` — value is integer (no decimals).
+    pub is_integer: bool,
+    /// `lv2:portProperty lv2:enumeration` — port has discrete `scale_points`.
+    pub is_enumeration: bool,
+    /// `lv2:scalePoint [ rdfs:label "X" ; rdf:value Y ; ]` collected in
+    /// document order. Used together with `is_enumeration` to render a
+    /// dropdown/select widget.
+    pub scale_points: Vec<Lv2ScalePoint>,
+    /// `pprop:rangeSteps N` — number of discrete positions across the
+    /// range. Used for integer/quantised float steppers.
+    pub range_steps: Option<u32>,
+}
+
+/// One labelled value in an enumeration port. Value is stored as `f32`
+/// because LV2 enumerations always come from a numeric port; the label
+/// is what the user sees in the dropdown.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lv2ScalePoint {
+    pub value: f32,
+    pub label: String,
 }
 
 /// Parse every `<plugin>.ttl` (and `manifest.ttl`) inside `bundle_dir`
@@ -433,6 +455,7 @@ fn parse_port_block(block: &str) -> Option<Lv2Port> {
     let minimum = capture_after(block, "lv2:minimum").and_then(|raw| raw.parse::<f32>().ok());
     let maximum = capture_after(block, "lv2:maximum").and_then(|raw| raw.parse::<f32>().ok());
     let name = capture_quoted(block, "lv2:name");
+    let properties = parse_port_properties(block);
     Some(Lv2Port {
         index,
         symbol,
@@ -441,7 +464,81 @@ fn parse_port_block(block: &str) -> Option<Lv2Port> {
         minimum,
         maximum,
         name,
+        is_toggle: properties.contains("lv2:toggled"),
+        is_integer: properties.contains("lv2:integer"),
+        is_enumeration: properties.contains("lv2:enumeration"),
+        scale_points: parse_scale_points(block),
+        range_steps: capture_after(block, "pprop:rangeSteps")
+            .and_then(|raw| raw.parse::<u32>().ok()),
     })
+}
+
+/// Read every `lv2:portProperty` directive in the port block and return
+/// the unique set of property tokens. Multiple portProperty directives
+/// can coexist on one port and each can carry a comma-separated list:
+/// `lv2:portProperty lv2:integer, lv2:enumeration ;`.
+fn parse_port_properties(block: &str) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    let mut search = block;
+    while let Some(start) = search.find("lv2:portProperty") {
+        let after = &search[start + "lv2:portProperty".len()..];
+        // Read until the terminating `;` or `]`.
+        let end = after
+            .find(|c: char| c == ';' || c == ']')
+            .unwrap_or(after.len());
+        let list = &after[..end];
+        for token in list.split(',') {
+            let trimmed = token.trim();
+            if !trimmed.is_empty() {
+                out.insert(trimmed.to_string());
+            }
+        }
+        search = &after[end..];
+    }
+    out
+}
+
+/// Read every `lv2:scalePoint [ rdfs:label "X" ; rdf:value Y ; ]` block
+/// and return the parsed `(value, label)` pairs in document order.
+/// Order matches what enumeration UIs typically render, so callers can
+/// pass it straight to `enum_parameter`.
+fn parse_scale_points(block: &str) -> Vec<Lv2ScalePoint> {
+    let mut out = Vec::new();
+    let bytes = block.as_bytes();
+    let needle = "lv2:scalePoint";
+    let mut cursor = 0;
+    while let Some(rel) = block[cursor..].find(needle) {
+        let after_keyword = cursor + rel + needle.len();
+        // Scan forward to the opening `[` that follows the directive,
+        // skipping whitespace.
+        let mut i = after_keyword;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() || bytes[i] != b'[' {
+            cursor = after_keyword;
+            continue;
+        }
+        let inner_start = i + 1;
+        let mut depth: i32 = 1;
+        let mut j = inner_start;
+        while j < bytes.len() && depth > 0 {
+            match bytes[j] {
+                b'[' => depth += 1,
+                b']' => depth -= 1,
+                _ => {}
+            }
+            j += 1;
+        }
+        let inner = &block[inner_start..j.saturating_sub(1)];
+        let value = capture_after(inner, "rdf:value").and_then(|raw| raw.parse::<f32>().ok());
+        let label = capture_quoted(inner, "rdfs:label");
+        if let (Some(value), Some(label)) = (value, label) {
+            out.push(Lv2ScalePoint { value, label });
+        }
+        cursor = j;
+    }
+    out
 }
 
 fn classify(block: &str) -> Lv2PortRole {
