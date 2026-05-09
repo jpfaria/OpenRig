@@ -19,7 +19,6 @@ fn nam_manifest(parameters: Vec<GridParameter>, captures: Vec<GridCapture>) -> P
         license: None,
         homepage: None,
         sources: None,
-        output_gain_db: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters,
@@ -44,7 +43,6 @@ fn lv2_manifest() -> PluginManifest {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_db: None,
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {
             plugin_uri: "urn:test:plugin".to_string(),
@@ -368,7 +366,6 @@ fn accepts_ir_with_no_parameters_and_one_capture() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_db: None,
         block_type: BlockType::Cab,
         backend: Backend::Ir {
             parameters: vec![],

@@ -1,82 +1,59 @@
-//! Tests for `from_package` (issue #402).
+//! Tests for `from_package` (issue #402 — on-load loudness normalization).
 
 use super::*;
-use block_core::param::ParameterSet;
-use plugin_loader::manifest::{Backend, BlockType, GridCapture, PluginManifest};
-use std::collections::BTreeMap;
-use std::path::PathBuf;
 
-fn nam_manifest(output_gain_db: Option<f32>) -> PluginManifest {
-    PluginManifest {
-        manifest_version: 1,
-        id: "nam_audited".to_string(),
-        display_name: "Audited NAM".to_string(),
-        author: None,
-        description: None,
-        inspired_by: None,
-        brand: None,
-        thumbnail: None,
-        photo: None,
-        screenshot: None,
-        brand_logo: None,
-        license: None,
-        homepage: None,
-        sources: None,
-        output_gain_db,
-        block_type: BlockType::Amp,
-        backend: Backend::Nam {
-            parameters: vec![],
-            captures: vec![GridCapture {
-                values: BTreeMap::new(),
-                file: PathBuf::from("captures/x.nam"),
-            }],
-        },
-    }
+#[test]
+fn gain_targets_minus_one_dbfs_when_peak_is_unity() {
+    // Capture peaks at 0 dBFS (linear 1.0). To land at -1 dBFS we need
+    // to attenuate by 10^(-1/20) ≈ 0.891.
+    let g = compute_gain_to_target(1.0, -1.0);
+    let expected = 10f32.powf(-1.0 / 20.0);
+    assert!((g - expected).abs() < 1e-6, "got {g}, expected {expected}");
 }
 
 #[test]
-fn manifest_output_gain_db_is_applied_directly() {
-    let manifest = nam_manifest(Some(-3.5));
-    let params = ParameterSet::default();
+fn gain_amplifies_quiet_capture_to_target() {
+    // Capture peaks at -20 dBFS (linear 0.1). Target -1 dBFS means
+    // we need to push it up by ~+19 dB ⇒ linear ~8.913.
+    let g = compute_gain_to_target(0.1, -1.0);
+    let expected = 10f32.powf(-1.0 / 20.0) / 0.1;
+    assert!((g - expected).abs() < 1e-3, "got {g}, expected {expected}");
+}
 
-    let effective =
-        effective_plugin_params(&manifest, &params).expect("effective params should succeed");
+#[test]
+fn gain_is_unity_for_silent_capture() {
+    // A capture stuck at silence produces peak 0; we don't amplify
+    // noise — just leave it alone.
+    let g = compute_gain_to_target(0.0, -1.0);
+    assert_eq!(g, 1.0);
+    let g_eps = compute_gain_to_target(1e-12, -1.0);
+    assert_eq!(g_eps, 1.0);
+}
 
-    // No user knob — pure manifest correction on top of NAM defaults.
-    let actual = effective.output_level_db;
+#[test]
+fn gain_is_below_one_for_already_loud_capture() {
+    // A hot capture above -1 dBFS must be attenuated, not boosted.
+    let g = compute_gain_to_target(2.0, -1.0);
+    assert!(g < 1.0, "loud capture should be attenuated, got {g}");
+}
+
+#[test]
+fn pink_noise_normalized_rms_matches_target_lufs() {
+    let n = 48_000;
+    let pink = pink_noise_at(-18.0, n);
+    let measured = rms(&pink);
+    let expected = lufs_to_linear(-18.0);
     assert!(
-        (actual - (-3.5)).abs() < 1e-6,
-        "expected -3.5 dB (manifest correction), got {actual} dB"
+        (measured - expected).abs() < 0.01,
+        "rms {measured:.4} far from target {expected:.4}"
     );
 }
 
 #[test]
-fn manifest_output_gain_db_absent_yields_default_output_level() {
-    let manifest = nam_manifest(None);
-    let params = ParameterSet::default();
-
-    let effective = effective_plugin_params(&manifest, &params).expect("ok");
-    let actual = effective.output_level_db;
-    assert!(
-        (actual - DEFAULT_PLUGIN_PARAMS.output_level_db).abs() < 1e-6,
-        "expected default output_level_db ({}), got {actual}",
-        DEFAULT_PLUGIN_PARAMS.output_level_db
-    );
-}
-
-#[test]
-fn user_params_do_not_affect_output_level_db() {
-    // Even if a stale preset still carries `output_db: 6.0`, we ignore
-    // it — the user has no knob anymore (issue #402: "always 100%").
-    use domain::value_objects::ParameterValue;
-    let manifest = nam_manifest(Some(2.0));
-    let mut params = ParameterSet::default();
-    params.insert("output_db", ParameterValue::Float(99.0));
-
-    let effective = effective_plugin_params(&manifest, &params).expect("ok");
-    let actual = effective.output_level_db;
-    assert!(
-        (actual - 2.0).abs() < 1e-6,
-        "expected manifest-only 2.0 dB, got {actual} dB"
-    );
+fn pink_noise_is_deterministic_for_reproducible_probes() {
+    // Same seed must yield identical samples — so two probes of the
+    // same capture compute the same gain (cache key correctness).
+    let a = pink_noise_at(-18.0, 1024);
+    let b = pink_noise_at(-18.0, 1024);
+    assert_eq!(a, b);
 }

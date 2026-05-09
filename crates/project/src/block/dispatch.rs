@@ -415,7 +415,6 @@ mod tests {
                 license: None,
                 homepage: None,
                 sources: None,
-                output_gain_db: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
                     parameters: vec![GridParameter {

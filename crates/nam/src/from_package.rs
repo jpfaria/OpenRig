@@ -4,18 +4,64 @@
 //! declared in the manifest) and hands it to the existing
 //! [`crate::build_processor_with_assets_for_layout`].
 //!
-//! Issue: #287
+//! Issue #287 (loader) + #402 (loudness normalization).
+//!
+//! # Loudness normalization (issue #402)
+//!
+//! Every NAM block ships out of the box at the same ceiling (-1 dBFS
+//! sample peak), no per-block knob, no manifest data, no offline tool.
+//! The probe runs on the load path, never on the audio thread:
+//!
+//! 1. Build a probe processor.
+//! 2. Push 1 second of pink noise (-18 LUFS) through it, measure the
+//!    output's absolute sample peak.
+//! 3. Compute `gain = -1 dBFS_linear / measured_peak`. Cache it
+//!    keyed by capture file path.
+//! 4. Build the actual processor and wrap it in a tiny gain stage that
+//!    multiplies every sample by the cached factor.
+//!
+//! Cache hits skip the probe (~zero cost). First-load cost is ~1 second
+//! per unique `.nam` capture, paid on the load thread.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+};
 use plugin_loader::manifest::Backend;
-use plugin_loader::{LoadedPackage, PluginManifest};
+use plugin_loader::LoadedPackage;
 
 use crate::build_processor_with_assets_for_layout;
-use crate::processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS};
+use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
+
+/// Sample-peak ceiling every NAM normalizes to (issue #402).
+const TARGET_PEAK_DBFS: f32 = -1.0;
+
+/// Pink noise reference signal level — quiet enough that even high-gain
+/// preamps don't slam the limiter during the probe, loud enough that
+/// silence-stage NAMs measure a real peak.
+const PROBE_REFERENCE_LUFS: f32 = -18.0;
+
+/// Probe length. 1 s at 48 kHz = 48 000 samples per capture, paid once
+/// per unique `.nam` file (cached).
+const PROBE_DURATION_SAMPLES: usize = 48_000;
+
+/// Per-capture gain cache keyed by the absolute path of the `.nam`
+/// file. Process-global, lives until exit.
+fn gain_cache() -> &'static Mutex<HashMap<PathBuf, f32>> {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, f32>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 /// Build a [`BlockProcessor`] from a disk-backed NAM package.
+///
+/// Wraps the inner processor in a loudness-normalizing gain stage so
+/// every NAM in the catalogue lands at the same -1 dBFS ceiling
+/// regardless of the capture's baked level (issue #402).
 pub fn build_from_package(
     package: &LoadedPackage,
     params: &ParameterSet,
@@ -43,29 +89,153 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = effective_plugin_params(&package.manifest, params)?;
-    build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
+    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+
+    let gain = cached_or_measure_gain(&model_path, model_path_str, sample_rate, layout)?;
+    let inner =
+        build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)?;
+    Ok(wrap_with_gain(inner, gain))
 }
 
-/// Apply the manifest's `output_gain_db` loudness correction on top of
-/// the NAM defaults (issue #402).
-///
-/// The manifest value is populated by `nam_loudness_audit` so every NAM
-/// in the catalogue lands at the same true peak (default -1 dBTP). It
-/// rides on top of the `.nam` capture's own `recommended_output_db`,
-/// which the NAM library applies internally when the model loads.
-///
-/// User code does NOT supply an `output_db`: by design (the user wants
-/// every NAM "always at 100%", no per-block knob).
-pub fn effective_plugin_params(
-    manifest: &PluginManifest,
-    _params: &ParameterSet,
-) -> Result<NamPluginParams> {
-    let mut plugin_params = DEFAULT_PLUGIN_PARAMS;
-    if let Some(gain) = manifest.output_gain_db {
-        plugin_params.output_level_db += gain;
+fn cached_or_measure_gain(
+    cache_key: &Path,
+    model_path_str: &str,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<f32> {
+    if let Some(g) = gain_cache().lock().unwrap().get(cache_key).copied() {
+        return Ok(g);
     }
-    Ok(plugin_params)
+    let probe = build_processor_with_assets_for_layout(
+        model_path_str,
+        None,
+        DEFAULT_PLUGIN_PARAMS,
+        sample_rate,
+        layout,
+    )?;
+    let pink = pink_noise_at(PROBE_REFERENCE_LUFS, PROBE_DURATION_SAMPLES);
+    let peak = measure_peak(probe, &pink);
+    let gain = compute_gain_to_target(peak, TARGET_PEAK_DBFS);
+    gain_cache()
+        .lock()
+        .unwrap()
+        .insert(cache_key.to_path_buf(), gain);
+    Ok(gain)
+}
+
+fn measure_peak(mut processor: BlockProcessor, pink: &[f32]) -> f32 {
+    let mut peak: f32 = 0.0;
+    match &mut processor {
+        BlockProcessor::Mono(p) => {
+            for &x in pink {
+                let y = p.process_sample(x).abs();
+                if y > peak {
+                    peak = y;
+                }
+            }
+        }
+        BlockProcessor::Stereo(p) => {
+            for &x in pink {
+                let [l, r] = p.process_frame([x, x]);
+                let y = l.abs().max(r.abs());
+                if y > peak {
+                    peak = y;
+                }
+            }
+        }
+    }
+    peak
+}
+
+/// Compute the linear gain needed to bring a measured `peak` to the
+/// `target_dbfs` ceiling. Pure function, cache-friendly, easy to test.
+pub fn compute_gain_to_target(peak: f32, target_dbfs: f32) -> f32 {
+    if peak <= 1e-9 {
+        // Capture stuck at silence — wrapping in 0 dB avoids amplifying noise.
+        return 1.0;
+    }
+    let target_linear = 10f32.powf(target_dbfs / 20.0);
+    target_linear / peak
+}
+
+fn wrap_with_gain(inner: BlockProcessor, gain: f32) -> BlockProcessor {
+    match inner {
+        BlockProcessor::Mono(p) => BlockProcessor::Mono(Box::new(GainMono {
+            inner: p,
+            gain,
+        })),
+        BlockProcessor::Stereo(p) => BlockProcessor::Stereo(Box::new(GainStereo {
+            inner: p,
+            gain,
+        })),
+    }
+}
+
+struct GainMono {
+    inner: Box<dyn MonoProcessor>,
+    gain: f32,
+}
+
+impl MonoProcessor for GainMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        self.inner.process_sample(input) * self.gain
+    }
+}
+
+struct GainStereo {
+    inner: Box<dyn StereoProcessor>,
+    gain: f32,
+}
+
+impl StereoProcessor for GainStereo {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        let [l, r] = self.inner.process_frame(input);
+        [l * self.gain, r * self.gain]
+    }
+}
+
+/// Voss-McCartney pink noise normalized so the integrated RMS over the
+/// requested duration matches `target_lufs`. Deterministic seed for
+/// reproducibility — every probe of the same capture sees the same
+/// stimulus and produces the same gain.
+fn pink_noise_at(target_lufs: f32, n_samples: usize) -> Vec<f32> {
+    let raw = pink_noise_voss(n_samples);
+    let r = rms(&raw).max(1e-12);
+    let scale = lufs_to_linear(target_lufs) / r;
+    raw.iter().map(|s| s * scale).collect()
+}
+
+fn pink_noise_voss(n: usize) -> Vec<f32> {
+    let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        ((state >> 11) as f32 / u32::MAX as f32) - 0.5
+    };
+    let octaves = 7;
+    let mut rows = vec![0.0_f32; octaves];
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let trailing = (i as u32).trailing_zeros() as usize;
+        if trailing < rows.len() {
+            rows[trailing] = next();
+        }
+        out.push(rows.iter().sum::<f32>() / octaves as f32);
+    }
+    out
+}
+
+fn rms(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    let sum_sq: f32 = samples.iter().map(|s| s * s).sum();
+    (sum_sq / samples.len() as f32).sqrt()
+}
+
+fn lufs_to_linear(lufs: f32) -> f32 {
+    10f32.powf(lufs / 20.0)
 }
 
 /// Register this crate's builder in the global package-builders table.
