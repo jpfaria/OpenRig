@@ -92,13 +92,14 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
-# Plugin bundle — extracted on first launch by plugin-loader::install.
-# Path matches infra_filesystem::detect_data_root() which returns
-# /usr/share/openrig on Linux installs.
-if [ -f plugins/openrig-plugins.zip ]; then
-    cp plugins/openrig-plugins.zip "$S/usr/share/openrig/plugins.zip"
+# Bundled plugins ship as a pre-extracted directory under
+# /usr/share/openrig/plugins, which is what
+# infra_filesystem::detect_data_root() returns for Linux installs.
+# registry::init_many scans this path plus the user-writable root.
+if [ -d plugins/source ]; then
+    cp -r plugins/source "$S/usr/share/openrig/plugins"
 else
-    echo "WARN: plugins/openrig-plugins.zip not found — run OpenRig-plugins/scripts/bundle-into-openrig.sh first"
+    echo "WARN: plugins/source/ not found — run OpenRig-plugins's pack_plugins or check out the plugin tree first"
 fi
 
 # Bundle gettext .mo translations under FHS share/. The runtime resolver
@@ -127,8 +128,8 @@ if $BUILD_TARBALL; then
     cp -r "$S/usr/lib/openrig/libs"             "$OUTPUT_DIR/${D}/libs"
     cp -r "$S/usr/share/openrig/assets"         "$OUTPUT_DIR/${D}/assets"
     cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"
-    [ -f "$S/usr/share/openrig/plugins.zip" ] && \
-        cp    "$S/usr/share/openrig/plugins.zip" "$OUTPUT_DIR/${D}/plugins.zip"
+    [ -d "$S/usr/share/openrig/plugins" ] && \
+        cp -r "$S/usr/share/openrig/plugins"   "$OUTPUT_DIR/${D}/plugins"
     tar -czf "$OUTPUT_DIR/${D}.tar.gz" -C "$OUTPUT_DIR" "${D}"
     echo "  → $OUTPUT_DIR/${D}.tar.gz"
 fi

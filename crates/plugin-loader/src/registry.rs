@@ -95,7 +95,22 @@ pub fn register_native_simple(
 /// Idempotent: a second call is a no-op (the catalog never changes
 /// during a process lifetime). Per-package failures are dropped but
 /// logged to stderr so the boot path can't surface them per-block.
+///
+/// Backwards-compatible single-root entry point. Equivalent to
+/// `init_many(&[plugins_root])`.
 pub fn init(plugins_root: &Path) {
+    init_many(std::slice::from_ref(&plugins_root.to_path_buf()));
+}
+
+/// Multi-root variant — scans every directory in `plugins_roots`,
+/// merging results into a single registry. Use this to expose both
+/// the bundled (read-only, ships with the installer) and the user
+/// (writable, user-installed) plugin trees. Missing/empty directories
+/// are skipped silently — only hard read errors are logged.
+///
+/// Same OnceLock semantics as [`init`]: first call wins, subsequent
+/// calls are no-ops.
+pub fn init_many(plugins_roots: &[std::path::PathBuf]) {
     if REGISTRY.get().is_some() {
         return;
     }
@@ -104,20 +119,39 @@ pub fn init(plugins_root: &Path) {
         .expect("PENDING_NATIVES poisoned")
         .drain(..)
         .collect();
-    match discover(plugins_root) {
-        Ok(results) => {
-            for result in results {
-                match result {
-                    Ok(package) => loaded.push(package),
-                    Err(error) => eprintln!("plugin-loader: skipping package: {error}"),
+    let mut seen_ids = std::collections::HashSet::new();
+    for entry in &loaded {
+        seen_ids.insert(entry.manifest.id.clone());
+    }
+    for root in plugins_roots {
+        if !root.is_dir() {
+            continue;
+        }
+        match discover(root) {
+            Ok(results) => {
+                for result in results {
+                    match result {
+                        Ok(package) => {
+                            // De-dup by manifest id: when the same package
+                            // appears in both the bundled and user roots,
+                            // the first occurrence wins (bundled has
+                            // priority since it's earlier in the list).
+                            if seen_ids.insert(package.manifest.id.clone()) {
+                                loaded.push(package);
+                            }
+                        }
+                        Err(error) => {
+                            eprintln!("plugin-loader: skipping package: {error}")
+                        }
+                    }
                 }
             }
-        }
-        Err(error) => {
-            eprintln!(
-                "plugin-loader: cannot read plugins_root `{}`: {error}",
-                plugins_root.display()
-            );
+            Err(error) => {
+                eprintln!(
+                    "plugin-loader: cannot read plugins_root `{}`: {error}",
+                    root.display()
+                );
+            }
         }
     }
     let _ = REGISTRY.set(loaded);
