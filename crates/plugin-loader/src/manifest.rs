@@ -86,6 +86,13 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sources: Option<Vec<String>>,
 
+    /// Per-package loudness correction in dB (issue #402). Summed onto
+    /// the user-supplied `output_db` when the block builds, on top of
+    /// the `.nam` file's own `recommended_output_db`. Populated by the
+    /// loudness audit tool; absent when no correction has been measured.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_gain_db: Option<f32>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,

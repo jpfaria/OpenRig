@@ -10,10 +10,12 @@ use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{AudioChannelLayout, BlockProcessor};
 use plugin_loader::manifest::Backend;
-use plugin_loader::LoadedPackage;
+use plugin_loader::{LoadedPackage, PluginManifest};
 
 use crate::build_processor_with_assets_for_layout;
-use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
+use crate::processor::{
+    plugin_params_from_set_with_defaults, NamPluginParams, DEFAULT_PLUGIN_PARAMS,
+};
 
 /// Build a [`BlockProcessor`] from a disk-backed NAM package.
 pub fn build_from_package(
@@ -43,8 +45,26 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    let plugin_params = effective_plugin_params(&package.manifest, params)?;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
+}
+
+/// Combine the user's `params` with the manifest's `output_gain_db`
+/// loudness correction (issue #402).
+///
+/// The manifest correction is added to the user's `output_db` knob
+/// (Phase 1 of #402). Both ride on top of the `.nam` capture's own
+/// `recommended_output_db`, which the NAM library applies internally
+/// when the model loads.
+pub fn effective_plugin_params(
+    manifest: &PluginManifest,
+    params: &ParameterSet,
+) -> Result<NamPluginParams> {
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    if let Some(gain) = manifest.output_gain_db {
+        plugin_params.output_level_db += gain;
+    }
+    Ok(plugin_params)
 }
 
 /// Register this crate's builder in the global package-builders table.
@@ -54,3 +74,7 @@ pub fn register_builder() {
         build_from_package,
     );
 }
+
+#[cfg(test)]
+#[path = "from_package_tests.rs"]
+mod tests;

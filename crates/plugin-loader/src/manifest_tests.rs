@@ -181,6 +181,7 @@ fn round_trip_nam_preserves_data() {
         license: None,
         homepage: None,
         sources: None,
+        output_gain_db: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
@@ -245,4 +246,48 @@ captures:
         }
         other => panic!("expected NAM backend, got {other:?}"),
     }
+}
+
+
+#[test]
+fn parses_output_gain_db_for_loudness_compensation() {
+    // Issue #402: per-NAM persistent loudness correction lives in the
+    // manifest as `output_gain_db`. The audit tool populates it; the
+    // loader sums it onto the user's `output_db` at build time.
+    let yaml = r#"
+manifest_version: 1
+id: nam_with_correction
+display_name: Loud Amp
+type: amp
+backend: nam
+output_gain_db: -3.5
+parameters: []
+captures:
+  - values: {}
+    file: captures/x.nam
+"#;
+
+    let m = parse(yaml);
+    assert_eq!(
+        m.output_gain_db,
+        Some(-3.5),
+        "output_gain_db must round-trip from YAML"
+    );
+}
+
+#[test]
+fn output_gain_db_defaults_to_none_when_absent() {
+    let yaml = r#"
+manifest_version: 1
+id: plain
+display_name: Plain
+type: amp
+backend: nam
+parameters: []
+captures:
+  - values: {}
+    file: captures/x.nam
+"#;
+    let m = parse(yaml);
+    assert!(m.output_gain_db.is_none());
 }
