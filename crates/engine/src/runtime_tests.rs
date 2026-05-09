@@ -874,7 +874,6 @@ fn panicking_block_node() -> BlockRuntimeNode {
         processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(PanickingProcessor))),
         stream_handle: None,
         fade_state: FadeState::Active,
-        fade_dry_buffer: Vec::new(),
         faulted: false,
     }
 }
@@ -902,7 +901,6 @@ fn counting_block_node(
         }))),
         stream_handle: None,
         fade_state: FadeState::Active,
-        fade_dry_buffer: Vec::new(),
         faulted: false,
     }
 }
