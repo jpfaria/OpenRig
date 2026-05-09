@@ -960,3 +960,65 @@ fn model_parameter_schema_debug() {
     let dbg = format!("{:?}", schema);
     assert!(dbg.contains("test_model"));
 }
+
+// ── Backward-compat coercion (issue #401) ──────────────────────────
+
+#[test]
+fn normalize_coerces_legacy_float_to_enum_string() {
+    use crate::param::{enum_parameter, ModelParameterSchema, ParameterSet};
+    let schema = ModelParameterSchema {
+        effect_type: "pitch".to_string(),
+        model: "lv2_test".to_string(),
+        display_name: "Test".to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters: vec![enum_parameter(
+            "mode",
+            "Mode",
+            None,
+            Some("0"),
+            &[("0", "Auto"), ("1", "MIDI"), ("2", "Manual")],
+        )],
+    };
+    let mut set = ParameterSet::default();
+    // Project saved BEFORE issue #401 stored mode as Float(0.0).
+    set.insert("mode", ParameterValue::Float(2.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float must coerce to enum string");
+    assert_eq!(
+        normalized.values.get("mode"),
+        Some(&ParameterValue::String("2".to_string())),
+        "stored mode should be coerced to its matching enum string"
+    );
+}
+
+#[test]
+fn normalize_coerces_legacy_float_to_bool() {
+    use crate::param::{bool_parameter, ModelParameterSchema, ParameterSet};
+    let schema = ModelParameterSchema {
+        effect_type: "pitch".to_string(),
+        model: "lv2_test".to_string(),
+        display_name: "Test".to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters: vec![bool_parameter("fastmode", "Fast Mode", None, Some(false))],
+    };
+    let mut set = ParameterSet::default();
+    // Pre-#401 behaviour: Bool ports stored as Float.
+    set.insert("fastmode", ParameterValue::Float(1.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float must coerce to bool");
+    assert_eq!(
+        normalized.values.get("fastmode"),
+        Some(&ParameterValue::Bool(true))
+    );
+
+    set.insert("fastmode", ParameterValue::Float(0.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float 0 must coerce to false");
+    assert_eq!(
+        normalized.values.get("fastmode"),
+        Some(&ParameterValue::Bool(false))
+    );
+}
