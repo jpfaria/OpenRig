@@ -87,7 +87,7 @@ pub(crate) struct ChainYaml {
     description: Option<String>,
     #[serde(default = "default_instrument")]
     instrument: String,
-    #[serde(default, skip_serializing)]
+    #[serde(default = "crate::default_enabled")]
     enabled: bool,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
