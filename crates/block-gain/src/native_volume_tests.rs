@@ -202,7 +202,9 @@
     }
 
     #[test]
-    fn volume_100_boosts_above_unity() {
+    fn volume_100_louder_than_80() {
+        // Issue #400 bug #3: 100% is unity (0 dB), 80% is -1.94 dB.
+        // 100% still louder than 80%, but 100% no longer boosts above unity.
         let sr = 48000.0;
         let params_80 = params_with_volume(80.0);
         let params_100 = params_with_volume(100.0);
@@ -220,7 +222,45 @@
 
         assert!(
             rms_100 > rms_80,
-            "volume=100 should boost above volume=80: 80={rms_80}, 100={rms_100}"
+            "volume=100 should be louder than volume=80: 80={rms_80}, 100={rms_100}"
+        );
+    }
+
+    #[test]
+    fn volume_100_is_unity_passthrough() {
+        // Issue #400 bug #3 — the user-reported regression: at 100%, output
+        // must equal input (no clipping at the DAC). Per the new
+        // logarithmic taper, 100% maps to 0 dB unity.
+        let sr = 48000.0;
+        let params = params_with_volume(100.0);
+        let mut proc = build_mono(&params, sr);
+        let input = sine_block(1024, 440.0, sr);
+        let output: Vec<f32> = input.iter().map(|&s| proc.process_sample(s)).collect();
+
+        for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
+            assert!(
+                (out - inp).abs() < 1e-4,
+                "volume=100 must be unity passthrough at sample {i}: in={inp}, out={out}"
+            );
+        }
+    }
+
+    #[test]
+    fn volume_50_is_minus_6_db() {
+        // Logarithmic taper: 50% → -6 dB → gain ≈ 0.5x.
+        let sr = 48000.0;
+        let params = params_with_volume(50.0);
+        let mut proc = build_mono(&params, sr);
+        let input = sine_block(1024, 440.0, sr);
+        let output: Vec<f32> = input.iter().map(|&s| proc.process_sample(s)).collect();
+
+        let in_rms = rms(&input);
+        let out_rms = rms(&output);
+        let ratio = out_rms / in_rms;
+        // 50% should produce gain ≈ 0.5 (allow 1% tolerance for float math).
+        assert!(
+            (ratio - 0.5).abs() < 0.01,
+            "volume=50 should produce ~0.5x gain (-6 dB), got ratio={ratio}"
         );
     }
 
@@ -262,16 +302,32 @@
     }
 
     #[test]
-    fn percent_to_db_100_returns_plus_12() {
+    fn percent_to_db_100_returns_zero_unity() {
+        // Issue #400 bug #3: 100% is now unity (0 dB), not +12 dB boost.
+        // Eliminates silent clipping at user's DAC when block at 100%.
         let db = percent_to_db(100.0);
-        assert!((db - 12.0).abs() < 1e-4, "100% should be +12dB, got {db}");
+        assert!(db.abs() < 1e-4, "100% should be 0dB unity, got {db}");
+    }
+
+    #[test]
+    fn percent_to_db_50_returns_minus_6() {
+        // 20 * log10(0.5) = -6.02 dB (logarithmic taper standard).
+        let db = percent_to_db(50.0);
+        assert!((db - (-6.0)).abs() < 0.1, "50% should be ~-6dB, got {db}");
+    }
+
+    #[test]
+    fn percent_to_db_25_returns_minus_12() {
+        // 20 * log10(0.25) = -12.04 dB.
+        let db = percent_to_db(25.0);
+        assert!((db - (-12.0)).abs() < 0.1, "25% should be ~-12dB, got {db}");
     }
 
     #[test]
     fn percent_to_db_80_is_near_unity() {
-        // 80% → -60 + 0.8*72 = -60 + 57.6 = -2.4 dB (close to unity)
+        // Logarithmic taper: 20 * log10(0.8) = -1.94 dB (default near unity).
         let db = percent_to_db(80.0);
-        assert!(db > -5.0 && db < 1.0, "80% should be near unity, got {db}dB");
+        assert!(db > -5.0 && db < 0.5, "80% should be near unity, got {db}dB");
     }
 
     #[test]

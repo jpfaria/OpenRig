@@ -54,12 +54,19 @@ fn asset_summary(_params: &ParameterSet) -> Result<String> {
 
 fn percent_to_db(percent: f32) -> f32 {
     if percent <= 0.0 {
-        -60.0
-    } else {
-        // 0% = -60dB, 80% = 0dB (unity), 100% = +12dB
-        let normalized = percent / 100.0;
-        -60.0 + normalized * 72.0 // linear map: 0→-60dB, 100→+12dB
+        return -60.0;
     }
+    // Industry-standard logarithmic taper (issue #400 bug #3).
+    // Maps percent → dB so each halving of percent ≈ -6 dB:
+    //   0%   → -60 dB (silence floor)
+    //   25%  → -12 dB
+    //   50%  →  -6 dB
+    //   100% →   0 dB (unity, passthrough)
+    // No boost above 100% — block at 100% is functionally identical to
+    // a bypassed volume block, which eliminates the silent clipping
+    // that the previous +12 dB mapping caused at the user's DAC.
+    let db = 20.0 * (percent / 100.0).log10();
+    db.max(-60.0)
 }
 
 fn build(
