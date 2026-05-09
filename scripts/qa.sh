@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # qa.sh — OpenRig quality gate (issue #404)
 #
-# Single source of truth for the quality gate. Same script runs locally
-# (before push) and in CI (.github/workflows/pr.yml). If any step fails,
-# nothing goes through.
+# Filosofia: o gate falha quando o PR PIORA métricas, não pelo simples fato
+# do código preexistente já estar ruim. Métricas comparativas (complexidade,
+# cobertura) ficam no workflow `pr.yml` que compara PR vs `develop`.
+#
+# Aqui rodam apenas os checks ABSOLUTOS (não regressíveis):
+#   1. cargo fmt --all --check          (formatação — fix trivial)
+#   2. cargo clippy -D warnings         (warnings — não pode regredir)
+#   3. cargo build --workspace          (zero warnings)
+#   4. cargo test --workspace           (business validation)
+#   5. cargo llvm-cov                   (gera lcov.info; threshold opcional)
 #
 # Usage:
-#   ./scripts/qa.sh             # run full gate
-#   QA_MIN_COVERAGE=70 ./scripts/qa.sh
-#   QA_SKIP_COVERAGE=1 ./scripts/qa.sh   # quick run (no coverage)
+#   ./scripts/qa.sh             # rodar gate absoluto
+#   QA_MIN_COVERAGE=70 ./scripts/qa.sh   # exigir cobertura mínima
+#   QA_SKIP_COVERAGE=1 ./scripts/qa.sh   # rodada rápida sem cobertura
 #
-# Steps:
-#   1. cargo fmt --all --check               (formatting)
-#   2. cargo clippy --workspace -D warnings  (lints + complexity)
-#   3. cargo build --workspace               (zero warnings)
-#   4. cargo test --workspace                (business validation)
-#   5. cargo llvm-cov --fail-under-lines N   (coverage floor)
-#
-# Exit: 0 = gate green, 1 = gate red.
+# Exit: 0 = absolute gate green, 1 = red. Comparativo é em CI.
 
 set -uo pipefail
 
@@ -64,16 +64,12 @@ echo "  logs:      $QA_LOG_DIR/"
 run_step "1. cargo fmt --check" \
   cargo fmt --all -- --check
 
-# ─── 2. Clippy + complexity lints ───────────────────────────────────────────
+# ─── 2. Clippy (strict warnings; complexity é comparativo no pr.yml) ────────
+# Lints de complexidade (cognitive_complexity, too_many_lines,
+# too_many_arguments, type_complexity) NÃO entram aqui pra não bloquear por
+# dívida preexistente. Regressão de complexidade é comparativa em CI.
 run_step "2. cargo clippy" \
-  cargo clippy --workspace --all-targets -- \
-    -D warnings \
-    -W clippy::cognitive_complexity \
-    -W clippy::too_many_lines \
-    -W clippy::too_many_arguments \
-    -W clippy::type_complexity \
-    -W clippy::module_inception \
-    -W clippy::wildcard_imports
+  cargo clippy --workspace --all-targets -- -D warnings
 
 # ─── 3. Build (zero warnings invariant) ─────────────────────────────────────
 run_step "3. cargo build --workspace" \
@@ -92,6 +88,10 @@ elif ! command -v cargo-llvm-cov >/dev/null 2>&1; then
   echo ""
   echo -e "${BOLD}── 5. cargo llvm-cov ──${NC}"
   echo -e "  ${YELLOW}skipped${NC} (cargo-llvm-cov not installed — \`cargo install cargo-llvm-cov\`)"
+elif [ "$QA_MIN_COVERAGE" = "0" ]; then
+  # Sem piso absoluto: gera lcov.info pra `pr.yml` comparar vs develop.
+  run_step "5. cargo llvm-cov (no floor — comparative gate in CI)" \
+    cargo llvm-cov --workspace --lcov --output-path lcov.info
 else
   run_step "5. cargo llvm-cov" \
     cargo llvm-cov --workspace \

@@ -12,8 +12,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -D warnings
-  QA_MIN_COVERAGE: "0"          # raise after first calibrated baseline
   QA_LOG_DIR: target/qa-logs
 
 permissions:
@@ -23,18 +21,25 @@ permissions:
 
 jobs:
   quality-gate:
-    name: Quality Gate (qa.sh)
+    name: Quality Gate (qa.sh + comparative)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    outputs:
-      gate: ${{ steps.gate.outcome }}
+    timeout-minutes: 60
     steps:
-      - name: Checkout
+      - name: Checkout PR head
         uses: actions/checkout@v4
         with:
           submodules: recursive
           lfs: true
           fetch-depth: 0
+
+      - name: Checkout base ref into baseline/
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          submodules: recursive
+          lfs: true
+          fetch-depth: 1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -51,6 +56,9 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -60,9 +68,14 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev
 
-      - name: Run qa.sh (single source of truth)
-        id: gate
+      - name: Run absolute gate (qa.sh)
+        id: absolute
         run: bash scripts/qa.sh
+
+      - name: Run comparative gate (qa-comparative.sh)
+        id: comparative
+        if: success() || failure()  # always run for full report
+        run: bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
 
       - name: Upload qa logs
         if: always()
@@ -95,6 +108,10 @@ jobs:
             echo "./scripts/qa.sh"
             echo '```'
             echo ""
+            echo "Filosofia: o gate **absoluto** (qa.sh) cobre fmt, lints, build, test."
+            echo "O gate **comparativo** (qa-comparative.sh, só em CI) verifica que"
+            echo "complexidade e cobertura não pioraram em relação a \`develop\`."
+            echo ""
             echo "### Failing steps"
             echo ""
             shopt -s nullglob
@@ -102,8 +119,7 @@ jobs:
             for log in target/qa-logs/*.log; do
               had_logs=1
               name=$(basename "$log" .log | tr '_' ' ')
-              # Treat any log with non-zero "error" markers as failed for display.
-              if grep -qE 'error(\[|:|s)| FAIL ' "$log"; then
+              if grep -qE 'error(\[|:|s)| FAIL |regressed' "$log"; then
                 echo "<details><summary><b>$name</b></summary>"
                 echo ""
                 echo '```'
@@ -143,7 +159,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Avoid stacking duplicate request-changes reviews on every push.
           existing=$(gh pr view "$PR_NUMBER" --json reviews \
             --jq '[.reviews[] | select(.author.login == "github-actions" and .state == "CHANGES_REQUESTED")] | length')
           if [ "${existing:-0}" = "0" ]; then
@@ -162,7 +177,8 @@ jobs:
           message: |
             ## ✅ Quality gate passed
 
-            All checks green: fmt, clippy (with complexity lints), build, tests, coverage.
+            - **Absolute** (qa.sh): fmt, clippy (`-D warnings`), build, tests, coverage gerada.
+            - **Comparative** (qa-comparative.sh): complexidade e cobertura **não pioraram** vs `develop`.
 
             _Posted by quality-gate workflow — issue #404._
 

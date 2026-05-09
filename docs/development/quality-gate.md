@@ -12,21 +12,37 @@ Gate único de qualidade que roda **localmente antes do push** e **no CI antes d
 
 Se falha → arruma → roda de novo até verde → só então `git push`.
 
-## O que o gate verifica
+## Filosofia: absoluto + comparativo
+
+O gate quebra quando o PR **piora** o projeto, não pelo simples fato do código preexistente já ter dívida.
+
+- **Gate absoluto** (`scripts/qa.sh`, roda local e em CI): checks que NÃO podem regredir e são triviais de manter — fmt, lints (`-D warnings`), build, test, geração de cobertura.
+- **Gate comparativo** (`scripts/qa-comparative.sh`, só em CI): mede complexidade e cobertura **no PR e em `develop`**. Falha se PR > base (complexidade) ou PR < base − margem (cobertura).
+
+Resultado: você consegue mergear código mesmo num projeto com dívida atual, desde que não a aumente. Cada PR pode reduzir dívida; nunca pode aumentar.
+
+## O que o gate ABSOLUTO verifica (qa.sh)
 
 | # | Etapa | Comando | Falha se… |
 |---|---|---|---|
-| 1 | Formatação | `cargo fmt --all --check` | há arquivo `.rs` desformatado |
-| 2 | Lint + complexidade | `cargo clippy --workspace --all-targets -D warnings -W clippy::cognitive_complexity -W clippy::too_many_lines -W clippy::too_many_arguments -W clippy::type_complexity -W clippy::module_inception -W clippy::wildcard_imports` | qualquer warning de clippy/complexidade |
-| 3 | Build | `cargo build --workspace --all-targets` | warning ou erro de build |
+| 1 | Formatação | `cargo fmt --all --check` | arquivo `.rs` desformatado |
+| 2 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` | qualquer warning de clippy |
+| 3 | Build | `cargo build --workspace --all-targets` | erro/warning de build |
 | 4 | Testes | `cargo test --workspace --all-targets` | qualquer teste vermelho |
-| 5 | Cobertura | `cargo llvm-cov --workspace --fail-under-lines $QA_MIN_COVERAGE --lcov` | cobertura abaixo do piso |
+| 5 | Cobertura | `cargo llvm-cov --workspace --lcov` (gera lcov.info; `--fail-under-lines` opcional via `QA_MIN_COVERAGE`) | piso explícito violado |
 
-Thresholds de complexidade/tamanho ficam em `clippy.toml` na raiz:
-- `cognitive-complexity-threshold = 15`
-- `too-many-lines-threshold = 80`
-- `too-many-arguments-threshold = 5`
-- `type-complexity-threshold = 250`
+Lints de **complexidade** (cognitive_complexity, too_many_lines, too_many_arguments, type_complexity) ficam **fora** do gate absoluto pra não bloquear por código preexistente. São tratados pelo gate comparativo.
+
+## O que o gate COMPARATIVO verifica (qa-comparative.sh)
+
+Roda só em CI. Faz checkout de `develop` em paralelo e compara:
+
+| Métrica | Como mede | Falha se… |
+|---|---|---|
+| Complexidade | Conta linhas de erro com clippy ativando os 4 lints de complexidade | PR > base |
+| Cobertura | `cargo llvm-cov --json` parsed por `jq` (`.data[0].totals.lines.percent`) | PR < base − `QA_COV_MARGIN` (default 1.0pp) |
+
+Thresholds de complexidade ficam em `clippy.toml` (cognitive 15, lines 80, args 5, type 250) — usados pra contagem comparativa, não como bloqueio absoluto.
 
 ## Princípio orientador
 
