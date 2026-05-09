@@ -121,7 +121,16 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // the standard set back in. Issue #401.
             let mut specs: Vec<block_core::param::ParameterSpec> =
                 parameters.iter().map(grid_parameter_to_spec).collect();
-            specs.extend(nam::processor::plugin_parameter_specs());
+            // Keep input_db / noise_gate.* / eq.* but drop output_db —
+            // issue #402 moved per-NAM loudness compensation into the
+            // manifest's `output_gain_db` field (applied automatically
+            // by the loader) so users no longer see / fight a level
+            // knob.
+            specs.extend(
+                nam::processor::plugin_parameter_specs()
+                    .into_iter()
+                    .filter(|s| s.path != "output_db"),
+            );
             specs
         }
         Backend::Ir { parameters, .. } => {
