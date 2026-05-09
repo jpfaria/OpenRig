@@ -104,12 +104,18 @@ fn schema_from_disk_package(
 /// - Native: nothing — natives go through the legacy schema path so
 ///   this branch shouldn't fire in practice; return empty to avoid a
 ///   panic if it ever does.
-fn synthesize_parameters_from_manifest(
+pub(crate) fn synthesize_parameters_from_manifest(
     package: &plugin_loader::LoadedPackage,
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam { parameters, .. } | Backend::Ir { parameters, .. } => {
+        Backend::Nam { parameters, .. } => {
+            let mut specs: Vec<block_core::param::ParameterSpec> =
+                parameters.iter().map(grid_parameter_to_spec).collect();
+            specs.push(nam_output_db_spec());
+            specs
+        }
+        Backend::Ir { parameters, .. } => {
             parameters.iter().map(grid_parameter_to_spec).collect()
         }
         Backend::Lv2 {
@@ -133,6 +139,25 @@ fn synthesize_parameters_from_manifest(
             .collect(),
         Backend::Native { .. } => Vec::new(),
     }
+}
+
+/// Loudness-compensation knob added to every NAM block schema (issue #402).
+///
+/// `nam::processor::plugin_params_from_set_with_defaults` already reads
+/// this key (`output_db`) and applies it on top of the `.nam` capture's
+/// embedded `recommended_output_db`. Surfacing it in the block schema
+/// lets the user override per preset and lets the GUI render a knob.
+fn nam_output_db_spec() -> block_core::param::ParameterSpec {
+    block_core::param::float_parameter(
+        "output_db",
+        "Output",
+        None,
+        Some(0.0),
+        -24.0,
+        24.0,
+        0.1,
+        block_core::param::ParameterUnit::Decibels,
+    )
 }
 
 fn grid_parameter_to_spec(
@@ -386,4 +411,63 @@ pub(super) fn describe_block_audio(
         display_name: schema.display_name,
         audio_mode: schema.audio_mode,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plugin_loader::manifest::{
+        Backend, BlockType, GridParameter, ParameterValue, PluginManifest,
+    };
+    use plugin_loader::LoadedPackage;
+    use std::path::PathBuf;
+
+    fn nam_package_with_axes() -> LoadedPackage {
+        LoadedPackage {
+            root: PathBuf::from("/fake"),
+            manifest: PluginManifest {
+                manifest_version: 1,
+                id: "nam_test_amp".into(),
+                display_name: "Test NAM Amp".into(),
+                author: None,
+                description: None,
+                inspired_by: None,
+                brand: None,
+                thumbnail: None,
+                photo: None,
+                screenshot: None,
+                brand_logo: None,
+                license: None,
+                homepage: None,
+                sources: None,
+                block_type: BlockType::Amp,
+                backend: Backend::Nam {
+                    parameters: vec![GridParameter {
+                        name: "channel".into(),
+                        display_name: None,
+                        values: vec![
+                            ParameterValue::Text("a".into()),
+                            ParameterValue::Text("b".into()),
+                        ],
+                    }],
+                    captures: vec![],
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn nam_synthesized_schema_exposes_output_db_for_loudness_compensation() {
+        // Issue #402: every NAM block must expose `output_db` so the user
+        // can compensate per-capture loudness drift directly from the
+        // preset YAML.
+        let pkg = nam_package_with_axes();
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        assert!(
+            specs.iter().any(|s| s.path == "output_db"),
+            "NAM schema must include `output_db` for loudness compensation; \
+             got params: {:?}",
+            specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
 }
