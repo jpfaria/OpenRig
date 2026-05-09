@@ -62,6 +62,21 @@ Detalhes do gate em `docs/development/quality-gate.md`. Comando obrigatório ant
 
 ---
 
+## Comunicação — claro e objetivo
+
+Resposta ao usuário **default = 1-3 frases**. Nada de testamento.
+
+- Pergunta sim/não → resposta sim/não + 1 frase de contexto se necessário.
+- Status → 1 linha por item.
+- Decisão → 1 recomendação direta. Outras opções só se pedido.
+- Sem headers/tabelas/bullets aninhados a menos que o conteúdo seja referência mecânica.
+- Cortar saudação, prefácio, recap do que o usuário acabou de dizer, "espero que ajude".
+- Bloco de código curto OK quando É o conteúdo pedido (comando, snippet).
+
+Expandir só quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", etc).
+
+---
+
 ## STOP — Check Before You Code
 
 ### 1. Data Ownership
