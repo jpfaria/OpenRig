@@ -44,6 +44,8 @@ impl LoadedPackage {
         sample_rate: f32,
         layout: AudioChannelLayout,
     ) -> Result<BlockProcessor> {
+        // Native plugins skip loudness normalization (they're hand-tuned
+        // by the project, not captures with arbitrary baked levels).
         if let Backend::Native { runtime_id } = &self.manifest.backend {
             let runtime = native_runtimes::get(runtime_id).ok_or_else(|| {
                 anyhow!(
@@ -53,6 +55,8 @@ impl LoadedPackage {
             })?;
             return (runtime.build)(params, sample_rate, layout);
         }
+        // Disk-backed: NAM / IR / LV2 / VST3. Probe + wrap so every
+        // capture lands at the same sample-peak target (issue #402).
         let kind = crate::package_builders::BackendKind::from_backend(&self.manifest.backend)
             .expect("Native handled above");
         let builder = crate::package_builders::get(kind).ok_or_else(|| {
@@ -62,7 +66,13 @@ impl LoadedPackage {
                 self.manifest.id
             )
         })?;
-        builder(self, params, sample_rate, layout)
+        let probe = builder(self, params, sample_rate, layout)?;
+        let real = builder(self, params, sample_rate, layout)?;
+        Ok(crate::loudness_norm::normalize(
+            &self.manifest.id,
+            probe,
+            real,
+        ))
     }
 }
 

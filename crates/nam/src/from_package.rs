@@ -4,7 +4,12 @@
 //! declared in the manifest) and hands it to the existing
 //! [`crate::build_processor_with_assets_for_layout`].
 //!
-//! Issue: #287
+//! Loudness normalization is centralized in `plugin_loader::loudness_norm`
+//! and applied uniformly to every NAM / IR / LV2 / VST3 package by
+//! `LoadedPackage::build_processor` — this builder just returns the raw
+//! NAM processor.
+//!
+//! Issues: #287 (loader) + #402 (loudness).
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;

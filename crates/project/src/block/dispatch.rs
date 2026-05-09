@@ -104,7 +104,7 @@ fn schema_from_disk_package(
 /// - Native: nothing — natives go through the legacy schema path so
 ///   this branch shouldn't fire in practice; return empty to avoid a
 ///   panic if it ever does.
-fn synthesize_parameters_from_manifest(
+pub(crate) fn synthesize_parameters_from_manifest(
     package: &plugin_loader::LoadedPackage,
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
@@ -386,4 +386,64 @@ pub(super) fn describe_block_audio(
         display_name: schema.display_name,
         audio_mode: schema.audio_mode,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plugin_loader::manifest::{
+        Backend, BlockType, GridParameter, ParameterValue, PluginManifest,
+    };
+    use plugin_loader::LoadedPackage;
+    use std::path::PathBuf;
+
+    fn nam_package_with_axes() -> LoadedPackage {
+        LoadedPackage {
+            root: PathBuf::from("/fake"),
+            manifest: PluginManifest {
+                manifest_version: 1,
+                id: "nam_test_amp".into(),
+                display_name: "Test NAM Amp".into(),
+                author: None,
+                description: None,
+                inspired_by: None,
+                brand: None,
+                thumbnail: None,
+                photo: None,
+                screenshot: None,
+                brand_logo: None,
+                license: None,
+                homepage: None,
+                sources: None,
+                block_type: BlockType::Amp,
+                backend: Backend::Nam {
+                    parameters: vec![GridParameter {
+                        name: "channel".into(),
+                        display_name: None,
+                        values: vec![
+                            ParameterValue::Text("a".into()),
+                            ParameterValue::Text("b".into()),
+                        ],
+                    }],
+                    captures: vec![],
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn nam_synthesized_schema_does_not_expose_output_db_knob() {
+        // Issue #402: loudness compensation is per-package, baked into
+        // the manifest's `output_gain_db` by the audit tool. The user
+        // does NOT see a knob — every NAM is meant to ride at the same
+        // perceived level out of the box.
+        let pkg = nam_package_with_axes();
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        assert!(
+            specs.iter().all(|s| s.path != "output_db"),
+            "NAM schema must NOT include `output_db` (loudness lives in manifest); \
+             got params: {:?}",
+            specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
 }
