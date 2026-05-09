@@ -341,26 +341,27 @@ fn b02_output_above_limiter_knee_applies_tanh() {
 // C. Volume block — unity / fractional gain control
 // ─────────────────────────────────────────────────────────────────────────
 
-/// PIN — volume scale shape (current implementation):
-///   `db = -60 + (percent / 100) * 72`
+/// PIN — volume scale shape (issue #400 bug #3 fix, 2026-05-09):
+///   `db = 20 * log10(percent / 100)` (logarithmic taper, floor at -60 dB)
 /// resulting in:
-///   - 0%   → -60 dB (silence)
-///   - ~83.3% → 0 dB (unity)        ← actual unity point
-///   - 100% → +12 dB                ← +12 dB headroom above unity
+///   - 0%   → -60 dB (silence floor)
+///   - 25%  → -12 dB
+///   - 50%  →  -6 dB                 ← halving = -6 dB (industry standard)
+///   - 100% →   0 dB (unity)         ← passthrough; identical to bypass
 ///
-/// **BUG DETECTED (issue #355 follow-up):** the doc comment in
-/// `native_volume.rs::percent_to_db` says "80% = 0dB (unity)" but
-/// the math actually produces -2.4 dB at 80%. Unity is at 83.33%,
-/// not 80%. This is an ergonomic regression on the user side —
-/// they set "80%" believing it's unity but lose -2.4 dB silently;
-/// they set "90%" believing it's a small boost but get +4.8 dB
-/// hitting the output limiter knee.
+/// **CHANGED FROM PREVIOUS PIN** (linear `db = -60 + percent/100 * 72`):
+/// the old mapping had +12 dB headroom above unity at 100%, which caused
+/// silent DAC clipping (user report 2026-05-09: "volume 100% deixa o som
+/// mais baixo do que com ele desligado"). The fix removes the boost so
+/// 100% is exactly unity. User must use a dedicated boost block if extra
+/// gain is needed downstream.
 ///
-/// This test pins the CURRENT behaviour. If the source is fixed
-/// (e.g. realigned so 80% truly is unity), update this test to
-/// match — but the fix must come with a user-facing change note.
+/// User explicitly authorised this pin update (issue #400) — the
+/// `volume_invariants_tests.rs` invariant only forbids changes WITHOUT
+/// explicit user request. With request, both the source and the pin
+/// move together; subsequent regressions are still caught.
 #[test]
-fn c01_volume_block_at_80_percent_is_minus_2_4_db_not_unity() {
+fn c01_volume_block_at_80_percent_is_minus_1_94_db() {
     let mut params = neutral_params("gain", "volume");
     params.insert("volume", ParameterValue::Float(80.0));
     params.insert("mute", ParameterValue::Bool(false));
@@ -373,23 +374,23 @@ fn c01_volume_block_at_80_percent_is_minus_2_4_db_not_unity() {
         ],
     );
     let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
-    // 0.5 × db_to_lin(-2.4) ≈ 0.5 × 0.7586 ≈ 0.3793
-    let gain = 10.0_f32.powf(-2.4 / 20.0);
+    // 20 * log10(0.8) = -1.938 dB → gain ≈ 0.8 → 0.5 * 0.8 = 0.4
+    let gain = 10.0_f32.powf(-1.938 / 20.0);
     let expected = 0.5 * gain;
     assert!(
         (peak - expected).abs() < 0.01,
-        "volume at 80% emits -2.4 dB (NOT unity, despite doc saying so); \
+        "volume at 80% emits -1.94 dB (logarithmic taper); \
          expected ≈ {expected}, got {peak}"
     );
 }
 
-/// PIN: unity gain happens at ~83.33% in the current implementation,
-/// because `db = 0 ⇔ -60 + 0.8333 * 72 = 0`. Set volume to 83.33%
-/// when authoring presets that should be transparent.
+/// PIN: unity gain happens at exactly 100% in the new logarithmic
+/// implementation, because `20 * log10(1.0) = 0`. This is the
+/// industry-standard convention for volume controls.
 #[test]
-fn c02_volume_block_at_83_33_percent_is_actual_unity() {
+fn c02_volume_block_at_100_percent_is_unity() {
     let mut params = neutral_params("gain", "volume");
-    params.insert("volume", ParameterValue::Float(83.333_336));
+    params.insert("volume", ParameterValue::Float(100.0));
     params.insert("mute", ParameterValue::Bool(false));
     let chain = chain_with_blocks(
         "c02",
@@ -402,20 +403,17 @@ fn c02_volume_block_at_83_33_percent_is_actual_unity() {
     let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < 0.01,
-        "volume at 83.33% is the actual unity point; expected ≈ 0.5, got {peak}"
+        "volume at 100% is unity passthrough; expected 0.5, got {peak}"
     );
 }
 
-/// CONTRACT (CURRENT, ERGONOMIC RISK PIN): volume at 100% gives
-/// +12 dB. With moderate input (0.5), output hits the limiter knee
-/// and tanh-saturates. This is what causes "som baixo + leve
-/// clipagem" perceived by the user on 2026-04-28: their chain had
-/// `volume: 90.0` → ~+4.8 dB → input 0.5 → 0.87 → near the limiter
-/// → tanh saturation → compressed / "quiet" perception.
+/// PIN: 50% on the logarithmic taper produces -6 dB → gain ≈ 0.5x.
+/// This is the perceptual "halving" point — a knob at center should
+/// sound roughly half as loud as fully open.
 #[test]
-fn c04_volume_block_at_100_boosts_12_db_then_limits() {
+fn c04_volume_block_at_50_percent_is_minus_6_db() {
     let mut params = neutral_params("gain", "volume");
-    params.insert("volume", ParameterValue::Float(100.0));
+    params.insert("volume", ParameterValue::Float(50.0));
     params.insert("mute", ParameterValue::Bool(false));
     let chain = chain_with_blocks(
         "c04",
@@ -426,11 +424,12 @@ fn c04_volume_block_at_100_boosts_12_db_then_limits() {
         ],
     );
     let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
-    // 0.5 × 4.0 (12 dB) = 2.0 → tanh(2.0) ≈ 0.964
-    let expected = (2.0_f32).tanh();
+    // 20 * log10(0.5) = -6.02 dB → gain ≈ 0.5012 → 0.5 * 0.5012 = 0.2506
+    let expected = 0.5 * 10.0_f32.powf(-6.02 / 20.0);
     assert!(
         (peak - expected).abs() < 0.01,
-        "volume at 100% must boost +12dB and then tanh-limit; expected ≈ {expected}, got {peak}"
+        "volume at 50% emits -6 dB (perceptual halving); \
+         expected ≈ {expected}, got {peak}"
     );
 }
 
@@ -571,11 +570,12 @@ fn d03_user_clean_chain_tremolo_signature() {
 /// preserve unity gain end-to-end. Catches per-block hidden attenuation.
 #[test]
 fn e01_two_unity_volume_blocks_preserve_unity() {
+    // Issue #400 bug #3: unity is now at 100% (was 83.33% on linear taper).
     let mut p1 = neutral_params("gain", "volume");
-    p1.insert("volume", ParameterValue::Float(83.333_336)); // actual unity point
+    p1.insert("volume", ParameterValue::Float(100.0)); // unity point
     p1.insert("mute", ParameterValue::Bool(false));
     let mut p2 = neutral_params("gain", "volume");
-    p2.insert("volume", ParameterValue::Float(83.333_336));
+    p2.insert("volume", ParameterValue::Float(100.0));
     p2.insert("mute", ParameterValue::Bool(false));
     let chain = chain_with_blocks(
         "e01",
@@ -589,7 +589,7 @@ fn e01_two_unity_volume_blocks_preserve_unity() {
     let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < 0.01,
-        "two unity-volume (83.33%) blocks must preserve unity; got {peak}"
+        "two unity-volume (100%) blocks must preserve unity; got {peak}"
     );
 }
 
@@ -791,7 +791,7 @@ fn h02_neutral_block_addition_is_volume_preserving() {
         ],
     );
     let mut p = neutral_params("gain", "volume");
-    p.insert("volume", ParameterValue::Float(83.333_336)); // actual unity point
+    p.insert("volume", ParameterValue::Float(100.0)); // unity point (issue #400 #3)
     p.insert("mute", ParameterValue::Bool(false));
     let with_block = chain_with_blocks(
         "h02_with",
