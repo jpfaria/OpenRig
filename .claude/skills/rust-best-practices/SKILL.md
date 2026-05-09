@@ -36,6 +36,23 @@ Os arquivos abaixo contêm o conteúdo **completo e original** de cada capítulo
 
 Regras específicas de Rust e Cargo que aplicam ao **este projeto**. Princípios de metodologia (zero coupling, single source of truth, separação business/presentation, file organization) vivem em `openrig-code-quality` e são linguagem-agnósticos — esta seção complementa com o que é de Rust/Cargo.
 
+## Quality Gate — `scripts/qa.sh` (issue #404)
+
+Fonte única do gate de qualidade — mesmo script roda local (antes do push) e no CI (`.github/workflows/pr.yml`):
+
+```bash
+./scripts/qa.sh
+```
+
+Cobre: `cargo fmt --check`, `cargo clippy -D warnings` (com thresholds de `clippy.toml`: cognitive_complexity ≤ 15, too_many_lines ≤ 80, too_many_arguments ≤ 5, type_complexity ≤ 250, mais `module_inception` e `wildcard_imports`), `cargo build --workspace --all-targets`, `cargo test --workspace`, `cargo llvm-cov --fail-under-lines $QA_MIN_COVERAGE`.
+
+**Regras absolutas:**
+- Nunca pushar com gate vermelho.
+- Nunca subir thresholds em `clippy.toml`, marcar testes `#[ignore]`, ou usar `#[allow(...)]` pra silenciar lint — sempre causa raiz.
+- Em CI: falha vira sticky comment + request-changes formal pelo `github-actions[bot]`. Agent autor itera até verde (limite 3 tentativas).
+
+Detalhes em `docs/development/quality-gate.md`.
+
 ## MANDATORY — Run Static Validation on Every File You Touch
 
 After creating or modifying **any** `.rs` or `.slint` file, run:

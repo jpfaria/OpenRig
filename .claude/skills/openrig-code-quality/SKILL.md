@@ -44,6 +44,24 @@ Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabi
 
 ---
 
+## Quality Gate — quem enforça o quê (issue #404)
+
+`scripts/qa.sh` (e o workflow `pr.yml` no CI) **enforça automaticamente** o que é mecânico:
+
+| Enforçado pelo gate (não preciso lembrar) | Continua sendo julgamento (esta skill) |
+|---|---|
+| `cargo fmt --check` | Zero coupling, single source of truth |
+| Clippy `-D warnings` + thresholds (`cognitive_complexity = 15`, `too_many_lines = 80`, `too_many_arguments = 5`, `type_complexity = 250`) | Separação business × presentation |
+| `cargo build --workspace` (zero warnings) | File organization (one responsibility per file) |
+| `cargo test --workspace` (todos verdes) | Naming, anti-patterns, evitar trial-and-error |
+| Cobertura mínima (`QA_MIN_COVERAGE`) | **Qualidade** dos testes (comportamento ≠ cobertura) |
+
+**Regra:** se uma regra desta skill é puramente mecânica (formato, tamanho, presença de teste), o gate já cuida. Esta skill foca no que precisa de **decisão e contexto** — invariantes de áudio, decisões de arquitetura, qualidade semântica de testes, evitar acoplamento.
+
+Detalhes do gate em `docs/development/quality-gate.md`. Comando obrigatório antes de push: `./scripts/qa.sh`.
+
+---
+
 ## STOP — Check Before You Code
 
 ### 1. Data Ownership

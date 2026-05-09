@@ -23,7 +23,8 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
 7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase.** Sempre `git merge`, nunca `git pull --rebase`.
-9. **Push imediato após cada commit.**
+9. **Quality gate antes do push.** `./scripts/qa.sh` verde é pré-requisito de qualquer `git push`. Mesmo gate roda no CI (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático no PR. Detalhes em [`quality-gate.md`](quality-gate.md).
+10. **Push imediato após cada commit** (depois do gate verde).
 
 ## Fechar issue
 
