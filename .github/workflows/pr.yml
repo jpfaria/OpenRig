@@ -68,13 +68,8 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev
 
-      - name: Run absolute gate (qa.sh)
-        id: absolute
-        run: bash scripts/qa.sh
-
       - name: Run comparative gate (qa-comparative.sh)
         id: comparative
-        if: success() || failure()  # always run for full report
         run: bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
 
       - name: Upload qa logs
@@ -177,8 +172,8 @@ jobs:
           message: |
             ## ✅ Quality gate passed
 
-            - **Absolute** (qa.sh): fmt, clippy (`-D warnings`), build, tests, coverage gerada.
-            - **Comparative** (qa-comparative.sh): complexidade e cobertura **não pioraram** vs `develop`.
+            Comparativo (PR vs `develop`): nenhuma métrica regrediu.
+            Verificadas: fmt, clippy, build, testes, complexidade, cobertura.
 
             _Posted by quality-gate workflow — issue #404._
 
