@@ -54,25 +54,29 @@ pub fn run_desktop_app(
     let loaded_config = load_and_sync_app_config()?;
     let resolved_paths = infra_filesystem::resolve_asset_paths(loaded_config.paths.clone());
     infra_filesystem::init_asset_paths(resolved_paths);
-    // Discover every plugin package shipped under the configured
-    // plugins_root and cache it process-wide. Block-* crates query this
-    // catalog to surface plugin manifests in the GUI.
-    let plugins_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
-    log::info!("loading plugin packages from {}", plugins_root.display());
-    // First-launch extraction: if the installer shipped a bundle next to
-    // the data root and the destination is empty, expand it before the
-    // registry scans. No-op in dev (plugins_root already populated) and
-    // when running without a bundled zip.
-    let bundle_zip = infra_filesystem::detect_data_root().join("plugins.zip");
-    if let Err(err) = plugin_loader::extract_bundle_if_needed(&plugins_root, &bundle_zip) {
-        log::warn!("plugin bundle: extraction failed: {err}");
-    }
+    // Discover every plugin package shipped under the configured roots
+    // and cache them process-wide. Two roots are scanned by default:
+    //   1. Bundled (read-only, ships with the installer): under
+    //      detect_data_root()/plugins. Has priority — when the same
+    //      package id exists in both roots, this one wins.
+    //   2. User-installed (writable): plugins_root_from_config(), which
+    //      defaults to <config_dir>/plugins next to the GUI config file.
+    // Block-* crates query the merged catalog to surface plugin
+    // manifests in the GUI.
+    let bundled_root = infra_filesystem::detect_data_root().join("plugins");
+    let user_root =
+        plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
+    log::info!(
+        "scanning plugin roots: bundled={} user={}",
+        bundled_root.display(),
+        user_root.display(),
+    );
     // Native plugins (compiled-in DSP) register first; disk-package
-    // discovery in `init` below pushes its results into the same
+    // discovery in `init_many` below pushes its results into the same
     // catalog, so by the time `packages()` is read everything lives in
     // one place.
     engine::native_registry::register_all_natives();
-    plugin_loader::registry::init(&plugins_root);
+    plugin_loader::registry::init_many(&[bundled_root, user_root]);
     log::info!(
         "plugin catalog ready: {} plugin(s) loaded ({} native, {} disk package(s))",
         plugin_loader::registry::len(),

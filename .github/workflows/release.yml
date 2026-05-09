@@ -17,15 +17,68 @@ env:
 
 jobs:
   # --------------------------------------------------------------------------
+  # Plugin bundle: clones the private OpenRig-plugins repo, validates and
+  # packs every package into a single zip, uploads as artifact for each
+  # platform job to embed inside its installer. PLUGINS_DEPLOY_KEY is an
+  # SSH deploy key scoped read-only to jpfaria/OpenRig-plugins — not tied
+  # to any user account, revoked independently if leaked (issue #399 —
+  # see the security comment).
+  # --------------------------------------------------------------------------
+  bundle-plugins:
+    name: Bundle plugins
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout OpenRig-plugins
+        uses: actions/checkout@v4
+        with:
+          repository: jpfaria/OpenRig-plugins
+          ssh-key: ${{ secrets.PLUGINS_DEPLOY_KEY }}
+          path: openrig-plugins
+          lfs: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            openrig-plugins/target
+          key: bundle-plugins-cargo-${{ hashFiles('openrig-plugins/Cargo.lock') }}
+          restore-keys: bundle-plugins-cargo-
+
+      - name: Validate plugins
+        working-directory: openrig-plugins
+        # pack_plugins iterates plugins/source/, validates every package's
+        # manifest schema and asset references, and exits non-zero on any
+        # failure. We discard the produced per-package zips — installers
+        # ship the validated source tree directly so the runtime doesn't
+        # need an extraction step.
+        run: cargo run --release --bin pack_plugins
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-plugins-tree
+          path: openrig-plugins/plugins/source
+          if-no-files-found: error
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
   # macOS universal binary + .app bundle + .dmg
   # --------------------------------------------------------------------------
   build-macos:
     name: Build macOS (universal)
+    needs: bundle-plugins
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Download plugin tree
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -63,11 +116,18 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-x86_64:
     name: Build Linux x86_64
+    needs: bundle-plugins
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Download plugin tree
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Install system dependencies
         run: |
@@ -124,11 +184,18 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-aarch64:
     name: Build Linux aarch64
+    needs: bundle-plugins
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Download plugin tree
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Install system dependencies
         run: |
@@ -185,11 +252,18 @@ jobs:
   # --------------------------------------------------------------------------
   build-windows:
     name: Build Windows x64
+    needs: bundle-plugins
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Download plugin tree
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-plugins-tree
+          path: plugins/source
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -261,10 +335,26 @@ jobs:
       contents: write
       issues: write
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
         with:
+          name: openrig-macos
           path: artifacts
-          merge-multiple: true
+      - name: Download Linux x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-linux-x86_64
+          path: artifacts
+      - name: Download Linux aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-linux-aarch64
+          path: artifacts
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openrig-windows-x64
+          path: artifacts
 
       - name: Generate release notes from milestone
         id: notes

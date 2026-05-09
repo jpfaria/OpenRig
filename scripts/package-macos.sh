@@ -48,7 +48,6 @@ rm -rf "$APP" dist/dmg_contents dist/OpenRig-*.dmg
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Frameworks"
-mkdir -p "$APP/Contents/Resources/libs/lv2"
 mkdir -p "$APP/Contents/Resources/libs/nam"
 
 echo "==> Creating universal binary with lipo..."
@@ -67,11 +66,23 @@ install_name_tool \
     "$APP/Contents/MacOS/openrig" 2>/dev/null || true
 
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
-cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal"
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
-cp -r data/lv2                 "$APP/Contents/Resources/data"
 cp -r assets                   "$APP/Contents/Resources/assets"
-cp -r captures                 "$APP/Contents/Resources/captures"
+# data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
+# ship via openrig-plugins.zip (extracted on first launch).
+
+# Bundle plugins as a pre-extracted directory. plugin_loader::registry::
+# init_many scans <.app>/Contents/Resources/plugins (this path) plus the
+# user-writable root in parallel. No first-launch extraction step.
+# Skip silently in dev when the source tree isn't checked out alongside
+# OpenRig — registry::init falls back to the user root only.
+if [ -d plugins/source ]; then
+    cp -r plugins/source "$APP/Contents/Resources/plugins"
+    PLUGIN_COUNT=$(find "$APP/Contents/Resources/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
+    echo "    bundled plugins ($PLUGIN_COUNT package(s))"
+else
+    echo "    NOTE: plugins/source/ not found — .app ships without bundled plugins"
+fi
 
 # Bundle gettext .mo translations. build.rs writes per-locale catalogs
 # under crates/adapter-gui/translations/<lang>/LC_MESSAGES/; we mirror
