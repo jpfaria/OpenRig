@@ -65,7 +65,8 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    plugin_params.output_level_db += package.manifest.output_gain_db.unwrap_or(0.0);
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 
