@@ -53,6 +53,27 @@ impl ParameterSet {
     }
 
     pub fn normalized_against(&self, schema: &ModelParameterSchema) -> Result<Self, String> {
+        self.normalized_against_internal(schema, false)
+    }
+
+    /// Strict version of [`normalized_against`] — rejects unknown parameters
+    /// instead of warning. Issue #400 bug #5: surfaces schema mismatch
+    /// loudly so silent contract drift (e.g. preset using `high_cut`/`low_cut`
+    /// against `native_guitar_eq` whose schema is `low`/`low_mid`/`high_mid`/`high`)
+    /// is caught at load time, not silently muted into a no-op processor.
+    ///
+    /// Use this in tests, in CI validation, and at preset-load time for new
+    /// presets. Existing user-saved presets continue to use the lenient
+    /// `normalized_against` so legacy snapshots survive model version bumps.
+    pub fn normalized_strict(&self, schema: &ModelParameterSchema) -> Result<Self, String> {
+        self.normalized_against_internal(schema, true)
+    }
+
+    fn normalized_against_internal(
+        &self,
+        schema: &ModelParameterSchema,
+        strict: bool,
+    ) -> Result<Self, String> {
         let mut values = BTreeMap::new();
         let mut known_specs = BTreeMap::new();
         for spec in &schema.parameters {
@@ -61,9 +82,16 @@ impl ParameterSet {
 
         for (path, value) in &self.values {
             let Some(spec) = known_specs.get(path.as_str()) else {
-                // Keep unknown parameters instead of silently dropping them.
-                // They may belong to a different version of the model or be
-                // internal state that should survive round-trips.
+                if strict {
+                    return Err(format!(
+                        "unknown parameter '{}' for {} model '{}' (schema does not declare it; \
+                         may indicate a stale preset or a renamed param)",
+                        path, schema.effect_type, schema.model
+                    ));
+                }
+                // Lenient: keep unknown parameters instead of silently dropping
+                // them. They may belong to a different version of the model or
+                // be internal state that should survive round-trips.
                 log::warn!(
                     "[param] keeping unknown parameter '{}' (not in schema for {} model '{}')",
                     path,
