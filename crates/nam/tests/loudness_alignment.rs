@@ -116,33 +116,61 @@ fn build_bogner_synergy() -> BlockProcessor {
         .expect("build Bogner Synergy")
 }
 
+fn build_two_rock() -> BlockProcessor {
+    let pkg = load_pkg("two_rock_studio_signature");
+    // The first capture in the manifest — use it directly.
+    let params = ParameterSet::default();
+    nam::from_package::build_from_package(&pkg, &params, 48_000.0, AudioChannelLayout::Mono)
+        .expect("build Two-Rock")
+}
+
+fn build_bogner_ecstasy_drive_red() -> BlockProcessor {
+    let pkg = load_pkg("bogner_ecstasy");
+    let mut params = ParameterSet::default();
+    // bogner_ecstasy axes: channel + cabinet
+    params.insert("channel", ParameterValue::String("drive_red".into()));
+    params.insert("cabinet", ParameterValue::String("4x12_v30".into()));
+    nam::from_package::build_from_package(&pkg, &params, 48_000.0, AudioChannelLayout::Mono)
+        .expect("build Bogner Ecstasy drive_red")
+}
+
+/// Helper that processes the probe input through every supplied
+/// (label, processor) pair and asserts the RMS spread stays within
+/// `tolerance_db`. Designed to FAIL noisily — every label and number
+/// is dumped so the failure tells you exactly which capture broke.
+fn assert_aligned(mut entries: Vec<(&'static str, BlockProcessor)>, tolerance_db: f32) {
+    let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
+    let mut measurements = Vec::new();
+    for (name, mut p) in entries.drain(..) {
+        let out = run(&mut p, &input);
+        let pk = peak_dbfs(&out);
+        let rms = rms_dbfs(&out);
+        eprintln!("{name:32} peak={pk:+.2} dBFS  rms={rms:+.2} dBFS");
+        measurements.push((name, rms));
+    }
+    let max = measurements.iter().map(|(_, r)| *r).fold(f32::MIN, f32::max);
+    let min = measurements.iter().map(|(_, r)| *r).fold(f32::MAX, f32::min);
+    let spread = max - min;
+    eprintln!("RMS spread across {} captures: {:+.2} dB", measurements.len(), spread);
+    assert!(
+        spread <= tolerance_db,
+        "RMS spread {spread:.2} dB exceeds tolerance {tolerance_db:.2} dB. \
+         If the probe path is active, every NAM amp/preamp lands within ~1 dB.\n\
+         A large spread usually means: (1) the caller is on an old build that doesn't \
+         run the probe, or (2) `loudness_normalize` is somehow false for these models."
+    );
+}
+
 #[test]
 #[ignore]
-fn dumble_clean_vs_bogner_synergy_actual_output() {
-    let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
-
-    let mut dumble = build_dumble_clean();
-    let mut bogner = build_bogner_synergy();
-
-    let dumble_out = run(&mut dumble, &input);
-    let bogner_out = run(&mut bogner, &input);
-
-    let dumble_pk = peak_dbfs(&dumble_out);
-    let dumble_rms = rms_dbfs(&dumble_out);
-    let bogner_pk = peak_dbfs(&bogner_out);
-    let bogner_rms = rms_dbfs(&bogner_out);
-
-    eprintln!(
-        "Dumble Steel SS Clean → peak={dumble_pk:+.2} dBFS  rms={dumble_rms:+.2} dBFS"
-    );
-    eprintln!(
-        "Bogner Synergy Blue 8 → peak={bogner_pk:+.2} dBFS  rms={bogner_rms:+.2} dBFS"
-    );
-    eprintln!("Δ peak = {:+.2} dB   Δ rms = {:+.2} dB", dumble_pk - bogner_pk, dumble_rms - bogner_rms);
-
-    let diff_rms = (dumble_rms - bogner_rms).abs();
-    assert!(
-        diff_rms < 3.0,
-        "Dumble and Bogner should be within 3 dB RMS, got Δ={diff_rms:.2} dB"
+fn dumble_vs_bogner_lineup_must_align() {
+    assert_aligned(
+        vec![
+            ("Dumble Steel SS Clean", build_dumble_clean()),
+            ("Bogner Synergy Blue 8", build_bogner_synergy()),
+            ("Bogner Ecstasy drive_red v30", build_bogner_ecstasy_drive_red()),
+            ("Two-Rock Studio Signature", build_two_rock()),
+        ],
+        2.0,
     );
 }
