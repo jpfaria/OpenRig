@@ -41,87 +41,86 @@ LOG_DIR="${QA_LOG_DIR:-target/qa-logs}"
 mkdir -p "$LOG_DIR"
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
+# Cada função SEMPRE retorna um único inteiro >= 0 em stdout. Se algo dá
+# errado (subshell, cd, cargo morre cedo), o fallback printf garante "0".
 
-# Count fmt-violating files. Returns 0 if everything is OK.
+# Count fmt-violating files.
 count_fmt_errors() {
-  local dir="$1"
-  (
-    cd "$dir"
-    cargo fmt --all -- --check 2>&1 | grep -cE '^Diff in ' || true
-  )
+  local dir="$1" log="$2"
+  : > "$log"
+  ( cd "$dir" && cargo fmt --all -- --check ) > "$log" 2>&1 || true
+  local n
+  n=$(grep -cE '^Diff in ' "$log" 2>/dev/null || echo 0)
+  printf '%d\n' "${n:-0}"
 }
 
-# Count clippy errors with -D warnings (no complexity flags).
+# Count clippy errors with -D warnings (without complexity flags).
 count_clippy_errors() {
   local dir="$1" log="$2"
+  : > "$log"
   (
-    cd "$dir"
-    cargo clippy --workspace --all-targets --quiet -- \
+    cd "$dir" && cargo clippy --workspace --all-targets -- \
       -D warnings \
       -A clippy::cognitive_complexity \
       -A clippy::too_many_lines \
       -A clippy::too_many_arguments \
-      -A clippy::type_complexity \
-      > /dev/null 2> "$log" || true
-    grep -cE '^error(\[|:)' "$log" || true
-  )
+      -A clippy::type_complexity
+  ) > "$log" 2>&1 || true
+  local n
+  n=$(grep -cE '^error(\[|:)' "$log" 2>/dev/null || echo 0)
+  printf '%d\n' "${n:-0}"
 }
 
 # Count build errors.
 count_build_errors() {
   local dir="$1" log="$2"
-  (
-    cd "$dir"
-    cargo build --workspace --all-targets --quiet \
-      > /dev/null 2> "$log" || true
-    grep -cE '^error(\[|:)' "$log" || true
-  )
+  : > "$log"
+  ( cd "$dir" && cargo build --workspace --all-targets ) > "$log" 2>&1 || true
+  local n
+  n=$(grep -cE '^error(\[|:)' "$log" 2>/dev/null || echo 0)
+  printf '%d\n' "${n:-0}"
 }
 
-# Count failing tests. Uses `cargo test` with stable text output.
-# We treat "FAILED" lines under `failures:` as the failing-test count.
+# Count failing tests.
 count_test_failures() {
   local dir="$1" log="$2"
-  (
-    cd "$dir"
-    cargo test --workspace --all-targets --no-fail-fast \
-      > "$log" 2>&1 || true
-    # `test result:` lines have `failed: N`. Sum them.
-    grep -E '^test result:' "$log" \
+  : > "$log"
+  ( cd "$dir" && cargo test --workspace --all-targets --no-fail-fast ) \
+    > "$log" 2>&1 || true
+  local n
+  n=$(grep -E '^test result:' "$log" 2>/dev/null \
       | sed -E 's/.*([0-9]+) failed.*/\1/' \
-      | awk '{ s += $1 } END { print s+0 }'
-  )
+      | awk '{ s += $1 } END { print s+0 }')
+  printf '%d\n' "${n:-0}"
 }
 
 # Count complexity violations.
 count_complexity() {
   local dir="$1" log="$2"
+  : > "$log"
   (
-    cd "$dir"
-    cargo clippy --workspace --all-targets --quiet -- \
+    cd "$dir" && cargo clippy --workspace --all-targets -- \
       -A clippy::all \
       -W clippy::cognitive_complexity \
       -W clippy::too_many_lines \
       -W clippy::too_many_arguments \
-      -W clippy::type_complexity \
-      > /dev/null 2> "$log" || true
-    grep -cE 'cognitive complexity|too many lines|too many arguments|type complexity' "$log" || true
-  )
+      -W clippy::type_complexity
+  ) > "$log" 2>&1 || true
+  local n
+  n=$(grep -cE 'cognitive complexity|too many lines|too many arguments|type complexity' "$log" 2>/dev/null || echo 0)
+  printf '%d\n' "${n:-0}"
 }
 
-# Measure coverage % (lines).
+# Measure coverage % (lines). Always returns a number (0 if anything fails).
 measure_coverage() {
   local dir="$1" out="$2"
-  (
-    cd "$dir"
-    cargo llvm-cov --workspace --json --output-path "$out" \
-      > /dev/null 2>&1 || true
-  )
+  ( cd "$dir" && cargo llvm-cov --workspace --json --output-path "$out" ) \
+    > /dev/null 2>&1 || true
+  local pct=0
   if [ -s "$out" ]; then
-    jq -r '.data[0].totals.lines.percent // 0' "$out"
-  else
-    echo 0
+    pct=$(jq -r '.data[0].totals.lines.percent // 0' "$out" 2>/dev/null || echo 0)
   fi
+  printf '%s\n' "${pct:-0}"
 }
 
 # ─── Run all measurements ───────────────────────────────────────────────────
