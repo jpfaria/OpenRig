@@ -238,16 +238,6 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
-/// Target output loudness all NAM amps/preamps are aligned to.
-/// Picked to match where the natively-loud captures (Bogner / Mesa /
-/// Friedman / etc.) sit by themselves, so we mostly boost the quiet
-/// captures up rather than attenuating the loud ones.
-pub const TARGET_LOUDNESS_DBFS: f32 = -10.0;
-
-/// Hard ceiling on the boost the loudness offset can apply. Even a
-/// bogus near-silence baked value can't push the model past +24 dB.
-const MAX_LOUDNESS_BOOST_DB: f32 = 24.0;
-
 /// Resolve the loudness offset for a NAM amp/preamp.
 ///
 /// We use the runtime pink-noise probe (see `loudness_probe`), NOT the
