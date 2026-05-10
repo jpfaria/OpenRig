@@ -155,32 +155,20 @@ fn chain_two(first: &mut BlockProcessor, second: &mut BlockProcessor, input: &[f
     run(second, &mid)
 }
 
-/// Like `assert_aligned` but for chains (gain pedal → amp). Each entry
-/// is `(label, gain_pedal, amp)`. The gain pedal is processed first
-/// then fed into the amp — same topology as the user's chains.
-fn assert_chain_aligned(
-    mut entries: Vec<(&'static str, BlockProcessor, BlockProcessor)>,
-    tolerance_db: f32,
-) {
+/// Diagnostic helper for `gain pedal → amp` chains. Same as
+/// `dump_outputs`, but feeds the input through the pedal first.
+fn dump_chain_outputs(mut entries: Vec<(&'static str, BlockProcessor, BlockProcessor)>) {
     let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
-    let mut measurements = Vec::new();
     for (name, mut pedal, mut amp) in entries.drain(..) {
         let out = chain_two(&mut pedal, &mut amp, &input);
         let pk = peak_dbfs(&out);
         let rms = rms_dbfs(&out);
         eprintln!("{name:48} peak={pk:+.2}  rms={rms:+.2}");
-        measurements.push((name, rms));
+        assert!(
+            out.iter().all(|s| s.is_finite()),
+            "{name} produced non-finite samples"
+        );
     }
-    let max = measurements.iter().map(|(_, r)| *r).fold(f32::MIN, f32::max);
-    let min = measurements.iter().map(|(_, r)| *r).fold(f32::MAX, f32::min);
-    let spread = max - min;
-    eprintln!("chain RMS spread: {spread:+.2} dB");
-    assert!(
-        spread <= tolerance_db,
-        "chain RMS spread {spread:.2} dB exceeds tolerance {tolerance_db:.2} dB. \
-         Means a gain pedal upstream pushes one amp into much louder saturation \
-         than another — probe measures amps in isolation, doesn't see that."
-    );
 }
 
 fn build_bogner_ecstasy_drive_red() -> BlockProcessor {
@@ -193,79 +181,65 @@ fn build_bogner_ecstasy_drive_red() -> BlockProcessor {
         .expect("build Bogner Ecstasy drive_red")
 }
 
-/// Helper that processes the probe input through every supplied
-/// (label, processor) pair and asserts the RMS spread stays within
-/// `tolerance_db`. Designed to FAIL noisily — every label and number
-/// is dumped so the failure tells you exactly which capture broke.
-fn assert_aligned(mut entries: Vec<(&'static str, BlockProcessor)>, tolerance_db: f32) {
+/// Diagnostic helper — runs each NAM through the probe input, dumps
+/// peak / RMS for inspection, asserts the output is finite. Does NOT
+/// assert alignment: as of `engine::auto_max`, loudness alignment
+/// happens at the chain level (in the engine), not at the per-NAM
+/// level. NAMs deliver their natural baked level here.
+fn dump_outputs(mut entries: Vec<(&'static str, BlockProcessor)>) {
     let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
-    let mut measurements = Vec::new();
     for (name, mut p) in entries.drain(..) {
         let out = run(&mut p, &input);
         let pk = peak_dbfs(&out);
         let rms = rms_dbfs(&out);
-        eprintln!("{name:32} peak={pk:+.2} dBFS  rms={rms:+.2} dBFS");
-        measurements.push((name, rms));
+        eprintln!("{name:48} peak={pk:+.2}  rms={rms:+.2}");
+        assert!(
+            out.iter().all(|s| s.is_finite()),
+            "{name} produced non-finite samples"
+        );
     }
-    let max = measurements.iter().map(|(_, r)| *r).fold(f32::MIN, f32::max);
-    let min = measurements.iter().map(|(_, r)| *r).fold(f32::MAX, f32::min);
-    let spread = max - min;
-    eprintln!("RMS spread across {} captures: {:+.2} dB", measurements.len(), spread);
-    assert!(
-        spread <= tolerance_db,
-        "RMS spread {spread:.2} dB exceeds tolerance {tolerance_db:.2} dB. \
-         If the probe path is active, every NAM amp/preamp lands within ~1 dB.\n\
-         A large spread usually means: (1) the caller is on an old build that doesn't \
-         run the probe, or (2) `loudness_normalize` is somehow false for these models."
-    );
 }
 
 #[test]
 #[ignore]
-fn dumble_vs_bogner_lineup_must_align() {
-    assert_aligned(
-        vec![
-            ("Dumble Steel SS Clean", build_dumble_clean()),
-            ("Bogner Synergy Blue 8", build_bogner_synergy()),
-            ("Bogner Ecstasy drive_red v30", build_bogner_ecstasy_drive_red()),
-            ("Two-Rock Studio Signature", build_two_rock()),
-        ],
-        2.0,
-    );
+fn dumble_vs_bogner_lineup_dumps_levels() {
+    dump_outputs(vec![
+        ("Dumble Steel SS Clean", build_dumble_clean()),
+        ("Bogner Synergy Blue 8", build_bogner_synergy()),
+        ("Bogner Ecstasy drive_red v30", build_bogner_ecstasy_drive_red()),
+        ("Two-Rock Studio Signature", build_two_rock()),
+    ]);
 }
 
 #[test]
 #[ignore]
-fn dumble_vs_bogner_with_gain_pedal_in_front_must_align() {
-    // Same gain pedal, swap amp downstream — what the user actually
-    // does in the chain (klon → Dumble vs klon → Bogner).
-    assert_chain_aligned(
-        vec![
-            ("Klon → Dumble", build_klon_centaur(), build_dumble_clean()),
-            (
-                "Klon → Bogner Synergy",
-                build_klon_centaur(),
-                build_bogner_synergy(),
-            ),
-            (
-                "Klon → Bogner Ecstasy",
-                build_klon_centaur(),
-                build_bogner_ecstasy_drive_red(),
-            ),
-            ("Klon → Two-Rock", build_klon_centaur(), build_two_rock()),
-            ("TS9 → Dumble", build_ts9_default(), build_dumble_clean()),
-            (
-                "TS9 → Bogner Ecstasy",
-                build_ts9_default(),
-                build_bogner_ecstasy_drive_red(),
-            ),
-            ("RAT → Dumble", build_proco_rat(), build_dumble_clean()),
-            (
-                "RAT → Bogner Ecstasy",
-                build_proco_rat(),
-                build_bogner_ecstasy_drive_red(),
-            ),
-        ],
-        3.0,
-    );
+fn dumble_vs_bogner_with_gain_pedal_in_front_dumps_levels() {
+    // Same gain pedal, swap amp downstream — what the user does in
+    // the chain (klon → Dumble vs klon → Bogner).
+    dump_chain_outputs(vec![
+        ("Klon → Dumble", build_klon_centaur(), build_dumble_clean()),
+        (
+            "Klon → Bogner Synergy",
+            build_klon_centaur(),
+            build_bogner_synergy(),
+        ),
+        (
+            "Klon → Bogner Ecstasy",
+            build_klon_centaur(),
+            build_bogner_ecstasy_drive_red(),
+        ),
+        ("Klon → Two-Rock", build_klon_centaur(), build_two_rock()),
+        ("TS9 → Dumble", build_ts9_default(), build_dumble_clean()),
+        (
+            "TS9 → Bogner Ecstasy",
+            build_ts9_default(),
+            build_bogner_ecstasy_drive_red(),
+        ),
+        ("RAT → Dumble", build_proco_rat(), build_dumble_clean()),
+        (
+            "RAT → Bogner Ecstasy",
+            build_proco_rat(),
+            build_bogner_ecstasy_drive_red(),
+        ),
+    ]);
 }

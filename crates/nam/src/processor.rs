@@ -238,27 +238,10 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
-/// Resolve the loudness offset for a NAM amp/preamp.
-///
-/// We use the runtime pink-noise probe (see `loudness_probe`), NOT the
-/// baked `metadata.loudness` field in the .nam JSON header. Different
-/// trainers report `metadata.loudness` against different reference
-/// signals — wendycabs's Dumble Steel-String Singer reads -10.57 dBFS
-/// but actually outputs ~6 dB lower than 2dor's Bogner Ecstasy at the
-/// SAME baked value. The probe gives consistent numbers because it
-/// always feeds the same probe stimulus to every model.
-///
-/// `baked_loudness::read_loudness_dbfs` is kept around as diagnostics
-/// (used by the `probe_dump` example) but does NOT drive runtime gain.
-pub(crate) unsafe fn compute_loudness_offset(
-    model_path: &str,
-    model: *mut NeuralModel,
-) -> (f32, &'static str) {
-    (
-        crate::loudness_probe::compute_or_lookup(model_path, model),
-        "probe",
-    )
-}
+// Loudness alignment moved to `engine::auto_max` (issue #402). The
+// per-NAM probe and baked-loudness modules are kept around for the
+// `probe_dump` diagnostics example only — they no longer drive gain
+// at runtime, so the glue function is gone.
 
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
@@ -302,9 +285,9 @@ impl Drop for NamProcessor {
 
 impl NamProcessor {
     pub fn new(model_path: &str, ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
-        // Default: no loudness normalisation. Loudness alignment is an
-        // amp/preamp concern; gain pedals and other categories must opt
-        // in via [`Self::new_with_loudness_normalize`].
+        // Loudness alignment moved out of the NAM crate to a per-chain
+        // auto-max in the engine (issue #402). The flag is kept on the
+        // legacy constructor for source compatibility but is ignored.
         Self::new_with_loudness_normalize(model_path, ir_path, params, false)
     }
 
@@ -312,7 +295,7 @@ impl NamProcessor {
         model_path: &str,
         _ir_path: Option<&str>,
         params: NamPluginParams,
-        loudness_normalize: bool,
+        _loudness_normalize: bool,
     ) -> Result<Self> {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
@@ -339,34 +322,17 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
-        // Loudness alignment runs only for amp/preamp. Gain pedals
-        // (TS9 / overdrive / fuzz / boost) stack with the downstream
-        // amp's own gain — boosting them is what causes feedback
-        // loops (Basket Case TS9 → Marshall regression).
-        let (loudness_offset_db, loudness_source) = if loudness_normalize {
-            unsafe { compute_loudness_offset(model_path, model) }
-        } else {
-            (0.0, "none")
-        };
-        let baked_output_db = if loudness_normalize {
-            // Loudness alignment replaces the baked recommendation;
-            // applying both double-corrects.
-            0.0
-        } else {
-            recommended_output_db
-        };
-
+        // No per-NAM loudness compensation here — it lives at the
+        // chain level in `engine::auto_max` (issue #402), which can
+        // see the full chain output instead of guessing per-block.
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain =
-            db_to_lin(params.output_level_db + baked_output_db + loudness_offset_db);
+        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB, loudness_offset={:+.2}dB ({})",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB",
             model_path,
             recommended_input_db,
-            baked_output_db,
-            loudness_offset_db,
-            loudness_source,
+            recommended_output_db,
         );
 
         Ok(Self {
