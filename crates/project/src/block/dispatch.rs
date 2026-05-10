@@ -195,6 +195,20 @@ fn grid_parameter_to_spec(
             step.max(0.01),
             block_core::param::ParameterUnit::None,
         )
+    } else if parameter
+        .values
+        .iter()
+        .all(|v| matches!(v, ParameterValue::Bool(_)))
+        && !parameter.values.is_empty()
+    {
+        // Pure bool grid → render as a toggle. The default mirrors the
+        // first listed value so manifests can pick the natural off-state
+        // (`[false, true]` -> default off).
+        let default = parameter.values.iter().find_map(|v| match v {
+            ParameterValue::Bool(b) => Some(*b),
+            _ => None,
+        });
+        return block_core::param::bool_parameter(&parameter.name, label, None, default);
     } else {
         let options: Vec<(String, String)> = parameter
             .values
@@ -203,6 +217,7 @@ fn grid_parameter_to_spec(
                 let s = match value {
                     ParameterValue::Text(t) => t.clone(),
                     ParameterValue::Number(n) => n.to_string(),
+                    ParameterValue::Bool(b) => b.to_string(),
                 };
                 (s.clone(), s)
             })
