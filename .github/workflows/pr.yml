@@ -1,0 +1,198 @@
+name: PR Quality Gate
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, reopened, synchronize]
+
+# One run per PR; cancel superseded runs to save CI minutes.
+concurrency:
+  group: pr-quality-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  QA_LOG_DIR: target/qa-logs
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  quality-gate:
+    name: Quality Gate (qa.sh + comparative)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+          fetch-depth: 0
+
+      - name: Checkout base ref into baseline/
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          submodules: recursive
+          lfs: true
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: pr-quality
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            libfontconfig1-dev libseat-dev \
+            libxkbcommon-dev libinput-dev libgbm-dev \
+            libjack-jackd2-dev
+
+      - name: Run comparative gate (qa-comparative.sh)
+        id: comparative
+        run: |
+          mkdir -p target/qa-logs
+          bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
+
+      - name: Upload qa logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-logs
+          path: target/qa-logs/
+          if-no-files-found: ignore
+
+      - name: Generate lcov.info for Codecov (reuses PR coverage run)
+        if: success()
+        run: cargo llvm-cov report --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build failure summary
+        if: failure()
+        id: summary
+        run: |
+          set -u
+          summary_file=$(mktemp)
+          {
+            echo "## ❌ Quality gate failed"
+            echo ""
+            echo "Rode o gate localmente até passar antes de pushar de novo:"
+            echo ""
+            echo '```bash'
+            echo "./scripts/qa.sh"
+            echo '```'
+            echo ""
+            echo "Filosofia: o gate **absoluto** (qa.sh) cobre fmt, lints, build, test."
+            echo "O gate **comparativo** (qa-comparative.sh, só em CI) verifica que"
+            echo "complexidade e cobertura não pioraram em relação a \`develop\`."
+            echo ""
+            echo "### Failing steps"
+            echo ""
+            shopt -s nullglob
+            had_logs=0
+            for log in target/qa-logs/*.log; do
+              had_logs=1
+              name=$(basename "$log" .log | tr '_' ' ')
+              if grep -qE 'error(\[|:|s)| FAIL |regressed' "$log"; then
+                echo "<details><summary><b>$name</b></summary>"
+                echo ""
+                echo '```'
+                tail -n 60 "$log"
+                echo '```'
+                echo ""
+                echo "</details>"
+                echo ""
+              fi
+            done
+            if [ "$had_logs" = "0" ]; then
+              echo "_(no per-step logs captured — see job log for details)_"
+            fi
+            echo ""
+            echo "### Run"
+            echo ""
+            echo "[View full CI log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo ""
+            echo "_Posted by quality-gate workflow — issue #404._"
+          } > "$summary_file"
+          {
+            echo 'body<<__QA_BODY__'
+            cat "$summary_file"
+            echo '__QA_BODY__'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post sticky failure comment
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: openrig-quality-gate
+          message: ${{ steps.summary.outputs.body }}
+
+      - name: Request changes on PR
+        if: failure() && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          existing=$(gh pr view "$PR_NUMBER" --json reviews \
+            --jq '[.reviews[] | select(.author.login == "github-actions" and .state == "CHANGES_REQUESTED")] | length')
+          if [ "${existing:-0}" = "0" ]; then
+            gh pr review "$PR_NUMBER" \
+              --request-changes \
+              --body "Quality gate failed — see sticky comment for diagnostic. Resolve and push again."
+          else
+            echo "github-actions already has CHANGES_REQUESTED on this PR — not stacking."
+          fi
+
+      - name: Post sticky success comment
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: openrig-quality-gate
+          message: |
+            ## ✅ Quality gate passed
+
+            Comparativo (PR vs `develop`): nenhuma métrica regrediu.
+            Verificadas: fmt, clippy, build, testes, complexidade, cobertura.
+
+            _Posted by quality-gate workflow — issue #404._
+
+      - name: Dismiss prior request-changes review on success
+        if: success() && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          ids=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED") | .id] | .[]')
+          for id in $ids; do
+            gh api -X PUT "repos/${REPO}/pulls/${PR_NUMBER}/reviews/${id}/dismissals" \
+              -f message="Quality gate is now green." || true
+          done
