@@ -295,6 +295,12 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
             .collect());
     }
 
+    let disk_pkg_instruments: Vec<String> =
+        default_instruments_for_effect_type(effect_type)
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+
     let entry = block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
@@ -359,10 +365,7 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 display_name: package.manifest.display_name.clone(),
                 brand: package.manifest.brand.clone().unwrap_or_default(),
                 type_label,
-                supported_instruments: block_core::ALL_INSTRUMENTS
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
+                supported_instruments: disk_pkg_instruments.clone(),
                 knob_layout: &[],
             });
         }
@@ -393,6 +396,25 @@ fn block_type_for_effect_type(effect_type: &str) -> Option<plugin_loader::manife
         s if s == EFFECT_TYPE_UTILITY => BlockType::Util,
         _ => return None,
     })
+}
+
+/// Default instrument list for disk-package models keyed by effect_type.
+///
+/// Issue #403: previously every disk package declared `ALL_INSTRUMENTS`, so the
+/// "add block" picker on a `voice` chain still showed Amp/Cab/Wah/etc — those
+/// categories don't apply to vocals. Native models carry per-model
+/// `visual.supported_instruments`; disk packages don't, so we infer from the
+/// category. Categories with potential cross-instrument use (Dyn, Filter, Mod,
+/// Reverb, Delay, Pitch, Util) stay universal; guitar/bass-only categories
+/// (Amp, Cab, GainPedal, Wah) drop voice/keys/drums.
+fn default_instruments_for_effect_type(effect_type: &str) -> &'static [&'static str] {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_AMP | EFFECT_TYPE_CAB | EFFECT_TYPE_GAIN | EFFECT_TYPE_WAH => GUITAR_BASS,
+        EFFECT_TYPE_PREAMP => GUITAR_ACOUSTIC_BASS,
+        EFFECT_TYPE_BODY => &[INST_ACOUSTIC_GUITAR, INST_BASS],
+        _ => ALL_INSTRUMENTS,
+    }
 }
 
 fn backend_label_for(backend: &plugin_loader::manifest::Backend) -> &'static str {
