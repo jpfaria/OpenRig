@@ -5,9 +5,7 @@ use domain::value_objects::ParameterValue as BlockParameterValue;
 use plugin_loader::manifest::ParameterValue;
 
 fn ts9_like_parameters() -> Vec<GridParameter> {
-    let values: Vec<ParameterValue> = (0..=10)
-        .map(|n| ParameterValue::Number(n as f64))
-        .collect();
+    let values: Vec<ParameterValue> = (0..=10).map(|n| ParameterValue::Number(n as f64)).collect();
     vec![
         GridParameter {
             name: "drive".to_string(),

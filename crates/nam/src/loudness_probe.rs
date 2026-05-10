@@ -51,7 +51,10 @@ fn cache() -> &'static Mutex<HashMap<String, f32>> {
 
 /// Look up cached offset for `model_path`, probing the model on first use.
 ///
-/// SAFETY: `model` must be a live pointer returned by the NAM lib.
+/// # Safety
+///
+/// `model` must be a live pointer returned by the NAM lib for the given
+/// `model_path` and not yet freed.
 pub unsafe fn compute_or_lookup(model_path: &str, model: *mut NeuralModel) -> f32 {
     if let Some(cached) = lookup_cached(model_path) {
         return cached;
@@ -83,7 +86,10 @@ pub struct ProbeReport {
     pub final_offset_db: f32,
 }
 
-/// SAFETY: `model` must be a valid live pointer.
+/// # Safety
+///
+/// `model` must be a valid live pointer returned by the NAM lib and
+/// not yet freed.
 pub unsafe fn diagnose_model(model: *mut NeuralModel) -> ProbeReport {
     let input = pink_noise_buffer(PROBE_SAMPLES, PROBE_SEED);
     let input_peak_dbfs = peak_dbfs(&input);

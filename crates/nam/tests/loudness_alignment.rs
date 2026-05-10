@@ -206,7 +206,10 @@ fn dumble_vs_bogner_lineup_dumps_levels() {
     dump_outputs(vec![
         ("Dumble Steel SS Clean", build_dumble_clean()),
         ("Bogner Synergy Blue 8", build_bogner_synergy()),
-        ("Bogner Ecstasy drive_red v30", build_bogner_ecstasy_drive_red()),
+        (
+            "Bogner Ecstasy drive_red v30",
+            build_bogner_ecstasy_drive_red(),
+        ),
         ("Two-Rock Studio Signature", build_two_rock()),
     ]);
 }

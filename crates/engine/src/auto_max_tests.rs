@@ -122,15 +122,13 @@ fn silent_signal_does_not_explode_gain() {
     // Now push a small sample through and check gain didn't blow up.
     let mut probe = vec![AudioFrame::Mono(0.01); 1024];
     s.process(&mut probe);
-    let r = rms(
-        &probe
-            .iter()
-            .map(|f| match f {
-                AudioFrame::Mono(s) => *s,
-                _ => 0.0,
-            })
-            .collect::<Vec<_>>(),
-    );
+    let r = rms(&probe
+        .iter()
+        .map(|f| match f {
+            AudioFrame::Mono(s) => *s,
+            _ => 0.0,
+        })
+        .collect::<Vec<_>>());
     // Should be bounded by max boost (24 dB) above the input rms (0.01).
     let max_expected = 0.01 * 10.0_f32.powf(MAX_BOOST_DB / 20.0);
     assert!(

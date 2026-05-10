@@ -133,8 +133,7 @@ impl AutoMaxState {
         let frame_sq = frame_mean_square(frame);
 
         // RMS follower — single-pole, RMS_WINDOW_MS time constant.
-        self.mean_square =
-            self.rms_coeff * self.mean_square + (1.0 - self.rms_coeff) * frame_sq;
+        self.mean_square = self.rms_coeff * self.mean_square + (1.0 - self.rms_coeff) * frame_sq;
 
         // Peak follower — fast attack / slow release for the ceiling guard.
         if frame_peak > self.peak_envelope {

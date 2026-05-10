@@ -196,7 +196,8 @@ pub(crate) unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output:
 }
 
 /// Open a NAM model file for diagnostics (loudness probe example).
-/// Caller is responsible for calling [`close_model_diag`] when done.
+/// Caller is responsible for calling [`close_model_diag`] when done
+/// to release the underlying NAM lib model.
 pub fn open_model_diag(model_path: &str) -> Result<*mut NeuralModel> {
     #[cfg(not(target_os = "windows"))]
     let model = {
@@ -221,7 +222,10 @@ pub fn open_model_diag(model_path: &str) -> Result<*mut NeuralModel> {
     Ok(model)
 }
 
-/// SAFETY: `model` must be a valid pointer returned by [`open_model_diag`].
+/// # Safety
+///
+/// `model` must be a valid pointer returned by [`open_model_diag`] and
+/// not yet freed; the caller must not use it after this call returns.
 pub unsafe fn close_model_diag(model: *mut NeuralModel) {
     if !model.is_null() {
         DeleteModel(model);
@@ -230,7 +234,11 @@ pub unsafe fn close_model_diag(model: *mut NeuralModel) {
 
 /// Recommended baked dB adjustments — exposed for the loudness probe
 /// diagnostics example.
-/// SAFETY: `model` must be a valid live pointer.
+///
+/// # Safety
+///
+/// `model` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed.
 pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     (
         GetRecommendedInputDBAdjustment(model),
@@ -242,7 +250,6 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
 // per-NAM probe and baked-loudness modules are kept around for the
 // `probe_dump` diagnostics example only — they no longer drive gain
 // at runtime, so the glue function is gone.
-
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
@@ -284,19 +291,7 @@ impl Drop for NamProcessor {
 }
 
 impl NamProcessor {
-    pub fn new(model_path: &str, ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
-        // Loudness alignment moved out of the NAM crate to a per-chain
-        // auto-max in the engine (issue #402). The flag is kept on the
-        // legacy constructor for source compatibility but is ignored.
-        Self::new_with_loudness_normalize(model_path, ir_path, params, false)
-    }
-
-    pub fn new_with_loudness_normalize(
-        model_path: &str,
-        _ir_path: Option<&str>,
-        params: NamPluginParams,
-        _loudness_normalize: bool,
-    ) -> Result<Self> {
+    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
         let model = {

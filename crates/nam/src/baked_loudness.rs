@@ -32,7 +32,9 @@ fn extract_loudness_from_header(header: &str) -> Option<f32> {
     let i = header.find(key)?;
     let rest = &header[i + key.len()..];
     let end = rest
-        .find(|c: char| c != '-' && c != '.' && !c.is_ascii_digit() && c != 'e' && c != 'E' && c != '+')
+        .find(|c: char| {
+            c != '-' && c != '.' && !c.is_ascii_digit() && c != 'e' && c != 'E' && c != '+'
+        })
         .unwrap_or(rest.len());
     rest[..end].parse::<f32>().ok()
 }

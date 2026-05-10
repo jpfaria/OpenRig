@@ -52,9 +52,7 @@ fn main() -> Result<()> {
             r.allowed_by_peak_db,
             r.final_offset_db
         );
-        println!(
-            "    baked recommended: input_db={rec_in:+.2}  output_db={rec_out:+.2}",
-        );
+        println!("    baked recommended: input_db={rec_in:+.2}  output_db={rec_out:+.2}",);
     }
 
     Ok(())

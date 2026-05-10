@@ -48,36 +48,21 @@ pub fn build_processor_with_assets_for_layout(
     model_path: &str,
     ir_path: Option<&str>,
     plugin_params: NamPluginParams,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
-    build_processor_with_assets_for_layout_normalized(
-        model_path,
-        ir_path,
-        plugin_params,
-        sample_rate,
-        layout,
-        false,
-    )
-}
-
-pub fn build_processor_with_assets_for_layout_normalized(
-    model_path: &str,
-    ir_path: Option<&str>,
-    plugin_params: NamPluginParams,
     _sample_rate: f32,
     layout: AudioChannelLayout,
-    loudness_normalize: bool,
 ) -> Result<BlockProcessor> {
+    // Loudness alignment used to be opt-in here via a `loudness_normalize`
+    // flag plumbed all the way to `NamProcessor::new_with_loudness_normalize`.
+    // It has since moved to the chain runtime (`engine::auto_max`) and the
+    // per-NAM probe path is dead code, so this overload reverted to a
+    // single 5-arg shape — keeps `too_many_arguments` happy and keeps the
+    // surface honest about what it actually does.
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(
-            NamProcessor::new_with_loudness_normalize(
-                model_path,
-                ir_path,
-                plugin_params,
-                loudness_normalize,
-            )?,
-        ))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(NamProcessor::new(
+            model_path,
+            ir_path,
+            plugin_params,
+        )?))),
         AudioChannelLayout::Stereo => {
             bail!("the NAM processor is mono-native and cannot build native stereo processing")
         }
