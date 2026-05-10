@@ -14,18 +14,17 @@ use block_core::lin_to_db;
 
 use crate::processor::{nam_process, NeuralModel};
 
-/// Loudness target. The probe boosts each NAM until its OUTPUT RMS
-/// hits this level — what the ear actually perceives as "volume".
-/// Two captures with the same peak can have very different RMS; peak
-/// alone fails to nivel them.
-pub const TARGET_RMS_DBFS: f32 = -16.0;
+/// Loudness target — set to where the loudest hot captures sit
+/// naturally (Bogner Ecstasy & friends measure ~ -10 dBFS RMS on the
+/// pink-noise probe). Lower targets meant the probe never boosted the
+/// quiet captures up to where the hot ones already were.
+pub const TARGET_RMS_DBFS: f32 = -10.0;
 
-/// Hard ceiling for the OUTPUT sample peak after the probe gain is
-/// applied. Caps the boost when the loudness target would push the
-/// peak past this ceiling — "no maximo sem clipar". The chain's
-/// brickwall limiter catches anything that still slips through on
-/// real guitar transients.
-pub const PEAK_CEILING_DBFS: f32 = -1.0;
+/// Sample-peak ceiling AFTER the probe gain is applied. Set just
+/// above 0 dBFS — the chain's brickwall limiter catches the residual
+/// peaks. Without that allowance the peak ceiling becomes the binding
+/// constraint and the loudness target is never reached.
+pub const PEAK_CEILING_DBFS: f32 = 1.0;
 
 /// Peak amplitude of the pink-noise probe at the model input. Picked
 /// to roughly mirror "instrument-level" guitar peaks so the model
@@ -64,10 +63,45 @@ pub unsafe fn compute_or_lookup(model_path: &str, model: *mut NeuralModel) -> f3
 }
 
 unsafe fn probe_model(model: *mut NeuralModel) -> f32 {
+    let report = diagnose_model(model);
+    compute_offset_db(report.output_rms_dbfs, report.output_peak_dbfs)
+}
+
+/// Per-model probe diagnostics — every number that feeds
+/// `compute_offset_db`, returned for inspection (used by the
+/// `probe_dump` example to investigate level mismatches).
+#[derive(Debug, Clone, Copy)]
+pub struct ProbeReport {
+    pub input_peak_dbfs: f32,
+    pub input_rms_dbfs: f32,
+    pub output_peak_dbfs: f32,
+    pub output_rms_dbfs: f32,
+    pub want_for_loudness_db: f32,
+    pub allowed_by_peak_db: f32,
+    pub final_offset_db: f32,
+}
+
+/// SAFETY: `model` must be a valid live pointer.
+pub unsafe fn diagnose_model(model: *mut NeuralModel) -> ProbeReport {
     let input = pink_noise_buffer(PROBE_SAMPLES, PROBE_SEED);
+    let input_peak_dbfs = peak_dbfs(&input);
+    let input_rms_dbfs = rms_dbfs(&input);
     let mut output = vec![0.0_f32; PROBE_SAMPLES];
     nam_process(model, &input, &mut output);
-    compute_offset_db(rms_dbfs(&output), peak_dbfs(&output))
+    let output_peak_dbfs = peak_dbfs(&output);
+    let output_rms_dbfs = rms_dbfs(&output);
+    let want_for_loudness_db = TARGET_RMS_DBFS - output_rms_dbfs;
+    let allowed_by_peak_db = PEAK_CEILING_DBFS - output_peak_dbfs;
+    let final_offset_db = compute_offset_db(output_rms_dbfs, output_peak_dbfs);
+    ProbeReport {
+        input_peak_dbfs,
+        input_rms_dbfs,
+        output_peak_dbfs,
+        output_rms_dbfs,
+        want_for_loudness_db,
+        allowed_by_peak_db,
+        final_offset_db,
+    }
 }
 
 fn pink_noise_buffer(samples: usize, seed: u64) -> Vec<f32> {

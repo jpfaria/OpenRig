@@ -46,16 +46,22 @@ fn peak_dbfs_silent_buffer_returns_floor() {
 }
 
 #[test]
-fn compute_offset_targets_loudness_when_peak_has_room() {
-    // RMS -25, peak -8: want +9 dB for loudness, allowed +7 dB by peak ceiling.
-    // Limiter is the peak ceiling — answer = +7.
-    assert!((compute_offset_db(-25.0, -8.0) - 7.0).abs() < 0.001);
+fn compute_offset_capped_by_peak_ceiling_when_peak_close_to_top() {
+    // Peak only `cap` dB below the ceiling, RMS far below target →
+    // peak ceiling is the binding constraint.
+    let cap = 4.0;
+    let measured_peak = PEAK_CEILING_DBFS - cap;
+    let measured_rms = TARGET_RMS_DBFS - 20.0; // way below loudness target
+    assert!((compute_offset_db(measured_rms, measured_peak) - cap).abs() < 0.001);
 }
 
 #[test]
-fn compute_offset_full_loudness_boost_when_peak_has_lots_of_room() {
-    // RMS -28, peak -25: want +12 for loudness, allowed +24 by peak. Loudness wins.
-    assert!((compute_offset_db(-28.0, -25.0) - 12.0).abs() < 0.001);
+fn compute_offset_capped_by_loudness_target_when_peak_has_room() {
+    // Lots of peak headroom, modest loudness gap → loudness target is binding.
+    let loudness_gap = 8.0;
+    let measured_rms = TARGET_RMS_DBFS - loudness_gap;
+    let measured_peak = PEAK_CEILING_DBFS - 30.0; // huge headroom
+    assert!((compute_offset_db(measured_rms, measured_peak) - loudness_gap).abs() < 0.001);
 }
 
 #[test]
