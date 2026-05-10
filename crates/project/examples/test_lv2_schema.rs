@@ -3,18 +3,14 @@ fn main() {
     plugin_loader::registry::init(Path::new(
         "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
     ));
-    if let Ok(s) = project::block::schema_for_block_model("preamp", "nam_diezel_vh4") {
-        for p in &s.parameters {
-            use block_core::param::ParameterDomain;
-            let kind = match &p.domain {
-                ParameterDomain::Bool => "BOOL".to_string(),
-                ParameterDomain::Enum { options } =>
-                    format!("ENUM {:?}", options.iter().map(|o| o.label.as_str()).collect::<Vec<_>>()),
-                ParameterDomain::FloatRange { min, max, step } =>
-                    format!("FLOAT [{min}..{max}] step={step}"),
-                _ => format!("{:?}", p.domain),
-            };
-            println!("  {:<25} {} ({})", p.path, kind, p.label);
-        }
+    if let Ok(entries) = project::catalog::supported_block_models("pitch") {
+        let visible: Vec<_> = entries.iter().filter(|e| e.supported_instruments.iter().any(|i| i == "voice")).collect();
+        println!("pitch voice-visible: {}", visible.len());
+        for e in &visible { println!("  {} brand={}", e.model_id, e.brand); }
+    }
+    if let Ok(entries) = project::catalog::supported_block_models("modulation") {
+        let voice: Vec<_> = entries.iter().filter(|e| e.supported_instruments.iter().any(|i| i == "voice") && (e.model_id.contains("larynx") || e.model_id.contains("harmless"))).collect();
+        println!("modulation voice-related: {}", voice.len());
+        for e in &voice { println!("  {} brand={}", e.model_id, e.brand); }
     }
 }

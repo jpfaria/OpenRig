@@ -35,7 +35,7 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Enum ≤4 options (selector knob + inline labels) ──
     if root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 : Rectangle {
-        x: 0; y: 4px;
+        x: 0; y: 14px;
         width: parent.width; height: 76px;
         background: transparent;
 
@@ -289,7 +289,7 @@ export component BlockPanelParameterItem inherits Rectangle {
     // ── Numeric knob/stepper/slider ──
     if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
         x: (parent.width - 36px) / 2;
-        y: 18px;
+        y: 28px;
         width: 36px;
         height: 56px;
         value: root.param.numeric_value;
@@ -302,12 +302,12 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Boolean toggle (sprite) ──
     // The toggle sprite is 33:45 (W:H ratio). Picking width=26 gives
-    // sprite-h ≈ 35, matching the 36×36 PanelKnob sprite. y=18 lines up
-    // the sprite top with the knob top, so visual centers coincide
-    // (knob ≈ y36, switch ≈ y35.5).
+    // sprite-h ≈ 35, matching the 36×36 PanelKnob sprite. y=28 lines up
+    // the sprite top with the knob top so all 3 widget kinds (knob,
+    // toggle, selector) share the same vertical baseline.
     if root.param.widget_kind == "bool" : ToggleSwitch {
         x: (parent.width - 26px) / 2;
-        y: 18px;
+        y: 28px;
         width: 26px;
         height: 50px;
         checked: root.param.bool_value;
