@@ -14,11 +14,18 @@ use block_core::lin_to_db;
 
 use crate::processor::{nam_process, NeuralModel};
 
-/// Where every NAM output peak should land after the probe-derived
-/// gain is applied. Conservative headroom below 0 dBFS so real guitar
-/// peaks (which can exceed pink-noise peaks by a few dB) don't clip
-/// the DAC.
-pub const TARGET_PEAK_DBFS: f32 = -3.0;
+/// Loudness target. The probe boosts each NAM until its OUTPUT RMS
+/// hits this level — what the ear actually perceives as "volume".
+/// Two captures with the same peak can have very different RMS; peak
+/// alone fails to nivel them.
+pub const TARGET_RMS_DBFS: f32 = -16.0;
+
+/// Hard ceiling for the OUTPUT sample peak after the probe gain is
+/// applied. Caps the boost when the loudness target would push the
+/// peak past this ceiling — "no maximo sem clipar". The chain's
+/// brickwall limiter catches anything that still slips through on
+/// real guitar transients.
+pub const PEAK_CEILING_DBFS: f32 = -1.0;
 
 /// Peak amplitude of the pink-noise probe at the model input. Picked
 /// to roughly mirror "instrument-level" guitar peaks so the model
@@ -27,9 +34,8 @@ pub const PROBE_INPUT_PEAK_DBFS: f32 = -12.0;
 
 pub const PROBE_SAMPLES: usize = 96_000;
 
-/// The probe is BOOST-ONLY. A NAM that already comes baked at or above
-/// the target is left alone — "se o nam veio alto, ele veio no maximo".
-/// Quiet captures get pushed up; loud captures stay where they are.
+/// BOOST-ONLY: a NAM already baked at or above the loudness target
+/// is left alone. Probe never attenuates.
 pub const MIN_OFFSET_DB: f32 = 0.0;
 pub const MAX_OFFSET_DB: f32 = 24.0;
 
@@ -61,8 +67,7 @@ unsafe fn probe_model(model: *mut NeuralModel) -> f32 {
     let input = pink_noise_buffer(PROBE_SAMPLES, PROBE_SEED);
     let mut output = vec![0.0_f32; PROBE_SAMPLES];
     nam_process(model, &input, &mut output);
-    let peak_db = peak_dbfs(&output);
-    compute_offset_db(peak_db)
+    compute_offset_db(rms_dbfs(&output), peak_dbfs(&output))
 }
 
 fn pink_noise_buffer(samples: usize, seed: u64) -> Vec<f32> {
@@ -106,9 +111,24 @@ fn peak_dbfs(buf: &[f32]) -> f32 {
     }
 }
 
-fn compute_offset_db(measured_peak_dbfs: f32) -> f32 {
-    let raw = TARGET_PEAK_DBFS - measured_peak_dbfs;
-    raw.clamp(MIN_OFFSET_DB, MAX_OFFSET_DB)
+fn rms_dbfs(buf: &[f32]) -> f32 {
+    let mean_sq = buf.iter().map(|s| s * s).sum::<f32>() / buf.len() as f32;
+    if mean_sq == 0.0 {
+        PEAK_FLOOR_DBFS
+    } else {
+        10.0 * mean_sq.log10()
+    }
+}
+
+/// Pick the smaller of (boost-to-loudness-target, boost-up-to-peak-ceiling).
+/// `measured_rms_dbfs` and `measured_peak_dbfs` come from the same probed
+/// output buffer.
+fn compute_offset_db(measured_rms_dbfs: f32, measured_peak_dbfs: f32) -> f32 {
+    let want_for_loudness = TARGET_RMS_DBFS - measured_rms_dbfs;
+    let allowed_by_peak = PEAK_CEILING_DBFS - measured_peak_dbfs;
+    want_for_loudness
+        .min(allowed_by_peak)
+        .clamp(MIN_OFFSET_DB, MAX_OFFSET_DB)
 }
 
 #[cfg(test)]

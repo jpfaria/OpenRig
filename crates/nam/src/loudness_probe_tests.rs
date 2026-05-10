@@ -46,22 +46,42 @@ fn peak_dbfs_silent_buffer_returns_floor() {
 }
 
 #[test]
-fn compute_offset_typical_case() {
-    assert!((compute_offset_db(-10.0) - 7.0).abs() < 0.001);
+fn compute_offset_targets_loudness_when_peak_has_room() {
+    // RMS -25, peak -8: want +9 dB for loudness, allowed +7 dB by peak ceiling.
+    // Limiter is the peak ceiling — answer = +7.
+    assert!((compute_offset_db(-25.0, -8.0) - 7.0).abs() < 0.001);
+}
+
+#[test]
+fn compute_offset_full_loudness_boost_when_peak_has_lots_of_room() {
+    // RMS -28, peak -25: want +12 for loudness, allowed +24 by peak. Loudness wins.
+    assert!((compute_offset_db(-28.0, -25.0) - 12.0).abs() < 0.001);
 }
 
 #[test]
 fn compute_offset_clamps_to_zero_when_already_loud() {
-    // BOOST-ONLY policy: NAM that's already at or above target stays as-is.
-    assert_eq!(compute_offset_db(0.0), MIN_OFFSET_DB);
-    assert_eq!(compute_offset_db(-3.0), MIN_OFFSET_DB);
-    assert_eq!(compute_offset_db(-2.0), MIN_OFFSET_DB);
+    // RMS at target, peak at ceiling — nothing to do.
+    assert_eq!(compute_offset_db(TARGET_RMS_DBFS, PEAK_CEILING_DBFS), 0.0);
+    // RMS above target, peak above ceiling — boost-only, stays at 0.
+    assert_eq!(compute_offset_db(-10.0, 0.0), MIN_OFFSET_DB);
 }
 
 #[test]
-fn compute_offset_clamps_to_max_when_extremely_quiet() {
-    assert_eq!(compute_offset_db(-50.0), MAX_OFFSET_DB);
-    assert_eq!(compute_offset_db(-120.0), MAX_OFFSET_DB);
+fn compute_offset_clamps_to_max_when_signal_extremely_quiet() {
+    // Both metrics very low — boost saturates at MAX.
+    assert_eq!(compute_offset_db(-80.0, -80.0), MAX_OFFSET_DB);
+}
+
+#[test]
+fn rms_dbfs_zero_buffer_returns_floor() {
+    let buf = vec![0.0_f32; 1024];
+    assert_eq!(rms_dbfs(&buf), -120.0);
+}
+
+#[test]
+fn rms_dbfs_unity_dc_returns_zero() {
+    let buf = vec![1.0_f32; 1024];
+    assert!(rms_dbfs(&buf).abs() < 0.001);
 }
 
 #[test]
