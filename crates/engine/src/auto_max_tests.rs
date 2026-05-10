@@ -38,50 +38,76 @@ fn settle(state: &mut AutoMaxState, amplitude: f32, n: usize) -> Vec<f32> {
 }
 
 #[test]
-fn quiet_signal_is_boosted_toward_target_peak() {
+fn quiet_signal_is_boosted_toward_target_rms() {
     let mut s = AutoMaxState::with_enabled(SR, true);
-    // -20 dBFS tone — needs ≈ +19 dB to reach the -1 dBFS target,
-    // safely under the +24 dB boost cap.
-    let amp = 10.0_f32.powf(-20.0 / 20.0);
-    let out = settle(&mut s, amp, (SR as usize) * 2);
+    // -30 dBFS RMS sine wave (amplitude tracks RMS for full-scale
+    // square-ish signal in `settle`). Wants +18 dB to hit -12 RMS,
+    // peak ceiling +6 dBFS leaves ~36 dB of headroom — RMS target
+    // is the binding constraint.
+    let amp = 10.0_f32.powf(-30.0 / 20.0);
+    let out = settle(&mut s, amp, (SR as usize) * 3);
     let tail = &out[out.len() - (SR as usize / 2)..];
-    let final_peak = peak(tail);
-    let final_db = lin_to_db(final_peak);
+    let final_rms_db = lin_to_db(rms(tail));
     assert!(
-        (final_db - TARGET_PEAK_DBFS).abs() < 1.5,
-        "quiet signal should reach target peak; got {final_db:.2} dBFS"
+        (final_rms_db - TARGET_RMS_DBFS).abs() < 1.5,
+        "quiet signal should reach RMS target; got {final_rms_db:.2} dBFS"
     );
 }
 
 #[test]
 fn loud_signal_is_left_alone() {
     let mut s = AutoMaxState::with_enabled(SR, true);
-    // Already at target peak — auto-max should NOT attenuate.
-    let amp = 10.0_f32.powf(TARGET_PEAK_DBFS / 20.0);
+    // Already at RMS target — auto-max should not attenuate.
+    let amp = 10.0_f32.powf(TARGET_RMS_DBFS / 20.0);
     let out = settle(&mut s, amp, (SR as usize) * 2);
     let tail = &out[out.len() - (SR as usize / 2)..];
-    let final_peak = peak(tail);
-    // Should stay essentially the same — boost-only policy.
-    let delta_db = (lin_to_db(final_peak) - lin_to_db(amp)).abs();
+    let delta_db = (lin_to_db(rms(tail)) - TARGET_RMS_DBFS).abs();
     assert!(
-        delta_db < 0.5,
+        delta_db < 1.5,
         "loud signal must not be attenuated; Δ = {delta_db:.2} dB"
+    );
+}
+
+#[test]
+fn peak_ceiling_caps_high_crest_signal() {
+    let mut s = AutoMaxState::with_enabled(SR, true);
+    // Burst pattern: high peak, low RMS (crest factor ~ 20 dB).
+    // Auto-max should NOT push peak past PEAK_CEILING_DBFS chasing RMS.
+    let amp_peak = 0.05_f32; // -26 dBFS
+    let mut frames: Vec<AudioFrame> = Vec::with_capacity((SR as usize) * 3);
+    for i in 0..(SR as usize) * 3 {
+        // 1-in-100 samples carry the burst, the rest are zero — peak
+        // factor ~20 dB above RMS.
+        let v = if i % 100 == 0 { amp_peak } else { 0.0 };
+        let signed = if (i / 100) % 2 == 0 { v } else { -v };
+        frames.push(AudioFrame::Mono(signed));
+    }
+    s.process(&mut frames);
+    let tail: Vec<f32> = frames[frames.len() - (SR as usize / 2)..]
+        .iter()
+        .map(|f| match f {
+            AudioFrame::Mono(s) => *s,
+            _ => 0.0,
+        })
+        .collect();
+    let final_peak_db = lin_to_db(peak(&tail));
+    assert!(
+        final_peak_db <= PEAK_CEILING_DBFS + 1.0,
+        "peak ceiling should hold; got {final_peak_db:.2} dBFS"
     );
 }
 
 #[test]
 fn boost_is_capped_at_max() {
     let mut s = AutoMaxState::with_enabled(SR, true);
-    // Very quiet (-60 dBFS) but not silent — desired gain would be
-    // ~+59 dB, must clamp to MAX_BOOST_DB.
+    // Very quiet (-60 dBFS) but not silent. Desired RMS gain would
+    // be ~+48 dB; must clamp to MAX_BOOST_DB.
     let amp = 10.0_f32.powf(-60.0 / 20.0);
-    let out = settle(&mut s, amp, (SR as usize) * 2);
+    let out = settle(&mut s, amp, (SR as usize) * 3);
     let tail = &out[out.len() - (SR as usize / 2)..];
-    let final_peak = peak(tail);
-    let final_db = lin_to_db(final_peak);
-    let achieved_boost = final_db - (-60.0);
+    let achieved_boost = lin_to_db(rms(tail)) - (-60.0);
     assert!(
-        achieved_boost <= MAX_BOOST_DB + 0.5,
+        achieved_boost <= MAX_BOOST_DB + 1.0,
         "boost should be capped at {MAX_BOOST_DB} dB; got {achieved_boost:.2} dB"
     );
 }
@@ -116,7 +142,12 @@ fn silent_signal_does_not_explode_gain() {
 #[test]
 fn smooth_coefficients_are_in_unit_interval() {
     let s = AutoMaxState::with_enabled(SR, true);
-    for c in [s.attack_coeff, s.release_coeff, s.smooth_coeff] {
+    for c in [
+        s.rms_coeff,
+        s.peak_attack_coeff,
+        s.peak_release_coeff,
+        s.smooth_coeff,
+    ] {
         assert!(c > 0.0 && c < 1.0, "coeff out of range: {c}");
     }
 }

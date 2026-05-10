@@ -37,42 +37,57 @@ fn current_default_enabled() -> bool {
     RUNTIME_DEFAULT_ENABLED.load(Ordering::Relaxed)
 }
 
-/// Where every chain's running peak should land.
-pub const TARGET_PEAK_DBFS: f32 = -1.0;
+/// Loudness target — drives perceived volume. Chains with very
+/// different crest factors (clean Dumble vs saturated Bogner) only
+/// match by ear when their RMS converges, not their peak.
+pub const TARGET_RMS_DBFS: f32 = -12.0;
+
+/// Hard ceiling on the OUTPUT peak after the boost is applied.
+/// Loose enough to let high-crest signal reach the loudness target
+/// (a clean amp can need its peak above 0 dBFS to land at -12 dBFS
+/// RMS). The chain's brickwall limiter catches the rest.
+pub const PEAK_CEILING_DBFS: f32 = 6.0;
 
 /// Maximum boost the auto-max can apply, in dB.
 pub const MAX_BOOST_DB: f32 = 24.0;
 
-/// Envelope follower attack — how fast the running-peak follower
-/// reacts to a louder sample. Short so transients are caught.
-pub const ATTACK_MS: f32 = 5.0;
+/// RMS follower window — how many samples of history feed the
+/// running-RMS estimate. Long enough to track perceived loudness on
+/// guitar (which has slow envelopes), short enough that the gain
+/// settles within a second on a level change.
+pub const RMS_WINDOW_MS: f32 = 300.0;
 
-/// Envelope follower release — how fast the running-peak follower
-/// decays back when the signal gets quieter. Slow so the gain
-/// doesn't pump on note decays.
-pub const RELEASE_MS: f32 = 500.0;
+/// Peak follower attack — fast so the peak ceiling catches transients.
+pub const PEAK_ATTACK_MS: f32 = 1.0;
 
-/// Gain smoothing time — how fast the applied gain interpolates
-/// toward the desired gain. Slow enough to avoid zipper noise on
-/// step changes, fast enough to feel responsive when the user
-/// changes captures.
-pub const GAIN_SMOOTH_MS: f32 = 100.0;
+/// Peak follower release — slow so the peak ceiling doesn't release
+/// between transients and let bursts through.
+pub const PEAK_RELEASE_MS: f32 = 250.0;
 
-/// Below this peak (linear) the chain is treated as silent and the
-/// auto-max stops chasing — otherwise idle noise floor would get
-/// boosted to 0 dB and explode at the next note.
-const SILENCE_THRESHOLD_LIN: f32 = 1.0e-4; // ≈ -80 dBFS
+/// Gain smoothing time. Long enough to avoid zipper, short enough to
+/// feel responsive when the user changes amps.
+pub const GAIN_SMOOTH_MS: f32 = 200.0;
+
+/// Below this RMS (linear) the chain is treated as silent and the
+/// auto-max stops chasing — otherwise idle noise floor would be
+/// boosted to the RMS target and explode at the next note.
+const SILENCE_RMS_THRESHOLD_LIN: f32 = 1.0e-4; // ≈ -80 dBFS
 
 pub(crate) struct AutoMaxState {
-    /// Smoothed running peak (linear, |sample|).
+    /// Smoothed running mean-square (linear). RMS = sqrt(mean_square).
+    mean_square: f32,
+    /// Smoothed running peak (linear). Used as a guard so the boost
+    /// doesn't push the chain output past the peak ceiling.
     peak_envelope: f32,
     /// Applied gain (linear). Smoothed toward `desired_gain`.
     current_gain: f32,
     /// Pre-computed coefficients (sample-rate dependent).
-    attack_coeff: f32,
-    release_coeff: f32,
+    rms_coeff: f32,
+    peak_attack_coeff: f32,
+    peak_release_coeff: f32,
     smooth_coeff: f32,
-    target_peak_lin: f32,
+    target_rms_lin: f32,
+    peak_ceiling_lin: f32,
     max_gain_lin: f32,
     /// Frozen at construction time — flipping the global default mid-run
     /// shouldn't change a chain that's already processing audio.
@@ -86,12 +101,15 @@ impl AutoMaxState {
 
     pub(crate) fn with_enabled(sample_rate: f32, enabled: bool) -> Self {
         Self {
+            mean_square: 0.0,
             peak_envelope: 0.0,
             current_gain: 1.0,
-            attack_coeff: time_to_coeff(ATTACK_MS, sample_rate),
-            release_coeff: time_to_coeff(RELEASE_MS, sample_rate),
+            rms_coeff: time_to_coeff(RMS_WINDOW_MS, sample_rate),
+            peak_attack_coeff: time_to_coeff(PEAK_ATTACK_MS, sample_rate),
+            peak_release_coeff: time_to_coeff(PEAK_RELEASE_MS, sample_rate),
             smooth_coeff: time_to_coeff(GAIN_SMOOTH_MS, sample_rate),
-            target_peak_lin: db_to_lin(TARGET_PEAK_DBFS),
+            target_rms_lin: db_to_lin(TARGET_RMS_DBFS),
+            peak_ceiling_lin: db_to_lin(PEAK_CEILING_DBFS),
             max_gain_lin: db_to_lin(MAX_BOOST_DB),
             enabled,
         }
@@ -112,20 +130,34 @@ impl AutoMaxState {
     #[inline(always)]
     fn process_frame(&mut self, frame: &mut AudioFrame) {
         let frame_peak = frame_abs_peak(frame);
-        // Envelope follower (fast attack, slow release).
+        let frame_sq = frame_mean_square(frame);
+
+        // RMS follower — single-pole, RMS_WINDOW_MS time constant.
+        self.mean_square =
+            self.rms_coeff * self.mean_square + (1.0 - self.rms_coeff) * frame_sq;
+
+        // Peak follower — fast attack / slow release for the ceiling guard.
         if frame_peak > self.peak_envelope {
-            self.peak_envelope =
-                self.attack_coeff * self.peak_envelope + (1.0 - self.attack_coeff) * frame_peak;
+            self.peak_envelope = self.peak_attack_coeff * self.peak_envelope
+                + (1.0 - self.peak_attack_coeff) * frame_peak;
         } else {
-            self.peak_envelope =
-                self.release_coeff * self.peak_envelope + (1.0 - self.release_coeff) * frame_peak;
+            self.peak_envelope = self.peak_release_coeff * self.peak_envelope
+                + (1.0 - self.peak_release_coeff) * frame_peak;
         }
 
-        // Desired gain — boost-only, capped, and frozen on silence.
-        let desired_gain = if self.peak_envelope < SILENCE_THRESHOLD_LIN {
+        // Compute the boost from RMS, then guard with peak ceiling.
+        let rms = self.mean_square.sqrt();
+        let desired_gain = if rms < SILENCE_RMS_THRESHOLD_LIN {
             self.current_gain
         } else {
-            (self.target_peak_lin / self.peak_envelope)
+            let want_for_loudness = self.target_rms_lin / rms;
+            let allowed_by_peak = if self.peak_envelope > 1.0e-9 {
+                self.peak_ceiling_lin / self.peak_envelope
+            } else {
+                self.max_gain_lin
+            };
+            want_for_loudness
+                .min(allowed_by_peak)
                 .min(self.max_gain_lin)
                 .max(1.0)
         };
@@ -143,6 +175,14 @@ fn frame_abs_peak(frame: &AudioFrame) -> f32 {
     match frame {
         AudioFrame::Mono(s) => s.abs(),
         AudioFrame::Stereo([l, r]) => l.abs().max(r.abs()),
+    }
+}
+
+#[inline(always)]
+fn frame_mean_square(frame: &AudioFrame) -> f32 {
+    match frame {
+        AudioFrame::Mono(s) => s * s,
+        AudioFrame::Stereo([l, r]) => 0.5 * (l * l + r * r),
     }
 }
 
