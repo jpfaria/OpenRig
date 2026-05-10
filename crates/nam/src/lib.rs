@@ -1,3 +1,4 @@
+pub mod baked_loudness;
 pub mod from_package;
 pub mod loudness_probe;
 pub mod processor;

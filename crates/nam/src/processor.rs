@@ -238,6 +238,38 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
+/// Target output loudness all NAM amps/preamps are aligned to.
+/// Picked to match where the natively-loud captures (Bogner / Mesa /
+/// Friedman / etc.) sit by themselves, so we mostly boost the quiet
+/// captures up rather than attenuating the loud ones.
+pub const TARGET_LOUDNESS_DBFS: f32 = -10.0;
+
+/// Hard ceiling on the boost the loudness offset can apply. Even a
+/// bogus near-silence baked value can't push the model past +24 dB.
+const MAX_LOUDNESS_BOOST_DB: f32 = 24.0;
+
+/// Resolve the loudness offset for a NAM amp/preamp:
+/// 1. If the `.nam` carries `metadata.loudness` (NAM trainer ≥ 0.5),
+///    use it — it's a real LUFS-style measurement done with guitar
+///    training data.
+/// 2. Otherwise fall back to the runtime pink-noise probe.
+///
+/// Returns `(offset_db, source_label)` so callers can log which path
+/// was taken.
+pub(crate) unsafe fn compute_loudness_offset(
+    model_path: &str,
+    model: *mut NeuralModel,
+) -> (f32, &'static str) {
+    if let Some(baked) = crate::baked_loudness::read_loudness_dbfs(model_path) {
+        let raw = TARGET_LOUDNESS_DBFS - baked;
+        return (raw.clamp(0.0, MAX_LOUDNESS_BOOST_DB), "baked");
+    }
+    (
+        crate::loudness_probe::compute_or_lookup(model_path, model),
+        "probe",
+    )
+}
+
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
@@ -317,19 +349,17 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
-        // Loudness probe runs only for amp/preamp categories. For gain
-        // pedals (TS9 / overdrive / fuzz / boost), the probe sees a
-        // very low pink-noise output and prescribes +15-+17 dB of gain
-        // — which then stacks with the downstream amp's own gain into
-        // a screaming feedback loop. So those keep the baked
-        // recommendation and ride at the capture's native level.
-        let loudness_offset_db = if loudness_normalize {
-            unsafe { crate::loudness_probe::compute_or_lookup(model_path, model) }
+        // Loudness alignment runs only for amp/preamp. Gain pedals
+        // (TS9 / overdrive / fuzz / boost) stack with the downstream
+        // amp's own gain — boosting them is what causes feedback
+        // loops (Basket Case TS9 → Marshall regression).
+        let (loudness_offset_db, loudness_source) = if loudness_normalize {
+            unsafe { compute_loudness_offset(model_path, model) }
         } else {
-            0.0
+            (0.0, "none")
         };
         let baked_output_db = if loudness_normalize {
-            // Loudness probe replaces the baked recommendation;
+            // Loudness alignment replaces the baked recommendation;
             // applying both double-corrects.
             0.0
         } else {
@@ -341,12 +371,12 @@ impl NamProcessor {
             db_to_lin(params.output_level_db + baked_output_db + loudness_offset_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:.1}dB, baked_output={:.1}dB, loudness_offset={:.1}dB (normalize={})",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB, loudness_offset={:+.2}dB ({})",
             model_path,
             recommended_input_db,
             baked_output_db,
             loudness_offset_db,
-            loudness_normalize,
+            loudness_source,
         );
 
         Ok(Self {
