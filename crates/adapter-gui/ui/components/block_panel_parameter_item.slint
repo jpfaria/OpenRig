@@ -35,11 +35,11 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Enum ≤4 options (selector knob + inline labels) ──
     if root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 : Rectangle {
-        x: 0; y: 14px;
+        x: 0; y: 4px;
         width: parent.width; height: 76px;
         background: transparent;
 
-        property <length> ks: 46px;
+        property <length> ks: 36px;
         property <length> cx: self.width / 2;
         property <length> top-row: 0px;
         property <length> knob-y: 14px;
@@ -302,10 +302,10 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Boolean toggle (sprite) ──
     if root.param.widget_kind == "bool" : ToggleSwitch {
-        x: (parent.width - 40px) / 2;
-        y: 18px;
-        width: 40px;
-        height: 70px;
+        x: (parent.width - 26px) / 2;
+        y: 24px;
+        width: 26px;
+        height: 50px;
         checked: root.param.bool_value;
         toggled => { root.update-bool(root.param.path, !root.param.bool_value); }
     }
