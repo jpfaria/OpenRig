@@ -16,6 +16,16 @@ Sources:
 
 Princípios gerais de UI (responsividade, separação business/presentation, zero coupling) vivem em `openrig-code-quality`. As regras Slint-específicas do projeto:
 
+## Quality Gate (issue #404)
+
+`scripts/qa.sh` (que roda também no CI via `.github/workflows/pr.yml`) inclui `cargo build --workspace --all-targets` — qualquer erro de compilação Slint quebra o gate. Antes de qualquer `git push`:
+
+```bash
+./scripts/qa.sh
+```
+
+Falha em CI vira sticky comment + request-changes formal. Detalhes em `docs/development/quality-gate.md`.
+
 ## File Size — 500 lines per `.slint` (hard cap)
 
 `./scripts/validate.sh` enforces ≤ 500 lines for every `.slint`. Se um arquivo passa, **dividir** antes de adicionar mais qualquer coisa. Esta é a operacionalização Slint do princípio "one responsibility per file" do `openrig-code-quality`.
