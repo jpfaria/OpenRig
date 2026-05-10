@@ -181,7 +181,7 @@ export component CompactBlockRow inherits Rectangle {
 
             PanelKnob {
                 x: 2px; y: 14px;
-                width: 58px; height: 76px;
+                width: 42px; height: 60px;
                 value: knob.value;
                 min-val: knob.min_val;
                 max-val: knob.max_val;
@@ -261,7 +261,7 @@ export component CompactBlockRow inherits Rectangle {
             // ── Numeric knob/stepper/slider ──
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
                 x: 2px; y: 23px;
-                width: 52px; height: 68px;
+                width: 38px; height: 52px;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
                 max-val: param.numeric_max;
