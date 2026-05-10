@@ -70,7 +70,9 @@ jobs:
 
       - name: Run comparative gate (qa-comparative.sh)
         id: comparative
-        run: bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
+        run: |
+          mkdir -p target/qa-logs
+          bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
 
       - name: Upload qa logs
         if: always()

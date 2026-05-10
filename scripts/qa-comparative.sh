@@ -44,14 +44,26 @@ mkdir -p "$LOG_DIR"
 # Cada função SEMPRE retorna um único inteiro >= 0 em stdout. Se algo dá
 # errado (subshell, cd, cargo morre cedo), o fallback printf garante "0".
 
+# Robusto count via grep; sempre retorna inteiro >= 0.
+# grep -c imprime contagem em stdout E pode sair 1 quando 0 matches; nunca
+# sobrepor stdout com `|| echo 0` — usar `|| n=0` no caller.
+_grep_count() {
+  local pattern="$1" file="$2"
+  local n
+  if n=$(grep -cE "$pattern" "$file" 2>/dev/null); then
+    : # n already set
+  else
+    n=0
+  fi
+  printf '%d\n' "${n:-0}"
+}
+
 # Count fmt-violating files.
 count_fmt_errors() {
   local dir="$1" log="$2"
   : > "$log"
   ( cd "$dir" && cargo fmt --all -- --check ) > "$log" 2>&1 || true
-  local n
-  n=$(grep -cE '^Diff in ' "$log" 2>/dev/null || echo 0)
-  printf '%d\n' "${n:-0}"
+  _grep_count '^Diff in ' "$log"
 }
 
 # Count clippy errors with -D warnings (without complexity flags).
@@ -66,9 +78,7 @@ count_clippy_errors() {
       -A clippy::too_many_arguments \
       -A clippy::type_complexity
   ) > "$log" 2>&1 || true
-  local n
-  n=$(grep -cE '^error(\[|:)' "$log" 2>/dev/null || echo 0)
-  printf '%d\n' "${n:-0}"
+  _grep_count '^error(\[|:)' "$log"
 }
 
 # Count build errors.
@@ -76,9 +86,7 @@ count_build_errors() {
   local dir="$1" log="$2"
   : > "$log"
   ( cd "$dir" && cargo build --workspace --all-targets ) > "$log" 2>&1 || true
-  local n
-  n=$(grep -cE '^error(\[|:)' "$log" 2>/dev/null || echo 0)
-  printf '%d\n' "${n:-0}"
+  _grep_count '^error(\[|:)' "$log"
 }
 
 # Count failing tests.
@@ -106,9 +114,7 @@ count_complexity() {
       -W clippy::too_many_arguments \
       -W clippy::type_complexity
   ) > "$log" 2>&1 || true
-  local n
-  n=$(grep -cE 'cognitive complexity|too many lines|too many arguments|type complexity' "$log" 2>/dev/null || echo 0)
-  printf '%d\n' "${n:-0}"
+  _grep_count 'cognitive complexity|too many lines|too many arguments|type complexity' "$log"
 }
 
 # Measure coverage % (lines). Always returns a number (0 if anything fails).
@@ -126,7 +132,7 @@ measure_coverage() {
 # ─── Run all measurements ───────────────────────────────────────────────────
 
 echo "── measuring base ──"
-base_fmt=$(count_fmt_errors "$BASELINE_DIR")
+base_fmt=$(count_fmt_errors "$BASELINE_DIR" "$LOG_DIR/base-fmt.log")
 base_clippy=$(count_clippy_errors "$BASELINE_DIR" "$LOG_DIR/base-clippy.log")
 base_build=$(count_build_errors "$BASELINE_DIR" "$LOG_DIR/base-build.log")
 base_tests=$(count_test_failures "$BASELINE_DIR" "$LOG_DIR/base-test.log")
@@ -134,7 +140,7 @@ base_complex=$(count_complexity "$BASELINE_DIR" "$LOG_DIR/base-complex.log")
 base_cov=$(measure_coverage "$BASELINE_DIR" "$LOG_DIR/base-cov.json")
 
 echo "── measuring PR ──"
-pr_fmt=$(count_fmt_errors ".")
+pr_fmt=$(count_fmt_errors "." "$LOG_DIR/pr-fmt.log")
 pr_clippy=$(count_clippy_errors "." "$LOG_DIR/pr-clippy.log")
 pr_build=$(count_build_errors "." "$LOG_DIR/pr-build.log")
 pr_tests=$(count_test_failures "." "$LOG_DIR/pr-test.log")
