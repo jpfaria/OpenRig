@@ -17,13 +17,13 @@ fn pink_noise_differs_for_different_seeds() {
 }
 
 #[test]
-fn pink_noise_normalised_to_target_rms() {
+fn pink_noise_normalised_to_target_peak() {
     let buf = pink_noise_buffer(8192, 0xC0FFEE);
-    let rms = (buf.iter().map(|s| s * s).sum::<f32>() / buf.len() as f32).sqrt();
-    let rms_db = 20.0 * rms.log10();
+    let peak = buf.iter().fold(0.0_f32, |acc, s| acc.max(s.abs()));
+    let peak_db = 20.0 * peak.log10();
     assert!(
-        (rms_db - PROBE_RMS_DBFS).abs() < 0.5,
-        "rms_db={rms_db}, expected ~{PROBE_RMS_DBFS}"
+        (peak_db - PROBE_INPUT_PEAK_DBFS).abs() < 0.01,
+        "peak_db={peak_db}, expected ~{PROBE_INPUT_PEAK_DBFS}"
     );
 }
 
@@ -51,7 +51,8 @@ fn compute_offset_typical_case() {
 }
 
 #[test]
-fn compute_offset_clamps_to_min_when_already_loud() {
+fn compute_offset_clamps_to_zero_when_already_loud() {
+    // BOOST-ONLY policy: NAM that's already at or above target stays as-is.
     assert_eq!(compute_offset_db(0.0), MIN_OFFSET_DB);
     assert_eq!(compute_offset_db(-3.0), MIN_OFFSET_DB);
     assert_eq!(compute_offset_db(-2.0), MIN_OFFSET_DB);

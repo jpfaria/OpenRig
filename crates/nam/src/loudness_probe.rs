@@ -14,9 +14,22 @@ use block_core::lin_to_db;
 
 use crate::processor::{nam_process, NeuralModel};
 
+/// Where every NAM output peak should land after the probe-derived
+/// gain is applied. Conservative headroom below 0 dBFS so real guitar
+/// peaks (which can exceed pink-noise peaks by a few dB) don't clip
+/// the DAC.
 pub const TARGET_PEAK_DBFS: f32 = -3.0;
-pub const PROBE_RMS_DBFS: f32 = -12.0;
+
+/// Peak amplitude of the pink-noise probe at the model input. Picked
+/// to roughly mirror "instrument-level" guitar peaks so the model
+/// saturates the way it would in real use.
+pub const PROBE_INPUT_PEAK_DBFS: f32 = -12.0;
+
 pub const PROBE_SAMPLES: usize = 96_000;
+
+/// The probe is BOOST-ONLY. A NAM that already comes baked at or above
+/// the target is left alone — "se o nam veio alto, ele veio no maximo".
+/// Quiet captures get pushed up; loud captures stay where they are.
 pub const MIN_OFFSET_DB: f32 = 0.0;
 pub const MAX_OFFSET_DB: f32 = 24.0;
 
@@ -68,17 +81,17 @@ fn pink_noise_buffer(samples: usize, seed: u64) -> Vec<f32> {
         let pink = rolls.iter().sum::<f32>() + rng.next_f32_signed();
         buf.push(pink);
     }
-    normalize_to_rms_dbfs(&mut buf, PROBE_RMS_DBFS);
+    normalize_to_peak_dbfs(&mut buf, PROBE_INPUT_PEAK_DBFS);
     buf
 }
 
-fn normalize_to_rms_dbfs(buf: &mut [f32], target_dbfs: f32) {
-    let rms = (buf.iter().map(|s| s * s).sum::<f32>() / buf.len() as f32).sqrt();
-    if rms == 0.0 {
+fn normalize_to_peak_dbfs(buf: &mut [f32], target_dbfs: f32) {
+    let peak = buf.iter().fold(0.0_f32, |acc, s| acc.max(s.abs()));
+    if peak == 0.0 {
         return;
     }
     let target_lin = 10.0_f32.powf(target_dbfs / 20.0);
-    let scale = target_lin / rms;
+    let scale = target_lin / peak;
     for s in buf.iter_mut() {
         *s *= scale;
     }
