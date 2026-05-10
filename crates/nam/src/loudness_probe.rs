@@ -20,11 +20,13 @@ use crate::processor::{nam_process, NeuralModel};
 /// quiet captures up to where the hot ones already were.
 pub const TARGET_RMS_DBFS: f32 = -10.0;
 
-/// Sample-peak ceiling AFTER the probe gain is applied. Set just
-/// above 0 dBFS — the chain's brickwall limiter catches the residual
-/// peaks. Without that allowance the peak ceiling becomes the binding
-/// constraint and the loudness target is never reached.
-pub const PEAK_CEILING_DBFS: f32 = 1.0;
+/// Sample-peak ceiling AFTER the probe gain is applied. Set well
+/// above 0 dBFS so the loudness target is reachable for clean amps
+/// with high crest factor (ex: Dumble Steel-String Singer needs ~7 dB
+/// of boost; with a -1 ceiling the peak constraint clamps boost long
+/// before RMS catches up). The chain's brickwall limiter catches the
+/// residual transients.
+pub const PEAK_CEILING_DBFS: f32 = 3.0;
 
 /// Peak amplitude of the pink-noise probe at the model input. Picked
 /// to roughly mirror "instrument-level" guitar peaks so the model

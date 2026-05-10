@@ -248,22 +248,22 @@ pub const TARGET_LOUDNESS_DBFS: f32 = -10.0;
 /// bogus near-silence baked value can't push the model past +24 dB.
 const MAX_LOUDNESS_BOOST_DB: f32 = 24.0;
 
-/// Resolve the loudness offset for a NAM amp/preamp:
-/// 1. If the `.nam` carries `metadata.loudness` (NAM trainer ≥ 0.5),
-///    use it — it's a real LUFS-style measurement done with guitar
-///    training data.
-/// 2. Otherwise fall back to the runtime pink-noise probe.
+/// Resolve the loudness offset for a NAM amp/preamp.
 ///
-/// Returns `(offset_db, source_label)` so callers can log which path
-/// was taken.
+/// We use the runtime pink-noise probe (see `loudness_probe`), NOT the
+/// baked `metadata.loudness` field in the .nam JSON header. Different
+/// trainers report `metadata.loudness` against different reference
+/// signals — wendycabs's Dumble Steel-String Singer reads -10.57 dBFS
+/// but actually outputs ~6 dB lower than 2dor's Bogner Ecstasy at the
+/// SAME baked value. The probe gives consistent numbers because it
+/// always feeds the same probe stimulus to every model.
+///
+/// `baked_loudness::read_loudness_dbfs` is kept around as diagnostics
+/// (used by the `probe_dump` example) but does NOT drive runtime gain.
 pub(crate) unsafe fn compute_loudness_offset(
     model_path: &str,
     model: *mut NeuralModel,
 ) -> (f32, &'static str) {
-    if let Some(baked) = crate::baked_loudness::read_loudness_dbfs(model_path) {
-        let raw = TARGET_LOUDNESS_DBFS - baked;
-        return (raw.clamp(0.0, MAX_LOUDNESS_BOOST_DB), "baked");
-    }
     (
         crate::loudness_probe::compute_or_lookup(model_path, model),
         "probe",
