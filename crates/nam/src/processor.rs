@@ -183,8 +183,16 @@ pub fn plugin_params_from_set_with_defaults(
 
 /// Opaque model handle from NeuralAudioCAPI
 #[repr(C)]
-struct NeuralModel {
+pub(crate) struct NeuralModel {
     _opaque: [u8; 0],
+}
+
+/// Safe-ish wrapper around the FFI `Process` for use by sibling modules
+/// (loudness probe). Caller must guarantee `model` is a live pointer and
+/// the slices are equally sized.
+pub(crate) unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
+    debug_assert_eq!(input.len(), output.len());
+    Process(model, input.as_ptr(), output.as_mut_ptr(), input.len());
 }
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
@@ -252,15 +260,18 @@ impl NamProcessor {
 
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
+        let loudness_offset_db = unsafe { crate::loudness_probe::compute_or_lookup(model_path, model) };
 
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
+        let output_gain =
+            db_to_lin(params.output_level_db + recommended_output_db + loudness_offset_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB",
+            "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB, loudness_offset={:.1}dB",
             model_path,
             recommended_input_db,
-            recommended_output_db
+            recommended_output_db,
+            loudness_offset_db
         );
 
         Ok(Self {

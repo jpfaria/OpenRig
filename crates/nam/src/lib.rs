@@ -1,4 +1,5 @@
 pub mod from_package;
+mod loudness_probe;
 pub mod processor;
 
 pub use from_package::{build_from_package, register_builder};
