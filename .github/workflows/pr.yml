@@ -82,6 +82,10 @@ jobs:
           path: target/qa-logs/
           if-no-files-found: ignore
 
+      - name: Generate lcov.info for Codecov (reuses PR coverage run)
+        if: success()
+        run: cargo llvm-cov report --lcov --output-path lcov.info
+
       - name: Upload coverage to Codecov
         if: success()
         uses: codecov/codecov-action@v5
