@@ -9,10 +9,10 @@
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
-use plugin_loader::manifest::{Backend, GridParameter};
+use plugin_loader::manifest::{Backend, BlockType, GridParameter};
 use plugin_loader::LoadedPackage;
 
-use crate::build_processor_with_assets_for_layout;
+use crate::build_processor_with_assets_for_layout_normalized;
 use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
 
 /// Knob names a NAM gain pedal exposes that, when set to the lower bound
@@ -66,9 +66,22 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Loudness alignment is computed by `NamProcessor::new` itself via
-    // `loudness_probe` — no per-package field read here.
-    build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
+    // Loudness probe runs only for amp/preamp categories. Gain pedals
+    // (TS9 / OD / fuzz / boost) ride at their baked level — boosting
+    // them upstream of the amp produces a feedback-prone gain stack
+    // (see Basket Case microphonics regression).
+    let loudness_normalize = matches!(
+        package.manifest.block_type,
+        BlockType::Amp | BlockType::Preamp
+    );
+    build_processor_with_assets_for_layout_normalized(
+        model_path_str,
+        None,
+        plugin_params,
+        sample_rate,
+        layout,
+        loudness_normalize,
+    )
 }
 
 /// Returns true if any of the [`ZERO_PASSTHROUGH_KNOBS`] is declared in

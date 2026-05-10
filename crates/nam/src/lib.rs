@@ -47,15 +47,36 @@ pub fn build_processor_with_assets_for_layout(
     model_path: &str,
     ir_path: Option<&str>,
     plugin_params: NamPluginParams,
-    _sample_rate: f32,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
+    build_processor_with_assets_for_layout_normalized(
+        model_path,
+        ir_path,
+        plugin_params,
+        sample_rate,
+        layout,
+        false,
+    )
+}
+
+pub fn build_processor_with_assets_for_layout_normalized(
+    model_path: &str,
+    ir_path: Option<&str>,
+    plugin_params: NamPluginParams,
+    _sample_rate: f32,
+    layout: AudioChannelLayout,
+    loudness_normalize: bool,
+) -> Result<BlockProcessor> {
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(NamProcessor::new(
-            model_path,
-            ir_path,
-            plugin_params,
-        )?))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(
+            NamProcessor::new_with_loudness_normalize(
+                model_path,
+                ir_path,
+                plugin_params,
+                loudness_normalize,
+            )?,
+        ))),
         AudioChannelLayout::Stereo => {
             bail!("the NAM processor is mono-native and cannot build native stereo processing")
         }

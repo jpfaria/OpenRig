@@ -279,7 +279,19 @@ impl Drop for NamProcessor {
 }
 
 impl NamProcessor {
-    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
+    pub fn new(model_path: &str, ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
+        // Default: no loudness normalisation. Loudness alignment is an
+        // amp/preamp concern; gain pedals and other categories must opt
+        // in via [`Self::new_with_loudness_normalize`].
+        Self::new_with_loudness_normalize(model_path, ir_path, params, false)
+    }
+
+    pub fn new_with_loudness_normalize(
+        model_path: &str,
+        _ir_path: Option<&str>,
+        params: NamPluginParams,
+        loudness_normalize: bool,
+    ) -> Result<Self> {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
         let model = {
@@ -304,18 +316,37 @@ impl NamProcessor {
 
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
-        let loudness_offset_db = unsafe { crate::loudness_probe::compute_or_lookup(model_path, model) };
+
+        // Loudness probe runs only for amp/preamp categories. For gain
+        // pedals (TS9 / overdrive / fuzz / boost), the probe sees a
+        // very low pink-noise output and prescribes +15-+17 dB of gain
+        // — which then stacks with the downstream amp's own gain into
+        // a screaming feedback loop. So those keep the baked
+        // recommendation and ride at the capture's native level.
+        let loudness_offset_db = if loudness_normalize {
+            unsafe { crate::loudness_probe::compute_or_lookup(model_path, model) }
+        } else {
+            0.0
+        };
+        let baked_output_db = if loudness_normalize {
+            // Loudness probe replaces the baked recommendation;
+            // applying both double-corrects.
+            0.0
+        } else {
+            recommended_output_db
+        };
 
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
         let output_gain =
-            db_to_lin(params.output_level_db + recommended_output_db + loudness_offset_db);
+            db_to_lin(params.output_level_db + baked_output_db + loudness_offset_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB, loudness_offset={:.1}dB",
+            "NAM model loaded: '{}', input_adj={:.1}dB, baked_output={:.1}dB, loudness_offset={:.1}dB (normalize={})",
             model_path,
             recommended_input_db,
-            recommended_output_db,
-            loudness_offset_db
+            baked_output_db,
+            loudness_offset_db,
+            loudness_normalize,
         );
 
         Ok(Self {
