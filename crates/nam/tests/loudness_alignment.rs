@@ -124,6 +124,65 @@ fn build_two_rock() -> BlockProcessor {
         .expect("build Two-Rock")
 }
 
+fn build_klon_centaur() -> BlockProcessor {
+    let pkg = load_pkg("klon_centaur");
+    let params = ParameterSet::default();
+    nam::from_package::build_from_package(&pkg, &params, 48_000.0, AudioChannelLayout::Mono)
+        .expect("build Klon Centaur")
+}
+
+fn build_ts9_default() -> BlockProcessor {
+    let pkg = load_pkg("ibanez_ts9");
+    // TS9 has axes for drive/tone/level — pick a typical "drive 7" capture.
+    let mut params = ParameterSet::default();
+    params.insert("drive", ParameterValue::Float(7.0));
+    params.insert("tone", ParameterValue::Float(7.0));
+    params.insert("level", ParameterValue::Float(7.0));
+    nam::from_package::build_from_package(&pkg, &params, 48_000.0, AudioChannelLayout::Mono)
+        .expect("build TS9")
+}
+
+fn build_proco_rat() -> BlockProcessor {
+    let pkg = load_pkg("proco_rat");
+    let params = ParameterSet::default();
+    nam::from_package::build_from_package(&pkg, &params, 48_000.0, AudioChannelLayout::Mono)
+        .expect("build ProCo RAT")
+}
+
+/// Run two mono processors back-to-back and return the second's output.
+fn chain_two(first: &mut BlockProcessor, second: &mut BlockProcessor, input: &[f32]) -> Vec<f32> {
+    let mid = run(first, input);
+    run(second, &mid)
+}
+
+/// Like `assert_aligned` but for chains (gain pedal → amp). Each entry
+/// is `(label, gain_pedal, amp)`. The gain pedal is processed first
+/// then fed into the amp — same topology as the user's chains.
+fn assert_chain_aligned(
+    mut entries: Vec<(&'static str, BlockProcessor, BlockProcessor)>,
+    tolerance_db: f32,
+) {
+    let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
+    let mut measurements = Vec::new();
+    for (name, mut pedal, mut amp) in entries.drain(..) {
+        let out = chain_two(&mut pedal, &mut amp, &input);
+        let pk = peak_dbfs(&out);
+        let rms = rms_dbfs(&out);
+        eprintln!("{name:48} peak={pk:+.2}  rms={rms:+.2}");
+        measurements.push((name, rms));
+    }
+    let max = measurements.iter().map(|(_, r)| *r).fold(f32::MIN, f32::max);
+    let min = measurements.iter().map(|(_, r)| *r).fold(f32::MAX, f32::min);
+    let spread = max - min;
+    eprintln!("chain RMS spread: {spread:+.2} dB");
+    assert!(
+        spread <= tolerance_db,
+        "chain RMS spread {spread:.2} dB exceeds tolerance {tolerance_db:.2} dB. \
+         Means a gain pedal upstream pushes one amp into much louder saturation \
+         than another — probe measures amps in isolation, doesn't see that."
+    );
+}
+
 fn build_bogner_ecstasy_drive_red() -> BlockProcessor {
     let pkg = load_pkg("bogner_ecstasy");
     let mut params = ParameterSet::default();
@@ -172,5 +231,41 @@ fn dumble_vs_bogner_lineup_must_align() {
             ("Two-Rock Studio Signature", build_two_rock()),
         ],
         2.0,
+    );
+}
+
+#[test]
+#[ignore]
+fn dumble_vs_bogner_with_gain_pedal_in_front_must_align() {
+    // Same gain pedal, swap amp downstream — what the user actually
+    // does in the chain (klon → Dumble vs klon → Bogner).
+    assert_chain_aligned(
+        vec![
+            ("Klon → Dumble", build_klon_centaur(), build_dumble_clean()),
+            (
+                "Klon → Bogner Synergy",
+                build_klon_centaur(),
+                build_bogner_synergy(),
+            ),
+            (
+                "Klon → Bogner Ecstasy",
+                build_klon_centaur(),
+                build_bogner_ecstasy_drive_red(),
+            ),
+            ("Klon → Two-Rock", build_klon_centaur(), build_two_rock()),
+            ("TS9 → Dumble", build_ts9_default(), build_dumble_clean()),
+            (
+                "TS9 → Bogner Ecstasy",
+                build_ts9_default(),
+                build_bogner_ecstasy_drive_red(),
+            ),
+            ("RAT → Dumble", build_proco_rat(), build_dumble_clean()),
+            (
+                "RAT → Bogner Ecstasy",
+                build_proco_rat(),
+                build_bogner_ecstasy_drive_red(),
+            ),
+        ],
+        3.0,
     );
 }
