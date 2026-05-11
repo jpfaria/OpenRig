@@ -246,6 +246,7 @@ fn process_single_segment(
         fade_in_remaining,
         output_route_indices,
         split_mono_sibling_count,
+        auto_max,
     } = input_state;
 
     frame_buffer.clear();
@@ -271,6 +272,13 @@ fn process_single_segment(
     for block in blocks.iter_mut() {
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
     }
+
+    // Per-chain auto-max loudness (issue #402): boost-only follower
+    // brings the chain output to a uniform peak target regardless of
+    // the amp/pedal/preamp combination the user picked. Runs AFTER
+    // the user's last block but BEFORE stream taps and mixdown so
+    // analysers and downstream output see the normalised signal.
+    auto_max.process(frame_buffer.as_mut_slice());
 
     // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window
     // subscribes per-stream so it can show one analyzer per input source
