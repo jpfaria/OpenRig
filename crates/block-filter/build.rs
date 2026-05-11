@@ -126,4 +126,3 @@ fn parse_plugin_binary_const(line: &str) -> Option<String> {
     let end = rest.find('"')?;
     Some(rest[..end].to_string())
 }
-

@@ -200,6 +200,10 @@ pub struct Vst3Parameter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParameterValue {
+    /// Order matters for serde untagged: try `Bool` before `Number`/`Text`,
+    /// otherwise `true`/`false` would deserialize to `Text("true")` and the
+    /// grid parameter would render as a string enum instead of a toggle.
+    Bool(bool),
     Number(f64),
     Text(String),
 }
@@ -207,6 +211,7 @@ pub enum ParameterValue {
 impl PartialEq for ParameterValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::Bool(a), Self::Bool(b)) => a == b,
             (Self::Number(a), Self::Number(b)) => a.to_bits() == b.to_bits(),
             (Self::Text(a), Self::Text(b)) => a == b,
             _ => false,
@@ -218,12 +223,16 @@ impl Eq for ParameterValue {}
 impl std::hash::Hash for ParameterValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            Self::Number(value) => {
+            Self::Bool(value) => {
                 state.write_u8(0);
+                state.write_u8(if *value { 1 } else { 0 });
+            }
+            Self::Number(value) => {
+                state.write_u8(1);
                 state.write_u64(value.to_bits());
             }
             Self::Text(value) => {
-                state.write_u8(1);
+                state.write_u8(2);
                 value.hash(state);
             }
         }

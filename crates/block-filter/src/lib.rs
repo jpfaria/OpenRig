@@ -93,4 +93,3 @@ pub fn register_natives() {
 pub fn is_filter_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
-
