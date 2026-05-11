@@ -57,21 +57,22 @@ pub fn is_runtime_default_enabled() -> bool {
 /// gap: clean chains (heartbreak warfare) feeling much quieter than
 /// saturated ones (basket case). A higher target lifts the cleans
 /// up to where the saturated already are.
-pub const TARGET_RMS_DBFS: f32 = -6.0;
+pub const TARGET_RMS_DBFS: f32 = -3.0;
 
-/// Hard ceiling on the OUTPUT peak after the boost is applied.
-/// Sits BELOW 0 dBFS so the chain output never feeds an out-of-range
-/// sample to the device driver — independent of whether the chain
-/// has a brickwall limiter at the end. A higher ceiling (eg +6 dBFS,
-/// "trust the limiter") was tried in #402 and produced an audible
-/// chiado on transients in chains without a limiter (issue #413):
-/// the OS DAC clipped what the auto-max allowed through.
-///
-/// Trade-off: clean signal with very high crest factor may now hit
-/// the peak ceiling before the RMS reaches the loudness target —
-/// final RMS lands a couple of dB under -12 dBFS for those, but the
-/// device output is always safe.
-pub const PEAK_CEILING_DBFS: f32 = -0.5;
+/// Soft-knee target for the follower's `allowed_by_peak` calculation.
+/// Conservative — the boost stops growing once the peak follower
+/// reaches this value, BUT individual samples can still ride above
+/// it (see `HARD_CAP_DBFS` below) because the soft saturator
+/// compresses them smoothly. Net effect: clean signals with high
+/// crest factor reach the loudness target via transient saturation
+/// without the gain follower itself running the chain hot.
+pub const PEAK_CEILING_DBFS: f32 = -3.0;
+
+/// Absolute hard cap on any output sample, after gain. Sits just
+/// under 0 dBFS to give the OS DAC its minimum safety margin. The
+/// soft saturator compresses samples between `PEAK_CEILING_DBFS` and
+/// this cap with a tanh knee — no sample ever exceeds the cap.
+pub const HARD_CAP_DBFS: f32 = -0.1;
 
 /// Maximum boost the auto-max can apply, in dB.
 pub const MAX_BOOST_DB: f32 = 24.0;
@@ -113,6 +114,7 @@ pub struct AutoMaxState {
     smooth_coeff: f32,
     target_rms_lin: f32,
     peak_ceiling_lin: f32,
+    hard_cap_lin: f32,
     max_gain_lin: f32,
     /// Frozen at construction time — flipping the global default mid-run
     /// shouldn't change a chain that's already processing audio.
@@ -135,6 +137,7 @@ impl AutoMaxState {
             smooth_coeff: time_to_coeff(GAIN_SMOOTH_MS, sample_rate),
             target_rms_lin: db_to_lin(TARGET_RMS_DBFS),
             peak_ceiling_lin: db_to_lin(PEAK_CEILING_DBFS),
+            hard_cap_lin: db_to_lin(HARD_CAP_DBFS),
             max_gain_lin: db_to_lin(MAX_BOOST_DB),
             enabled,
         }
@@ -195,8 +198,14 @@ impl AutoMaxState {
             self.current_gain
         } else {
             let want_for_loudness = self.target_rms_lin / rms;
+            // `allowed_by_peak` uses the HARD CAP, not the knee — the
+            // soft saturator catches everything between `peak_ceiling`
+            // and `hard_cap`, so the gain is free to push the running
+            // peak right up to the cap. Using the knee here would
+            // stall the boost too early and leave clean signal short
+            // of the loudness target.
             let allowed_by_peak = if guard_peak > 1.0e-9 {
-                self.peak_ceiling_lin / guard_peak
+                self.hard_cap_lin / guard_peak
             } else {
                 self.max_gain_lin
             };
@@ -219,7 +228,12 @@ impl AutoMaxState {
         // produced by the clamp is bounded to the brief overshoot
         // window (a few ms at most) and is the source of the chiado
         // reported in #413.
-        apply_gain_with_ceiling(frame, self.current_gain, self.peak_ceiling_lin);
+        apply_gain_with_ceiling(
+            frame,
+            self.current_gain,
+            self.peak_ceiling_lin,
+            self.hard_cap_lin,
+        );
     }
 }
 
@@ -240,37 +254,34 @@ fn frame_mean_square(frame: &AudioFrame) -> f32 {
 }
 
 #[inline(always)]
-fn apply_gain_with_ceiling(frame: &mut AudioFrame, g: f32, ceiling: f32) {
+fn apply_gain_with_ceiling(frame: &mut AudioFrame, g: f32, knee: f32, hard_cap: f32) {
     match frame {
-        AudioFrame::Mono(s) => *s = soft_saturate(*s * g, ceiling),
+        AudioFrame::Mono(s) => *s = soft_saturate(*s * g, knee, hard_cap),
         AudioFrame::Stereo([l, r]) => {
-            *l = soft_saturate(*l * g, ceiling);
-            *r = soft_saturate(*r * g, ceiling);
+            *l = soft_saturate(*l * g, knee, hard_cap);
+            *r = soft_saturate(*r * g, knee, hard_cap);
         }
     }
 }
 
-/// Soft-knee saturator with hard ceiling — linear up to half the
-/// ceiling, then smoothly approaches the ceiling via `tanh`. Output
-/// is bounded by `ceiling` in absolute value, but signals just above
-/// the knee suffer only musical 2nd-harmonic compression instead of
-/// the broad-band noise of a hard clamp.
+/// Soft-knee saturator — linear up to `knee`, then a tanh approach
+/// to `hard_cap`. Output never exceeds `hard_cap` in absolute value.
 ///
-/// Why this matters here (#413): clean amps have high crest factor
-/// (peak ≫ RMS). A hard clamp limits the peak and the RMS gets stuck
-/// well below the loudness target — clean chains sound much quieter
-/// than saturated ones, exactly the user's complaint. Soft saturation
-/// lets the clean peak ride above the linear region, so the RMS
-/// keeps climbing toward the target with only minor harmonic colour.
+/// Why two thresholds (#413): the follower's `allowed_by_peak` uses
+/// `knee` as the soft target — gain stops growing when the follower
+/// reaches it. But the gain is smoothed in time, so individual
+/// transient samples can land well above `knee` for short bursts.
+/// Letting them ride up to `hard_cap` (just under 0 dBFS) under a
+/// tanh curve preserves the loudness target's RMS for clean signals
+/// (which have peak ≫ RMS) without ever clipping the OS DAC.
 #[inline(always)]
-fn soft_saturate(x: f32, ceiling: f32) -> f32 {
+fn soft_saturate(x: f32, knee: f32, hard_cap: f32) -> f32 {
     let abs = x.abs();
-    let knee = 0.5 * ceiling;
     if abs <= knee {
         x
     } else {
         let sign = x.signum();
-        let range = ceiling - knee;
+        let range = hard_cap - knee;
         let over = abs - knee;
         sign * (knee + range * (over / range).tanh())
     }
