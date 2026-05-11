@@ -10,6 +10,3 @@ domain = { path = "../domain" }
 log.workspace = true
 [build-dependencies]
 cmake = "0.1"
-
-[dev-dependencies]
-serde_yaml.workspace = true

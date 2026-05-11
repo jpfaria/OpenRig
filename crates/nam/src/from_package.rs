@@ -66,14 +66,17 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Issue #413: nivelamento de loudness saiu do runtime (auto-max)
-    // e virou metadata estática no manifest, populada offline pela
-    // tool `nam_loudness_audit`. Cada plugin carrega o seu
-    // `output_gain_db` calculado contra um signal de teste
-    // consistente — somar aqui aplica o gain como multiplicação
-    // constante: sem follower, sem distortion, sem latência.
-    let manifest_gain_db = package.manifest.output_gain_db.unwrap_or(0.0);
-    plugin_params.output_level_db += manifest_gain_db;
+    // Issue #413: nivelamento de loudness é metadata estática no
+    // manifest (`output_gain_db`, populado offline por
+    // `tools/nam_loudness_audit`). Cuando presente, somamos no
+    // `output_level_db` E sinalizamos `external_loudness_aligned`
+    // pra o processor ignorar o `recommended_output_db` baked do
+    // NAM lib — senão a correção do trainer (-7 a -8 dB típico)
+    // come o nosso boost e o usuário ouve "tudo baixo".
+    if let Some(manifest_gain_db) = package.manifest.output_gain_db {
+        plugin_params.output_level_db += manifest_gain_db;
+        plugin_params.external_loudness_aligned = true;
+    }
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 

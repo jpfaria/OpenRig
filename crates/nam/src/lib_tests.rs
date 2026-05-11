@@ -96,6 +96,7 @@ fn plugin_parameter_specs_with_defaults_uses_custom_defaults() {
         bass: 3.0,
         middle: 7.0,
         treble: 9.0,
+        external_loudness_aligned: false,
     };
     let specs = plugin_parameter_specs_with_defaults(custom);
     assert_eq!(specs.len(), 8);
@@ -128,6 +129,7 @@ fn nam_plugin_params_clone_preserves_values() {
         bass: 2.0,
         middle: 8.0,
         treble: 4.0,
+        external_loudness_aligned: false,
     };
     let cloned = params;
     assert_eq!(cloned.input_level_db, 3.0);
@@ -175,6 +177,7 @@ fn plugin_params_from_set_with_defaults_uses_custom_defaults() {
         bass: 2.0,
         middle: 2.0,
         treble: 2.0,
+        external_loudness_aligned: false,
     };
     let ps = ParameterSet::default();
     let params = plugin_params_from_set_with_defaults(&ps, custom).unwrap();
