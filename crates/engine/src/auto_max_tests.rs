@@ -40,11 +40,9 @@ fn settle(state: &mut AutoMaxState, amplitude: f32, n: usize) -> Vec<f32> {
 #[test]
 fn quiet_signal_is_boosted_toward_target_rms() {
     let mut s = AutoMaxState::with_enabled(SR, true);
-    // -30 dBFS RMS sine wave (amplitude tracks RMS for full-scale
-    // square-ish signal in `settle`). Wants +18 dB to hit -12 RMS,
-    // peak ceiling +6 dBFS leaves ~36 dB of headroom — RMS target
-    // is the binding constraint.
-    let amp = 10.0_f32.powf(-30.0 / 20.0);
+    // Signal at -20 dBFS — needs ~+17 dB of boost to reach the RMS
+    // target -3 dBFS, safely within the +24 dB cap.
+    let amp = 10.0_f32.powf(-20.0 / 20.0);
     let out = settle(&mut s, amp, (SR as usize) * 3);
     let tail = &out[out.len() - (SR as usize / 2)..];
     let final_rms_db = lin_to_db(rms(tail));
@@ -72,7 +70,7 @@ fn loud_signal_is_left_alone() {
 fn peak_ceiling_caps_high_crest_signal() {
     let mut s = AutoMaxState::with_enabled(SR, true);
     // Burst pattern: high peak, low RMS (crest factor ~ 20 dB).
-    // Auto-max should NOT push peak past PEAK_CEILING_DBFS chasing RMS.
+    // Auto-max should NOT push peak past HARD_CAP_DBFS chasing RMS.
     let amp_peak = 0.05_f32; // -26 dBFS
     let mut frames: Vec<AudioFrame> = Vec::with_capacity((SR as usize) * 3);
     for i in 0..(SR as usize) * 3 {
@@ -92,7 +90,7 @@ fn peak_ceiling_caps_high_crest_signal() {
         .collect();
     let final_peak_db = lin_to_db(peak(&tail));
     assert!(
-        final_peak_db <= PEAK_CEILING_DBFS + 1.0,
+        final_peak_db <= HARD_CAP_DBFS + 1.0,
         "peak ceiling should hold; got {final_peak_db:.2} dBFS"
     );
 }
@@ -198,7 +196,7 @@ fn step_input_after_silence_does_not_overshoot_ceiling() {
             AudioFrame::Stereo([l, r]) => l.abs().max(r.abs()),
         })
         .fold(0.0_f32, f32::max);
-    let ceiling_lin = 10.0_f32.powf(PEAK_CEILING_DBFS / 20.0);
+    let ceiling_lin = 10.0_f32.powf(HARD_CAP_DBFS / 20.0);
     assert!(
         peak_lin <= ceiling_lin + 1.0e-5,
         "step input overshot ceiling: peak={peak_lin}, ceiling={ceiling_lin}"
