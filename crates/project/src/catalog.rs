@@ -437,10 +437,29 @@ pub fn model_stream_kind(effect_type: &str, model_id: &str) -> &'static str {
     }
 }
 
+/// Look up a disk-package by effect_type + model_id, applying the same
+/// `effect_type → BlockType` mapping the catalog uses for `supported_block_models`.
+/// Returns `None` if the effect_type has no disk-package support or the
+/// model_id isn't a disk-package id. Issue #414.
+fn disk_package_for(
+    effect_type: &str,
+    model_id: &str,
+) -> Option<&'static plugin_loader::discover::LoadedPackage> {
+    let block_type = block_type_for_effect_type(effect_type)?;
+    plugin_loader::registry::packages_for(block_type)
+        .into_iter()
+        .find(|p| p.manifest.id == model_id)
+}
+
 /// Returns the display name for a model, or empty string if not found.
-pub fn model_display_name(effect_type: &str, model_id: &str) -> &'static str {
+///
+/// Native models resolve via the per-effect `block_*::display_name`; disk-package
+/// models (NAM/IR/LV2/VST3) fall back to the plugin_loader registry so the
+/// hover tooltip, plugin-info window and block editor header all show the right
+/// name. Issue #414.
+pub fn model_display_name(effect_type: &str, model_id: &str) -> String {
     use block_core::*;
-    match effect_type {
+    let native: &'static str = match effect_type {
         EFFECT_TYPE_UTILITY => block_util::util_display_name(model_id),
         EFFECT_TYPE_GAIN => block_gain::gain_display_name(model_id),
         EFFECT_TYPE_AMP => block_amp::amp_display_name(model_id),
@@ -458,13 +477,21 @@ pub fn model_display_name(effect_type: &str, model_id: &str) -> &'static str {
         EFFECT_TYPE_NAM => block_nam::nam_display_name(model_id),
         EFFECT_TYPE_IR => block_ir::ir_display_name(model_id),
         _ => "",
+    };
+    if !native.is_empty() {
+        return native.to_string();
     }
+    disk_package_for(effect_type, model_id)
+        .map(|p| p.manifest.display_name.clone())
+        .unwrap_or_default()
 }
 
 /// Returns the brand for a model, or empty string if not found.
-pub fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
+///
+/// Native first, then disk-package `manifest.brand`. Issue #414.
+pub fn model_brand(effect_type: &str, model_id: &str) -> String {
     use block_core::*;
-    match effect_type {
+    let native: &'static str = match effect_type {
         EFFECT_TYPE_UTILITY => block_util::util_brand(model_id),
         EFFECT_TYPE_GAIN => block_gain::gain_brand(model_id),
         EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id)
@@ -484,14 +511,23 @@ pub fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
         EFFECT_TYPE_NAM => block_nam::nam_brand(model_id),
         EFFECT_TYPE_IR => block_ir::ir_brand(model_id),
         _ => "",
+    };
+    if !native.is_empty() {
+        return native.to_string();
     }
+    disk_package_for(effect_type, model_id)
+        .and_then(|p| p.manifest.brand.clone())
+        .unwrap_or_default()
 }
 
 /// Returns the type label for a model (e.g. "NATIVE", "NAM", "LV2", "IR"),
 /// or empty string if not found.
-pub fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
+///
+/// Native first, then `backend_label_for` on the disk-package's backend variant.
+/// Issue #414.
+pub fn model_type_label(effect_type: &str, model_id: &str) -> String {
     use block_core::*;
-    match effect_type {
+    let native: &'static str = match effect_type {
         EFFECT_TYPE_UTILITY => block_util::util_type_label(model_id),
         EFFECT_TYPE_GAIN => block_gain::gain_type_label(model_id),
         EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id)
@@ -511,7 +547,13 @@ pub fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
         EFFECT_TYPE_NAM => block_nam::nam_type_label(model_id),
         EFFECT_TYPE_IR => block_ir::ir_type_label(model_id),
         _ => "",
+    };
+    if !native.is_empty() {
+        return native.to_string();
     }
+    disk_package_for(effect_type, model_id)
+        .map(|p| backend_label_for(&p.manifest.backend).to_string())
+        .unwrap_or_default()
 }
 
 pub fn model_knob_layout(
