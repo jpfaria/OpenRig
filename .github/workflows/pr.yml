@@ -68,11 +68,13 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev
 
-      - name: Run comparative gate (qa-comparative.sh)
-        id: comparative
+      - name: Run quality gate (qa.sh)
+        id: gate
+        env:
+          QA_BASELINE_DIR: baseline
         run: |
           mkdir -p target/qa-logs
-          bash scripts/qa-comparative.sh baseline | tee target/qa-logs/comparative.log
+          bash scripts/qa.sh | tee target/qa-logs/qa.log
 
       - name: Upload qa logs
         if: always()

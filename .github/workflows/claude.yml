@@ -72,9 +72,12 @@ jobs:
             The feature branch work must adapt to develop, never the other way around.
 
             QUALITY GATE — MANDATORY BEFORE PUSH AND ON CI:
-            All PRs to `develop` must pass `scripts/qa.sh` (fmt + clippy with
-            complexity lints + build + tests + coverage). Same script runs
-            locally and in CI (.github/workflows/pr.yml).
+            All PRs to `develop` must pass `scripts/qa.sh` — a single
+            comparative gate that runs identically locally and in CI
+            (.github/workflows/pr.yml). It compares 6 metrics (fmt, clippy,
+            build, test, complexity, coverage) of the PR against
+            origin/develop and fails ONLY if some metric regressed.
+            Pre-existing debt never blocks the gate.
 
             Before any `git push`:
               ./scripts/qa.sh
