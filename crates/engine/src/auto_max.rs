@@ -43,10 +43,18 @@ fn current_default_enabled() -> bool {
 pub const TARGET_RMS_DBFS: f32 = -12.0;
 
 /// Hard ceiling on the OUTPUT peak after the boost is applied.
-/// Loose enough to let high-crest signal reach the loudness target
-/// (a clean amp can need its peak above 0 dBFS to land at -12 dBFS
-/// RMS). The chain's brickwall limiter catches the rest.
-pub const PEAK_CEILING_DBFS: f32 = 6.0;
+/// Sits BELOW 0 dBFS so the chain output never feeds an out-of-range
+/// sample to the device driver — independent of whether the chain
+/// has a brickwall limiter at the end. A higher ceiling (eg +6 dBFS,
+/// "trust the limiter") was tried in #402 and produced an audible
+/// chiado on transients in chains without a limiter (issue #413):
+/// the OS DAC clipped what the auto-max allowed through.
+///
+/// Trade-off: clean signal with very high crest factor may now hit
+/// the peak ceiling before the RMS reaches the loudness target —
+/// final RMS lands a couple of dB under -12 dBFS for those, but the
+/// device output is always safe.
+pub const PEAK_CEILING_DBFS: f32 = -0.5;
 
 /// Maximum boost the auto-max can apply, in dB.
 pub const MAX_BOOST_DB: f32 = 24.0;
