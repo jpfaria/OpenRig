@@ -35,7 +35,6 @@ use domain::ids::BlockId;
 use project::block::AudioBlock;
 use project::chain::ChainOutputMixdown;
 
-use crate::auto_max::AutoMaxState;
 use crate::input_tap::InputTap;
 use crate::runtime_audio_frame::{AudioFrame, AudioProcessor, ElasticBuffer, ProcessorScratch};
 use crate::spsc::SpscRing;
@@ -70,11 +69,6 @@ pub(crate) struct InputProcessingState {
     /// `None` for stereo / single-channel mono / dual-mono / Insert
     /// returns — they contribute at unity gain. (Issue #350.)
     pub(crate) split_mono_sibling_count: Option<usize>,
-    /// Per-chain auto-max loudness — runs after the user's last block,
-    /// before stream taps and mixdown. Boosts the chain output to a
-    /// uniform peak target regardless of which amp/pedal/preamp the
-    /// user dropped in. Issue #402.
-    pub(crate) auto_max: AutoMaxState,
 }
 
 pub(crate) struct ChainProcessingState {

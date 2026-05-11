@@ -183,9 +183,10 @@ fn build_bogner_ecstasy_drive_red() -> BlockProcessor {
 
 /// Diagnostic helper — runs each NAM through the probe input, dumps
 /// peak / RMS for inspection, asserts the output is finite. Does NOT
-/// assert alignment: as of `engine::auto_max`, loudness alignment
-/// happens at the chain level (in the engine), not at the per-NAM
-/// level. NAMs deliver their natural baked level here.
+/// assert alignment: loudness alignment now lives in the manifest's
+/// `output_gain_db` field, populated offline by `nam_loudness_audit`
+/// and summed onto `output_level_db` at build time. NAMs measured in
+/// isolation here deliver their natural level.
 fn dump_outputs(mut entries: Vec<(&'static str, BlockProcessor)>) {
     let input = pink_noise_peak_normalized(PROBE_SAMPLES, -12.0, 0xC0FFEE);
     for (name, mut p) in entries.drain(..) {

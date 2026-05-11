@@ -18,9 +18,6 @@ struct AppConfigYaml {
 }
 
 fn main() -> Result<()> {
-    // Issue #413: auto-max runtime desativado em produção, ver
-    // adapter-gui main pra contexto.
-
     let project_path = parse_project_path();
     let config_path = parse_config_path();
     let _config = load_app_config(&config_path)?;

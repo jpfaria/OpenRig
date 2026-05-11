@@ -51,12 +51,11 @@ pub fn build_processor_with_assets_for_layout(
     _sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // Loudness alignment used to be opt-in here via a `loudness_normalize`
-    // flag plumbed all the way to `NamProcessor::new_with_loudness_normalize`.
-    // It has since moved to the chain runtime (`engine::auto_max`) and the
-    // per-NAM probe path is dead code, so this overload reverted to a
-    // single 5-arg shape — keeps `too_many_arguments` happy and keeps the
-    // surface honest about what it actually does.
+    // Loudness alignment is now metadata — `output_gain_db` baked into
+    // the plugin's `manifest.yaml` by `tools/nam_loudness_audit` and
+    // summed into `plugin_params.output_level_db` in
+    // `from_package::build_from_package`. So this entry point is a
+    // straight model load with no extra processing.
     match layout {
         AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(NamProcessor::new(
             model_path,

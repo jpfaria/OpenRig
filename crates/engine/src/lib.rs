@@ -1,4 +1,3 @@
-pub mod auto_max;
 pub mod input_tap;
 pub mod native_registry;
 pub mod probe;

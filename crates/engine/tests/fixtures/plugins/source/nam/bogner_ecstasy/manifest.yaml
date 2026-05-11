@@ -2,6 +2,7 @@ manifest_version: 1
 id: nam_bogner_ecstasy
 display_name: Bogner Ecstasy (fixture)
 brand: bogner
+output_gain_db: 11.4814854
 type: amp
 backend: nam
 parameters:

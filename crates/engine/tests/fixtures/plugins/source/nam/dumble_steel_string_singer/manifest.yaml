@@ -2,6 +2,7 @@ manifest_version: 1
 id: nam_dumble_steel_string_singer
 display_name: Steel String Singer (fixture)
 brand: dumble
+output_gain_db: 6.6319008
 type: amp
 backend: nam
 parameters:

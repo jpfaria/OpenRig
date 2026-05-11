@@ -246,10 +246,10 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
-// Loudness alignment moved to `engine::auto_max` (issue #402). The
-// per-NAM probe and baked-loudness modules are kept around for the
-// `probe_dump` diagnostics example only — they no longer drive gain
-// at runtime, so the glue function is gone.
+// Loudness alignment lives in `manifest.output_gain_db`, populated
+// offline by `tools/nam_loudness_audit` (issue #413). The per-NAM
+// `loudness_probe` module is kept around as the measurement engine
+// the tool uses; it does not drive gain at runtime.
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
@@ -317,9 +317,11 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
-        // No per-NAM loudness compensation here — it lives at the
-        // chain level in `engine::auto_max` (issue #402), which can
-        // see the full chain output instead of guessing per-block.
+        // Loudness alignment between NAMs is applied by `from_package`,
+        // which sums `manifest.output_gain_db` (populated offline by
+        // `tools/nam_loudness_audit`) onto `params.output_level_db`.
+        // Here we just respect both that and the model's own baked
+        // recommended_output_db.
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
         let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
 
