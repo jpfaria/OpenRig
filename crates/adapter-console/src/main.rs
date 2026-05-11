@@ -18,8 +18,8 @@ struct AppConfigYaml {
 }
 
 fn main() -> Result<()> {
-    // Per-chain auto-max loudness (issue #402) — see adapter-gui main.
-    engine::auto_max::set_runtime_default_enabled(true);
+    // Issue #413: auto-max runtime desativado em produção, ver
+    // adapter-gui main pra contexto.
 
     let project_path = parse_project_path();
     let config_path = parse_config_path();

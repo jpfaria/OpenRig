@@ -3564,6 +3564,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nam-loudness-audit"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nam",
+]
+
+[[package]]
 name = "natord"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

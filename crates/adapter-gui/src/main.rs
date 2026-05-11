@@ -7,12 +7,13 @@ use ui_openrig::{AppRuntimeMode, InteractionMode};
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    // Per-chain auto-max loudness (issue #402): chain output peak gets
-    // pushed to a uniform target regardless of which amp/pedal/preamp
-    // the user dropped in. Enabled in the production binaries; tests
-    // and other callers inherit the OFF default so volume invariant
-    // #10 stays satisfied for them.
-    engine::auto_max::set_runtime_default_enabled(true);
+    // Issue #413: o auto-max runtime saiu de produção. Trade-off
+    // estrutural (peak ceiling × distortion × latência) e infra
+    // existente cobre o caso: cada NAM carrega `output_gain_db`
+    // marretado offline pelo `nam_loudness_audit`, e o usuário tem
+    // pedal de volume + (futuramente) patch volume / master volume.
+    // O módulo `engine::auto_max` fica no código mas inativo
+    // (default OFF) — não chamar `set_runtime_default_enabled`.
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.

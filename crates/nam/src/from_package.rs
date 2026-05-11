@@ -65,9 +65,15 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Loudness alignment is the chain-runtime's job (`engine::auto_max`),
-    // so per-NAM normalisation is no longer plumbed through here.
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    // Issue #413: nivelamento de loudness saiu do runtime (auto-max)
+    // e virou metadata estática no manifest, populada offline pela
+    // tool `nam_loudness_audit`. Cada plugin carrega o seu
+    // `output_gain_db` calculado contra um signal de teste
+    // consistente — somar aqui aplica o gain como multiplicação
+    // constante: sem follower, sem distortion, sem latência.
+    let manifest_gain_db = package.manifest.output_gain_db.unwrap_or(0.0);
+    plugin_params.output_level_db += manifest_gain_db;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 
