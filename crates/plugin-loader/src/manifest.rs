@@ -86,6 +86,15 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sources: Option<Vec<String>>,
 
+    /// Per-package loudness correction in dB (issue #402). Populated
+    /// once by `nam_loudness_audit` so every NAM in the catalogue
+    /// lands at the same target peak. Read by the NAM backend at
+    /// build time and summed onto the NAM lib's `output_level_db`.
+    /// Absent on packages that haven't been audited yet — they ride
+    /// at their native baked level.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_gain_db: Option<f32>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,
@@ -200,6 +209,10 @@ pub struct Vst3Parameter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParameterValue {
+    /// Order matters for serde untagged: try `Bool` before `Number`/`Text`,
+    /// otherwise `true`/`false` would deserialize to `Text("true")` and the
+    /// grid parameter would render as a string enum instead of a toggle.
+    Bool(bool),
     Number(f64),
     Text(String),
 }
@@ -207,6 +220,7 @@ pub enum ParameterValue {
 impl PartialEq for ParameterValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::Bool(a), Self::Bool(b)) => a == b,
             (Self::Number(a), Self::Number(b)) => a.to_bits() == b.to_bits(),
             (Self::Text(a), Self::Text(b)) => a == b,
             _ => false,
@@ -218,12 +232,16 @@ impl Eq for ParameterValue {}
 impl std::hash::Hash for ParameterValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            Self::Number(value) => {
+            Self::Bool(value) => {
                 state.write_u8(0);
+                state.write_u8(if *value { 1 } else { 0 });
+            }
+            Self::Number(value) => {
+                state.write_u8(1);
                 state.write_u64(value.to_bits());
             }
             Self::Text(value) => {
-                state.write_u8(1);
+                state.write_u8(2);
                 value.hash(state);
             }
         }

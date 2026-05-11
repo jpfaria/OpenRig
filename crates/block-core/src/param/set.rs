@@ -10,7 +10,47 @@ use std::collections::BTreeMap;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 
-use super::schema::ModelParameterSchema;
+use super::schema::{ModelParameterSchema, ParameterDomain, ParameterSpec};
+
+/// Coerce a stored `ParameterValue` to the type the schema expects, when
+/// the conversion is unambiguous. Backward-compat for projects saved
+/// before issue #401 introduced Enum/Bool routing — those projects have
+/// every LV2 control stored as Float regardless of the underlying TTL
+/// port property.
+///
+/// Round-trips:
+/// - Float/Int stored against an `Enum` schema → match by numeric option
+///   value, return the corresponding `String(option.value)`.
+/// - Float/Int stored against `Bool` → `>= 0.5` → `Bool`.
+/// - Anything else → return the value unchanged (the validator will run
+///   normally and surface a real type mismatch when it's a real bug).
+fn coerce_legacy_value(value: &ParameterValue, spec: &ParameterSpec) -> ParameterValue {
+    let numeric = match value {
+        ParameterValue::Float(v) => Some(*v as f64),
+        ParameterValue::Int(v) => Some(*v as f64),
+        _ => None,
+    };
+    let Some(numeric) = numeric else {
+        return value.clone();
+    };
+    match &spec.domain {
+        ParameterDomain::Enum { options } => {
+            // Option values are stored stringified — match by numeric
+            // proximity (handles `"0"` vs `"0.0"` round-trips from
+            // f32::to_string).
+            for option in options {
+                if let Ok(parsed) = option.value.parse::<f64>() {
+                    if (parsed - numeric).abs() < 1e-6 {
+                        return ParameterValue::String(option.value.clone());
+                    }
+                }
+            }
+            value.clone()
+        }
+        ParameterDomain::Bool => ParameterValue::Bool(numeric >= 0.5),
+        _ => value.clone(),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ParameterSet {
@@ -53,6 +93,27 @@ impl ParameterSet {
     }
 
     pub fn normalized_against(&self, schema: &ModelParameterSchema) -> Result<Self, String> {
+        self.normalized_against_internal(schema, false)
+    }
+
+    /// Strict version of [`normalized_against`] — rejects unknown parameters
+    /// instead of warning. Issue #400 bug #5: surfaces schema mismatch
+    /// loudly so silent contract drift (e.g. preset using `high_cut`/`low_cut`
+    /// against `native_guitar_eq` whose schema is `low`/`low_mid`/`high_mid`/`high`)
+    /// is caught at load time, not silently muted into a no-op processor.
+    ///
+    /// Use this in tests, in CI validation, and at preset-load time for new
+    /// presets. Existing user-saved presets continue to use the lenient
+    /// `normalized_against` so legacy snapshots survive model version bumps.
+    pub fn normalized_strict(&self, schema: &ModelParameterSchema) -> Result<Self, String> {
+        self.normalized_against_internal(schema, true)
+    }
+
+    fn normalized_against_internal(
+        &self,
+        schema: &ModelParameterSchema,
+        strict: bool,
+    ) -> Result<Self, String> {
         let mut values = BTreeMap::new();
         let mut known_specs = BTreeMap::new();
         for spec in &schema.parameters {
@@ -61,9 +122,16 @@ impl ParameterSet {
 
         for (path, value) in &self.values {
             let Some(spec) = known_specs.get(path.as_str()) else {
-                // Keep unknown parameters instead of silently dropping them.
-                // They may belong to a different version of the model or be
-                // internal state that should survive round-trips.
+                if strict {
+                    return Err(format!(
+                        "unknown parameter '{}' for {} model '{}' (schema does not declare it; \
+                         may indicate a stale preset or a renamed param)",
+                        path, schema.effect_type, schema.model
+                    ));
+                }
+                // Lenient: keep unknown parameters instead of silently dropping
+                // them. They may belong to a different version of the model or
+                // be internal state that should survive round-trips.
                 log::warn!(
                     "[param] keeping unknown parameter '{}' (not in schema for {} model '{}')",
                     path,
@@ -73,13 +141,20 @@ impl ParameterSet {
                 values.insert(path.clone(), value.clone());
                 continue;
             };
-            spec.validate_value(value).map_err(|error| {
+            // Backward-compat: projects saved before issue #401 stored
+            // every LV2 control as Float, including ones we now route
+            // to Enum/Bool (lv2:enumeration / lv2:toggled). Coerce
+            // numeric stored values into the spec's expected type when
+            // possible — without this every chain block with a toggle
+            // or enum gets silently dropped on load (#401).
+            let coerced = coerce_legacy_value(value, spec);
+            spec.validate_value(&coerced).map_err(|error| {
                 format!(
                     "invalid parameter '{}' for {} model '{}': {}",
                     path, schema.effect_type, schema.model, error
                 )
             })?;
-            values.insert(path.clone(), value.clone());
+            values.insert(path.clone(), coerced);
         }
 
         for spec in &schema.parameters {

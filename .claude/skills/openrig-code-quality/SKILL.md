@@ -44,6 +44,48 @@ Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabi
 
 ---
 
+## Quality Gate — comparativo único (issues #404 / #410)
+
+`scripts/qa.sh` é o **único** gate, igual local e em CI. Comando obrigatório antes de qualquer `git push`:
+
+```bash
+./scripts/qa.sh
+```
+
+Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma piorou:
+
+| # | Métrica | Falha se |
+|---|---|---|
+| 1 | fmt errors | PR > base |
+| 2 | clippy errors (`-D warnings`) | PR > base |
+| 3 | build errors | PR > base |
+| 4 | test failures | PR > base |
+| 5 | complexity violations | PR > base |
+| 6 | coverage % | PR < base − `QA_COV_MARGIN` (1.0pp) |
+
+Local extrai baseline em `/tmp/qa-baseline` automaticamente; CI passa `QA_BASELINE_DIR=baseline`. Detalhes em `docs/development/quality-gate.md`.
+
+**Regra desta skill:** o gate cuida da regressão de métrica mecânica. Esta skill foca no que o gate não consegue medir — invariantes de áudio, decisões de arquitetura, qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns.
+
+**Forbidden** pra silenciar o gate sem fix real: subir thresholds em `clippy.toml`, `#[ignore]`, `#[allow(...)]` sem causa raiz, `--no-verify`. Sempre causa raiz ou escalar.
+
+---
+
+## Comunicação — claro e objetivo
+
+Resposta ao usuário **default = 1-3 frases**. Nada de testamento.
+
+- Pergunta sim/não → resposta sim/não + 1 frase de contexto se necessário.
+- Status → 1 linha por item.
+- Decisão → 1 recomendação direta. Outras opções só se pedido.
+- Sem headers/tabelas/bullets aninhados a menos que o conteúdo seja referência mecânica.
+- Cortar saudação, prefácio, recap do que o usuário acabou de dizer, "espero que ajude".
+- Bloco de código curto OK quando É o conteúdo pedido (comando, snippet).
+
+Expandir só quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", etc).
+
+---
+
 ## STOP — Check Before You Code
 
 ### 1. Data Ownership

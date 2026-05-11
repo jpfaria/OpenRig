@@ -577,6 +577,75 @@ fn normalized_against_keeps_unknown_parameters() {
     assert_eq!(result.get_f32("unknown_param"), Some(99.0));
 }
 
+// ── strict mode (issue #400 bug #5) ──────────────────────────────
+
+#[test]
+fn normalized_strict_rejects_unknown_parameters() {
+    // Test #5 of issue #400: schema validator in strict mode must reject
+    // params that aren't in the schema, surfacing silent schema drift
+    // (e.g. preset using legacy `high_cut`/`low_cut` against the new
+    // `native_guitar_eq` schema that expects `low/low_mid/high_mid/high`).
+    let schema = test_schema(vec![float_parameter(
+        "gain",
+        "Gain",
+        None,
+        Some(50.0),
+        0.0,
+        100.0,
+        1.0,
+        ParameterUnit::Percent,
+    )]);
+    let mut ps = ParameterSet::default();
+    ps.insert("gain", ParameterValue::Float(50.0));
+    ps.insert("legacy_param", ParameterValue::Float(99.0));
+    let err = ps.normalized_strict(&schema).unwrap_err();
+    assert!(
+        err.contains("unknown parameter 'legacy_param'"),
+        "strict mode must surface unknown param name; got: {err}"
+    );
+}
+
+#[test]
+fn normalized_strict_accepts_valid_subset() {
+    let schema = test_schema(vec![float_parameter(
+        "gain",
+        "Gain",
+        None,
+        Some(50.0),
+        0.0,
+        100.0,
+        1.0,
+        ParameterUnit::Percent,
+    )]);
+    let mut ps = ParameterSet::default();
+    ps.insert("gain", ParameterValue::Float(75.0));
+    let result = ps.normalized_strict(&schema).unwrap();
+    assert_eq!(result.get_f32("gain"), Some(75.0));
+}
+
+#[test]
+fn normalized_strict_still_rejects_missing_required() {
+    // Strict mode preserves the existing "missing required" check: if a
+    // schema declares a required param without a default, both lenient
+    // and strict modes must error.
+    let schema = test_schema(vec![float_parameter(
+        "gain",
+        "Gain",
+        None,
+        None, // no default → required
+        0.0,
+        100.0,
+        1.0,
+        ParameterUnit::Percent,
+    )]);
+    let ps = ParameterSet::default();
+    let err = ps.normalized_strict(&schema).unwrap_err();
+    assert!(
+        err.contains("missing required parameter 'gain'"),
+        "strict mode must surface missing required param; got: {err}"
+    );
+}
+
 // ── Builder functions ───────────────────────────────────────────
 
 #[test]
@@ -959,4 +1028,66 @@ fn model_parameter_schema_debug() {
     let schema = test_schema(vec![]);
     let dbg = format!("{:?}", schema);
     assert!(dbg.contains("test_model"));
+}
+
+// ── Backward-compat coercion (issue #401) ──────────────────────────
+
+#[test]
+fn normalize_coerces_legacy_float_to_enum_string() {
+    use crate::param::{enum_parameter, ModelParameterSchema, ParameterSet};
+    let schema = ModelParameterSchema {
+        effect_type: "pitch".to_string(),
+        model: "lv2_test".to_string(),
+        display_name: "Test".to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters: vec![enum_parameter(
+            "mode",
+            "Mode",
+            None,
+            Some("0"),
+            &[("0", "Auto"), ("1", "MIDI"), ("2", "Manual")],
+        )],
+    };
+    let mut set = ParameterSet::default();
+    // Project saved BEFORE issue #401 stored mode as Float(0.0).
+    set.insert("mode", ParameterValue::Float(2.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float must coerce to enum string");
+    assert_eq!(
+        normalized.values.get("mode"),
+        Some(&ParameterValue::String("2".to_string())),
+        "stored mode should be coerced to its matching enum string"
+    );
+}
+
+#[test]
+fn normalize_coerces_legacy_float_to_bool() {
+    use crate::param::{bool_parameter, ModelParameterSchema, ParameterSet};
+    let schema = ModelParameterSchema {
+        effect_type: "pitch".to_string(),
+        model: "lv2_test".to_string(),
+        display_name: "Test".to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters: vec![bool_parameter("fastmode", "Fast Mode", None, Some(false))],
+    };
+    let mut set = ParameterSet::default();
+    // Pre-#401 behaviour: Bool ports stored as Float.
+    set.insert("fastmode", ParameterValue::Float(1.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float must coerce to bool");
+    assert_eq!(
+        normalized.values.get("fastmode"),
+        Some(&ParameterValue::Bool(true))
+    );
+
+    set.insert("fastmode", ParameterValue::Float(0.0));
+    let normalized = set
+        .normalized_against(&schema)
+        .expect("legacy float 0 must coerce to false");
+    assert_eq!(
+        normalized.values.get("fastmode"),
+        Some(&ParameterValue::Bool(false))
+    );
 }

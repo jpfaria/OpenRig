@@ -3559,6 +3559,7 @@ dependencies = [
  "domain",
  "log",
  "plugin-loader",
+ "serde_yaml",
 ]
 
 [[package]]
@@ -4527,6 +4528,7 @@ dependencies = [
  "block-wah",
  "domain",
  "log",
+ "nam",
  "plugin-loader",
  "serde",
  "vst3-host",

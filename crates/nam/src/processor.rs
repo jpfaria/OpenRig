@@ -183,9 +183,73 @@ pub fn plugin_params_from_set_with_defaults(
 
 /// Opaque model handle from NeuralAudioCAPI
 #[repr(C)]
-struct NeuralModel {
+pub struct NeuralModel {
     _opaque: [u8; 0],
 }
+
+/// Safe-ish wrapper around the FFI `Process` for use by sibling modules
+/// (loudness probe). Caller must guarantee `model` is a live pointer and
+/// the slices are equally sized.
+pub(crate) unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
+    debug_assert_eq!(input.len(), output.len());
+    Process(model, input.as_ptr(), output.as_mut_ptr(), input.len());
+}
+
+/// Open a NAM model file for diagnostics (loudness probe example).
+/// Caller is responsible for calling [`close_model_diag`] when done
+/// to release the underlying NAM lib model.
+pub fn open_model_diag(model_path: &str) -> Result<*mut NeuralModel> {
+    #[cfg(not(target_os = "windows"))]
+    let model = {
+        let wide_path: Vec<u32> = model_path
+            .chars()
+            .map(|c| c as u32)
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe { CreateModelFromFile(wide_path.as_ptr()) }
+    };
+    #[cfg(target_os = "windows")]
+    let model = {
+        let wide_path: Vec<u16> = model_path
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe { CreateModelFromFile(wide_path.as_ptr()) }
+    };
+    if model.is_null() {
+        bail!("failed to load NAM model '{}'", model_path);
+    }
+    Ok(model)
+}
+
+/// # Safety
+///
+/// `model` must be a valid pointer returned by [`open_model_diag`] and
+/// not yet freed; the caller must not use it after this call returns.
+pub unsafe fn close_model_diag(model: *mut NeuralModel) {
+    if !model.is_null() {
+        DeleteModel(model);
+    }
+}
+
+/// Recommended baked dB adjustments — exposed for the loudness probe
+/// diagnostics example.
+///
+/// # Safety
+///
+/// `model` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed.
+pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
+    (
+        GetRecommendedInputDBAdjustment(model),
+        GetRecommendedOutputDBAdjustment(model),
+    )
+}
+
+// Loudness alignment moved to `engine::auto_max` (issue #402). The
+// per-NAM probe and baked-loudness modules are kept around for the
+// `probe_dump` diagnostics example only — they no longer drive gain
+// at runtime, so the glue function is gone.
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
@@ -253,14 +317,17 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
+        // No per-NAM loudness compensation here — it lives at the
+        // chain level in `engine::auto_max` (issue #402), which can
+        // see the full chain output instead of guessing per-block.
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
         let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB",
             model_path,
             recommended_input_db,
-            recommended_output_db
+            recommended_output_db,
         );
 
         Ok(Self {

@@ -35,6 +35,7 @@ use domain::ids::BlockId;
 use project::block::AudioBlock;
 use project::chain::ChainOutputMixdown;
 
+use crate::auto_max::AutoMaxState;
 use crate::input_tap::InputTap;
 use crate::runtime_audio_frame::{AudioFrame, AudioProcessor, ElasticBuffer, ProcessorScratch};
 use crate::spsc::SpscRing;
@@ -69,6 +70,11 @@ pub(crate) struct InputProcessingState {
     /// `None` for stereo / single-channel mono / dual-mono / Insert
     /// returns — they contribute at unity gain. (Issue #350.)
     pub(crate) split_mono_sibling_count: Option<usize>,
+    /// Per-chain auto-max loudness — runs after the user's last block,
+    /// before stream taps and mixdown. Boosts the chain output to a
+    /// uniform peak target regardless of which amp/pedal/preamp the
+    /// user dropped in. Issue #402.
+    pub(crate) auto_max: AutoMaxState,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -168,6 +174,13 @@ pub(crate) struct BlockRuntimeNode {
     pub(crate) processor: RuntimeProcessor,
     pub(crate) stream_handle: Option<StreamHandle>,
     pub(crate) fade_state: FadeState,
+    /// Pre-allocated buffer for fade crossfade dry-signal capture.
+    /// Issue #400 bug #4: replaces `frames.to_vec()` (which alloc'd on
+    /// every audio callback during fade) with a clear()+extend pattern
+    /// that reuses capacity. Vec::clear() does NOT deallocate; subsequent
+    /// extends only realloc if capacity is exceeded — which after the
+    /// first frame is no longer the case for fixed-buffer audio backends.
+    pub(crate) fade_dry_buffer: Vec<AudioFrame>,
     /// Set to true if this block panicked during audio processing.
     /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
     pub(crate) faulted: bool,

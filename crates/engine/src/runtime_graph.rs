@@ -311,6 +311,7 @@ fn build_input_processing_state(
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
         split_mono_sibling_count,
+        auto_max: crate::auto_max::AutoMaxState::new(sample_rate),
     })
 }
 

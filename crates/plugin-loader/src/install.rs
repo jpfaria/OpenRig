@@ -40,10 +40,7 @@ pub fn has_extracted_packages(plugins_root: &Path) -> bool {
 /// - `plugins_root` already contains extracted packages.
 ///
 /// Returns the number of files written, or 0 when skipped.
-pub fn extract_bundle_if_needed(
-    plugins_root: &Path,
-    bundle_zip: &Path,
-) -> anyhow::Result<usize> {
+pub fn extract_bundle_if_needed(plugins_root: &Path, bundle_zip: &Path) -> anyhow::Result<usize> {
     if has_extracted_packages(plugins_root) {
         log::info!(
             "plugin bundle: {} already populated, skipping extraction",

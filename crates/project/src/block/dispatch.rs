@@ -104,14 +104,36 @@ fn schema_from_disk_package(
 /// - Native: nothing — natives go through the legacy schema path so
 ///   this branch shouldn't fire in practice; return empty to avoid a
 ///   panic if it ever does.
-fn synthesize_parameters_from_manifest(
+pub(crate) fn synthesize_parameters_from_manifest(
     package: &plugin_loader::LoadedPackage,
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam { parameters, .. } | Backend::Ir { parameters, .. } => {
-            parameters.iter().map(grid_parameter_to_spec).collect()
+        Backend::Nam { parameters, .. } => {
+            // Pre-#287 (when NAM amps lived in `block-preamp/src/nam_*.rs`),
+            // every NAM model exposed two layers of knobs: the per-capture
+            // grid (e.g. `mode`, `character` for nam_boss_ds_2) AND the 8
+            // universal NAM plugin knobs (input/output level, noise gate,
+            // EQ on/off + bass/mid/treble) added by `nam::plugin_parameter_specs()`.
+            // The migration to disk packages dropped the second layer, so
+            // every NAM in the GUI lost its standard knobs (~96 packages —
+            // 21 with empty grids ended up with zero knobs at all). Merge
+            // the standard set back in. Issue #401.
+            let mut specs: Vec<block_core::param::ParameterSpec> =
+                parameters.iter().map(grid_parameter_to_spec).collect();
+            // Keep input_db / noise_gate.* / eq.* but drop output_db —
+            // issue #402 moved per-NAM loudness compensation into the
+            // manifest's `output_gain_db` field (applied automatically
+            // by the loader) so users no longer see / fight a level
+            // knob.
+            specs.extend(
+                nam::processor::plugin_parameter_specs()
+                    .into_iter()
+                    .filter(|s| s.path != "output_db"),
+            );
+            specs
         }
+        Backend::Ir { parameters, .. } => parameters.iter().map(grid_parameter_to_spec).collect(),
         Backend::Lv2 {
             plugin_uri,
             binaries,
@@ -171,6 +193,20 @@ fn grid_parameter_to_spec(
             step.max(0.01),
             block_core::param::ParameterUnit::None,
         )
+    } else if parameter
+        .values
+        .iter()
+        .all(|v| matches!(v, ParameterValue::Bool(_)))
+        && !parameter.values.is_empty()
+    {
+        // Pure bool grid → render as a toggle. The default mirrors the
+        // first listed value so manifests can pick the natural off-state
+        // (`[false, true]` -> default off).
+        let default = parameter.values.iter().find_map(|v| match v {
+            ParameterValue::Bool(b) => Some(*b),
+            _ => None,
+        });
+        return block_core::param::bool_parameter(&parameter.name, label, None, default);
     } else {
         let options: Vec<(String, String)> = parameter
             .values
@@ -179,6 +215,7 @@ fn grid_parameter_to_spec(
                 let s = match value {
                     ParameterValue::Text(t) => t.clone(),
                     ParameterValue::Number(n) => n.to_string(),
+                    ParameterValue::Bool(b) => b.to_string(),
                 };
                 (s.clone(), s)
             })
@@ -219,30 +256,85 @@ fn synthesize_lv2_parameters(
     ports
         .into_iter()
         .filter(|port| port.role == Lv2PortRole::ControlIn)
-        .map(|port| {
-            let label = port.name.clone().unwrap_or_else(|| port.symbol.clone());
-            let min = port.minimum.unwrap_or(0.0);
-            let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
-            let default = port.default_value.unwrap_or((min + max) / 2.0);
-            // step = 0 means "continuous" (no snap-to-grid). LV2
-            // ControlPorts are continuous unless the TTL marks them
-            // `lv2:portProperty lv2:integer` or `lv2:enumeration` —
-            // we don't parse those flags yet, and in any case the
-            // synthesized step was `(max-min)/100` which generated
-            // bogus grids (e.g. Contour 20-20000 → step 199.8) that
-            // rejected the TTL default itself.
-            block_core::param::float_parameter(
-                &port.symbol,
-                &label,
-                None,
-                Some(default),
-                min,
-                max,
-                0.0,
-                block_core::param::ParameterUnit::None,
-            )
-        })
+        .map(synthesize_one_lv2_param)
         .collect()
+}
+
+/// Translate one LV2 ControlIn port into the corresponding
+/// `ParameterSpec`. Routing — checked in this order so that an
+/// `enumeration + integer` port (a common pattern) lands as an enum:
+///
+/// 1. `lv2:toggled` → bool checkbox.
+/// 2. `lv2:enumeration` with at least one `lv2:scalePoint` → enum dropdown.
+/// 3. `lv2:integer` (no scalePoint) → integer-stepped float.
+/// 4. otherwise → continuous float (legacy behaviour).
+fn synthesize_one_lv2_param(
+    port: plugin_loader::dispatch::Lv2Port,
+) -> block_core::param::ParameterSpec {
+    let label = port.name.clone().unwrap_or_else(|| port.symbol.clone());
+
+    if port.is_toggle {
+        let default = port.default_value.map(|value| value >= 0.5).or(Some(false));
+        return block_core::param::bool_parameter(&port.symbol, &label, None, default);
+    }
+
+    if port.is_enumeration && !port.scale_points.is_empty() {
+        // Enum values keep the original numeric ordering. Stored values
+        // are the numeric `rdf:value` (stringified) so the runtime can
+        // round-trip them back to the LV2 control port.
+        let options: Vec<(String, String)> = port
+            .scale_points
+            .iter()
+            .map(|sp| (sp.value.to_string(), sp.label.clone()))
+            .collect();
+        let options_refs: Vec<(&str, &str)> = options
+            .iter()
+            .map(|(value, label)| (value.as_str(), label.as_str()))
+            .collect();
+        let default = port
+            .default_value
+            .and_then(|value| {
+                port.scale_points
+                    .iter()
+                    .find(|sp| (sp.value - value).abs() < f32::EPSILON)
+            })
+            .map(|sp| sp.value.to_string());
+        return block_core::param::enum_parameter(
+            &port.symbol,
+            &label,
+            None,
+            default.as_deref(),
+            &options_refs,
+        );
+    }
+
+    let min = port.minimum.unwrap_or(0.0);
+    let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
+    let default = port.default_value.unwrap_or((min + max) / 2.0);
+
+    let step = if port.is_integer {
+        // pprop:rangeSteps tells us exactly how many discrete positions
+        // the host should expose; fall back to step=1 for plain integer
+        // ports without explicit step count.
+        port.range_steps
+            .filter(|n| *n > 0)
+            .map(|n| (max - min) / n as f32)
+            .unwrap_or(1.0)
+    } else {
+        // Continuous control. step = 0 = "no snap-to-grid".
+        0.0
+    };
+
+    block_core::param::float_parameter(
+        &port.symbol,
+        &label,
+        None,
+        Some(default),
+        min,
+        max,
+        step,
+        block_core::param::ParameterUnit::None,
+    )
 }
 
 fn schema_for_block_model_legacy(
@@ -386,4 +478,65 @@ pub(super) fn describe_block_audio(
         display_name: schema.display_name,
         audio_mode: schema.audio_mode,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plugin_loader::manifest::{
+        Backend, BlockType, GridParameter, ParameterValue, PluginManifest,
+    };
+    use plugin_loader::LoadedPackage;
+    use std::path::PathBuf;
+
+    fn nam_package_with_axes() -> LoadedPackage {
+        LoadedPackage {
+            root: PathBuf::from("/fake"),
+            manifest: PluginManifest {
+                manifest_version: 1,
+                id: "nam_test_amp".into(),
+                display_name: "Test NAM Amp".into(),
+                author: None,
+                description: None,
+                inspired_by: None,
+                brand: None,
+                thumbnail: None,
+                photo: None,
+                screenshot: None,
+                brand_logo: None,
+                license: None,
+                homepage: None,
+                sources: None,
+                output_gain_db: None,
+                block_type: BlockType::Amp,
+                backend: Backend::Nam {
+                    parameters: vec![GridParameter {
+                        name: "channel".into(),
+                        display_name: None,
+                        values: vec![
+                            ParameterValue::Text("a".into()),
+                            ParameterValue::Text("b".into()),
+                        ],
+                    }],
+                    captures: vec![],
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn nam_synthesized_schema_does_not_expose_output_db_knob() {
+        // Issue #402: loudness compensation is per-package, baked into
+        // the manifest's `output_gain_db` by the audit tool. The user
+        // does NOT see a knob — every NAM is meant to ride at the same
+        // perceived level out of the box.
+        let pkg = nam_package_with_axes();
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        assert!(
+            specs.iter().all(|s| s.path != "output_db"),
+            "NAM schema must NOT include `output_db` (loudness lives in manifest); \
+             got params: {:?}",
+            specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
 }

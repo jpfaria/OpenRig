@@ -47,7 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(rustfmt*)"
+          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(cargo llvm-cov*),Bash(rustfmt*),Bash(./scripts/qa.sh*),Bash(bash scripts/qa.sh*),Bash(gh run watch*),Bash(gh run view*),Bash(gh pr view*),Bash(gh pr comment*),Bash(gh pr checks*)"
           base_branch: "develop"
           claude_args: "--max-turns 200"
           additional_system_prompt: |
@@ -71,8 +71,49 @@ jobs:
               git merge -X theirs origin/develop
             The feature branch work must adapt to develop, never the other way around.
 
+            QUALITY GATE — MANDATORY BEFORE PUSH AND ON CI:
+            All PRs to `develop` must pass `scripts/qa.sh` — a single
+            comparative gate that runs identically locally and in CI
+            (.github/workflows/pr.yml). It compares 6 metrics (fmt, clippy,
+            build, test, complexity, coverage) of the PR against
+            origin/develop and fails ONLY if some metric regressed.
+            Pre-existing debt never blocks the gate.
+
+            Before any `git push`:
+              ./scripts/qa.sh
+            If it fails, fix the issues and re-run until green. Do not push red code.
+
+            After every `git push`, monitor the PR Quality Gate workflow:
+              gh pr checks <PR_NUMBER> --watch
+              # or:
+              gh run watch <RUN_ID>
+
+            If the gate fails on CI:
+            1. Fetch the sticky failure comment (header `openrig-quality-gate`):
+                 gh pr view <PR_NUMBER> --comments
+            2. Identify the failing step(s) from the comment + logs.
+            3. Fix the root cause (do NOT bump thresholds or skip steps).
+            4. Re-run `./scripts/qa.sh` locally until green.
+            5. Commit + push.
+            6. Wait for CI again.
+
+            HARD LIMIT — at most 3 auto-correction iterations per push session.
+            After 3 failed attempts, post a comment on the PR asking for human
+            intervention with the diagnostic, and STOP. Never bump thresholds,
+            disable lints, mark tests as ignored, or use `--no-verify` to bypass.
+            Trial-and-error tweaks to make the gate pass are forbidden — fix
+            the root cause or escalate.
+
+            NEVER DECLARE TASK COMPLETE WITH PR RED:
+            A task is "done" only when:
+            - PR is open and the Quality Gate workflow is green.
+            - Any prior request-changes review from `github-actions[bot]` has
+              been auto-dismissed by the success run.
+            Do not mark closing checklists or post a "done" comment while the
+            PR is in failing or `CHANGES_REQUESTED` state.
+
             TRACEABILITY — MANDATORY ISSUE COMMENTS:
             You MUST comment on the issue at two points:
             1. BEFORE starting work: post a comment with your plan — what you intend to change and why.
-            2. AFTER finishing work: post a comment with what was actually done — files changed, decisions made, anything relevant for future reference.
+            2. AFTER finishing work: post a comment with what was actually done — files changed, decisions made, anything relevant for future reference. Only post the "done" comment after the Quality Gate is green.
             This applies to ALL work, local or on GitHub. The issue is the source of truth for all changes.

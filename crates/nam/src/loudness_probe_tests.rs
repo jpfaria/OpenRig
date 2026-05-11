@@ -1,0 +1,102 @@
+//! Pure (FFI-free) tests for `loudness_probe`. Issue #402.
+
+use super::*;
+
+#[test]
+fn pink_noise_is_deterministic_for_same_seed() {
+    let a = pink_noise_buffer(1024, 0xC0FFEE);
+    let b = pink_noise_buffer(1024, 0xC0FFEE);
+    assert_eq!(a, b);
+}
+
+#[test]
+fn pink_noise_differs_for_different_seeds() {
+    let a = pink_noise_buffer(1024, 1);
+    let b = pink_noise_buffer(1024, 2);
+    assert_ne!(a, b);
+}
+
+#[test]
+fn pink_noise_normalised_to_target_peak() {
+    let buf = pink_noise_buffer(8192, 0xC0FFEE);
+    let peak = buf.iter().fold(0.0_f32, |acc, s| acc.max(s.abs()));
+    let peak_db = 20.0 * peak.log10();
+    assert!(
+        (peak_db - PROBE_INPUT_PEAK_DBFS).abs() < 0.01,
+        "peak_db={peak_db}, expected ~{PROBE_INPUT_PEAK_DBFS}"
+    );
+}
+
+#[test]
+fn peak_dbfs_unity_returns_zero() {
+    let buf = vec![0.5_f32, -1.0, 0.3, -0.7];
+    assert!((peak_dbfs(&buf) - 0.0).abs() < 0.01);
+}
+
+#[test]
+fn peak_dbfs_half_returns_minus_six_db() {
+    let buf = vec![0.5_f32, -0.25, 0.1];
+    assert!((peak_dbfs(&buf) - (-6.0206)).abs() < 0.01);
+}
+
+#[test]
+fn peak_dbfs_silent_buffer_returns_floor() {
+    let buf = vec![0.0_f32; 1024];
+    assert_eq!(peak_dbfs(&buf), -120.0);
+}
+
+#[test]
+fn compute_offset_capped_by_peak_ceiling_when_peak_close_to_top() {
+    // Peak only `cap` dB below the ceiling, RMS far below target →
+    // peak ceiling is the binding constraint.
+    let cap = 4.0;
+    let measured_peak = PEAK_CEILING_DBFS - cap;
+    let measured_rms = TARGET_RMS_DBFS - 20.0; // way below loudness target
+    assert!((compute_offset_db(measured_rms, measured_peak) - cap).abs() < 0.001);
+}
+
+#[test]
+fn compute_offset_capped_by_loudness_target_when_peak_has_room() {
+    // Lots of peak headroom, modest loudness gap → loudness target is binding.
+    let loudness_gap = 8.0;
+    let measured_rms = TARGET_RMS_DBFS - loudness_gap;
+    let measured_peak = PEAK_CEILING_DBFS - 30.0; // huge headroom
+    assert!((compute_offset_db(measured_rms, measured_peak) - loudness_gap).abs() < 0.001);
+}
+
+#[test]
+fn compute_offset_clamps_to_zero_when_already_loud() {
+    // RMS at target, peak at ceiling — nothing to do.
+    assert_eq!(compute_offset_db(TARGET_RMS_DBFS, PEAK_CEILING_DBFS), 0.0);
+    // RMS above target, peak above ceiling — boost-only, stays at 0.
+    assert_eq!(compute_offset_db(-10.0, 0.0), MIN_OFFSET_DB);
+}
+
+#[test]
+fn compute_offset_clamps_to_max_when_signal_extremely_quiet() {
+    // Both metrics very low — boost saturates at MAX.
+    assert_eq!(compute_offset_db(-80.0, -80.0), MAX_OFFSET_DB);
+}
+
+#[test]
+fn rms_dbfs_zero_buffer_returns_floor() {
+    let buf = vec![0.0_f32; 1024];
+    assert_eq!(rms_dbfs(&buf), -120.0);
+}
+
+#[test]
+fn rms_dbfs_unity_dc_returns_zero() {
+    let buf = vec![1.0_f32; 1024];
+    assert!(rms_dbfs(&buf).abs() < 0.001);
+}
+
+#[test]
+fn cache_returns_inserted_value_for_same_path() {
+    insert_for_test("test/dummy.nam", 8.5);
+    assert_eq!(lookup_cached("test/dummy.nam"), Some(8.5));
+}
+
+#[test]
+fn cache_returns_none_for_unknown_path() {
+    assert_eq!(lookup_cached("test/never_inserted_xyz.nam"), None);
+}
