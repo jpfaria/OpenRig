@@ -153,6 +153,38 @@ impl AutoMaxState {
         for frame in frames.iter_mut() {
             self.process_frame(frame);
         }
+        // Periodic info log (issue #413 diagnostic) — one line every
+        // ~1 second of audio at 48 kHz / 256-frame callback (≈186
+        // callbacks/s, log every 200). Allocates, so kept off the
+        // per-sample path.
+        static AUTO_MAX_LOG_COUNTER: std::sync::atomic::AtomicU32 =
+            std::sync::atomic::AtomicU32::new(0);
+        let n = AUTO_MAX_LOG_COUNTER
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if n % 200 == 0 {
+            let rms_db = if self.mean_square > 1e-12 {
+                10.0 * self.mean_square.log10()
+            } else {
+                -120.0
+            };
+            let peak_db = if self.peak_envelope > 1e-6 {
+                20.0 * self.peak_envelope.log10()
+            } else {
+                -120.0
+            };
+            let gain_db = if self.current_gain > 1e-6 {
+                20.0 * self.current_gain.log10()
+            } else {
+                -120.0
+            };
+            log::info!(
+                "auto_max: rms_in={:+.2}dB peak_in={:+.2}dB gain={:+.2}dB ({:.2}x)",
+                rms_db,
+                peak_db,
+                gain_db,
+                self.current_gain,
+            );
+        }
     }
 
     /// Diagnostics for integration tests — current state of the
