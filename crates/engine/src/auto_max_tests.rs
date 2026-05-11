@@ -97,6 +97,42 @@ fn peak_ceiling_caps_high_crest_signal() {
     );
 }
 
+/// Issue #413: chiado / clipping no ataque da primeira nota após
+/// silêncio. Causa: peak follower (1 ms attack) + gain smoother
+/// (200 ms) deixavam os primeiros samples passarem multiplicados
+/// pelo `current_gain` antigo. O hard ceiling pós-gain garante que
+/// NENHUM sample passa de `peak_ceiling_lin`, independente do
+/// estado do follower / smoother.
+#[test]
+fn step_input_after_silence_does_not_overshoot_ceiling() {
+    let mut s = AutoMaxState::with_enabled(SR, true);
+
+    // Quase silêncio por 1s — `current_gain` deve subir até MAX.
+    let mut idle: Vec<AudioFrame> = vec![AudioFrame::Mono(1.0e-3); SR as usize];
+    s.process(&mut idle);
+
+    // STEP — corda forte, peak alto.
+    let strong = 0.7_f32; // -3.1 dBFS
+    let n = (SR as usize) / 4; // 250 ms
+    let mut burst: Vec<AudioFrame> = (0..n)
+        .map(|i| AudioFrame::Mono(if i % 2 == 0 { strong } else { -strong }))
+        .collect();
+    s.process(&mut burst);
+
+    let peak_lin = burst
+        .iter()
+        .map(|f| match f {
+            AudioFrame::Mono(s) => s.abs(),
+            AudioFrame::Stereo([l, r]) => l.abs().max(r.abs()),
+        })
+        .fold(0.0_f32, f32::max);
+    let ceiling_lin = 10.0_f32.powf(PEAK_CEILING_DBFS / 20.0);
+    assert!(
+        peak_lin <= ceiling_lin + 1.0e-5,
+        "step input overshot ceiling: peak={peak_lin}, ceiling={ceiling_lin}"
+    );
+}
+
 #[test]
 fn boost_is_capped_at_max() {
     let mut s = AutoMaxState::with_enabled(SR, true);

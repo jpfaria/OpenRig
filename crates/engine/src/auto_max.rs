@@ -144,14 +144,21 @@ impl AutoMaxState {
                 + (1.0 - self.peak_release_coeff) * frame_peak;
         }
 
+        // The follower has a 1 ms attack time-constant — perfect for
+        // tracking sustained level but it lags during the first few
+        // samples of a transient. Use `max(envelope, instantaneous)`
+        // for the ceiling guard so the GAIN computed for THIS frame
+        // already accounts for the transient that just landed.
+        let guard_peak = self.peak_envelope.max(frame_peak);
+
         // Compute the boost from RMS, then guard with peak ceiling.
         let rms = self.mean_square.sqrt();
         let desired_gain = if rms < SILENCE_RMS_THRESHOLD_LIN {
             self.current_gain
         } else {
             let want_for_loudness = self.target_rms_lin / rms;
-            let allowed_by_peak = if self.peak_envelope > 1.0e-9 {
-                self.peak_ceiling_lin / self.peak_envelope
+            let allowed_by_peak = if guard_peak > 1.0e-9 {
+                self.peak_ceiling_lin / guard_peak
             } else {
                 self.max_gain_lin
             };
@@ -165,7 +172,16 @@ impl AutoMaxState {
         self.current_gain =
             self.smooth_coeff * self.current_gain + (1.0 - self.smooth_coeff) * desired_gain;
 
-        apply_gain(frame, self.current_gain);
+        // Hard ceiling AFTER gain — the smoothing inevitably lags step
+        // changes ("first note after silence"), so without this clamp
+        // the very first transient samples of a chord ride at the
+        // pre-attack `current_gain` and overshoot the ceiling. Hard
+        // clamp guarantees that NO sample ever exceeds the ceiling
+        // regardless of follower / smoother dynamics. Distortion
+        // produced by the clamp is bounded to the brief overshoot
+        // window (a few ms at most) and is the source of the chiado
+        // reported in #413.
+        apply_gain_with_ceiling(frame, self.current_gain, self.peak_ceiling_lin);
     }
 }
 
@@ -186,12 +202,12 @@ fn frame_mean_square(frame: &AudioFrame) -> f32 {
 }
 
 #[inline(always)]
-fn apply_gain(frame: &mut AudioFrame, g: f32) {
+fn apply_gain_with_ceiling(frame: &mut AudioFrame, g: f32, ceiling: f32) {
     match frame {
-        AudioFrame::Mono(s) => *s *= g,
+        AudioFrame::Mono(s) => *s = (*s * g).clamp(-ceiling, ceiling),
         AudioFrame::Stereo([l, r]) => {
-            *l *= g;
-            *r *= g;
+            *l = (*l * g).clamp(-ceiling, ceiling);
+            *r = (*r * g).clamp(-ceiling, ceiling);
         }
     }
 }
