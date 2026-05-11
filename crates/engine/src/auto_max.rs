@@ -44,6 +44,12 @@ fn current_default_enabled() -> bool {
     RUNTIME_DEFAULT_ENABLED.load(Ordering::Relaxed)
 }
 
+/// Snapshot of the process-global flag (after env-override). For
+/// diagnostics and tests — don't gate audio paths on this.
+pub fn is_runtime_default_enabled() -> bool {
+    current_default_enabled()
+}
+
 /// Loudness target — drives perceived volume. Sits high enough that
 /// naturally-loud saturated amp signals (already around -5 to -8
 /// dBFS RMS) don't sit above the target while clean signals stay
@@ -92,7 +98,7 @@ pub const GAIN_SMOOTH_MS: f32 = 200.0;
 /// boosted to the RMS target and explode at the next note.
 const SILENCE_RMS_THRESHOLD_LIN: f32 = 1.0e-4; // ≈ -80 dBFS
 
-pub(crate) struct AutoMaxState {
+pub struct AutoMaxState {
     /// Smoothed running mean-square (linear). RMS = sqrt(mean_square).
     mean_square: f32,
     /// Smoothed running peak (linear). Used as a guard so the boost
@@ -144,6 +150,19 @@ impl AutoMaxState {
         for frame in frames.iter_mut() {
             self.process_frame(frame);
         }
+    }
+
+    /// Diagnostics for integration tests — current state of the
+    /// follower. Audio thread should never call this.
+    #[doc(hidden)]
+    pub fn snapshot(&self) -> (f32, f32, f32) {
+        (self.mean_square.sqrt(), self.peak_envelope, self.current_gain)
+    }
+
+    /// Enabled flag readback for diagnostics.
+    #[doc(hidden)]
+    pub fn enabled_for_diag(&self) -> bool {
+        self.enabled
     }
 
     #[inline(always)]
