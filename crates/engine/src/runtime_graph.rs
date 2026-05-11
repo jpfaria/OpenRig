@@ -54,8 +54,8 @@ use crate::runtime_audio_frame::ElasticBuffer;
 use crate::runtime_endpoints::{effective_inputs, effective_outputs};
 use crate::runtime_segments::split_chain_into_segments;
 use crate::runtime_state::{
-    BlockRuntimeNode, ChainProcessingState, InputCallbackScratch, InputProcessingState,
-    OutputRoutingState,
+    lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
+    InputProcessingState, OutputRoutingState,
 };
 
 /// Bounded capacity for the per-chain SPSC error queue. Audio-thread
@@ -354,7 +354,7 @@ pub fn update_chain_runtime_state(
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
-        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+        let mut processing = lock_recover(&runtime.processing, "chain runtime");
         processing
             .input_states
             .iter_mut()
@@ -393,7 +393,7 @@ pub fn update_chain_runtime_state(
                     "[engine] rebuild failed for chain '{}': {e} — restoring previous state",
                     chain.id.0
                 );
-                let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+                let mut processing = lock_recover(&runtime.processing, "chain runtime");
                 for (is, old_blocks) in processing
                     .input_states
                     .iter_mut()
@@ -422,10 +422,7 @@ pub fn update_chain_runtime_state(
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
     // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
     {
-        let mut handles = runtime
-            .stream_handles
-            .lock()
-            .expect("stream_handles poisoned");
+        let mut handles = lock_recover(&runtime.stream_handles, "stream_handles");
         handles.clear();
         for input_state in &new_input_states {
             for block in &input_state.blocks {
@@ -438,7 +435,7 @@ pub fn update_chain_runtime_state(
 
     // Step 3: Swap in new state (brief lock)
     {
-        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+        let mut processing = lock_recover(&runtime.processing, "chain runtime");
         processing.input_states = new_input_states;
 
         // Rebuild input_to_segments mapping from current segments
