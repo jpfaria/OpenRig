@@ -28,8 +28,15 @@ static RUNTIME_DEFAULT_ENABLED: AtomicBool = AtomicBool::new(false);
 /// per-chain auto-max for the rest of the process. No effect on
 /// existing chains — only chains built AFTER this call get an
 /// enabled `AutoMaxState`.
+///
+/// `OPENRIG_AUTO_MAX_OFF=1` env var overrides this back to OFF
+/// (read once at flag-flip time) — useful for in-the-field A/B
+/// testing without rebuilding.
 pub fn set_runtime_default_enabled(enabled: bool) {
-    RUNTIME_DEFAULT_ENABLED.store(enabled, Ordering::Relaxed);
+    let env_disable = std::env::var("OPENRIG_AUTO_MAX_OFF")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    RUNTIME_DEFAULT_ENABLED.store(enabled && !env_disable, Ordering::Relaxed);
 }
 
 #[inline]
