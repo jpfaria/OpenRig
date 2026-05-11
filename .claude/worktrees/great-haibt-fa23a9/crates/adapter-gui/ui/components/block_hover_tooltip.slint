@@ -1,0 +1,181 @@
+// Hover-only tooltip attached to a BlockChip. Shows the block name,
+// brand, type label, and the live parameter summary in a callout panel.
+
+import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
+import { EffectTypeIcon } from "./effect_type_icon.slint";
+import { BrandLogo } from "./brand_logo.slint";
+
+export component BlockHoverTooltip inherits Rectangle {
+    in property <ChainBlockItem> block;
+    in property <length> anchor-x;
+    in property <length> anchor-y;
+    in property <length> chip-width;
+    in property <length> chip-height;
+    in property <length> container-width;
+
+    property <length> row-height: 18px;
+    property <length> header-h: 36px;
+    property <length> body-padding: 8px;
+    property <int> entry-count: root.block.param_entries.length;
+    property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+    property <length> tooltip-w: 320px;
+    property <length> gap: 6px;
+
+    // Pick the side that fits inside the row's blocks container. Right
+    // is the default (cards on the left of the chain are usually amps
+    // and benefit from seeing what comes after); flip to the left when
+    // the chip is close enough to the container edge that the tooltip
+    // would be clipped on the right (e.g. last block in the chain).
+    property <bool> fits-right:
+        root.anchor-x + root.chip-width + root.gap + root.tooltip-w
+            <= root.container-width;
+
+    x: root.fits-right
+        ? root.anchor-x + root.chip-width + root.gap
+        : root.anchor-x - root.gap - root.tooltip-w;
+    y: root.anchor-y + root.chip-height - root.tooltip-h;
+    width: root.tooltip-w;
+    height: root.tooltip-h;
+    background: #0e1218f5;
+    border-width: 1px;
+    border-color: #4d5868;
+    border-radius: 8px;
+    drop-shadow-blur: 18px;
+    drop-shadow-color: #000000a0;
+    drop-shadow-offset-y: 4px;
+    // Literal z — covers any sibling declared after the tooltip in the
+    // blocks container (insert-slot dashes, U-turn ticks, secondary
+    // routing artwork) that would otherwise paint a hairline through
+    // the card. Slint accepts literal z on for-loop-free elements.
+    z: 999;
+
+    // Header strip
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 36px;
+        background: #171d2c;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+    // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
+    Rectangle {
+        x: 10px;
+        y: 10px;
+        width: backend-text.preferred-width + 14px;
+        height: 16px;
+        border-radius: 3px;
+        background:
+            root.block.backend_label == "NATIVE" ? #1f6feb
+            : root.block.backend_label == "NAM" ? #b5651d
+            : root.block.backend_label == "IR" ? #6f42c1
+            : root.block.backend_label == "LV2" ? #2f7d32
+            : #4a5260;
+
+        backend-text := Text {
+            x: 7px;
+            y: 0px;
+            height: parent.height;
+            text: root.block.backend_label;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            vertical-alignment: center;
+        }
+    }
+
+    // Brand text in dim small caps before the model name — helps even
+    // when the BrandLogo is absent for the brand. Empty string for
+    // unbranded models (native, generic) keeps the line clean.
+    brand-text := Text {
+        x: 10px + backend-text.preferred-width + 14px + 8px;
+        y: 0px;
+        height: 36px;
+        text: root.block.brand == "" || root.block.brand == "native" || root.block.brand == "generic"
+            ? ""
+            : root.block.brand;
+        color: #8fa0b6;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        vertical-alignment: center;
+    }
+
+    // Model name — sits to the right of the brand text, fills the
+    // remaining header space.
+    Text {
+        x: brand-text.x + brand-text.preferred-width + (brand-text.text == "" ? 0px : 6px);
+        y: 0px;
+        width: 320px - (brand-text.x + brand-text.preferred-width + 78px);
+        height: 36px;
+        text: root.block.display_name;
+        color: #f4f7fb;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Brand logo on the right — auto-hidden by BrandLogo for unknown brands.
+    BrandLogo {
+        x: 320px - 70px;
+        y: 8px;
+        width: 60px;
+        height: 20px;
+        brand: root.block.brand;
+        tint: #e6ecf5;
+    }
+
+    // Parameter table — one row per entry, fixed column widths because
+    // referencing parent.width inside a `for` loop returned 0.
+    for entry[i] in root.block.param_entries : Rectangle {
+        x: 0px;
+        y: 36px + 8px + i * 18px;
+        width: 320px;
+        height: 18px;
+        background: transparent;
+
+        Text {
+            x: 12px;
+            y: 0px;
+            width: 140px;
+            height: 18px;
+            text: entry.label;
+            color: #8fa0b6;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        HorizontalLayout {
+            x: 156px;
+            y: 0px;
+            width: 152px;
+            height: 18px;
+            spacing: 4px;
+            alignment: end;
+
+            Text {
+                text: entry.value;
+                color: #f4f7fb;
+                font-size: 11px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: entry.unit;
+                color: #8fa0b6;
+                font-size: 10px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+

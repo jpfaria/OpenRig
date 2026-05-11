@@ -1,0 +1,17 @@
+[package]
+name = "block-wah"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }
+lv2 = { path = "../lv2" }
+
+[dev-dependencies]
+domain = { path = "../domain" }
+
+[build-dependencies]
+anyhow.workspace = true
+

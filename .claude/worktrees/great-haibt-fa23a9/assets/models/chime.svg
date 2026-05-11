@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Chime: bell with resonance rings -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Bell body -->
+    <path d="M40,14 C40,14 28,22 26,42 L54,42 C52,22 40,14 40,14 Z" />
+    <!-- Bell mouth flare -->
+    <path d="M22,42 Q24,50 40,52 Q56,50 58,42" />
+    <!-- Clapper -->
+    <line x1="40" y1="52" x2="40" y2="58" />
+    <circle cx="40" cy="60" r="2.5" />
+    <!-- Hanger -->
+    <line x1="40" y1="10" x2="40" y2="14" />
+    <line x1="34" y1="8" x2="46" y2="8" />
+    <!-- Resonance rings -->
+    <path d="M20,38 C16,34 16,30 20,26" stroke-width="1" opacity="0.5" />
+    <path d="M15,42 C9,36 9,28 15,22" stroke-width="0.8" opacity="0.3" />
+    <path d="M60,38 C64,34 64,30 60,26" stroke-width="1" opacity="0.5" />
+    <path d="M65,42 C71,36 71,28 65,22" stroke-width="0.8" opacity="0.3" />
+  </g>
+</svg>

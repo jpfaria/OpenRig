@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Reverse: arrow pointing left with sound wave going backwards -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Arrow pointing left (reverse direction) -->
+    <line x1="65" y1="40" x2="20" y2="40" />
+    <polyline points="32,30 20,40 32,50" />
+    <!-- Sound wave arcs emanating to the right (reversed) -->
+    <path d="M50,32 C56,36 56,44 50,48" />
+    <path d="M58,27 C68,33 68,47 58,53" />
+  </g>
+</svg>

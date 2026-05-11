@@ -1,0 +1,459 @@
+import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
+import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
+import { BlockPanelHeader } from "../components/block_panel_header.slint";
+import { BlockPanelBrandStrip } from "../components/block_panel_brand_strip.slint";
+import { BlockPanelParameterItem } from "../components/block_panel_parameter_item.slint";
+
+import "../fonts/Inter.ttf";
+import "../fonts/BebasNeue.ttf";
+import "../fonts/DancingScript.ttf";
+import "../fonts/PermanentMarker.ttf";
+import "../fonts/Orbitron.ttf";
+
+// Full visual amp head editor window content
+export component BlockPanelEditor inherits Rectangle {
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[BlockModelPickerItem]> filtered-block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <int> block-drawer-selected-type-index: -1;
+    in-out property <int> block-drawer-selected-model-index: -1;
+    in-out property <string> block-model-search-text;
+    in property <bool> block-drawer-edit-mode: true;
+    in property <bool> block-drawer-enabled: true;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
+    in property <string> block-drawer-confirm-label: @tr("btn-add");
+    in property <BlockStreamData> block-stream-data;
+
+    callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-number(string, float);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback update-block-parameter-bool(string, bool);
+
+    // Computed
+    private property <string> selected-model-id:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_id
+        : "";
+
+    private property <string> selected-brand:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand
+        : "";
+
+    private property <string> selected-type-label:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].type_label
+        : "";
+
+    private property <string> selected-model-label:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].display_name
+        : "";
+
+    private property <string> block-type-label:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        ? root.block-type-options[root.block-drawer-selected-type-index].label
+        : "PREAMP";
+
+    private property <string> selected-icon-kind:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+        : "";
+
+    private property <image> selected-icon-source:
+        root.selected-icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+        : root.selected-icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
+        : root.selected-icon-kind == "cab" ? @image-url("../assets/cab.svg")
+        : root.selected-icon-kind == "body" ? @image-url("../assets/body.svg")
+        : root.selected-icon-kind == "gain" ? @image-url("../assets/gain.svg")
+        : root.selected-icon-kind == "delay" ? @image-url("../assets/delay.svg")
+        : root.selected-icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
+        : root.selected-icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
+        : root.selected-icon-kind == "filter" ? @image-url("../assets/filter.svg")
+        : root.selected-icon-kind == "wah" ? @image-url("../assets/expression.svg")
+        : root.selected-icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
+        : root.selected-icon-kind == "modulation" ? @image-url("../assets/mod.svg")
+        : root.selected-icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
+        : root.selected-icon-kind == "nam" ? @image-url("../assets/nam.svg")
+        : root.selected-icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
+        : root.selected-icon-kind == "utility" ? @image-url("../assets/tuner.svg")
+        : @image-url("../assets/gear.svg");
+
+    // Badge dimensions (for computing ModelSelector right boundary)
+    private property <length> badge-width:
+        root.selected-type-label == "" ? 0px : 56px;
+    private property <length> header-height: 48px;
+    private property <length> brand-strip-height: 0px;
+    // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
+    private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
+    private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
+
+    background: #0a0a0e;
+
+    // ── HEADER (48px) ──────────────────────────────────────────────
+    BlockPanelHeader {
+        x: 0; y: 0;
+        width: parent.width;
+        height: root.header-height;
+        selected-icon-source: root.selected-icon-source;
+        block-type-label: root.block-type-label;
+        badge-width: root.badge-width;
+        edit-mode: root.block-drawer-edit-mode;
+        filtered-models: root.filtered-block-model-options;
+        selected-model: root.block-drawer-selected-model-index >= 0
+            && root.block-drawer-selected-model-index < root.block-model-options.length
+            ? root.block-model-options[root.block-drawer-selected-model-index]
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+        search-text <=> root.block-model-search-text;
+        type-label: root.selected-type-label;
+        icon-kind: root.selected-icon-kind;
+        selected-model-id: root.selected-model-id;
+        choose-model-by-id(id) => { root.choose-block-model-by-id(id); }
+        search-model(text) => { root.search-block-model(text); }
+        show-plugin-info(kind, id) => { root.show-plugin-info(kind, id); }
+        delete-block => { root.delete-block-drawer(); }
+        save-block => { root.save-block-drawer(); }
+    }
+
+    // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
+    // Panel colors from model data
+    private property <color> panel-bg:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_bg
+        : #2c2e34;
+    private property <color> panel-text:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_text
+        : #8090a0;
+    private property <color> brand-strip-bg:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand_strip_bg
+        : #1a1a1a;
+    private property <string> model-font:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_font
+        : "";
+
+    Rectangle {
+        x: 0;
+        y: root.header-height + root.brand-strip-height;
+        width: parent.width;
+        height: root.panel-height;
+        clip: true;
+        background: root.panel-bg;
+
+        // ── Brand strip (marca + modelo) — hidden for EQ blocks ──
+        BlockPanelBrandStrip {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            has-eq-widget: root.has-eq-widget;
+            selected-brand: root.selected-brand;
+            selected-model-id: root.selected-model-id;
+            brand-strip-bg: root.brand-strip-bg;
+            panel-text: root.panel-text;
+            selected-model-label: root.selected-model-label;
+            selected-icon-source: root.selected-icon-source;
+            model-font: root.model-font;
+        }
+
+        // ── Knob overlays (distributed like table columns) ──
+        HorizontalLayout {
+            visible: root.block-knob-overlays.length > 0;
+            alignment: stretch;
+            padding-left: 60px;
+            padding-right: 8px;
+            x: 0;
+            y: parent.height * 0.54;
+            width: parent.width;
+            height: 90px;
+
+            for knob[ki] in root.block-knob-overlays : Rectangle {
+                horizontal-stretch: 1;
+                height: 90px;
+
+                Text {
+                    x: 0; y: 0; width: parent.width; height: 14px;
+                    text: knob.label;
+                    color: root.panel-text;
+                    font-family: "Bebas Neue";
+                    font-size: 10px;
+                    letter-spacing: 1.5px;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+
+                PanelKnob {
+                    x: (parent.width - 36px) / 2; y: 28px;
+                    width: 36px;
+                    height: 56px;
+                    value: knob.value;
+                    min-val: knob.min_val;
+                    max-val: knob.max_val;
+                    step: knob.step;
+                    path: knob.path;
+                    changed(p, v) => { root.update-block-parameter-number(p, v); }
+                }
+            }
+        }
+
+        // ── All parameters (distributed like table columns, when no knob overlays) ──
+        // When stream data is active (tuner etc.), push params to right side
+        property <bool> has-stream: root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
+        HorizontalLayout {
+            visible: root.block-knob-overlays.length == 0
+                && root.curve-editor-points.length == 0
+                && root.multi-slider-points.length == 0;
+            alignment: stretch;
+            padding-left: parent.has-stream ? parent.width - 220px : 60px;
+            padding-right: 8px;
+            x: 0;
+            y: parent.height * 0.54;
+            width: parent.width;
+            height: 90px;
+
+            for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
+                param: param;
+                panel-text: root.panel-text;
+                update-number(p, v) => { root.update-block-parameter-number(p, v); }
+                select-option(p, i) => { root.select-block-parameter-option(p, i); }
+                pick-file(p) => { root.pick-block-parameter-file(p); }
+                update-bool(p, v) => { root.update-block-parameter-bool(p, v); }
+            }
+        }
+    }
+
+    // ── Curve Editor (parametric EQ) ──
+    // Height fills the panel below the (collapsed-to-76px) header section.
+    // Without it the EqBandSlider children read parent.height = 0 and render
+    // as invisible 1-pixel-tall bars (issue #358 visual report).
+    if root.curve-editor-points.length > 0 : CurveEditorControl {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        width: root.width - 16px;
+        height: Math.max(
+            280px,
+            root.height - root.header-height - root.brand-strip-height
+                - root.panel-height - 16px,
+        );
+        points: root.curve-editor-points;
+        total-curve: root.eq-total-curve;
+        band-curves: root.eq-band-curves;
+        update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
+    }
+
+    // ── Multi Slider (graphic EQ) ──
+    if root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        width: root.width - 16px;
+        height: Math.max(
+            280px,
+            root.height - root.header-height - root.brand-strip-height
+                - root.panel-height - 16px,
+        );
+        points: root.multi-slider-points;
+        update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
+    }
+
+    // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
+    if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
+        x: 56px;
+        y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
+        width: Math.min(parent.width - 56px - 230px, 240px);
+        height: root.panel-height * 0.46;
+
+        // Waiting for signal — shown until pitch is detected
+        if !root.block-stream-data.active : Text {
+            x: 0; y: 0; width: parent.width; height: parent.height;
+            text: @tr("–");
+            color: #3a4050;
+            font-size: 28px; font-weight: 900;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        for entry[ei] in root.block-stream-data.entries : Rectangle {
+            property <length> slot-w: parent.width / root.block-stream-data.entries.length;
+            x: ei * slot-w;
+            y: 0;
+            width: slot-w;
+            height: parent.height;
+            background: transparent;
+
+            Text {
+                x: 0; y: 0; width: parent.width; height: 12px;
+                text: entry.key;
+                color: #506070;
+                font-size: 7px; font-weight: 700; letter-spacing: 1.5px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                x: 0; y: 12px; width: parent.width; height: parent.height - 24px;
+                text: entry.text;
+                color: entry.value > 0.5 ? #29df85 : #f3f6fb;
+                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if entry.key == "cents" : Rectangle {
+                x: 6px; y: parent.height - 10px;
+                width: parent.width - 12px; height: 6px;
+                background: #1a1e28;
+                border-radius: 3px;
+
+                Rectangle {
+                    x: (parent.width - 1px) / 2;
+                    y: 0; width: 1px; height: parent.height;
+                    background: #405060;
+                }
+
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
+                    y: 0; width: 6px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 3px;
+                }
+            }
+        }
+    }
+
+    // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
+    if root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + 4px;
+        width: parent.width - 16px;
+        height: root.panel-height - 28px;
+        background: #06060e;
+        border-radius: 4px;
+        clip: true;
+
+        // dB grid lines: 0, -20, -40, -60 dBFS
+        // normalization: value = (db + 80) / 80  →  grid-y = (parent.height - 14px) * (1 - norm)
+        for db-label[gi] in [
+            { label: "0", norm: 1.0 },
+            { label: "-20", norm: 0.75 },
+            { label: "-40", norm: 0.5 },
+            { label: "-60", norm: 0.25 },
+        ] : Rectangle {
+            x: 0;
+            y: (parent.height - 14px) * (1.0 - db-label.norm);
+            width: parent.width;
+            height: 1px;
+            background: #ffffff18;
+
+            Text {
+                x: 2px;
+                y: -9px;
+                width: 26px;
+                height: 9px;
+                text: db-label.label;
+                color: #ffffff40;
+                font-size: 7px;
+                horizontal-alignment: left;
+            }
+        }
+
+        for entry[ei] in root.block-stream-data.entries : Rectangle {
+            property <length> bar-slot-w: parent.width / root.block-stream-data.entries.length;
+            // usable-h: bar area above frequency labels
+            property <length> usable-h: parent.height - 14px;
+            x: ei * self.bar-slot-w;
+            y: 0;
+            width: self.bar-slot-w;
+            height: parent.height;
+            background: transparent;
+
+            // Bar (bottom-aligned, grows upward)
+            Rectangle {
+                property <length> bar-h: Math.max(1px, entry.value * parent.usable-h);
+                x: 1px;
+                y: parent.usable-h - self.bar-h;
+                width: parent.width - 2px;
+                height: self.bar-h;
+                background: entry.value > 0.85 ? #ff4433
+                    : entry.value > 0.65 ? #ffaa22
+                    : entry.value > 0.3 ? #44cc88
+                    : #4488ff;
+                border-radius: 1px;
+            }
+
+            // Peak hold line
+            Rectangle {
+                x: 1px;
+                y: Math.max(0px, parent.usable-h - entry.peak * parent.usable-h - 1px);
+                width: parent.width - 2px;
+                height: 2px;
+                background: entry.peak > 0.85 ? #ff8877
+                    : entry.peak > 0.65 ? #ffcc66
+                    : entry.peak > 0.3 ? #88ffcc
+                    : #88bbff;
+                opacity: entry.peak > 0.01 ? 1.0 : 0.0;
+            }
+
+            // Frequency label at bottom
+            Text {
+                x: 0;
+                y: parent.height - 13px;
+                width: parent.width;
+                height: 13px;
+                text: entry.text;
+                color: #ffffff55;
+                font-size: 7px;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+
+    // ── Power switch — root level so it always renders above panel content ──
+    // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
+    // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
+    // Falls to 62% when knob overlays are present so it sits alongside the knobs.
+    private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
+
+    FootSwitch {
+        x: 8px;
+        y: root.power-y;
+        width: 48px;
+        height: 66px;
+        enabled: root.block-drawer-enabled;
+        clicked => { root.toggle-block-drawer-enabled(); }
+    }
+}

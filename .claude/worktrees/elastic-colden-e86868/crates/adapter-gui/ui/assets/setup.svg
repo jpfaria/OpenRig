@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
+
+<circle cx="128" cy="128" r="34" stroke="#E8E8E8" stroke-width="12"/>
+<path d="M128 62V42M128 214V194M194 128H214M42 128H62M175 81L189 67M67 189L81 175M175 175L189 189M67 67L81 81" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<circle cx="128" cy="128" r="10" fill="#E8E8E8"/>
+<text x="128" y="210" fill="#8E8E8E" font-size="22" font-family="Arial" text-anchor="middle">SETUP</text>
+
+</svg>

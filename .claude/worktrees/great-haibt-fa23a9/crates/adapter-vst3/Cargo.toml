@@ -1,0 +1,7 @@
+[package]
+name = "adapter-vst3"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ui-openrig = { path = "../ui-openrig" }

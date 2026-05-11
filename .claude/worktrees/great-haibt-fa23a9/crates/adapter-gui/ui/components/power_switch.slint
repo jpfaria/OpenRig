@@ -1,0 +1,30 @@
+// Sprite-based power switch (on/off).
+// Horizontal strip: 600×300 px, 2 frames (each 300×300). Left=off, right=on.
+export component PowerSwitch inherits Rectangle {
+    in property <bool> enabled;
+    callback clicked();
+
+    background: transparent;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: root.width;
+        height: root.height;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/power-switch.png");
+            x: root.enabled ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

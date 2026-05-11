@@ -1,0 +1,103 @@
+// Sprite-sheet vertical fader (amsynth light-slider).
+// Horizontal strip: 2000×160 px, 40 frames (each 50×160).
+// Used for continuous parameters (EQ bands, etc.).
+export component PanelSlider inherits Rectangle {
+    in property <float> value;
+    in property <float> min-val;
+    in property <float> max-val;
+    in property <float> step: 1.0;
+    in property <string> path;
+    callback changed(string, float);
+
+    private property <float> current-val: root.preview-active ? root.preview-val : root.value;
+    private property <float> norm: root.max-val > root.min-val
+        ? Math.max(0.0, Math.min(1.0, (root.current-val - root.min-val) / (root.max-val - root.min-val)))
+        : 0.0;
+    private property <int> frame-count: 40;
+    private property <int> frame-index: Math.min(Math.max(Math.round(root.norm * (root.frame-count - 1)), 0), root.frame-count - 1);
+    private property <float> drag-y0: 0;
+    private property <float> drag-val0: 0;
+    private property <bool> preview-active: false;
+    private property <float> preview-val: 0;
+    // Each frame is 50×160 (width:height = 1:3.2)
+    private property <length> fw: root.width;
+    private property <length> fh: root.fw * 3.2;
+
+    background: transparent;
+
+    // ── Fader sprite ──
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: root.fw;
+        height: root.fh;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/slider-strip.png");
+            x: -root.frame-index * root.fw;
+            y: 0;
+            width: root.frame-count * root.fw;
+            height: root.fh;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // ── Value box below fader ──
+    Rectangle {
+        x: (root.width - root.fw * 0.95) / 2;
+        y: root.fh + 2px;
+        width: root.fw * 0.95;
+        height: root.height - root.fh - 3px;
+        border-radius: 3px;
+        background: #0c0a12;
+        border-width: 1px;
+        border-color: #2a2832;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.step >= 1.0
+                ? Math.round(root.current-val) + ""
+                : Math.round(root.current-val * 10) / 10 + "";
+            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
+            font-family: "Bebas Neue";
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // ── Touch/drag ──
+    ta := TouchArea {
+        mouse-cursor: ta.pressed ? none : ns-resize;
+
+        pointer-event(ev) => {
+            if ev.kind == PointerEventKind.down {
+                root.drag-y0 = ta.mouse-y / 1px;
+                root.drag-val0 = root.value;
+                root.preview-active = true;
+                root.preview-val = root.value;
+            }
+            if ev.kind == PointerEventKind.up {
+                if root.preview-active {
+                    root.changed(root.path, root.preview-val);
+                    root.preview-active = false;
+                }
+            }
+        }
+
+        moved => {
+            if ta.pressed {
+                let delta = root.drag-y0 - ta.mouse-y / 1px;
+                let range = root.max-val - root.min-val;
+                let raw = root.drag-val0 + delta * range / 120.0;
+                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
+                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
+                root.preview-val = stepped;
+            }
+        }
+    }
+}

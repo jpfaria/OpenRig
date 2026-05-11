@@ -1,0 +1,200 @@
+# Configuração de áudio
+
+## Stream model (CLAUDE.md invariantes 4 / 5 / 10)
+
+### Regras do stream
+
+1. **Bus interno é SEMPRE estéreo.** Mono input vira `Stereo([s, s])`
+   logo no começo via `to_stereo` (broadcast). Não há momento dentro
+   do chain em que o sinal trafega como mono no bus.
+2. **Cada bloco declara um `ModelAudioMode`** que indica o layout que
+   sabe processar (`MonoOnly` / `DualMono` / `TrueStereo` /
+   `MonoToStereo`).
+3. **O wrapper do bloco só insere conversão se o bloco exige outro
+   layout.** Bus já em estéreo + bloco que aceita estéreo → sem
+   conversão.
+4. **Output mode `mono`** é o único caso que volta a colapsar pra
+   1 canal, via `mixdown(L, R)`. Stereo output passa direto.
+
+### Tabela de wrappers
+
+Bus interno é SEMPRE estéreo. Input `dual_mono` ou `stereo` já entram como
+estéreo (sem conversão). Input `mono` faz `to_stereo` (broadcast L=R=s)
+no início e o bus segue estéreo daí pra frente. Cada bloco pede o
+layout que sabe processar, e o wrapper só insere conversão se o bus
+estéreo não bate com o que o bloco aceita.
+
+| `ModelAudioMode` | Wrapper antes | Wrapper depois | Comportamento do bloco |
+|---|---|---|---|
+| `MonoOnly` | `to_mono` (mixdown L+R) | `to_stereo` (broadcast) | 1 instância processa o sample colapsado |
+| `DualMono` | `to_dual_mono` (marca 2 mono indep) | `to_stereo` (marca par estéreo) | 2 instâncias paralelas, uma por canal — `[L,R]` indep entram, `[L_p, R_p]` saem |
+| `TrueStereo` | passa direto (bus já estéreo) | passa direto | 1 instância vê `[L, R]` correlacionados, processa stereo |
+| `MonoToStereo` | (recebe estéreo, talvez `to_mono` se a impl exige source mono) | passa direto | bloco devolve estéreo |
+
+Pinned em `crates/engine/src/runtime_block_builders.rs` ~L444-497.
+
+### Pipeline canônico
+
+```
+Hardware → InputBlock { device_id, mode, channels }
+        ↓
+  bus inicial:
+    mode mono     → Mono → to_stereo (broadcast L=R=s) → Stereo
+    mode dual_mono → Stereo (semântica: 2 mono indep)
+    mode stereo    → Stereo (semântica: par estéreo)
+        ↓
+  pra cada bloco no chain:
+    [wrapper antes]   → adapta bus pro layout que o bloco aceita
+    bloco processa
+    [wrapper depois]  → devolve pro bus estéreo
+        ↓
+  OutputBlock { device_id, mode, channels }
+    mode stereo, ch [a, b]  → ch_a = L, ch_b = R
+    mode mono,   ch [a]     → mixdown(L, R) → s, escreve ch_a
+    mode mono,   ch [a, b…] → mixdown(L, R) → s, replicado em TODOS
+
+  Mixdown:
+    Average → (L + R) * 0.5  (default)
+    Sum     →  L + R
+    Left    →  L
+    Right   →  R
+```
+
+### Exemplos
+
+**1. Mono in + bloco MonoOnly + stereo out**
+```
+HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono(s)→m → to_stereo
+            → [m,m] → HW(ch0=m, ch1=m)
+```
+
+**2. Stereo in + bloco DualMono + stereo out**
+```
+HW Stereo(ch0,ch1) → [L,R] → to_dual_mono → block_dm(2 instâncias):
+       L→L_p, R→R_p → to_stereo → [L_p,R_p] → HW(ch0=L_p, ch1=R_p)
+```
+
+**3. Mono in + bloco TrueStereo (chorus) + stereo out**
+```
+HW Mono(ch0) → to_stereo → [s,s] → block_ts(L=R=s)→[L',R']
+            → HW(ch0=L', ch1=R')
+```
+
+**4. Mono in + MonoOnly + TrueStereo + stereo out**
+```
+HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stereo
+            → [m,m] → block_ts→[L',R'] → HW(ch0=L', ch1=R')
+```
+
+**5. Mono in + bloco MonoOnly + mono out**
+```
+HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stereo
+            → [m,m] → mixdown=m → HW(ch0=m)
+```
+
+### Streams paralelos
+
+- Cada InputBlock = um stream paralelo TOTALMENTE isolado (próprio
+  runtime, sem buffer / lock / route / tap compartilhado).
+- Múltiplos InputBlocks / OutputBlocks → soma é responsabilidade do
+  backend (cpal / JACK). O engine NUNCA mistura streams entre si.
+- Solo input passa unity em qualquer combinação (Input mode × Output
+  mode), pinned em `crates/engine/src/volume_invariants_tests.rs`.
+
+### Por que essas regras (invariantes 4 / 5 / 10)
+
+- **#4 — Isolation entre streams.** Cada InputBlock tem o próprio
+  runtime, próprio buffer, próprio estado. Mexer num não afeta outro.
+  Mistura final é trabalho do driver de áudio.
+- **#5 — Bus estéreo internamente.** Mono input vira Stereo([s, s])
+  desde o primeiro bloco. Blocos sempre veem `[L, R]`. Decisão de
+  como sair (mono / stereo) é só do OutputBlock.
+- **#10 — Volume por stream IMUTÁVEL.** Nada no engine atenua o
+  signal preemptivamente "pra evitar clip". Output limiter (`tanh`
+  no fim) cuida disso. Solo input passa unity em qualquer combinação
+  de Input mode × Output mode (pinned por `volume_invariants_tests.rs`).
+
+### Split-mono fan-out
+
+Caso especial: `mode: mono` com **mais de um canal** em `channels`
+(`channels: [0, 1]`). O engine cria **um sibling stream por canal** —
+cada um roda a chain inteira em paralelo, lendo um canal físico
+diferente. Útil pra duas guitarras na mesma interface usando o mesmo
+preset, sem precisar duplicar a chain.
+
+Pra **uma única fonte mono** (1 guitarra), use `channels: [N]` apenas
+(N = canal físico onde a fonte entra). Múltiplos canais ativam o
+fan-out e provavelmente não é o que você quer.
+
+Acceptance pinned (`volume_invariants_tests` g01..g04):
+
+- `solo` (signal só em ch0, ch1 silencioso) → output peak = signal peak (UNITY).
+- `dual` abaixo do limiter knee (ch0 + ch1 com signal) → soma direta.
+- `dual` acima do knee → `tanh(soma)`.
+- `mono → stereo bus broadcast` é simétrico (L = R).
+
+`split_mono_sibling_count` é metadata estrutural; o multiplier de scale
+**MUST stay at 1.0** até feature opt-in de auto-mix existir com aprovação
+explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
+
+### Chain enabled é runtime, não persistência
+
+`Chain.enabled` é estado de memória — o usuário liga / desliga uma
+chain enquanto o app roda. **NÃO É serializado no `project.yaml`** —
+chains carregam sempre como desabilitadas e o usuário decide quais
+ativar. `ChainYaml.enabled` tem `skip_serializing` por isso.
+
+Um channel de um device físico só pode estar habilitado em **uma**
+chain por vez. O runtime valida isso em memória ao habilitar.
+
+## I/O como blocos
+
+`Input`, `Output`, `Insert` são variantes de `AudioBlockKind` dentro de `chain.blocks`. Não existem listas separadas.
+
+- `blocks[0]` = InputBlock (fixo, não removível)
+- `blocks[N-1]` = OutputBlock (fixo, não removível)
+- Inputs/Outputs/Inserts extras podem ser inseridos no meio
+- Cada Input cria stream paralelo isolado; Output é tap não-destrutivo
+- Insert divide a chain em segmentos; desabilitado = bypass (sinal passa direto)
+
+Exemplo YAML mínimo:
+
+```yaml
+chains:
+  - description: guitar 1
+    instrument: electric_guitar
+    blocks:
+      - { type: input,  model: standard, enabled: true, entries: [{ name: In1, device_id: "...", mode: mono, channels: [0] }] }
+      - { type: preamp, model: marshall_jcm_800_2203, enabled: true, params: { volume: 70, gain: 40 } }
+      - { type: insert, model: external_loop, enabled: true, send: {...}, return_: {...} }
+      - { type: delay,  model: digital_clean, enabled: true, params: { time_ms: 350, feedback: 40, mix: 30 } }
+      - { type: output, model: standard, enabled: true, entries: [{ name: Out1, device_id: "...", mode: stereo, channels: [0,1] }] }
+```
+
+Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32. YAML antigo (`inputs:`/`outputs:` separados, `input_device_id`/`output_device_id` únicos) é migrado automaticamente.
+
+## Per-machine device settings (config.yaml)
+
+Sample rate, buffer size, bit depth, language são **per-machine**, não per-project. Vivem no `config.yaml` unificado (#287):
+
+- macOS: `~/Library/Application Support/OpenRig/config.yaml`
+- Windows: `%APPDATA%\OpenRig\config.yaml`
+- Linux: `~/.config/OpenRig/config.yaml`
+
+Schema:
+
+```yaml
+recent_projects: [...]
+paths: { thumbnails, screenshots, metadata }
+input_devices: [{ device_id, name, sample_rate, buffer_size_frames, bit_depth, ... }]
+output_devices: [...]
+language: pt-BR  # ou en-US, ou null para seguir o OS
+```
+
+`gui-settings.yaml` legado é migrado automaticamente para `config.yaml` no primeiro boot e removido — sem ação manual.
+
+`load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
+
+## JACK lifecycle (Linux only)
+
+Com feature `jack`, OpenRig controla o ciclo de vida do JACK. `ensure_jack_running()` em infra-cpal detecta a placa USB, lê SR/buffer do `device_settings`, configura mixer ALSA, lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3`, espera o socket aparecer em `/dev/shm/`. Timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()` e tenta reconectar quando JACK volta. Tudo atrás de `#[cfg(all(target_os = "linux", feature = "jack"))]`.

@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 5-bar spectrum: ascending heights, even spacing -->
+  <rect x="3" y="14" width="3" height="7" rx="0.6" fill="#F5F7FF"/>
+  <rect x="7.5" y="9" width="3" height="12" rx="0.6" fill="#F5F7FF"/>
+  <rect x="12" y="5" width="3" height="16" rx="0.6" fill="#F5F7FF"/>
+  <rect x="16.5" y="11" width="3" height="10" rx="0.6" fill="#F5F7FF"/>
+  <!-- baseline -->
+  <path d="M2 21 H22" stroke="#F5F7FF" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+</svg>

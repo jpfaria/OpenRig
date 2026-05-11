@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Plate reverb: metal plate with vibration lines -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Metal plate (rectangle) -->
+    <rect x="12" y="24" width="56" height="32" rx="2" />
+    <!-- Vibration lines inside plate -->
+    <path d="M22,40 C26,34 30,34 34,40 C38,46 42,46 46,40 C50,34 54,34 58,40" />
+    <!-- Corner screws / mounting bolts -->
+    <circle cx="17" cy="29" r="2.5" />
+    <circle cx="63" cy="29" r="2.5" />
+    <circle cx="17" cy="51" r="2.5" />
+    <circle cx="63" cy="51" r="2.5" />
+    <!-- Transducer points -->
+    <line x1="40" y1="16" x2="40" y2="24" />
+    <line x1="40" y1="56" x2="40" y2="64" />
+  </g>
+</svg>
