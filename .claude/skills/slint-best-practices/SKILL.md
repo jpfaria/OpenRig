@@ -16,9 +16,9 @@ Sources:
 
 Princípios gerais de UI (responsividade, separação business/presentation, zero coupling) vivem em `openrig-code-quality`. As regras Slint-específicas do projeto:
 
-## Quality Gate (issue #404)
+## Quality Gate (issues #404 / #410)
 
-`scripts/qa.sh` (que roda também no CI via `.github/workflows/pr.yml`) inclui `cargo build --workspace --all-targets` — qualquer erro de compilação Slint quebra o gate. Antes de qualquer `git push`:
+`scripts/qa.sh` é o único gate (igual local e CI). Compara 6 métricas do PR vs `origin/develop` — se algum erro de compilação Slint **novo** entrar, build errors aumentam e o gate falha. Antes de qualquer `git push`:
 
 ```bash
 ./scripts/qa.sh
