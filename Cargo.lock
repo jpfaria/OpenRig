@@ -1639,6 +1639,7 @@ dependencies = [
  "log",
  "lv2",
  "nam",
+ "plugin-loader",
  "project",
  "vst3-host",
 ]
