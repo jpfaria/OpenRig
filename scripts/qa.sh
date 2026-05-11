@@ -1,132 +1,220 @@
 #!/usr/bin/env bash
-# qa.sh — OpenRig quality gate (issue #404)
+# qa.sh — OpenRig quality gate (issue #410, sucessor de #404)
 #
-# Filosofia: o gate falha quando o PR PIORA métricas, não pelo simples fato
-# do código preexistente já estar ruim. Métricas comparativas (complexidade,
-# cobertura) ficam no workflow `pr.yml` que compara PR vs `develop`.
+# Gate ÚNICO comparativo. Roda local e em CI com mesmo comportamento:
+# falha SE E SOMENTE SE o PR piora alguma das 6 métricas em relação ao
+# baseline (default: origin/develop). Dívida preexistente NUNCA bloqueia.
 #
-# Aqui rodam apenas os checks ABSOLUTOS (não regressíveis):
-#   1. cargo fmt --all --check          (formatação — fix trivial)
-#   2. cargo clippy -D warnings         (warnings — não pode regredir)
-#   3. cargo build --workspace          (zero warnings)
-#   4. cargo test --workspace           (business validation)
-#   5. cargo llvm-cov                   (gera lcov.info; threshold opcional)
+# Métricas (PR vs baseline):
+#   1. fmt        — arquivos não-formatados
+#   2. clippy     — total de errors do clippy `-D warnings` (sem complexity)
+#   3. build      — total de errors de cargo build --workspace --all-targets
+#   4. test       — testes que falharam (passou na base, quebra no PR)
+#   5. complexity — violações dos 4 lints de complexidade
+#   6. coverage   — % de linhas cobertas (cargo-llvm-cov)
 #
-# Usage:
-#   ./scripts/qa.sh             # rodar gate absoluto
-#   QA_MIN_COVERAGE=70 ./scripts/qa.sh   # exigir cobertura mínima
-#   QA_SKIP_COVERAGE=1 ./scripts/qa.sh   # rodada rápida sem cobertura
+# Local:
+#   ./scripts/qa.sh
+#     → baseline auto-extraído em /tmp/qa-baseline via `git archive origin/develop`.
+#     → roda dois cargos do workspace (PR e base). Demora.
 #
-# Exit: 0 = absolute gate green, 1 = red. Comparativo é em CI.
+# CI (.github/workflows/pr.yml):
+#   QA_BASELINE_DIR=baseline ./scripts/qa.sh
+#     → reusa checkout que o workflow já fez em baseline/.
+#
+# Env vars:
+#   QA_BASELINE_DIR        path do baseline pronto (pula preparação)
+#   QA_BASE_REF            git ref a usar como base (default: origin/develop)
+#   QA_REFRESH_BASELINE    1 → re-extrai baseline mesmo que exista
+#   QA_COV_MARGIN          tolerância de coverage em pp (default: 1.0)
+#   QA_LOG_DIR             onde guardar logs por etapa (default: target/qa-logs)
+#
+# Pré-requisitos: cargo, cargo-llvm-cov, jq.
 
 set -uo pipefail
 
-# ─── Config ─────────────────────────────────────────────────────────────────
-QA_MIN_COVERAGE="${QA_MIN_COVERAGE:-0}"
-QA_SKIP_COVERAGE="${QA_SKIP_COVERAGE:-0}"
-QA_LOG_DIR="${QA_LOG_DIR:-target/qa-logs}"
+QA_BASELINE_DIR="${QA_BASELINE_DIR:-}"
 QA_BASE_REF="${QA_BASE_REF:-origin/develop}"
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BOLD='\033[1m'
-NC='\033[0m'
+QA_COV_MARGIN="${QA_COV_MARGIN:-1.0}"
+QA_LOG_DIR="${QA_LOG_DIR:-target/qa-logs}"
+QA_REFRESH_BASELINE="${QA_REFRESH_BASELINE:-0}"
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 mkdir -p "$QA_LOG_DIR"
 
-FAILED_STEPS=""
-
-run_step() {
-  local name="$1"; shift
-  local log="$QA_LOG_DIR/${name// /_}.log"
-
-  echo ""
-  echo -e "${BOLD}── ${name} ──${NC}"
-  if "$@" > "$log" 2>&1; then
-    echo -e "  ${GREEN}✓ OK${NC}   $name"
-  else
-    echo -e "  ${RED}✗ FAIL${NC} $name"
-    echo -e "  ${YELLOW}log:${NC} $log"
-    tail -n 30 "$log" | sed 's/^/    /'
-    FAILED_STEPS="$FAILED_STEPS\n  - $name (log: $log)"
+# ─── Baseline provisioning ──────────────────────────────────────────────────
+prepare_baseline() {
+  local target="$1"
+  echo "── preparing baseline ($QA_BASE_REF → $target) ──"
+  rm -rf "$target"
+  mkdir -p "$target"
+  git fetch origin --quiet 2>/dev/null || true
+  if ! git archive "$QA_BASE_REF" 2>/dev/null | tar -xC "$target"; then
+    echo "::error::failed to extract '$QA_BASE_REF' via git archive — try \`git fetch origin\` first"
+    return 1
   fi
+}
+
+if [ -z "$QA_BASELINE_DIR" ]; then
+  QA_BASELINE_DIR="/tmp/qa-baseline"
+  if [ ! -d "$QA_BASELINE_DIR" ] || [ "$QA_REFRESH_BASELINE" = "1" ]; then
+    prepare_baseline "$QA_BASELINE_DIR" || exit 1
+  else
+    echo "── reusing baseline at $QA_BASELINE_DIR (set QA_REFRESH_BASELINE=1 to refresh) ──"
+  fi
+elif [ ! -d "$QA_BASELINE_DIR" ]; then
+  echo "::error::QA_BASELINE_DIR='$QA_BASELINE_DIR' does not exist"
+  exit 2
+fi
+
+QA_BASELINE_DIR=$(cd "$QA_BASELINE_DIR" && pwd)
+
+# ─── Helpers ────────────────────────────────────────────────────────────────
+# Cada função SEMPRE retorna um único inteiro/numero >= 0 em stdout.
+
+# grep -c imprime '0' em stdout E sai 1 quando há 0 matches — não usar
+# `|| echo 0` (duplicaria stdout). Encapsular aqui.
+_grep_count() {
+  local pattern="$1" file="$2"
+  local n
+  if n=$(grep -cE "$pattern" "$file" 2>/dev/null); then
+    :
+  else
+    n=0
+  fi
+  printf '%d\n' "${n:-0}"
+}
+
+count_fmt_errors() {
+  local dir="$1" log="$2"
+  : > "$log"
+  ( cd "$dir" && cargo fmt --all -- --check ) > "$log" 2>&1 || true
+  _grep_count '^Diff in ' "$log"
+}
+
+count_clippy_errors() {
+  local dir="$1" log="$2"
+  : > "$log"
+  (
+    cd "$dir" && cargo clippy --workspace --all-targets -- \
+      -D warnings \
+      -A clippy::cognitive_complexity \
+      -A clippy::too_many_lines \
+      -A clippy::too_many_arguments \
+      -A clippy::type_complexity
+  ) > "$log" 2>&1 || true
+  _grep_count '^error(\[|:)' "$log"
+}
+
+count_build_errors() {
+  local dir="$1" log="$2"
+  : > "$log"
+  ( cd "$dir" && cargo build --workspace --all-targets ) > "$log" 2>&1 || true
+  _grep_count '^error(\[|:)' "$log"
+}
+
+count_test_failures() {
+  local dir="$1" log="$2"
+  : > "$log"
+  ( cd "$dir" && cargo test --workspace --all-targets --no-fail-fast ) \
+    > "$log" 2>&1 || true
+  local n
+  n=$(grep -E '^test result:' "$log" 2>/dev/null \
+      | sed -E 's/.*([0-9]+) failed.*/\1/' \
+      | awk '{ s += $1 } END { print s+0 }')
+  printf '%d\n' "${n:-0}"
+}
+
+count_complexity() {
+  local dir="$1" log="$2"
+  : > "$log"
+  (
+    cd "$dir" && cargo clippy --workspace --all-targets -- \
+      -A clippy::all \
+      -W clippy::cognitive_complexity \
+      -W clippy::too_many_lines \
+      -W clippy::too_many_arguments \
+      -W clippy::type_complexity
+  ) > "$log" 2>&1 || true
+  _grep_count 'cognitive complexity|too many lines|too many arguments|type complexity' "$log"
+}
+
+measure_coverage() {
+  local dir="$1" out="$2"
+  ( cd "$dir" && cargo llvm-cov --workspace --json --output-path "$out" ) \
+    > /dev/null 2>&1 || true
+  local pct=0
+  if [ -s "$out" ]; then
+    pct=$(jq -r '.data[0].totals.lines.percent // 0' "$out" 2>/dev/null || echo 0)
+  fi
+  printf '%s\n' "${pct:-0}"
 }
 
 # ─── Header ─────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}═══ OpenRig Quality Gate ═══${NC}"
+echo "═══ OpenRig Quality Gate (comparative) ═══"
 echo "  branch:    $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
-echo "  coverage:  >= ${QA_MIN_COVERAGE}% (skip=${QA_SKIP_COVERAGE})"
+echo "  base ref:  $QA_BASE_REF"
+echo "  baseline:  $QA_BASELINE_DIR"
+echo "  cov margin: ${QA_COV_MARGIN}pp"
 echo "  logs:      $QA_LOG_DIR/"
 
-# ─── 1. Formatting (PR-scope only) ──────────────────────────────────────────
-# Só checa arquivos .rs alterados em relação a $QA_BASE_REF. Se base não
-# existir (ex: branch nova sem fetch), cai pro workspace inteiro como fallback
-# seguro.
-fmt_check_pr_scope() {
-  if changed=$(git diff --name-only "$QA_BASE_REF"...HEAD -- '*.rs' 2>/dev/null) \
-     && [ -n "$changed" ]; then
-    echo "$changed" | xargs rustfmt --check
-  elif changed=$(git diff --name-only HEAD -- '*.rs' 2>/dev/null) \
-       && [ -n "$changed" ]; then
-    echo "$changed" | xargs rustfmt --check
+# ─── Run all measurements ───────────────────────────────────────────────────
+echo ""
+echo "── measuring base ──"
+base_fmt=$(count_fmt_errors "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-fmt.log")
+base_clippy=$(count_clippy_errors "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-clippy.log")
+base_build=$(count_build_errors "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-build.log")
+base_tests=$(count_test_failures "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-test.log")
+base_complex=$(count_complexity "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-complex.log")
+base_cov=$(measure_coverage "$QA_BASELINE_DIR" "$QA_LOG_DIR/base-cov.json")
+
+echo "── measuring PR ──"
+pr_fmt=$(count_fmt_errors "." "$QA_LOG_DIR/pr-fmt.log")
+pr_clippy=$(count_clippy_errors "." "$QA_LOG_DIR/pr-clippy.log")
+pr_build=$(count_build_errors "." "$QA_LOG_DIR/pr-build.log")
+pr_tests=$(count_test_failures "." "$QA_LOG_DIR/pr-test.log")
+pr_complex=$(count_complexity "." "$QA_LOG_DIR/pr-complex.log")
+pr_cov=$(measure_coverage "." "$QA_LOG_DIR/pr-cov.json")
+
+# ─── Compare ────────────────────────────────────────────────────────────────
+printf '\n'
+printf 'metric        base       pr     verdict\n'
+printf '─────────────────────────────────────────\n'
+
+regressed=0
+verdict() {
+  local name="$1" base="$2" pr="$3"
+  if [ "${pr:-0}" -gt "${base:-0}" ]; then
+    printf '%-12s %5s   %5s    ❌ regressed\n' "$name" "$base" "$pr"
+    regressed=1
+  elif [ "${pr:-0}" -lt "${base:-0}" ]; then
+    printf '%-12s %5s   %5s    ✅ improved\n' "$name" "$base" "$pr"
   else
-    cargo fmt --all -- --check
+    printf '%-12s %5s   %5s    ✅ same\n' "$name" "$base" "$pr"
   fi
 }
-run_step "1. cargo fmt --check (PR-scope)" fmt_check_pr_scope
 
-# ─── 2. Clippy (strict warnings; complexity é comparativo no pr.yml) ────────
-# Lints de complexidade (cognitive_complexity, too_many_lines,
-# too_many_arguments, type_complexity) ficam EXPLICITAMENTE allow aqui pra
-# não bloquear por dívida preexistente. Regressão é comparativa em CI.
-run_step "2. cargo clippy" \
-  cargo clippy --workspace --all-targets -- \
-    -D warnings \
-    -A clippy::cognitive_complexity \
-    -A clippy::too_many_lines \
-    -A clippy::too_many_arguments \
-    -A clippy::type_complexity
+verdict "fmt"        "$base_fmt"     "$pr_fmt"
+verdict "clippy"     "$base_clippy"  "$pr_clippy"
+verdict "build"      "$base_build"   "$pr_build"
+verdict "test fails" "$base_tests"   "$pr_tests"
+verdict "complexity" "$base_complex" "$pr_complex"
 
-# ─── 3. Build (zero warnings invariant) ─────────────────────────────────────
-run_step "3. cargo build --workspace" \
-  cargo build --workspace --all-targets
-
-# ─── 4. Tests (business validation) ─────────────────────────────────────────
-run_step "4. cargo test --workspace" \
-  cargo test --workspace --all-targets
-
-# ─── 5. Coverage (line floor) ───────────────────────────────────────────────
-if [ "$QA_SKIP_COVERAGE" = "1" ]; then
-  echo ""
-  echo -e "${BOLD}── 5. cargo llvm-cov ──${NC}"
-  echo -e "  ${YELLOW}skipped${NC} (QA_SKIP_COVERAGE=1)"
-elif ! command -v cargo-llvm-cov >/dev/null 2>&1; then
-  echo ""
-  echo -e "${BOLD}── 5. cargo llvm-cov ──${NC}"
-  echo -e "  ${YELLOW}skipped${NC} (cargo-llvm-cov not installed — \`cargo install cargo-llvm-cov\`)"
-elif [ "$QA_MIN_COVERAGE" = "0" ]; then
-  # Sem piso absoluto: gera lcov.info pra `pr.yml` comparar vs develop.
-  run_step "5. cargo llvm-cov (no floor — comparative gate in CI)" \
-    cargo llvm-cov --workspace --lcov --output-path lcov.info
+if awk "BEGIN { exit !($pr_cov < $base_cov - $QA_COV_MARGIN) }"; then
+  printf 'coverage     %5.2f%%  %5.2f%%   ❌ regressed (margin: %spp)\n' \
+    "$base_cov" "$pr_cov" "$QA_COV_MARGIN"
+  regressed=1
+elif awk "BEGIN { exit !($pr_cov > $base_cov) }"; then
+  printf 'coverage     %5.2f%%  %5.2f%%   ✅ improved\n' "$base_cov" "$pr_cov"
 else
-  run_step "5. cargo llvm-cov" \
-    cargo llvm-cov --workspace \
-      --fail-under-lines "$QA_MIN_COVERAGE" \
-      --lcov --output-path lcov.info
+  printf 'coverage     %5.2f%%  %5.2f%%   ✅ within margin\n' "$base_cov" "$pr_cov"
 fi
 
-# ─── Result ─────────────────────────────────────────────────────────────────
-echo ""
-if [ -n "$FAILED_STEPS" ]; then
-  echo -e "${RED}${BOLD}═══ QA GATE FAILED ═══${NC}"
-  echo -e "  failed steps:$FAILED_STEPS"
-  echo ""
-  echo "  Fix locally and re-run \`./scripts/qa.sh\` until green before pushing."
+printf '\n'
+if [ "$regressed" -ne 0 ]; then
+  echo "::error::PR regressed at least one metric — see above."
   exit 1
 fi
-
-echo -e "${GREEN}${BOLD}═══ QA GATE PASSED ═══${NC}"
+echo "::notice::PR did not regress any metric."
 exit 0
