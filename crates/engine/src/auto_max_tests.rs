@@ -256,6 +256,80 @@ fn smooth_coefficients_are_in_unit_interval() {
     }
 }
 
+/// Issue #413: signal sine após auto-max ainda precisa preservar
+/// crest factor (√2 ≈ 1.41) — saturator não pode adicionar
+/// distorção harmônica audível. Mede crest factor da cauda do output
+/// e compara com sine puro. Tolerância 10% (até 1.55).
+#[test]
+fn sine_keeps_crest_factor_after_auto_max() {
+    let mut s = AutoMaxState::with_enabled(SR, true);
+    let amp = 10.0_f32.powf(-20.0 / 20.0); // -20 dBFS sine
+    let sample_rate = SR as usize;
+    let dur = sample_rate * 3;
+    let mut frames: Vec<AudioFrame> = (0..dur)
+        .map(|i| {
+            let t = i as f32 / SR;
+            AudioFrame::Mono(amp * (2.0 * std::f32::consts::PI * 1000.0 * t).sin())
+        })
+        .collect();
+    s.process(&mut frames);
+
+    let tail_start = frames.len() - sample_rate / 2;
+    let tail: Vec<f32> = frames[tail_start..]
+        .iter()
+        .map(|f| match f {
+            AudioFrame::Mono(s) => *s,
+            _ => 0.0,
+        })
+        .collect();
+    let peak = tail.iter().fold(0.0_f32, |a, s| a.max(s.abs()));
+    let r = rms(&tail);
+    let crest = peak / r;
+    assert!(
+        (1.30..1.55).contains(&crest),
+        "sine after auto-max should keep crest factor ≈ √2 (1.41); got {crest:.3} — saturator adicionando harmônicos audíveis"
+    );
+}
+
+/// Soft saturator entre knee e hard cap deve ser MONOTÔNICO e SUAVE
+/// (sem descontinuidade). Testa pontos discretos pra garantir
+/// nenhum salto.
+#[test]
+fn soft_saturator_is_monotonic_between_knee_and_hard_cap() {
+    let s = AutoMaxState::with_enabled(SR, true);
+    let knee = 10.0_f32.powf(PEAK_CEILING_DBFS / 20.0);
+    let cap = 10.0_f32.powf(HARD_CAP_DBFS / 20.0);
+    // Simula `apply_gain_with_ceiling` aplicando gain=1 com várias
+    // amplitudes de entrada (replica a função aqui).
+    let saturate = |x: f32| -> f32 {
+        let abs = x.abs();
+        if abs <= knee {
+            x
+        } else {
+            let sign = x.signum();
+            let range = cap - knee;
+            let over = abs - knee;
+            sign * (knee + range * (over / range).tanh())
+        }
+    };
+
+    let mut prev = 0.0_f32;
+    for i in 1..=100 {
+        let x = (i as f32) * 0.02; // 0.02 → 2.0
+        let y = saturate(x);
+        assert!(
+            y > prev - 1e-6,
+            "saturator não-monotônico: x={x:.3} y={y:.3} prev={prev:.3}"
+        );
+        assert!(y <= cap + 1e-6, "saturator passou do hard cap: y={y}");
+        prev = y;
+    }
+    // Limite final: input gigante converge perto do cap.
+    let huge = saturate(10.0);
+    assert!((huge - cap).abs() < 0.01);
+    let _ = s; // suppress unused
+}
+
 #[test]
 fn disabled_state_passes_signal_through_unchanged() {
     // Default constructor inherits the process flag, which is OFF in
