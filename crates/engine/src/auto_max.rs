@@ -44,10 +44,14 @@ fn current_default_enabled() -> bool {
     RUNTIME_DEFAULT_ENABLED.load(Ordering::Relaxed)
 }
 
-/// Loudness target — drives perceived volume. Chains with very
-/// different crest factors (clean Dumble vs saturated Bogner) only
-/// match by ear when their RMS converges, not their peak.
-pub const TARGET_RMS_DBFS: f32 = -12.0;
+/// Loudness target — drives perceived volume. Sits high enough that
+/// naturally-loud saturated amp signals (already around -5 to -8
+/// dBFS RMS) don't sit above the target while clean signals stay
+/// 10+ dB below them. The user's complaint in #413 was exactly that
+/// gap: clean chains (heartbreak warfare) feeling much quieter than
+/// saturated ones (basket case). A higher target lifts the cleans
+/// up to where the saturated already are.
+pub const TARGET_RMS_DBFS: f32 = -6.0;
 
 /// Hard ceiling on the OUTPUT peak after the boost is applied.
 /// Sits BELOW 0 dBFS so the chain output never feeds an out-of-range
@@ -219,11 +223,37 @@ fn frame_mean_square(frame: &AudioFrame) -> f32 {
 #[inline(always)]
 fn apply_gain_with_ceiling(frame: &mut AudioFrame, g: f32, ceiling: f32) {
     match frame {
-        AudioFrame::Mono(s) => *s = (*s * g).clamp(-ceiling, ceiling),
+        AudioFrame::Mono(s) => *s = soft_saturate(*s * g, ceiling),
         AudioFrame::Stereo([l, r]) => {
-            *l = (*l * g).clamp(-ceiling, ceiling);
-            *r = (*r * g).clamp(-ceiling, ceiling);
+            *l = soft_saturate(*l * g, ceiling);
+            *r = soft_saturate(*r * g, ceiling);
         }
+    }
+}
+
+/// Soft-knee saturator with hard ceiling — linear up to half the
+/// ceiling, then smoothly approaches the ceiling via `tanh`. Output
+/// is bounded by `ceiling` in absolute value, but signals just above
+/// the knee suffer only musical 2nd-harmonic compression instead of
+/// the broad-band noise of a hard clamp.
+///
+/// Why this matters here (#413): clean amps have high crest factor
+/// (peak ≫ RMS). A hard clamp limits the peak and the RMS gets stuck
+/// well below the loudness target — clean chains sound much quieter
+/// than saturated ones, exactly the user's complaint. Soft saturation
+/// lets the clean peak ride above the linear region, so the RMS
+/// keeps climbing toward the target with only minor harmonic colour.
+#[inline(always)]
+fn soft_saturate(x: f32, ceiling: f32) -> f32 {
+    let abs = x.abs();
+    let knee = 0.5 * ceiling;
+    if abs <= knee {
+        x
+    } else {
+        let sign = x.signum();
+        let range = ceiling - knee;
+        let over = abs - knee;
+        sign * (knee + range * (over / range).tanh())
     }
 }
 

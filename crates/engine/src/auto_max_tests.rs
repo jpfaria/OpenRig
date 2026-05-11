@@ -103,6 +103,78 @@ fn peak_ceiling_caps_high_crest_signal() {
 /// pelo `current_gain` antigo. O hard ceiling pós-gain garante que
 /// NENHUM sample passa de `peak_ceiling_lin`, independente do
 /// estado do follower / smoother.
+/// Issue #413 follow-up: signals com crest factors diferentes
+/// (clean amp vs saturated amp) devem convergir no RMS após o
+/// auto-max, não ficar dependentes do crest factor.
+///
+/// Sinal "clean-ish": grande crest factor (peak 0.7, RMS ≈ 0.1 ≈
+/// -20 dBFS, CF ~17 dB) — pluck envelope rampa rápido depois decai.
+/// Sinal "saturated-ish": pequeno crest factor (square-ish, peak ≈
+/// RMS, ambos perto de -12 dBFS).
+///
+/// Hard-clamp + boost-only matam o RMS do clean (peak bate o
+/// ceiling antes do RMS chegar no target). Soft saturator deixa o
+/// clean atingir o target sem clip audível.
+#[test]
+fn different_crest_factors_converge_in_rms() {
+    let sample_rate = SR as usize;
+    let dur = sample_rate * 3; // 3 s
+
+    // Clean-ish: stationary sine at low amplitude. Peak factor ~3 dB,
+    // RMS far below target — needs boost to converge.
+    let mut clean = AutoMaxState::with_enabled(SR, true);
+    let mut frames_clean: Vec<AudioFrame> = (0..dur)
+        .map(|i| {
+            let t = i as f32 / sample_rate as f32;
+            let s = 0.2 * (2.0 * std::f32::consts::PI * 220.0 * t).sin();
+            AudioFrame::Mono(s)
+        })
+        .collect();
+    clean.process(&mut frames_clean);
+
+    // Saturated-ish: tanh-clipped sine — much smaller crest factor
+    // and naturally loud (RMS ≈ -5 dBFS). Already near the target.
+    let mut sat = AutoMaxState::with_enabled(SR, true);
+    let mut frames_sat: Vec<AudioFrame> = (0..dur)
+        .map(|i| {
+            let t = i as f32 / sample_rate as f32;
+            let s = (2.5 * (2.0 * std::f32::consts::PI * 220.0 * t).sin()).tanh() * 0.8;
+            AudioFrame::Mono(s)
+        })
+        .collect();
+    sat.process(&mut frames_sat);
+
+    let tail = sample_rate / 2;
+    let clean_rms = rms_dbfs(&frames_clean[frames_clean.len() - tail..]);
+    let sat_rms = rms_dbfs(&frames_sat[frames_sat.len() - tail..]);
+
+    eprintln!("clean RMS  = {clean_rms:+.2} dBFS");
+    eprintln!("sat   RMS  = {sat_rms:+.2} dBFS");
+    eprintln!("Δ          = {:+.2} dB", (clean_rms - sat_rms).abs());
+
+    let diff = (clean_rms - sat_rms).abs();
+    assert!(
+        diff < 3.0,
+        "clean vs saturated RMS spread {diff:.2} dB; clean precisa atingir o mesmo loudness target sem ficar refém do crest factor"
+    );
+}
+
+fn rms_dbfs(frames: &[AudioFrame]) -> f32 {
+    let m = frames
+        .iter()
+        .map(|f| match f {
+            AudioFrame::Mono(s) => s * s,
+            AudioFrame::Stereo([l, r]) => 0.5 * (l * l + r * r),
+        })
+        .sum::<f32>()
+        / frames.len() as f32;
+    if m == 0.0 {
+        -120.0
+    } else {
+        10.0 * m.log10()
+    }
+}
+
 #[test]
 fn step_input_after_silence_does_not_overshoot_ceiling() {
     let mut s = AutoMaxState::with_enabled(SR, true);
