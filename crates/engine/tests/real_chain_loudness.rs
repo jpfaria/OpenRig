@@ -147,14 +147,27 @@ fn drive_chain(chain: &Chain, mono_input: &[f32]) -> Vec<f32> {
             .expect("chain runtime should build"),
     );
 
-    // Input interleaved (mono ch0 — chain reads ch0).
-    let frames = mono_input.len();
+    // Mimic the real audio callback shape: drive input and output in
+    // CHUNK_FRAMES blocks so the SPSC route ring (sized after
+    // `elastic_target`) doesn't drop frames between callbacks. Pushing
+    // the whole 2 s of audio in one process_input_f32 silently throws
+    // away everything past the ring capacity.
+    const CHUNK_FRAMES: usize = 256;
     let input_channels = 1;
     let output_channels = 2;
-    process_input_f32(&runtime, 0, mono_input, input_channels);
-
-    let mut out = vec![0.0_f32; frames * output_channels];
-    process_output_f32(&runtime, 0, &mut out, output_channels);
+    let total_frames = mono_input.len() / input_channels;
+    let mut out = Vec::with_capacity(total_frames * output_channels);
+    let mut chunk_out = vec![0.0_f32; CHUNK_FRAMES * output_channels];
+    let mut written = 0;
+    while written < total_frames {
+        let take = CHUNK_FRAMES.min(total_frames - written);
+        let in_slice = &mono_input[written * input_channels..(written + take) * input_channels];
+        process_input_f32(&runtime, 0, in_slice, input_channels);
+        let out_slice = &mut chunk_out[..take * output_channels];
+        process_output_f32(&runtime, 0, out_slice, output_channels);
+        out.extend_from_slice(out_slice);
+        written += take;
+    }
     out
 }
 
@@ -387,15 +400,10 @@ fn heartbreak_clean_vs_basket_case_saturated_rms_converges() {
 }
 
 /// Versão FULL da chain do user — com todos os fx pós-amp (chorus,
-/// tremolo, tape, hall). Atualmente NÃO converge dentro de 3 dB
-/// porque os fx wet/dry mix atenuam o signal direto e o auto-max
-/// boost-only não consegue compensar 100% sem distorcer (peak ceiling
-/// + soft saturator travam antes do RMS chegar ao target). Está
-/// `#[ignore]` e como dump-only — serve de diagnóstico até a #413
-/// próxima iteração resolver o gap.
+/// tremolo, tape, hall) ativos. Asserts Δ RMS < 2.5 dB.
 #[test]
 #[ignore]
-fn full_heartbreak_chain_vs_basket_case_diagnostic_dump() {
+fn full_heartbreak_chain_vs_basket_case_converges() {
     setup();
 
     let heartbreak = heartbreak_full_chain();
@@ -423,8 +431,9 @@ fn full_heartbreak_chain_vs_basket_case_diagnostic_dump() {
     );
     eprintln!("Δ rms = {:+.2} dB", (heart_rms - bask_rms).abs());
 
-    // No assert — diagnostic dump. The minimal test above pins the
-    // NAM-only path < 3 dB; this one shows how much the wet-mix fx
-    // chain (chorus 30%, tape 22%, hall 14%) erodes the loudness
-    // afterwards.
+    let diff = (heart_rms - bask_rms).abs();
+    assert!(
+        diff < 2.5,
+        "Δ rms = {diff:.2} dB — chain full do usuário (heartbreak com chorus/tremolo/tape/hall) precisa convergir com basket case"
+    );
 }
