@@ -94,7 +94,6 @@ pub fn is_reverb_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
 
-
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;

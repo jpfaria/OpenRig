@@ -32,11 +32,13 @@ impl Drop for TempDir {
 fn write_test_zip(zip_path: &std::path::Path) {
     let file = File::create(zip_path).unwrap();
     let mut writer = zip::ZipWriter::new(file);
-    let opts = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let opts =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     writer.start_file("nam/alpha/manifest.yaml", opts).unwrap();
     writer.write_all(b"id: nam_alpha\n").unwrap();
-    writer.start_file("nam/alpha/captures/g10.nam", opts).unwrap();
+    writer
+        .start_file("nam/alpha/captures/g10.nam", opts)
+        .unwrap();
     writer.write_all(b"fake nam bytes").unwrap();
     writer.finish().unwrap();
 }

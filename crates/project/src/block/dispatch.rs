@@ -133,9 +133,7 @@ pub(crate) fn synthesize_parameters_from_manifest(
             );
             specs
         }
-        Backend::Ir { parameters, .. } => {
-            parameters.iter().map(grid_parameter_to_spec).collect()
-        }
+        Backend::Ir { parameters, .. } => parameters.iter().map(grid_parameter_to_spec).collect(),
         Backend::Lv2 {
             plugin_uri,
             binaries,

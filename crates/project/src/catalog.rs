@@ -295,11 +295,10 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
             .collect());
     }
 
-    let disk_pkg_instruments: Vec<String> =
-        default_instruments_for_effect_type(effect_type)
-            .iter()
-            .map(|s| (*s).to_string())
-            .collect();
+    let disk_pkg_instruments: Vec<String> = default_instruments_for_effect_type(effect_type)
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
 
     let entry = block_registry()
         .into_iter()
@@ -568,4 +567,3 @@ pub fn is_model_available(effect_type: &str, model_id: &str) -> bool {
         _ => true,
     }
 }
-

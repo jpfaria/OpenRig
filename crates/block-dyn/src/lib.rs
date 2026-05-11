@@ -145,4 +145,3 @@ pub fn register_natives() {
 pub fn is_dyn_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
-

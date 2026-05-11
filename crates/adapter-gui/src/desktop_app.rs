@@ -64,8 +64,7 @@ pub fn run_desktop_app(
     // Block-* crates query the merged catalog to surface plugin
     // manifests in the GUI.
     let bundled_root = infra_filesystem::detect_data_root().join("plugins");
-    let user_root =
-        plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
+    let user_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!(
         "scanning plugin roots: bundled={} user={}",
         bundled_root.display(),

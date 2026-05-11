@@ -20,7 +20,9 @@ fn init_plugins() {
         let candidates = [
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../../../../../OpenRig-plugins/plugins/source"),
-            PathBuf::from("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source"),
+            PathBuf::from(
+                "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
+            ),
         ];
         let roots: Vec<PathBuf> = candidates.into_iter().filter(|p| p.is_dir()).collect();
         if !roots.is_empty() {
@@ -44,10 +46,7 @@ fn voice_chain_excludes_disk_amp_cab_wah() {
                 // Only consider disk-packages (non-native brands/IDs aren't
                 // a perfect signal; instead check via plugin_loader::registry).
                 let is_disk = !m.brand.is_empty() && m.brand != "native";
-                is_disk
-                    && m.supported_instruments
-                        .iter()
-                        .any(|i| i == INST_VOICE)
+                is_disk && m.supported_instruments.iter().any(|i| i == INST_VOICE)
             })
             .map(|m| m.model_id.as_str())
             .collect();
@@ -66,7 +65,14 @@ fn voice_chain_excludes_disk_amp_cab_wah() {
 #[test]
 fn voice_chain_includes_voice_relevant_categories() {
     init_plugins();
-    for effect_type in ["filter", "dynamics", "modulation", "reverb", "delay", "pitch"] {
+    for effect_type in [
+        "filter",
+        "dynamics",
+        "modulation",
+        "reverb",
+        "delay",
+        "pitch",
+    ] {
         let models = supported_block_models(effect_type).expect("catalog lookup");
         let voice_count = models
             .iter()
