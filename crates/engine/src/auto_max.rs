@@ -57,7 +57,7 @@ pub fn is_runtime_default_enabled() -> bool {
 /// gap: clean chains (heartbreak warfare) feeling much quieter than
 /// saturated ones (basket case). A higher target lifts the cleans
 /// up to where the saturated already are.
-pub const TARGET_RMS_DBFS: f32 = -3.0;
+pub const TARGET_RMS_DBFS: f32 = -6.0;
 
 /// Soft-knee target for the follower's `allowed_by_peak` calculation.
 /// Conservative — the boost stops growing once the peak follower
@@ -66,13 +66,13 @@ pub const TARGET_RMS_DBFS: f32 = -3.0;
 /// compresses them smoothly. Net effect: clean signals with high
 /// crest factor reach the loudness target via transient saturation
 /// without the gain follower itself running the chain hot.
-pub const PEAK_CEILING_DBFS: f32 = -3.0;
+pub const PEAK_CEILING_DBFS: f32 = -6.0;
 
 /// Absolute hard cap on any output sample, after gain. Sits just
 /// under 0 dBFS to give the OS DAC its minimum safety margin. The
 /// soft saturator compresses samples between `PEAK_CEILING_DBFS` and
 /// this cap with a tanh knee — no sample ever exceeds the cap.
-pub const HARD_CAP_DBFS: f32 = -0.1;
+pub const HARD_CAP_DBFS: f32 = -0.5;
 
 /// Maximum boost the auto-max can apply, in dB.
 pub const MAX_BOOST_DB: f32 = 24.0;
