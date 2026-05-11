@@ -1,0 +1,65 @@
+import {SText,SInput,SButton, SIcon,SPopup} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+import { TextEdit , LineEdit} from "std-widgets.slint";
+import { Invoke } from "./invoke_input.slint";
+
+export component TestInput inherits Window {
+  height: 500px;
+  width: 600px;
+  
+  p:=SPopup {
+    Invoke {}
+  }
+  SInput{
+    y: 20px;
+    placeholder :"please enter your username";
+    card-width:300px;
+    clearable: true;
+    text:"SurrealismUI - input";
+    accepted(res)=>{
+      debug("content in input:" + res);
+      p.open();
+    }
+    changed(change-res)=>{
+      debug(change-res);
+    }
+    
+  }
+ 
+  w:=SInput{
+    y: 80px;
+    theme:Themes.Success;
+    type:InputType.password;
+    password:true;
+  }
+  SInput{
+    y: 140px;
+    card-width: 20rem;
+    theme:Themes.Error;
+    disabled:true;
+    text:"disabled";
+  }
+  SInput{
+    y: 200px;
+    card-width: 18rem;
+    theme:Themes.Dark;
+  }
+
+  SInput{
+    y: 260px;
+    card-width: 160px;
+    theme:Themes.Warning;
+    clearable:true;
+  }
+  SInput{
+    y: 320px;
+    card-width: 18rem;
+    theme:Themes.Info;
+    type:InputType.text;
+    clearable:true;
+    password:true;
+    text:"test password";
+    
+  }
+  
+}

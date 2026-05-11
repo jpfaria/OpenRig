@@ -1,0 +1,1 @@
+// Placeholder server adapter crate.

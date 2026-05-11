@@ -1,0 +1,84 @@
+<h2>README.md — Estrutura proposta (Hub)</h2>
+<p class="subtitle">Cada seção do README. Clique para marcar as que aprova.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="header" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>Header: Logo + Tagline + Badges</h3>
+      <p>Logo SVG centralizada, tagline "Build your rig once. Use it everywhere.", badges (license GPL-3.0, platforms, build status, version)</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="what" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>What is OpenRig?</h3>
+      <p>2-3 parágrafos: pedalboard virtual, 170 modelos, 14 tipos de bloco, 4 backends (Native/NAM/IR/LV2). Multi-plataforma. Visão: desktop → VST3 → server → hardware.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="features" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>Features (highlights)</h3>
+      <p>Lista compacta com ícones/emojis: 🎸 170+ amp/effect models, 🔊 4 audio backends, 🖥️ 5 platforms, 🎛️ Real-time parameter control, 🎵 Chain-based signal routing, 🔌 LV2 plugin support</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="blocks" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>Block Types (tabela resumida)</h3>
+      <p>Tabela com os 14 tipos de bloco (Preamp, Amp, Cab, Gain, Delay, Reverb, etc.), quantos modelos cada um tem, e backends suportados. Link para docs/user-guide/blocks-reference.md</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="install" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>Installation (resumo)</h3>
+      <p>Tabela de plataformas com links de download. Seção curta "Build from source" com 3-4 comandos. Link para docs/user-guide/installation.md para detalhes.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="quickstart" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>Quick Start</h3>
+      <p>5-6 passos: abrir app → criar projeto → configurar audio device → adicionar blocos → tocar. Bem resumido, link para docs/user-guide/quick-start.md</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="arch" onclick="toggleSelect(this)">
+    <div class="letter">7</div>
+    <div class="content">
+      <h3>Architecture (para devs)</h3>
+      <p>Diagrama de camadas em texto (domain → application → engine → adapters). Menção às 38 crates organizadas em 5 grupos. Link para docs/development/architecture.md</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="contrib" onclick="toggleSelect(this)">
+    <div class="letter">8</div>
+    <div class="content">
+      <h3>Contributing</h3>
+      <p>Parágrafo curto convidando contribuições. Link direto para CONTRIBUTING.md. Menção ao Gitflow e code standards.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="roadmap" onclick="toggleSelect(this)">
+    <div class="letter">9</div>
+    <div class="content">
+      <h3>Roadmap</h3>
+      <p>Checklist visual com os 5 targets: ✅ Standalone Desktop App, ⬜ VST3/AU Plugin, ⬜ Server Mode, ⬜ Dedicated Hardware, ⬜ Mobile Control. Dá noção de progresso e visão.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="license" onclick="toggleSelect(this)">
+    <div class="letter">10</div>
+    <div class="content">
+      <h3>License</h3>
+      <p>Uma linha: "OpenRig is licensed under the GNU General Public License v3.0 — see LICENSE." + link</p>
+    </div>
+  </div>
+</div>

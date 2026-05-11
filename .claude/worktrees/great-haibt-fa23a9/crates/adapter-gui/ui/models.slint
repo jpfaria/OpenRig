@@ -1,0 +1,232 @@
+export struct DeviceSelectionItem {
+    device_id: string,
+    name: string,
+    selected: bool,
+    sample_rate_text: string,
+    buffer_size_text: string,
+    bit_depth_text: string,
+}
+
+export struct BlockParamSummaryEntry {
+    label: string,    // parameter name in uppercase (e.g. "GAIN")
+    value: string,    // formatted current value (e.g. "65")
+    unit: string,     // optional unit suffix (e.g. "%", "ms", "dB")
+}
+
+export struct ChainBlockItem {
+    kind: string,
+    icon_kind: string,
+    type_label: string,
+    label: string,
+    family: string,
+    enabled: bool,
+    real_index: int,
+    thumbnail: image,
+    has_thumbnail: bool,
+    thumb_width: float,
+    thumb_height: float,
+    accent_color: color,
+    icon_source: image,
+    // Hover-tooltip metadata. `display_name` is the human model name;
+    // `backend_label` is the DSP backend in uppercase
+    // ("NATIVE"/"NAM"/"IR"/"LV2"); `brand` is the manufacturer slug used
+    // by `BrandLogo` (e.g. "marshall", "fender", "boss") to optionally
+    // render the logo; `param_entries` is the list of currently-set
+    // parameters split into label/value/unit so the tooltip can render
+    // each part with distinct typography. All four are empty for I/O and
+    // Insert blocks where the tooltip would add no signal.
+    display_name: string,
+    backend_label: string,
+    brand: string,
+    param_entries: [BlockParamSummaryEntry],
+}
+
+export struct ProjectChainItem {
+    instrument: string,
+    title: string,
+    subtitle: string,
+    enabled: bool,
+    block_count_label: string,
+    input_label: string,
+    input_tooltip: string,
+    output_label: string,
+    output_tooltip: string,
+    latency_ms: float,
+    blocks: [ChainBlockItem],
+}
+
+export struct BlockTypePickerItem {
+    effect_type: string,
+    label: string,
+    subtitle: string,
+    icon_kind: string,
+    use_panel_editor: bool,
+    accent_color: color,
+    icon_source: image,
+}
+
+export struct BlockModelPickerItem {
+    effect_type: string,
+    model_id: string,
+    label: string,
+    display_name: string,
+    subtitle: string,
+    icon_kind: string,
+    brand: string,
+    type_label: string,
+    panel_bg: color,
+    panel_text: color,
+    brand_strip_bg: color,
+    model_font: string,
+    available: bool,
+    thumbnail_path: string,
+}
+
+export struct BlockKnobOverlay {
+    path: string,
+    label: string,
+    svg_cx: float,
+    svg_cy: float,
+    svg_r: float,
+    value: float,
+    min_val: float,
+    max_val: float,
+    step: float,
+}
+
+export struct BlockParameterItem {
+    path: string,
+    label: string,
+    group: string,
+    widget_kind: string,
+    unit_text: string,
+    value_text: string,
+    numeric_value: float,
+    numeric_min: float,
+    numeric_max: float,
+    numeric_step: float,
+    numeric_integer: bool,
+    bool_value: bool,
+    selected_option_index: int,
+    option_labels: [string],
+    option_values: [string],
+    file_extensions: [string],
+    optional: bool,
+    allow_empty: bool,
+}
+
+// Point in a MultiSlider widget (one vertical slider per point)
+export struct MultiSliderPoint {
+    path: string,
+    label: string,
+    value: float,
+    min_val: float,
+    max_val: float,
+    step: float,
+}
+
+// Point in a CurveEditor widget (draggable on 2D plane)
+export struct CurveEditorPoint {
+    group: string,
+    band_color: color,
+    // Y axis (gain)
+    y_path: string,
+    y_value: float,
+    y_min: float,
+    y_max: float,
+    y_step: float,
+    y_label: string,  // formatted gain, e.g. "+3.5", "0.0"
+    // X axis (frequency) — optional, 0 if not present
+    has_x: bool,
+    x_path: string,
+    x_value: float,
+    x_min: float,
+    x_max: float,
+    x_step: float,
+    x_label: string,  // formatted frequency, e.g. "200Hz", "1.0k"
+    // Width (Q/BW) — optional, 0 if not present
+    has_width: bool,
+    width_path: string,
+    width_value: float,
+    width_min: float,
+    width_max: float,
+    width_step: float,
+}
+
+// Key-value entry for realtime data streams
+export struct BlockStreamEntry {
+    key: string,
+    value: float,
+    text: string,
+    peak: float,
+}
+
+// Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
+// The block editor polls this data and renders it when a stream is active.
+export struct BlockStreamData {
+    active: bool,
+    stream_kind: string,          // "tuner", "meter", "analyzer"
+    entries: [BlockStreamEntry],  // arbitrary key-value pairs
+}
+
+export struct CompactBlockItem {
+    chain_index: int,
+    block_index: int,
+    block_id: string,
+    effect_type: string,
+    model_id: string,
+    icon_kind: string,
+    brand: string,
+    display_name: string,
+    type_label: string,
+    display_label: string,
+    enabled: bool,
+    panel_bg: color,
+    panel_text: color,
+    accent_color: color,
+    icon_source: image,
+    knob_overlays: [BlockKnobOverlay],
+    parameter_items: [BlockParameterItem],
+    multi_slider_points: [MultiSliderPoint],
+    curve_editor_points: [CurveEditorPoint],
+    model_labels: [string],
+    model_selected_index: int,
+    models: [BlockModelPickerItem],
+    filtered_models: [BlockModelPickerItem],
+    stream_data: BlockStreamData,
+    has_external_gui: bool,
+}
+
+export struct RecentProjectItem {
+    original_index: int,
+    title: string,
+    subtitle: string,
+    is_valid: bool,
+    invalid_reason: string,
+}
+
+export struct ChannelOptionItem {
+    index: int,
+    label: string,
+    selected: bool,
+    available: bool,
+}
+
+export struct IoGroupItem {
+    summary: string,
+}
+
+// Inline plugin info overlay payload (issue #307). Carried as a single struct so the
+// AppWindow → DesktopMain/TouchMain propagation is one binding instead of nine.
+export struct PluginInfoData {
+    screenshot: image,
+    has-screenshot: bool,
+    plugin-name: string,
+    brand: string,
+    type-label: string,
+    description: string,
+    license: string,
+    homepage: string,
+    has-homepage: bool,
+}
+

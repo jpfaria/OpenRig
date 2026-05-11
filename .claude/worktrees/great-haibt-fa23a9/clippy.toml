@@ -1,0 +1,8 @@
+# OpenRig — clippy thresholds (issue #404)
+#
+# Limites duros aplicados pelo quality gate (scripts/qa.sh + CI pr.yml).
+# Ajustar com cuidado: subir threshold = aceitar dívida.
+cognitive-complexity-threshold = 15
+too-many-arguments-threshold = 5
+too-many-lines-threshold = 80
+type-complexity-threshold = 250

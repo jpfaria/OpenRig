@@ -1,0 +1,81 @@
+// A drop/insert slot rendered between blocks in a ChainRow's strip. Click
+// triggers the block-type picker for inserting at this position.
+
+export component BlockInsertSlot inherits Rectangle {
+    in property <bool> empty-slot: false;
+    in property <bool> active-drop-target: false;
+    in property <bool> move-target: false;
+    in property <bool> suppress-hover-affordance: false;
+    callback clicked();
+
+    width: 32px;
+    height: 24px;
+    background: transparent;
+
+    if !root.empty-slot : Rectangle {
+        x: 0px;
+        y: 11px;
+        width: parent.width;
+        height: 2px;
+        background: #3b4250;
+        border-radius: 1px;
+    }
+
+    // Insert affordance — small circle with a bold centred "+". Smaller
+    // disc than before, thicker plus, properly centred.
+    if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
+        x: (parent.width - 18px) / 2;
+        y: (24px - 18px) / 2;
+        width: 18px;
+        height: 18px;
+        background: root.active-drop-target ? #2c3340 : #1c2029;
+        border-width: 1px;
+        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #6f7a8b;
+        border-radius: 9px;
+
+        if root.active-drop-target : Image {
+            x: 2px;
+            y: 2px;
+            width: 14px;
+            height: 14px;
+            source: @image-url("../assets/block-drop-target.svg");
+            image-fit: contain;
+        }
+
+        // Plus glyph drawn from two thick rectangles instead of a Text
+        // glyph — guarantees pixel-perfect centering and crisp strokes
+        // at any DPI. 10×2 horizontal + 2×10 vertical, intersected.
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 10px) / 2;
+            y: (parent.height - 2px) / 2;
+            width: 10px;
+            height: 2px;
+            background: #eef2f8;
+            border-radius: 1px;
+        }
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 2px) / 2;
+            y: (parent.height - 10px) / 2;
+            width: 2px;
+            height: 10px;
+            background: #eef2f8;
+            border-radius: 1px;
+        }
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Hover tooltip card for a chain block. Lives in ChainRow, declared after
+// the BlockChip for-loop so the natural paint order keeps it above every
+// sibling block (the per-chip z-lift attempt did not work because z only
+// orders within the same parent — the tooltip was a child of the chip,
+// not a sibling of the next chip). Rendered only when ChainRow has a
+// hovered block; ChainRow drives `block`, `anchor-x` and `anchor-y`.

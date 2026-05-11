@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Generic NAM: neural network — connected nodes -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Input layer (left): 2 nodes -->
+    <circle cx="16" cy="30" r="5" />
+    <circle cx="16" cy="52" r="5" />
+    <!-- Hidden layer (middle): 3 nodes -->
+    <circle cx="40" cy="22" r="5" />
+    <circle cx="40" cy="40" r="5" />
+    <circle cx="40" cy="58" r="5" />
+    <!-- Output layer (right): 2 nodes -->
+    <circle cx="64" cy="30" r="5" />
+    <circle cx="64" cy="52" r="5" />
+    <!-- Connections: input -> hidden -->
+    <line x1="21" y1="30" x2="35" y2="22" stroke-width="1" opacity="0.6" />
+    <line x1="21" y1="30" x2="35" y2="40" stroke-width="1" opacity="0.6" />
+    <line x1="21" y1="30" x2="35" y2="58" stroke-width="1" opacity="0.6" />
+    <line x1="21" y1="52" x2="35" y2="22" stroke-width="1" opacity="0.6" />
+    <line x1="21" y1="52" x2="35" y2="40" stroke-width="1" opacity="0.6" />
+    <line x1="21" y1="52" x2="35" y2="58" stroke-width="1" opacity="0.6" />
+    <!-- Connections: hidden -> output -->
+    <line x1="45" y1="22" x2="59" y2="30" stroke-width="1" opacity="0.6" />
+    <line x1="45" y1="40" x2="59" y2="30" stroke-width="1" opacity="0.6" />
+    <line x1="45" y1="58" x2="59" y2="30" stroke-width="1" opacity="0.6" />
+    <line x1="45" y1="22" x2="59" y2="52" stroke-width="1" opacity="0.6" />
+    <line x1="45" y1="40" x2="59" y2="52" stroke-width="1" opacity="0.6" />
+    <line x1="45" y1="58" x2="59" y2="52" stroke-width="1" opacity="0.6" />
+  </g>
+</svg>

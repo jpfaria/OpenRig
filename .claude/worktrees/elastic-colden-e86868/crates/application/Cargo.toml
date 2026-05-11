@@ -1,0 +1,14 @@
+[package]
+name = "application"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+project = { path = "../project" }
+block-core = { path = "../block-core" }
+
+[dev-dependencies]
+domain = { path = "../domain" }
+block-delay = { path = "../block-delay" }
+block-reverb = { path = "../block-reverb" }

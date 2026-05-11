@@ -1,0 +1,23 @@
+<svg width="760" height="220" viewBox="0 0 760 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="word" x1="40" y1="54" x2="515" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6F8FB"/>
+      <stop offset="1" stop-color="#D8E0EA"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(20 8)">
+    <text
+      x="14"
+      y="138"
+      fill="url(#word)"
+      font-size="118"
+      font-style="italic"
+      font-weight="600"
+      letter-spacing="-3"
+      font-family="Helvetica Neue, SF Pro Display, Arial, sans-serif"
+    >OpenRig</text>
+
+    <path d="M357 147C383 158 411 160 443 154" stroke="#7EC3FF" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  </g>
+</svg>

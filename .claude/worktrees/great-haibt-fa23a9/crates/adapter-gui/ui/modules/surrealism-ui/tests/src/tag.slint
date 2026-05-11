@@ -1,0 +1,34 @@
+import {STag} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+component TestWindow inherits Window {
+  height: 400px;
+  width: 400px;
+  VerticalLayout {
+    spacing: 20px;
+    padding: 20px;
+    STag {
+      text: "default";
+      clicked(text) => {
+        debug(self.get());
+        self.set(@tr("clicked -> {}",text));
+      }
+    }
+    STag {
+      text:self.hover ? "hover" :"error!";
+      font-weight: 700;
+      theme:Themes.Error;
+    }
+    STag {
+      text:"callback";
+      theme:Themes.Dark;
+      clicked(text)=>{
+        self.font-color= #ddff00;
+      }
+    }
+    STag {
+      text:"success";
+      theme:Themes.Success;
+    }
+  }
+}

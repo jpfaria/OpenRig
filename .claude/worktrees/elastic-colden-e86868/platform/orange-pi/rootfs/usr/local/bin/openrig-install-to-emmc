@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Install OpenRig from SD card to the Orange Pi 5B onboard eMMC.
+#
+# Run this once after booting from the SD card to install OpenRig
+# permanently to internal storage. The SD card will no longer be needed.
+#
+# Usage (as root):
+#   openrig-install-to-emmc          # interactive (asks for confirmation)
+#   openrig-install-to-emmc --yes    # non-interactive (skip confirmation, SSH-friendly)
+
+set -euo pipefail
+
+# ── Parse flags ───────────────────────────────────────────────────────────────
+AUTO_YES=false
+for arg in "$@"; do
+    case "$arg" in
+        --yes|-y) AUTO_YES=true ;;
+    esac
+done
+
+# ── Check root ────────────────────────────────────────────────────────────────
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: This script must be run as root."
+    echo "       Run: sudo openrig-install-to-emmc"
+    exit 1
+fi
+
+# ── Detect eMMC ───────────────────────────────────────────────────────────────
+# eMMC always exposes mmcblkXboot0/boot1 partitions — use that as the signal.
+# The SD card (current boot device) is excluded by checking /proc/mounts.
+EMMC=""
+for dev in /dev/mmcblk0 /dev/mmcblk1 /dev/mmcblk2; do
+    [ -b "$dev" ] || continue
+    name=$(basename "$dev")
+    # Skip if currently mounted as root
+    if grep -q "^${dev}" /proc/mounts 2>/dev/null; then
+        continue
+    fi
+    # eMMC has boot partitions (mmcblkXboot0)
+    if [ -b "/dev/${name}boot0" ]; then
+        EMMC="$dev"
+        break
+    fi
+done
+
+if [ -z "$EMMC" ]; then
+    echo "ERROR: Could not detect eMMC device."
+    echo "       Is the onboard eMMC present? Check with: lsblk"
+    exit 1
+fi
+
+# Source is the parent block device of the current root (SD card).
+SOURCE_ROOT=$(findmnt -n -o SOURCE /)
+SOURCE_DEV="/dev/$(lsblk -no PKNAME "$SOURCE_ROOT")"
+SOURCE_PART_NUM=$(lsblk -no PARTN "$SOURCE_ROOT" | tr -d '[:space:]')
+if [ -z "$SOURCE_DEV" ] || [ ! -b "$SOURCE_DEV" ] || [ -z "$SOURCE_PART_NUM" ]; then
+    echo "ERROR: Could not detect source SD card device (root=$SOURCE_ROOT)."
+    exit 1
+fi
+
+EMMC_SIZE=$(lsblk -dno SIZE "$EMMC" 2>/dev/null || echo "unknown size")
+EMMC_BYTES=$(lsblk -dbno SIZE "$EMMC" 2>/dev/null || echo 0)
+SOURCE_SIZE=$(lsblk -dno SIZE "$SOURCE_DEV" 2>/dev/null || echo "unknown size")
+
+echo "OpenRig — Install to eMMC"
+echo ""
+echo "Source:      $SOURCE_DEV ($SOURCE_SIZE — current boot device, rootfs on p${SOURCE_PART_NUM})"
+echo "Destination: $EMMC ($EMMC_SIZE onboard eMMC)"
+echo ""
+echo "WARNING: ALL DATA ON $EMMC WILL BE ERASED."
+echo "         This will install OpenRig permanently to internal storage."
+echo ""
+
+if [ "$AUTO_YES" = false ]; then
+    read -rp "Type YES to continue: " CONFIRM
+    if [ "$CONFIRM" != "YES" ]; then
+        echo "Aborted."
+        exit 0
+    fi
+fi
+
+echo ""
+echo "Copying $SOURCE_DEV → $EMMC (this may take 5-15 minutes)..."
+echo ""
+
+dd if="$SOURCE_DEV" of="$EMMC" bs=4M status=progress conv=fsync
+sync
+
+echo ""
+echo "Running filesystem check on eMMC partitions..."
+for part in "${EMMC}"p*; do
+    [ -b "$part" ] || continue
+    fsck -y "$part" 2>/dev/null || true
+done
+
+# ── Expand root partition + filesystem ────────────────────────────────────────
+# After `dd` from a smaller SD to a bigger eMMC, the GPT backup header still
+# points to the SD-sized end-of-disk and the partition itself only covers the
+# original SD layout. We need to relocate the backup header, resize the root
+# partition to 100%, make the kernel re-read the partition table, then grow
+# the filesystem.
+
+EMMC_ROOT="${EMMC}p${SOURCE_PART_NUM}"
+if [ ! -b "$EMMC_ROOT" ]; then
+    echo "ERROR: Target root partition $EMMC_ROOT not present after dd."
+    exit 1
+fi
+
+echo ""
+echo "Expanding root partition $EMMC_ROOT to fill the full eMMC (${EMMC_SIZE})..."
+
+# sgdisk -e is the correct GPT tool for relocating the backup header to the
+# true end-of-disk. fdisk w/Y works on MBR and on some GPT implementations
+# but is unreliable — use it only as a last-resort fallback.
+if command -v sgdisk >/dev/null; then
+    sgdisk -e "$EMMC"
+else
+    echo "WARN: sgdisk not installed, falling back to fdisk for GPT repair"
+    printf "w\nY\n" | fdisk "$EMMC" >/dev/null 2>&1 || true
+fi
+
+parted -s "$EMMC" resizepart "$SOURCE_PART_NUM" 100%
+partprobe "$EMMC" || true
+sleep 2
+
+# Validate that the kernel picked up the new partition size before resize2fs.
+NEW_PART_BYTES=$(lsblk -bno SIZE "$EMMC_ROOT" 2>/dev/null || echo 0)
+SLACK=$((500 * 1024 * 1024))  # 500 MiB — allow for GPT overhead + alignment
+if [ "$((EMMC_BYTES - NEW_PART_BYTES))" -gt "$SLACK" ]; then
+    echo "ERROR: Partition did not expand. Kernel sees $NEW_PART_BYTES B, expected near $EMMC_BYTES B."
+    echo "       Inspect with: lsblk $EMMC; parted $EMMC print"
+    exit 1
+fi
+
+resize2fs "$EMMC_ROOT"
+
+# Validate final filesystem size. We check block count × block size against
+# the partition size rather than `df`, because the partition isn't mounted.
+FS_BYTES=$(tune2fs -l "$EMMC_ROOT" 2>/dev/null | awk '
+    /^Block count:/ { bc = $NF }
+    /^Block size:/  { bs = $NF }
+    END { if (bc && bs) printf("%d\n", bc * bs); else print 0 }
+')
+if [ "$FS_BYTES" -gt 0 ] && [ "$((NEW_PART_BYTES - FS_BYTES))" -gt "$SLACK" ]; then
+    echo "ERROR: Filesystem did not grow to fill partition."
+    echo "       Partition: $NEW_PART_BYTES B, filesystem: $FS_BYTES B"
+    echo "       Try manually: resize2fs $EMMC_ROOT"
+    exit 1
+fi
+
+HUMAN=$(lsblk -dno SIZE "$EMMC_ROOT" 2>/dev/null || echo "?")
+echo "Root partition+filesystem expanded — $HUMAN available on $EMMC_ROOT."
+
+echo ""
+echo "Installation complete."
+echo "Remove the SD card and reboot:"
+echo "  reboot"

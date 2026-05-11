@@ -1,0 +1,12 @@
+[package]
+name = "block-core"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+log.workspace = true
+serde.workspace = true
+arc-swap.workspace = true
+domain = { path = "../domain" }
+
+[dev-dependencies]
+serde_json = "1"

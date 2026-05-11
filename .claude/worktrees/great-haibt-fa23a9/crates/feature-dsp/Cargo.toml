@@ -1,0 +1,7 @@
+[package]
+name = "feature-dsp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rustfft.workspace = true

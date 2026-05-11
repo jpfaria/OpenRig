@@ -1,0 +1,9 @@
+[package]
+name = "block-preamp"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+nam = { path = "../nam" }
+block-core = { path = "../block-core" }
+plugin-loader = { path = "../plugin-loader" }

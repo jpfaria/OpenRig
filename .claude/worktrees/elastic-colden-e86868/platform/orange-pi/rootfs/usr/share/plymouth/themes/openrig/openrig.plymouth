@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=OpenRig
+Description=OpenRig boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/openrig
+ScriptFile=/usr/share/plymouth/themes/openrig/openrig.script

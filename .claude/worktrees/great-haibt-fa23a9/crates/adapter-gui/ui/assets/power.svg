@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
+
+<path d="M128 56V124" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<path d="M156 76C178 88 192 110 192 136C192 172 164 200 128 200C92 200 64 172 64 136C64 110 78 88 100 76" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<text x="128" y="226" fill="#8E8E8E" font-size="22" font-family="Arial" text-anchor="middle">POWER</text>
+
+</svg>

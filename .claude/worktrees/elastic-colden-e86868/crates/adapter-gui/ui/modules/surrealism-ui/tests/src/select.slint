@@ -1,0 +1,66 @@
+import {SSelect} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+import { SButton } from "../../src/button/index.slint";
+
+component TestWindow inherits Window {
+  height: 440px;
+  width: 400px;
+  SSelect {
+    y: 20px;
+    options: [
+      {label:"Shangai",value:"s01"},
+      {label:"Los Angeles",value:"l02"},
+      {label:"New York",value:"n03"},
+      {label:"Hong Kong",value:"h04"},
+    ];
+  }
+  
+  s2:= SSelect {
+    y: 100px;
+    font-weight: 700;
+    is-show: true;
+    theme: Error;
+    card-width: 300px;
+    options: [
+      {label:"Shangai",value:"s01"},
+      {label:"Los Angeles",value:"l02"},
+      {label:"New York",value:"n03"},
+      {label:"Hong Kong",value:"h04"},
+    ];
+    changed(index,item)=>{
+      t.index = index;
+      t.label = item.label;
+      t.value = item.value;
+      self.close();
+    }
+  }
+
+  s3:= SSelect {
+    z: 1111;
+    y: 260px;
+    font-weight: 700;
+    theme: Light;
+    active: 0;
+    options: [
+      {label:"Shangai",value:"s01"},
+      {label:"Los Angeles",value:"l02"},
+      {label:"New York",value:"n03"},
+      {label:"Hong Kong",value:"h04"},
+    ];
+  }
+
+  t:=Text{
+    y: 350px;
+    font-size: 16px;
+    in-out property <int> index;
+    in-out property <string> label;
+    in-out property <string> value;
+    text: @tr("Index:{} Label:{} Value:{}",index,label,value);
+  }
+  Text{
+    y: 400px;
+    in property <string> hover: s3.has-hover? "hover-yes": "hover-no";
+    in property <string> expand: s2.expand-hover? "expand-yes": "expand-no";
+    text: @tr("{}, {}", hover, expand);
+  }
+}

@@ -1,0 +1,77 @@
+import {SSlider, SButton} from "../../index.slint";
+
+
+component TestSlider inherits Window{
+    height: 400px;
+    width: 400px;
+    VerticalLayout {
+        spacing: 20px;
+        padding: 20px;
+        SSlider {
+            theme: Light;
+            width: 360px;
+            height: 40px;
+            stroke-width: 16px;
+            progress: 0.3;
+        }
+        SSlider {
+            width: 360px;
+            height: 40px;
+            progress: 80%;
+        }
+
+        HorizontalLayout {
+            spacing: 30px;
+            slider:= SSlider {
+                theme: Success;
+                width: 30px;
+                height: 220px;
+                stroke-width: 220px;
+                progress: 30%;
+                orientation: Orientation.vertical;
+                moved(progress) => {
+                    debug(progress);
+                }
+            }
+            VerticalLayout {
+                spacing: 20px;
+                HorizontalLayout {
+                    spacing: 20px;
+                    SButton{
+                        text: "set";
+                        clicked => {
+                            slider.set(0.45);
+                        }
+                    }
+                    SButton{
+                        text: "add";
+                        clicked => {
+                            slider.add(0.1);
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 20px;
+                    SButton{
+                        text: "sub";
+                        clicked => {
+                            slider.sub(0.1);
+                        }
+                    }
+                    SButton{
+                        text: "full";
+                        clicked => {
+                            slider.full();
+                        }
+                    }
+                    SButton{
+                        text: "clear";
+                        clicked => {
+                            slider.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

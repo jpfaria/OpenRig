@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Vacuum tube / valve — represents analog warmth -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+    <!-- Glass envelope -->
+    <path d="M25 65 Q25 20 40 12 Q55 20 55 65" />
+    <line x1="25" y1="65" x2="55" y2="65" />
+    <!-- Base pins -->
+    <line x1="30" y1="65" x2="30" y2="75" />
+    <line x1="40" y1="65" x2="40" y2="75" />
+    <line x1="50" y1="65" x2="50" y2="75" />
+    <!-- Internal plates -->
+    <rect x="33" y="28" width="14" height="20" rx="2" stroke-width="1" />
+    <!-- Filament glow -->
+    <path d="M37 38 Q40 32 43 38" stroke-width="1.5" />
+    <path d="M36 42 Q40 36 44 42" stroke-width="1" opacity="0.5" />
+    <!-- Heat waves -->
+    <path d="M28 25 Q26 22 28 19" stroke-width="1" opacity="0.3" />
+    <path d="M52 25 Q54 22 52 19" stroke-width="1" opacity="0.3" />
+  </g>
+</svg>

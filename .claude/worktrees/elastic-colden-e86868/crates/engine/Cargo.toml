@@ -1,0 +1,32 @@
+[package]
+name = "engine"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+log.workspace = true
+anyhow.workspace = true
+arc-swap.workspace = true
+crossbeam-queue.workspace = true
+domain = { path = "../domain" }
+block-core = { path = "../block-core" }
+nam = { path = "../nam" }
+ir = { path = "../ir" }
+lv2 = { path = "../lv2" }
+block-gain = { path = "../block-gain" }
+block-delay = { path = "../block-delay" }
+block-mod = { path = "../block-mod" }
+block-filter = { path = "../block-filter" }
+block-dyn = { path = "../block-dyn" }
+block-nam = { path = "../block-nam" }
+block-preamp = { path = "../block-preamp" }
+block-amp = { path = "../block-amp" }
+block-full-rig = { path = "../block-full-rig" }
+block-cab = { path = "../block-cab" }
+block-body = { path = "../block-body" }
+block-ir = { path = "../block-ir" }
+block-wah = { path = "../block-wah" }
+block-pitch = { path = "../block-pitch" }
+block-reverb = { path = "../block-reverb" }
+block-util = { path = "../block-util" }
+project = { path = "../project" }
+vst3-host = { path = "../vst3" }

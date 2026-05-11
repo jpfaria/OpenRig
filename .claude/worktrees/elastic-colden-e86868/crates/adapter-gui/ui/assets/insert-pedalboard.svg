@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="board" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#484850"/>
+      <stop offset="50%" stop-color="#303038"/>
+      <stop offset="100%" stop-color="#1a1a22"/>
+    </linearGradient>
+    <linearGradient id="pedal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#606068"/>
+      <stop offset="100%" stop-color="#38383f"/>
+    </linearGradient>
+  </defs>
+  <!-- Board base -->
+  <rect x="4" y="16" width="56" height="36" rx="4" fill="url(#board)" stroke="#555560" stroke-width="1"/>
+  <!-- Pedal 1 -->
+  <rect x="8" y="22" width="14" height="24" rx="2" fill="url(#pedal)" stroke="#666670" stroke-width="0.8"/>
+  <circle cx="15" cy="28" r="2" fill="#222228" stroke="#555560" stroke-width="0.5"/>
+  <rect x="10" y="38" width="10" height="4" rx="1" fill="#333338"/>
+  <!-- Pedal 2 -->
+  <rect x="25" y="22" width="14" height="24" rx="2" fill="url(#pedal)" stroke="#666670" stroke-width="0.8"/>
+  <circle cx="32" cy="28" r="2" fill="#222228" stroke="#555560" stroke-width="0.5"/>
+  <rect x="27" y="38" width="10" height="4" rx="1" fill="#333338"/>
+  <!-- Pedal 3 -->
+  <rect x="42" y="22" width="14" height="24" rx="2" fill="url(#pedal)" stroke="#666670" stroke-width="0.8"/>
+  <circle cx="49" cy="28" r="2" fill="#222228" stroke="#555560" stroke-width="0.5"/>
+  <rect x="44" y="38" width="10" height="4" rx="1" fill="#333338"/>
+  <!-- Connection lines between pedals -->
+  <line x1="22" y1="34" x2="25" y2="34" stroke="#444450" stroke-width="1"/>
+  <line x1="39" y1="34" x2="42" y2="34" stroke="#444450" stroke-width="1"/>
+  <!-- Send/Return arrows -->
+  <path d="M2,34 L6,34" stroke="#888890" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M58,34 L62,34" stroke="#888890" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M2,30 L6,34 L2,38" fill="none" stroke="#888890" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M62,30 L58,34 L62,38" fill="none" stroke="#888890" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,173 @@
+// One row in the block-editor parameter list. Reused by the standalone
+// editor and the inline drawer. Routes back to the matching widget (slider,
+// stepper, footswitch, file picker) by parameter type.
+
+import { ComboBox } from "std-widgets.slint";
+import { BlockParameterItem } from "../models.slint";
+import { ToolbarButton, ParamFieldBox, BlockValueStepper, BlockValueSlider, BlockFootswitch } from "./block_value_widgets.slint";
+
+export component BlockParameterRow inherits Rectangle {
+    in property <BlockParameterItem> item;
+    callback text-changed(string, string);
+    callback number-changed(string, float);
+    callback number-text-changed(string, string);
+    callback bool-changed(string, bool);
+    callback option-changed(string, int);
+    callback file-picked(string);
+
+    height: root.item.widget_kind == "bool" ? 52px
+        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 86px
+        : root.item.widget_kind == "slider" ? 86px
+        : root.item.widget_kind == "stepper" ? 78px
+        : 84px;
+    background: transparent;
+
+    if root.item.widget_kind != "bool"
+        && root.item.widget_kind != "stepper"
+        && root.item.widget_kind != "slider" : Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.item.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    if root.item.widget_kind == "bool" : BlockFootswitch {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        label: root.item.label;
+        active: root.item.bool_value;
+        toggled(value) => {
+            root.bool-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "enum" : ComboBox {
+        x: 0px;
+        y: 28px;
+        width: parent.width;
+        height: 32px;
+        model: root.item.option_labels;
+        current-index: root.item.selected_option_index;
+        selected(_) => {
+            root.option-changed(root.item.path, self.current-index);
+        }
+    }
+
+    if root.item.widget_kind == "text" : ParamFieldBox {
+        x: 0px;
+        y: 28px;
+        width: root.item.unit_text == "" ? parent.width : parent.width - 54px;
+        height: 34px;
+        text: root.item.value_text;
+        changed(value) => {
+            root.text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "stepper" : BlockValueStepper {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        label: root.item.label;
+        value-text: root.item.value_text;
+        unit-text: root.item.unit_text;
+        numeric-value: root.item.numeric_value;
+        numeric-min: root.item.numeric_min;
+        numeric-max: root.item.numeric_max;
+        numeric-step: root.item.numeric_step;
+        changed(value) => {
+            root.number-changed(root.item.path, value);
+        }
+        text-changed(value) => {
+            root.number-text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "slider" || root.item.widget_kind == "float" || root.item.widget_kind == "int" : BlockValueSlider {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        label: root.item.label;
+        value-text: root.item.value_text;
+        unit-text: root.item.unit_text;
+        progress: root.item.numeric_max > root.item.numeric_min
+            ? (root.item.numeric_value - root.item.numeric_min) / (root.item.numeric_max - root.item.numeric_min)
+            : 0;
+        moved(progress) => {
+            root.number-changed(
+                root.item.path,
+                root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
+            );
+        }
+        text-changed(value) => {
+            root.number-text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "path" : ParamFieldBox {
+        x: 0px;
+        y: 28px;
+        width: parent.width - 46px;
+        height: 34px;
+        text: root.item.value_text;
+        changed(value) => {
+            root.text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "path" : Rectangle {
+        x: parent.width - 30px;
+        y: 33px;
+        width: 24px;
+        height: 24px;
+        background: file-hover.has-hover ? #ffffff10 : transparent;
+
+        Image {
+            x: 2px;
+            y: 2px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("../assets/open-file.svg");
+            image-fit: contain;
+        }
+
+        file-hover := TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.file-picked(root.item.path); }
+        }
+    }
+
+    if root.item.widget_kind == "text" && root.item.unit_text != "" : Rectangle {
+        x: parent.width - 42px;
+        y: 35px;
+        width: 42px;
+        height: 20px;
+        background: transparent;
+        border-width: 1px;
+        border-color: #465063;
+        border-radius: 3px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.item.unit_text;
+            color: #a6b7ce;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+

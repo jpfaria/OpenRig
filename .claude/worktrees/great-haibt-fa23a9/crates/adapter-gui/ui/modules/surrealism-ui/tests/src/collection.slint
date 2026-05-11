@@ -1,0 +1,32 @@
+import {SButton,SCollection, SText} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+component TestCollection inherits Window {
+  height: 600px;
+  width: 600px;
+  
+  c:=SCollection{
+    height: 180px;
+    width: 180px;
+    scale : 3;
+    clicked => {
+      txt.font-size = self.toggle(txt.font-size,1.5);
+      btn.width = self.toggle(btn.width , 1.6);
+      btn.theme = c.is-scale ? Themes.Dark : Themes.Error;
+    }
+    VerticalLayout {
+      padding: 20px;
+      spacing: 20px;
+      alignment: center;
+      Rectangle {
+        txt:=SText {
+          text:"Surrealism";
+        }
+      }
+      Rectangle {
+        btn:=SButton{
+        }
+      }
+    }
+  }
+}
