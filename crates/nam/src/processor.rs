@@ -197,10 +197,16 @@ pub struct NeuralModel {
     _opaque: [u8; 0],
 }
 
-/// Safe-ish wrapper around the FFI `Process` for use by sibling modules
-/// (loudness probe). Caller must guarantee `model` is a live pointer and
-/// the slices are equally sized.
-pub(crate) unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
+/// Safe-ish wrapper around the FFI `Process`. Used internally by the
+/// loudness probe and exposed for offline diagnostics tools (audit /
+/// catalog LUFS measurement) — same FFI semantics as the runtime
+/// processor. NEVER call from the audio thread; this is offline-only.
+///
+/// # Safety
+///
+/// `model` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed. `input` and `output` must have the same length.
+pub unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
     debug_assert_eq!(input.len(), output.len());
     Process(model, input.as_ptr(), output.as_mut_ptr(), input.len());
 }
