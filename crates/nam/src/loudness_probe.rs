@@ -28,10 +28,15 @@ pub const TARGET_RMS_DBFS: f32 = -10.0;
 /// residual transients.
 pub const PEAK_CEILING_DBFS: f32 = 3.0;
 
-/// Peak amplitude of the pink-noise probe at the model input. Picked
-/// to roughly mirror "instrument-level" guitar peaks so the model
-/// saturates the way it would in real use.
-pub const PROBE_INPUT_PEAK_DBFS: f32 = -12.0;
+/// Peak amplitude of the pink-noise probe at the model input. Hits
+/// at -25 dBFS porque é o nível típico que o amp recebe NA CHAIN
+/// REAL: signal de guitarra (~-15 dBFS peak no input device) passa
+/// por um gain pedal upstream (Klon, TS9, etc.) que tipicamente
+/// REDUZ o peak antes do amp ver. Calibrar o probe a -12 dBFS (que
+/// é signal denso direto) faz audit subestimar bastante o gain
+/// necessário, e o amp acaba saindo mais quieto do que o target
+/// promete (issue #413).
+pub const PROBE_INPUT_PEAK_DBFS: f32 = -25.0;
 
 pub const PROBE_SAMPLES: usize = 96_000;
 
