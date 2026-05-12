@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: green_day_-_when_i_come_around
+name: Green Day - When I Come Around
 blocks:
 - type: utility
   enabled: false
@@ -21,10 +21,6 @@ blocks:
     threshold: 40.0
     attack_ms: 0.1
     release_ms: 80.0
-- type: gain
-  enabled: true
-  model: nam_ibanez_ts9
-  params: {}
 - type: amp
   enabled: true
   model: nam_marshall_super_100_1966

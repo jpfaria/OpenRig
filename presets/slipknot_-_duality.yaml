@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: slipknot_-_duality
+name: Slipknot - Duality (Drop B)
 blocks:
 - type: utility
   enabled: false
@@ -18,7 +18,7 @@ blocks:
   enabled: true
   model: gate_basic
   params:
-    threshold: 40.0
+    threshold: 50.0
     attack_ms: 0.1
     release_ms: 80.0
 - type: gain
@@ -27,15 +27,17 @@ blocks:
   params: {}
 - type: amp
   enabled: true
-  model: nam_marshall_super_100_1966
-  params: {}
+  model: nam_mesa_triple_rectifier
+  params:
+    voicing: chaosball
+    mic: sm57
 - type: reverb
   enabled: true
   model: room
   params:
-    room_size: 22.0
-    damping: 70.0
-    mix: 8.0
+    room_size: 18.0
+    damping: 80.0
+    mix: 5.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall

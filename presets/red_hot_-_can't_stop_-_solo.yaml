@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: red_hot_-_can't_stop_-_solo
+name: RHCP - Can't Stop (Solo)
 blocks:
 - type: utility
   enabled: false
@@ -18,9 +18,13 @@ blocks:
   enabled: true
   model: gate_basic
   params:
-    threshold: 40.0
-    attack_ms: 0.1
-    release_ms: 80.0
+    threshold: 35.0
+    attack_ms: 0.5
+    release_ms: 120.0
+- type: wah
+  enabled: false
+  model: cry_classic
+  params: {}
 - type: gain
   enabled: true
   model: nam_ibanez_ts9
@@ -29,13 +33,20 @@ blocks:
   enabled: true
   model: nam_marshall_super_100_1966
   params: {}
+- type: delay
+  enabled: true
+  model: analog_warm
+  params:
+    time_ms: 220.0
+    feedback: 18.0
+    mix: 12.0
 - type: reverb
   enabled: true
   model: room
   params:
-    room_size: 22.0
-    damping: 70.0
-    mix: 8.0
+    room_size: 32.0
+    damping: 65.0
+    mix: 14.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall
@@ -47,7 +58,7 @@ blocks:
   enabled: true
   model: volume
   params:
-    volume: 80.0
+    volume: 88.0
     mute: false
 - type: utility
   enabled: true

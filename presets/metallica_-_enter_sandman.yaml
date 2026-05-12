@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: metallica_-_enter_sandman
+name: Metallica - Enter Sandman
 blocks:
 - type: utility
   enabled: false
@@ -18,7 +18,7 @@ blocks:
   enabled: true
   model: gate_basic
   params:
-    threshold: 40.0
+    threshold: 45.0
     attack_ms: 0.1
     release_ms: 80.0
 - type: gain
@@ -27,15 +27,9 @@ blocks:
   params: {}
 - type: amp
   enabled: true
-  model: nam_marshall_super_100_1966
-  params: {}
-- type: reverb
-  enabled: true
-  model: room
+  model: nam_mesa_boogie_mark_iic
   params:
-    room_size: 22.0
-    damping: 70.0
-    mix: 8.0
+    preset: hetfield_rhythm
 - type: dynamics
   enabled: true
   model: limiter_brickwall

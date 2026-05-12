@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: clean
+name: Clean (Fender '65 Deluxe Reverb)
 blocks:
 - type: utility
   enabled: false
@@ -16,26 +16,26 @@ blocks:
     high: 0.0
 - type: dynamics
   enabled: true
-  model: gate_basic
+  model: compressor_studio_clean
   params:
-    threshold: 40.0
-    attack_ms: 0.1
-    release_ms: 80.0
-- type: gain
-  enabled: true
-  model: nam_ibanez_ts9
-  params: {}
+    threshold: 50.0
+    ratio: 25.0
+    attack_ms: 8.0
+    release_ms: 100.0
+    makeup_gain: 40.0
+    mix: 50.0
 - type: amp
   enabled: true
-  model: nam_marshall_super_100_1966
-  params: {}
+  model: nam_fender_deluxe_reverb_65
+  params:
+    mic: sm57_royer
 - type: reverb
   enabled: true
-  model: room
+  model: spring
   params:
-    room_size: 22.0
-    damping: 70.0
-    mix: 8.0
+    room_size: 35.0
+    damping: 55.0
+    mix: 18.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall
@@ -47,7 +47,7 @@ blocks:
   enabled: true
   model: volume
   params:
-    volume: 80.0
+    volume: 82.0
     mute: false
 - type: utility
   enabled: true

@@ -1,5 +1,5 @@
-id: green_day_-_basket_case
-name: Green Day - Basket Case
+id: red_hot_-_can't_stop_-_base
+name: RHCP - Can't Stop (Rhythm)
 blocks:
 - type: utility
   enabled: false
@@ -18,9 +18,9 @@ blocks:
   enabled: true
   model: gate_basic
   params:
-    threshold: 40.0
-    attack_ms: 0.1
-    release_ms: 80.0
+    threshold: 28.0
+    attack_ms: 0.5
+    release_ms: 120.0
 - type: gain
   enabled: true
   model: nam_ibanez_ts9
@@ -47,7 +47,7 @@ blocks:
   enabled: true
   model: volume
   params:
-    volume: 80.0
+    volume: 78.0
     mute: false
 - type: utility
   enabled: true
