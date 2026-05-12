@@ -130,14 +130,6 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
-    /// Set when `output_level_db` already encodes the catalog-wide
-    /// loudness offset (via `manifest.output_gain_db` populated by
-    /// `tools/nam_loudness_audit`). The NamProcessor then SKIPS the
-    /// model's baked `recommended_output_db` — the audit is the
-    /// single source of truth and the baked recommendation diverges
-    /// between trainers, double-applying both gives the user the
-    /// "tudo baixo" report (issue #413).
-    pub external_loudness_aligned: bool,
 }
 
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
@@ -146,7 +138,6 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     noise_gate_threshold_db: -80.0,
     noise_gate_enabled: true,
     eq_enabled: true,
-    external_loudness_aligned: false,
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
@@ -185,11 +176,6 @@ pub fn plugin_params_from_set_with_defaults(
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
-        // `external_loudness_aligned` is not derived from user params —
-        // it's set by `from_package` when the plugin carries
-        // `output_gain_db` in its manifest. Defaults inherit the
-        // caller's setting verbatim.
-        external_loudness_aligned: defaults.external_loudness_aligned,
     })
 }
 
@@ -331,28 +317,21 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
-        // When the plugin carries `output_gain_db` (audit-populated)
-        // we treat `params.output_level_db` as the single source of
-        // truth and SKIP the model's baked `recommended_output_db`.
-        // Different trainers bake different recommendations against
-        // different reference signals, so summing both double-applies
-        // an inconsistent correction (issue #413: "tudo baixo" when
-        // the baked typically -7 dB ate up the audit's +6 dB boost).
-        let baked_output_db = if params.external_loudness_aligned {
-            0.0
-        } else {
-            recommended_output_db
-        };
-
+        // Loudness alignment do catalog vai por dentro do
+        // `params.input_level_db` agora (somado pelo `from_package`
+        // a partir de `manifest.output_gain_db`). Aplicar mais signal
+        // pelo MODELO do NAM faz o amp responder com sua própria
+        // curva — sem clip digital, sem virar gain linear pós-amp.
+        // Por isso o `recommended_output_db` baked do trainer é
+        // mantido aqui sem modificação.
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + baked_output_db);
+        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB, audit_aligned={}",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB",
             model_path,
-            recommended_input_db,
-            baked_output_db,
-            params.external_loudness_aligned,
+            params.input_level_db + recommended_input_db,
+            recommended_output_db,
         );
 
         Ok(Self {

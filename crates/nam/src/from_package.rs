@@ -66,16 +66,17 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Issue #413: nivelamento de loudness é metadata estática no
-    // manifest (`output_gain_db`, populado offline por
-    // `tools/nam_loudness_audit`). Cuando presente, somamos no
-    // `output_level_db` E sinalizamos `external_loudness_aligned`
-    // pra o processor ignorar o `recommended_output_db` baked do
-    // NAM lib — senão a correção do trainer (-7 a -8 dB típico)
-    // come o nosso boost e o usuário ouve "tudo baixo".
+    // Issue #413: nivelamento de loudness é metadata estática
+    // (`output_gain_db` no manifest, populado offline por
+    // `tools/nam_loudness_audit`). É somado no `input_level_db` —
+    // NÃO no output. Empurrar mais signal pelo modelo NAM faz o amp
+    // responder com sua própria curva (saturation natural pra signals
+    // altos, soft compression no top), em vez de virar gain digital
+    // linear pós-amp que clipa o DAC. O default do `input_level_db`
+    // é 0; o usuário pode somar mais via UI (até +24 dB), e o offset
+    // do manifest entra empilhado nesse mesmo somador.
     if let Some(manifest_gain_db) = package.manifest.output_gain_db {
-        plugin_params.output_level_db += manifest_gain_db;
-        plugin_params.external_loudness_aligned = true;
+        plugin_params.input_level_db += manifest_gain_db;
     }
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
