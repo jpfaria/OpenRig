@@ -439,3 +439,29 @@ impl ChainRuntimeState {
         out
     }
 }
+
+/// Acquire a `Mutex` even if a prior panic poisoned it (issue #415).
+///
+/// PoisonError is recoverable: it indicates that some other thread panicked
+/// while holding the lock, but the underlying data is still accessible.
+/// In this codebase the only writer is the chain-rebuild path, which
+/// overwrites `input_states` and `input_to_segments` wholesale, so a
+/// partially inconsistent state is healed by the very next call.
+///
+/// Aborting the process on poison is strictly worse than logging and
+/// continuing — the original panic was already reported (via `log::error!`
+/// from `apply_block_processor` or upstream).
+///
+/// Audio-thread callsites still use `try_lock` and must NOT call this —
+/// they treat `Err` (whether poison or contention) as "skip this callback".
+pub(crate) fn lock_recover<'a, T>(
+    mutex: &'a Mutex<T>,
+    name: &'static str,
+) -> std::sync::MutexGuard<'a, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        log::error!(
+            "{name} mutex was poisoned by a prior panic — recovering and continuing"
+        );
+        poisoned.into_inner()
+    })
+}

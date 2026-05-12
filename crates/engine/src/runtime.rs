@@ -602,3 +602,7 @@ mod audio_deadline;
 #[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]
 mod audio_signal_integrity;
+
+#[cfg(test)]
+#[path = "runtime_lock_recovery_tests.rs"]
+mod runtime_lock_recovery;
