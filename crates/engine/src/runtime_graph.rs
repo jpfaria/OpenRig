@@ -535,11 +535,18 @@ impl RuntimeGraph {
                 reset_output_queue,
                 elastic_targets,
             )?;
+            // `update_chain_runtime_state` already refreshes the
+            // normalisation gain — nothing to do here.
             return Ok(runtime.clone());
         }
 
         let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         let runtime = Arc::new(state);
+        // Issue #413: chain new → roda probe pra calibrar o gain de
+        // normalização do master output. Substitui o manifest gain
+        // por-bloco (que empilhava em série). Pesado offline (~2s),
+        // zero overhead em runtime.
+        refresh_chain_normalization_gain(&runtime, chain, sample_rate);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)
     }

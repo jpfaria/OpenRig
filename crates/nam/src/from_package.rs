@@ -65,18 +65,19 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
     // Issue #413 / fase 3: `manifest.output_gain_db` deixou de ser
-    // aplicado no NAM em runtime. Por que: aplicava per-bloco e
-    // empilhava em série (Klon +28 + Amp +35 = +63 dB no signal,
-    // estourava o teto e o limiter da chain comprimia tudo).
+    // aplicado no NAM em runtime. Per-bloco empilhava em série (Klon
+    // +28 + Amp +35 = +63 dB, estouro). O gain efetivo agora é
+    // calculado pela `chain_loudness::compute_chain_normalization_gain_db`
+    // sobre a chain inteira e aplicado no master output do runtime.
     //
-    // O campo continua existindo no manifest (audit ainda gera) por
-    // dois motivos: serve de documentação do "quanto natural cada
-    // capture entrega isolada" e pode voltar como input pro probe
-    // de chain (acelerar convergência). Mas o gain efetivo agora é
-    // calculado uma vez pela `chain_loudness::compute_chain_normalization_gain_db`
-    // sobre a chain INTEIRA e aplicado no master output do runtime.
+    // MAS continuamos forçando `audit_overrides_baked_output = true`:
+    // o `recommended_output_db` baked do trainer NAM (tipicamente
+    // -4 a -8 dB) atenuaria o signal natural ANTES do probe medir,
+    // distorcendo o cálculo do chain-level gain. O probe quer medir
+    // o NAM em level natural cru. Compensação fica TODA no master.
+    plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 
