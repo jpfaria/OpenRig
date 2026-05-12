@@ -66,9 +66,24 @@ const PROBE_SEED: u64 = 0xC0FFEE;
 /// Returns `0.0` (no gain) on any build failure — chain stays at
 /// its natural level rather than getting a wrong compensation.
 pub fn compute_chain_normalization_gain_db(chain: &Chain, sample_rate: f32) -> f32 {
+    let enabled_blocks: Vec<String> = chain
+        .blocks
+        .iter()
+        .filter(|b| b.enabled)
+        .map(|b| match b.model_ref() {
+            Some(r) => format!("{}:{}", r.effect_type, r.model),
+            None => b.kind.label().to_string(),
+        })
+        .collect();
     let runtime = match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET]) {
         Ok(rt) => Arc::new(rt),
-        Err(_) => return 0.0,
+        Err(e) => {
+            eprintln!(
+                "[chain_loudness] build failed for chain '{}': {e} — gain=0.0",
+                chain.id.0
+            );
+            return 0.0;
+        }
     };
 
     let total_frames = (sample_rate * PROBE_SECONDS) as usize;
@@ -97,11 +112,21 @@ pub fn compute_chain_normalization_gain_db(chain: &Chain, sample_rate: f32) -> f
     }
 
     if max_peak < 1e-12 {
+        eprintln!(
+            "[chain_loudness] chain '{}' produced silence ({} blocks) — gain=0.0",
+            chain.id.0,
+            enabled_blocks.len()
+        );
         return 0.0;
     }
     let measured_peak_dbfs = 20.0 * max_peak.log10();
     let raw_gain = TARGET_PEAK_DBFS - measured_peak_dbfs;
-    raw_gain.clamp(MIN_GAIN_DB, MAX_GAIN_DB)
+    let applied = raw_gain.clamp(MIN_GAIN_DB, MAX_GAIN_DB);
+    eprintln!(
+        "[chain_loudness] chain='{}' blocks={:?} measured_peak={:+.2}dBFS raw_gain={:+.2}dB applied={:+.2}dB",
+        chain.id.0, enabled_blocks, measured_peak_dbfs, raw_gain, applied
+    );
+    applied
 }
 
 /// dB-to-linear helper for the audio thread side. Inline + branchless
