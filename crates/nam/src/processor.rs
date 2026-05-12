@@ -130,6 +130,12 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
+    /// True quando o `output_gain_db` do manifest (audit-populated)
+    /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
+    /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
+    /// a atenuação típica do trainer (-7 a -8 dB) come o boost do
+    /// audit e o app sai muito quieto (issue #413: "tudo baixo").
+    pub audit_overrides_baked_output: bool,
 }
 
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
@@ -138,6 +144,7 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     noise_gate_threshold_db: -80.0,
     noise_gate_enabled: true,
     eq_enabled: true,
+    audit_overrides_baked_output: false,
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
@@ -176,6 +183,9 @@ pub fn plugin_params_from_set_with_defaults(
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
+        // Não vem de `params` — é setado pelo `from_package` quando
+        // o manifest tem `output_gain_db`. Defaults inherit do caller.
+        audit_overrides_baked_output: defaults.audit_overrides_baked_output,
     })
 }
 
@@ -318,20 +328,29 @@ impl NamProcessor {
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
         // Loudness alignment do catalog vai por dentro do
-        // `params.input_level_db` agora (somado pelo `from_package`
-        // a partir de `manifest.output_gain_db`). Aplicar mais signal
+        // `params.input_level_db` (somado pelo `from_package` a
+        // partir de `manifest.output_gain_db`). Aplicar mais signal
         // pelo MODELO do NAM faz o amp responder com sua própria
         // curva — sem clip digital, sem virar gain linear pós-amp.
-        // Por isso o `recommended_output_db` baked do trainer é
-        // mantido aqui sem modificação.
+        //
+        // Quando o audit setou o offset, o `recommended_output_db`
+        // baked do trainer é IGNORADO: o audit é a fonte de verdade
+        // pro nivelamento, e o baked típico (-7 a -8 dB) atenuaria
+        // tudo de novo (regressão "tudo baixo" do issue #413).
+        let baked_output_db = if params.audit_overrides_baked_output {
+            0.0
+        } else {
+            recommended_output_db
+        };
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
+        let output_gain = db_to_lin(params.output_level_db + baked_output_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB (audit_override={})",
             model_path,
             params.input_level_db + recommended_input_db,
-            recommended_output_db,
+            baked_output_db,
+            params.audit_overrides_baked_output,
         );
 
         Ok(Self {

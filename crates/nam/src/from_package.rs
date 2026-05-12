@@ -67,16 +67,27 @@ pub fn build_from_package(
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
     // Issue #413: nivelamento de loudness é metadata estática
-    // (`output_gain_db` no manifest, populado offline por
-    // `tools/nam_loudness_audit`). É somado no `input_level_db` —
-    // NÃO no output. Empurrar mais signal pelo modelo NAM faz o amp
-    // responder com sua própria curva (saturation natural pra signals
-    // altos, soft compression no top), em vez de virar gain digital
-    // linear pós-amp que clipa o DAC. O default do `input_level_db`
-    // é 0; o usuário pode somar mais via UI (até +24 dB), e o offset
-    // do manifest entra empilhado nesse mesmo somador.
+    // (`output_gain_db` no manifest, populado offline pelo
+    // `tools/nam_loudness_audit`).
+    //
+    // Aplicado em DOIS pontos quando o manifest carrega o offset:
+    //
+    // 1. Soma em `input_level_db` — empurra signal pelo amp model.
+    //    NAM responde com sua curva natural (soft saturation no top),
+    //    em vez de virar gain linear pós-amp que clipa o DAC.
+    //
+    // 2. `audit_overrides_baked_output = true` — desliga o
+    //    `recommended_output_db` baked do trainer no NamProcessor.
+    //    O audit já mediu signal puro pra calibrar; manter o baked
+    //    do trainer aplicado em paralelo dobra-corrige (os baked
+    //    típicos atenuam -7 a -8 dB e comem todo o boost = chain
+    //    sai muito quieta, foi a queixa "tudo baixo" do user).
+    //
+    // Usuário ainda controla o slider `input_db` (default 0, range
+    // -24..+24); o offset do manifest empilha junto.
     if let Some(manifest_gain_db) = package.manifest.output_gain_db {
         plugin_params.input_level_db += manifest_gain_db;
+        plugin_params.audit_overrides_baked_output = true;
     }
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
