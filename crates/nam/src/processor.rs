@@ -130,6 +130,12 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
+    /// True quando o `output_gain_db` do manifest (audit-populated)
+    /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
+    /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
+    /// a atenuação típica do trainer (-7 a -8 dB) come o boost do
+    /// audit e o app sai muito quieto (issue #413: "tudo baixo").
+    pub audit_overrides_baked_output: bool,
 }
 
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
@@ -138,6 +144,7 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     noise_gate_threshold_db: -80.0,
     noise_gate_enabled: true,
     eq_enabled: true,
+    audit_overrides_baked_output: false,
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
@@ -176,6 +183,9 @@ pub fn plugin_params_from_set_with_defaults(
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
+        // Não vem de `params` — é setado pelo `from_package` quando
+        // o manifest tem `output_gain_db`. Defaults inherit do caller.
+        audit_overrides_baked_output: defaults.audit_overrides_baked_output,
     })
 }
 
@@ -187,10 +197,16 @@ pub struct NeuralModel {
     _opaque: [u8; 0],
 }
 
-/// Safe-ish wrapper around the FFI `Process` for use by sibling modules
-/// (loudness probe). Caller must guarantee `model` is a live pointer and
-/// the slices are equally sized.
-pub(crate) unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
+/// Safe-ish wrapper around the FFI `Process`. Used internally by the
+/// loudness probe and exposed for offline diagnostics tools (audit /
+/// catalog LUFS measurement) — same FFI semantics as the runtime
+/// processor. NEVER call from the audio thread; this is offline-only.
+///
+/// # Safety
+///
+/// `model` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed. `input` and `output` must have the same length.
+pub unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
     debug_assert_eq!(input.len(), output.len());
     Process(model, input.as_ptr(), output.as_mut_ptr(), input.len());
 }
@@ -246,10 +262,10 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
-// Loudness alignment moved to `engine::auto_max` (issue #402). The
-// per-NAM probe and baked-loudness modules are kept around for the
-// `probe_dump` diagnostics example only — they no longer drive gain
-// at runtime, so the glue function is gone.
+// Loudness alignment lives in `manifest.output_gain_db`, populated
+// offline by `tools/nam_loudness_audit` (issue #413). The per-NAM
+// `loudness_probe` module is kept around as the measurement engine
+// the tool uses; it does not drive gain at runtime.
 
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
@@ -317,17 +333,30 @@ impl NamProcessor {
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
 
-        // No per-NAM loudness compensation here — it lives at the
-        // chain level in `engine::auto_max` (issue #402), which can
-        // see the full chain output instead of guessing per-block.
+        // Loudness alignment do catalog vai por dentro do
+        // `params.input_level_db` (somado pelo `from_package` a
+        // partir de `manifest.output_gain_db`). Aplicar mais signal
+        // pelo MODELO do NAM faz o amp responder com sua própria
+        // curva — sem clip digital, sem virar gain linear pós-amp.
+        //
+        // Quando o audit setou o offset, o `recommended_output_db`
+        // baked do trainer é IGNORADO: o audit é a fonte de verdade
+        // pro nivelamento, e o baked típico (-7 a -8 dB) atenuaria
+        // tudo de novo (regressão "tudo baixo" do issue #413).
+        let baked_output_db = if params.audit_overrides_baked_output {
+            0.0
+        } else {
+            recommended_output_db
+        };
         let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
+        let output_gain = db_to_lin(params.output_level_db + baked_output_db);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:+.2}dB, baked_output={:+.2}dB",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB (audit_override={})",
             model_path,
-            recommended_input_db,
-            recommended_output_db,
+            params.input_level_db + recommended_input_db,
+            baked_output_db,
+            params.audit_overrides_baked_output,
         );
 
         Ok(Self {

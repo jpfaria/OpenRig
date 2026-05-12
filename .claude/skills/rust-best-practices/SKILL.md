@@ -187,7 +187,7 @@ Princípios gerais de test coverage em `openrig-code-quality`. Aqui o operaciona
 - [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
 - [ ] Sem framework externo — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
 - [ ] **DSP nativo**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
-- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos; rodar com `cargo test -- --ignored`)
+- [ ] **NAM/LV2/IR builds**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/`). `#[ignore]` é PROIBIDO — ver `openrig-code-quality` §10b.
 - [ ] **Registry tests** para `block-*` crates: iterar sobre TODOS os modelos via registry (`schema()`, `validate()`, `build()`)
 - [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
 - [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)

@@ -25,7 +25,7 @@
 //!     modules.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwap;
@@ -35,7 +35,6 @@ use domain::ids::BlockId;
 use project::block::AudioBlock;
 use project::chain::ChainOutputMixdown;
 
-use crate::auto_max::AutoMaxState;
 use crate::input_tap::InputTap;
 use crate::runtime_audio_frame::{AudioFrame, AudioProcessor, ElasticBuffer, ProcessorScratch};
 use crate::spsc::SpscRing;
@@ -70,11 +69,6 @@ pub(crate) struct InputProcessingState {
     /// `None` for stereo / single-channel mono / dual-mono / Insert
     /// returns — they contribute at unity gain. (Issue #350.)
     pub(crate) split_mono_sibling_count: Option<usize>,
-    /// Per-chain auto-max loudness — runs after the user's last block,
-    /// before stream taps and mixdown. Boosts the chain output to a
-    /// uniform peak target regardless of which amp/pedal/preamp the
-    /// user dropped in. Issue #402.
-    pub(crate) auto_max: AutoMaxState,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -269,6 +263,20 @@ pub struct ChainRuntimeState {
     /// Toggled by any consumer that needs a silent output (e.g. the
     /// Tuner window). Auto-cleared on consumer close.
     pub(crate) output_muted: AtomicBool,
+    /// Linear gain (f32 stored as u32 bits, atomic) applied to every
+    /// output sample at the master output. Calculated offline by
+    /// `chain_loudness::compute_chain_normalization_gain_db` whenever
+    /// the chain is built/edited, then converted to linear and stored
+    /// here. Default = 1.0 (no gain). Audio thread reads via
+    /// `normalization_gain()` (single atomic load, no allocation).
+    ///
+    /// Why this lives in `ChainRuntimeState` and not in a block:
+    /// per-block manifest gains would empilhar quando vários blocos
+    /// estão em série (Klon +28 + Amp +35 = +63 dB no signal,
+    /// estoura o teto). Aqui o gain é calculado pra chain INTEIRA
+    /// como unidade, então qualquer combinação de pedais converge
+    /// no mesmo target peak.
+    pub(crate) normalization_gain_bits: AtomicU32,
 }
 
 impl ChainRuntimeState {
@@ -291,6 +299,23 @@ impl ChainRuntimeState {
     /// re-added — issue #316.
     pub fn clear_draining(&self) {
         self.draining.store(false, Ordering::Release);
+    }
+
+    /// Linear gain applied at the master output. Single atomic load,
+    /// audio-thread safe.
+    pub fn normalization_gain(&self) -> f32 {
+        f32::from_bits(self.normalization_gain_bits.load(Ordering::Relaxed))
+    }
+
+    /// Set the master-output gain in dB. Called from the UI / control
+    /// thread after `chain_loudness::compute_chain_normalization_gain_db`
+    /// runs (during chain build/edit). Clamped to a sane range so a
+    /// degenerate probe (silent chain → +Inf dB) cannot blow the DAC.
+    pub fn set_normalization_gain_db(&self, db: f32) {
+        let clamped = db.clamp(-24.0, 30.0);
+        let lin = 10f32.powf(clamped / 20.0);
+        self.normalization_gain_bits
+            .store(lin.to_bits(), Ordering::Relaxed);
     }
 
     /// Subscribe to raw pre-FX samples from one input. Returns one

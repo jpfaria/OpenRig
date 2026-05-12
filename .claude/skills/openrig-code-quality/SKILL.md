@@ -193,19 +193,37 @@ Before making a change, verify:
 - [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
 - [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
 - [ ] Testar comportamento real, não mocks de fachada
-- [ ] **Builds que dependem de assets externos**: marcar como ignored / opt-in
+- [ ] **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/` em #413). Test passa SEMPRE.
 - [ ] **Registry tests**: iterar sobre TODOS os modelos via registry (schema, validate, build)
 - [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
 
-> Detalhes Rust-específicos (golden samples `1e-4`, `#[cfg(test)] mod tests`, `#[ignore]`, `cargo test --workspace`) ficam em `rust-best-practices`.
+> Detalhes Rust-específicos (golden samples `1e-4`, `#[cfg(test)] mod tests`, `cargo test --workspace`) ficam em `rust-best-practices`.
+
+### 10b. `#[ignore]` é PROIBIDO (LEI)
+
+`cargo test --workspace` é o gate de comportamento. Test marcado `#[ignore]` NÃO PARTICIPA do gate — vira documentação morta. **Em hipótese alguma** adicionar `#[ignore]` (ou equivalente: `#[cfg(any())]`, `if false {}`, etc.). Auditoria de 2026-05-11 encontrou 40 ignored em 1771 totais; alvo é **zero**.
+
+Razões "razoáveis" que NÃO são exceção:
+
+| Caso real | Saída CORRETA |
+|---|---|
+| "depende de asset externo (NAM, IR, LV2)" | Bundle fixture mínimo dentro de `tests/fixtures/`. ~1 MB é aceitável. |
+| "precisa --release pra timing" | Vire benchmark (`cargo bench`) ou aumente tolerância em debug. Não ignore. |
+| "pending issue #X — comportamento atual está errado" | Test asserta o SINTOMA ATUAL ou descreve a regressão; quebra quando fixar #X. Não ignore. |
+| "depende de FFI/dylib externo" | `build.rs` copia dylib pro `target/`; ou skip por plataforma com `#[cfg(target_os = "...")]`. Cfg-skip é OK; ignore não é. |
+| "paths absolutos da máquina do dev" | COPIE pra dentro do repo (ver `engine/tests/fixtures/`). |
+| "demora demais no CI" | Cobertura unitária equivalente + um path sample no integration. Não ignore. |
+
+Validação: `cargo test --workspace 2>&1 \| grep "ignored" \| grep -v "0 ignored"` deve retornar VAZIO. Qualquer `ignored > 0` é débito a fixar antes de merge.
 
 **Anti-Pattern (Testes):**
 ```
 ❌ Commitar código sem testes
    // WRONG: código sem teste é dívida técnica
 
-❌ Testar build() de modelo IR/NAM/LV2 sem marcar ignored
-   // WRONG: depende de assets externos, falha no CI
+❌ #[ignore] em qualquer test
+   // WRONG: vira documentação morta. Bundle o fixture, copie o
+   // asset, ajuste o cfg — mas NUNCA ignore.
 
 ❌ Criar crate test-utils separado
    // WRONG: cada módulo deve ser autossuficiente em testes

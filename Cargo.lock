@@ -3559,7 +3559,6 @@ dependencies = [
  "domain",
  "log",
  "plugin-loader",
- "serde_yaml",
 ]
 
 [[package]]

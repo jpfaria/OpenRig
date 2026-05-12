@@ -86,9 +86,34 @@ pub fn build_runtime_graph(
             .get(&chain.id)
             .unwrap_or(&default_targets);
         let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
-        chains.insert(chain.id.clone(), Arc::new(state));
+        let state_arc = Arc::new(state);
+        // Chain-level loudness normalisation (issue #413). Roda probe
+        // pela chain com signal sintético, calcula o gain único que
+        // empurra o output pro target peak, e seta no runtime state.
+        // Pesado offline (~2s por chain), zero overhead em runtime.
+        let gain_db =
+            crate::chain_loudness::compute_chain_normalization_gain_db(chain, sample_rate);
+        state_arc.set_normalization_gain_db(gain_db);
+        chains.insert(chain.id.clone(), state_arc);
     }
     Ok(RuntimeGraph { chains })
+}
+
+/// Re-roda o probe de loudness pra `chain` e atualiza o gain de
+/// normalização do `state`. Chamar quando o user editar a chain
+/// (toggle block, change param) pra que ligar/desligar pedais
+/// não altere o volume final do output (issue #413).
+///
+/// Roda offline (~2s) — NÃO chamar do audio thread. Idealmente
+/// numa background thread; o resultado é uma única atomic store
+/// que o audio thread pega na próxima callback.
+pub fn refresh_chain_normalization_gain(
+    state: &Arc<ChainRuntimeState>,
+    chain: &Chain,
+    sample_rate: f32,
+) {
+    let gain_db = crate::chain_loudness::compute_chain_normalization_gain_db(chain, sample_rate);
+    state.set_normalization_gain_db(gain_db);
 }
 
 /// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
@@ -236,6 +261,12 @@ pub fn build_chain_runtime_state(
         input_taps: ArcSwap::from_pointee(Vec::new()),
         stream_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
+        // Default = unity. Callers run
+        // `chain_loudness::compute_chain_normalization_gain_db` and
+        // hand the result to `set_normalization_gain_db` once the chain
+        // is built. Probe runtimes (latency, loudness) leave it at 1.0
+        // because they measure NATURAL chain output, not normalised.
+        normalization_gain_bits: std::sync::atomic::AtomicU32::new(1.0_f32.to_bits()),
     })
 }
 
@@ -311,7 +342,6 @@ fn build_input_processing_state(
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
         split_mono_sibling_count,
-        auto_max: crate::auto_max::AutoMaxState::new(sample_rate),
     })
 }
 
@@ -479,6 +509,13 @@ pub fn update_chain_runtime_state(
     }
     runtime.output_routes.store(Arc::new(new_output_routes));
 
+    // Issue #413: chain mudou → re-probe loudness e ajusta o gain
+    // de normalização do master output. Bloqueia ~2s no caller, mas
+    // como `update_chain_runtime_state` já é offline (UI thread no
+    // edit de chain), o trade-off é aceitável. O audio thread só vê
+    // uma atomic store no final.
+    refresh_chain_normalization_gain(runtime, chain, sample_rate);
+
     Ok(())
 }
 
@@ -498,11 +535,18 @@ impl RuntimeGraph {
                 reset_output_queue,
                 elastic_targets,
             )?;
+            // `update_chain_runtime_state` already refreshes the
+            // normalisation gain — nothing to do here.
             return Ok(runtime.clone());
         }
 
         let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         let runtime = Arc::new(state);
+        // Issue #413: chain new → roda probe pra calibrar o gain de
+        // normalização do master output. Substitui o manifest gain
+        // por-bloco (que empilhava em série). Pesado offline (~2s),
+        // zero overhead em runtime.
+        refresh_chain_normalization_gain(&runtime, chain, sample_rate);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)
     }
