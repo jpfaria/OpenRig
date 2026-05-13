@@ -23,6 +23,7 @@ pub fn register_all_natives() {
     block_filter::register_natives();
     block_gain::register_natives();
     block_mod::register_natives();
+    block_pitch::register_natives();
     block_preamp::register_natives();
     block_reverb::register_natives();
     block_wah::register_natives();
