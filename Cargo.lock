@@ -800,6 +800,7 @@ dependencies = [
  "block-core",
  "lv2",
  "plugin-loader",
+ "realfft",
 ]
 
 [[package]]

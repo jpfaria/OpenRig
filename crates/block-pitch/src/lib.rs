@@ -1,4 +1,5 @@
 //! Pitch correction block implementations.
+mod phase_vocoder;
 mod registry;
 
 use anyhow::Result;
@@ -90,6 +91,10 @@ pub fn build_pitch_processor_for_layout(
 
 pub fn is_pitch_model_available(model: &str) -> bool {
     registry::is_model_available(model)
+}
+
+pub fn register_natives() {
+    registry::register_natives();
 }
 
 #[cfg(test)]
