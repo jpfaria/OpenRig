@@ -29,6 +29,7 @@ use domain::value_objects::ParameterValue;
 
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
 
+use super::manifest_labels::sanitize_label;
 use super::types::{AudioBlockKind, BlockAudioDescriptor, CoreBlock, NamBlock};
 
 pub fn normalize_block_params(
@@ -161,7 +162,11 @@ fn grid_parameter_to_spec(
     parameter: &plugin_loader::manifest::GridParameter,
 ) -> block_core::param::ParameterSpec {
     use plugin_loader::manifest::ParameterValue;
-    let label = parameter.display_name.as_deref().unwrap_or(&parameter.name);
+    // Sanitise the axis name so emojis baked into third-party manifests
+    // (issue #424 — Bogner Ecstasy) don't tofu in the BlockEditorPanel
+    // header; raw `parameter.name` stays untouched as the lookup key.
+    let raw_label = parameter.display_name.as_deref().unwrap_or(&parameter.name);
+    let label = sanitize_label(raw_label);
     let all_numeric = parameter
         .values
         .iter()
@@ -185,7 +190,7 @@ fn grid_parameter_to_spec(
         };
         block_core::param::float_parameter(
             &parameter.name,
-            label,
+            &label,
             None,
             Some(default as f32),
             min as f32,
@@ -206,26 +211,31 @@ fn grid_parameter_to_spec(
             ParameterValue::Bool(b) => Some(*b),
             _ => None,
         });
-        return block_core::param::bool_parameter(&parameter.name, label, None, default);
+        return block_core::param::bool_parameter(&parameter.name, &label, None, default);
     } else {
+        // (raw_value, sanitised_label) pairs — the value is the lookup
+        // key into `captures[].values` and the user's persisted
+        // `ParameterSet`, so it must round-trip byte-for-byte. Only the
+        // displayed label is cleaned of emoji (issue #424).
         let options: Vec<(String, String)> = parameter
             .values
             .iter()
             .map(|value| {
-                let s = match value {
+                let raw = match value {
                     ParameterValue::Text(t) => t.clone(),
                     ParameterValue::Number(n) => n.to_string(),
                     ParameterValue::Bool(b) => b.to_string(),
                 };
-                (s.clone(), s)
+                let display = sanitize_label(&raw);
+                (raw, display)
             })
             .collect();
         let option_refs: Vec<(&str, &str)> = options
             .iter()
-            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .map(|(value, display)| (value.as_str(), display.as_str()))
             .collect();
         let default = options.first().map(|(k, _)| k.as_str());
-        block_core::param::enum_parameter(&parameter.name, label, None, default, &option_refs)
+        block_core::param::enum_parameter(&parameter.name, &label, None, default, &option_refs)
     }
 }
 
@@ -537,6 +547,83 @@ mod tests {
             "NAM schema must NOT include `output_db` (loudness lives in manifest); \
              got params: {:?}",
             specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
+
+    fn nam_package_with_emoji_labels() -> LoadedPackage {
+        // Real-world Bogner Ecstasy capture grid — `display_name` and
+        // every `Text` value carry a leading emoji. Reproduces the
+        // tofu/black-square symptom from issue #424.
+        LoadedPackage {
+            root: PathBuf::from("/fake"),
+            manifest: PluginManifest {
+                manifest_version: 1,
+                id: "nam_bogner_ecstasy".into(),
+                display_name: "Bogner Ecstasy".into(),
+                author: None,
+                description: None,
+                inspired_by: None,
+                brand: None,
+                thumbnail: None,
+                photo: None,
+                screenshot: None,
+                brand_logo: None,
+                license: None,
+                homepage: None,
+                sources: None,
+                output_gain_db: None,
+                block_type: BlockType::Amp,
+                backend: Backend::Nam {
+                    parameters: vec![GridParameter {
+                        name: "cabinet".into(),
+                        display_name: Some("📦 Cabinet".into()),
+                        values: vec![
+                            ParameterValue::Text("✋ 4X12".into()),
+                            ParameterValue::Text("🔥 2X12".into()),
+                        ],
+                    }],
+                    captures: vec![],
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn nam_grid_parameter_label_strips_emoji_for_ui() {
+        // Issue #424: shipped fonts (Bebas Neue, Inter, Permanent
+        // Marker, …) carry no emoji glyphs; macOS cascades to Apple
+        // Color Emoji, Windows / Linux do not, so emojis render as
+        // tofu in the BlockEditorPanel selectors.
+        let pkg = nam_package_with_emoji_labels();
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        let cabinet = specs
+            .iter()
+            .find(|s| s.path == "cabinet")
+            .expect("cabinet axis must be in synthesized schema");
+        assert_eq!(
+            cabinet.label, "Cabinet",
+            "axis display_name must be emoji-free for UI rendering"
+        );
+        let block_core::param::ParameterDomain::Enum { options } = &cabinet.domain else {
+            panic!(
+                "text-valued grid axis must become an enum, got {:?}",
+                cabinet.domain
+            );
+        };
+        let labels: Vec<&str> = options.iter().map(|o| o.label.as_str()).collect();
+        assert_eq!(
+            labels,
+            vec!["4X12", "2X12"],
+            "option labels must be emoji-free; raw values stay for capture lookup"
+        );
+        // Pinned: storage-side values keep the original strings so
+        // `resolve_capture` can still match user selections to the
+        // manifest's `captures[].values`.
+        let values: Vec<&str> = options.iter().map(|o| o.value.as_str()).collect();
+        assert_eq!(
+            values,
+            vec!["✋ 4X12", "🔥 2X12"],
+            "raw values must be preserved for capture lookup / persistence"
         );
     }
 }

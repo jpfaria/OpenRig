@@ -12,6 +12,7 @@
 //! working unchanged.
 
 pub mod dispatch;
+pub mod manifest_labels;
 pub mod methods;
 pub mod types;
 
