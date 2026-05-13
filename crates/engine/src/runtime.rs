@@ -547,24 +547,6 @@ pub fn process_output_f32(
         );
     }
 
-    // Chain-level loudness normalisation: single linear gain applied
-    // at the master output (issue #413). Calculated offline por
-    // `chain_loudness::compute_chain_normalization_gain_db` quando a
-    // chain é construída/editada. Per-bloco manifest gains foram
-    // removidos porque empilhavam em série (Klon +28 + Amp +35 =
-    // estouro). Aqui o gain é único, calibrado pra chain INTEIRA.
-    //
-    // Aplica ANTES do `output_muted` (que zera tudo igual) e ANTES
-    // do latency probe detect (que escaneia amplitude com threshold
-    // fixo — multiplicar after detection mantém a calibração do
-    // probe constante).
-    let norm_gain = runtime.normalization_gain();
-    if norm_gain != 1.0 {
-        for s in out.iter_mut() {
-            *s *= norm_gain;
-        }
-    }
-
     // Output mute: silence the entire output stage when toggled by any
     // consumer (e.g. the Tuner window). Single atomic load — cheap.
     if runtime

@@ -66,17 +66,22 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Issue #413 / fase 3: `manifest.output_gain_db` deixou de ser
-    // aplicado no NAM em runtime. Per-bloco empilhava em série (Klon
-    // +28 + Amp +35 = +63 dB, estouro). O gain efetivo agora é
-    // calculado pela `chain_loudness::compute_chain_normalization_gain_db`
-    // sobre a chain inteira e aplicado no master output do runtime.
+    // Issue #440: cada bloco preserva o nível de entrada. O
+    // `nam_loudness_audit` (em OpenRig-plugins) mede o ratio
+    // output_natural / input_level pra cada NAM e escreve
+    // `output_gain_db` no manifest com a compensação necessária pra
+    // que o bloco saia no MESMO nível que entrou. Em série, cada
+    // bloco mantém esse invariante — a chain inteira preserva nível
+    // sem precisar de auto-volume na chain.
     //
-    // MAS continuamos forçando `audit_overrides_baked_output = true`:
-    // o `recommended_output_db` baked do trainer NAM (tipicamente
-    // -4 a -8 dB) atenuaria o signal natural ANTES do probe medir,
-    // distorcendo o cálculo do chain-level gain. O probe quer medir
-    // o NAM em level natural cru. Compensação fica TODA no master.
+    // `audit_overrides_baked_output = true` continua porque o
+    // `recommended_output_db` baked do trainer NAM (tipicamente
+    // -4 a -8 dB) competiria com a calibração do audit que assume
+    // input level fixo. A única fonte de verdade é o
+    // `manifest.output_gain_db`.
+    if let Some(gain_db) = package.manifest.output_gain_db {
+        plugin_params.output_level_db += gain_db;
+    }
     plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
