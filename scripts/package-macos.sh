@@ -78,8 +78,18 @@ cp -r assets                   "$APP/Contents/Resources/assets"
 # OpenRig — registry::init falls back to the user root only.
 if [ -d plugins/source ]; then
     cp -r plugins/source "$APP/Contents/Resources/plugins"
+    # Each LV2 plugin carries platform/{linux-*,macos-*,windows-*}
+    # binaries — macOS .app só carrega .dylib, então .so/.dll são MB
+    # inúteis. Drop tudo que não é macOS (issue #425).
+    dropped_dirs=0
+    for pattern in "linux-*" "windows-*"; do
+        while IFS= read -r dir; do
+            rm -rf "$dir"
+            dropped_dirs=$((dropped_dirs + 1))
+        done < <(find "$APP/Contents/Resources/plugins" -type d -path "*/platform/$pattern" 2>/dev/null)
+    done
     PLUGIN_COUNT=$(find "$APP/Contents/Resources/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
-    echo "    bundled plugins ($PLUGIN_COUNT package(s))"
+    echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-macOS platform dirs"
 else
     echo "    NOTE: plugins/source/ not found — .app ships without bundled plugins"
 fi

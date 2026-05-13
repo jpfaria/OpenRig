@@ -99,8 +99,23 @@ try {
     # the user-writable root.
     if (Test-Path "plugins\source") {
         Copy-Item -Recurse "plugins\source" "$stageDir\plugins"
+        # Each LV2 plugin carries platform/{linux-x86_64,linux-aarch64,
+        # macos-universal,windows-x86_64} binaries — Windows installer só
+        # carrega .dll, então .so/.dylib são MB inúteis. Drop tudo que
+        # não é Windows (issue #425).
+        $droppedDirs = 0
+        $droppedBytes = 0
+        foreach ($pattern in @("linux-*", "macos-*")) {
+            Get-ChildItem -Path "$stageDir\plugins" -Recurse -Directory -Filter $pattern -ErrorAction SilentlyContinue |
+                Where-Object { $_.Parent.Name -eq "platform" } |
+                ForEach-Object {
+                    $droppedBytes += (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+                    $droppedDirs++
+                    Remove-Item -Recurse -Force $_.FullName
+                }
+        }
         $count = (Get-ChildItem -Recurse -Filter "manifest.yaml" "$stageDir\plugins").Count
-        Write-Host ("    bundled plugins ({0} package(s))" -f $count)
+        Write-Host ("    bundled plugins ({0} package(s)); dropped {1} non-Windows platform dirs ({2:N1} MB)" -f $count, $droppedDirs, ($droppedBytes / 1MB))
     } else {
         Write-Host "    NOTE: plugins\source\ not found — bundle ships without plugins"
     }
