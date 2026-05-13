@@ -98,6 +98,27 @@ cp -r assets                               "$S/usr/share/openrig/assets"
 # registry::init_many scans this path plus the user-writable root.
 if [ -d plugins/source ]; then
     cp -r plugins/source "$S/usr/share/openrig/plugins"
+    # Each LV2 plugin carries platform/{linux-x86_64,linux-aarch64,
+    # macos-*,windows-*} binaries — Linux package só carrega .so do
+    # arch alvo. Drop o que sobra (issue #425):
+    #   - sempre: macos-*, windows-*
+    #   - x86_64 build: também linux-aarch64
+    #   - aarch64 build: também linux-x86_64
+    dropped_dirs=0
+    drop_patterns=("macos-*" "windows-*")
+    if [ "$ARCH" = "x86_64" ]; then
+        drop_patterns+=("linux-aarch64")
+    elif [ "$ARCH" = "aarch64" ]; then
+        drop_patterns+=("linux-x86_64")
+    fi
+    for pattern in "${drop_patterns[@]}"; do
+        while IFS= read -r dir; do
+            rm -rf "$dir"
+            dropped_dirs=$((dropped_dirs + 1))
+        done < <(find "$S/usr/share/openrig/plugins" -type d -path "*/platform/$pattern" 2>/dev/null)
+    done
+    PLUGIN_COUNT=$(find "$S/usr/share/openrig/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
+    echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-${ARCH} platform dirs"
 else
     echo "WARN: plugins/source/ not found — run OpenRig-plugins's pack_plugins or check out the plugin tree first"
 fi
