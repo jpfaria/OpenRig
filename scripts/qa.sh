@@ -28,6 +28,7 @@
 #   QA_REFRESH_BASELINE    1 → re-extrai baseline mesmo que exista
 #   QA_COV_MARGIN          tolerância de coverage em pp (default: 1.0)
 #   QA_LOG_DIR             onde guardar logs por etapa (default: target/qa-logs)
+#   QA_FORCE_FULL          1 → força gate completo mesmo em PR sem .rs/Cargo.* (issue #431)
 #
 # Pré-requisitos: cargo, cargo-llvm-cov, jq.
 
@@ -38,9 +39,75 @@ QA_BASE_REF="${QA_BASE_REF:-origin/develop}"
 QA_COV_MARGIN="${QA_COV_MARGIN:-1.0}"
 QA_LOG_DIR="${QA_LOG_DIR:-target/qa-logs}"
 QA_REFRESH_BASELINE="${QA_REFRESH_BASELINE:-0}"
+QA_FORCE_FULL="${QA_FORCE_FULL:-0}"
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 mkdir -p "$QA_LOG_DIR"
+
+# ─── Fast-path: skip cargo gates when no Rust changed ───────────────────────
+#
+# PR que só toca scripts/docs/YAML/etc não pode regredir clippy/build/test/
+# coverage do código Rust — matemática simples (não há .rs mudando). Hoje o
+# gate roda ~30min mesmo nesse caso por causa do duplo cargo build + llvm-cov.
+#
+# Detecta o escopo via `git diff --name-only $QA_BASE_REF...HEAD` e cai num
+# fast-path que só roda `cargo fmt --check` (validação simbólica, < 5s) e o
+# sintaxe-check dos scripts modificados. Issue #431.
+#
+# Bypass: QA_FORCE_FULL=1 força o gate completo mesmo em PR não-Rust.
+RUST_PATH_RE='\.rs$|^Cargo\.|^crates/.*Cargo\.toml$|build\.rs$|^rust-toolchain'
+
+if [ "$QA_FORCE_FULL" != "1" ]; then
+  git fetch origin --quiet 2>/dev/null || true
+  # Combine 3 sources of "modified files":
+  #   1. commits ahead of base ref (already merged into PR's branch)
+  #   2. staged changes (git add'd but not committed)
+  #   3. working-tree changes (modified but unstaged)
+  # Garantir que pré-commit também pegue o fast-path quando o user roda
+  # qa.sh local antes de commitar.
+  committed_files=$(git diff --name-only "$QA_BASE_REF...HEAD" 2>/dev/null || true)
+  staged_files=$(git diff --cached --name-only 2>/dev/null || true)
+  worktree_files=$(git diff --name-only 2>/dev/null || true)
+  changed_files=$(printf '%s\n%s\n%s\n' "$committed_files" "$staged_files" "$worktree_files" | sort -u | sed '/^$/d')
+  if [ -n "$changed_files" ]; then
+    if ! echo "$changed_files" | grep -qE "$RUST_PATH_RE"; then
+      echo "═══ OpenRig Quality Gate (fast-path) ═══"
+      echo "  branch:    $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '<detached>')"
+      echo "  base ref:  $QA_BASE_REF"
+      echo "  scope:     no Rust files touched → skipping cargo gates"
+      echo "  override:  QA_FORCE_FULL=1 to run full gate"
+      echo ""
+      echo "── changed files ──"
+      echo "$changed_files" | sed 's/^/  /'
+      echo ""
+      # Sem `cargo fmt --check` aqui: PR sem `.rs` no diff não pode
+      # introduzir nova violação de fmt (workspace Rust intacto). Se
+      # rodar fmt-check captura DÍVIDA da develop e bloqueia PR de
+      # script/doc por erro alheio — frustração documentada na primeira
+      # tentativa de validar este PR #431.
+      #
+      # Sintaxe shell para qualquer .sh modificado — pega `bash -n`
+      # errors que mataram CI antes (catch barato, segundos).
+      shell_files=$(echo "$changed_files" | grep -E '\.sh$' || true)
+      if [ -n "$shell_files" ]; then
+        echo "── bash syntax check ──"
+        while IFS= read -r f; do
+          [ -z "$f" ] && continue
+          [ ! -f "$f" ] && continue
+          if ! bash -n "$f" 2>&1; then
+            echo "::error::syntax error in $f"
+            exit 1
+          fi
+          echo "  $f: OK"
+        done <<< "$shell_files"
+      fi
+      echo ""
+      echo "✅ fast-path passed (no Rust to measure)"
+      exit 0
+    fi
+  fi
+fi
+# end fast-path
 
 # ─── Baseline provisioning ──────────────────────────────────────────────────
 prepare_baseline() {
