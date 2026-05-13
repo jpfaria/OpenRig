@@ -490,9 +490,7 @@ pub(crate) fn lock_recover<'a, T>(
     name: &'static str,
 ) -> std::sync::MutexGuard<'a, T> {
     mutex.lock().unwrap_or_else(|poisoned| {
-        log::error!(
-            "{name} mutex was poisoned by a prior panic — recovering and continuing"
-        );
+        log::error!("{name} mutex was poisoned by a prior panic — recovering and continuing");
         poisoned.into_inner()
     })
 }
