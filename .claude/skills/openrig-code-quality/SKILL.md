@@ -9,6 +9,34 @@ Methodology rules for ANY code in this project. Apply BEFORE writing, not after.
 
 ---
 
+## LEI — fechar issue exige milestone
+
+**ANTES de chamar `gh issue close N`:** rodar `gh issue view N --json milestone` e confirmar que tem milestone atribuído. Se não tiver:
+
+1. Identificar a release que vai (ou já) contém o fix: a `vX.Y.Z-dev.M` do ciclo de develop atual.
+2. Se o milestone está `closed` (porque a tag já saiu), reabrir via `gh api -X PATCH /repos/<owner>/<repo>/milestones/<id> -f state=open`, atribuir, e re-fechar — preserva o histórico real do que entrou em qual release.
+3. Só então `gh issue close N`.
+
+Vale igual pra issue criada e fechada na mesma sessão. Sem exceção.
+
+Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
+
+**Por que isso importa.** O release notes do GitHub agrupa por milestone. Issue/PR fechada sem milestone vira release notes pobre — usuário lendo o changelog não sabe que aquilo foi entregue na release. Já tivemos 20 issues acumuladas sem milestone (sessão 2026-05-13); ter que abrir/atribuir/fechar milestone retroativamente pra 20 issues é o custo de não cobrar antes.
+
+**Anti-padrão:**
+```
+❌ gh issue close 423
+❌ gh issue edit 423 --add-label closed
+```
+
+**Padrão correto:**
+```
+✅ gh issue edit 423 --milestone "v0.1.0-dev.19"
+✅ gh issue close 423
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
