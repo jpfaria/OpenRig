@@ -85,11 +85,14 @@ jobs:
           if-no-files-found: ignore
 
       - name: Generate lcov.info for Codecov (reuses PR coverage run)
-        if: success()
+        # Pula quando qa.sh tomou o fast-path: PR sem .rs/Cargo.* não
+        # roda llvm-cov, então `target/llvm-cov-target/**/*.profraw` não
+        # existe e `cargo llvm-cov report` falha. Issue #431.
+        if: success() && hashFiles('target/llvm-cov-target/**/*.profraw') != ''
         run: cargo llvm-cov report --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        if: success()
+        if: success() && hashFiles('lcov.info') != ''
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
