@@ -69,18 +69,30 @@ pub fn build_from_package(
     // Issue #440: cada bloco preserva o nível de entrada. O
     // `nam_loudness_audit` (em OpenRig-plugins) mede o ratio
     // output_natural / input_level pra cada NAM e escreve
-    // `output_gain_db` no manifest com a compensação necessária pra
-    // que o bloco saia no MESMO nível que entrou. Em série, cada
-    // bloco mantém esse invariante — a chain inteira preserva nível
-    // sem precisar de auto-volume na chain.
+    // `output_gain_pct` no manifest com a compensação necessária pra
+    // que o bloco saia no MESMO nível que entrou.
+    //
+    // **`output_gain_pct` é PERCENTUAL multiplicativo**, NÃO dB:
+    //   - `100.0` = output igual ao input (unity, sem mudança)
+    //   - `125.0` = output × 1.25 (amplifica 25% acima do natural)
+    //   - `80.0`  = output × 0.80 (atenua 20% abaixo do natural)
+    //
+    // Aplicação: `signal_out = signal_natural × (pct / 100.0)`.
+    // Internamente convertemos pra dB porque o NAM C++ host expõe
+    // `output_level_db`, mas a fonte de verdade no manifest é o
+    // percentual.
+    //
+    // Em série, cada bloco mantém esse invariante — a chain inteira
+    // preserva nível sem precisar de auto-volume na chain.
     //
     // `audit_overrides_baked_output = true` continua porque o
     // `recommended_output_db` baked do trainer NAM (tipicamente
     // -4 a -8 dB) competiria com a calibração do audit que assume
     // input level fixo. A única fonte de verdade é o
-    // `manifest.output_gain_db`.
-    if let Some(gain_db) = package.manifest.output_gain_db {
-        plugin_params.output_level_db += gain_db;
+    // `manifest.output_gain_pct`.
+    if let Some(pct) = package.manifest.output_gain_pct {
+        let ratio = (pct / 100.0).max(1e-6);
+        plugin_params.output_level_db += 20.0 * ratio.log10();
     }
     plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)

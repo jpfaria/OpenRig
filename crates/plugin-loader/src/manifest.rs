@@ -86,14 +86,33 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sources: Option<Vec<String>>,
 
-    /// Per-package loudness correction in dB (issue #402). Populated
-    /// once by `nam_loudness_audit` so every NAM in the catalogue
-    /// lands at the same target peak. Read by the NAM backend at
-    /// build time and summed onto the NAM lib's `output_level_db`.
-    /// Absent on packages that haven't been audited yet — they ride
-    /// at their native baked level.
+    /// Output gain do plugin como PERCENTUAL do input level (issue #440).
+    ///
+    /// **Valor é PERCENTUAL multiplicativo, NÃO dB.**
+    /// - `100.0` = output igual ao input (unity, sem mudança)
+    /// - `125.0` = output × 1.25 (amplifica 25% acima do natural)
+    /// - `80.0`  = output × 0.80 (atenua 20% abaixo do natural)
+    ///
+    /// **Como é calculado** (pelo `nam_loudness_audit` em OpenRig-plugins):
+    ///
+    /// ```text
+    /// output_gain_pct = (input_rms / output_rms) × 100
+    /// ```
+    ///
+    /// Mede com sinal de teste fixo, calcula a compensação pra que o
+    /// output do bloco volte EXATAMENTE ao mesmo nível do input.
+    /// **Cada bloco preserva input level** — em série, a chain inteira
+    /// preserva nível sem precisar de auto-volume na master.
+    ///
+    /// **Como é aplicado** (pelo NAM backend em runtime):
+    ///
+    /// ```text
+    /// signal_out = signal_natural × (output_gain_pct / 100.0)
+    /// ```
+    ///
+    /// Ausente = `100.0` (default unity, sem mudança).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub output_gain_db: Option<f32>,
+    pub output_gain_pct: Option<f32>,
 
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]

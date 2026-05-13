@@ -81,7 +81,7 @@ pub fn register_native_simple(
         license: Some("internal".to_string()),
         homepage: None,
         sources: None,
-        output_gain_db: None,
+        output_gain_pct: None,
         block_type,
         backend: Backend::Native {
             runtime_id: id.to_string(),
