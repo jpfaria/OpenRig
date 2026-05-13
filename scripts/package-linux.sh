@@ -92,6 +92,14 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
+# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# next to plugins/ and assets/ so the app finds them via
+# infra_filesystem::detect_data_root().join("presets"). Without this copy,
+# a fresh install shows an empty preset list.
+if [ -d presets ]; then
+    cp -r presets                          "$S/usr/share/openrig/presets"
+fi
+
 # Bundled plugins ship as a pre-extracted directory under
 # /usr/share/openrig/plugins, which is what
 # infra_filesystem::detect_data_root() returns for Linux installs.
@@ -151,6 +159,8 @@ if $BUILD_TARBALL; then
     cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"
     [ -d "$S/usr/share/openrig/plugins" ] && \
         cp -r "$S/usr/share/openrig/plugins"   "$OUTPUT_DIR/${D}/plugins"
+    [ -d "$S/usr/share/openrig/presets" ] && \
+        cp -r "$S/usr/share/openrig/presets"   "$OUTPUT_DIR/${D}/presets"
     tar -czf "$OUTPUT_DIR/${D}.tar.gz" -C "$OUTPUT_DIR" "${D}"
     echo "  → $OUTPUT_DIR/${D}.tar.gz"
 fi

@@ -91,6 +91,14 @@ try {
     New-Item -ItemType Directory -Force "$stageDir\libs\nam" | Out-Null
     Copy-Item -Recurse "libs\nam\windows-x64" "$stageDir\libs\nam\windows-x64"
     Copy-Item -Recurse "assets"               "$stageDir\assets"
+
+    # Bundled preset library: the 21 default presets under presets\*.yaml ship
+    # next to plugins\ and assets\ so the app finds them via
+    # infra_filesystem::detect_data_root().join("presets"). Without this copy,
+    # a fresh install shows an empty preset list.
+    if (Test-Path "presets") {
+        Copy-Item -Recurse "presets"          "$stageDir\presets"
+    }
     # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
     # ship via openrig-plugins.zip (extracted on first launch).
 

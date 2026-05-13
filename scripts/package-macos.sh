@@ -68,6 +68,14 @@ install_name_tool \
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
 cp -r assets                   "$APP/Contents/Resources/assets"
+
+# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# next to plugins/ and assets/ so the app finds them via
+# infra_filesystem::detect_data_root().join("presets"). Without this copy,
+# a fresh install shows an empty preset list.
+if [ -d presets ]; then
+    cp -r presets              "$APP/Contents/Resources/presets"
+fi
 # data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
 # ship via openrig-plugins.zip (extracted on first launch).
 
