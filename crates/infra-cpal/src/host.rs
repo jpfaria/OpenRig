@@ -65,12 +65,20 @@ pub(crate) fn jack_server_is_running() -> bool {
 /// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
 /// On Linux+JACK this function does not exist — all enumeration goes through
-/// /proc/asound and the jack crate. On other platforms, caches a default host
-/// once so repeated enumerations share the same host instance.
+/// /proc/asound and the jack crate. On other platforms, caches a host once
+/// so repeated enumerations share the same instance.
+///
+/// Reusa exatamente `create_host` (a fn que o streaming usa) em vez de
+/// `cpal::default_host`: o picker e o streaming PRECISAM enxergar o mesmo
+/// conjunto de devices, senão a UI lista o que o WASAPI vê e o stream
+/// abre o que o ASIO vê — devices exclusivos do ASIO (Scarlett 2i2 4th Gen
+/// em modo exclusive, RME, etc.) somem do picker no Windows (issue #422).
+/// macOS/Linux-sem-JACK não têm ASIO, então `create_host` cai no
+/// `cpal::default_host` igual antes.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn select_host_for_enumeration() -> &'static cpal::Host {
     static ENUM_HOST: OnceLock<cpal::Host> = OnceLock::new();
-    ENUM_HOST.get_or_init(cpal::default_host)
+    ENUM_HOST.get_or_init(create_host)
 }
 
 /// Returns true when the given host is the ASIO host on Windows.
