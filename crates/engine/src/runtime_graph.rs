@@ -86,6 +86,7 @@ pub fn build_runtime_graph(
             .get(&chain.id)
             .unwrap_or(&default_targets);
         let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
+        state.set_volume_pct(chain.volume);
         let state_arc = Arc::new(state);
         chains.insert(chain.id.clone(), state_arc);
     }
@@ -237,6 +238,11 @@ pub fn build_chain_runtime_state(
         input_taps: ArcSwap::from_pointee(Vec::new()),
         stream_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
+        // Default = unity. Caller (build/upsert) deve chamar
+        // `set_volume_pct(chain.volume)` em seguida pra trazer o valor
+        // do preset. Probe runtimes (latency) deixam em 100 (unity)
+        // pra medir output natural.
+        volume_pct_bits: std::sync::atomic::AtomicU32::new(100.0_f32.to_bits()),
     })
 }
 
@@ -479,6 +485,11 @@ pub fn update_chain_runtime_state(
     }
     runtime.output_routes.store(Arc::new(new_output_routes));
 
+    // Issue #440: chain edits (incluindo o slider de volume futuro) re-aplicam
+    // o preset.volume no master output sem destruir o runtime — atomic store
+    // que o audio thread vê na próxima callback.
+    runtime.set_volume_pct(chain.volume);
+
     Ok(())
 }
 
@@ -502,6 +513,7 @@ impl RuntimeGraph {
         }
 
         let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
+        state.set_volume_pct(chain.volume);
         let runtime = Arc::new(state);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)

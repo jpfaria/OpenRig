@@ -145,6 +145,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         description: None,
         instrument: "electric_guitar".to_string(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![],
     };
     let runtime_arc = Arc::new(

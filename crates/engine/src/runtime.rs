@@ -547,16 +547,19 @@ pub fn process_output_f32(
         );
     }
 
-    // Issue #440 safety clamp: cada bloco aplica seu `manifest.output_gain_pct`
-    // calibrado pra mirar -10 LUFS isolado. Em série, esses gains somam e
-    // podem empurrar peaks acima de 0 dBFS — o clamp aqui é a última linha
-    // de defesa contra DAC clipping. Hardclamp em ±0.99 (≈ -0.09 dBFS):
-    // valor invisível enquanto o sinal não estoura; quando estoura, hard-corta
-    // sem dependência de follower/release/lookahead (zero latência adicional).
+    // Issue #440: aplica o volume do preset no master output. Linear ratio
+    // = volume / 100 (100 = unity). Substitui o uso histórico do bloco
+    // `gain:volume` no fim da chain como controle de output — agora vive
+    // top-level no preset/chain, fora da cadeia de blocos. O bloco continua
+    // existindo pra uso expressivo (volume swell etc).
     //
-    // Single pass por sample, sem alocação, audio-thread safe.
-    for s in out.iter_mut() {
-        *s = s.clamp(-0.99, 0.99);
+    // Single atomic load (volume_pct) por callback. Sem clamp: a chain é
+    // responsável por entregar signal dentro do range; engine só multiplica.
+    let volume_ratio = runtime.volume_pct() / 100.0;
+    if volume_ratio != 1.0 {
+        for s in out.iter_mut() {
+            *s *= volume_ratio;
+        }
     }
 
     // Output mute: silence the entire output stage when toggled by any

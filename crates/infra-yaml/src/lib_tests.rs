@@ -33,6 +33,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
             description: Some("Guitar 1".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -315,6 +316,7 @@ fn preset_roundtrips_generic_select_options() {
     let preset = ChainBlocksPreset {
         id: "select".into(),
         name: Some("Delay Select".into()),
+        volume: 100.0,
         blocks: vec![AudioBlock {
             id: BlockId("preset:select:block:0".into()),
             enabled: true,
@@ -637,6 +639,7 @@ fn chain_with_only_io_blocks_roundtrips() {
             description: Some("Empty chain".into()),
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -955,6 +958,7 @@ fn serialize_project_produces_valid_yaml_string() {
             description: Some("ch1".into()),
             instrument: "generic".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -1005,6 +1009,7 @@ fn preset_roundtrips_with_core_blocks() {
     let preset = ChainBlocksPreset {
         id: "multi".into(),
         name: Some("Multi Block Preset".into()),
+        volume: 100.0,
         blocks: vec![
             core_block("preset:multi:block:0", "delay", delay_model, Vec::new()),
             core_block("preset:multi:block:1", "reverb", reverb_model, Vec::new()),
@@ -1026,6 +1031,7 @@ fn preset_roundtrips_with_no_blocks() {
     let preset = ChainBlocksPreset {
         id: "empty".into(),
         name: None,
+        volume: 100.0,
         blocks: Vec::new(),
     };
     save_chain_preset_file(&path, &preset).expect("save");
@@ -1042,6 +1048,7 @@ fn preset_roundtrips_with_input_output_blocks() {
     let preset = ChainBlocksPreset {
         id: "io_preset".into(),
         name: Some("IO Preset".into()),
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("preset:io_preset:block:0".into()),
@@ -1361,6 +1368,7 @@ fn project_with_multiple_chains_roundtrips() {
                 description: Some("Guitar".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: false,
+                volume: 100.0,
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:0:input:0".into()),
@@ -1385,6 +1393,7 @@ fn project_with_multiple_chains_roundtrips() {
                 description: Some("Bass".into()),
                 instrument: "bass".to_string(),
                 enabled: false,
+                volume: 100.0,
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:1:input:0".into()),

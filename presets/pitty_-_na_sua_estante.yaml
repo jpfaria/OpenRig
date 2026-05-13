@@ -1,5 +1,6 @@
 id: pitty_-_na_sua_estante
 name: Pitty - Na Sua Estante (Drop D)
+volume: 100
 blocks:
 - type: utility
   enabled: false

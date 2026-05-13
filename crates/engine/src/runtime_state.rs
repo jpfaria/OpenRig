@@ -25,7 +25,7 @@
 //!     modules.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwap;
@@ -263,6 +263,13 @@ pub struct ChainRuntimeState {
     /// Toggled by any consumer that needs a silent output (e.g. the
     /// Tuner window). Auto-cleared on consumer close.
     pub(crate) output_muted: AtomicBool,
+    /// Output volume da chain em percentual (issue #440). 100 = unity,
+    /// 200 = 2× (+6 dB), 50 = metade (-6 dB). Multiplicado no master output
+    /// do `process_output_f32` como controle único do preset/chain. Atomic
+    /// pra suportar mudança em runtime via UI sem destruir o chain runtime.
+    /// f32 armazenado como u32 bits (Relaxed ordering é suficiente — não há
+    /// sincronização com outras escritas).
+    pub(crate) volume_pct_bits: AtomicU32,
 }
 
 impl ChainRuntimeState {
@@ -274,6 +281,20 @@ impl ChainRuntimeState {
 
     pub fn is_draining(&self) -> bool {
         self.draining.load(Ordering::Acquire)
+    }
+
+    /// Output volume da chain em percentual (issue #440). Linear ratio
+    /// aplicado no master output do `process_output_f32`. Audio-thread safe.
+    pub fn volume_pct(&self) -> f32 {
+        f32::from_bits(self.volume_pct_bits.load(Ordering::Relaxed))
+    }
+
+    /// Atualiza o volume da chain. Chamado pela UI/control thread quando
+    /// o usuário muda o controle. Audio thread vê o novo valor na próxima
+    /// callback (single atomic load por iteração).
+    pub fn set_volume_pct(&self, pct: f32) {
+        self.volume_pct_bits
+            .store(pct.to_bits(), Ordering::Relaxed);
     }
 
     /// Re-arm the audio callback after a teardown-and-rebuild cycle that

@@ -179,6 +179,7 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
         description: Some("Guitarra".to_string()),
         instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("chain:1:input:0".into()),

@@ -63,7 +63,6 @@ fn nam_manifest(captures: Vec<GridCapture>) -> PluginManifest {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_pct: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
@@ -121,7 +120,6 @@ fn accepts_ir_package_with_existing_wav() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_pct: None,
         block_type: BlockType::Cab,
         backend: Backend::Ir {
             parameters: vec![],
@@ -152,7 +150,6 @@ fn accepts_lv2_package_with_bundle_and_binary() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_pct: None,
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {
             plugin_uri: "urn:test:plugin".to_string(),
@@ -184,7 +181,6 @@ fn rejects_lv2_package_with_missing_binary() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_pct: None,
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {
             plugin_uri: "urn:test:plugin".to_string(),

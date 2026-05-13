@@ -131,6 +131,7 @@ fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         description: Some("test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks,
     }
 }

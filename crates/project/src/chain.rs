@@ -86,8 +86,18 @@ pub struct Chain {
     pub description: Option<String>,
     pub instrument: String,
     pub enabled: bool,
+    /// Output volume da chain em percentual. 100 = unity (sem mudança).
+    /// 200 = 2× (+6 dB). 50 = metade (-6 dB). Multiplicado no master output
+    /// do `process_output_f32`. Substitui o uso do bloco `gain:volume` como
+    /// controle de output (o bloco continua existindo pra uso expressivo).
+    #[serde(default = "default_volume")]
+    pub volume: f32,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
+}
+
+fn default_volume() -> f32 {
+    100.0
 }
 
 impl Chain {

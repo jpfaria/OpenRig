@@ -80,6 +80,10 @@ pub(crate) struct ChainOutputYaml {
     channels: Option<Vec<usize>>,
 }
 
+fn default_chain_volume() -> f32 {
+    100.0
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct ChainYaml {
@@ -103,7 +107,8 @@ pub(crate) struct ChainYaml {
     output_device_id: Option<String>,
     #[serde(default, skip_serializing)]
     output_channels: Option<Vec<usize>>,
-    #[serde(default)]
+    #[serde(default = "default_chain_volume")]
+    volume: f32,
     blocks: Vec<Value>,
     #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,
@@ -147,6 +152,7 @@ impl ChainYaml {
                 description: self.description,
                 instrument: self.instrument,
                 enabled: self.enabled,
+                volume: 100.0,
                 blocks: parsed_blocks,
             };
             // Migrate projects saved while issue #377 was open: split-per-device
@@ -278,6 +284,7 @@ impl ChainYaml {
             description: self.description,
             instrument: self.instrument,
             enabled: self.enabled,
+            volume: 100.0,
             blocks: all_blocks,
         };
         chain.coalesce_endpoint_blocks();
@@ -306,6 +313,7 @@ impl ChainYaml {
             input_channels: None,
             output_device_id: None,
             output_channels: None,
+            volume: 100.0,
             blocks: audio_blocks,
             output_mixdown: ChainOutputMixdown::Average,
             input_mode: ChainInputMode::default(),
