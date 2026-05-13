@@ -258,55 +258,72 @@ build_gxplugins() {
     local src="$DEPS_DIR/GxPlugins.lv2"
     local os=$(uname -s)
 
-    if [ "$os" = "Darwin" ]; then
-        # macOS: GxPlugins use __attribute__((section(".rt.text"))) which is
-        # Linux-only (ELF). On macOS (Mach-O) we strip it via sed and compile
-        # each plugin individually, adding zita-resampler includes as needed.
-        local lv2_cflags
-        lv2_cflags=$(pkg-config --cflags lv2 2>/dev/null || echo "-I/opt/homebrew/include")
-
-        for plugin_dir in "$src"/Gx*.lv2; do
-            [ -d "$plugin_dir" ] || continue
-            local name
-            name=$(grep "^	NAME" "$plugin_dir/Makefile" 2>/dev/null | head -1 | sed 's/.*= *//')
-            [ -n "$name" ] || continue
-
-            local cpp_file
-            cpp_file=$(ls "$plugin_dir/plugin/"*.cpp 2>/dev/null | head -1)
-            [ -n "$cpp_file" ] && [ -f "$cpp_file" ] || continue
-
-            local patched="/tmp/gxplugins_${name}_patched.cpp"
-            sed 's/__attribute__((section("[^"]*")))//g' "$cpp_file" > "$patched"
-
-            # Some plugins include zita-resampler from a subdirectory
-            local extra_include=""
-            local zita_dir
-            zita_dir=$(find "$plugin_dir/dsp" -name "resampler.cc" -exec dirname {} \; 2>/dev/null | head -1)
-            if [ -n "$zita_dir" ]; then
-                extra_include="-I$zita_dir"
-            fi
-
-            if c++ -std=c++11 \
-                -arch arm64 -arch x86_64 \
-                -mmacosx-version-min=11.0 \
-                -I"$plugin_dir" -I"$plugin_dir/dsp" -I"$plugin_dir/plugin" \
-                $extra_include $lv2_cflags \
-                -fPIC -DPIC -O2 \
-                -Wno-duplicate-decl-specifier -Wno-macro-redefined \
-                -bundle -o "$OUTPUT_DIR/${name}.$LIB_EXT" \
-                "$patched" -lm 2>/dev/null; then
-                echo "  OK: $name"
-            else
-                echo "  FAIL: $name"
-            fi
-
-            rm -f "$patched"
-        done
-    else
-        # Linux/Windows: standard Makefile build works
+    # GxPlugins use __attribute__((section(".rt.text"))) which is Linux/ELF-only.
+    # On macOS (Mach-O) and Windows (PE/MinGW) we strip it via sed and compile
+    # each plugin individually. Linux works straight via the upstream Makefile.
+    if [ "$os" != "Darwin" ] && [ -z "${MINGW_TARGET:-}" ] \
+       && ! echo "${CROSS_COMPILE:-}" | grep -q mingw; then
         do_make "$src"
         collect_libs "$src"
+        return
     fi
+
+    # Per-plugin compile fallback (Darwin + MinGW).
+    local target compiler arch_flags target_flags output_ext
+    if [ "$os" = "Darwin" ]; then
+        target="darwin"
+        compiler="c++"
+        arch_flags="-arch arm64 -arch x86_64 -mmacosx-version-min=11.0"
+        target_flags="-bundle"
+        output_ext="dylib"
+    else
+        target="mingw"
+        compiler="${CXX:-g++}"
+        arch_flags=""
+        target_flags="-shared"
+        output_ext="dll"
+    fi
+
+    local lv2_cflags
+    lv2_cflags=$(pkg-config --cflags lv2 2>/dev/null || echo "")
+
+    for plugin_dir in "$src"/Gx*.lv2; do
+        [ -d "$plugin_dir" ] || continue
+        local name
+        name=$(grep "^	NAME" "$plugin_dir/Makefile" 2>/dev/null | head -1 | sed 's/.*= *//')
+        [ -n "$name" ] || continue
+
+        local cpp_file
+        cpp_file=$(ls "$plugin_dir/plugin/"*.cpp 2>/dev/null | head -1)
+        [ -n "$cpp_file" ] && [ -f "$cpp_file" ] || continue
+
+        local patched="$BUILD_WORK_DIR/gxplugins_${name}_patched.cpp"
+        sed 's/__attribute__((section("[^"]*")))//g' "$cpp_file" > "$patched"
+
+        # Some plugins include zita-resampler from a subdirectory
+        local extra_include=""
+        local zita_dir
+        zita_dir=$(find "$plugin_dir/dsp" -name "resampler.cc" -exec dirname {} \; 2>/dev/null | head -1)
+        if [ -n "$zita_dir" ]; then
+            extra_include="-I$zita_dir"
+        fi
+
+        # shellcheck disable=SC2086
+        if "$compiler" -std=c++11 \
+            $arch_flags \
+            -I"$plugin_dir" -I"$plugin_dir/dsp" -I"$plugin_dir/plugin" \
+            $extra_include $lv2_cflags \
+            -fPIC -DPIC -O2 \
+            -Wno-duplicate-decl-specifier -Wno-macro-redefined \
+            $target_flags -o "$OUTPUT_DIR/${name}.${output_ext}" \
+            "$patched" -lm 2>/dev/null; then
+            echo "  OK ($target): $name"
+        else
+            echo "  FAIL ($target): $name"
+        fi
+
+        rm -f "$patched"
+    done
 }
 
 build_chowcentaur() {
