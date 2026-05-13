@@ -547,6 +547,18 @@ pub fn process_output_f32(
         );
     }
 
+    // Issue #440 safety clamp: cada bloco aplica seu `manifest.output_gain_pct`
+    // calibrado pra mirar -10 LUFS isolado. Em série, esses gains somam e
+    // podem empurrar peaks acima de 0 dBFS — o clamp aqui é a última linha
+    // de defesa contra DAC clipping. Hardclamp em ±0.99 (≈ -0.09 dBFS):
+    // valor invisível enquanto o sinal não estoura; quando estoura, hard-corta
+    // sem dependência de follower/release/lookahead (zero latência adicional).
+    //
+    // Single pass por sample, sem alocação, audio-thread safe.
+    for s in out.iter_mut() {
+        *s = s.clamp(-0.99, 0.99);
+    }
+
     // Output mute: silence the entire output stage when toggled by any
     // consumer (e.g. the Tuner window). Single atomic load — cheap.
     if runtime
