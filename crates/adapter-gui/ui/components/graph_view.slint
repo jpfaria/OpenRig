@@ -1,0 +1,353 @@
+// GraphView — generic node-and-edge canvas with pan, zoom and per-node
+// drag. Knows nothing about signal-chain semantics; the host computes
+// positions and visual categories, this component just renders them.
+//
+// Coordinate system:
+//
+//   layout space   — coords on the input GraphNode (set by host)
+//   viewport space — layout * zoom + pan (rendered position)
+//
+// All callbacks emit ids and coords in *layout* space.
+
+export struct GraphNode {
+    // Stable identifier — unique within the graph. Must match what the
+    // host gave when computing the layout.
+    id: string,
+    label: string,
+    // Stable category slug ("drive", "amp", "reverb", "util", …).
+    // The component looks up the colour from a fixed palette below.
+    // Adding a new category is an enum string only — no Rust change.
+    category: string,
+    // Layout-space position (centre of the node).
+    layout_x: length,
+    layout_y: length,
+    // Visual state.
+    bypass: bool,
+    selected: bool,
+}
+
+export struct GraphEdge {
+    from_id: string,
+    to_id: string,
+}
+
+// Internal: GraphEdge resolved to actual coordinates, ready to render
+// as a Bézier curve. Host computes this from the node list; we keep the
+// shape simple so the resolved set can be derived in Slint via a
+// helper component or pre-computed in Rust.
+export struct GraphEdgeGeometry {
+    from_id: string,
+    to_id: string,
+    from_x: length,
+    from_y: length,
+    to_x: length,
+    to_y: length,
+}
+
+// Stable palette per category. Centralised here so adding a new
+// category is one line, not a tree of conditionals in every consumer.
+// This is presentation, not domain data — fits the "separation of
+// concerns" rule (business code never names a colour).
+component CategoryPalette {
+    in property <string> category;
+    out property <color> fill: root.category == "input"      ? #1e8aff
+                            : root.category == "output"     ? #ff8a1e
+                            : root.category == "dynamics"   ? #c69b3f
+                            : root.category == "drive"      ? #d04a3a
+                            : root.category == "amp"        ? #4a7fd0
+                            : root.category == "modulation" ? #8d4ad0
+                            : root.category == "time"       ? #2d9b9b
+                            : root.category == "reverb"     ? #3aa86a
+                            : root.category == "eq"         ? #c8b400
+                            : root.category == "util"       ? #6a7483
+                            : /* other */                     #8a94a2;
+    out property <color> border: self.fill.darker(0.35);
+}
+
+// Single node card. Pure visual; drag/click are owned by the parent
+// GraphView TouchArea so we keep one input source per gesture.
+component GraphNodeCard inherits Rectangle {
+    in property <GraphNode> node;
+    in property <bool> hovered;
+    in property <bool> dragging;
+    in property <length> card_width;
+    in property <length> card_height;
+
+    width: root.card_width;
+    height: root.card_height;
+    border-radius: 8px;
+    border-width: root.node.selected ? 2px : 1px;
+    border-color: root.node.selected
+        ? #f5f7fb
+        : palette.border;
+    background: root.node.bypass
+        ? palette.fill.with-alpha(0.35)
+        : root.dragging
+        ? palette.fill.brighter(0.20)
+        : root.hovered
+        ? palette.fill.brighter(0.10)
+        : palette.fill;
+    opacity: root.node.bypass ? 0.7 : 1.0;
+    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
+    drop-shadow-color: #00000080;
+    drop-shadow-offset-y: 2px;
+
+    palette := CategoryPalette {
+        category: root.node.category;
+    }
+
+    Text {
+        x: 8px;
+        y: 0px;
+        width: parent.width - 16px;
+        height: parent.height;
+        text: root.node.label;
+        color: #f5f7fb;
+        font-size: 12px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    accessible-role: button;
+    accessible-label: root.node.label;
+}
+
+// Bezier wire between two layout-space points. Drawn behind the nodes.
+component GraphWire inherits Path {
+    in property <length> from_x;
+    in property <length> from_y;
+    in property <length> to_x;
+    in property <length> to_y;
+    in property <color> stroke_color: #8aaac8;
+    in property <length> stroke_thickness: 2px;
+
+    stroke: root.stroke_color;
+    stroke-width: root.stroke_thickness;
+    fill: transparent;
+
+    // Horizontal-S bezier — control points offset by half the
+    // horizontal distance keeps wires readable even with vertical
+    // separation between parallel paths.
+    MoveTo {
+        x: root.from_x / 1px;
+        y: root.from_y / 1px;
+    }
+
+    CubicTo {
+        control-1-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
+        control-1-y: root.from_y / 1px;
+        control-2-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
+        control-2-y: root.to_y / 1px;
+        x: root.to_x / 1px;
+        y: root.to_y / 1px;
+    }
+}
+
+// The actual GraphView. Hosts nodes + edges. Pan/zoom owned here.
+export component GraphView inherits Rectangle {
+    // ── Inputs ──────────────────────────────────────────────────────
+    in property <[GraphNode]> nodes;
+    in property <[GraphEdgeGeometry]> edges;
+
+    // Viewport state. Two-way so the host can persist or programmatically
+    // reset the view (e.g. "fit to content").
+    in-out property <float> zoom: 1.0;
+    in-out property <length> pan_x: 0px;
+    in-out property <length> pan_y: 0px;
+
+    // Visual constants — overridable by the host.
+    in property <length> node_width: 96px;
+    in property <length> node_height: 56px;
+    in property <color> background_color: #11141a;
+    in property <color> grid_color: #1a1f2a;
+    in property <bool> show_grid: true;
+
+    // Zoom limits (matches issue #435 acceptance criteria 0.3..3.0).
+    in property <float> min_zoom: 0.3;
+    in property <float> max_zoom: 3.0;
+
+    // ── Outputs ─────────────────────────────────────────────────────
+    callback node_clicked(string);
+    callback node_double_clicked(string);
+    // Emitted continuously while a node is being dragged. Coords are in
+    // layout space — the host applies them back to its model so the
+    // node sticks under the cursor on the next frame.
+    callback node_dragged(string, length, length);
+    // Fired once when the drag gesture ends (mouse up).
+    callback node_drag_ended(string, length, length);
+    callback viewport_changed(float, length, length);
+
+    // ── Internal state ──────────────────────────────────────────────
+    private property <string> hover_id: "";
+    private property <string> drag_id: "";
+    private property <length> drag_offset_x: 0px;
+    private property <length> drag_offset_y: 0px;
+    private property <length> press_x: 0px;
+    private property <length> press_y: 0px;
+    // Click vs drag — threshold of 5px in viewport space (matches issue
+    // #435 acceptance criteria).
+    private property <length> click_threshold: 5px;
+    // Background pan: anchor + initial pan captured on press.
+    private property <length> pan_anchor_x: 0px;
+    private property <length> pan_anchor_y: 0px;
+    private property <length> pan_initial_x: 0px;
+    private property <length> pan_initial_y: 0px;
+    private property <bool> panning: false;
+
+    background: root.background_color;
+    clip: true;
+
+    accessible-role: list;
+    accessible-label: "Signal chain graph";
+
+    // ── Pan / zoom on empty area ───────────────────────────────────
+    // Declared FIRST so that node TouchAreas (later siblings) sit on
+    // top of it for both rendering and event routing. The pan area is
+    // the fallback — nodes intercept events that fall on them.
+    pan_area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: grab;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) {
+                root.panning = true;
+                root.pan_anchor_x = self.mouse-x;
+                root.pan_anchor_y = self.mouse-y;
+                root.pan_initial_x = root.pan_x;
+                root.pan_initial_y = root.pan_y;
+            } else if (event.kind == PointerEventKind.up) {
+                if (root.panning) {
+                    root.panning = false;
+                    root.viewport_changed(root.zoom, root.pan_x, root.pan_y);
+                }
+            }
+        }
+        moved => {
+            if (root.panning) {
+                root.pan_x = root.pan_initial_x + (self.mouse-x - root.pan_anchor_x);
+                root.pan_y = root.pan_initial_y + (self.mouse-y - root.pan_anchor_y);
+            }
+        }
+        scroll-event(event) => {
+            // Zoom around cursor.
+            let old_zoom = root.zoom;
+            let dz = event.delta-y > 0 ? 0.1 : -0.1;
+            let target = old_zoom + dz;
+            let clamped = target < root.min_zoom
+                ? root.min_zoom
+                : target > root.max_zoom ? root.max_zoom : target;
+            if (clamped != old_zoom) {
+                // Keep the layout-space point under the cursor stationary.
+                let layout_x = (self.mouse-x - root.pan_x) / old_zoom;
+                let layout_y = (self.mouse-y - root.pan_y) / old_zoom;
+                root.zoom = clamped;
+                root.pan_x = self.mouse-x - layout_x * clamped;
+                root.pan_y = self.mouse-y - layout_y * clamped;
+                root.viewport_changed(root.zoom, root.pan_x, root.pan_y);
+            }
+            accept
+        }
+    }
+
+    // ── Optional grid backdrop ──────────────────────────────────────
+    if root.show_grid : Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: transparent;
+
+        // Two crossing strips that hint at the grid origin. A real grid
+        // (every N px) would need a custom Path with many MoveTo/LineTo
+        // which costs more than its visual value at this stage — keep
+        // the hint cheap until we know we need more.
+        Rectangle {
+            x: root.pan_x;
+            y: 0px;
+            width: 1px;
+            height: parent.height;
+            background: root.grid_color;
+        }
+        Rectangle {
+            x: 0px;
+            y: root.pan_y;
+            width: parent.width;
+            height: 1px;
+            background: root.grid_color;
+        }
+    }
+
+    // ── Edges (drawn under nodes) ──────────────────────────────────
+    for edge in root.edges : GraphWire {
+        from_x: root.pan_x + edge.from_x * root.zoom;
+        from_y: root.pan_y + edge.from_y * root.zoom;
+        to_x: root.pan_x + edge.to_x * root.zoom;
+        to_y: root.pan_y + edge.to_y * root.zoom;
+        stroke_thickness: 2px * root.zoom;
+    }
+
+    // ── Nodes ──────────────────────────────────────────────────────
+    for node[idx] in root.nodes : Rectangle {
+        x: root.pan_x + node.layout_x * root.zoom - card.width / 2;
+        y: root.pan_y + node.layout_y * root.zoom - card.height / 2;
+        width: card.width;
+        height: card.height;
+
+        card := GraphNodeCard {
+            node: node;
+            card_width: root.node_width * root.zoom;
+            card_height: root.node_height * root.zoom;
+            hovered: root.hover_id == node.id && root.drag_id == "";
+            dragging: root.drag_id == node.id;
+        }
+
+        TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    root.drag_id = node.id;
+                    root.press_x = self.mouse-x;
+                    root.press_y = self.mouse-y;
+                    // Offset between cursor and node centre, in layout space.
+                    root.drag_offset_x = self.mouse-x / root.zoom - root.node_width / 2;
+                    root.drag_offset_y = self.mouse-y / root.zoom - root.node_height / 2;
+                } else if (event.kind == PointerEventKind.up) {
+                    if (root.drag_id == node.id) {
+                        // Distinguish click from drag by total displacement.
+                        if (abs(self.mouse-x - root.press_x) < root.click_threshold
+                         && abs(self.mouse-y - root.press_y) < root.click_threshold) {
+                            root.node_clicked(node.id);
+                        } else {
+                            root.node_drag_ended(node.id, node.layout_x, node.layout_y);
+                        }
+                    }
+                    root.drag_id = "";
+                }
+            }
+            moved => {
+                if (self.pressed && root.drag_id == node.id) {
+                    // Translate cursor (in viewport) back to layout
+                    // space. The host receives the new centre.
+                    let new_x = (self.mouse-x - root.pan_x) / root.zoom;
+                    let new_y = (self.mouse-y - root.pan_y) / root.zoom;
+                    root.node_dragged(node.id, new_x, new_y);
+                }
+            }
+            changed has-hover => {
+                if (self.has-hover) {
+                    root.hover_id = node.id;
+                } else if (root.hover_id == node.id) {
+                    root.hover_id = "";
+                }
+            }
+            double-clicked => {
+                root.node_double_clicked(node.id);
+            }
+        }
+    }
+
+}
