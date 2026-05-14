@@ -20,8 +20,11 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind};
+use project::chain::Chain;
 
 use crate::assign_new_block_ids;
 use crate::helpers::{clear_status, set_status_error, set_status_info};
@@ -183,11 +186,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    let chain_id_result = {
-                        let mut proj = session.project.borrow_mut();
-                        if let Some(chain) = proj.chains.get_mut(index as usize) {
-                            // Preserve I/O blocks (device config is per-machine, not per-preset).
-                            // Keep the first Input and last Output; replace everything between.
+                    // Build new block list: keep I/O blocks from current chain,
+                    // replace non-I/O with preset blocks. Assign new IDs.
+                    let dispatch_result = {
+                        let proj = session.project.borrow();
+                        if let Some(chain) = proj.chains.get(index as usize) {
+                            let chain_id = chain.id.clone();
                             let first_input = chain
                                 .blocks
                                 .iter()
@@ -212,14 +216,28 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             if let Some(output) = last_output {
                                 new_blocks.push(output);
                             }
-                            chain.blocks = new_blocks;
-                            assign_new_block_ids(chain);
-                            Some(chain.id.clone())
+                            // Assign fresh IDs via a temporary chain struct.
+                            let mut tmp_chain = Chain {
+                                id: chain_id.clone(),
+                                description: None,
+                                instrument: String::new(),
+                                enabled: false,
+                                blocks: new_blocks,
+                            };
+                            assign_new_block_ids(&mut tmp_chain);
+                            Some((chain_id, tmp_chain.blocks))
                         } else {
                             None
                         }
                     };
-                    if let Some(chain_id) = chain_id_result {
+                    if let Some((chain_id, preset_blocks)) = dispatch_result {
+                        if let Err(error) = session.dispatcher.dispatch(Command::LoadChainPreset {
+                            chain: chain_id.clone(),
+                            preset_blocks,
+                        }) {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
@@ -275,9 +293,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             let chain_index = window.get_preset_picker_chain_index();
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    let chain_id_result = {
-                        let mut proj = session.project.borrow_mut();
-                        if let Some(chain) = proj.chains.get_mut(chain_index as usize) {
+                    // Build new block list: keep I/O blocks from current chain,
+                    // replace non-I/O with preset blocks. Assign new IDs.
+                    let dispatch_result = {
+                        let proj = session.project.borrow();
+                        if let Some(chain) = proj.chains.get(chain_index as usize) {
+                            let chain_id = chain.id.clone();
                             let first_input = chain
                                 .blocks
                                 .iter()
@@ -302,14 +323,28 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             if let Some(output) = last_output {
                                 new_blocks.push(output);
                             }
-                            chain.blocks = new_blocks;
-                            assign_new_block_ids(chain);
-                            Some(chain.id.clone())
+                            // Assign fresh IDs via a temporary chain struct.
+                            let mut tmp_chain = Chain {
+                                id: chain_id.clone(),
+                                description: None,
+                                instrument: String::new(),
+                                enabled: false,
+                                blocks: new_blocks,
+                            };
+                            assign_new_block_ids(&mut tmp_chain);
+                            Some((chain_id, tmp_chain.blocks))
                         } else {
                             None
                         }
                     };
-                    if let Some(chain_id) = chain_id_result {
+                    if let Some((chain_id, preset_blocks)) = dispatch_result {
+                        if let Err(error) = session.dispatcher.dispatch(Command::LoadChainPreset {
+                            chain: chain_id.clone(),
+                            preset_blocks,
+                        }) {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {

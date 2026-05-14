@@ -222,8 +222,17 @@ pub enum Command {
     },
 
     // ── Chain presets ─────────────────────────────────────────────────────────
-    /// Load a preset file and replace the non-I/O blocks of a chain.
-    LoadChainPreset { chain: ChainId, path: PathBuf },
+    /// Replace the non-I/O blocks of a chain with the supplied preset blocks.
+    ///
+    /// File I/O (YAML parsing) is done in the adapter before dispatching. The
+    /// adapter passes the fully-parsed, I/O-stripped list of blocks. The
+    /// dispatcher replaces `chain.blocks` and emits `ChainPresetLoaded`.
+    #[schemars(skip)]
+    LoadChainPreset {
+        chain: ChainId,
+        #[schemars(skip)]
+        preset_blocks: Vec<project::block::AudioBlock>,
+    },
 
     // ── Project lifecycle ─────────────────────────────────────────────────────
     /// Save the project to its current path (or trigger save-as dialog).

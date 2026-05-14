@@ -354,16 +354,31 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let (block_enabled, chain_id) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                block.enabled = !block.enabled;
-                (block.enabled, chain.id.clone())
+                (chain.id.clone(), block.id.clone())
+            };
+            if let Err(e) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("toggle I/O block enabled: {e}");
+                return;
+            }
+            let block_enabled = {
+                let proj = session.project.borrow();
+                proj.chains
+                    .get(chain_idx)
+                    .and_then(|c| c.blocks.get(block_idx))
+                    .map(|b| b.enabled)
+                    .unwrap_or(false)
             };
             gw.set_block_enabled(block_enabled);
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
@@ -418,16 +433,24 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                if block_idx < chain.blocks.len() {
-                    chain.blocks.remove(block_idx);
-                }
-                chain.id.clone()
+                let Some(block) = chain.blocks.get(block_idx) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("delete I/O block: {e}");
+                return;
+            }
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete I/O block: {e}");
             }

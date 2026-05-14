@@ -502,9 +502,17 @@ impl CommandDispatcher for LocalDispatcher {
                 ])
             }
 
-            // ── Chain presets (future task) ───────────────────────────────────
-            Command::LoadChainPreset { .. } => {
-                unimplemented!("phase-2 task pending")
+            // ── Chain presets ─────────────────────────────────────────────────
+            Command::LoadChainPreset {
+                chain,
+                preset_blocks,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                target.blocks = preset_blocks;
+                Ok(vec![Event::ChainPresetLoaded { chain }])
             }
 
             // ── Project lifecycle ─────────────────────────────────────────────

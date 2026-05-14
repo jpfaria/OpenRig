@@ -143,9 +143,10 @@ pub(crate) fn wire(
                 );
                 return;
             };
-            let (block_index, new_enabled, chain_id) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_index as usize) else {
+            // Resolve real block index and IDs (read-only) before dispatching.
+            let (block_index, chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index as usize) else {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 };
@@ -157,14 +158,26 @@ pub(crate) fn wire(
                     ui_block_index,
                     block_index
                 );
-                let Some(block) = chain.blocks.get_mut(block_index) else {
+                let Some(block) = chain.blocks.get(block_index) else {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
                     return;
                 };
-                block.enabled = !block.enabled;
-                let new_enabled = block.enabled;
-                let chain_id = chain.id.clone();
-                (block_index, new_enabled, chain_id)
+                (block_index, chain.id.clone(), block.id.clone())
+            };
+            if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
+            let new_enabled = {
+                let proj = session.project.borrow();
+                proj.chains
+                    .get(chain_index as usize)
+                    .and_then(|c| c.blocks.get(block_index))
+                    .map(|b| b.enabled)
+                    .unwrap_or(false)
             };
             // Keep block_editor_draft in sync to prevent stale persist from reverting
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {

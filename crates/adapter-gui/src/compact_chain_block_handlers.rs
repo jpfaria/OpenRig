@@ -84,23 +84,39 @@ pub(crate) fn wire(
             };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let (new_enabled, chain_id) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                block.enabled = !block.enabled;
-                (block.enabled, chain.id.clone())
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("[compact] toggle-block-enabled dispatch error: {error}");
+                return;
+            }
             // Keep block_editor_draft in sync to prevent stale persist from reverting
+            let new_enabled = {
+                let proj = session.project.borrow();
+                proj.chains
+                    .get(chain_idx)
+                    .and_then(|c| c.blocks.get(block_idx))
+                    .map(|b| b.enabled)
+                    .unwrap_or(false)
+            };
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
                 if draft.chain_index == chain_idx && draft.block_index == Some(block_idx) {
                     draft.enabled = new_enabled;
                 }
             }
+            let chain_id = chain_id;
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
@@ -152,14 +168,28 @@ pub(crate) fn wire(
                 return;
             };
             let chain_idx = ci as usize;
-            let (will_enable, chain_id) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve chain_id (read-only) before dispatching.
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let will_enable = !chain.enabled;
-                chain.enabled = will_enable;
-                (will_enable, chain.id.clone())
+                chain.id.clone()
+            };
+            // Dispatch toggles the enabled flag via the command bus.
+            if let Err(error) = session.dispatcher.dispatch(Command::ToggleChainEnabled {
+                chain: chain_id.clone(),
+            }) {
+                log::error!("[compact] toggle-chain-enabled dispatch error: {error}");
+                return;
+            }
+            let will_enable = {
+                let proj = session.project.borrow();
+                proj.chains
+                    .iter()
+                    .find(|c| c.id == chain_id)
+                    .map(|c| c.enabled)
+                    .unwrap_or(false)
             };
 
             // On Linux: always start JACK asynchronously when enabling a chain.
@@ -216,18 +246,15 @@ pub(crate) fn wire(
                                 if let Some(win) = weak_main_t.upgrade() {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
                                 }
-                                // Revert chain.enabled
+                                // Revert chain.enabled on JACK start failure
                                 let mut sb = project_session_t.borrow_mut();
                                 if let Some(s) = sb.as_mut() {
-                                    if let Some(c) = s
-                                        .project
-                                        .borrow_mut()
-                                        .chains
-                                        .iter_mut()
-                                        .find(|c| c.id == chain_id)
-                                    {
-                                        c.enabled = false;
-                                    }
+                                    // Dispatch ToggleChainEnabled again to revert enabled→disabled.
+                                    let _ = s.dispatcher.dispatch(
+                                        application::command::Command::ToggleChainEnabled {
+                                            chain: chain_id.clone(),
+                                        },
+                                    );
                                 }
                                 return;
                             }
@@ -248,15 +275,12 @@ pub(crate) fn wire(
                                     sync_live_chain_runtime(&project_runtime_t, session, &chain_id)
                                 {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
-                                    if let Some(c) = session
-                                        .project
-                                        .borrow_mut()
-                                        .chains
-                                        .iter_mut()
-                                        .find(|c| c.id == chain_id)
-                                    {
-                                        c.enabled = false;
-                                    }
+                                    // Revert chain.enabled on runtime sync failure
+                                    let _ = session.dispatcher.dispatch(
+                                        application::command::Command::ToggleChainEnabled {
+                                            chain: chain_id.clone(),
+                                        },
+                                    );
                                 } else {
                                     replace_project_chains(
                                         &project_chains_t,
@@ -427,17 +451,25 @@ pub(crate) fn wire(
             };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                if block_idx >= chain.blocks.len() {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
-                }
-                chain.blocks.remove(block_idx);
-                chain.id.clone()
+                };
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("[compact] remove-block dispatch: {e}");
+                return;
+            }
+            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] remove-block runtime sync: {}", e);
             }

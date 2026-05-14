@@ -78,6 +78,10 @@ pub enum Event {
     /// An insert block's send/return endpoints were saved.
     InsertBlockSaved { chain: ChainId, block: BlockId },
 
+    // ── Chain preset events ───────────────────────────────────────────────────
+    /// A preset was loaded into a chain (non-I/O blocks replaced).
+    ChainPresetLoaded { chain: ChainId },
+
     // ── Audio settings events ─────────────────────────────────────────────────
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,

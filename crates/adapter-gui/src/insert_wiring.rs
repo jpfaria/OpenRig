@@ -281,16 +281,24 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                if block_idx < chain.blocks.len() {
-                    chain.blocks.remove(block_idx);
-                }
-                chain.id.clone()
+                let Some(block) = chain.blocks.get(block_idx) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("delete insert block: {e}");
+                return;
+            }
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete insert block: {e}");
             }

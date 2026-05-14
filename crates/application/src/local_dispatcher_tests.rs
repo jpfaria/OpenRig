@@ -2426,3 +2426,95 @@ fn create_project_replaces_all_prior_state() {
     assert!(proj.device_settings.is_empty());
     assert!(proj.chains.is_empty());
 }
+
+// ── LoadChainPreset tests ─────────────────────────────────────────────────────
+
+#[test]
+fn load_chain_preset_replaces_blocks_and_emits_event() {
+    let existing_block = make_core_block("blk_old", true);
+    let project = make_project("chain_preset", existing_block);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_block_a = make_core_block("blk_new_a", true);
+    let new_block_b = make_core_block("blk_new_b", false);
+    let preset_blocks = vec![new_block_a, new_block_b];
+
+    let result = dispatcher.dispatch(Command::LoadChainPreset {
+        chain: ChainId("chain_preset".to_string()),
+        preset_blocks: preset_blocks.clone(),
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ChainPresetLoaded { chain } if chain.0 == "chain_preset")),
+        "expected ChainPresetLoaded event, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "chain_preset")
+        .unwrap();
+    assert_eq!(chain.blocks.len(), 2, "chain should have 2 preset blocks");
+    assert_eq!(chain.blocks[0].id.0, "blk_new_a");
+    assert_eq!(chain.blocks[1].id.0, "blk_new_b");
+}
+
+#[test]
+fn load_chain_preset_non_existent_chain_returns_err() {
+    let block = make_core_block("blk_0", true);
+    let project = make_project("chain_0", block);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::LoadChainPreset {
+        chain: ChainId("chain_MISSING".to_string()),
+        preset_blocks: vec![make_core_block("new_blk", true)],
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+    // Original chain must be unchanged
+    let proj = project.borrow();
+    assert_eq!(proj.chains[0].blocks.len(), 1, "chain must not be mutated");
+    assert_eq!(proj.chains[0].blocks[0].id.0, "blk_0");
+}
+
+#[test]
+fn load_chain_preset_empty_blocks_succeeds() {
+    let existing_block = make_core_block("blk_old", true);
+    let project = make_project("chain_preset", existing_block);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    // A zero-block preset is valid — the chain becomes empty.
+    let result = dispatcher.dispatch(Command::LoadChainPreset {
+        chain: ChainId("chain_preset".to_string()),
+        preset_blocks: vec![],
+    });
+
+    assert!(
+        result.is_ok(),
+        "empty preset should succeed, got {:?}",
+        result
+    );
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ChainPresetLoaded { chain } if chain.0 == "chain_preset")),
+        "expected ChainPresetLoaded even for empty preset, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "chain_preset")
+        .unwrap();
+    assert!(
+        chain.blocks.is_empty(),
+        "chain should be empty after empty preset load"
+    );
+}

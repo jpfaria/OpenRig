@@ -14,10 +14,10 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::AudioBlockKind;
 
-use crate::block_editor::block_editor_data;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{build_compact_blocks, replace_project_chains};
@@ -79,45 +79,30 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                // Update the parameter in the block
-                if let AudioBlockKind::Core(ref mut core) = block.kind {
-                    core.params.insert(
-                        path.as_str(),
-                        domain::value_objects::ParameterValue::Float(value),
-                    );
-                }
-                // Rebuild block kind with updated params
-                let Some(data) = block_editor_data(block) else {
-                    return;
-                };
-                let params_set = data.params.clone();
-                match project::block::build_audio_block_kind(
-                    &data.effect_type,
-                    &data.model_id,
-                    params_set,
-                ) {
-                    Ok(kind) => {
-                        let id = block.id.clone();
-                        let enabled = block.enabled;
-                        block.kind = kind;
-                        block.id = id;
-                        block.enabled = enabled;
-                    }
-                    Err(e) => {
-                        log::error!("[compact] update param error: {e}");
-                        return;
-                    }
-                }
-                chain.id.clone()
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetBlockParameterNumber {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    path: path.to_string(),
+                    value: value as f64,
+                })
+            {
+                log::error!("[compact] update param error: {e}");
+                return;
+            }
+            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
@@ -165,16 +150,17 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs and option value string (read-only) before dispatching.
+            let (chain_id, block_id, option_value) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                // Get the option value from the schema
-                let Some(data) = block_editor_data(block) else {
+                // Resolve option value string from schema + index.
+                let Some(data) = crate::block_editor::block_editor_data(block) else {
                     return;
                 };
                 let schema =
@@ -196,37 +182,22 @@ pub(crate) fn wire(
                 let Some(value) = option_value else {
                     return;
                 };
-                // Update param
-                if let AudioBlockKind::Core(ref mut core) = block.kind {
-                    core.params.insert(
-                        path.as_str(),
-                        domain::value_objects::ParameterValue::String(value),
-                    );
-                }
-                // Rebuild
-                let Some(data) = block_editor_data(block) else {
-                    return;
-                };
-                let params_set = data.params.clone();
-                match project::block::build_audio_block_kind(
-                    &data.effect_type,
-                    &data.model_id,
-                    params_set,
-                ) {
-                    Ok(kind) => {
-                        let id = block.id.clone();
-                        let enabled = block.enabled;
-                        block.kind = kind;
-                        block.id = id;
-                        block.enabled = enabled;
-                    }
-                    Err(e) => {
-                        log::error!("[compact] select option error: {e}");
-                        return;
-                    }
-                }
-                chain.id.clone()
+                (chain.id.clone(), block.id.clone(), value)
             };
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SelectBlockParameterOption {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    path: path.to_string(),
+                    value: option_value,
+                    index: option_index as usize,
+                })
+            {
+                log::error!("[compact] select option error: {e}");
+                return;
+            }
+            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
@@ -274,45 +245,27 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve IDs (read-only) before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                // Update the parameter in the block
-                if let AudioBlockKind::Core(ref mut core) = block.kind {
-                    core.params.insert(
-                        path.as_str(),
-                        domain::value_objects::ParameterValue::Bool(value),
-                    );
-                }
-                // Rebuild block kind with updated params
-                let Some(data) = block_editor_data(block) else {
-                    return;
-                };
-                let params_set = data.params.clone();
-                match project::block::build_audio_block_kind(
-                    &data.effect_type,
-                    &data.model_id,
-                    params_set,
-                ) {
-                    Ok(kind) => {
-                        let id = block.id.clone();
-                        let enabled = block.enabled;
-                        block.kind = kind;
-                        block.id = id;
-                        block.enabled = enabled;
-                    }
-                    Err(e) => {
-                        log::error!("[compact] update bool param error: {e}");
-                        return;
-                    }
-                }
-                chain.id.clone()
+                (chain.id.clone(), block.id.clone())
             };
+            if let Err(e) = session.dispatcher.dispatch(Command::SetBlockParameterBool {
+                chain: chain_id.clone(),
+                block: block_id,
+                path: path.to_string(),
+                value,
+            }) {
+                log::error!("[compact] update bool param error: {e}");
+                return;
+            }
+            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
