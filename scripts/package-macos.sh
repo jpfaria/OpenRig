@@ -68,6 +68,14 @@ install_name_tool \
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
 cp -r assets                   "$APP/Contents/Resources/assets"
+
+# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# next to plugins/ and assets/ so the app finds them via
+# infra_filesystem::detect_data_root().join("presets"). Without this copy,
+# a fresh install shows an empty preset list.
+if [ -d presets ]; then
+    cp -r presets              "$APP/Contents/Resources/presets"
+fi
 # data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
 # ship via openrig-plugins.zip (extracted on first launch).
 
@@ -78,8 +86,18 @@ cp -r assets                   "$APP/Contents/Resources/assets"
 # OpenRig — registry::init falls back to the user root only.
 if [ -d plugins/source ]; then
     cp -r plugins/source "$APP/Contents/Resources/plugins"
+    # Each LV2 plugin carries platform/{linux-*,macos-*,windows-*}
+    # binaries — macOS .app só carrega .dylib, então .so/.dll são MB
+    # inúteis. Drop tudo que não é macOS (issue #425).
+    dropped_dirs=0
+    for pattern in "linux-*" "windows-*"; do
+        while IFS= read -r dir; do
+            rm -rf "$dir"
+            dropped_dirs=$((dropped_dirs + 1))
+        done < <(find "$APP/Contents/Resources/plugins" -type d -path "*/platform/$pattern" 2>/dev/null)
+    done
     PLUGIN_COUNT=$(find "$APP/Contents/Resources/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
-    echo "    bundled plugins ($PLUGIN_COUNT package(s))"
+    echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-macOS platform dirs"
 else
     echo "    NOTE: plugins/source/ not found — .app ships without bundled plugins"
 fi

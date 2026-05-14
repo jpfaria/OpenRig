@@ -1,18 +1,14 @@
 id: foo_fighters_-_my_hero
 name: Foo Fighters - My Hero
 blocks:
-- type: utility
-  enabled: true
-  model: tuner_chromatic
-  params:
-    mute_signal: true
-    reference_hz: 440.0
 - type: filter
   enabled: true
   model: native_guitar_eq
   params:
-    high_cut: 100.0
-    low_cut: 88.0
+    low: 0.0
+    low_mid: 0.0
+    high_mid: 0.0
+    high: 0.0
 - type: amp
   enabled: true
   model: nam_vox_ac30
@@ -30,6 +26,8 @@ blocks:
   model: limiter_brickwall
   params:
     ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
     release_ms: 50.0
     threshold: -1.0
 - type: gain
@@ -38,7 +36,3 @@ blocks:
   params:
     mute: false
     volume: 80.0
-- type: utility
-  enabled: true
-  model: spectrum_analyzer
-  params: {}

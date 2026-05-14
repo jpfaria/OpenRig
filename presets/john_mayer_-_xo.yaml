@@ -1,0 +1,59 @@
+id: john_mayer_-_xo
+name: John Mayer - XO (Acoustic)
+blocks:
+- type: utility
+  enabled: false
+  model: tuner_chromatic
+  params:
+    reference_hz: 440.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    low: 0.0
+    low_mid: 0.0
+    high_mid: 0.0
+    high: 0.0
+- type: body
+  enabled: true
+  model: ir_gibson_j45
+  params:
+    voicing: j45_akg_cs1000
+- type: delay
+  enabled: true
+  model: digital_clean
+  params:
+    feedback: 35.0
+    mix: 25.0
+    time_ms: 375.0
+- type: modulation
+  enabled: false
+  model: stereo_chorus
+  params:
+    rate_hz: 0.5
+    depth: 50.0
+    mix: 30.0
+- type: reverb
+  enabled: true
+  model: hall
+  params:
+    room_size: 45.0
+    damping: 60.0
+    mix: 18.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    threshold: -1.0
+    ceiling: -0.1
+    release_ms: 100.0
+- type: gain
+  enabled: true
+  model: volume
+  params:
+    volume: 80.0
+    mute: false
+- type: utility
+  enabled: true
+  model: spectrum_analyzer
+  params: {}

@@ -92,12 +92,41 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
+# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# next to plugins/ and assets/ so the app finds them via
+# infra_filesystem::detect_data_root().join("presets"). Without this copy,
+# a fresh install shows an empty preset list.
+if [ -d presets ]; then
+    cp -r presets                          "$S/usr/share/openrig/presets"
+fi
+
 # Bundled plugins ship as a pre-extracted directory under
 # /usr/share/openrig/plugins, which is what
 # infra_filesystem::detect_data_root() returns for Linux installs.
 # registry::init_many scans this path plus the user-writable root.
 if [ -d plugins/source ]; then
     cp -r plugins/source "$S/usr/share/openrig/plugins"
+    # Each LV2 plugin carries platform/{linux-x86_64,linux-aarch64,
+    # macos-*,windows-*} binaries — Linux package só carrega .so do
+    # arch alvo. Drop o que sobra (issue #425):
+    #   - sempre: macos-*, windows-*
+    #   - x86_64 build: também linux-aarch64
+    #   - aarch64 build: também linux-x86_64
+    dropped_dirs=0
+    drop_patterns=("macos-*" "windows-*")
+    if [ "$ARCH" = "x86_64" ]; then
+        drop_patterns+=("linux-aarch64")
+    elif [ "$ARCH" = "aarch64" ]; then
+        drop_patterns+=("linux-x86_64")
+    fi
+    for pattern in "${drop_patterns[@]}"; do
+        while IFS= read -r dir; do
+            rm -rf "$dir"
+            dropped_dirs=$((dropped_dirs + 1))
+        done < <(find "$S/usr/share/openrig/plugins" -type d -path "*/platform/$pattern" 2>/dev/null)
+    done
+    PLUGIN_COUNT=$(find "$S/usr/share/openrig/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
+    echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-${ARCH} platform dirs"
 else
     echo "WARN: plugins/source/ not found — run OpenRig-plugins's pack_plugins or check out the plugin tree first"
 fi
@@ -130,6 +159,8 @@ if $BUILD_TARBALL; then
     cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"
     [ -d "$S/usr/share/openrig/plugins" ] && \
         cp -r "$S/usr/share/openrig/plugins"   "$OUTPUT_DIR/${D}/plugins"
+    [ -d "$S/usr/share/openrig/presets" ] && \
+        cp -r "$S/usr/share/openrig/presets"   "$OUTPUT_DIR/${D}/presets"
     tar -czf "$OUTPUT_DIR/${D}.tar.gz" -C "$OUTPUT_DIR" "${D}"
     echo "  → $OUTPUT_DIR/${D}.tar.gz"
 fi

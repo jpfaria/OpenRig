@@ -183,12 +183,27 @@ pub(crate) fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     None
 }
 
+/// Default location for the bundled preset library.
+///
+/// Resolves to `<data_root>/presets` where `data_root` is:
+/// - `<bundle>/Contents/Resources/` on macOS (.dmg / .app)
+/// - `/usr/share/openrig/` on Linux (.deb / .rpm)
+/// - `<install_dir>/` on Windows (.msi)
+/// - the current working directory in dev (so `./presets` in the repo still works).
+///
+/// Used as the fallback when `config.yaml` has no `presets_path` entry; user
+/// projects can still override this by setting `presets_path` in their own
+/// `config.yaml`.
+fn default_presets_path() -> PathBuf {
+    infra_filesystem::detect_data_root().join("presets")
+}
+
 pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
     let config = if default_config_path.exists() {
         load_app_config(default_config_path).unwrap_or_default()
     } else {
         AppConfigYaml {
-            presets_path: Some(PathBuf::from("./presets")),
+            presets_path: Some(default_presets_path()),
         }
     };
     let project = Project {
@@ -200,9 +215,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         project,
         project_path: None,
         config_path: None,
-        presets_path: config
-            .presets_path
-            .unwrap_or_else(|| PathBuf::from("./presets")),
+        presets_path: config.presets_path.unwrap_or_else(default_presets_path),
     }
 }
 
@@ -257,7 +270,7 @@ pub(crate) fn load_project_session(
     let presets_path = config
         .presets_path
         .clone()
-        .unwrap_or_else(|| PathBuf::from("./presets"));
+        .unwrap_or_else(default_presets_path);
     let mut project = YamlProjectRepository {
         path: project_path.to_path_buf(),
     }

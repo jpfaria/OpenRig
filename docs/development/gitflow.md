@@ -44,10 +44,25 @@ NUNCA atribuir ao milestone de release final puro durante ciclo dev.
 
 ## Workspace isolado (.solvers/)
 
-NUNCA editar código no workspace principal. Cada agent trabalha numa cópia:
+NUNCA editar código no workspace principal. Cada agent trabalha numa cópia.
+
+Diretórios sempre excluídos da cópia: `target`, `.logs`, `coverage`, `deps`, `plugins`, `.solvers`.
 
 ```bash
-rsync -a --exclude='target' --exclude='.solvers' . .solvers/issue-{N}/
+# macOS (APFS): clone instantâneo copy-on-write, ~0 byte até divergir
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  mkdir -p .solvers/issue-{N}
+  for d in $(ls -A | grep -Ev '^(target|\.logs|coverage|deps|plugins|\.solvers)$'); do
+    cp -cR "$d" ".solvers/issue-{N}/$d"
+  done
+else
+  # Linux/outros: rsync com excludes
+  rsync -a \
+    --exclude='target' --exclude='.logs' --exclude='coverage' \
+    --exclude='deps'   --exclude='plugins' --exclude='.solvers' \
+    . .solvers/issue-{N}/
+fi
+
 cd .solvers/issue-{N} && git fetch origin
 # branch existe? checkout. não existe? checkout develop && pull && checkout -b feature/issue-{N}
 ```

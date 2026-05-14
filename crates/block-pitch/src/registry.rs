@@ -26,6 +26,41 @@ pub fn find_model_definition(model: &str) -> Result<&'static PitchModelDefinitio
         .ok_or_else(|| anyhow!("unsupported pitch model '{}'", model))
 }
 
+fn noop_validate(_: &ParameterSet) -> Result<()> {
+    Ok(())
+}
+
+/// Push every native model into the unified plugin-loader registry.
+/// Mirrors block-reverb's pattern (issue #287).
+pub fn register_natives() {
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
+    use plugin_loader::registry::register_native_simple;
+
+    for definition in MODEL_DEFINITIONS {
+        if !matches!(definition.backend_kind, PitchBackendKind::Native) {
+            continue;
+        }
+        let runtime = NativeRuntime {
+            schema: definition.schema,
+            validate: noop_validate,
+            build: definition.build,
+        };
+        let brand = if definition.brand.is_empty() {
+            Some("openrig")
+        } else {
+            Some(definition.brand)
+        };
+        register_native_simple(
+            definition.id,
+            definition.display_name,
+            brand,
+            BlockType::Pitch,
+            runtime,
+        );
+    }
+}
+
 /// Returns true if the model has a usable backend on the current platform.
 /// LV2 wrappers report `false` when their plugin binary is missing from
 /// `libs/lv2/<platform>/`. Native/NAM/IR/VST3 models report `true` (they are

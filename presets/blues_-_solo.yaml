@@ -1,0 +1,66 @@
+id: blues_-_solo
+name: Blues - Solo
+blocks:
+- type: utility
+  enabled: false
+  model: tuner_chromatic
+  params:
+    reference_hz: 440.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    low: 0.0
+    low_mid: 0.0
+    high_mid: 0.0
+    high: 0.0
+- type: dynamics
+  enabled: true
+  model: compressor_studio_clean
+  params:
+    threshold: 50.0
+    ratio: 25.0
+    attack_ms: 12.0
+    release_ms: 120.0
+    makeup_gain: 45.0
+    mix: 70.0
+- type: gain
+  enabled: true
+  model: nam_ibanez_ts9
+  params: {}
+- type: amp
+  enabled: true
+  model: nam_fender_super_reverb_1977
+  params:
+    mic: sm57_akg414
+- type: delay
+  enabled: true
+  model: tape_vintage
+  params:
+    time_ms: 420.0
+    feedback: 28.0
+    mix: 18.0
+- type: reverb
+  enabled: true
+  model: hall
+  params:
+    room_size: 55.0
+    damping: 55.0
+    mix: 22.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    threshold: -1.0
+    ceiling: -0.1
+    release_ms: 50.0
+- type: gain
+  enabled: true
+  model: volume
+  params:
+    volume: 88.0
+    mute: false
+- type: utility
+  enabled: true
+  model: spectrum_analyzer
+  params: {}

@@ -65,9 +65,19 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Loudness alignment is the chain-runtime's job (`engine::auto_max`),
-    // so per-NAM normalisation is no longer plumbed through here.
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    // Issue #413 / fase 3: `manifest.output_gain_db` deixou de ser
+    // aplicado no NAM em runtime. Per-bloco empilhava em série (Klon
+    // +28 + Amp +35 = +63 dB, estouro). O gain efetivo agora é
+    // calculado pela `chain_loudness::compute_chain_normalization_gain_db`
+    // sobre a chain inteira e aplicado no master output do runtime.
+    //
+    // MAS continuamos forçando `audit_overrides_baked_output = true`:
+    // o `recommended_output_db` baked do trainer NAM (tipicamente
+    // -4 a -8 dB) atenuaria o signal natural ANTES do probe medir,
+    // distorcendo o cálculo do chain-level gain. O probe quer medir
+    // o NAM em level natural cru. Compensação fica TODA no master.
+    plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
 

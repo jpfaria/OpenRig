@@ -33,6 +33,10 @@ GITHUB_REPO="jpfaria/OpenRig"
 # glibc 2.41 in trixie is forward-compatible with the OpenRig .deb that is
 # cross-compiled on bookworm Docker (glibc 2.36).
 BOARD="orangepi5b"
+# Armbian asset names use TitleCase for the board (e.g. "Orangepi5b"). Bash
+# 3.2 on macOS lacks ${var^}, so we keep the rendered form as a separate
+# constant rather than uppercasing at runtime.
+BOARD_TITLE="Orangepi5b"
 RELEASE="trixie"
 # Armbian "edge" branch tracks mainline (6.8+ / 7.x), in which the RK3588
 # device tree exposes the Mali-G610 with the rockchip,rk3588-mali compat
@@ -40,15 +44,16 @@ RELEASE="trixie"
 # real GPU. The "vendor" branch (6.1.x BSP) does NOT instantiate the GPU
 # in DT (card1 ends up being the RKNPU instead), so panthor.ko loads but
 # stays unbound and Mesa falls back to llvmpipe forever. issue #312.
-# Edge 7.0.0-rc7 had bootability issues a few weeks ago (PROJECT memory)
-# but 7.0.1 is the released kernel and is what Armbian ships now.
-KERNEL_TAG="edge_7.0.1"
-ARMBIAN_RELEASE="26.2.0-trunk.792"
-ARMBIAN_IMG_NAME="Armbian_community_${ARMBIAN_RELEASE}_Orangepi5b_${RELEASE}_${KERNEL_TAG}_minimal.img"
-ARMBIAN_URL="https://github.com/armbian/community/releases/download/${ARMBIAN_RELEASE}/${ARMBIAN_IMG_NAME}.xz"
-ARMBIAN_XZ="$OUTPUT_DIR/$ARMBIAN_IMG_NAME.xz"
-ARMBIAN_IMG="$OUTPUT_DIR/$ARMBIAN_IMG_NAME"
-OUTPUT_IMG_XZ="$OUTPUT_DIR/Armbian_openrig_${RELEASE}.img.xz"
+#
+# ARMBIAN_RELEASE + KERNEL_TAG are auto-resolved from the latest
+# armbian/community release that ships the matching asset (#441 —
+# Armbian prunes old "trunk" tags weekly, so hardcoding broke builds).
+# Override at the shell when pinning is needed:
+#   ARMBIAN_RELEASE_OVERRIDE=26.2.0-trunk.886 \
+#   KERNEL_TAG_OVERRIDE=edge_7.0.5 \
+#   ./scripts/build-orange-pi-image.sh ...
+ARMBIAN_RELEASE=""
+KERNEL_TAG=""
 
 VERSION="latest"
 LOCAL_DEB=""
@@ -93,6 +98,65 @@ step() {
     echo "══════════════════════════════════════════"
 }
 
+# ── Resolve the latest Armbian community release that ships our asset ────────
+# Armbian community releases roll weekly and old tags get pruned, so a hardcoded
+# tag breaks the build every couple of weeks (#441). Query the GitHub API for
+# the newest asset matching our board+release+kernel-family and extract the
+# release tag + exact kernel tag from the asset name.
+#
+# Env overrides for pinning a specific build (e.g. release engineering):
+#   ARMBIAN_RELEASE_OVERRIDE=26.2.0-trunk.886
+#   KERNEL_TAG_OVERRIDE=edge_7.0.5
+resolve_armbian_release() {
+    if [ -n "${ARMBIAN_RELEASE_OVERRIDE:-}" ] && [ -n "${KERNEL_TAG_OVERRIDE:-}" ]; then
+        ARMBIAN_RELEASE="$ARMBIAN_RELEASE_OVERRIDE"
+        KERNEL_TAG="$KERNEL_TAG_OVERRIDE"
+        echo "  Using override: ARMBIAN_RELEASE=$ARMBIAN_RELEASE KERNEL_TAG=$KERNEL_TAG"
+        return
+    fi
+
+    step "Resolving latest Armbian community release for $BOARD/$RELEASE/edge"
+
+    # Pattern is passed to jq's test() which expects a regex inside a JSON
+    # string. Bash double-quotes turn \\\\ into \\, which jq parses as the
+    # literal \ that the regex engine then reads as "match the dot character".
+    local pattern
+    pattern="Armbian_community_.*_${BOARD_TITLE}_${RELEASE}_edge_[0-9.]+_minimal\\\\.img\\\\.xz\$"
+
+    local asset_name
+    asset_name=$(gh api repos/armbian/community/releases --paginate \
+        --jq "[.[].assets[] | select(.name | test(\"$pattern\"))] | .[0].name" \
+        2>/dev/null || true)
+
+    if [ -z "$asset_name" ] || [ "$asset_name" = "null" ]; then
+        echo "ERROR: No Armbian community release found for $BOARD $RELEASE edge."
+        echo "       Check https://github.com/armbian/community/releases or pin via"
+        echo "       ARMBIAN_RELEASE_OVERRIDE + KERNEL_TAG_OVERRIDE env vars."
+        exit 1
+    fi
+
+    # Parse: Armbian_community_<TAG>_<Board>_<release>_<KERNEL>_minimal.img.xz
+    ARMBIAN_RELEASE=$(echo "$asset_name" | sed -E 's/^Armbian_community_([^_]+)_.*/\1/')
+    KERNEL_TAG=$(echo "$asset_name" | sed -E "s/.*_${RELEASE}_(edge_[0-9.]+)_minimal\\.img\\.xz\$/\\1/")
+
+    if [ -z "$ARMBIAN_RELEASE" ] || [ -z "$KERNEL_TAG" ]; then
+        echo "ERROR: Failed to parse release/kernel from asset name: $asset_name"
+        exit 1
+    fi
+
+    echo "  Resolved: ARMBIAN_RELEASE=$ARMBIAN_RELEASE KERNEL_TAG=$KERNEL_TAG"
+}
+
+# Compute path/URL constants — must run AFTER resolve_armbian_release() because
+# both ARMBIAN_RELEASE and KERNEL_TAG are dynamic now.
+compute_armbian_paths() {
+    ARMBIAN_IMG_NAME="Armbian_community_${ARMBIAN_RELEASE}_${BOARD_TITLE}_${RELEASE}_${KERNEL_TAG}_minimal.img"
+    ARMBIAN_URL="https://github.com/armbian/community/releases/download/${ARMBIAN_RELEASE}/${ARMBIAN_IMG_NAME}.xz"
+    ARMBIAN_XZ="$OUTPUT_DIR/$ARMBIAN_IMG_NAME.xz"
+    ARMBIAN_IMG="$OUTPUT_DIR/$ARMBIAN_IMG_NAME"
+    OUTPUT_IMG_XZ="$OUTPUT_DIR/Armbian_openrig_${RELEASE}.img.xz"
+}
+
 # ── Automatic cleanup on exit (success or failure) ────────────────────────────
 # Keep on disk after each run:
 #   - output/orange-pi/Armbian_openrig_${RELEASE}.img  (the artifact to flash)
@@ -108,7 +172,8 @@ cleanup_on_exit() {
     echo "══════════════════════════════════════════"
     echo "  Post-run cleanup"
     echo "══════════════════════════════════════════"
-    rm -f "$ARMBIAN_IMG" 2>/dev/null || true
+    # Use :- default — cleanup may fire before resolve_armbian_release set this.
+    rm -f "${ARMBIAN_IMG:-}" 2>/dev/null || true
     rm -f "$OUTPUT_DIR"/*.sparse 2>/dev/null || true
     docker builder prune -a -f >/dev/null 2>&1 || true
     echo "  Kept: $(ls -1 "$OUTPUT_DIR" 2>/dev/null | tr '\n' ' ')"
@@ -121,9 +186,10 @@ check_prereqs() {
     command -v docker >/dev/null || missing+=("docker (Docker Desktop)")
     command -v curl   >/dev/null || missing+=("curl")
     command -v xz     >/dev/null || missing+=("xz")
-    if [ -z "$LOCAL_DEB" ]; then
-        command -v gh >/dev/null || missing+=("gh (brew install gh)")
-    fi
+    # gh is required for Armbian release auto-resolution (#441), even with
+    # --local-deb. Override paths (ARMBIAN_RELEASE_OVERRIDE + KERNEL_TAG_OVERRIDE)
+    # skip the network call but the prereq check stays uniform.
+    command -v gh >/dev/null || missing+=("gh (brew install gh)")
     if [ ${#missing[@]} -gt 0 ]; then
         echo "ERROR: Missing prerequisites:"
         printf '  - %s\n' "${missing[@]}"
@@ -480,13 +546,16 @@ echo "OpenRig — Orange Pi 5B Image Builder (official Armbian trixie base)"
 echo "Repo:     github.com/$GITHUB_REPO"
 echo "Board:    $BOARD"
 echo "Release:  $RELEASE (Debian 13, Mesa 25+ with panthor_dri.so)"
-echo "Kernel:   $KERNEL_TAG (Armbian community prebuilt)"
 echo "Version:  $VERSION"
 echo "DryRun:   $DRY_RUN"
 [ -n "$LOCAL_DEB" ] && echo "LocalDeb: $LOCAL_DEB"
 echo ""
 
 check_prereqs
+resolve_armbian_release
+compute_armbian_paths
+echo "  Kernel:   $KERNEL_TAG (Armbian community prebuilt)"
+
 stage_deb
 cleanup_stale_artifacts
 download_armbian
