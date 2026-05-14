@@ -4,8 +4,10 @@
 //! the original 4-space indent so raw-string YAML literals stay intact.
 
 use super::{
-    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
+    load_chain_preset_file, save_chain_preset_file, serialize_project, ChainBlocksPreset,
+    YamlProjectRepository,
 };
+use tempfile::TempDir;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
@@ -1641,4 +1643,708 @@ chains:
         "absent volume should default to 100; got {}",
         project.chains[0].volume
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// V (Volume) series — issue #440: 30 tests cobrindo TODOS os caminhos
+// onde o volume da chain pode regredir. Cenário-âncora: usuário arrasta
+// slider com chain disabled, liga, volume volta pra 100. Cada test cobre
+// uma camada do fluxo Slint → handler Rust → save → load → runtime.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn write_project_yaml(temp_dir: &TempDir, body: &str) -> PathBuf {
+    let path = temp_dir.path().join("project.yaml");
+    fs::write(&path, body).expect("write project.yaml");
+    path
+}
+
+#[test]
+fn v01_load_volume_0_preserved() {
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 0
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((project.chains[0].volume - 0.0).abs() < 0.01);
+}
+
+#[test]
+fn v02_load_volume_200_preserved() {
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 200
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((project.chains[0].volume - 200.0).abs() < 0.01);
+}
+
+#[test]
+fn v03_load_volume_fractional_preserved() {
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 127.5
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((project.chains[0].volume - 127.5).abs() < 0.01);
+}
+
+#[test]
+fn v04_load_volume_disabled_chain_preserved() {
+    // CENÁRIO-ÂNCORA do user: chain disabled no YAML mantém o volume
+    // salvo. Sem isso, ligar a chain reseta pra 100.
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: false
+    instrument: electric_guitar
+    volume: 175
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert_eq!(project.chains[0].enabled, false);
+    assert!(
+        (project.chains[0].volume - 175.0).abs() < 0.01,
+        "disabled chain volume must persist; got {}",
+        project.chains[0].volume
+    );
+}
+
+#[test]
+fn v05_save_preserves_volume_in_yaml() {
+    // Cria projeto in-memory com chain.volume=150, salva, lê o YAML
+    // bruto e confirma que `volume: 150` está lá.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 150.0,
+            blocks: vec![],
+        }],
+    };
+    let yaml = serialize_project(&project).unwrap();
+    assert!(
+        yaml.contains("volume: 150"),
+        "serialized yaml must contain `volume: 150`; got:\n{}",
+        yaml
+    );
+    fs::write(&path, yaml).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((reloaded.chains[0].volume - 150.0).abs() < 0.01);
+}
+
+#[test]
+fn v06_round_trip_volume_0() {
+    round_trip_volume(0.0);
+}
+#[test]
+fn v07_round_trip_volume_50() {
+    round_trip_volume(50.0);
+}
+#[test]
+fn v08_round_trip_volume_100() {
+    round_trip_volume(100.0);
+}
+#[test]
+fn v09_round_trip_volume_150() {
+    round_trip_volume(150.0);
+}
+#[test]
+fn v10_round_trip_volume_200() {
+    round_trip_volume(200.0);
+}
+
+fn round_trip_volume(volume: f32) {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume,
+            blocks: vec![],
+        }],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(
+        (reloaded.chains[0].volume - volume).abs() < 0.01,
+        "round-trip should preserve volume={volume}; got {}",
+        reloaded.chains[0].volume
+    );
+}
+
+#[test]
+fn v11_round_trip_disabled_chain_preserves_volume() {
+    // Variação do v04: agora pelo round-trip (save → load) não
+    // pelo YAML manual. Captura regressão do `from_chain`.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: false, // chain disabled — o caso do bug
+            volume: 175.0,
+            blocks: vec![],
+        }],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(
+        (reloaded.chains[0].volume - 175.0).abs() < 0.01,
+        "round-trip with disabled chain must preserve volume; got {}",
+        reloaded.chains[0].volume
+    );
+}
+
+#[test]
+fn v12_round_trip_two_chains_independent_volumes() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![
+            Chain {
+                id: ChainId("c0".into()),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: true,
+                volume: 50.0,
+                blocks: vec![],
+            },
+            Chain {
+                id: ChainId("c1".into()),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: false,
+                volume: 175.0,
+                blocks: vec![],
+            },
+        ],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((reloaded.chains[0].volume - 50.0).abs() < 0.01);
+    assert!((reloaded.chains[1].volume - 175.0).abs() < 0.01);
+}
+
+#[test]
+fn v13_legacy_yaml_without_volume_defaults_to_100() {
+    // Projects pré-#440 não têm `volume:`. Default = 100 (unity).
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((project.chains[0].volume - 100.0).abs() < 0.01);
+}
+
+#[test]
+fn v14_legacy_io_sections_preserve_volume() {
+    // Caminho de parse legado (inputs/outputs sections) também propaga
+    // self.volume — não só o caminho inline.
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 88
+    inputs:
+      - device_id: dev0
+        mode: mono
+        channels: [0]
+    outputs:
+      - device_id: dev1
+        mode: mono
+        channels: [0]
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(
+        (project.chains[0].volume - 88.0).abs() < 0.01,
+        "legacy I/O sections path must preserve volume; got {}",
+        project.chains[0].volume
+    );
+}
+
+#[test]
+fn v15_preset_yaml_volume_preserved() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("preset.yaml");
+    fs::write(
+        &path,
+        r#"id: my_preset
+name: My Preset
+volume: 180
+blocks: []
+"#,
+    )
+    .unwrap();
+    let preset = load_chain_preset_file(&path).unwrap();
+    assert!((preset.volume - 180.0).abs() < 0.01);
+}
+
+#[test]
+fn v16_preset_yaml_volume_defaults_to_100() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("preset.yaml");
+    fs::write(
+        &path,
+        r#"id: my_preset
+name: My Preset
+blocks: []
+"#,
+    )
+    .unwrap();
+    let preset = load_chain_preset_file(&path).unwrap();
+    assert!((preset.volume - 100.0).abs() < 0.01);
+}
+
+#[test]
+fn v17_preset_round_trip_preserves_volume() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("preset.yaml");
+    let preset_in = ChainBlocksPreset {
+        id: "p".into(),
+        name: Some("P".into()),
+        volume: 42.0,
+        blocks: vec![],
+    };
+    save_chain_preset_file(&path, &preset_in).unwrap();
+    let preset_out = load_chain_preset_file(&path).unwrap();
+    assert!((preset_out.volume - 42.0).abs() < 0.01);
+}
+
+#[test]
+fn v18_modified_volume_persists_through_load_save_load() {
+    // Cenário do user: chain volume=100 carregado, slider altera pra
+    // 150, salva, carrega de novo → volume continua 150.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    fs::write(
+        &path,
+        r#"chains:
+  - enabled: false
+    instrument: electric_guitar
+    volume: 100
+    blocks: []
+"#,
+    )
+    .unwrap();
+    let repo = YamlProjectRepository { path: path.clone() };
+    let mut project = repo.load_current_project().unwrap();
+    project.chains[0].volume = 150.0;
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(
+        (reloaded.chains[0].volume - 150.0).abs() < 0.01,
+        "modified volume must persist across save/load; got {}",
+        reloaded.chains[0].volume
+    );
+}
+
+#[test]
+fn v19_modified_volume_with_toggle_enabled_persists() {
+    // Cenário-âncora do user, completo: chain disabled, modifica
+    // volume, toggle enabled=true, save → load → volume preservado.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    fs::write(
+        &path,
+        r#"chains:
+  - enabled: false
+    instrument: electric_guitar
+    volume: 100
+    blocks: []
+"#,
+    )
+    .unwrap();
+    let repo = YamlProjectRepository { path: path.clone() };
+    let mut project = repo.load_current_project().unwrap();
+    // Slider arrasta de 100 pra 150 enquanto chain está disabled.
+    project.chains[0].volume = 150.0;
+    // User clica enable.
+    project.chains[0].enabled = true;
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(
+        (reloaded.chains[0].volume - 150.0).abs() < 0.01,
+        "user scenario: disabled + slider + toggle on must persist volume; got {}",
+        reloaded.chains[0].volume
+    );
+    // Aliás, ChainYaml força enabled=false na serialização (runtime-only
+    // state — comentário em chain_yaml.rs:309). Confirma:
+    assert_eq!(
+        reloaded.chains[0].enabled, false,
+        "ChainYaml serialization forces enabled=false (runtime-only); \
+         this is expected behaviour, not a regression."
+    );
+}
+
+#[test]
+fn v20_blocks_added_does_not_reset_volume() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 130.0,
+            blocks: vec![],
+        }],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!(reloaded.chains[0].blocks.is_empty());
+    assert!((reloaded.chains[0].volume - 130.0).abs() < 0.01);
+}
+
+#[test]
+fn v21_volume_is_top_level_field_not_indented() {
+    // O field deve aparecer no level da chain (não indented dentro
+    // de outro mapping), pra que o YAML serde encontre na desserialização.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 110.0,
+            blocks: vec![],
+        }],
+    };
+    let yaml = serialize_project(&project).unwrap();
+    // Cada linha "volume:" deve estar precedida só de espaços que
+    // alinham com `instrument:` (irmãos no mapping da chain).
+    let has_volume_field = yaml
+        .lines()
+        .any(|l| l.trim_start().starts_with("volume: 110"));
+    assert!(
+        has_volume_field,
+        "yaml must contain `volume: 110` at chain top-level:\n{yaml}"
+    );
+}
+
+#[test]
+fn v22_serialize_volume_under_chain_mapping() {
+    // O `volume:` deve aparecer NA MESMA chain do `instrument:`, não
+    // em outra estrutura. Faz lookup por proximidade.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: Some("Test chain".into()),
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 165.0,
+            blocks: vec![],
+        }],
+    };
+    let yaml = serialize_project(&project).unwrap();
+    let lines: Vec<&str> = yaml.lines().collect();
+    let instr_idx = lines
+        .iter()
+        .position(|l| l.contains("electric_guitar"))
+        .expect("must have instrument line");
+    let volume_idx = lines
+        .iter()
+        .position(|l| l.contains("volume: 165"))
+        .expect("must have volume line");
+    // Within 10 lines of each other = same chain block.
+    assert!(
+        volume_idx.abs_diff(instr_idx) < 10,
+        "volume and instrument must be in same chain block; instr at {instr_idx}, volume at {volume_idx}"
+    );
+}
+
+#[test]
+fn v23_load_disabled_chain_then_modify_persists_through_save() {
+    // Outro ângulo do user scenario: load com disabled+volume=100,
+    // só mexe volume (NÃO enable), save, load → volume preservado.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    fs::write(
+        &path,
+        r#"chains:
+  - enabled: false
+    instrument: electric_guitar
+    volume: 100
+    blocks: []
+"#,
+    )
+    .unwrap();
+    let repo = YamlProjectRepository { path: path.clone() };
+    let mut project = repo.load_current_project().unwrap();
+    project.chains[0].volume = 88.5;
+    // chain.enabled stays false
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((reloaded.chains[0].volume - 88.5).abs() < 0.01);
+    assert_eq!(reloaded.chains[0].enabled, false);
+}
+
+#[test]
+fn v24_round_trip_three_chains_with_different_volumes() {
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![
+            Chain {
+                id: ChainId("c0".into()),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: true,
+                volume: 10.0,
+                blocks: vec![],
+            },
+            Chain {
+                id: ChainId("c1".into()),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: true,
+                volume: 100.0,
+                blocks: vec![],
+            },
+            Chain {
+                id: ChainId("c2".into()),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: true,
+                volume: 190.0,
+                blocks: vec![],
+            },
+        ],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert!((reloaded.chains[0].volume - 10.0).abs() < 0.01);
+    assert!((reloaded.chains[1].volume - 100.0).abs() < 0.01);
+    assert!((reloaded.chains[2].volume - 190.0).abs() < 0.01);
+}
+
+#[test]
+fn v25_save_then_load_volume_with_description_and_instrument() {
+    // Combina volume + description + instrument no mesmo chain;
+    // garante que adicionar metadata não atrapalha o parser do volume.
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("project.yaml");
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c0".into()),
+            description: Some("Solo lead".into()),
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 122.0,
+            blocks: vec![],
+        }],
+    };
+    fs::write(&path, serialize_project(&project).unwrap()).unwrap();
+    let reloaded = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert_eq!(reloaded.chains[0].description.as_deref(), Some("Solo lead"));
+    assert_eq!(reloaded.chains[0].instrument, "electric_guitar");
+    assert!((reloaded.chains[0].volume - 122.0).abs() < 0.01);
+}
+
+#[test]
+fn v26_load_volume_zero_integer_form() {
+    // Garante que `volume: 0` (int sem decimal) parseia como 0.0.
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 0
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert_eq!(project.chains[0].volume, 0.0);
+}
+
+#[test]
+fn v27_load_volume_negative_passes_through() {
+    // O YAML aceita negativos pra deixar o erro vir do downstream
+    // (engine clampa pra 0 se aplicar). Sem validação no parser.
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: -50
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert_eq!(project.chains[0].volume, -50.0);
+}
+
+#[test]
+fn v28_load_volume_high_value_passes_through() {
+    let tmp = tempdir().unwrap();
+    let path = write_project_yaml(
+        &tmp,
+        r#"chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 999
+    blocks: []
+"#,
+    );
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .unwrap();
+    assert_eq!(project.chains[0].volume, 999.0);
+}
+
+#[test]
+fn v29_preset_load_save_disabled_volume_persists() {
+    // Análogo a v18 mas pra preset (não project).
+    let tmp = tempdir().unwrap();
+    let path = tmp.path().join("preset.yaml");
+    fs::write(
+        &path,
+        r#"id: x
+name: Y
+volume: 100
+blocks: []
+"#,
+    )
+    .unwrap();
+    let mut preset = load_chain_preset_file(&path).unwrap();
+    preset.volume = 175.0;
+    save_chain_preset_file(&path, &preset).unwrap();
+    let reloaded = load_chain_preset_file(&path).unwrap();
+    assert!((reloaded.volume - 175.0).abs() < 0.01);
+}
+
+#[test]
+fn v30_two_independent_save_loads_preserve_volume_isolation() {
+    // Garante que carregar projeto A não afeta projeto B.
+    let tmp = tempdir().unwrap();
+    let path_a = tmp.path().join("a.yaml");
+    let path_b = tmp.path().join("b.yaml");
+    let proj_a = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 30.0,
+            blocks: vec![],
+        }],
+    };
+    let proj_b = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("c".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 170.0,
+            blocks: vec![],
+        }],
+    };
+    fs::write(&path_a, serialize_project(&proj_a).unwrap()).unwrap();
+    fs::write(&path_b, serialize_project(&proj_b).unwrap()).unwrap();
+    let ra = YamlProjectRepository { path: path_a }
+        .load_current_project()
+        .unwrap();
+    let rb = YamlProjectRepository { path: path_b }
+        .load_current_project()
+        .unwrap();
+    assert!((ra.chains[0].volume - 30.0).abs() < 0.01);
+    assert!((rb.chains[0].volume - 170.0).abs() < 0.01);
 }
