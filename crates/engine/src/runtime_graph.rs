@@ -238,11 +238,10 @@ pub fn build_chain_runtime_state(
         input_taps: ArcSwap::from_pointee(Vec::new()),
         stream_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
-        // Default = unity. Caller (build/upsert) deve chamar
-        // `set_volume_pct(chain.volume)` em seguida pra trazer o valor
-        // do preset. Probe runtimes (latency) deixam em 100 (unity)
-        // pra medir output natural.
-        volume_pct_bits: std::sync::atomic::AtomicU32::new(100.0_f32.to_bits()),
+        // Inicializa com chain.volume (issue #440). Callers que precisarem
+        // de unity isolado (probe runtimes de latência) sobrescrevem com
+        // `set_volume_pct(100.0)` depois.
+        volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
     })
 }
 
