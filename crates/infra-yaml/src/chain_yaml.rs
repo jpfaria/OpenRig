@@ -152,7 +152,7 @@ impl ChainYaml {
                 description: self.description,
                 instrument: self.instrument,
                 enabled: self.enabled,
-                volume: 100.0,
+                volume: self.volume,
                 blocks: parsed_blocks,
             };
             // Migrate projects saved while issue #377 was open: split-per-device
@@ -284,7 +284,7 @@ impl ChainYaml {
             description: self.description,
             instrument: self.instrument,
             enabled: self.enabled,
-            volume: 100.0,
+            volume: self.volume,
             blocks: all_blocks,
         };
         chain.coalesce_endpoint_blocks();
@@ -313,7 +313,7 @@ impl ChainYaml {
             input_channels: None,
             output_device_id: None,
             output_channels: None,
-            volume: 100.0,
+            volume: chain.volume,
             blocks: audio_blocks,
             output_mixdown: ChainOutputMixdown::Average,
             input_mode: ChainInputMode::default(),
