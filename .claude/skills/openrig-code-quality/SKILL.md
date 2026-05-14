@@ -9,6 +9,72 @@ Methodology rules for ANY code in this project. Apply BEFORE writing, not after.
 
 ---
 
+## LEI — fechar issue exige milestone
+
+**ANTES de chamar `gh issue close N`:** rodar `gh issue view N --json milestone` e confirmar que tem milestone atribuído. Se não tiver:
+
+1. Identificar a release que vai (ou já) contém o fix: a `vX.Y.Z-dev.M` do ciclo de develop atual.
+2. Se o milestone está `closed` (porque a tag já saiu), reabrir via `gh api -X PATCH /repos/<owner>/<repo>/milestones/<id> -f state=open`, atribuir, e re-fechar — preserva o histórico real do que entrou em qual release.
+3. Só então `gh issue close N`.
+
+Vale igual pra issue criada e fechada na mesma sessão. Sem exceção.
+
+Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
+
+**Por que isso importa.** O release notes do GitHub agrupa por milestone. Issue/PR fechada sem milestone vira release notes pobre — usuário lendo o changelog não sabe que aquilo foi entregue na release. Já tivemos 20 issues acumuladas sem milestone (sessão 2026-05-13); ter que abrir/atribuir/fechar milestone retroativamente pra 20 issues é o custo de não cobrar antes.
+
+**Anti-padrão:**
+```
+❌ gh issue close 423
+❌ gh issue edit 423 --add-label closed
+```
+
+**Padrão correto:**
+```
+✅ gh issue edit 423 --milestone "v0.1.0-dev.19"
+✅ gh issue close 423
+```
+
+---
+
+## LEI — docs e referências SEMPRE em sincronia com o código
+
+**Documentação não é "depois". É parte da tarefa.** Toda mudança que altera comportamento, API, fluxo ou modelo precisa atualizar — no MESMO commit — todas as camadas de doc afetadas:
+
+| Camada | Para quem | Quando atualizar |
+|---|---|---|
+| `docs/**/*.md` | humanos (contribuidores, usuários) | mudou comportamento de áudio, fluxo de UI, block, parâmetro, screen, CLI, deploy, hardware |
+| `CLAUDE.md` (raiz) | toda sessão Claude | mudou invariante, hierarquia de trade-offs, regra geral |
+| `.claude/skills/*/SKILL.md` | sessão futura do Claude | mudou metodologia, anti-pattern, debt file, gate, processo, gitflow detalhe |
+| `~/.claude/projects/<slug>/memory/*.md` | sessão futura do Claude | feedback do user, decisão de projeto, referência externa |
+| `README.md` + `README.pt-BR.md` + `README.es-ES.md` | mundo (3 línguas) | mudou tagline, feature list, build/deploy, link |
+| `CONTRIBUTING.md` | contribuidores | mudou processo de contribuição |
+
+**Why:** sessão futura (Claude **ou** humano) precisa enxergar o estado real. Doc desatualizada vira mentira que se propaga: o próximo contribuidor segue a doc errada e quebra produção; o próximo Claude lê a skill desatualizada e aplica regra que não vale mais. Vimos isso em #435 — eu não rodei o demo nem uma vez porque a skill `slint-best-practices` não tinha "valide visualmente antes de declarar pronto" como regra explícita. Esse furo foi caro.
+
+**How to apply:**
+- Antes de `git commit`, lista mental: mudei comportamento? → quais .md afetam? → atualizou todos?
+- Renomeou modelo/parâmetro/effect_type? → grep cross-repo em `docs/**`, `*.md`, `README*`, `CLAUDE.md`, todos `.claude/skills/*/SKILL.md`.
+- Aprendeu uma regra nova durante a sessão (feedback do user, anti-pattern descoberto, decisão arquitetural)? → escreve na skill **antes** de fechar a sessão. Não confia em memória pessoal — escreve.
+- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `rust-best-practices`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
+- Mudou invariante (latência, isolation, mixing)? → `CLAUDE.md` + `docs/architecture.md`.
+
+**Anti-padrões:**
+```
+❌ "depois eu atualizo a doc" — sessão acaba, doc fica órfã, próxima quebra.
+❌ Commit que mexe em comportamento sem tocar nenhum .md.
+❌ Skill desatualizada porque "eu lembro de cabeça" — Claude da próxima sessão não lembra.
+❌ README.md (en) atualizado mas pt-BR/es-ES não — [[feedback_readme_three_languages]].
+```
+
+**Padrão correto:**
+```
+✅ Mesma PR/commit: código + docs/<area>.md + .claude/skills/<area>/SKILL.md + (se aplica) READMEs em 3 línguas.
+✅ Skill é LIVING DOCUMENT — quando o user corrige um padrão, a correção vai pra skill no MESMO turno, antes de fechar.
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
