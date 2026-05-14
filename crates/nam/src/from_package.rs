@@ -65,7 +65,7 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
+    let plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
     // Issue #440: removido o gain por-bloco do manifest. Cada NAM sai no
     // nível natural do modelo (passa pelo `recommended_output_db` baked do
     // trainer, que normaliza o output do .nam). O controle de output da
