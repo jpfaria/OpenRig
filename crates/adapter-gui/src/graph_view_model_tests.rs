@@ -111,6 +111,38 @@ mod linear_layout_parallel_stage {
         );
     }
 
+    // GraphView.slint relies on this convention to render split/merge as
+    // a small routing dot instead of a full block card. If the layout
+    // helper starts emitting labels or a non-Util category for split or
+    // merge, the Slint side will draw empty grey rectangles where the
+    // wires meet — exactly the regression we hit before this test
+    // landed.
+    #[test]
+    fn split_and_merge_use_routing_node_convention() {
+        let stages = [ChainStage::Parallel(vec![
+            vec![block("l", "L", NodeCategory::Amp)],
+            vec![block("r", "R", NodeCategory::Amp)],
+        ])];
+        let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
+
+        let split = find_node(&nodes, "__split_1");
+        let merge = find_node(&nodes, "__merge_1");
+
+        for routing in [split, merge] {
+            assert_eq!(
+                routing.label, "",
+                "routing node {} must have empty label",
+                routing.id
+            );
+            assert_eq!(
+                routing.category,
+                NodeCategory::Util,
+                "routing node {} must be Util category",
+                routing.id
+            );
+        }
+    }
+
     #[test]
     fn parallel_paths_sit_on_symmetric_lanes() {
         let metrics = GridMetrics {

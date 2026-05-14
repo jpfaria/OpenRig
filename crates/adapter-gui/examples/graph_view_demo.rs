@@ -28,8 +28,8 @@ slint::slint! {
         callback node-drag-ended(string, length, length);
 
         title: "GraphView demo";
-        preferred-width: 1100px;
-        preferred-height: 600px;
+        preferred-width: 1500px;
+        preferred-height: 520px;
         background: #0b0d12;
 
         VerticalLayout {

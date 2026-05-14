@@ -114,14 +114,31 @@ component GraphNodeCard inherits Rectangle {
     accessible-label: root.node.label;
 }
 
-// Bezier wire between two layout-space points. Drawn behind the nodes.
+// Bezier wire between two viewport-space points. Drawn behind the nodes.
+//
+// The Path fills the whole canvas and declares its viewbox in canvas
+// pixels so MoveTo/CubicTo can use absolute coordinates. Without a
+// viewbox, Slint normalises the path commands to the Path's own bbox,
+// which collapses every wire to the same screen-space rectangle — the
+// reason the earlier version drew all edges converging in one point.
 component GraphWire inherits Path {
     in property <length> from_x;
     in property <length> from_y;
     in property <length> to_x;
     in property <length> to_y;
+    in property <length> canvas_width;
+    in property <length> canvas_height;
     in property <color> stroke_color: #8aaac8;
     in property <length> stroke_thickness: 2px;
+
+    x: 0px;
+    y: 0px;
+    width: root.canvas_width;
+    height: root.canvas_height;
+    viewbox-x: 0;
+    viewbox-y: 0;
+    viewbox-width: root.canvas_width / 1px;
+    viewbox-height: root.canvas_height / 1px;
 
     stroke: root.stroke_color;
     stroke-width: root.stroke_thickness;
@@ -282,7 +299,13 @@ export component GraphView inherits Rectangle {
     }
 
     // ── Edges (drawn under nodes) ──────────────────────────────────
+    //
+    // Each GraphWire fills the canvas with viewbox in pixel coords so
+    // the absolute MoveTo/CubicTo lands at the right place. See the
+    // note on GraphWire for why this matters.
     for edge in root.edges : GraphWire {
+        canvas_width: root.width;
+        canvas_height: root.height;
         from_x: root.pan_x + edge.from_x * root.zoom;
         from_y: root.pan_y + edge.from_y * root.zoom;
         to_x: root.pan_x + edge.to_x * root.zoom;
@@ -290,34 +313,67 @@ export component GraphView inherits Rectangle {
         stroke_thickness: 2px * root.zoom;
     }
 
-    // ── Nodes ──────────────────────────────────────────────────────
+    // ── Routing dots for util nodes with no label ─────────────────
+    //
+    // Split/merge are real graph nodes (wires connect through them),
+    // but visually they are just routing points — a small dot, not a
+    // full card. Drawn here so they sit between wires and full cards.
     for node[idx] in root.nodes : Rectangle {
-        x: root.pan_x + node.layout_x * root.zoom - card.width / 2;
-        y: root.pan_y + node.layout_y * root.zoom - card.height / 2;
-        width: card.width;
-        height: card.height;
+        x: root.pan_x + node.layout_x * root.zoom - self.width / 2;
+        y: root.pan_y + node.layout_y * root.zoom - self.height / 2;
+        width: node.label == "" && node.category == "util"
+            ? 8px * root.zoom
+            : 0px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: node.label == "" && node.category == "util"
+            ? #8aaac8
+            : transparent;
+    }
 
-        card := GraphNodeCard {
+    // ── Nodes (full cards for labeled blocks) ─────────────────────
+    //
+    // Position is the card centre at (layout * zoom + pan), shifted
+    // by half the card size so it lands geometrically centred. The
+    // routing dots above skip rendering for util-with-empty-label;
+    // here we skip those entirely so the card doesn't draw on top of
+    // a routing dot.
+    for node[idx] in root.nodes : Rectangle {
+        property <bool> is-routing: node.label == "" && node.category == "util";
+        property <length> w: root.node_width * root.zoom;
+        property <length> h: root.node_height * root.zoom;
+
+        x: root.pan_x + node.layout_x * root.zoom - self.w / 2;
+        y: root.pan_y + node.layout_y * root.zoom - self.h / 2;
+        width: self.is-routing ? 0px : self.w;
+        height: self.is-routing ? 0px : self.h;
+        visible: !self.is-routing;
+
+        GraphNodeCard {
+            x: 0px;
+            y: 0px;
             node: node;
-            card_width: root.node_width * root.zoom;
-            card_height: root.node_height * root.zoom;
+            card_width: parent.width;
+            card_height: parent.height;
             hovered: root.hover_id == node.id && root.drag_id == "";
             dragging: root.drag_id == node.id;
         }
 
         TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
             mouse-cursor: pointer;
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down) {
                     root.drag_id = node.id;
                     root.press_x = self.mouse-x;
                     root.press_y = self.mouse-y;
-                    // Offset between cursor and node centre, in layout space.
                     root.drag_offset_x = self.mouse-x / root.zoom - root.node_width / 2;
                     root.drag_offset_y = self.mouse-y / root.zoom - root.node_height / 2;
                 } else if (event.kind == PointerEventKind.up) {
                     if (root.drag_id == node.id) {
-                        // Distinguish click from drag by total displacement.
                         if (abs(self.mouse-x - root.press_x) < root.click_threshold
                          && abs(self.mouse-y - root.press_y) < root.click_threshold) {
                             root.node_clicked(node.id);
@@ -330,8 +386,6 @@ export component GraphView inherits Rectangle {
             }
             moved => {
                 if (self.pressed && root.drag_id == node.id) {
-                    // Translate cursor (in viewport) back to layout
-                    // space. The host receives the new centre.
                     let new_x = (self.mouse-x - root.pan_x) / root.zoom;
                     let new_y = (self.mouse-y - root.pan_y) / root.zoom;
                     root.node_dragged(node.id, new_x, new_y);
