@@ -1,11 +1,16 @@
-//! Domain-level numeric parameter writer for `AudioBlock`.
+//! Domain-level parameter writers for `AudioBlock`.
 //!
-//! Provides `set_parameter_number` — the single path-indexed write operation
-//! used by `LocalDispatcher` to fulfil `Command::SetBlockParameterNumber`.
+//! Provides typed write operations used by `LocalDispatcher` to fulfil
+//! `Command::SetBlockParameter*` variants:
+//! - `set_parameter_number` — f64 value → `ParameterValue::Float`
+//! - `set_parameter_bool`   — bool value → `ParameterValue::Bool`
+//! - `set_parameter_text`   — string value → `ParameterValue::String`
+//! - `set_parameter_option` — string option value → `ParameterValue::String`
+//! - `set_parameter_file`   — file path (as string) → `ParameterValue::String`
 //!
 //! Only `Core` and `Nam` block kinds carry a `ParameterSet`; the other kinds
-//! (`Input`, `Output`, `Insert`, `Select`) do not expose editable numeric
-//! parameters through this command.
+//! (`Input`, `Output`, `Insert`, `Select`) do not expose editable parameters
+//! through these commands.
 
 use anyhow::{anyhow, Result};
 use domain::value_objects::ParameterValue;
@@ -30,6 +35,73 @@ pub fn set_parameter_number(block: &mut AudioBlock, path: &str, value: f64) -> R
         ));
     }
     params.insert(path, ParameterValue::Float(value as f32));
+    Ok(())
+}
+
+/// Write `value` as `ParameterValue::Bool` to the parameter identified by
+/// `path` inside `block`.
+///
+/// # Errors
+///
+/// - If the block kind does not carry a `ParameterSet`.
+/// - If the path does not exist in the block's current `ParameterSet`.
+pub fn set_parameter_bool(block: &mut AudioBlock, path: &str, value: bool) -> Result<()> {
+    let params = params_mut(block)?;
+    if !params.values.contains_key(path) {
+        return Err(anyhow!(
+            "parameter '{}' not found in block '{}'",
+            path,
+            block.id.0
+        ));
+    }
+    params.insert(path, ParameterValue::Bool(value));
+    Ok(())
+}
+
+/// Write `value` as `ParameterValue::String` to the parameter identified by
+/// `path` inside `block`.
+///
+/// Used by both `SetBlockParameterText` and `PickBlockParameterFile` (the
+/// latter resolves the path to a string in the adapter before dispatching).
+///
+/// # Errors
+///
+/// - If the block kind does not carry a `ParameterSet`.
+/// - If the path does not exist in the block's current `ParameterSet`.
+pub fn set_parameter_text(block: &mut AudioBlock, path: &str, value: &str) -> Result<()> {
+    let params = params_mut(block)?;
+    if !params.values.contains_key(path) {
+        return Err(anyhow!(
+            "parameter '{}' not found in block '{}'",
+            path,
+            block.id.0
+        ));
+    }
+    params.insert(path, ParameterValue::String(value.to_string()));
+    Ok(())
+}
+
+/// Write the selected option `value` (a string option key) as
+/// `ParameterValue::String` to the parameter identified by `path` inside
+/// `block`.
+///
+/// The adapter layer resolves the index → string before building the command,
+/// so this function receives the canonical option string directly.
+///
+/// # Errors
+///
+/// - If the block kind does not carry a `ParameterSet`.
+/// - If the path does not exist in the block's current `ParameterSet`.
+pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> Result<()> {
+    let params = params_mut(block)?;
+    if !params.values.contains_key(path) {
+        return Err(anyhow!(
+            "parameter '{}' not found in block '{}'",
+            path,
+            block.id.0
+        ));
+    }
+    params.insert(path, ParameterValue::String(value.to_string()));
     Ok(())
 }
 
@@ -59,11 +131,41 @@ mod tests {
     use crate::chain::ChainInputMode;
     use crate::param::ParameterSet;
 
-    use super::set_parameter_number;
+    use super::{
+        set_parameter_bool, set_parameter_number, set_parameter_option, set_parameter_text,
+    };
 
     fn make_core_block(param_path: &str, value: f32) -> AudioBlock {
         let mut params = ParameterSet::default();
         params.insert(param_path, ParameterValue::Float(value));
+        AudioBlock {
+            id: BlockId("blk_test".to_string()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "amp".to_string(),
+                model: "test_model".to_string(),
+                params,
+            }),
+        }
+    }
+
+    fn make_core_block_bool(param_path: &str, value: bool) -> AudioBlock {
+        let mut params = ParameterSet::default();
+        params.insert(param_path, ParameterValue::Bool(value));
+        AudioBlock {
+            id: BlockId("blk_test".to_string()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "amp".to_string(),
+                model: "test_model".to_string(),
+                params,
+            }),
+        }
+    }
+
+    fn make_core_block_string(param_path: &str, value: &str) -> AudioBlock {
+        let mut params = ParameterSet::default();
+        params.insert(param_path, ParameterValue::String(value.to_string()));
         AudioBlock {
             id: BlockId("blk_test".to_string()),
             enabled: true,
@@ -148,6 +250,133 @@ mod tests {
     fn input_block_returns_err() {
         let mut block = make_input_block();
         let err = set_parameter_number(&mut block, "gain", 0.5)
+            .expect_err("InputBlock should return Err");
+        assert!(
+            err.to_string().contains("ParameterSet"),
+            "error must mention ParameterSet, got: {err}"
+        );
+    }
+
+    // ── set_parameter_bool ────────────────────────────────────────────────────
+
+    #[test]
+    fn set_parameter_bool_writes_true() {
+        let mut block = make_core_block_bool("enabled", false);
+        set_parameter_bool(&mut block, "enabled", true).expect("should succeed");
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_bool("enabled"), Some(true));
+    }
+
+    #[test]
+    fn set_parameter_bool_writes_false() {
+        let mut block = make_core_block_bool("enabled", true);
+        set_parameter_bool(&mut block, "enabled", false).expect("should succeed");
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_bool("enabled"), Some(false));
+    }
+
+    #[test]
+    fn set_parameter_bool_missing_path_returns_err() {
+        let mut block = make_core_block_bool("enabled", false);
+        let err = set_parameter_bool(&mut block, "no_such_param", true)
+            .expect_err("should fail for unknown path");
+        assert!(
+            err.to_string().contains("no_such_param"),
+            "error must mention path, got: {err}"
+        );
+        // Original value unchanged
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_bool("enabled"), Some(false));
+    }
+
+    #[test]
+    fn set_parameter_bool_input_block_returns_err() {
+        let mut block = make_input_block();
+        let err = set_parameter_bool(&mut block, "enabled", true)
+            .expect_err("InputBlock should return Err");
+        assert!(
+            err.to_string().contains("ParameterSet"),
+            "error must mention ParameterSet, got: {err}"
+        );
+    }
+
+    // ── set_parameter_text ────────────────────────────────────────────────────
+
+    #[test]
+    fn set_parameter_text_writes_string() {
+        let mut block = make_core_block_string("label", "old_value");
+        set_parameter_text(&mut block, "label", "new_value").expect("should succeed");
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_string("label"), Some("new_value"));
+    }
+
+    #[test]
+    fn set_parameter_text_missing_path_returns_err() {
+        let mut block = make_core_block_string("label", "old");
+        let err = set_parameter_text(&mut block, "no_such_param", "val")
+            .expect_err("should fail for unknown path");
+        assert!(
+            err.to_string().contains("no_such_param"),
+            "error must mention path, got: {err}"
+        );
+        // Original value unchanged
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_string("label"), Some("old"));
+    }
+
+    #[test]
+    fn set_parameter_text_input_block_returns_err() {
+        let mut block = make_input_block();
+        let err = set_parameter_text(&mut block, "label", "val")
+            .expect_err("InputBlock should return Err");
+        assert!(
+            err.to_string().contains("ParameterSet"),
+            "error must mention ParameterSet, got: {err}"
+        );
+    }
+
+    // ── set_parameter_option ──────────────────────────────────────────────────
+
+    #[test]
+    fn set_parameter_option_writes_string_value() {
+        let mut block = make_core_block_string("mode", "option_a");
+        set_parameter_option(&mut block, "mode", "option_b").expect("should succeed");
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_string("mode"), Some("option_b"));
+    }
+
+    #[test]
+    fn set_parameter_option_missing_path_returns_err() {
+        let mut block = make_core_block_string("mode", "option_a");
+        let err = set_parameter_option(&mut block, "no_such_param", "option_b")
+            .expect_err("should fail for unknown path");
+        assert!(
+            err.to_string().contains("no_such_param"),
+            "error must mention path, got: {err}"
+        );
+        // Original value unchanged
+        let AudioBlockKind::Core(ref core) = block.kind else {
+            panic!("expected CoreBlock");
+        };
+        assert_eq!(core.params.get_string("mode"), Some("option_a"));
+    }
+
+    #[test]
+    fn set_parameter_option_input_block_returns_err() {
+        let mut block = make_input_block();
+        let err = set_parameter_option(&mut block, "mode", "option_a")
             .expect_err("InputBlock should return Err");
         assert!(
             err.to_string().contains("ParameterSet"),

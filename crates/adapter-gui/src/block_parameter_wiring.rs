@@ -3,15 +3,18 @@
 //! Owns the 7 callbacks that mutate parameters of the active block_editor_draft:
 //! - on_update_block_parameter_number_text — typed text → parsed f32 (dispatches Command)
 //! - on_toggle_block_drawer_enabled       — toggle the block's enabled flag
-//! - on_update_block_parameter_text       — string params
-//! - on_update_block_parameter_number     — numeric params
-//! - on_update_block_parameter_bool       — bool params
-//! - on_select_block_parameter_option     — enum/select params
-//! - on_pick_block_parameter_file         — file-picker params
+//! - on_update_block_parameter_number     — numeric params (draft-based persist)
+//! - on_update_block_parameter_bool       — bool params (dispatches Command)
+//! - on_update_block_parameter_text       — string params (dispatches Command)
+//! - on_select_block_parameter_option     — enum/select params (dispatches Command)
+//! - on_pick_block_parameter_file         — file-picker params (dispatches Command)
 //!
-//! `on_update_block_parameter_number_text` is migrated to dispatch via
-//! `Command::SetBlockParameterNumber`. The remaining callbacks still use the
-//! draft-based `schedule_block_editor_persist` flow (pending future tasks).
+//! Migrated to dispatch via `LocalDispatcher`:
+//! - `on_update_block_parameter_number_text` → `Command::SetBlockParameterNumber`
+//! - `on_update_block_parameter_bool`        → `Command::SetBlockParameterBool`
+//! - `on_update_block_parameter_text`        → `Command::SetBlockParameterText`
+//! - `on_select_block_parameter_option`      → `Command::SelectBlockParameterOption`
+//! - `on_pick_block_parameter_file`          → `Command::PickBlockParameterFile`
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -244,7 +247,6 @@ pub(crate) fn wire(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -252,30 +254,90 @@ pub(crate) fn wire(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // Update UI immediately for visual feedback.
             set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
             window.set_block_drawer_status_message("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_drawer_status_message("".into());
             }
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.text",
-                        auto_save,
-                    );
+
+            // Only dispatch if editing an existing block.
+            let (chain_index, block_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                let Some(bi) = draft.block_index else {
+                    return;
+                };
+                (draft.chain_index, bi)
+            };
+
+            // Resolve chain_id / block_id from project indices.
+            let (chain_id, block_id) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
+            };
+
+            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+            let dispatch_ok = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                match session.dispatcher.dispatch(Command::SetBlockParameterText {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    path: path.to_string(),
+                    value: value.to_string(),
+                }) {
+                    Ok(events) => events
+                        .into_iter()
+                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-drawer.text dispatch: {e}");
+                        window.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
                 }
+            };
+            if !dispatch_ok {
+                return;
             }
+
+            // Sync audio runtime + refresh UI + mark dirty.
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("[adapter-gui] block-drawer.text runtime sync: {e}");
+                window.set_block_drawer_status_message(e.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     {
@@ -341,7 +403,6 @@ pub(crate) fn wire(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -349,30 +410,90 @@ pub(crate) fn wire(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // Update UI immediately for visual feedback.
             set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
             window.set_block_drawer_status_message("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_drawer_status_message("".into());
             }
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.bool",
-                        auto_save,
-                    );
+
+            // Only dispatch if editing an existing block.
+            let (chain_index, block_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                let Some(bi) = draft.block_index else {
+                    return;
+                };
+                (draft.chain_index, bi)
+            };
+
+            // Resolve chain_id / block_id from project indices.
+            let (chain_id, block_id) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
+            };
+
+            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+            let dispatch_ok = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                match session.dispatcher.dispatch(Command::SetBlockParameterBool {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    path: path.to_string(),
+                    value,
+                }) {
+                    Ok(events) => events
+                        .into_iter()
+                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-drawer.bool dispatch: {e}");
+                        window.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
                 }
+            };
+            if !dispatch_ok {
+                return;
             }
+
+            // Sync audio runtime + refresh UI + mark dirty.
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("[adapter-gui] block-drawer.bool runtime sync: {e}");
+                window.set_block_drawer_status_message(e.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     {
@@ -386,14 +507,18 @@ pub(crate) fn wire(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_select_block_parameter_option(move |path, index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // Update UI item (sets selected_option_index and value_text).
             set_block_parameter_option(&block_parameter_items, path.as_str(), index);
+
+            // Special handling for SelectBlock's own block-selector param
+            // (SELECT_SELECTED_BLOCK_ID): this re-renders the sub-block editor
+            // and is UI-only — no project mutation needed here.
             if path.as_str() == SELECT_SELECTED_BLOCK_ID {
                 let selected_option_block_id = internal_block_parameter_value(
                     &block_parameter_items,
@@ -447,27 +572,96 @@ pub(crate) fn wire(
                         }
                     }
                 }
+                window.set_block_drawer_status_message("".into());
+                return;
             }
+
             window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.option",
-                        auto_save,
-                    );
+
+            // Only dispatch if editing an existing block.
+            let (chain_index, block_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                let Some(bi) = draft.block_index else {
+                    return;
+                };
+                (draft.chain_index, bi)
+            };
+
+            // Resolve chain_id / block_id and the option string value from project.
+            let (chain_id, block_id, option_value) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                // The option string was already written to value_text by
+                // set_block_parameter_option above — read it back from the model.
+                let opt_val = internal_block_parameter_value(&block_parameter_items, path.as_str())
+                    .unwrap_or_default();
+                (chain.id.clone(), block.id.clone(), opt_val)
+            };
+
+            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+            let dispatch_ok = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                match session
+                    .dispatcher
+                    .dispatch(Command::SelectBlockParameterOption {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        path: path.to_string(),
+                        value: option_value,
+                        index: index as usize,
+                    }) {
+                    Ok(events) => events
+                        .into_iter()
+                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-drawer.option dispatch: {e}");
+                        window.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
                 }
+            };
+            if !dispatch_ok {
+                return;
             }
+
+            // Sync audio runtime + refresh UI + mark dirty.
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("[adapter-gui] block-drawer.option runtime sync: {e}");
+                window.set_block_drawer_status_message(e.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     {
@@ -479,13 +673,13 @@ pub(crate) fn wire(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_pick_block_parameter_file(move |path| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // Open native file dialog — UI concern; kept in adapter.
             let extensions = block_parameter_extensions(&block_parameter_items, path.as_str());
             let mut dialog = FileDialog::new();
             if !extensions.is_empty() {
@@ -498,31 +692,94 @@ pub(crate) fn wire(
             let Some(file) = dialog.pick_file() else {
                 return;
             };
+
+            // Update UI immediately.
             set_block_parameter_text(
                 &block_parameter_items,
                 path.as_str(),
                 file.to_string_lossy().as_ref(),
             );
             window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.file",
-                        auto_save,
-                    );
+
+            // Only dispatch if editing an existing block.
+            let (chain_index, block_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                let Some(bi) = draft.block_index else {
+                    return;
+                };
+                (draft.chain_index, bi)
+            };
+
+            // Resolve chain_id / block_id from project indices.
+            let (chain_id, block_id) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
+            };
+
+            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+            let dispatch_ok = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                match session
+                    .dispatcher
+                    .dispatch(Command::PickBlockParameterFile {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        path: path.to_string(),
+                        file: file.clone(),
+                    }) {
+                    Ok(events) => events
+                        .into_iter()
+                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-drawer.file dispatch: {e}");
+                        window.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
                 }
+            };
+            if !dispatch_ok {
+                return;
             }
+
+            // Sync audio runtime + refresh UI + mark dirty.
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("[adapter-gui] block-drawer.file runtime sync: {e}");
+                window.set_block_drawer_status_message(e.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
 }

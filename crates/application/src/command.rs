@@ -50,11 +50,18 @@ pub enum Command {
         value: String,
     },
 
-    /// Select an enum/option parameter by index.
+    /// Select an enum/option parameter.
+    ///
+    /// `value` is the canonical option string (already resolved from UI index
+    /// by the adapter before dispatching). `index` is kept for round-trip
+    /// convenience when the caller needs to re-render the selected row.
     SelectBlockParameterOption {
         chain: ChainId,
         block: BlockId,
         path: String,
+        /// The option value string as declared in the model schema.
+        value: String,
+        /// The UI index of the selected option (informational; not stored in the project).
         index: usize,
     },
 

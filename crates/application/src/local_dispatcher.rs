@@ -70,17 +70,79 @@ impl CommandDispatcher for LocalDispatcher {
                 project::block::param_writer::set_parameter_number(target_block, &path, value)?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SetBlockParameterBool { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::SetBlockParameterBool {
+                chain,
+                block,
+                path,
+                value,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                project::block::param_writer::set_parameter_bool(target_block, &path, value)?;
+                Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SetBlockParameterText { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::SetBlockParameterText {
+                chain,
+                block,
+                path,
+                value,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                project::block::param_writer::set_parameter_text(target_block, &path, &value)?;
+                Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SelectBlockParameterOption { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::SelectBlockParameterOption {
+                chain,
+                block,
+                path,
+                value,
+                index: _,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                project::block::param_writer::set_parameter_option(target_block, &path, &value)?;
+                Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::PickBlockParameterFile { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::PickBlockParameterFile {
+                chain,
+                block,
+                path,
+                file,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                let file_str = file.to_string_lossy();
+                project::block::param_writer::set_parameter_text(
+                    target_block,
+                    &path,
+                    file_str.as_ref(),
+                )?;
+                Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::ToggleBlockEnabled { chain, block } => {
                 let mut project = self.project.borrow_mut();
