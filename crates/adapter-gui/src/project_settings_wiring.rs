@@ -89,12 +89,12 @@ pub(crate) fn wire(
             project_devices.set_vec(build_project_device_rows(
                 &fresh_input,
                 &fresh_output,
-                &session.project.device_settings,
+                &session.project.borrow().device_settings,
             ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
-            window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
+            window.set_project_name_draft(session.project.borrow().name.clone().unwrap_or_default().into());
             settings_window
-                .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
+                .set_project_name_draft(session.project.borrow().name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             if fullscreen {
@@ -118,7 +118,7 @@ pub(crate) fn wire(
             window.set_project_name_draft(value.clone());
             if let Some(session) = project_session.borrow_mut().as_mut() {
                 let trimmed = value.trim();
-                session.project.name = if trimmed.is_empty() {
+                session.project.borrow_mut().name = if trimmed.is_empty() {
                     None
                 } else {
                     Some(trimmed.to_string())
@@ -150,7 +150,7 @@ pub(crate) fn wire(
             settings_window.set_project_name_draft(value.clone());
             if let Some(session) = project_session.borrow_mut().as_mut() {
                 let trimmed = value.trim();
-                session.project.name = if trimmed.is_empty() {
+                session.project.borrow_mut().name = if trimmed.is_empty() {
                     None
                 } else {
                     Some(trimmed.to_string())

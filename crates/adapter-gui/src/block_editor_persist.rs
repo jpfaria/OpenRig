@@ -182,8 +182,8 @@ pub(crate) fn persist_block_editor_draft(
         .as_mut()
         .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
     let chain_id = {
-        let chain = session
-            .project
+        let mut proj = session.project.borrow_mut();
+        let chain = proj
             .chains
             .get_mut(draft.chain_index)
             .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
@@ -274,7 +274,7 @@ pub(crate) fn persist_block_editor_draft(
     }
     replace_project_chains(
         project_chains,
-        &session.project,
+        &*session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
     );

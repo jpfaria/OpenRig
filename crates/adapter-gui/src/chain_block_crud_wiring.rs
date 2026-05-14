@@ -141,25 +141,29 @@ pub(crate) fn wire(
                 );
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
+            let (block_index, new_enabled, chain_id) = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                // Convert UI index to real block index from current chain state
+                let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
+                log::info!(
+                    "on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}",
+                    chain_index,
+                    ui_block_index,
+                    block_index
+                );
+                let Some(block) = chain.blocks.get_mut(block_index) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
+                    return;
+                };
+                block.enabled = !block.enabled;
+                let new_enabled = block.enabled;
+                let chain_id = chain.id.clone();
+                (block_index, new_enabled, chain_id)
             };
-            // Convert UI index to real block index from current chain state
-            let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
-            log::info!(
-                "on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}",
-                chain_index,
-                ui_block_index,
-                block_index
-            );
-            let Some(block) = chain.blocks.get_mut(block_index) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
-                return;
-            };
-            block.enabled = !block.enabled;
-            let new_enabled = block.enabled;
-            let chain_id = chain.id.clone();
             // Keep block_editor_draft in sync to prevent stale persist from reverting
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
                 if draft.chain_index == chain_index as usize
@@ -176,16 +180,20 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
-            let chain_ref = session.project.chains.get(chain_index as usize);
-            *selected_block.borrow_mut() = Some(SelectedBlock {
+            let selected = SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index,
-            });
-            set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
+            };
+            *selected_block.borrow_mut() = Some(selected);
+            {
+                let proj = session.project.borrow();
+                let chain_ref = proj.chains.get(chain_index as usize);
+                set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
+            }
             sync_project_dirty(
                 &window,
                 session,
@@ -220,7 +228,8 @@ pub(crate) fn wire(
                 return;
             };
             let (chain_id, _insert_at) = {
-                let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_index as usize) else {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 };
@@ -258,7 +267,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

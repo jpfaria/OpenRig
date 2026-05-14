@@ -11,6 +11,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use project::block::InputBlock;
 
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
@@ -68,12 +69,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                     );
                     return;
                 };
+                let proj = session.project.borrow();
                 let index = index as usize;
-                if index >= session.project.chains.len() {
+                if index >= proj.chains.len() {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 }
-                session.project.chains[index]
+                proj.chains[index]
                     .description
                     .clone()
                     .unwrap_or_else(|| {
@@ -96,15 +98,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 return;
             };
             let index = index as usize;
-            if index >= session.project.chains.len() {
-                return;
-            }
-            let removed_chain_id = session.project.chains[index].id.clone();
-            session.project.chains.remove(index);
+            let removed_chain_id = {
+                let mut proj = session.project.borrow_mut();
+                if index >= proj.chains.len() {
+                    return;
+                }
+                let id = proj.chains[index].id.clone();
+                proj.chains.remove(index);
+                id
+            };
             remove_live_chain_runtime(&project_runtime, &removed_chain_id);
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -140,23 +146,35 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 return;
             };
             let index = index as usize;
-            let Some(chain) = session.project.chains.get(index) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
+            // Phase 1: read current state (immutable borrow)
+            let (will_enable, chain_id_for_conflict, our_inputs) = {
+                let proj = session.project.borrow();
+                let chain = match proj.chains.get(index) {
+                    Some(c) => c,
+                    None => {
+                        set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                        return;
+                    }
+                };
+                let will_enable = !chain.enabled;
+                log::info!(
+                    "on_toggle_chain_enabled: index={}, will_enable={}",
+                    index,
+                    will_enable
+                );
+                let our_inputs: Vec<(usize, InputBlock)> = chain
+                    .input_blocks()
+                    .into_iter()
+                    .map(|(i, ib)| (i, ib.clone()))
+                    .collect();
+                (will_enable, chain.id.clone(), our_inputs)
             };
-            let will_enable = !chain.enabled;
-            log::info!(
-                "on_toggle_chain_enabled: index={}, will_enable={}",
-                index,
-                will_enable
-            );
             // Check channel conflict before enabling
             if will_enable {
-                let chain_id = chain.id.clone();
-                let our_inputs = chain.input_blocks();
+                let proj = session.project.borrow();
                 let mut conflict = false;
-                'outer: for other in &session.project.chains {
-                    if other.id != chain_id && other.enabled {
+                'outer: for other in &proj.chains {
+                    if other.id != chain_id_for_conflict && other.enabled {
                         for (_, other_input) in other.input_blocks() {
                             for (_, our_input) in &our_inputs {
                                 let other_entries_conflict = other_input.entries.iter().any(|oe| {
@@ -187,18 +205,22 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                     return;
                 }
             }
-            let Some(chain) = session.project.chains.get_mut(index) else {
-                return;
+            // Phase 2: mutate (separate borrow_mut)
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(index) else {
+                    return;
+                };
+                chain.enabled = will_enable;
+                chain.id.clone()
             };
-            chain.enabled = will_enable;
-            let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -229,12 +251,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if !session.project.move_chain_up(index as usize) {
+            if !session.project.borrow_mut().move_chain_up(index as usize) {
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -265,12 +287,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if !session.project.move_chain_down(index as usize) {
+            if !session.project.borrow_mut().move_chain_down(index as usize) {
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

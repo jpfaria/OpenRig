@@ -79,53 +79,56 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
-            };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            // Update the parameter in the block
-            if let AudioBlockKind::Core(ref mut core) = block.kind {
-                core.params.insert(
-                    path.as_str(),
-                    domain::value_objects::ParameterValue::Float(value),
-                );
-            }
-            // Rebuild block kind with updated params
-            let Some(data) = block_editor_data(block) else {
-                return;
-            };
-            let params_set = data.params.clone();
-            match project::block::build_audio_block_kind(
-                &data.effect_type,
-                &data.model_id,
-                params_set,
-            ) {
-                Ok(kind) => {
-                    let id = block.id.clone();
-                    let enabled = block.enabled;
-                    block.kind = kind;
-                    block.id = id;
-                    block.enabled = enabled;
-                }
-                Err(e) => {
-                    log::error!("[compact] update param error: {e}");
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
                     return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                // Update the parameter in the block
+                if let AudioBlockKind::Core(ref mut core) = block.kind {
+                    core.params.insert(
+                        path.as_str(),
+                        domain::value_objects::ParameterValue::Float(value),
+                    );
                 }
-            }
-            let chain_id = chain.id.clone();
+                // Rebuild block kind with updated params
+                let Some(data) = block_editor_data(block) else {
+                    return;
+                };
+                let params_set = data.params.clone();
+                match project::block::build_audio_block_kind(
+                    &data.effect_type,
+                    &data.model_id,
+                    params_set,
+                ) {
+                    Ok(kind) => {
+                        let id = block.id.clone();
+                        let enabled = block.enabled;
+                        block.kind = kind;
+                        block.id = id;
+                        block.enabled = enabled;
+                    }
+                    Err(e) => {
+                        log::error!("[compact] update param error: {e}");
+                        return;
+                    }
+                }
+                chain.id.clone()
+            };
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -162,75 +165,78 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
-            };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            // Get the option value from the schema
-            let Some(data) = block_editor_data(block) else {
-                return;
-            };
-            let schema =
-                match project::block::schema_for_block_model(&data.effect_type, &data.model_id) {
-                    Ok(s) => s,
-                    Err(_) => return,
-                };
-            let Some(param_spec) = schema.parameters.iter().find(|p| p.path == path.as_str())
-            else {
-                return;
-            };
-            let option_value = match &param_spec.domain {
-                block_core::param::ParameterDomain::Enum { options } => {
-                    options.get(option_index as usize).map(|o| o.value.clone())
-                }
-                _ => None,
-            };
-            let Some(value) = option_value else {
-                return;
-            };
-            // Update param
-            if let AudioBlockKind::Core(ref mut core) = block.kind {
-                core.params.insert(
-                    path.as_str(),
-                    domain::value_objects::ParameterValue::String(value),
-                );
-            }
-            // Rebuild
-            let Some(data) = block_editor_data(block) else {
-                return;
-            };
-            let params_set = data.params.clone();
-            match project::block::build_audio_block_kind(
-                &data.effect_type,
-                &data.model_id,
-                params_set,
-            ) {
-                Ok(kind) => {
-                    let id = block.id.clone();
-                    let enabled = block.enabled;
-                    block.kind = kind;
-                    block.id = id;
-                    block.enabled = enabled;
-                }
-                Err(e) => {
-                    log::error!("[compact] select option error: {e}");
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
                     return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                // Get the option value from the schema
+                let Some(data) = block_editor_data(block) else {
+                    return;
+                };
+                let schema =
+                    match project::block::schema_for_block_model(&data.effect_type, &data.model_id) {
+                        Ok(s) => s,
+                        Err(_) => return,
+                    };
+                let Some(param_spec) = schema.parameters.iter().find(|p| p.path == path.as_str())
+                else {
+                    return;
+                };
+                let option_value = match &param_spec.domain {
+                    block_core::param::ParameterDomain::Enum { options } => {
+                        options.get(option_index as usize).map(|o| o.value.clone())
+                    }
+                    _ => None,
+                };
+                let Some(value) = option_value else {
+                    return;
+                };
+                // Update param
+                if let AudioBlockKind::Core(ref mut core) = block.kind {
+                    core.params.insert(
+                        path.as_str(),
+                        domain::value_objects::ParameterValue::String(value),
+                    );
                 }
-            }
-            let chain_id = chain.id.clone();
+                // Rebuild
+                let Some(data) = block_editor_data(block) else {
+                    return;
+                };
+                let params_set = data.params.clone();
+                match project::block::build_audio_block_kind(
+                    &data.effect_type,
+                    &data.model_id,
+                    params_set,
+                ) {
+                    Ok(kind) => {
+                        let id = block.id.clone();
+                        let enabled = block.enabled;
+                        block.kind = kind;
+                        block.id = id;
+                        block.enabled = enabled;
+                    }
+                    Err(e) => {
+                        log::error!("[compact] select option error: {e}");
+                        return;
+                    }
+                }
+                chain.id.clone()
+            };
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -267,53 +273,56 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
-            };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            // Update the parameter in the block
-            if let AudioBlockKind::Core(ref mut core) = block.kind {
-                core.params.insert(
-                    path.as_str(),
-                    domain::value_objects::ParameterValue::Bool(value),
-                );
-            }
-            // Rebuild block kind with updated params
-            let Some(data) = block_editor_data(block) else {
-                return;
-            };
-            let params_set = data.params.clone();
-            match project::block::build_audio_block_kind(
-                &data.effect_type,
-                &data.model_id,
-                params_set,
-            ) {
-                Ok(kind) => {
-                    let id = block.id.clone();
-                    let enabled = block.enabled;
-                    block.kind = kind;
-                    block.id = id;
-                    block.enabled = enabled;
-                }
-                Err(e) => {
-                    log::error!("[compact] update bool param error: {e}");
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
                     return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                // Update the parameter in the block
+                if let AudioBlockKind::Core(ref mut core) = block.kind {
+                    core.params.insert(
+                        path.as_str(),
+                        domain::value_objects::ParameterValue::Bool(value),
+                    );
                 }
-            }
-            let chain_id = chain.id.clone();
+                // Rebuild block kind with updated params
+                let Some(data) = block_editor_data(block) else {
+                    return;
+                };
+                let params_set = data.params.clone();
+                match project::block::build_audio_block_kind(
+                    &data.effect_type,
+                    &data.model_id,
+                    params_set,
+                ) {
+                    Ok(kind) => {
+                        let id = block.id.clone();
+                        let enabled = block.enabled;
+                        block.kind = kind;
+                        block.id = id;
+                        block.enabled = enabled;
+                    }
+                    Err(e) => {
+                        log::error!("[compact] update bool param error: {e}");
+                        return;
+                    }
+                }
+                chain.id.clone()
+            };
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,

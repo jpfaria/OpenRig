@@ -85,11 +85,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             return;
         };
         let ci = chain_index as usize;
-        let Some(chain) = session.project.chains.get(ci) else {
-            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-            return;
-        };
-
         let compact_win = match CompactChainViewWindow::new() {
             Ok(w) => w,
             Err(e) => {
@@ -97,18 +92,24 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 return;
             }
         };
-        let title = chain
-            .description
-            .clone()
-            .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = ci + 1).to_string());
-        compact_win.set_chain_title(title.into());
-        compact_win.set_chain_index(chain_index);
-        compact_win.set_chain_enabled(chain.enabled);
-        compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
-            block_type_picker_items(&chain.instrument),
-        ))));
-
-        let blocks = build_compact_blocks(&session.project, ci);
+        {
+            let proj = session.project.borrow();
+            let Some(chain) = proj.chains.get(ci) else {
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                return;
+            };
+            let title = chain
+                .description
+                .clone()
+                .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = ci + 1).to_string());
+            compact_win.set_chain_title(title.into());
+            compact_win.set_chain_index(chain_index);
+            compact_win.set_chain_enabled(chain.enabled);
+            compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
+                block_type_picker_items(&chain.instrument),
+            ))));
+        }
+        let blocks = build_compact_blocks(&*session.project.borrow(), ci);
         let compact_blocks = Rc::new(VecModel::from(blocks));
         compact_win.set_compact_blocks(ModelRc::from(compact_blocks.clone()));
         drop(session_borrow);
@@ -234,7 +235,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 // because on_select_chain_block now expects UI indices
                 let session_borrow = project_session_detail.borrow();
                 let ui_bi = if let Some(session) = session_borrow.as_ref() {
-                    if let Some(chain) = session.project.chains.get(ci as usize) {
+                    let proj = session.project.borrow();
+                    if let Some(chain) = proj.chains.get(ci as usize) {
                         real_block_index_to_ui(chain, bi as usize)
                             .map(|i| i as i32)
                             .unwrap_or(bi)

@@ -91,12 +91,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title = project_title_for_path(Some(&canonical_path), &session.project);
-                    let display_name = project_display_name(&session.project);
+                    let title = project_title_for_path(
+                        Some(&canonical_path),
+                        &*session.project.borrow(),
+                    );
+                    let display_name = project_display_name(&*session.project.borrow());
                     stop_project_runtime(&project_runtime);
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
                     );
@@ -120,7 +123,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         project_session
                             .borrow()
                             .as_ref()
-                            .and_then(|session| session.project.name.clone())
+                            .and_then(|session| session.project.borrow().name.clone())
                             .unwrap_or_default()
                             .into(),
                     );
@@ -186,11 +189,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             }
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             stop_project_runtime(&project_runtime);
-            let mut session = create_new_project_session(&project_paths.default_config_path);
-            session.project.name = Some(name.clone());
+            let session = create_new_project_session(&project_paths.default_config_path);
+            session.project.borrow_mut().name = Some(name.clone());
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -269,7 +272,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
-                        &project_display_name(&session.project),
+                        &project_display_name(&*session.project.borrow()),
                     );
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
@@ -277,10 +280,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         window.get_recent_project_search().as_str(),
                     ));
                     window.set_project_title(
-                        project_title_for_path(Some(&canonical_path), &session.project).into(),
+                        project_title_for_path(
+                            Some(&canonical_path),
+                            &*session.project.borrow(),
+                        )
+                        .into(),
                     );
                     window.set_project_name_draft(
-                        session.project.name.clone().unwrap_or_default().into(),
+                        session.project.borrow().name.clone().unwrap_or_default().into(),
                     );
                     window.set_project_path_label(
                         rust_i18n::t!("status-project-path-prefix", path = project_path.display())

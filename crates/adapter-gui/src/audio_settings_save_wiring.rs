@@ -147,14 +147,17 @@ pub(crate) fn wire(
                             // On Linux/JACK this will restart jackd if sample
                             // rate or buffer size changed.
                             if let Some(session) = project_session.borrow_mut().as_mut() {
-                                session.project.device_settings = build_device_settings_from_gui(
-                                    &settings.input_devices,
-                                    &settings.output_devices,
-                                );
-                                if let Err(e) = infra_cpal::apply_device_settings(
-                                    &session.project.device_settings,
-                                ) {
-                                    log::warn!("apply_device_settings failed: {e}");
+                                {
+                                    let mut proj = session.project.borrow_mut();
+                                    proj.device_settings = build_device_settings_from_gui(
+                                        &settings.input_devices,
+                                        &settings.output_devices,
+                                    );
+                                    if let Err(e) =
+                                        infra_cpal::apply_device_settings(&proj.device_settings)
+                                    {
+                                        log::warn!("apply_device_settings failed: {e}");
+                                    }
                                 }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
@@ -194,12 +197,13 @@ pub(crate) fn wire(
                         );
                         return;
                     };
-                    session.project.device_settings =
-                        project_device_settings_from_rows(project_device_settings);
-                    if let Err(e) =
-                        infra_cpal::apply_device_settings(&session.project.device_settings)
                     {
-                        log::warn!("apply_device_settings failed: {e}");
+                        let mut proj = session.project.borrow_mut();
+                        proj.device_settings =
+                            project_device_settings_from_rows(project_device_settings);
+                        if let Err(e) = infra_cpal::apply_device_settings(&proj.device_settings) {
+                            log::warn!("apply_device_settings failed: {e}");
+                        }
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         set_status_error(&window, &toast_timer, &error.to_string());
@@ -207,13 +211,16 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
                     );
                     window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project)
-                            .into(),
+                        project_title_for_path(
+                            session.project_path.as_ref(),
+                            &*session.project.borrow(),
+                        )
+                        .into(),
                     );
                     sync_project_dirty(
                         &window,
@@ -301,12 +308,13 @@ pub(crate) fn wire(
                         );
                         return;
                     };
-                    session.project.device_settings =
-                        project_device_settings_from_rows(project_device_settings);
-                    if let Err(e) =
-                        infra_cpal::apply_device_settings(&session.project.device_settings)
                     {
-                        log::warn!("apply_device_settings failed: {e}");
+                        let mut proj = session.project.borrow_mut();
+                        proj.device_settings =
+                            project_device_settings_from_rows(project_device_settings);
+                        if let Err(e) = infra_cpal::apply_device_settings(&proj.device_settings) {
+                            log::warn!("apply_device_settings failed: {e}");
+                        }
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
@@ -314,13 +322,16 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
                     );
                     window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project)
-                            .into(),
+                        project_title_for_path(
+                            session.project_path.as_ref(),
+                            &*session.project.borrow(),
+                        )
+                        .into(),
                     );
                     sync_project_dirty(
                         &window,

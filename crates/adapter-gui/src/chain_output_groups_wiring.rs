@@ -262,25 +262,32 @@ pub(crate) fn wire(
                 .collect();
 
             if let Some(chain_idx) = editing_index {
-                if let Some(chain) = session.project.chains.get_mut(chain_idx) {
-                    // Find target block: specific index or last OutputBlock
-                    let target_idx = io_block_idx.unwrap_or_else(|| {
-                        chain
-                            .blocks
-                            .iter()
-                            .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-                            .unwrap_or(chain.blocks.len().saturating_sub(1))
-                    });
-                    if let Some(block) = chain.blocks.get_mut(target_idx) {
-                        if let AudioBlockKind::Output(ref mut ob) = block.kind {
-                            ob.entries = new_entries;
+                let chain_id_result = {
+                    let mut proj = session.project.borrow_mut();
+                    if let Some(chain) = proj.chains.get_mut(chain_idx) {
+                        // Find target block: specific index or last OutputBlock
+                        let target_idx = io_block_idx.unwrap_or_else(|| {
+                            chain
+                                .blocks
+                                .iter()
+                                .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+                                .unwrap_or(chain.blocks.len().saturating_sub(1))
+                        });
+                        if let Some(block) = chain.blocks.get_mut(target_idx) {
+                            if let AudioBlockKind::Output(ref mut ob) = block.kind {
+                                ob.entries = new_entries;
+                            }
                         }
+                        if let Err(msg) = chain.validate_channel_conflicts() {
+                            groups_window.set_status_message(msg.into());
+                            return;
+                        }
+                        Some(chain.id.clone())
+                    } else {
+                        None
                     }
-                    if let Err(msg) = chain.validate_channel_conflicts() {
-                        groups_window.set_status_message(msg.into());
-                        return;
-                    }
-                    let chain_id = chain.id.clone();
+                };
+                if let Some(chain_id) = chain_id_result {
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &chain_id)
                     {
@@ -289,7 +296,7 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
                     );
@@ -351,21 +358,24 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let (block_enabled, chain_id) = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                block.enabled = !block.enabled;
+                (block.enabled, chain.id.clone())
             };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            block.enabled = !block.enabled;
-            gw.set_block_enabled(block.enabled);
-            let chain_id = chain.id.clone();
+            gw.set_block_enabled(block_enabled);
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("toggle I/O block enabled: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -412,19 +422,22 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                if block_idx < chain.blocks.len() {
+                    chain.blocks.remove(block_idx);
+                }
+                chain.id.clone()
             };
-            if block_idx < chain.blocks.len() {
-                chain.blocks.remove(block_idx);
-            }
-            let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete I/O block: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

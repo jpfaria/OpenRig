@@ -306,38 +306,42 @@ pub(crate) fn wire(
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
+            let (mut draft, inputs) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
+                // Only show entries from the FIRST InputBlock (position 0 chip)
+                let first_input = chain.first_input();
+                let inputs: Vec<InputGroupDraft> = first_input
+                    .map(|ib| {
+                        ib.entries
+                            .iter()
+                            .map(|e| InputGroupDraft {
+                                device_id: if e.device_id.0.is_empty() {
+                                    None
+                                } else {
+                                    Some(e.device_id.0.clone())
+                                },
+                                channels: e.channels.clone(),
+                                mode: e.mode,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_else(|| {
+                        vec![InputGroupDraft {
+                            device_id: None,
+                            channels: Vec::new(),
+                            mode: ChainInputMode::Mono,
+                        }]
+                    });
+                let draft = chain_draft_from_chain(index as usize, chain);
+                (draft, inputs)
             };
-            let Some(chain) = session.project.chains.get(index as usize) else {
-                return;
-            };
-            // Only show entries from the FIRST InputBlock (position 0 chip)
-            let first_input = chain.first_input();
-            let inputs: Vec<InputGroupDraft> = first_input
-                .map(|ib| {
-                    ib.entries
-                        .iter()
-                        .map(|e| InputGroupDraft {
-                            device_id: if e.device_id.0.is_empty() {
-                                None
-                            } else {
-                                Some(e.device_id.0.clone())
-                            },
-                            channels: e.channels.clone(),
-                            mode: e.mode,
-                        })
-                        .collect()
-                })
-                .unwrap_or_else(|| {
-                    vec![InputGroupDraft {
-                        device_id: None,
-                        channels: Vec::new(),
-                        mode: ChainInputMode::Mono,
-                    }]
-                });
-            let mut draft = chain_draft_from_chain(index as usize, chain);
             draft.inputs = inputs;
             let (input_items, _) = build_io_group_items(&draft, &fresh_input, &fresh_output);
             let groups_model = ModelRc::from(Rc::new(VecModel::from(input_items)));
@@ -382,38 +386,42 @@ pub(crate) fn wire(
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
+            let (mut draft, outputs) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
+                // Only show entries from the LAST OutputBlock (fixed output chip)
+                let last_output = chain.last_output();
+                let outputs: Vec<OutputGroupDraft> = last_output
+                    .map(|ob| {
+                        ob.entries
+                            .iter()
+                            .map(|e| OutputGroupDraft {
+                                device_id: if e.device_id.0.is_empty() {
+                                    None
+                                } else {
+                                    Some(e.device_id.0.clone())
+                                },
+                                channels: e.channels.clone(),
+                                mode: e.mode,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_else(|| {
+                        vec![OutputGroupDraft {
+                            device_id: None,
+                            channels: Vec::new(),
+                            mode: ChainOutputMode::Stereo,
+                        }]
+                    });
+                let draft = chain_draft_from_chain(index as usize, chain);
+                (draft, outputs)
             };
-            let Some(chain) = session.project.chains.get(index as usize) else {
-                return;
-            };
-            // Only show entries from the LAST OutputBlock (fixed output chip)
-            let last_output = chain.last_output();
-            let outputs: Vec<OutputGroupDraft> = last_output
-                .map(|ob| {
-                    ob.entries
-                        .iter()
-                        .map(|e| OutputGroupDraft {
-                            device_id: if e.device_id.0.is_empty() {
-                                None
-                            } else {
-                                Some(e.device_id.0.clone())
-                            },
-                            channels: e.channels.clone(),
-                            mode: e.mode,
-                        })
-                        .collect()
-                })
-                .unwrap_or_else(|| {
-                    vec![OutputGroupDraft {
-                        device_id: None,
-                        channels: Vec::new(),
-                        mode: ChainOutputMode::Stereo,
-                    }]
-                });
-            let mut draft = chain_draft_from_chain(index as usize, chain);
             draft.outputs = outputs;
             let (_, output_items) = build_io_group_items(&draft, &fresh_input, &fresh_output);
             let groups_model = ModelRc::from(Rc::new(VecModel::from(output_items)));

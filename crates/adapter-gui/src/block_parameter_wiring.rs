@@ -337,8 +337,8 @@ pub(crate) fn wire(
                     if draft.is_select {
                         if let Some(session) = project_session.borrow().as_ref() {
                             if let Some(block_index) = draft.block_index {
-                                if let Some(block) = session
-                                    .project
+                                let proj = session.project.borrow();
+                                if let Some(block) = proj
                                     .chains
                                     .get(draft.chain_index)
                                     .and_then(|chain| chain.blocks.get(block_index))

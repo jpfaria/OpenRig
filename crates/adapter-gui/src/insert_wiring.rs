@@ -200,21 +200,24 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let (block_enabled, chain_id) = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                block.enabled = !block.enabled;
+                (block.enabled, chain.id.clone())
             };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            block.enabled = !block.enabled;
-            iw.set_block_enabled(block.enabled);
-            let chain_id = chain.id.clone();
+            iw.set_block_enabled(block_enabled);
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("toggle insert block enabled: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -257,19 +260,22 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                if block_idx < chain.blocks.len() {
+                    chain.blocks.remove(block_idx);
+                }
+                chain.id.clone()
             };
-            if block_idx < chain.blocks.len() {
-                chain.blocks.remove(block_idx);
-            }
-            let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete insert block: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -336,25 +342,28 @@ pub(crate) fn wire(
                 let _ = iw.hide();
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                let _ = iw.hide();
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    let _ = iw.hide();
+                    return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    let _ = iw.hide();
+                    return;
+                };
+                if let AudioBlockKind::Insert(ref mut ib) = block.kind {
+                    ib.send = send_endpoint;
+                    ib.return_ = return_endpoint;
+                }
+                chain.id.clone()
             };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                let _ = iw.hide();
-                return;
-            };
-            if let AudioBlockKind::Insert(ref mut ib) = block.kind {
-                ib.send = send_endpoint;
-                ib.return_ = return_endpoint;
-            }
-            let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("insert save error: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

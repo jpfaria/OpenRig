@@ -23,7 +23,6 @@ use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
-use crate::session::ApplicationSession;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,31 +38,26 @@ fn make_core_block(id: &str, enabled: bool) -> AudioBlock {
     }
 }
 
-fn make_session(chain_id: &str, block: AudioBlock) -> ApplicationSession {
-    ApplicationSession {
-        project: Project {
-            name: None,
-            device_settings: vec![],
-            chains: vec![Chain {
-                id: ChainId(chain_id.to_string()),
-                description: None,
-                instrument: "electric_guitar".to_string(),
-                enabled: true,
-                blocks: vec![block],
-            }],
-        },
-    }
+fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId(chain_id.to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![block],
+        }],
+    }))
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 #[test]
 fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
-    let session = make_session("chain_0", make_core_block("blk_0", true));
-    let session_rc = Rc::new(RefCell::new(session));
-    let dispatcher = LocalDispatcher {
-        project_session: Rc::clone(&session_rc),
-    };
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
         chain: ChainId("chain_0".to_string()),
@@ -87,18 +81,15 @@ fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
         events[0]
     );
     assert!(
-        !session_rc.borrow().project.chains[0].blocks[0].enabled,
+        !project.borrow().chains[0].blocks[0].enabled,
         "block should be disabled after toggle"
     );
 }
 
 #[test]
 fn toggle_block_enabled_non_existent_block_returns_err_no_mutation() {
-    let session = make_session("chain_0", make_core_block("blk_0", true));
-    let session_rc = Rc::new(RefCell::new(session));
-    let dispatcher = LocalDispatcher {
-        project_session: Rc::clone(&session_rc),
-    };
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
         chain: ChainId("chain_0".to_string()),
@@ -107,18 +98,15 @@ fn toggle_block_enabled_non_existent_block_returns_err_no_mutation() {
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     assert!(
-        session_rc.borrow().project.chains[0].blocks[0].enabled,
+        project.borrow().chains[0].blocks[0].enabled,
         "block must not be mutated when block is not found"
     );
 }
 
 #[test]
 fn toggle_block_enabled_non_existent_chain_returns_err_no_mutation() {
-    let session = make_session("chain_0", make_core_block("blk_0", true));
-    let session_rc = Rc::new(RefCell::new(session));
-    let dispatcher = LocalDispatcher {
-        project_session: Rc::clone(&session_rc),
-    };
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
         chain: ChainId("chain_MISSING".to_string()),
@@ -127,7 +115,7 @@ fn toggle_block_enabled_non_existent_chain_returns_err_no_mutation() {
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert!(
-        session_rc.borrow().project.chains[0].blocks[0].enabled,
+        project.borrow().chains[0].blocks[0].enabled,
         "block must not be mutated when chain is not found"
     );
 }

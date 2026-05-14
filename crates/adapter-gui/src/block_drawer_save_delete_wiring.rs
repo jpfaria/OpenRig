@@ -122,7 +122,7 @@ pub(crate) fn wire(
                 if let Some(cw) = weak_cw.upgrade() {
                     let session_borrow = project_session_compact.borrow();
                     if let Some(session) = session_borrow.as_ref() {
-                        let blocks = build_compact_blocks(&session.project, *ci);
+                        let blocks = build_compact_blocks(&*session.project.borrow(), *ci);
                         cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     }
                 }

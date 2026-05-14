@@ -120,12 +120,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title = project_title_for_path(Some(&canonical_path), &session.project);
-                    let display_name = project_display_name(&session.project);
+                    let title = project_title_for_path(Some(&canonical_path), &*session.project.borrow());
+                    let display_name = project_display_name(&*session.project.borrow());
                     stop_project_runtime(&project_runtime);
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
                     );
@@ -149,7 +149,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         project_session
                             .borrow()
                             .as_ref()
-                            .and_then(|session| session.project.name.clone())
+                            .and_then(|session| session.project.borrow().name.clone())
                             .unwrap_or_default()
                             .into(),
                     );

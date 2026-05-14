@@ -82,15 +82,17 @@ pub(crate) fn wire(
             };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let (new_enabled, chain_id) = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                block.enabled = !block.enabled;
+                (block.enabled, chain.id.clone())
             };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            block.enabled = !block.enabled;
-            let new_enabled = block.enabled;
-            let chain_id = chain.id.clone();
             // Keep block_editor_draft in sync to prevent stale persist from reverting
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
                 if draft.chain_index == chain_idx && draft.block_index == Some(block_idx) {
@@ -103,12 +105,12 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
             // Refresh compact blocks
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -148,12 +150,15 @@ pub(crate) fn wire(
                 return;
             };
             let chain_idx = ci as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let (will_enable, chain_id) = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                let will_enable = !chain.enabled;
+                chain.enabled = will_enable;
+                (will_enable, chain.id.clone())
             };
-            let will_enable = !chain.enabled;
-            chain.enabled = will_enable;
-            let chain_id = chain.id.clone();
 
             // On Linux: always start JACK asynchronously when enabling a chain.
             // This prevents blocking the UI thread regardless of whether JACK
@@ -163,7 +168,7 @@ pub(crate) fn wire(
                 // Pass the full per-device settings list; the background
                 // thread will look up each card's configuration by
                 // device_id when launching jackd for it.
-                let device_settings = session.project.device_settings.clone();
+                let device_settings = session.project.borrow().device_settings.clone();
                 drop(session_borrow);
 
                 jack_starting.set(true);
@@ -212,8 +217,12 @@ pub(crate) fn wire(
                                 // Revert chain.enabled
                                 let mut sb = project_session_t.borrow_mut();
                                 if let Some(s) = sb.as_mut() {
-                                    if let Some(c) =
-                                        s.project.chains.iter_mut().find(|c| c.id == chain_id)
+                                    if let Some(c) = s
+                                        .project
+                                        .borrow_mut()
+                                        .chains
+                                        .iter_mut()
+                                        .find(|c| c.id == chain_id)
                                     {
                                         c.enabled = false;
                                     }
@@ -237,15 +246,19 @@ pub(crate) fn wire(
                                     sync_live_chain_runtime(&project_runtime_t, session, &chain_id)
                                 {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
-                                    if let Some(c) =
-                                        session.project.chains.iter_mut().find(|c| c.id == chain_id)
+                                    if let Some(c) = session
+                                        .project
+                                        .borrow_mut()
+                                        .chains
+                                        .iter_mut()
+                                        .find(|c| c.id == chain_id)
                                     {
                                         c.enabled = false;
                                     }
                                 } else {
                                     replace_project_chains(
                                         &project_chains_t,
-                                        &session.project,
+                                        &*session.project.borrow(),
                                         &*input_chain_devices_t.borrow(),
                                         &*output_chain_devices_t.borrow(),
                                     );
@@ -266,7 +279,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
@@ -303,7 +316,8 @@ pub(crate) fn wire(
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                let Some(chain) = session.project.chains.get(chain_idx) else {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
                 chain.instrument.clone()
@@ -315,7 +329,8 @@ pub(crate) fn wire(
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                let Some(chain) = session.project.chains.get(chain_idx) else {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
                 let Some(block) = chain.blocks.get(block_idx) else {
@@ -368,30 +383,32 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                    return;
+                };
+                let block_id = block.id.clone();
+                let enabled = block.enabled;
+                block.kind = kind;
+                block.id = block_id;
+                block.enabled = enabled;
+                chain.id.clone()
             };
-            let Some(block) = chain.blocks.get_mut(block_idx) else {
-                return;
-            };
-            let block_id = block.id.clone();
-            let enabled = block.enabled;
-            block.kind = kind;
-            block.id = block_id;
-            block.enabled = enabled;
-
-            let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -429,24 +446,27 @@ pub(crate) fn wire(
             };
             let chain_idx = ci as usize;
             let block_idx = bi as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+                    return;
+                };
+                if block_idx >= chain.blocks.len() {
+                    return;
+                }
+                chain.blocks.remove(block_idx);
+                chain.id.clone()
             };
-            if block_idx >= chain.blocks.len() {
-                return;
-            }
-            chain.blocks.remove(block_idx);
-            let chain_id = chain.id.clone();
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] remove-block runtime sync: {}", e);
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -496,20 +516,23 @@ pub(crate) fn wire(
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else { return; };
             let chain_idx = ci as usize;
-            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
-            let block_count = chain.blocks.len();
-            if from_index >= block_count { return; }
-            let block = chain.blocks.remove(from_index);
-            let mut normalized_before = real_before;
-            if normalized_before > from_index { normalized_before -= 1; }
-            let insert_at = normalized_before.min(chain.blocks.len());
-            chain.blocks.insert(insert_at, block);
-            let chain_id = chain.id.clone();
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(chain_idx) else { return; };
+                let block_count = chain.blocks.len();
+                if from_index >= block_count { return; }
+                let block = chain.blocks.remove(from_index);
+                let mut normalized_before = real_before;
+                if normalized_before > from_index { normalized_before -= 1; }
+                let insert_at = normalized_before.min(chain.blocks.len());
+                chain.blocks.insert(insert_at, block);
+                chain.id.clone()
+            };
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] reorder-block runtime sync: {}", e);
             }
-            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            let blocks = build_compact_blocks(&session.project, chain_idx);
+            replace_project_chains(&project_chains, &*session.project.borrow(), &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
         });

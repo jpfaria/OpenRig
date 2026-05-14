@@ -121,7 +121,8 @@ pub(crate) fn start(
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match rt.try_reconnect(&session.project) {
+                let proj_borrow = session.project.borrow();
+                match rt.try_reconnect(&*proj_borrow) {
                     Ok(true) => {
                         *is_disconnected = false;
                         set_status_info(

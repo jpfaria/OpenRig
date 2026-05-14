@@ -1,16 +1,22 @@
 //! `LocalDispatcher` — in-process implementation of `CommandDispatcher`.
 //!
-//! Holds the project session via interior mutability so `dispatch` can take
-//! `&self` (required by the trait; callers may hold multiple references).
+//! Holds the project via `Rc<RefCell<Project>>` for interior mutability so
+//! `dispatch` can take `&self` (required by the trait; callers may hold
+//! multiple references to the same dispatcher or to the same project).
 //!
-//! **Current state (Phase 1 skeleton):** every `Command` arm is
-//! `unimplemented!("phase-1 task pending")`. This is intentional — no
-//! production caller dispatches these arms yet because adapter-gui has not
-//! been migrated. Tasks 2..N will fill the arms one by one, each accompanied
-//! by its own failing test that drives the implementation (TDD).
+//! `adapter-gui`'s `ProjectSession` shares its project handle with this
+//! dispatcher so both sides always see the same `Project` data with no extra
+//! sync step.
+//!
+//! **Current state (Phase 1 skeleton):** every `Command` arm except
+//! `ToggleBlockEnabled` is `unimplemented!("phase-1 task pending")`.  This is
+//! intentional — no production caller dispatches those arms yet because
+//! adapter-gui migration is ongoing.  Tasks 4..N will fill the arms one by
+//! one, each accompanied by its own failing test that drives the
+//! implementation (TDD).
 //!
 //! `unimplemented!()` is acceptable here because the arms are unreachable
-//! from production code in this state. The forbidden pattern is
+//! from production code in this state.  The forbidden pattern is
 //! `unimplemented!()` on arms that live callers can reach.
 
 use std::cell::RefCell;
@@ -18,25 +24,29 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
+use project::project::Project;
+
 use crate::command::Command;
 use crate::dispatcher::{CommandDispatcher, EventStream};
 use crate::event::Event;
-use crate::session::ApplicationSession;
 
-/// In-process dispatcher backed by an `ApplicationSession`.
+/// In-process dispatcher backed by a shared `Project`.
 ///
 /// Uses `Rc<RefCell<_>>` for interior mutability on the main (UI) thread.
 /// This is NOT `Send` — see the note in `dispatcher.rs` about deferred
 /// `Send + Sync` bounds.
 pub struct LocalDispatcher {
-    pub project_session: Rc<RefCell<ApplicationSession>>,
+    project: Rc<RefCell<Project>>,
 }
 
 impl LocalDispatcher {
-    pub fn new(session: ApplicationSession) -> Self {
-        Self {
-            project_session: Rc::new(RefCell::new(session)),
-        }
+    /// Create a dispatcher that operates on the given shared `Project` handle.
+    ///
+    /// The caller (e.g. `adapter-gui`'s `ProjectSession`) should `Rc::clone`
+    /// its own project handle and pass it here so both sides share the same
+    /// allocation.
+    pub fn new(project: Rc<RefCell<Project>>) -> Self {
+        Self { project }
     }
 }
 
@@ -59,9 +69,8 @@ impl CommandDispatcher for LocalDispatcher {
                 unimplemented!("phase-1 task pending")
             }
             Command::ToggleBlockEnabled { chain, block } => {
-                let mut session = self.project_session.borrow_mut();
-                let Some(target_chain) = session.project.chains.iter_mut().find(|c| c.id == chain)
-                else {
+                let mut project = self.project.borrow_mut();
+                let Some(target_chain) = project.chains.iter_mut().find(|c| c.id == chain) else {
                     return Err(anyhow::anyhow!("chain not found: {:?}", chain));
                 };
                 let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)

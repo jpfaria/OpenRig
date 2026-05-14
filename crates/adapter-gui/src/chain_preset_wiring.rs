@@ -75,16 +75,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 );
                 return;
             };
-            let Some(chain) = session.project.chains.get(index as usize) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
+            let (chain_desc, chain_clone) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    drop(proj);
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                (
+                    chain.description.clone().unwrap_or_else(|| format!("chain_{}", index + 1)),
+                    chain.clone(),
+                )
             };
-            let default_name = chain
-                .description
-                .clone()
-                .unwrap_or_else(|| format!("chain_{}", index + 1))
-                .replace(' ', "_")
-                .to_lowercase();
+            let default_name = chain_desc.replace(' ', "_").to_lowercase();
             let path = if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog
                 let _ = std::fs::create_dir_all(&session.presets_path);
@@ -102,7 +105,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 };
                 p
             };
-            match save_chain_blocks_to_preset(chain, &path) {
+            match save_chain_blocks_to_preset(&chain_clone, &path) {
                 Ok(()) => {
                     set_status_info(&window, &toast_timer, &rust_i18n::t!("status-preset-saved"))
                 }
@@ -177,33 +180,40 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    if let Some(chain) = session.project.chains.get_mut(index as usize) {
-                        // Preserve I/O blocks (device config is per-machine, not per-preset).
-                        // Keep the first Input and last Output; replace everything between.
-                        let first_input = chain
-                            .blocks
-                            .iter()
-                            .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
-                            .cloned();
-                        let last_output = chain
-                            .blocks
-                            .iter()
-                            .rev()
-                            .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
-                            .cloned();
-                        let mut new_blocks: Vec<AudioBlock> = Vec::new();
-                        if let Some(input) = first_input {
-                            new_blocks.push(input);
+                    let chain_id_result = {
+                        let mut proj = session.project.borrow_mut();
+                        if let Some(chain) = proj.chains.get_mut(index as usize) {
+                            // Preserve I/O blocks (device config is per-machine, not per-preset).
+                            // Keep the first Input and last Output; replace everything between.
+                            let first_input = chain
+                                .blocks
+                                .iter()
+                                .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+                                .cloned();
+                            let last_output = chain
+                                .blocks
+                                .iter()
+                                .rev()
+                                .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
+                                .cloned();
+                            let mut new_blocks: Vec<AudioBlock> = Vec::new();
+                            if let Some(input) = first_input {
+                                new_blocks.push(input);
+                            }
+                            new_blocks.extend(preset.blocks.into_iter().filter(|b| {
+                                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                            }));
+                            if let Some(output) = last_output {
+                                new_blocks.push(output);
+                            }
+                            chain.blocks = new_blocks;
+                            assign_new_block_ids(chain);
+                            Some(chain.id.clone())
+                        } else {
+                            None
                         }
-                        new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
-                        }));
-                        if let Some(output) = last_output {
-                            new_blocks.push(output);
-                        }
-                        chain.blocks = new_blocks;
-                        assign_new_block_ids(chain);
-                        let chain_id = chain.id.clone();
+                    };
+                    if let Some(chain_id) = chain_id_result {
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
@@ -212,7 +222,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                         replace_project_chains(
                             &project_chains,
-                            &session.project,
+                            &*session.project.borrow(),
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
                         );
@@ -259,31 +269,38 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             let chain_index = window.get_preset_picker_chain_index();
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    if let Some(chain) = session.project.chains.get_mut(chain_index as usize) {
-                        let first_input = chain
-                            .blocks
-                            .iter()
-                            .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
-                            .cloned();
-                        let last_output = chain
-                            .blocks
-                            .iter()
-                            .rev()
-                            .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
-                            .cloned();
-                        let mut new_blocks: Vec<AudioBlock> = Vec::new();
-                        if let Some(input) = first_input {
-                            new_blocks.push(input);
+                    let chain_id_result = {
+                        let mut proj = session.project.borrow_mut();
+                        if let Some(chain) = proj.chains.get_mut(chain_index as usize) {
+                            let first_input = chain
+                                .blocks
+                                .iter()
+                                .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+                                .cloned();
+                            let last_output = chain
+                                .blocks
+                                .iter()
+                                .rev()
+                                .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
+                                .cloned();
+                            let mut new_blocks: Vec<AudioBlock> = Vec::new();
+                            if let Some(input) = first_input {
+                                new_blocks.push(input);
+                            }
+                            new_blocks.extend(preset.blocks.into_iter().filter(|b| {
+                                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                            }));
+                            if let Some(output) = last_output {
+                                new_blocks.push(output);
+                            }
+                            chain.blocks = new_blocks;
+                            assign_new_block_ids(chain);
+                            Some(chain.id.clone())
+                        } else {
+                            None
                         }
-                        new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
-                        }));
-                        if let Some(output) = last_output {
-                            new_blocks.push(output);
-                        }
-                        chain.blocks = new_blocks;
-                        assign_new_block_ids(chain);
-                        let chain_id = chain.id.clone();
+                    };
+                    if let Some(chain_id) = chain_id_result {
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
@@ -292,7 +309,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                         replace_project_chains(
                             &project_chains,
-                            &session.project,
+                            &*session.project.borrow(),
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
                         );

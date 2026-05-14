@@ -94,16 +94,20 @@ pub(crate) fn wire(
                 log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else {
-                log_gui_message("block-drawer.delete", "Chain inválida.");
-                return;
+            let chain_id = {
+                let mut proj = session.project.borrow_mut();
+                let Some(chain) = proj.chains.get_mut(draft.chain_index) else {
+                    log_gui_message("block-drawer.delete", "Chain inválida.");
+                    return;
+                };
+                if block_index >= chain.blocks.len() {
+                    log_gui_message("block-drawer.delete", "Block inválido.");
+                    return;
+                }
+                let chain_id = chain.id.clone();
+                chain.blocks.remove(block_index);
+                chain_id
             };
-            if block_index >= chain.blocks.len() {
-                log_gui_message("block-drawer.delete", "Block inválido.");
-                return;
-            }
-            let chain_id = chain.id.clone();
-            chain.blocks.remove(block_index);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.delete: {error}");
                 set_status_error(&window, &toast_timer, &error.to_string());
@@ -111,7 +115,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

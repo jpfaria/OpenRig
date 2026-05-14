@@ -141,8 +141,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 editing_index,
                 draft.instrument
             );
-            let existing_chain =
-                editing_index.and_then(|index| session.project.chains.get(index).cloned());
+            let existing_chain = editing_index.and_then(|index| {
+                session.project.borrow().chains.get(index).cloned()
+            });
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
             if let Err(msg) = chain.validate_channel_conflicts() {
                 set_status_warning(&window, &toast_timer, &msg);
@@ -156,12 +157,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 editing_index
             );
             let chain_id = chain.id.clone();
-            if let Some(index) = editing_index {
-                if let Some(current) = session.project.chains.get_mut(index) {
-                    *current = chain;
+            {
+                let mut proj = session.project.borrow_mut();
+                if let Some(index) = editing_index {
+                    if let Some(current) = proj.chains.get_mut(index) {
+                        *current = chain;
+                    }
+                } else {
+                    proj.chains.push(chain);
                 }
-            } else {
-                session.project.chains.push(chain);
             }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
@@ -169,7 +173,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
