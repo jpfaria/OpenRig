@@ -1045,3 +1045,47 @@ fn k05_update_chain_runtime_state_propagates_volume() {
         "after update to volume=150, peak should be ≈0.6 (0.4 × 1.5); got {peak}"
     );
 }
+
+#[test]
+fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
+    // Reproduz exatamente o caminho que o slider dispara em produção:
+    // chain_row_wiring::on_chain_volume_changed → sync_live_chain_runtime →
+    // ProjectRuntimeController::upsert_chain → upsert_chain_with_resolved →
+    // RuntimeGraph::upsert_chain (chain já existe → update_chain_runtime_state).
+    //
+    // Se este test passar mas o app não responder ao slider, o bug está
+    // FORA do engine (Slint callback, Rust handler, ou outra camada).
+    let chain_v100 = unity_passthrough_chain("k06", 100.0);
+    let mut graph = crate::runtime_graph::RuntimeGraph {
+        chains: std::collections::HashMap::new(),
+    };
+
+    let runtime = graph
+        .upsert_chain(&chain_v100, SR, false, &[DEFAULT_ELASTIC_TARGET])
+        .expect("first upsert builds chain runtime");
+    assert!(
+        (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
+        "first upsert: volume_pct should be 100; got {}",
+        runtime.volume_pct()
+    );
+
+    // Slider arrasta de 100 pra 175. Handler atualiza chain.volume e
+    // re-upserta no graph. Como a chain já existe, vai pro path de
+    // update_chain_runtime_state — DEVE refletir sem teardown.
+    let mut chain_v175 = chain_v100.clone();
+    chain_v175.volume = 175.0;
+    let runtime_after = graph
+        .upsert_chain(&chain_v175, SR, false, &[DEFAULT_ELASTIC_TARGET])
+        .expect("re-upsert updates volume in place");
+    assert!(
+        Arc::ptr_eq(&runtime, &runtime_after),
+        "re-upsert with existing chain should return the SAME Arc, \
+         confirming update_chain_runtime_state ran (not rebuild)"
+    );
+    assert!(
+        (runtime_after.volume_pct() - 175.0).abs() < VOLUME_TOLERANCE,
+        "after re-upsert with chain.volume=175, runtime.volume_pct() \
+         should be 175; got {}",
+        runtime_after.volume_pct()
+    );
+}

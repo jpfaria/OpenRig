@@ -1580,3 +1580,65 @@ params:
         other => panic!("expected Core block, got {other:?}"),
     }
 }
+
+#[test]
+fn load_project_preserves_chain_volume_from_yaml() {
+    // Reproduz o bug do user (issue #440): chain YAML tem `volume: 175`
+    // mas o `into_chain()` hardcodava `volume: 100.0`, fazendo o valor
+    // do disco ser ignorado. Toda re-carga do projeto resetava o slider.
+    let temp_dir = tempdir().expect("temp dir should be created");
+    let project_path = temp_dir.path().join("project.yaml");
+    fs::write(
+        &project_path,
+        r#"
+chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 175
+    blocks: []
+"#,
+    )
+    .expect("write project");
+    let repo = YamlProjectRepository {
+        path: project_path,
+    };
+    let project = repo.load_current_project().expect("load: chain.volume");
+    assert_eq!(
+        project.chains.len(),
+        1,
+        "should parse the single chain"
+    );
+    assert!(
+        (project.chains[0].volume - 175.0).abs() < 0.01,
+        "chain.volume from YAML should be preserved; got {}",
+        project.chains[0].volume
+    );
+}
+
+#[test]
+fn load_project_defaults_chain_volume_to_100_when_absent() {
+    // Sem `volume:` no YAML, default = 100 (unity). Confirma compat
+    // pra projetos pré-#440 que não têm o field.
+    let temp_dir = tempdir().expect("temp dir should be created");
+    let project_path = temp_dir.path().join("project.yaml");
+    fs::write(
+        &project_path,
+        r#"
+chains:
+  - enabled: true
+    instrument: electric_guitar
+    blocks: []
+"#,
+    )
+    .expect("write project");
+    let repo = YamlProjectRepository {
+        path: project_path,
+    };
+    let project = repo.load_current_project().expect("load: chain.volume default");
+    assert_eq!(project.chains.len(), 1);
+    assert!(
+        (project.chains[0].volume - 100.0).abs() < 0.01,
+        "absent volume should default to 100; got {}",
+        project.chains[0].volume
+    );
+}
