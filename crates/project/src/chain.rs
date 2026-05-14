@@ -78,9 +78,9 @@ pub fn processing_layout_for_input_entry(entry: &InputEntry) -> ProcessingLayout
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Chain {
-    #[serde(skip)]
+    #[serde(skip, default = "ChainId::generate")]
     pub id: ChainId,
     #[serde(default)]
     pub description: Option<String>,

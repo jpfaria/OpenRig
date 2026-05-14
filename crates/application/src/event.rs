@@ -45,6 +45,23 @@ pub enum Event {
     /// An audio device changed (input or output selection mutated).
     DeviceChanged { chain: ChainId, block: BlockId },
 
+    // ── Chain-level events ────────────────────────────────────────────────────
+    /// A new chain was added to the project.
+    ChainAdded { chain: ChainId },
+
+    /// A chain was removed from the project.
+    ChainRemoved { chain: ChainId },
+
+    /// A chain's enabled state was changed.
+    ChainEnabledChanged { chain: ChainId, enabled: bool },
+
+    /// A chain was moved to a new position in the list.
+    ChainMoved { chain: ChainId, new_position: usize },
+
+    /// A chain's metadata (name, instrument, I/O) was updated.
+    ChainConfigured { chain: ChainId },
+
+    // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
 

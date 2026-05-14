@@ -54,8 +54,14 @@ pub fn build_default_block(
             }),
         });
     }
-    let schema = schema_for_block_model(effect_type, model_id)
-        .map_err(|e| anyhow!("unknown model '{}' for effect type '{}': {}", model_id, effect_type, e))?;
+    let schema = schema_for_block_model(effect_type, model_id).map_err(|e| {
+        anyhow!(
+            "unknown model '{}' for effect type '{}': {}",
+            model_id,
+            effect_type,
+            e
+        )
+    })?;
     let params = ParameterSet::default()
         .normalized_against(&schema)
         .map_err(|e| anyhow!("param normalisation failed for '{}': {}", model_id, e))?;
@@ -103,5 +109,8 @@ pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
             return Ok((*et).to_string());
         }
     }
-    Err(anyhow!("model_id '{}' not found in any known effect_type registry", model_id))
+    Err(anyhow!(
+        "model_id '{}' not found in any known effect_type registry",
+        model_id
+    ))
 }

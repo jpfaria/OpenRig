@@ -1,4 +1,6 @@
 pub mod block_factory;
+pub mod chain_factory;
+pub mod chain_validation;
 pub mod command;
 pub mod dispatcher;
 pub mod event;

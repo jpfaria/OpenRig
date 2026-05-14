@@ -15,6 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
+use project::chain::Chain;
 
 /// Every state change the UI or any controller can request.
 ///
@@ -117,6 +118,34 @@ pub enum Command {
     SaveInsertBlock { chain: ChainId, block: BlockId },
 
     // ── Chain CRUD ────────────────────────────────────────────────────────────
+    /// Add a fully-constructed chain to the project.
+    ///
+    /// The caller is responsible for building the chain (including I/O blocks)
+    /// before dispatching. Use `chain_factory::build_default_chain` as the
+    /// starting point.
+    ///
+    /// **Note:** `Chain` does not currently implement `JsonSchema` (it lacks
+    /// the `schemars` dependency in the `project` crate). The schema field is
+    /// skipped here; MCP/gRPC adapters that need the schema will need to add
+    /// `schemars` to `project` in a later task.
+    #[schemars(skip)]
+    AddChain {
+        #[schemars(skip)]
+        chain: Chain,
+    },
+
+    /// Replace an existing chain's metadata and I/O configuration.
+    ///
+    /// The caller supplies the fully-updated chain (preserving the original
+    /// `chain.id` so the dispatcher can locate and replace it).
+    ///
+    /// **Note:** Same `schemars` caveat as `AddChain`.
+    #[schemars(skip)]
+    ConfigureChain {
+        #[schemars(skip)]
+        chain: Chain,
+    },
+
     /// Validate and persist a chain draft (create or replace existing chain).
     SaveChain { chain: ChainId },
 
