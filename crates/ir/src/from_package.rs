@@ -9,7 +9,9 @@
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
+use block_core::{
+    wrap_with_output_gain_pct, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+};
 use plugin_loader::manifest::Backend;
 use plugin_loader::LoadedPackage;
 
@@ -46,17 +48,17 @@ pub fn build_from_package(
     let asset = IrAsset::load_from_wav(path_str)?;
     let channels = asset.channel_count();
     drop(asset);
-    match (layout, channels) {
-        (AudioChannelLayout::Mono, 1) => Ok(BlockProcessor::Mono(
-            build_mono_ir_processor_from_wav(path_str, sample_rate)?,
-        )),
-        (AudioChannelLayout::Stereo, 2) => Ok(BlockProcessor::Stereo(
-            build_stereo_ir_processor_from_wav(path_str, sample_rate)?,
-        )),
+    let processor = match (layout, channels) {
+        (AudioChannelLayout::Mono, 1) => {
+            BlockProcessor::Mono(build_mono_ir_processor_from_wav(path_str, sample_rate)?)
+        }
+        (AudioChannelLayout::Stereo, 2) => {
+            BlockProcessor::Stereo(build_stereo_ir_processor_from_wav(path_str, sample_rate)?)
+        }
         (AudioChannelLayout::Stereo, 1) => {
             let left = build_mono_ir_processor_from_wav(path_str, sample_rate)?;
             let right = build_mono_ir_processor_from_wav(path_str, sample_rate)?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoIr { left, right })))
+            BlockProcessor::Stereo(Box::new(DualMonoIr { left, right }))
         }
         (AudioChannelLayout::Mono, n) => bail!(
             "IR `{}` has {n} channels but block layout is Mono",
@@ -66,7 +68,15 @@ pub fn build_from_package(
             "IR `{}` has unsupported channel count {n}",
             package.manifest.id
         ),
-    }
+    };
+    // Issue #440: aplica `manifest.output_gain_pct` (baseline objetivo do
+    // audit) como wrapper linear pós-convolução. IR pura é gain-passive,
+    // mas o ganho efetivo perceptual varia bastante (cab/body shapers
+    // atenuam graves diferente) — manifest pct nivela.
+    Ok(wrap_with_output_gain_pct(
+        processor,
+        package.manifest.output_gain_pct,
+    ))
 }
 
 /// Register this crate's builder in the global package-builders table.
