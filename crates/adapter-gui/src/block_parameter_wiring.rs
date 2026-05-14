@@ -1,7 +1,7 @@
 //! Wiring for the block-drawer parameter edit callbacks.
 //!
 //! Owns the 7 callbacks that mutate parameters of the active block_editor_draft:
-//! - on_update_block_parameter_number_text — typed text → parsed f32
+//! - on_update_block_parameter_number_text — typed text → parsed f32 (dispatches Command)
 //! - on_toggle_block_drawer_enabled       — toggle the block's enabled flag
 //! - on_update_block_parameter_text       — string params
 //! - on_update_block_parameter_number     — numeric params
@@ -9,8 +9,9 @@
 //! - on_select_block_parameter_option     — enum/select params
 //! - on_pick_block_parameter_file         — file-picker params
 //!
-//! Each one updates the in-memory ParameterSet via the block_editor helpers
-//! and schedules a persist via schedule_block_editor_persist.
+//! `on_update_block_parameter_number_text` is migrated to dispatch via
+//! `Command::SetBlockParameterNumber`. The remaining callbacks still use the
+//! draft-based `schedule_block_editor_persist` flow (pending future tasks).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,6 +19,9 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use application::event::Event;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::{
@@ -28,9 +32,12 @@ use crate::block_editor::{
 };
 use crate::eq::compute_eq_curves;
 use crate::helpers::log_gui_message;
+use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
+    replace_project_chains,
 };
+use crate::runtime_lifecycle::sync_live_chain_runtime;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem,
@@ -84,39 +91,101 @@ pub(crate) fn wire(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_number_text(move |path, value_text| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // Parse the text value — adapter (UI) concern; kept here.
             let normalized = value_text.replace(',', ".");
-            let Ok(value) = normalized.parse::<f32>() else {
+            let Ok(value) = normalized.parse::<f64>() else {
                 log_gui_message("block-drawer.number-text", "Valor numérico inválido.");
                 return;
             };
-            set_block_parameter_number(&block_parameter_items, path.as_str(), value);
+            // Update the UI row immediately for visual feedback.
+            set_block_parameter_number(&block_parameter_items, path.as_str(), value as f32);
             window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.number-text",
-                        auto_save,
-                    );
+
+            // Only dispatch if editing an existing block (draft.block_index.is_some()).
+            let (chain_index, block_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                let Some(bi) = draft.block_index else {
+                    return;
+                };
+                (draft.chain_index, bi)
+            };
+
+            // Resolve chain_id / block_id from project indices.
+            let (chain_id, block_id) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
+            };
+
+            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+            let dispatch_ok = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                match session
+                    .dispatcher
+                    .dispatch(Command::SetBlockParameterNumber {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        path: path.to_string(),
+                        value,
+                    }) {
+                    Ok(events) => events
+                        .into_iter()
+                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-drawer.number-text dispatch: {e}");
+                        window.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
                 }
+            };
+            if !dispatch_ok {
+                return;
             }
+
+            // Sync audio runtime + refresh UI + mark dirty.
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("[adapter-gui] block-drawer.number-text runtime sync: {e}");
+                window.set_block_drawer_status_message(e.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     {

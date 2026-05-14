@@ -53,8 +53,22 @@ impl LocalDispatcher {
 impl CommandDispatcher for LocalDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetBlockParameterNumber { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::SetBlockParameterNumber {
+                chain,
+                block,
+                path,
+                value,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                project::block::param_writer::set_parameter_number(target_block, &path, value)?;
+                Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::SetBlockParameterBool { .. } => {
                 unimplemented!("phase-1 task pending")
