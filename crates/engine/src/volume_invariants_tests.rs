@@ -921,3 +921,127 @@ fn j02_user_clean_chain_blackface_only_signature() {
 fn _suppress_audio_frame_dead_code(f: AudioFrame) -> AudioFrame {
     f
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// K. preset.volume (issue #440)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Chain.volume é aplicado pelo engine no master output do
+// process_output_f32. Estes tests verificam:
+//   1. build_chain_runtime_state lê o chain.volume e seta o atomic.
+//   2. update_chain_runtime_state (chain edit) propaga o volume novo.
+//   3. process_output_f32 multiplica out pelo volume / 100.
+//
+// Sem esses tests, o handler Slint pode acionar o callback Rust e o
+// usuário não ouve diferença porque o engine não está propagando.
+
+const VOLUME_TOLERANCE: f32 = 0.01;
+
+fn unity_passthrough_chain(id: &str, volume: f32) -> Chain {
+    let mut chain = chain_with_blocks(
+        id,
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Mono, vec![0]),
+        ],
+    );
+    chain.volume = volume;
+    chain
+}
+
+#[test]
+fn k01_chain_volume_100_is_unity() {
+    let chain = unity_passthrough_chain("k01", 100.0);
+    let runtime = build_runtime(&chain);
+    assert!(
+        (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
+        "build_chain_runtime_state should propagate chain.volume=100 \
+         to runtime.volume_pct(); got {}",
+        runtime.volume_pct()
+    );
+    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    assert!(
+        (peak - 0.5).abs() < VOLUME_TOLERANCE,
+        "volume=100 should be unity; expected peak≈0.5, got {peak}"
+    );
+}
+
+#[test]
+fn k02_chain_volume_50_halves_output() {
+    let chain = unity_passthrough_chain("k02", 50.0);
+    let runtime = build_runtime(&chain);
+    assert!(
+        (runtime.volume_pct() - 50.0).abs() < VOLUME_TOLERANCE,
+        "chain.volume=50 should land on runtime.volume_pct(); got {}",
+        runtime.volume_pct()
+    );
+    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    assert!(
+        (peak - 0.25).abs() < VOLUME_TOLERANCE,
+        "volume=50 attenuates by half; expected peak≈0.25, got {peak}"
+    );
+}
+
+#[test]
+fn k03_chain_volume_200_doubles_output() {
+    let chain = unity_passthrough_chain("k03", 200.0);
+    let peak = measure_steady_peak(&chain, 1, &[0.3], 1, 5);
+    // input 0.3 × 2.0 = 0.6
+    assert!(
+        (peak - 0.6).abs() < VOLUME_TOLERANCE,
+        "volume=200 doubles; expected peak≈0.6, got {peak}"
+    );
+}
+
+#[test]
+fn k04_chain_volume_zero_silences_output() {
+    let chain = unity_passthrough_chain("k04", 0.0);
+    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    assert!(
+        peak < VOLUME_TOLERANCE,
+        "volume=0 should silence output; got peak {peak}"
+    );
+}
+
+#[test]
+fn k05_update_chain_runtime_state_propagates_volume() {
+    // Cenário do bug que o usuário reportou: chain construída com
+    // volume=100, slider arrasta pra 150, engine deve VER 150 sem
+    // teardown. update_chain_runtime_state é o path que o handler
+    // chain_volume_changed dispara via sync_live_chain_runtime → upsert
+    // → update_chain_runtime_state.
+    let chain100 = unity_passthrough_chain("k05", 100.0);
+    let runtime = build_runtime(&chain100);
+    assert!((runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE);
+
+    let mut chain150 = chain100.clone();
+    chain150.volume = 150.0;
+    super::update_chain_runtime_state(
+        &runtime,
+        &chain150,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+    )
+    .expect("update_chain_runtime_state should propagate volume");
+    assert!(
+        (runtime.volume_pct() - 150.0).abs() < VOLUME_TOLERANCE,
+        "after update_chain_runtime_state with chain.volume=150, \
+         runtime.volume_pct() should be 150; got {}",
+        runtime.volume_pct()
+    );
+
+    // Sanity: process_output_f32 reflete o novo volume sem rebuild.
+    let data = const_interleaved(&[0.4], 256);
+    // Drain initial fade-in callbacks.
+    for _ in 0..3 {
+        let _ = drive_and_capture(&runtime, 1, &data, 1);
+    }
+    let out = drive_and_capture(&runtime, 1, &data, 1);
+    let peak = peak_abs(&out);
+    // input 0.4 × 1.5 = 0.6
+    assert!(
+        (peak - 0.6).abs() < VOLUME_TOLERANCE,
+        "after update to volume=150, peak should be ≈0.6 (0.4 × 1.5); got {peak}"
+    );
+}
