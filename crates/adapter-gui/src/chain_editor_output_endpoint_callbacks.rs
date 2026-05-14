@@ -17,6 +17,9 @@ use domain::ids::{BlockId, DeviceId};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind, OutputBlock, OutputEntry};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::chain_editor::output_mode_from_index;
 use crate::io_groups::apply_chain_io_groups;
 use crate::project_ops::sync_project_dirty;
@@ -156,7 +159,7 @@ pub(crate) fn wire(
                         return;
                     }
                     let chain_index = io_draft.chain_index;
-                    let before_index = io_draft.before_index;
+                    let _before_index = io_draft.before_index;
                     *io_block_insert_draft.borrow_mut() = None;
                     *chain_draft.borrow_mut() = None;
                     let mut session_borrow = project_session.borrow_mut();
@@ -165,30 +168,48 @@ pub(crate) fn wire(
                         return;
                     };
                     let real_chain_id = {
-                        let mut proj = session.project.borrow_mut();
-                        let Some(chain) = proj.chains.get_mut(chain_index) else {
+                        let proj = session.project.borrow();
+                        let Some(chain) = proj.chains.get(chain_index) else {
                             chain_window.set_show_output_editor(false);
                             return;
                         };
-                        let real_chain_id = chain.id.clone();
-                        let output_block = AudioBlock {
-                            id: BlockId::generate_for_chain(&real_chain_id),
-                            enabled: true,
-                            kind: AudioBlockKind::Output(OutputBlock {
-                                model: "standard".to_string(),
-                                entries: vec![OutputEntry {
-                                    device_id: DeviceId(
-                                        output_group.device_id.clone().unwrap_or_default(),
-                                    ),
-                                    mode: output_group.mode,
-                                    channels: output_group.channels.clone(),
-                                }],
-                            }),
-                        };
-                        let insert_pos = before_index.min(chain.blocks.len());
-                        chain.blocks.insert(insert_pos, output_block);
-                        real_chain_id
+                        chain.id.clone()
                     };
+                    let new_output_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Output(OutputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![OutputEntry {
+                                device_id: DeviceId(
+                                    output_group.device_id.clone().unwrap_or_default(),
+                                ),
+                                mode: output_group.mode,
+                                channels: output_group.channels.clone(),
+                            }],
+                        }),
+                    };
+                    let mut all_output_blocks: Vec<AudioBlock> = {
+                        let proj = session.project.borrow();
+                        let chain = proj.chains.get(chain_index).unwrap();
+                        chain
+                            .blocks
+                            .iter()
+                            .filter(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+                            .cloned()
+                            .collect()
+                    };
+                    all_output_blocks.push(new_output_block);
+                    if let Err(error) =
+                        session
+                            .dispatcher
+                            .dispatch(Command::SaveChainOutputEndpoints {
+                                chain: real_chain_id.clone(),
+                                output_blocks: all_output_blocks,
+                            })
+                    {
+                        eprintln!("io block insert error: {error}");
+                    }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &real_chain_id)
                     {
@@ -235,11 +256,16 @@ pub(crate) fn wire(
                     return;
                 };
                 let chain_id = {
-                    let mut proj = session.project.borrow_mut();
-                    let Some(chain) = proj.chains.get_mut(index) else {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
                         return;
                     };
-                    let new_output_blocks: Vec<AudioBlock> = draft
+                    chain.id.clone()
+                };
+                let new_output_blocks: Vec<AudioBlock> = {
+                    let proj = session.project.borrow();
+                    let chain = proj.chains.get(index).unwrap();
+                    draft
                         .outputs
                         .iter()
                         .enumerate()
@@ -255,20 +281,18 @@ pub(crate) fn wire(
                                 }],
                             }),
                         })
-                        .collect();
-                    let non_output_blocks: Vec<AudioBlock> = chain
-                        .blocks
-                        .iter()
-                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
-                        .cloned()
-                        .collect();
-                    let mut all_blocks =
-                        Vec::with_capacity(non_output_blocks.len() + new_output_blocks.len());
-                    all_blocks.extend(non_output_blocks);
-                    all_blocks.extend(new_output_blocks);
-                    chain.blocks = all_blocks;
-                    chain.id.clone()
+                        .collect()
                 };
+                if let Err(error) = session
+                    .dispatcher
+                    .dispatch(Command::SaveChainOutputEndpoints {
+                        chain: chain_id.clone(),
+                        output_blocks: new_output_blocks,
+                    })
+                {
+                    eprintln!("output editor save error: {error}");
+                    return;
+                }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("output editor save error: {error}");
                     return;

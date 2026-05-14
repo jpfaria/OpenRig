@@ -216,6 +216,41 @@ impl CommandDispatcher for LocalDispatcher {
                     block: new_block_id,
                 }])
             }
+            Command::InsertPrebuiltBlock {
+                chain,
+                block,
+                position,
+            } => {
+                let block_id = block.id.clone();
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let insert_at = position.min(target_chain.blocks.len());
+                target_chain.blocks.insert(insert_at, block);
+                Ok(vec![Event::BlockAdded {
+                    chain,
+                    block: block_id,
+                }])
+            }
+            Command::OverwriteBlock {
+                chain,
+                block,
+                mut replacement,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                // Preserve the original block id; replace kind and enabled.
+                replacement.id = block.clone();
+                *target_block = replacement;
+                Ok(vec![Event::BlockReplaced { chain, block }])
+            }
             Command::RemoveBlock { chain, block } => {
                 let mut proj = self.project.borrow_mut();
                 let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
@@ -358,12 +393,6 @@ impl CommandDispatcher for LocalDispatcher {
                     enabled: will_enable,
                 }])
             }
-            // ── Block editor draft (no-op) ────────────────────────────────────
-            // Per-parameter commands (SetBlockParameter*) now dispatch immediately.
-            // SaveBlockEditorDraft is kept for backward-compatibility during the
-            // migration window and is intentionally a no-op.
-            Command::SaveBlockEditorDraft { .. } => Ok(vec![]),
-
             // ── Insert block ──────────────────────────────────────────────────
             Command::SaveInsertBlock {
                 chain,
@@ -411,23 +440,22 @@ impl CommandDispatcher for LocalDispatcher {
             }
 
             // ── Chain I/O endpoints ───────────────────────────────────────────
-            Command::SaveChainInputEndpoints { chain, input_block } => {
+            Command::SaveChainInputEndpoints {
+                chain,
+                input_blocks,
+            } => {
                 let mut proj = self.project.borrow_mut();
                 let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
                     return Err(anyhow::anyhow!("chain not found: {:?}", chain));
                 };
-                // Find the existing InputBlock position and replace it.
-                let pos = target_chain
+                // Remove all existing Input blocks, retaining non-input blocks.
+                target_chain
                     .blocks
-                    .iter()
-                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
-                let Some(idx) = pos else {
-                    return Err(anyhow::anyhow!(
-                        "chain {:?} has no InputBlock to replace",
-                        chain
-                    ));
-                };
-                target_chain.blocks[idx] = input_block;
+                    .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                // Insert the new input blocks at the head (inputs-first convention).
+                for (i, blk) in input_blocks.into_iter().enumerate() {
+                    target_chain.blocks.insert(i, blk);
+                }
                 Ok(vec![
                     Event::ChainInputEndpointsSaved {
                         chain: chain.clone(),
@@ -438,23 +466,18 @@ impl CommandDispatcher for LocalDispatcher {
 
             Command::SaveChainOutputEndpoints {
                 chain,
-                output_block,
+                output_blocks,
             } => {
                 let mut proj = self.project.borrow_mut();
                 let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
                     return Err(anyhow::anyhow!("chain not found: {:?}", chain));
                 };
-                let pos = target_chain
+                // Remove all existing Output blocks, retaining non-output blocks.
+                target_chain
                     .blocks
-                    .iter()
-                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
-                let Some(idx) = pos else {
-                    return Err(anyhow::anyhow!(
-                        "chain {:?} has no OutputBlock to replace",
-                        chain
-                    ));
-                };
-                target_chain.blocks[idx] = output_block;
+                    .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
+                // Append the new output blocks at the tail (outputs-last convention).
+                target_chain.blocks.extend(output_blocks);
                 Ok(vec![
                     Event::ChainOutputEndpointsSaved {
                         chain: chain.clone(),

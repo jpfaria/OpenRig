@@ -281,7 +281,7 @@ pub(crate) fn wire(
                     .dispatcher
                     .dispatch(Command::SaveChainOutputEndpoints {
                         chain: chain_id.clone(),
-                        output_block: new_output_block,
+                        output_blocks: vec![new_output_block],
                     })
                 {
                     groups_window.set_status_message(error.to_string().into());

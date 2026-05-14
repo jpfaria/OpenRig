@@ -20,6 +20,9 @@ use std::time::Duration;
 use anyhow::{anyhow, Result};
 use slint::{Timer, TimerMode, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use domain::ids::BlockId;
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::{build_audio_block_kind, AudioBlock, AudioBlockKind};
 
@@ -181,25 +184,57 @@ pub(crate) fn persist_block_editor_draft(
     let session = session_borrow
         .as_mut()
         .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
-    let chain_id = {
-        let mut proj = session.project.borrow_mut();
+
+    // Read chain_id and the existing block's state via immutable borrow.
+    // All mutations go through the dispatcher below.
+    let (chain_id, existing_block_id, existing_block_enabled) = {
+        let proj = session.project.borrow();
         let chain = proj
             .chains
-            .get_mut(draft.chain_index)
+            .get(draft.chain_index)
             .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
-        if let Some(block_index) = draft.block_index {
+        let (block_id, block_enabled) = if let Some(block_index) = draft.block_index {
             let block = chain
                 .blocks
-                .get_mut(block_index)
+                .get(block_index)
                 .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-block")))?;
-            block.enabled = draft.enabled;
-            if draft.is_select {
-                let AudioBlockKind::Select(select) = &mut block.kind else {
+            (Some(block.id.clone()), block.enabled)
+        } else {
+            (None, false)
+        };
+        (chain.id.clone(), block_id, block_enabled)
+    };
+
+    // Build the new block kind outside any borrow.
+    let new_kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
+        .map_err(|error| anyhow!(error))?;
+
+    if let Some(block_id) = existing_block_id {
+        // ── Edit existing block ──────────────────────────────────────────────
+        if draft.is_select {
+            // Select block path: change selected option + update option kind.
+            // This requires reconstructing the full Select block kind with the
+            // updated option before overwriting. The select option nesting means
+            // we need to read the full existing kind, mutate it, then overwrite.
+            let selected_option_block_id = selected_select_option_block_id
+                .as_ref()
+                .expect("select option id should exist");
+            let updated_block = {
+                let proj = session.project.borrow();
+                let chain = proj
+                    .chains
+                    .get(draft.chain_index)
+                    .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
+                let block_idx = draft
+                    .block_index
+                    .expect("block_index must be Some in edit path");
+                let block = chain
+                    .blocks
+                    .get(block_idx)
+                    .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-block")))?;
+                let AudioBlockKind::Select(select) = &block.kind else {
                     return Err(anyhow!("{}", rust_i18n::t!("error-block-not-select")));
                 };
-                let selected_option_block_id = selected_select_option_block_id
-                    .as_ref()
-                    .expect("select option id should exist");
                 let select_family = select
                     .options
                     .iter()
@@ -215,59 +250,83 @@ pub(crate) fn persist_block_editor_draft(
                         select_family
                     ));
                 }
-                select.selected_block_id = domain::ids::BlockId(selected_option_block_id.clone());
-                let option = select
+                // Clone the full block so we can mutate the copy off the borrow.
+                let mut updated = block.clone();
+                let AudioBlockKind::Select(ref mut sel) = updated.kind else {
+                    unreachable!()
+                };
+                sel.selected_block_id = domain::ids::BlockId(selected_option_block_id.clone());
+                let option = sel
                     .options
                     .iter_mut()
-                    .find(|option| option.id.0 == *selected_option_block_id)
+                    .find(|o| o.id.0 == *selected_option_block_id)
                     .ok_or_else(|| anyhow!("Opção ativa do select não existe."))?;
                 let option_id = option.id.clone();
                 let option_enabled = option.enabled;
-                option.kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
-                    .map_err(|error| anyhow!(error))?;
+                option.kind = new_kind;
                 option.id = option_id;
                 option.enabled = option_enabled;
-            } else {
-                let block_id = block.id.clone();
-                block.kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
-                    .map_err(|error| anyhow!(error))?;
-                block.id = block_id;
-            }
+                updated.enabled = draft.enabled;
+                updated
+            };
+            session
+                .dispatcher
+                .dispatch(Command::OverwriteBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    replacement: updated_block,
+                })
+                .map_err(|e| anyhow!(e))?;
         } else {
-            let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
-                .map_err(|error| anyhow!(error))?;
-            let insert_index = draft.before_index.min(chain.blocks.len());
-            log::info!(
-                "[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'",
-                insert_index,
-                draft.effect_type,
-                draft.model_id
-            );
-            chain.blocks.insert(
-                insert_index,
-                AudioBlock {
-                    id: domain::ids::BlockId::generate_for_chain(&chain.id),
-                    enabled: draft.enabled,
-                    kind,
-                },
-            );
-            log::info!(
-                "[persist] chain after insert has {} blocks:",
-                chain.blocks.len()
-            );
-            for (i, b) in chain.blocks.iter().enumerate() {
-                log::info!(
-                    "[persist]   [{}] id='{}' kind={}",
-                    i,
-                    b.id.0,
-                    b.model_ref()
-                        .map(|m| format!("{}/{}", m.effect_type, m.model))
-                        .unwrap_or_else(|| "io/insert".to_string())
-                );
-            }
+            // Non-select edit: replace the block kind + enabled via dispatcher.
+            let replacement = AudioBlock {
+                id: block_id.clone(),
+                enabled: draft.enabled,
+                kind: new_kind,
+            };
+            session
+                .dispatcher
+                .dispatch(Command::OverwriteBlock {
+                    chain: chain_id.clone(),
+                    block: block_id.clone(),
+                    replacement,
+                })
+                .map_err(|e| anyhow!(e))?;
         }
-        chain.id.clone()
-    };
+        // Sync enabled state if it changed (OverwriteBlock already carries
+        // the new enabled value so no separate toggle is needed).
+        let _ = existing_block_enabled; // used above for reference only
+    } else {
+        // ── Insert new block ─────────────────────────────────────────────────
+        let new_block = AudioBlock {
+            id: BlockId::generate_for_chain(&chain_id),
+            enabled: draft.enabled,
+            kind: new_kind,
+        };
+        let insert_index = {
+            let proj = session.project.borrow();
+            let chain = proj
+                .chains
+                .get(draft.chain_index)
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
+            draft.before_index.min(chain.blocks.len())
+        };
+        log::info!(
+            "[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'",
+            insert_index,
+            draft.effect_type,
+            draft.model_id
+        );
+        session
+            .dispatcher
+            .dispatch(Command::InsertPrebuiltBlock {
+                chain: chain_id.clone(),
+                block: new_block,
+                position: insert_index,
+            })
+            .map_err(|e| anyhow!(e))?;
+        log::info!("[persist] INSERT dispatched for chain_id='{}'", chain_id.0);
+    }
     if let Err(error) = crate::sync_live_chain_runtime(project_runtime, session, &chain_id) {
         log_gui_error("block-drawer.persist", &error);
         return Err(error);

@@ -95,6 +95,36 @@ pub enum Command {
         position: usize,
     },
 
+    /// Insert a fully-constructed `AudioBlock` at `position` in the chain.
+    ///
+    /// Unlike `AddBlock`, the caller is responsible for building the block
+    /// (including its kind and parameters). The block's `id` is preserved
+    /// as-is — the caller must supply a unique id within the chain.
+    ///
+    /// **Note:** Same `schemars` caveat as `AddChain`.
+    #[schemars(skip)]
+    InsertPrebuiltBlock {
+        chain: ChainId,
+        #[schemars(skip)]
+        block: AudioBlock,
+        position: usize,
+    },
+
+    /// Overwrite the block with the given `block_id` in-place.
+    ///
+    /// The dispatcher locates the block by `block_id` and replaces it with
+    /// the provided `replacement`. The replacement's `id` field is ignored —
+    /// the original `block_id` is preserved on the stored block.
+    ///
+    /// **Note:** Same `schemars` caveat as `AddChain`.
+    #[schemars(skip)]
+    OverwriteBlock {
+        chain: ChainId,
+        block: BlockId,
+        #[schemars(skip)]
+        replacement: AudioBlock,
+    },
+
     /// Remove a block from a chain.
     RemoveBlock { chain: ChainId, block: BlockId },
 
@@ -104,15 +134,6 @@ pub enum Command {
         block: BlockId,
         new_position: usize,
     },
-
-    // ── Block editor draft ────────────────────────────────────────────────────
-    /// Flush the current block-editor draft to the project.
-    ///
-    /// **Deprecated (transitional):** Each param callback now dispatches
-    /// immediately via `SetBlockParameter*`. This variant is kept as a no-op
-    /// for backward compatibility during the migration window. Callers that
-    /// previously relied on this for batch-persist can safely remove the call.
-    SaveBlockEditorDraft { chain: ChainId, block: BlockId },
 
     // ── Insert block ──────────────────────────────────────────────────────────
     /// Commit an Insert block's send/return endpoint configuration.
@@ -187,25 +208,29 @@ pub enum Command {
     // ── Chain I/O endpoints ───────────────────────────────────────────────────
     /// Commit the input endpoint configuration for a chain.
     ///
-    /// The caller supplies the fully-constructed `InputBlock` to replace
-    /// the existing one. The dispatcher locates the chain, replaces any
-    /// existing `InputBlock` entries with the supplied block, and emits
-    /// `ChainInputEndpointsSaved`.
+    /// The caller supplies the fully-constructed list of `InputBlock`s to
+    /// replace the existing ones. The dispatcher locates the chain, removes
+    /// all existing `InputBlock` entries, inserts the provided blocks at the
+    /// head of the chain (inputs-first convention), and emits
+    /// `ChainInputEndpointsSaved`. An empty `input_blocks` vec clears all
+    /// inputs.
     #[schemars(skip)]
     SaveChainInputEndpoints {
         chain: ChainId,
         #[schemars(skip)]
-        input_block: AudioBlock,
+        input_blocks: Vec<AudioBlock>,
     },
 
     /// Commit the output endpoint configuration for a chain.
     ///
     /// Same pattern as `SaveChainInputEndpoints` but for the output side.
+    /// The dispatcher removes all existing `OutputBlock` entries and appends
+    /// the provided blocks at the tail of the chain.
     #[schemars(skip)]
     SaveChainOutputEndpoints {
         chain: ChainId,
         #[schemars(skip)]
-        output_block: AudioBlock,
+        output_blocks: Vec<AudioBlock>,
     },
 
     /// Commit both input and output I/O configuration for a chain
