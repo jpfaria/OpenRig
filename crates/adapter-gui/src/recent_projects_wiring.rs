@@ -22,6 +22,9 @@ use slint::{ComponentHandle, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{AppConfig, FilesystemStorage};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
@@ -120,9 +123,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title = project_title_for_path(Some(&canonical_path), &*session.project.borrow());
+                    let title =
+                        project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());
                     stop_project_runtime(&project_runtime);
+                    // Signal project loaded through the new session's dispatcher.
+                    let _ = session.dispatcher.dispatch(Command::LoadProject {
+                        project: session.project.borrow().clone(),
+                        path: path.clone(),
+                    });
                     replace_project_chains(
                         &project_chains,
                         &*session.project.borrow(),

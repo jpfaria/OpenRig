@@ -1493,3 +1493,936 @@ fn configure_chain_non_existent_returns_err() {
         "chain list must not change"
     );
 }
+
+// ── SaveChain tests ───────────────────────────────────────────────────────────
+
+#[test]
+fn save_chain_replaces_existing_and_emits_event() {
+    let project = make_project_three_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let chain_b_id = project.borrow().chains[1].id.clone();
+    let mut updated = project.borrow().chains[1].clone();
+    updated.description = Some("Chain B Updated".to_string());
+    updated.instrument = "bass".to_string();
+
+    let result = dispatcher.dispatch(Command::SaveChain { chain: updated });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ChainSaved { chain } if *chain == chain_b_id)),
+        "expected ChainSaved event, got {:?}",
+        events
+    );
+    assert!(
+        events.iter().any(|e| matches!(e, Event::ProjectMutated)),
+        "expected ProjectMutated"
+    );
+    let proj = project.borrow();
+    let chain_b = proj.chains.iter().find(|c| c.id == chain_b_id).unwrap();
+    assert_eq!(chain_b.description.as_deref(), Some("Chain B Updated"));
+    assert_eq!(chain_b.instrument, "bass");
+    // enabled must be preserved
+    assert!(!chain_b.enabled, "enabled must be preserved by SaveChain");
+}
+
+#[test]
+fn save_chain_appends_when_id_not_found() {
+    // SaveChain with an unknown id should append (create flow).
+    let project = make_project_three_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_chain = make_empty_chain("chain_brand_new", false);
+
+    let result = dispatcher.dispatch(Command::SaveChain { chain: new_chain });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    assert_eq!(
+        project.borrow().chains.len(),
+        4,
+        "chain must be appended when id not found"
+    );
+    assert_eq!(
+        project.borrow().chains.last().unwrap().id.0,
+        "chain_brand_new"
+    );
+}
+
+#[test]
+fn save_chain_preserves_enabled_state() {
+    // Even if caller sends enabled=true in the chain, SaveChain must keep the
+    // existing enabled state (same rule as ConfigureChain).
+    let project = make_project_three_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let chain_a_id = project.borrow().chains[0].id.clone();
+    let mut updated = project.borrow().chains[0].clone();
+    updated.enabled = true; // sneaking in enabled=true
+
+    let result = dispatcher.dispatch(Command::SaveChain { chain: updated });
+
+    assert!(result.is_ok());
+    let proj = project.borrow();
+    let chain_a = proj.chains.iter().find(|c| c.id == chain_a_id).unwrap();
+    assert!(!chain_a.enabled, "SaveChain must preserve enabled state");
+}
+
+// ── SaveChainInputEndpoints tests ─────────────────────────────────────────────
+
+fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
+    let chain = make_chain_with_input("chain_io", "dev_x", 0, false);
+    let chain_id = chain.id.clone();
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+    }));
+    (project, chain_id)
+}
+
+fn make_input_block(dev_id: &str, ch: usize) -> AudioBlock {
+    AudioBlock {
+        id: BlockId("input:0".to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".to_string(),
+            entries: vec![InputEntry {
+                device_id: DeviceId(dev_id.to_string()),
+                mode: ChainInputMode::Mono,
+                channels: vec![ch],
+            }],
+        }),
+    }
+}
+
+fn make_output_block(dev_id: &str, ch: usize) -> AudioBlock {
+    AudioBlock {
+        id: BlockId("output:0".to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Output(OutputBlock {
+            model: "standard".to_string(),
+            entries: vec![OutputEntry {
+                device_id: DeviceId(dev_id.to_string()),
+                mode: ChainOutputMode::Stereo,
+                channels: vec![ch],
+            }],
+        }),
+    }
+}
+
+#[test]
+fn save_chain_input_endpoints_replaces_input_block_and_emits_event() {
+    let (project, chain_id) = make_project_with_input_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_input = make_input_block("dev_new", 3);
+
+    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+        chain: chain_id.clone(),
+        input_block: new_input,
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ChainInputEndpointsSaved { chain } if *chain == chain_id)),
+        "expected ChainInputEndpointsSaved, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
+    let input_block = chain
+        .blocks
+        .iter()
+        .find(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    assert!(input_block.is_some(), "chain must have an input block");
+    if let Some(AudioBlockKind::Input(ib)) = input_block.map(|b| &b.kind) {
+        assert_eq!(ib.entries[0].device_id.0, "dev_new");
+        assert_eq!(ib.entries[0].channels, vec![3]);
+    }
+}
+
+#[test]
+fn save_chain_input_endpoints_non_existent_chain_returns_err() {
+    let (project, _) = make_project_with_input_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+        chain: ChainId("chain_MISSING".to_string()),
+        input_block: make_input_block("dev_new", 0),
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
+#[test]
+fn save_chain_input_endpoints_non_input_block_returns_err() {
+    // Chain has no InputBlock at all — dispatcher must return Err.
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("chain_no_input".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            blocks: vec![make_core_block("blk_0", true)],
+        }],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+        chain: ChainId("chain_no_input".to_string()),
+        input_block: make_input_block("dev_new", 0),
+    });
+
+    assert!(
+        result.is_err(),
+        "expected Err when chain has no InputBlock, got Ok"
+    );
+}
+
+// ── SaveChainOutputEndpoints tests ────────────────────────────────────────────
+
+fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
+    let chain_id = ChainId("chain_io_full".to_string());
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: chain_id.clone(),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
+        }],
+    }));
+    (project, chain_id)
+}
+
+#[test]
+fn save_chain_output_endpoints_replaces_output_block_and_emits_event() {
+    let (project, chain_id) = make_project_with_io_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_output = make_output_block("dev_new_out", 5);
+
+    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+        chain: chain_id.clone(),
+        output_block: new_output,
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::ChainOutputEndpointsSaved { chain } if *chain == chain_id
+        )),
+        "expected ChainOutputEndpointsSaved, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
+    let out_block = chain
+        .blocks
+        .iter()
+        .find(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    assert!(out_block.is_some(), "chain must have an output block");
+    if let Some(AudioBlockKind::Output(ob)) = out_block.map(|b| &b.kind) {
+        assert_eq!(ob.entries[0].device_id.0, "dev_new_out");
+        assert_eq!(ob.entries[0].channels, vec![5]);
+    }
+}
+
+#[test]
+fn save_chain_output_endpoints_non_existent_chain_returns_err() {
+    let (project, _) = make_project_with_io_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+        chain: ChainId("chain_MISSING".to_string()),
+        output_block: make_output_block("dev_new_out", 0),
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
+#[test]
+fn save_chain_output_endpoints_no_output_block_returns_err() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("chain_no_output".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            blocks: vec![make_core_block("blk_0", true)],
+        }],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+        chain: ChainId("chain_no_output".to_string()),
+        output_block: make_output_block("dev_new_out", 0),
+    });
+
+    assert!(
+        result.is_err(),
+        "expected Err when chain has no OutputBlock"
+    );
+}
+
+// ── SaveChainIo tests ─────────────────────────────────────────────────────────
+
+#[test]
+fn save_chain_io_replaces_both_endpoints_and_emits_event() {
+    let (project, chain_id) = make_project_with_io_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_input = make_input_block("dev_in_new", 2);
+    let new_output = make_output_block("dev_out_new", 7);
+
+    let result = dispatcher.dispatch(Command::SaveChainIo {
+        chain: chain_id.clone(),
+        input_block: new_input,
+        output_block: new_output,
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ChainIoSaved { chain } if *chain == chain_id)),
+        "expected ChainIoSaved, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
+    let inp = chain.blocks.iter().find_map(|b| {
+        if let AudioBlockKind::Input(ib) = &b.kind {
+            Some(ib)
+        } else {
+            None
+        }
+    });
+    let out = chain.blocks.iter().find_map(|b| {
+        if let AudioBlockKind::Output(ob) = &b.kind {
+            Some(ob)
+        } else {
+            None
+        }
+    });
+    assert!(inp.is_some() && out.is_some());
+    assert_eq!(inp.unwrap().entries[0].device_id.0, "dev_in_new");
+    assert_eq!(out.unwrap().entries[0].device_id.0, "dev_out_new");
+}
+
+#[test]
+fn save_chain_io_non_existent_chain_returns_err() {
+    let (project, _) = make_project_with_io_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainIo {
+        chain: ChainId("chain_MISSING".to_string()),
+        input_block: make_input_block("dev_in", 0),
+        output_block: make_output_block("dev_out", 0),
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
+#[test]
+fn save_chain_io_missing_input_block_returns_err() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("chain_no_input".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            blocks: vec![make_output_block("dev_b", 1)], // output only, no input
+        }],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainIo {
+        chain: ChainId("chain_no_input".to_string()),
+        input_block: make_input_block("dev_in", 0),
+        output_block: make_output_block("dev_out", 0),
+    });
+
+    assert!(result.is_err(), "expected Err when chain has no InputBlock");
+}
+
+// ── SaveInsertBlock tests ─────────────────────────────────────────────────────
+
+fn make_insert_block(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "standard".to_string(),
+            send: project::block::InsertEndpoint {
+                device_id: DeviceId("send_dev".to_string()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            },
+            return_: project::block::InsertEndpoint {
+                device_id: DeviceId("return_dev".to_string()),
+                mode: ChainInputMode::Mono,
+                channels: vec![1],
+            },
+        }),
+    }
+}
+
+fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
+    let insert = make_insert_block("insert_0");
+    let block_id = insert.id.clone();
+    let chain_id = ChainId("chain_insert".to_string());
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: chain_id.clone(),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            blocks: vec![insert],
+        }],
+    }));
+    (project, chain_id, block_id)
+}
+
+#[test]
+fn save_insert_block_updates_endpoints_and_emits_event() {
+    let (project, chain_id, block_id) = make_project_with_insert();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_send = project::block::InsertEndpoint {
+        device_id: DeviceId("new_send_dev".to_string()),
+        mode: ChainInputMode::Mono,
+        channels: vec![2],
+    };
+    let new_return = project::block::InsertEndpoint {
+        device_id: DeviceId("new_return_dev".to_string()),
+        mode: ChainInputMode::Mono,
+        channels: vec![3],
+    };
+
+    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+        chain: chain_id.clone(),
+        block: block_id.clone(),
+        send: new_send,
+        return_: new_return,
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::InsertBlockSaved { chain, block }
+            if *chain == chain_id && *block == block_id
+        )),
+        "expected InsertBlockSaved event, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
+    let block = chain.blocks.iter().find(|b| b.id == block_id).unwrap();
+    if let AudioBlockKind::Insert(ib) = &block.kind {
+        assert_eq!(ib.send.device_id.0, "new_send_dev");
+        assert_eq!(ib.send.channels, vec![2]);
+        assert_eq!(ib.return_.device_id.0, "new_return_dev");
+        assert_eq!(ib.return_.channels, vec![3]);
+    } else {
+        panic!("expected InsertBlock kind");
+    }
+}
+
+#[test]
+fn save_insert_block_non_existent_block_returns_err() {
+    let (project, chain_id, _) = make_project_with_insert();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+        chain: chain_id,
+        block: BlockId("blk_MISSING".to_string()),
+        send: project::block::InsertEndpoint {
+            device_id: DeviceId("dev".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![0],
+        },
+        return_: project::block::InsertEndpoint {
+            device_id: DeviceId("dev".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![1],
+        },
+    });
+
+    assert!(result.is_err(), "expected Err for missing block, got Ok");
+}
+
+#[test]
+fn save_insert_block_non_insert_kind_returns_err() {
+    // Block exists but is a CoreBlock, not InsertBlock.
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+        chain: ChainId("chain_0".to_string()),
+        block: BlockId("blk_0".to_string()),
+        send: project::block::InsertEndpoint {
+            device_id: DeviceId("dev".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![0],
+        },
+        return_: project::block::InsertEndpoint {
+            device_id: DeviceId("dev".to_string()),
+            mode: ChainInputMode::Mono,
+            channels: vec![1],
+        },
+    });
+
+    assert!(result.is_err(), "expected Err for non-Insert block kind");
+}
+
+// ── SaveBlockEditorDraft (no-op) tests ────────────────────────────────────────
+
+#[test]
+fn save_block_editor_draft_is_noop_ok() {
+    // SaveBlockEditorDraft is now a no-op. Should return Ok with no events.
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveBlockEditorDraft {
+        chain: ChainId("chain_0".to_string()),
+        block: BlockId("blk_0".to_string()),
+    });
+
+    assert!(result.is_ok(), "SaveBlockEditorDraft must return Ok");
+    assert!(
+        result.unwrap().is_empty(),
+        "SaveBlockEditorDraft must produce no events"
+    );
+}
+
+#[test]
+fn save_block_editor_draft_missing_chain_still_noop() {
+    // Even with a non-existent chain, SaveBlockEditorDraft is a no-op.
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveBlockEditorDraft {
+        chain: ChainId("chain_MISSING".to_string()),
+        block: BlockId("blk_0".to_string()),
+    });
+
+    assert!(
+        result.is_ok(),
+        "SaveBlockEditorDraft must be Ok even with missing chain"
+    );
+}
+
+#[test]
+fn save_block_editor_draft_produces_no_project_mutation() {
+    let project = make_project("chain_0", make_core_block("blk_0", true));
+    let before = project.borrow().chains[0].blocks[0].enabled;
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let _ = dispatcher.dispatch(Command::SaveBlockEditorDraft {
+        chain: ChainId("chain_0".to_string()),
+        block: BlockId("blk_0".to_string()),
+    });
+
+    assert_eq!(
+        project.borrow().chains[0].blocks[0].enabled,
+        before,
+        "SaveBlockEditorDraft must not mutate the project"
+    );
+}
+
+// ── UpdateProjectName tests ───────────────────────────────────────────────────
+
+fn make_named_project(name: &str) -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(Project {
+        name: Some(name.to_string()),
+        device_settings: vec![],
+        chains: vec![],
+    }))
+}
+
+#[test]
+fn update_project_name_writes_name_and_emits_event() {
+    let project = make_named_project("old name");
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::UpdateProjectName {
+        name: "new name".to_string(),
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(e, Event::ProjectMutated)),
+        "expected ProjectMutated event"
+    );
+    assert_eq!(
+        project.borrow().name.as_deref(),
+        Some("new name"),
+        "project name must be updated"
+    );
+}
+
+#[test]
+fn update_project_name_sets_name_to_none_when_empty() {
+    // An empty name should set project.name = None.
+    let project = make_named_project("old name");
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::UpdateProjectName {
+        name: "".to_string(),
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    assert_eq!(
+        project.borrow().name,
+        None,
+        "empty name must set project.name = None"
+    );
+}
+
+#[test]
+fn update_project_name_trims_whitespace() {
+    let project = make_named_project("old");
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::UpdateProjectName {
+        name: "  trimmed  ".to_string(),
+    });
+
+    assert!(result.is_ok());
+    assert_eq!(
+        project.borrow().name.as_deref(),
+        Some("trimmed"),
+        "project name must be trimmed"
+    );
+}
+
+// ── SaveAudioSettings tests ───────────────────────────────────────────────────
+
+fn make_device_settings(device_id: &str) -> project::device::DeviceSettings {
+    project::device::DeviceSettings {
+        device_id: DeviceId(device_id.to_string()),
+        sample_rate: 44100,
+        buffer_size_frames: 256,
+        bit_depth: 32,
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
+    }
+}
+
+#[test]
+fn save_audio_settings_writes_device_settings_and_emits_event() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
+    let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        device_settings: settings.clone(),
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::AudioSettingsSaved)),
+        "expected AudioSettingsSaved event, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    assert_eq!(proj.device_settings.len(), 2);
+    assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
+    assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
+}
+
+#[test]
+fn save_audio_settings_replaces_previous_settings() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![make_device_settings("old_dev")],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        device_settings: vec![make_device_settings("new_dev")],
+    });
+
+    assert!(result.is_ok());
+    let proj = project.borrow();
+    assert_eq!(proj.device_settings.len(), 1);
+    assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
+}
+
+#[test]
+fn save_audio_settings_empty_clears_settings() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![make_device_settings("dev_a")],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        device_settings: vec![],
+    });
+
+    assert!(result.is_ok());
+    assert!(project.borrow().device_settings.is_empty());
+}
+
+// ── SaveProject tests ─────────────────────────────────────────────────────────
+
+#[test]
+fn save_project_emits_project_saved_event() {
+    // SaveProject in the dispatcher is a no-op metadata signal — actual file I/O
+    // happens in the adapter. The dispatcher just emits ProjectSaved.
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("my project".to_string()),
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveProject);
+
+    assert!(result.is_ok(), "SaveProject must return Ok: {:?}", result);
+    assert!(
+        result
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, Event::ProjectSaved)),
+        "expected ProjectSaved event"
+    );
+}
+
+#[test]
+fn save_project_does_not_mutate_project() {
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("stable".to_string()),
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let _ = dispatcher.dispatch(Command::SaveProject);
+
+    assert_eq!(
+        project.borrow().name.as_deref(),
+        Some("stable"),
+        "SaveProject must not mutate the project"
+    );
+}
+
+#[test]
+fn save_project_is_ok_with_empty_project() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let result = dispatcher.dispatch(Command::SaveProject);
+    assert!(result.is_ok());
+}
+
+// ── LoadProject tests ─────────────────────────────────────────────────────────
+
+#[test]
+fn load_project_replaces_project_and_emits_event() {
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("old".to_string()),
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_proj = Project {
+        name: Some("loaded".to_string()),
+        device_settings: vec![],
+        chains: vec![make_empty_chain("chain_loaded", false)],
+    };
+
+    let result = dispatcher.dispatch(Command::LoadProject {
+        project: new_proj,
+        path: std::path::PathBuf::from("/some/path.yaml"),
+    });
+
+    assert!(result.is_ok(), "LoadProject returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(e, Event::ProjectLoaded)),
+        "expected ProjectLoaded event, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    assert_eq!(proj.name.as_deref(), Some("loaded"));
+    assert_eq!(proj.chains.len(), 1);
+    assert_eq!(proj.chains[0].id.0, "chain_loaded");
+}
+
+#[test]
+fn load_project_replaces_all_state() {
+    // Project starts with chains; load should replace them entirely.
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("old".to_string()),
+        device_settings: vec![make_device_settings("old_dev")],
+        chains: vec![make_empty_chain("old_chain", false)],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_proj = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    };
+
+    let _ = dispatcher.dispatch(Command::LoadProject {
+        project: new_proj,
+        path: std::path::PathBuf::from("/p.yaml"),
+    });
+
+    let proj = project.borrow();
+    assert!(proj.name.is_none());
+    assert!(proj.device_settings.is_empty());
+    assert!(proj.chains.is_empty());
+}
+
+#[test]
+fn load_project_emits_project_mutated() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::LoadProject {
+        project: Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        },
+        path: std::path::PathBuf::from("/p.yaml"),
+    });
+
+    assert!(result.is_ok());
+    assert!(
+        result
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, Event::ProjectMutated)),
+        "expected ProjectMutated"
+    );
+}
+
+// ── CreateProject tests ───────────────────────────────────────────────────────
+
+#[test]
+fn create_project_replaces_project_and_emits_event() {
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("old".to_string()),
+        device_settings: vec![],
+        chains: vec![make_empty_chain("old_chain", false)],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let new_proj = Project {
+        name: Some("brand new".to_string()),
+        device_settings: vec![],
+        chains: vec![],
+    };
+
+    let result = dispatcher.dispatch(Command::CreateProject { project: new_proj });
+
+    assert!(result.is_ok(), "CreateProject returned Err: {:?}", result);
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(e, Event::ProjectCreated)),
+        "expected ProjectCreated event, got {:?}",
+        events
+    );
+    let proj = project.borrow();
+    assert_eq!(proj.name.as_deref(), Some("brand new"));
+    assert!(proj.chains.is_empty());
+}
+
+#[test]
+fn create_project_emits_project_mutated() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::CreateProject {
+        project: Project {
+            name: Some("new".to_string()),
+            device_settings: vec![],
+            chains: vec![],
+        },
+    });
+
+    assert!(result.is_ok());
+    assert!(
+        result
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, Event::ProjectMutated)),
+        "expected ProjectMutated"
+    );
+}
+
+#[test]
+fn create_project_replaces_all_prior_state() {
+    let project = Rc::new(RefCell::new(Project {
+        name: Some("old".to_string()),
+        device_settings: vec![make_device_settings("dev_old")],
+        chains: vec![make_empty_chain("c", false)],
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let _ = dispatcher.dispatch(Command::CreateProject {
+        project: Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        },
+    });
+
+    let proj = project.borrow();
+    assert!(proj.name.is_none());
+    assert!(proj.device_settings.is_empty());
+    assert!(proj.chains.is_empty());
+}

@@ -178,7 +178,8 @@ pub(crate) fn wire(
                     return;
                 };
                 let schema =
-                    match project::block::schema_for_block_model(&data.effect_type, &data.model_id) {
+                    match project::block::schema_for_block_model(&data.effect_type, &data.model_id)
+                    {
                         Ok(s) => s,
                         Err(_) => return,
                     };

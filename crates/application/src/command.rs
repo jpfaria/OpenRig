@@ -15,6 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, InsertEndpoint};
 use project::chain::Chain;
 
 /// Every state change the UI or any controller can request.
@@ -107,15 +108,26 @@ pub enum Command {
     // ── Block editor draft ────────────────────────────────────────────────────
     /// Flush the current block-editor draft to the project.
     ///
-    /// This is a transitional command that captures the "save block drawer"
-    /// operation in the current draft-based flow. Phase 1+ tasks will dissolve
-    /// this into individual parameter commands once the draft indirection is
-    /// removed.
+    /// **Deprecated (transitional):** Each param callback now dispatches
+    /// immediately via `SetBlockParameter*`. This variant is kept as a no-op
+    /// for backward compatibility during the migration window. Callers that
+    /// previously relied on this for batch-persist can safely remove the call.
     SaveBlockEditorDraft { chain: ChainId, block: BlockId },
 
     // ── Insert block ──────────────────────────────────────────────────────────
     /// Commit an Insert block's send/return endpoint configuration.
-    SaveInsertBlock { chain: ChainId, block: BlockId },
+    ///
+    /// The caller supplies the fully-resolved `send` and `return_` endpoints.
+    /// The dispatcher locates the block and replaces its `InsertBlock` data.
+    #[schemars(skip)]
+    SaveInsertBlock {
+        chain: ChainId,
+        block: BlockId,
+        #[schemars(skip)]
+        send: InsertEndpoint,
+        #[schemars(skip)]
+        return_: InsertEndpoint,
+    },
 
     // ── Chain CRUD ────────────────────────────────────────────────────────────
     /// Add a fully-constructed chain to the project.
@@ -147,7 +159,17 @@ pub enum Command {
     },
 
     /// Validate and persist a chain draft (create or replace existing chain).
-    SaveChain { chain: ChainId },
+    ///
+    /// The caller supplies the fully-constructed chain. The dispatcher uses
+    /// `chain.id` to locate the existing entry and replace it in-place, or
+    /// appends the chain when no existing entry with the same id is found.
+    ///
+    /// **Note:** Same `schemars` caveat as `AddChain`.
+    #[schemars(skip)]
+    SaveChain {
+        #[schemars(skip)]
+        chain: Chain,
+    },
 
     /// Remove a chain from the project.
     RemoveChain { chain: ChainId },
@@ -164,14 +186,40 @@ pub enum Command {
 
     // ── Chain I/O endpoints ───────────────────────────────────────────────────
     /// Commit the input endpoint configuration for a chain.
-    SaveChainInputEndpoints { chain: ChainId },
+    ///
+    /// The caller supplies the fully-constructed `InputBlock` to replace
+    /// the existing one. The dispatcher locates the chain, replaces any
+    /// existing `InputBlock` entries with the supplied block, and emits
+    /// `ChainInputEndpointsSaved`.
+    #[schemars(skip)]
+    SaveChainInputEndpoints {
+        chain: ChainId,
+        #[schemars(skip)]
+        input_block: AudioBlock,
+    },
 
     /// Commit the output endpoint configuration for a chain.
-    SaveChainOutputEndpoints { chain: ChainId },
+    ///
+    /// Same pattern as `SaveChainInputEndpoints` but for the output side.
+    #[schemars(skip)]
+    SaveChainOutputEndpoints {
+        chain: ChainId,
+        #[schemars(skip)]
+        output_block: AudioBlock,
+    },
 
     /// Commit both input and output I/O configuration for a chain
     /// (used in fullscreen I/O editor flow).
-    SaveChainIo { chain: ChainId },
+    ///
+    /// The caller supplies both the updated `InputBlock` and `OutputBlock`.
+    #[schemars(skip)]
+    SaveChainIo {
+        chain: ChainId,
+        #[schemars(skip)]
+        input_block: AudioBlock,
+        #[schemars(skip)]
+        output_block: AudioBlock,
+    },
 
     // ── Chain presets ─────────────────────────────────────────────────────────
     /// Load a preset file and replace the non-I/O blocks of a chain.
@@ -179,13 +227,33 @@ pub enum Command {
 
     // ── Project lifecycle ─────────────────────────────────────────────────────
     /// Save the project to its current path (or trigger save-as dialog).
+    ///
+    /// File I/O happens in the adapter before this command is dispatched. The
+    /// dispatcher emits `ProjectSaved` to notify subscribers.
     SaveProject,
 
     /// Load a project from disk, replacing the current session.
-    LoadProject { path: PathBuf },
+    ///
+    /// The adapter performs YAML parsing and constructs the `Project` before
+    /// dispatching. The dispatcher replaces the shared project handle contents
+    /// with the provided project and emits `ProjectLoaded { path }`.
+    /// `path` is carried only for the event payload (not for I/O).
+    #[schemars(skip)]
+    LoadProject {
+        #[schemars(skip)]
+        project: project::project::Project,
+        path: PathBuf,
+    },
 
-    /// Create a new project with the given name.
-    CreateProject { name: String },
+    /// Create a new project with the given name, replacing the current session.
+    ///
+    /// The adapter constructs the new empty `Project` before dispatching. The
+    /// dispatcher replaces the shared project handle and emits `ProjectCreated`.
+    #[schemars(skip)]
+    CreateProject {
+        #[schemars(skip)]
+        project: project::project::Project,
+    },
 
     // ── Project settings ──────────────────────────────────────────────────────
     /// Update the project's display name.
@@ -193,5 +261,13 @@ pub enum Command {
 
     /// Persist the current audio device selection into the project and
     /// resync the audio runtime.
-    SaveAudioSettings,
+    ///
+    /// The adapter collects the selected device rows and resolves them to
+    /// `DeviceSettings` before dispatching. The dispatcher replaces the
+    /// project's `device_settings` with the provided list.
+    #[schemars(skip)]
+    SaveAudioSettings {
+        #[schemars(skip)]
+        device_settings: Vec<project::device::DeviceSettings>,
+    },
 }

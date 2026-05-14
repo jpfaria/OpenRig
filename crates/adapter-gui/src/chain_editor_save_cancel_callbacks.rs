@@ -18,6 +18,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::chain_editor::chain_from_draft;
@@ -130,9 +132,8 @@ pub(crate) fn wire(
                 editing_index,
                 draft.instrument
             );
-            let existing_chain = editing_index.and_then(|index| {
-                session.project.borrow().chains.get(index).cloned()
-            });
+            let existing_chain =
+                editing_index.and_then(|index| session.project.borrow().chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
             if let Err(msg) = chain.validate_channel_conflicts() {
                 chain_window.set_status_message(msg.into());
@@ -146,15 +147,9 @@ pub(crate) fn wire(
                 editing_index
             );
             let chain_id = chain.id.clone();
-            {
-                let mut proj = session.project.borrow_mut();
-                if let Some(index) = editing_index {
-                    if let Some(current) = proj.chains.get_mut(index) {
-                        *current = chain;
-                    }
-                } else {
-                    proj.chains.push(chain);
-                }
+            if let Err(error) = session.dispatcher.dispatch(Command::SaveChain { chain }) {
+                chain_window.set_status_message(error.to_string().into());
+                return;
             }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 chain_window.set_status_message(error.to_string().into());

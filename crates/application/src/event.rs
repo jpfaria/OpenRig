@@ -61,12 +61,36 @@ pub enum Event {
     /// A chain's metadata (name, instrument, I/O) was updated.
     ChainConfigured { chain: ChainId },
 
+    // ── Chain save events ─────────────────────────────────────────────────────
+    /// A chain was saved (created or replaced) via the chain editor.
+    ChainSaved { chain: ChainId },
+
+    /// A chain's input endpoints were saved.
+    ChainInputEndpointsSaved { chain: ChainId },
+
+    /// A chain's output endpoints were saved.
+    ChainOutputEndpointsSaved { chain: ChainId },
+
+    /// A chain's combined I/O configuration was saved.
+    ChainIoSaved { chain: ChainId },
+
+    // ── Insert block events ───────────────────────────────────────────────────
+    /// An insert block's send/return endpoints were saved.
+    InsertBlockSaved { chain: ChainId, block: BlockId },
+
+    // ── Audio settings events ─────────────────────────────────────────────────
+    /// Audio device settings were persisted into the project.
+    AudioSettingsSaved,
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
 
     /// The project was saved to disk.
     ProjectSaved,
+
+    /// A new project was created.
+    ProjectCreated,
 
     /// An error occurred while processing a command.
     Error { message: String },

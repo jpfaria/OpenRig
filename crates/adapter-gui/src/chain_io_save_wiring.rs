@@ -18,6 +18,9 @@ use project::block::{
     AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
 };
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::chain_io_block_builders::{build_input_block_from_draft, build_output_block_from_draft};
 use crate::io_groups::{apply_chain_io_groups, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
@@ -223,25 +226,32 @@ pub(crate) fn wire(
                     return;
                 };
                 let chain_id = {
-                    let mut proj = session.project.borrow_mut();
-                    let Some(chain) = proj.chains.get_mut(index) else {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
                         return;
                     };
-                    let new_input_block = build_input_block_from_draft(&chain.id, &draft.inputs);
-                    let non_input_blocks: Vec<AudioBlock> = chain
-                        .blocks
-                        .iter()
-                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
-                        .cloned()
-                        .collect();
-                    let mut all_blocks = Vec::with_capacity(non_input_blocks.len() + 1);
-                    if let Some(block) = new_input_block {
-                        all_blocks.push(block);
-                    }
-                    all_blocks.extend(non_input_blocks);
-                    chain.blocks = all_blocks;
                     chain.id.clone()
                 };
+                let new_input_block = {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
+                        return;
+                    };
+                    build_input_block_from_draft(&chain.id, &draft.inputs)
+                };
+                if let Some(input_block) = new_input_block {
+                    if let Err(error) =
+                        session
+                            .dispatcher
+                            .dispatch(Command::SaveChainInputEndpoints {
+                                chain: chain_id.clone(),
+                                input_block,
+                            })
+                    {
+                        eprintln!("input editor save error: {error}");
+                        return;
+                    }
+                }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("input editor save error: {error}");
                     return;
@@ -534,25 +544,32 @@ pub(crate) fn wire(
                     return;
                 };
                 let chain_id = {
-                    let mut proj = session.project.borrow_mut();
-                    let Some(chain) = proj.chains.get_mut(index) else {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
                         return;
                     };
-                    let new_output_block = build_output_block_from_draft(&chain.id, &draft.outputs);
-                    let non_output_blocks: Vec<AudioBlock> = chain
-                        .blocks
-                        .iter()
-                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
-                        .cloned()
-                        .collect();
-                    let mut all_blocks = Vec::with_capacity(non_output_blocks.len() + 1);
-                    all_blocks.extend(non_output_blocks);
-                    if let Some(block) = new_output_block {
-                        all_blocks.push(block);
-                    }
-                    chain.blocks = all_blocks;
                     chain.id.clone()
                 };
+                let new_output_block = {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
+                        return;
+                    };
+                    build_output_block_from_draft(&chain.id, &draft.outputs)
+                };
+                if let Some(output_block) = new_output_block {
+                    if let Err(error) =
+                        session
+                            .dispatcher
+                            .dispatch(Command::SaveChainOutputEndpoints {
+                                chain: chain_id.clone(),
+                                output_block,
+                            })
+                    {
+                        eprintln!("output editor save error: {error}");
+                        return;
+                    }
+                }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("output editor save error: {error}");
                     return;

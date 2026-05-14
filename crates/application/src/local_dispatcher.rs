@@ -358,41 +358,186 @@ impl CommandDispatcher for LocalDispatcher {
                     enabled: will_enable,
                 }])
             }
-            Command::SaveBlockEditorDraft { .. } => {
-                unimplemented!("phase-1 task pending")
+            // ── Block editor draft (no-op) ────────────────────────────────────
+            // Per-parameter commands (SetBlockParameter*) now dispatch immediately.
+            // SaveBlockEditorDraft is kept for backward-compatibility during the
+            // migration window and is intentionally a no-op.
+            Command::SaveBlockEditorDraft { .. } => Ok(vec![]),
+
+            // ── Insert block ──────────────────────────────────────────────────
+            Command::SaveInsertBlock {
+                chain,
+                block,
+                send,
+                return_,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                match &mut target_block.kind {
+                    project::block::AudioBlockKind::Insert(ref mut ib) => {
+                        ib.send = send;
+                        ib.return_ = return_;
+                    }
+                    _ => {
+                        return Err(anyhow::anyhow!("block {:?} is not an InsertBlock", block));
+                    }
+                }
+                Ok(vec![Event::InsertBlockSaved { chain, block }])
             }
-            Command::SaveInsertBlock { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            // ── Chain save (upsert) ───────────────────────────────────────────
+            Command::SaveChain { chain } => {
+                let chain_id = chain.id.clone();
+                let mut proj = self.project.borrow_mut();
+                if let Some(existing) = proj.chains.iter_mut().find(|c| c.id == chain_id) {
+                    // Replace in-place, preserving the running enabled state.
+                    let keep_enabled = existing.enabled;
+                    *existing = chain;
+                    existing.enabled = keep_enabled;
+                } else {
+                    // Append (create flow — chain_id not found in project yet).
+                    proj.chains.push(chain);
+                }
+                Ok(vec![
+                    Event::ChainSaved { chain: chain_id },
+                    Event::ProjectMutated,
+                ])
             }
-            Command::SaveChain { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            // ── Chain I/O endpoints ───────────────────────────────────────────
+            Command::SaveChainInputEndpoints { chain, input_block } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                // Find the existing InputBlock position and replace it.
+                let pos = target_chain
+                    .blocks
+                    .iter()
+                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                let Some(idx) = pos else {
+                    return Err(anyhow::anyhow!(
+                        "chain {:?} has no InputBlock to replace",
+                        chain
+                    ));
+                };
+                target_chain.blocks[idx] = input_block;
+                Ok(vec![
+                    Event::ChainInputEndpointsSaved {
+                        chain: chain.clone(),
+                    },
+                    Event::ProjectMutated,
+                ])
             }
-            Command::SaveChainInputEndpoints { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            Command::SaveChainOutputEndpoints {
+                chain,
+                output_block,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let pos = target_chain
+                    .blocks
+                    .iter()
+                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
+                let Some(idx) = pos else {
+                    return Err(anyhow::anyhow!(
+                        "chain {:?} has no OutputBlock to replace",
+                        chain
+                    ));
+                };
+                target_chain.blocks[idx] = output_block;
+                Ok(vec![
+                    Event::ChainOutputEndpointsSaved {
+                        chain: chain.clone(),
+                    },
+                    Event::ProjectMutated,
+                ])
             }
-            Command::SaveChainOutputEndpoints { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            Command::SaveChainIo {
+                chain,
+                input_block,
+                output_block,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let in_pos = target_chain
+                    .blocks
+                    .iter()
+                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                let Some(in_idx) = in_pos else {
+                    return Err(anyhow::anyhow!(
+                        "chain {:?} has no InputBlock to replace",
+                        chain
+                    ));
+                };
+                let out_pos = target_chain
+                    .blocks
+                    .iter()
+                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
+                let Some(out_idx) = out_pos else {
+                    return Err(anyhow::anyhow!(
+                        "chain {:?} has no OutputBlock to replace",
+                        chain
+                    ));
+                };
+                target_chain.blocks[in_idx] = input_block;
+                target_chain.blocks[out_idx] = output_block;
+                Ok(vec![
+                    Event::ChainIoSaved {
+                        chain: chain.clone(),
+                    },
+                    Event::ProjectMutated,
+                ])
             }
-            Command::SaveChainIo { .. } => {
-                unimplemented!("phase-1 task pending")
-            }
+
+            // ── Chain presets (future task) ───────────────────────────────────
             Command::LoadChainPreset { .. } => {
-                unimplemented!("phase-1 task pending")
+                unimplemented!("phase-2 task pending")
             }
-            Command::SaveProject => {
-                unimplemented!("phase-1 task pending")
+
+            // ── Project lifecycle ─────────────────────────────────────────────
+            // File I/O happens in the adapter before dispatch. The dispatcher
+            // signals the completion via events only.
+            Command::SaveProject => Ok(vec![Event::ProjectSaved]),
+
+            Command::LoadProject { project, path: _ } => {
+                // Replace the shared project data in-place so all Rc::clone
+                // holders (adapter-gui's ProjectSession) see the updated state.
+                *self.project.borrow_mut() = project;
+                Ok(vec![Event::ProjectLoaded, Event::ProjectMutated])
             }
-            Command::LoadProject { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            Command::CreateProject { project } => {
+                *self.project.borrow_mut() = project;
+                Ok(vec![Event::ProjectCreated, Event::ProjectMutated])
             }
-            Command::CreateProject { .. } => {
-                unimplemented!("phase-1 task pending")
+
+            // ── Project settings ──────────────────────────────────────────────
+            Command::UpdateProjectName { name } => {
+                let trimmed = name.trim().to_string();
+                self.project.borrow_mut().name = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                };
+                Ok(vec![Event::ProjectMutated])
             }
-            Command::UpdateProjectName { .. } => {
-                unimplemented!("phase-1 task pending")
-            }
-            Command::SaveAudioSettings => {
-                unimplemented!("phase-1 task pending")
+
+            Command::SaveAudioSettings { device_settings } => {
+                self.project.borrow_mut().device_settings = device_settings;
+                Ok(vec![Event::AudioSettingsSaved])
             }
         }
     }

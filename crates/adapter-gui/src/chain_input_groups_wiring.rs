@@ -11,12 +11,14 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
-use domain::ids::DeviceId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::{AudioBlockKind, InputEntry};
 use project::chain::ChainInputMode;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::audio_devices::{refresh_input_devices, refresh_output_devices};
+use crate::chain_io_block_builders::build_input_block_from_draft;
 use crate::helpers::show_child_window;
 use crate::io_groups::{apply_chain_input_window_state, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
@@ -257,67 +259,60 @@ pub(crate) fn wire(
                 }
             }
             let editing_index = draft.editing_index;
-            let io_block_idx = draft.editing_io_block_index;
-
-            // Build new entries from draft
-            let new_entries: Vec<InputEntry> = draft
-                .inputs
-                .iter()
-                .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
-                .map(|ig| InputEntry {
-                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                    mode: ig.mode,
-                    channels: ig.channels.clone(),
-                })
-                .collect();
 
             if let Some(chain_idx) = editing_index {
-                let chain_id_result = {
-                    let mut proj = session.project.borrow_mut();
-                    if let Some(chain) = proj.chains.get_mut(chain_idx) {
-                        // Find target block: specific index or first InputBlock
-                        let target_idx = io_block_idx.unwrap_or_else(|| {
-                            chain
-                                .blocks
-                                .iter()
-                                .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-                                .unwrap_or(0)
-                        });
-                        if let Some(block) = chain.blocks.get_mut(target_idx) {
-                            if let AudioBlockKind::Input(ref mut ib) = block.kind {
-                                ib.entries = new_entries;
-                            }
-                        }
-                        if let Err(msg) = chain.validate_channel_conflicts() {
-                            groups_window.set_status_message(msg.into());
-                            return;
-                        }
-                        Some(chain.id.clone())
-                    } else {
-                        None
-                    }
-                };
-                if let Some(chain_id) = chain_id_result {
-                    if let Err(error) =
-                        sync_live_chain_runtime(&project_runtime, session, &chain_id)
+                // Resolve chain positional index → chain_id and build new InputBlock.
+                let (chain_id, new_input_block) = {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_idx) else {
+                        return;
+                    };
+                    let Some(block) = build_input_block_from_draft(&chain.id, &draft.inputs) else {
+                        return;
+                    };
+                    // Pre-validate channel conflicts using a simulated chain state.
+                    let mut simulated = chain.clone();
+                    if let Some(in_pos) = simulated
+                        .blocks
+                        .iter()
+                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)))
                     {
-                        groups_window.set_status_message(error.to_string().into());
+                        simulated.blocks[in_pos] = block.clone();
+                    }
+                    if let Err(msg) = simulated.validate_channel_conflicts() {
+                        drop(proj);
+                        groups_window.set_status_message(msg.into());
                         return;
                     }
-                    replace_project_chains(
-                        &project_chains,
-                        &*session.project.borrow(),
-                        &input_chain_devices.borrow(),
-                        &output_chain_devices.borrow(),
-                    );
-                    sync_project_dirty(
-                        &window,
-                        session,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        auto_save,
-                    );
+                    (chain.id.clone(), block)
+                };
+                if let Err(error) = session
+                    .dispatcher
+                    .dispatch(Command::SaveChainInputEndpoints {
+                        chain: chain_id.clone(),
+                        input_block: new_input_block,
+                    })
+                {
+                    groups_window.set_status_message(error.to_string().into());
+                    return;
                 }
+                if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                    groups_window.set_status_message(error.to_string().into());
+                    return;
+                }
+                replace_project_chains(
+                    &project_chains,
+                    &*session.project.borrow(),
+                    &input_chain_devices.borrow(),
+                    &output_chain_devices.borrow(),
+                );
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
             }
             *chain_draft.borrow_mut() = None;
             groups_window.set_status_message("".into());

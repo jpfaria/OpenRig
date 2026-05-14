@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::local_dispatcher::LocalDispatcher;
 use crate::BlockEditorWindow;
+use application::local_dispatcher::LocalDispatcher;
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use project::project::Project;
@@ -54,8 +54,6 @@ impl ProjectSession {
             presets_path,
         }
     }
-
-
 }
 
 impl std::fmt::Debug for ProjectSession {

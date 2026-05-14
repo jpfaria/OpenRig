@@ -18,6 +18,9 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use infra_cpal::invalidate_device_cache;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::audio_devices::{
     build_project_device_rows, refresh_input_devices, refresh_output_devices,
 };
@@ -92,9 +95,24 @@ pub(crate) fn wire(
                 &session.project.borrow().device_settings,
             ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
-            window.set_project_name_draft(session.project.borrow().name.clone().unwrap_or_default().into());
-            settings_window
-                .set_project_name_draft(session.project.borrow().name.clone().unwrap_or_default().into());
+            window.set_project_name_draft(
+                session
+                    .project
+                    .borrow()
+                    .name
+                    .clone()
+                    .unwrap_or_default()
+                    .into(),
+            );
+            settings_window.set_project_name_draft(
+                session
+                    .project
+                    .borrow()
+                    .name
+                    .clone()
+                    .unwrap_or_default()
+                    .into(),
+            );
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             if fullscreen {
@@ -117,12 +135,9 @@ pub(crate) fn wire(
             };
             window.set_project_name_draft(value.clone());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                let trimmed = value.trim();
-                session.project.borrow_mut().name = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
+                let _ = session.dispatcher.dispatch(Command::UpdateProjectName {
+                    name: value.to_string(),
+                });
                 sync_project_dirty(
                     &window,
                     session,
@@ -149,12 +164,9 @@ pub(crate) fn wire(
             window.set_project_name_draft(value.clone());
             settings_window.set_project_name_draft(value.clone());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                let trimmed = value.trim();
-                session.project.borrow_mut().name = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
+                let _ = session.dispatcher.dispatch(Command::UpdateProjectName {
+                    name: value.to_string(),
+                });
                 sync_project_dirty(
                     &window,
                     session,

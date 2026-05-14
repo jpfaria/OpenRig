@@ -10,9 +10,11 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use domain::ids::DeviceId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::{AudioBlockKind, InsertEndpoint};
+use project::block::InsertEndpoint;
 
 use crate::audio_devices::{
     build_insert_return_channel_items, build_insert_send_channel_items, replace_channel_options,
@@ -200,20 +202,39 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let (block_enabled, chain_id) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve positional indices to IDs before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
                 };
-                block.enabled = !block.enabled;
-                (block.enabled, chain.id.clone())
+                (chain.id.clone(), block.id.clone())
             };
+            match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("toggle insert block enabled: {e}");
+                    return;
+                }
+            }
+            let block_enabled = session
+                .project
+                .borrow()
+                .chains
+                .iter()
+                .find(|c| c.id == chain_id)
+                .and_then(|c| c.blocks.get(block_idx))
+                .map(|b| b.enabled)
+                .unwrap_or(false);
             iw.set_block_enabled(block_enabled);
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                log::error!("toggle insert block enabled: {e}");
+                log::error!("toggle insert block enabled runtime sync: {e}");
             }
             replace_project_chains(
                 &project_chains,
@@ -342,24 +363,31 @@ pub(crate) fn wire(
                 let _ = iw.hide();
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
+            // Resolve positional indices to IDs before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     let _ = iw.hide();
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let Some(block) = chain.blocks.get(block_idx) else {
                     let _ = iw.hide();
                     return;
                 };
-                if let AudioBlockKind::Insert(ref mut ib) = block.kind {
-                    ib.send = send_endpoint;
-                    ib.return_ = return_endpoint;
-                }
-                chain.id.clone()
+                (chain.id.clone(), block.id.clone())
             };
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = session.dispatcher.dispatch(Command::SaveInsertBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+                send: send_endpoint,
+                return_: return_endpoint,
+            }) {
                 log::error!("insert save error: {e}");
+                let _ = iw.hide();
+                return;
+            }
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("insert save runtime sync error: {e}");
             }
             replace_project_chains(
                 &project_chains,

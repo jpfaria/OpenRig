@@ -83,7 +83,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                     return;
                 };
                 (
-                    chain.description.clone().unwrap_or_else(|| format!("chain_{}", index + 1)),
+                    chain
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| format!("chain_{}", index + 1)),
                     chain.clone(),
                 )
             };
@@ -201,7 +204,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 new_blocks.push(input);
                             }
                             new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                                !matches!(
+                                    b.kind,
+                                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
+                                )
                             }));
                             if let Some(output) = last_output {
                                 new_blocks.push(output);
@@ -288,7 +294,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 new_blocks.push(input);
                             }
                             new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                                !matches!(
+                                    b.kind,
+                                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
+                                )
                             }));
                             if let Some(output) = last_output {
                                 new_blocks.push(output);

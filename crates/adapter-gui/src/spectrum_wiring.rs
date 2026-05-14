@@ -185,7 +185,9 @@ fn build_session(
     let pj = project_session.borrow();
     let rt = project_runtime.borrow();
     match (pj.as_ref(), rt.as_ref()) {
-        (Some(session), Some(runtime)) => Some(SpectrumSession::build(&*session.project.borrow(), runtime)),
+        (Some(session), Some(runtime)) => {
+            Some(SpectrumSession::build(&*session.project.borrow(), runtime))
+        }
         _ => None,
     }
 }
