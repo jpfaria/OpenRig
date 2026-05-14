@@ -224,19 +224,28 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let toast_timer = toast_timer.clone();
         let auto_save = auto_save;
         window.on_chain_volume_changed(move |index, volume| {
+            log::info!("[#440] on_chain_volume_changed: index={index}, volume={volume}");
             let Some(window) = weak_window.upgrade() else {
+                log::warn!("[#440] window upgrade failed");
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
+                log::warn!("[#440] no session loaded");
                 return;
             };
             let index = index as usize;
             let Some(chain) = session.project.chains.get_mut(index) else {
+                log::warn!("[#440] chain index {index} out of bounds");
                 return;
             };
             chain.volume = volume as f32;
             let chain_id = chain.id.clone();
+            log::info!(
+                "[#440] chain.volume = {} for '{}', calling sync_live_chain_runtime",
+                chain.volume,
+                chain_id.0
+            );
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;

@@ -293,6 +293,7 @@ impl ChainRuntimeState {
     /// o usuário muda o controle. Audio thread vê o novo valor na próxima
     /// callback (single atomic load por iteração).
     pub fn set_volume_pct(&self, pct: f32) {
+        log::info!("[#440] set_volume_pct({pct})");
         self.volume_pct_bits
             .store(pct.to_bits(), Ordering::Relaxed);
     }
