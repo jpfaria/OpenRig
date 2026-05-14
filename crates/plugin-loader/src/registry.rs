@@ -76,6 +76,7 @@ pub fn register_native_simple(
         brand: brand.map(str::to_string),
         thumbnail: None,
         photo: None,
+        output_gain_pct: None,
         screenshot: None,
         brand_logo: None,
         license: Some("internal".to_string()),

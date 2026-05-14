@@ -52,6 +52,9 @@ export struct ProjectChainItem {
     output_label: string,
     output_tooltip: string,
     latency_ms: float,
+    /// Output volume da chain em percentual (issue #440). 100 = unity.
+    /// Slider expõe range 0-200. Bind ao `Chain.volume` no Rust.
+    volume: int,
     blocks: [ChainBlockItem],
 }
 

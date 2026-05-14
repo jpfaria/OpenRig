@@ -206,6 +206,56 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             clear_status(&window, &toast_timer);
         });
     }
+    // --- chain volume slider (issue #440) ---
+    // O slider no header da chain manda (chain-index, volume 0-200) toda
+    // vez que o usuário arrasta. Atualizamos `Chain.volume` no projeto e
+    // chamamos `sync_live_chain_runtime` — no engine, `upsert_chain`
+    // chega no `update_chain_runtime_state` que faz `set_volume_pct`,
+    // que o audio thread vê na próxima callback via single atomic load.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        let auto_save = auto_save;
+        window.on_chain_volume_changed(move |index, volume| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let index = index as usize;
+            let Some(chain) = session.project.chains.get_mut(index) else {
+                return;
+            };
+            chain.volume = volume as f32;
+            let chain_id = chain.id.clone();
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+        });
+    }
     // --- chain reorder (issue #246) ---
     // Reordering swaps Chain entries inside `Project::chains`. ChainIds stay
     // stable, so the live runtime doesn't need to be torn down — only the

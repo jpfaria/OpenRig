@@ -517,6 +517,7 @@ mod tests {
                 license: None,
                 homepage: None,
                 sources: None,
+                output_gain_pct: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
                     parameters: vec![GridParameter {
@@ -570,6 +571,7 @@ mod tests {
                 license: None,
                 homepage: None,
                 sources: None,
+                output_gain_pct: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
                     parameters: vec![GridParameter {
