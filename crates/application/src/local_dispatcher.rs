@@ -58,8 +58,23 @@ impl CommandDispatcher for LocalDispatcher {
             Command::PickBlockParameterFile { .. } => {
                 unimplemented!("phase-1 task pending")
             }
-            Command::ToggleBlockEnabled { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::ToggleBlockEnabled { chain, block } => {
+                let mut session = self.project_session.borrow_mut();
+                let Some(target_chain) = session.project.chains.iter_mut().find(|c| c.id == chain)
+                else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                target_block.enabled = !target_block.enabled;
+                let new_state = target_block.enabled;
+                Ok(vec![Event::BlockEnabledChanged {
+                    chain,
+                    block,
+                    enabled: new_state,
+                }])
             }
             Command::ReplaceBlockModel { .. } => {
                 unimplemented!("phase-1 task pending")

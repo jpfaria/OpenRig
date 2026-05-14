@@ -9,8 +9,8 @@ serde.workspace = true
 schemars.workspace = true
 project = { path = "../project" }
 block-core = { path = "../block-core" }
+domain = { path = "../domain" }
 
 [dev-dependencies]
-domain = { path = "../domain" }
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }

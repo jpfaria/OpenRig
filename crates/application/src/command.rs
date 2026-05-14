@@ -14,11 +14,7 @@ use std::path::PathBuf;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// Type aliases kept simple for the skeleton. Phase 2 tasks will import the
-// canonical `domain::ids::{ChainId, BlockId}` types when the first real
-// Command arm is wired end-to-end.
-pub type ChainId = String;
-pub type BlockId = String;
+pub use domain::ids::{BlockId, ChainId};
 
 /// Every state change the UI or any controller can request.
 ///
