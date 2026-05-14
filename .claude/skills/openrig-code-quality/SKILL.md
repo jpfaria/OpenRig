@@ -37,6 +37,44 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 ---
 
+## LEI — docs e referências SEMPRE em sincronia com o código
+
+**Documentação não é "depois". É parte da tarefa.** Toda mudança que altera comportamento, API, fluxo ou modelo precisa atualizar — no MESMO commit — todas as camadas de doc afetadas:
+
+| Camada | Para quem | Quando atualizar |
+|---|---|---|
+| `docs/**/*.md` | humanos (contribuidores, usuários) | mudou comportamento de áudio, fluxo de UI, block, parâmetro, screen, CLI, deploy, hardware |
+| `CLAUDE.md` (raiz) | toda sessão Claude | mudou invariante, hierarquia de trade-offs, regra geral |
+| `.claude/skills/*/SKILL.md` | sessão futura do Claude | mudou metodologia, anti-pattern, debt file, gate, processo, gitflow detalhe |
+| `~/.claude/projects/<slug>/memory/*.md` | sessão futura do Claude | feedback do user, decisão de projeto, referência externa |
+| `README.md` + `README.pt-BR.md` + `README.es-ES.md` | mundo (3 línguas) | mudou tagline, feature list, build/deploy, link |
+| `CONTRIBUTING.md` | contribuidores | mudou processo de contribuição |
+
+**Why:** sessão futura (Claude **ou** humano) precisa enxergar o estado real. Doc desatualizada vira mentira que se propaga: o próximo contribuidor segue a doc errada e quebra produção; o próximo Claude lê a skill desatualizada e aplica regra que não vale mais. Vimos isso em #435 — eu não rodei o demo nem uma vez porque a skill `slint-best-practices` não tinha "valide visualmente antes de declarar pronto" como regra explícita. Esse furo foi caro.
+
+**How to apply:**
+- Antes de `git commit`, lista mental: mudei comportamento? → quais .md afetam? → atualizou todos?
+- Renomeou modelo/parâmetro/effect_type? → grep cross-repo em `docs/**`, `*.md`, `README*`, `CLAUDE.md`, todos `.claude/skills/*/SKILL.md`.
+- Aprendeu uma regra nova durante a sessão (feedback do user, anti-pattern descoberto, decisão arquitetural)? → escreve na skill **antes** de fechar a sessão. Não confia em memória pessoal — escreve.
+- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `rust-best-practices`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
+- Mudou invariante (latência, isolation, mixing)? → `CLAUDE.md` + `docs/architecture.md`.
+
+**Anti-padrões:**
+```
+❌ "depois eu atualizo a doc" — sessão acaba, doc fica órfã, próxima quebra.
+❌ Commit que mexe em comportamento sem tocar nenhum .md.
+❌ Skill desatualizada porque "eu lembro de cabeça" — Claude da próxima sessão não lembra.
+❌ README.md (en) atualizado mas pt-BR/es-ES não — [[feedback_readme_three_languages]].
+```
+
+**Padrão correto:**
+```
+✅ Mesma PR/commit: código + docs/<area>.md + .claude/skills/<area>/SKILL.md + (se aplica) READMEs em 3 línguas.
+✅ Skill é LIVING DOCUMENT — quando o user corrige um padrão, a correção vai pra skill no MESMO turno, antes de fechar.
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
