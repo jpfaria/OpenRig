@@ -98,11 +98,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());
                     stop_project_runtime(&project_runtime);
-                    // Signal project loaded through the new session's dispatcher.
-                    let _ = session.dispatcher.dispatch(Command::LoadProject {
-                        project: session.project.borrow().clone(),
-                        path: path.clone(),
-                    });
                     replace_project_chains(
                         &project_chains,
                         &*session.project.borrow(),
