@@ -1,3 +1,4 @@
+pub mod block_factory;
 pub mod command;
 pub mod dispatcher;
 pub mod event;

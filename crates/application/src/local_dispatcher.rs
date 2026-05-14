@@ -24,8 +24,10 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
+use domain::ids::BlockId;
 use project::project::Project;
 
+use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
 use crate::command::Command;
 use crate::dispatcher::{CommandDispatcher, EventStream};
 use crate::event::Event;
@@ -161,17 +163,86 @@ impl CommandDispatcher for LocalDispatcher {
                     enabled: new_state,
                 }])
             }
-            Command::ReplaceBlockModel { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::ReplaceBlockModel {
+                chain,
+                block,
+                model_id,
+            } => {
+                // Resolve the effect_type for the given model_id by scanning the registry.
+                let effect_type = resolve_effect_type_for_model(&model_id)?;
+                // Build a fresh block with default params for the new model.
+                let new_block = build_default_block(
+                    BlockId(String::new()), // placeholder; we preserve the existing id below
+                    &effect_type,
+                    &model_id,
+                )?;
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
+                else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                // Preserve id and enabled; replace only the kind (defaults reset).
+                target_block.kind = new_block.kind;
+                Ok(vec![Event::BlockReplaced { chain, block }])
             }
-            Command::AddBlock { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::AddBlock {
+                chain,
+                kind,
+                model_id,
+                position,
+            } => {
+                // Build the new block with default params before mutating the project.
+                // A unique id is generated from the chain id + current timestamp-ish counter.
+                let block_id = {
+                    let proj = self.project.borrow();
+                    let chain_ref = proj.chains.iter().find(|c| c.id == chain);
+                    let n = chain_ref.map(|c| c.blocks.len()).unwrap_or(0);
+                    BlockId(format!("{}:{}:{}", chain.0, kind, n))
+                };
+                let new_block = build_default_block(block_id, &kind, &model_id)?;
+                let new_block_id = new_block.id.clone();
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let insert_at = position.min(target_chain.blocks.len());
+                target_chain.blocks.insert(insert_at, new_block);
+                Ok(vec![Event::BlockAdded {
+                    chain,
+                    block: new_block_id,
+                }])
             }
-            Command::RemoveBlock { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::RemoveBlock { chain, block } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let pre_len = target_chain.blocks.len();
+                target_chain.blocks.retain(|b| b.id != block);
+                if target_chain.blocks.len() == pre_len {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                }
+                Ok(vec![Event::BlockRemoved { chain, block }])
             }
-            Command::MoveBlock { .. } => {
-                unimplemented!("phase-1 task pending")
+            Command::MoveBlock {
+                chain,
+                block,
+                new_position,
+            } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                let Some(from_idx) = target_chain.blocks.iter().position(|b| b.id == block) else {
+                    return Err(anyhow::anyhow!("block not found: {:?}", block));
+                };
+                let moved = target_chain.blocks.remove(from_idx);
+                let insert_at = new_position.min(target_chain.blocks.len());
+                target_chain.blocks.insert(insert_at, moved);
+                Ok(vec![Event::ChainReloaded { chain }])
             }
             Command::SaveBlockEditorDraft { .. } => {
                 unimplemented!("phase-1 task pending")

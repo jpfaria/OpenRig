@@ -10,6 +10,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::{clear_status, log_gui_message, set_status_error};
@@ -94,20 +96,28 @@ pub(crate) fn wire(
                 log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(draft.chain_index) else {
+            // Resolve chain_id and block_id before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(draft.chain_index) else {
                     log_gui_message("block-drawer.delete", "Chain inválida.");
                     return;
                 };
-                if block_index >= chain.blocks.len() {
+                let Some(block) = chain.blocks.get(block_index) else {
                     log_gui_message("block-drawer.delete", "Block inválido.");
                     return;
-                }
-                let chain_id = chain.id.clone();
-                chain.blocks.remove(block_index);
-                chain_id
+                };
+                (chain.id.clone(), block.id.clone())
             };
+            // Dispatch Command::RemoveBlock — mutates project via shared Rc.
+            if let Err(error) = session.dispatcher.dispatch(Command::RemoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("[adapter-gui] block-drawer.delete dispatch: {error}");
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.delete: {error}");
                 set_status_error(&window, &toast_timer, &error.to_string());

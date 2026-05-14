@@ -13,6 +13,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::block_editor_data;
@@ -347,57 +349,36 @@ pub(crate) fn wire(
                 return;
             };
             let new_model_id = model.model_id.to_string();
-            let new_effect_type = model.effect_type.to_string();
 
-            // Build new block kind with default params
-            let new_params = block_core::param::ParameterSet::default();
-            let schema =
-                match project::block::schema_for_block_model(&new_effect_type, &new_model_id) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        log::error!("compact choose-model schema error: {e}");
-                        return;
-                    }
+            // Resolve block_id and chain_id before dispatching.
+            let (chain_id, block_id) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
                 };
-            let normalized = match new_params.normalized_against(&schema) {
-                Ok(p) => p,
-                Err(e) => {
-                    log::error!("compact choose-model normalize error: {e}");
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
-                }
-            };
-            let kind = match project::block::build_audio_block_kind(
-                &new_effect_type,
-                &new_model_id,
-                normalized,
-            ) {
-                Ok(k) => k,
-                Err(e) => {
-                    log::error!("compact choose-model build error: {e}");
+                };
+                let Some(block) = chain.blocks.get(block_idx) else {
                     return;
-                }
+                };
+                (chain.id.clone(), block.id.clone())
             };
 
-            // Apply to project
+            // Dispatch Command::ReplaceBlockModel — mutates project via shared Rc.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get_mut(block_idx) else {
-                    return;
-                };
-                let block_id = block.id.clone();
-                let enabled = block.enabled;
-                block.kind = kind;
-                block.id = block_id;
-                block.enabled = enabled;
-                chain.id.clone()
-            };
+            if let Err(error) = session.dispatcher.dispatch(Command::ReplaceBlockModel {
+                chain: chain_id.clone(),
+                block: block_id,
+                model_id: new_model_id,
+            }) {
+                log::error!("compact choose-model dispatch error: {error}");
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
@@ -513,21 +494,32 @@ pub(crate) fn wire(
             };
             log::info!("[compact] reorder-block: compact_from={}, compact_before={}, real_from={}, real_before={}", compact_from, compact_before, from_index, real_before);
             if real_before == from_index || real_before == from_index + 1 { return; }
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else { return; };
             let chain_idx = ci as usize;
-            let chain_id = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_idx) else { return; };
+            // Resolve block_id and compute insert_at before dispatching.
+            let (chain_id, block_id, insert_at) = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else { return; };
                 let block_count = chain.blocks.len();
                 if from_index >= block_count { return; }
-                let block = chain.blocks.remove(from_index);
+                let block_id = chain.blocks[from_index].id.clone();
                 let mut normalized_before = real_before;
                 if normalized_before > from_index { normalized_before -= 1; }
-                let insert_at = normalized_before.min(chain.blocks.len());
-                chain.blocks.insert(insert_at, block);
-                chain.id.clone()
+                let insert_at = normalized_before.min(block_count.saturating_sub(1));
+                (chain.id.clone(), block_id, insert_at)
             };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            // Dispatch Command::MoveBlock — mutates project via shared Rc.
+            if let Err(e) = session.dispatcher.dispatch(Command::MoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+                new_position: insert_at,
+            }) {
+                log::error!("[compact] reorder-block dispatch: {}", e);
+                return;
+            }
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] reorder-block runtime sync: {}", e);
             }

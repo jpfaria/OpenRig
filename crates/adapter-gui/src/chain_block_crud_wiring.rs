@@ -16,6 +16,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::{clear_status, set_status_error};
@@ -227,13 +229,14 @@ pub(crate) fn wire(
                 set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
                 return;
             };
-            let (chain_id, _insert_at) = {
-                let mut proj = session.project.borrow_mut();
-                let Some(chain) = proj.chains.get_mut(chain_index as usize) else {
+            // Compute real indices and resolve block_id; the dispatcher handles the actual move.
+            let (chain_id, block_id, insert_at) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index as usize) else {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 };
-                // Both from_index and before_index are in UI space — convert to real indices
+                // Both from_index and before_index are in UI space — convert to real indices.
                 let from_index = ui_index_to_real_block_index(chain, ui_from_index as usize) as i32;
                 let real_before =
                     ui_index_to_real_block_index(chain, ui_before_index as usize) as i32;
@@ -252,15 +255,27 @@ pub(crate) fn wire(
                 if real_before == from_index || real_before == from_index + 1 {
                     return;
                 }
-                let block = chain.blocks.remove(from_index as usize);
+                let block_id = chain.blocks[from_index as usize].id.clone();
+                // Compute the post-removal insert position (same logic as before, but without
+                // actually mutating — the dispatcher will do the mutation).
                 let mut normalized_before = real_before;
                 if normalized_before > from_index {
                     normalized_before -= 1;
                 }
-                let insert_at = normalized_before.clamp(0, chain.blocks.len() as i32) as usize;
-                chain.blocks.insert(insert_at, block);
-                (chain.id.clone(), insert_at)
+                // blocks.len() - 1 because we'll have removed one block before inserting.
+                let insert_at =
+                    normalized_before.clamp(0, block_count - 1) as usize;
+                (chain.id.clone(), block_id, insert_at)
             };
+            // Dispatch Command::MoveBlock — mutates project via shared Rc.
+            if let Err(error) = session.dispatcher.dispatch(Command::MoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+                new_position: insert_at,
+            }) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
