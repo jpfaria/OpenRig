@@ -102,6 +102,7 @@ pub fn build_default_chain(
         description,
         instrument: instrument.to_string(),
         enabled: false,
+        volume: 100.0,
         blocks,
     }
 }

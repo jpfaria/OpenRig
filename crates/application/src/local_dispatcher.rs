@@ -570,6 +570,19 @@ impl CommandDispatcher for LocalDispatcher {
                 self.project.borrow_mut().device_settings = device_settings;
                 Ok(vec![Event::AudioSettingsSaved])
             }
+
+            // ── Chain volume (issue #440) ─────────────────────────────────────
+            Command::SetChainVolume { chain, value } => {
+                let mut proj = self.project.borrow_mut();
+                let Some(target) = proj.chains.iter_mut().find(|c| c.id == chain) else {
+                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                };
+                target.volume = value;
+                Ok(vec![
+                    Event::ChainVolumeChanged { chain, value },
+                    Event::ProjectMutated,
+                ])
+            }
         }
     }
 

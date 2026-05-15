@@ -74,6 +74,8 @@ fn empty_chain(id: &str) -> Chain {
         description: None,
         instrument: "electric_guitar".to_string(),
         enabled: true,
+
+        volume: 100.0,
         blocks: Vec::new(),
     }
 }

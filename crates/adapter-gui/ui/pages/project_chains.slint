@@ -50,6 +50,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback open-spectrum-window();
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    callback chain-volume-changed(int, int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -224,6 +225,7 @@ export component ProjectChainsPage inherits Rectangle {
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+                chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
                 remove-chain(index) => { root.remove-chain(index); }
                 move-chain-up(index) => { root.move-chain-up(index); }
                 move-chain-down(index) => { root.move-chain-down(index); }

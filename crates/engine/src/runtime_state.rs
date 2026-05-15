@@ -263,20 +263,13 @@ pub struct ChainRuntimeState {
     /// Toggled by any consumer that needs a silent output (e.g. the
     /// Tuner window). Auto-cleared on consumer close.
     pub(crate) output_muted: AtomicBool,
-    /// Linear gain (f32 stored as u32 bits, atomic) applied to every
-    /// output sample at the master output. Calculated offline by
-    /// `chain_loudness::compute_chain_normalization_gain_db` whenever
-    /// the chain is built/edited, then converted to linear and stored
-    /// here. Default = 1.0 (no gain). Audio thread reads via
-    /// `normalization_gain()` (single atomic load, no allocation).
-    ///
-    /// Why this lives in `ChainRuntimeState` and not in a block:
-    /// per-block manifest gains would empilhar quando vários blocos
-    /// estão em série (Klon +28 + Amp +35 = +63 dB no signal,
-    /// estoura o teto). Aqui o gain é calculado pra chain INTEIRA
-    /// como unidade, então qualquer combinação de pedais converge
-    /// no mesmo target peak.
-    pub(crate) normalization_gain_bits: AtomicU32,
+    /// Output volume da chain em percentual (issue #440). 100 = unity,
+    /// 200 = 2× (+6 dB), 50 = metade (-6 dB). Multiplicado no master output
+    /// do `process_output_f32` como controle único do preset/chain. Atomic
+    /// pra suportar mudança em runtime via UI sem destruir o chain runtime.
+    /// f32 armazenado como u32 bits (Relaxed ordering é suficiente — não há
+    /// sincronização com outras escritas).
+    pub(crate) volume_pct_bits: AtomicU32,
 }
 
 impl ChainRuntimeState {
@@ -301,21 +294,17 @@ impl ChainRuntimeState {
         self.draining.store(false, Ordering::Release);
     }
 
-    /// Linear gain applied at the master output. Single atomic load,
-    /// audio-thread safe.
-    pub fn normalization_gain(&self) -> f32 {
-        f32::from_bits(self.normalization_gain_bits.load(Ordering::Relaxed))
+    /// Output volume da chain em percentual (issue #440). Linear ratio
+    /// aplicado no master output do `process_output_f32`. Audio-thread safe.
+    pub fn volume_pct(&self) -> f32 {
+        f32::from_bits(self.volume_pct_bits.load(Ordering::Relaxed))
     }
 
-    /// Set the master-output gain in dB. Called from the UI / control
-    /// thread after `chain_loudness::compute_chain_normalization_gain_db`
-    /// runs (during chain build/edit). Clamped to a sane range so a
-    /// degenerate probe (silent chain → +Inf dB) cannot blow the DAC.
-    pub fn set_normalization_gain_db(&self, db: f32) {
-        let clamped = db.clamp(-24.0, 30.0);
-        let lin = 10f32.powf(clamped / 20.0);
-        self.normalization_gain_bits
-            .store(lin.to_bits(), Ordering::Relaxed);
+    /// Atualiza o volume da chain. Chamado pela UI/control thread quando
+    /// o usuário muda o controle. Audio thread vê o novo valor na próxima
+    /// callback (single atomic load por iteração).
+    pub fn set_volume_pct(&self, pct: f32) {
+        self.volume_pct_bits.store(pct.to_bits(), Ordering::Relaxed);
     }
 
     /// Subscribe to raw pre-FX samples from one input. Returns one

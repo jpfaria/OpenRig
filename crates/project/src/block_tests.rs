@@ -357,6 +357,8 @@ fn insert_block_in_chain_structure() {
         description: None,
         instrument: "electric_guitar".to_string(),
         enabled: true,
+
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("chain:0:input:0".into()),

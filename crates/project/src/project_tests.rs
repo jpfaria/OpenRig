@@ -73,6 +73,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         description: None,
         instrument: "electric_guitar".to_string(),
         enabled: true,
+        volume: 100.0,
         blocks,
     }
 }
@@ -277,6 +278,8 @@ fn chain_with_id(id: &str) -> Chain {
         description: Some(id.to_string()),
         instrument: "electric_guitar".to_string(),
         enabled: true,
+
+        volume: 100.0,
         blocks: vec![],
     }
 }

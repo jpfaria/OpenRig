@@ -222,6 +222,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 description: None,
                                 instrument: String::new(),
                                 enabled: false,
+                                volume: 100.0,
                                 blocks: new_blocks,
                             };
                             assign_new_block_ids(&mut tmp_chain);
@@ -329,6 +330,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 description: None,
                                 instrument: String::new(),
                                 enabled: false,
+                                volume: 100.0,
                                 blocks: new_blocks,
                             };
                             assign_new_block_ids(&mut tmp_chain);

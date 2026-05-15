@@ -289,6 +289,15 @@ pub enum Command {
         project: project::project::Project,
     },
 
+    // ── Chain volume ──────────────────────────────────────────────────────────
+    /// Set the output volume of a chain (issue #440).
+    ///
+    /// `value` is the volume in percent (100 = unity, 200 = +6 dB, 50 = -6 dB).
+    /// No clamping is applied — the caller is responsible for keeping `value`
+    /// within a sane range. The engine multiplies the master output by
+    /// `value / 100` on every audio callback.
+    SetChainVolume { chain: ChainId, value: f32 },
+
     // ── Project settings ──────────────────────────────────────────────────────
     /// Update the project's display name.
     UpdateProjectName { name: String },

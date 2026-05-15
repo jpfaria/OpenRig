@@ -92,6 +92,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            volume: 100.0,
             blocks: vec![block],
         }],
     }))
@@ -654,6 +655,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            volume: 100.0,
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -743,6 +745,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            volume: 100.0,
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -1024,6 +1027,7 @@ fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool)
         description: Some(chain_id.to_string()),
         instrument: "electric_guitar".to_string(),
         enabled,
+        volume: 100.0,
         blocks: vec![AudioBlock {
             id: BlockId("input:0".to_string()),
             enabled: true,
@@ -1046,6 +1050,7 @@ fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         description: Some(chain_id.to_string()),
         instrument: "electric_guitar".to_string(),
         enabled,
+        volume: 100.0,
         blocks: vec![],
     }
 }
@@ -1664,6 +1669,7 @@ fn save_chain_input_endpoints_multi_block_replaces_all_and_emits_event() {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 make_input_block("dev_old", 0),
                 make_core_block("blk_mid", true),
@@ -1755,6 +1761,7 @@ fn save_chain_input_endpoints_preserves_non_input_block_order() {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 make_input_block("dev_old", 0),
                 make_core_block("blk_a", true),
@@ -1798,6 +1805,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
     }));
@@ -1856,6 +1864,7 @@ fn save_chain_output_endpoints_multi_block_replaces_all_and_emits_event() {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 make_input_block("dev_in", 0),
                 make_core_block("blk_mid", true),
@@ -1949,6 +1958,7 @@ fn save_chain_output_endpoints_preserves_non_output_block_order() {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 make_input_block("dev_in", 0),
                 make_core_block("blk_a", true),
@@ -2183,6 +2193,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
     }));
@@ -2231,6 +2242,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             description: None,
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![insert],
         }],
     }));
@@ -2795,5 +2807,181 @@ fn load_chain_preset_empty_blocks_succeeds() {
     assert!(
         chain.blocks.is_empty(),
         "chain should be empty after empty preset load"
+    );
+}
+
+// ── Invariant: dispatch must not be called while caller holds a Project borrow ────
+
+#[test]
+fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
+    // Reproduces the real bug we hit in adapter-gui (recent_projects_wiring /
+    // project_file_dialog_wiring): building the Command's `project` field via
+    // `project_rc.borrow().clone()` keeps the immutable borrow alive until the
+    // dispatch call returns. Inside dispatch, `self.project.borrow_mut()`
+    // then panics with "RefCell already borrowed".
+    //
+    // This test pins the invariant: callers MUST drop every project borrow
+    // BEFORE invoking dispatch. The fix on the adapter side is to clone into
+    // a local variable first.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    };
+    let project_rc = Rc::new(RefCell::new(project));
+    let dispatcher = LocalDispatcher::new(project_rc.clone());
+
+    let _alive = project_rc.borrow(); // simulates an adapter holding `&Project`
+
+    let new_project = Project {
+        name: Some("loaded".into()),
+        device_settings: vec![],
+        chains: vec![],
+    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        dispatcher.dispatch(Command::LoadProject {
+            project: new_project,
+            path: std::path::PathBuf::from("/tmp/x"),
+        })
+    }));
+
+    assert!(
+        result.is_err(),
+        "dispatch is expected to panic when caller still holds a project borrow"
+    );
+}
+
+#[test]
+fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
+    // Positive companion: after the borrow is dropped, dispatch goes through.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+    };
+    let project_rc = Rc::new(RefCell::new(project));
+    let dispatcher = LocalDispatcher::new(project_rc.clone());
+
+    let snapshot = project_rc.borrow().clone(); // takes the borrow temporarily
+    drop(snapshot); // (actually, .clone() already returns Project by value;
+                    // the temporary borrow is gone after this line.)
+
+    let new_project = Project {
+        name: Some("loaded".into()),
+        device_settings: vec![],
+        chains: vec![],
+    };
+    let result = dispatcher.dispatch(Command::LoadProject {
+        project: new_project,
+        path: std::path::PathBuf::from("/tmp/x"),
+    });
+
+    assert!(
+        result.is_ok(),
+        "dispatch without live borrow should succeed"
+    );
+    assert_eq!(
+        project_rc.borrow().name.as_deref(),
+        Some("loaded"),
+        "loaded project replaced shared state"
+    );
+}
+
+// ── SetChainVolume (issue #440, port to #295 command bus) ────────────────────
+
+fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId(chain_id.to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            volume,
+            blocks: vec![],
+        }],
+    }))
+}
+
+#[test]
+fn set_chain_volume_updates_value_and_emits_event() {
+    let project = make_project_with_volume("chain_0", 100.0);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SetChainVolume {
+        chain: ChainId("chain_0".to_string()),
+        value: 150.0,
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let events = result.unwrap();
+    // Must emit ChainVolumeChanged + ProjectMutated
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::ChainVolumeChanged {
+                chain,
+                value,
+            } if chain.0 == "chain_0" && (*value - 150.0).abs() < f32::EPSILON
+        )),
+        "expected ChainVolumeChanged event; got: {:?}",
+        events
+    );
+    assert!(
+        events.iter().any(|e| matches!(e, Event::ProjectMutated)),
+        "expected ProjectMutated event; got: {:?}",
+        events
+    );
+    assert!(
+        (project.borrow().chains[0].volume - 150.0).abs() < f32::EPSILON,
+        "chain.volume should be 150.0 after dispatch, got {}",
+        project.borrow().chains[0].volume
+    );
+}
+
+#[test]
+fn set_chain_volume_non_existent_chain_returns_err() {
+    let project = make_project_with_volume("chain_0", 100.0);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SetChainVolume {
+        chain: ChainId("chain_MISSING".to_string()),
+        value: 150.0,
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+    assert!(
+        (project.borrow().chains[0].volume - 100.0).abs() < f32::EPSILON,
+        "volume must not be mutated when chain not found"
+    );
+}
+
+#[test]
+fn set_chain_volume_passes_extreme_values_verbatim() {
+    // Policy: no clamp. Values 0.0 and 250.0 stored as-is.
+    let project = make_project_with_volume("chain_0", 100.0);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::SetChainVolume {
+            chain: ChainId("chain_0".to_string()),
+            value: 0.0,
+        })
+        .expect("dispatch 0.0 should succeed");
+    assert!(
+        project.borrow().chains[0].volume.abs() < f32::EPSILON,
+        "volume=0.0 should be stored verbatim"
+    );
+
+    dispatcher
+        .dispatch(Command::SetChainVolume {
+            chain: ChainId("chain_0".to_string()),
+            value: 250.0,
+        })
+        .expect("dispatch 250.0 should succeed");
+    assert!(
+        (project.borrow().chains[0].volume - 250.0).abs() < f32::EPSILON,
+        "volume=250.0 should be stored verbatim"
     );
 }

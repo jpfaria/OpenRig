@@ -49,6 +49,10 @@ pub(crate) fn default_io_yaml_model() -> String {
     "standard".to_string()
 }
 
+fn default_chain_volume() -> f32 {
+    100.0
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct ChainOutputEntryYaml {
@@ -89,6 +93,10 @@ pub(crate) struct ChainYaml {
     instrument: String,
     #[serde(default, skip_serializing)]
     enabled: bool,
+    /// Output volume da chain em percentual (issue #440). 100 = unity.
+    /// Legados sem campo deserializam como 100.0.
+    #[serde(default = "default_chain_volume")]
+    volume: f32,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
     inputs: Vec<ChainInputYaml>,
@@ -147,6 +155,7 @@ impl ChainYaml {
                 description: self.description,
                 instrument: self.instrument,
                 enabled: self.enabled,
+                volume: self.volume,
                 blocks: parsed_blocks,
             };
             // Migrate projects saved while issue #377 was open: split-per-device
@@ -278,6 +287,7 @@ impl ChainYaml {
             description: self.description,
             instrument: self.instrument,
             enabled: self.enabled,
+            volume: self.volume,
             blocks: all_blocks,
         };
         chain.coalesce_endpoint_blocks();
@@ -300,6 +310,7 @@ impl ChainYaml {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
             enabled: false, // chains always start disabled on project load, regardless of saved state
+            volume: chain.volume,
             inputs: Vec::new(),
             outputs: Vec::new(),
             input_device_id: None,

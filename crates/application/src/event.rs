@@ -82,6 +82,10 @@ pub enum Event {
     /// A preset was loaded into a chain (non-I/O blocks replaced).
     ChainPresetLoaded { chain: ChainId },
 
+    // ── Chain volume events ───────────────────────────────────────────────────
+    /// A chain's output volume was changed via the slider (issue #440).
+    ChainVolumeChanged { chain: ChainId, value: f32 },
+
     // ── Audio settings events ─────────────────────────────────────────────────
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,

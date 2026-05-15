@@ -29,6 +29,7 @@ fn chain_with_input(id: &str, enabled: bool, entries: Vec<InputEntry>) -> Chain 
         description: Some("Guitar".into()),
         instrument: "electric_guitar".to_string(),
         enabled,
+        volume: 100.0,
         blocks: vec![input_block(entries)],
     }
 }

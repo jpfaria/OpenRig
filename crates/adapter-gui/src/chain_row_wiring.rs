@@ -187,6 +187,67 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         });
     }
 
+    // ── on_chain_volume_changed ──────────────────────────────────────────────
+    // Dispatches Command::SetChainVolume; updates live runtime and persists.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_chain_volume_changed(move |index, value| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
+                return;
+            };
+            // Resolve chain id in a scoped borrow — never hold across dispatch.
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                chain.id.clone()
+            };
+            if let Err(err) = session.dispatcher.dispatch(Command::SetChainVolume {
+                chain: chain_id.clone(),
+                value: value as f32,
+            }) {
+                set_status_error(&window, &toast_timer, &err.to_string());
+                return;
+            }
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &*session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+        });
+    }
+
     // ── on_move_chain_up ────────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
