@@ -1629,6 +1629,135 @@ fn runtime_graph_upsert_chain_updates_existing() {
     assert_eq!(graph.chains.len(), 1);
 }
 
+#[test]
+fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
+    // Reproduces the exact path the volume slider takes:
+    //   slider → Command::SetChainVolume (mutates Project.chain.volume)
+    //   → sync_live_chain_runtime → controller.upsert_chain_with_resolved
+    //   → RuntimeGraph::upsert_chain (called unconditionally, ln 501 controller.rs)
+    // The audio thread reads `runtime.volume_pct()` every output callback,
+    // so after a volume edit on a LIVE (already-running) chain the runtime's
+    // volume_pct MUST reflect the new value — without this, moving the
+    // slider does nothing audible.
+    use super::RuntimeGraph;
+    let mut graph = RuntimeGraph {
+        chains: HashMap::new(),
+    };
+    let mut chain = io_passthrough_chain("chain:vol");
+    chain.volume = 100.0;
+    graph
+        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
+        .unwrap();
+    let rt = graph.runtime_for_chain(&chain.id).expect("runtime exists");
+    assert_eq!(rt.volume_pct(), 100.0, "initial volume must be 100");
+
+    // User drags the slider → 150. Same call the controller makes for a
+    // live chain (needs_stream_rebuild = false → fast in-place path).
+    chain.volume = 150.0;
+    graph
+        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
+        .unwrap();
+    let rt2 = graph.runtime_for_chain(&chain.id).expect("runtime exists");
+    assert_eq!(
+        rt2.volume_pct(),
+        150.0,
+        "volume change did NOT reach the live runtime — slider is dead"
+    );
+}
+
+#[test]
+fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_input() {
+    // The user's real bug: a chain with TWO input devices (CPM 22:
+    // Scarlett + TEYUN). The cpal callbacks capture `Arc<ChainRuntimeState>`
+    // at stream-build time. A volume edit does NOT change the stream
+    // signature, so `needs_stream_rebuild = false` and the callbacks keep
+    // their original Arcs. If `upsert_chain`'s multi-input path drops those
+    // Arcs and inserts brand-new ones, the live callbacks read the OLD
+    // volume forever — moving the slider does nothing for multi-input chains.
+    //
+    // This test simulates the callback by holding the Arcs obtained BEFORE
+    // the volume edit, then asserts they observe the new volume after the
+    // same `upsert_chain(needs_stream_rebuild=false)` the controller runs.
+    use super::RuntimeGraph;
+
+    fn two_device_chain(id: &str, volume: f32) -> Chain {
+        Chain {
+            id: ChainId(id.into()),
+            description: Some("two guitars".into()),
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            volume,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId(format!("{id}:input:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![InputEntry {
+                            device_id: DeviceId("scarlett".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId(format!("{id}:input:1")),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![InputEntry {
+                            device_id: DeviceId("teyun".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId(format!("{id}:output:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".into(),
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId("scarlett".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        }
+    }
+
+    let mut graph = RuntimeGraph {
+        chains: HashMap::new(),
+    };
+    let mut chain = two_device_chain("chain:2dev", 100.0);
+    graph
+        .upsert_chain(&chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET])
+        .unwrap();
+
+    // The cpal callbacks capture these Arcs at stream-build time and keep
+    // them until the stream is rebuilt (which a volume edit does NOT do).
+    let held: Vec<Arc<super::ChainRuntimeState>> = graph.runtimes_for(&chain.id);
+    assert!(held.len() >= 2, "fixture: expected ≥2 per-input runtimes");
+
+    // User drags volume → 150. Same call the controller makes for a live
+    // chain whose stream signature is unchanged: needs_stream_rebuild=false.
+    chain.volume = 150.0;
+    graph
+        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
+        .unwrap();
+
+    for (i, rt) in held.iter().enumerate() {
+        assert_eq!(
+            rt.volume_pct(),
+            150.0,
+            "runtime #{i} held by the live cpal callback still reads the OLD \
+             volume — multi-input volume edit never reaches the audio thread"
+        );
+    }
+}
+
 // ── process_output_f32 edge cases ────────────────────────────────────────
 
 #[test]

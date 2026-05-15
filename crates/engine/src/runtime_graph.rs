@@ -677,27 +677,47 @@ impl RuntimeGraph {
             .map(|(_, g)| *g)
             .collect();
 
-        // Fast in-place rebuild path: single existing per-input runtime
-        // AND the rebuild stays single-group. This preserves the
-        // no-audio-drop param-edit behaviour single-input chains (the vast
-        // majority) depend on — byte-identical to pre-#350.
-        if existing_groups.len() == 1 {
-            let group = existing_groups[0];
+        // Fast in-place rebuild path: the per-input topology is UNCHANGED
+        // (same set of group ids). Update every existing runtime in place
+        // so the `Arc<ChainRuntimeState>` each live cpal callback captured
+        // stays valid and observes the edit (volume, knob, block toggle).
+        //
+        // Issue #350 regression: the previous version only took this path
+        // for single-input chains (`existing_groups.len() == 1`). For a
+        // multi-input chain (e.g. 2 guitars on 2 devices) it fell through
+        // to the full rebuild below, which drops the old Arcs and inserts
+        // brand-new ones — but a volume/param edit does NOT rebuild the
+        // cpal streams, so the callbacks kept the OLD Arcs and the edit
+        // never reached the audio thread (slider did nothing).
+        if !existing_groups.is_empty() {
             let new_runtimes = build_per_input_runtimes(chain, sample_rate, elastic_targets)?;
-            if new_runtimes.len() == 1 && new_runtimes[0].0 == group {
-                if let Some(runtime) = self.chains.get(&(chain.id.clone(), group)) {
-                    update_chain_runtime_state(
-                        runtime,
-                        chain,
-                        sample_rate,
-                        reset_output_queue,
-                        elastic_targets,
-                    )?;
-                    return Ok(runtime.clone());
+            let mut new_groups: Vec<usize> = new_runtimes.iter().map(|(g, _)| *g).collect();
+            let mut existing_sorted = existing_groups.clone();
+            new_groups.sort_unstable();
+            existing_sorted.sort_unstable();
+            if new_groups == existing_sorted {
+                // Topology unchanged → in-place update of each existing
+                // runtime, preserving the Arcs the callbacks hold.
+                for group in &existing_sorted {
+                    if let Some(runtime) = self.chains.get(&(chain.id.clone(), *group)) {
+                        update_chain_runtime_state(
+                            runtime,
+                            chain,
+                            sample_rate,
+                            reset_output_queue,
+                            elastic_targets,
+                        )?;
+                    }
+                }
+                let first_group = existing_sorted[0];
+                if let Some(rt) = self.chains.get(&(chain.id.clone(), first_group)) {
+                    return Ok(rt.clone());
                 }
             }
-            // Layout changed (split into / collapsed from multiple inputs):
-            // fall through to a full per-input rebuild.
+            // Topology changed (input added/removed/device swapped):
+            // fall through to a full per-input rebuild (the stream
+            // signature also changed, so the cpal streams WILL be rebuilt
+            // and will capture the fresh Arcs).
         }
 
         // Full rebuild: drop every stale per-input runtime for this chain
