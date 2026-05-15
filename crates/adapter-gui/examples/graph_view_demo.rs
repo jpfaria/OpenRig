@@ -10,17 +10,21 @@
 //! macro — same source the production UI consumes, no duplication.
 
 use adapter_gui::graph_view_model::{
-    self as model, linear_chain_layout, BlockBlueprint, ChainStage, GridMetrics, NodeCategory,
+    self as model, default_palette, linear_chain_layout, reorder_for_drop, topological_layout,
+    BlockBlueprint, ChainStage, GridMetrics, NodeCategory,
 };
 use slint::Model;
+use std::collections::HashMap;
 
 slint::slint! {
+    import { CheckBox } from "std-widgets.slint";
     import { GraphView, GraphNode, GraphEdgeGeometry }
         from "ui/components/graph_view.slint";
 
     export component DemoWindow inherits Window {
         in property <[GraphNode]> nodes;
         in property <[GraphEdgeGeometry]> edges;
+        out property <bool> auto <=> auto_box.checked;
 
         callback node-clicked(string);
         callback node-double-clicked(string);
@@ -38,12 +42,19 @@ slint::slint! {
             Rectangle {
                 height: 36px;
                 background: #161b25;
-                Text {
-                    x: 16px;
-                    text: "GraphView demo — drag a node, scroll to zoom, drag empty area to pan, double-click for editor stub";
-                    color: #c9d3e2;
-                    font-size: 11px;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    spacing: 16px;
+                    Text {
+                        text: "GraphView demo — drag a node, scroll zoom, drag empty area pan, double-click editor stub";
+                        color: #c9d3e2;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+                    auto_box := CheckBox {
+                        text: "auto-layout";
+                        checked: true;
+                    }
                 }
             }
 
@@ -52,6 +63,7 @@ slint::slint! {
                 edges: root.edges;
                 node-width: 110px;
                 node-height: 56px;
+                auto-layout: root.auto;
                 node-clicked(id) => { root.node-clicked(id); }
                 node-double-clicked(id) => { root.node-double-clicked(id); }
                 node-dragged(id, x, y) => { root.node-dragged(id, x, y); }
@@ -59,6 +71,24 @@ slint::slint! {
             }
         }
     }
+}
+
+/// Resolve every category to a Slint colour once, from the single-source
+/// `default_palette()`. Host owns colour; the component is colour-blind.
+fn palette_lookup() -> HashMap<String, (slint::Color, slint::Color)> {
+    default_palette()
+        .into_iter()
+        .map(|s| {
+            let to_c = |rgb: u32| {
+                slint::Color::from_rgb_u8(
+                    ((rgb >> 16) & 0xff) as u8,
+                    ((rgb >> 8) & 0xff) as u8,
+                    (rgb & 0xff) as u8,
+                )
+            };
+            (s.category.to_string(), (to_c(s.fill), to_c(s.border)))
+        })
+        .collect()
 }
 
 fn demo_chain() -> (Vec<model::GraphNode>, Vec<model::GraphEdge>) {
@@ -105,22 +135,30 @@ fn demo_chain() -> (Vec<model::GraphNode>, Vec<model::GraphEdge>) {
 fn into_slint_models(
     nodes: Vec<model::GraphNode>,
     edges: Vec<model::GraphEdge>,
+    palette: &HashMap<String, (slint::Color, slint::Color)>,
 ) -> (Vec<GraphNode>, Vec<GraphEdgeGeometry>) {
-    use std::collections::HashMap;
-
     let coords: HashMap<&str, (f32, f32)> =
         nodes.iter().map(|n| (n.id.as_str(), (n.x, n.y))).collect();
 
+    let neutral = (
+        slint::Color::from_rgb_u8(0x8a, 0x94, 0xa2),
+        slint::Color::from_rgb_u8(0x5c, 0x63, 0x6e),
+    );
     let slint_nodes = nodes
         .iter()
-        .map(|n| GraphNode {
-            id: n.id.clone().into(),
-            label: n.label.clone().into(),
-            category: n.category.as_str().into(),
-            layout_x: n.x,
-            layout_y: n.y,
-            bypass: n.bypass,
-            selected: false,
+        .map(|n| {
+            let (fill, border) = palette.get(n.category.as_str()).copied().unwrap_or(neutral);
+            GraphNode {
+                id: n.id.clone().into(),
+                label: n.label.clone().into(),
+                category: n.category.as_str().into(),
+                fill,
+                border,
+                layout_x: n.x,
+                layout_y: n.y,
+                bypass: n.bypass,
+                selected: false,
+            }
         })
         .collect();
 
@@ -150,7 +188,11 @@ fn main() -> Result<(), slint::PlatformError> {
     let errors = adapter_gui::graph_view_model::validate_graph(&nodes, &edges);
     assert!(errors.is_empty(), "demo graph is invalid: {errors:?}");
 
-    let (slint_nodes, slint_edges) = into_slint_models(nodes, edges);
+    let metrics = GridMetrics::default();
+    let palette = palette_lookup();
+    // Start from the topological auto-layout (auto-layout defaults on).
+    let laid = topological_layout(&nodes, &edges, metrics);
+    let (slint_nodes, slint_edges) = into_slint_models(laid, edges.clone(), &palette);
 
     // Shared models, mutated in place. Issue #435 invariant: drag/zoom
     // must not reallocate per frame — so the host keeps one VecModel and
@@ -210,8 +252,47 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    window.on_node_drag_ended(|id, x, y| {
+    let nodes_dl = node_model.clone();
+    let edges_dl = edge_model.clone();
+    let win_weak = window.as_weak();
+    let base_nodes = nodes.clone();
+    let base_edges = edges.clone();
+    window.on_node_drag_ended(move |id, x, y| {
         log::info!("drag end: {id} -> ({x}, {y})");
+        let Some(w) = win_weak.upgrade() else { return };
+        if !w.get_auto() {
+            return;
+        }
+        let relaid = reorder_for_drop(
+            &base_nodes,
+            &base_edges,
+            id.as_str(),
+            x,
+            y,
+            GridMetrics::default(),
+        );
+        let coords: HashMap<String, (f32, f32)> =
+            relaid.iter().map(|n| (n.id.clone(), (n.x, n.y))).collect();
+        for i in 0..nodes_dl.row_count() {
+            let mut nd = nodes_dl.row_data(i).unwrap();
+            if let Some((nx, ny)) = coords.get(nd.id.as_str()) {
+                nd.layout_x = *nx;
+                nd.layout_y = *ny;
+                nodes_dl.set_row_data(i, nd);
+            }
+        }
+        for i in 0..edges_dl.row_count() {
+            let mut ed = edges_dl.row_data(i).unwrap();
+            if let Some((fx, fy)) = coords.get(ed.from_id.as_str()) {
+                ed.from_x = *fx;
+                ed.from_y = *fy;
+            }
+            if let Some((tx, ty)) = coords.get(ed.to_id.as_str()) {
+                ed.to_x = *tx;
+                ed.to_y = *ty;
+            }
+            edges_dl.set_row_data(i, ed);
+        }
     });
 
     window.run()

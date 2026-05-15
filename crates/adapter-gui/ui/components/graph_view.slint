@@ -14,10 +14,15 @@ export struct GraphNode {
     // host gave when computing the layout.
     id: string,
     label: string,
-    // Stable category slug ("drive", "amp", "reverb", "util", …).
-    // The component looks up the colour from a fixed palette below.
-    // Adding a new category is an enum string only — no Rust change.
+    // Stable category slug ("drive", "amp", "reverb", "util", …). Kept
+    // for accessibility / debugging; the component does NOT derive
+    // colour from it (Slint can't search an array). The host resolves
+    // colour from its palette and passes fill/border below — the single
+    // source of truth is default_palette() in graph_view_model.rs.
     category: string,
+    // Resolved colours, host-supplied. Component is fully colour-agnostic.
+    fill: color,
+    border: color,
     // Layout-space position (centre of the node).
     layout_x: length,
     layout_y: length,
@@ -44,24 +49,14 @@ export struct GraphEdgeGeometry {
     to_y: length,
 }
 
-// Stable palette per category. Centralised here so adding a new
-// category is one line, not a tree of conditionals in every consumer.
-// This is presentation, not domain data — fits the "separation of
-// concerns" rule (business code never names a colour).
-component CategoryPalette {
-    in property <string> category;
-    out property <color> fill: root.category == "input"      ? #1e8aff
-                            : root.category == "output"     ? #ff8a1e
-                            : root.category == "dynamics"   ? #c69b3f
-                            : root.category == "drive"      ? #d04a3a
-                            : root.category == "amp"        ? #4a7fd0
-                            : root.category == "modulation" ? #8d4ad0
-                            : root.category == "time"       ? #2d9b9b
-                            : root.category == "reverb"     ? #3aa86a
-                            : root.category == "eq"         ? #c8b400
-                            : root.category == "util"       ? #6a7483
-                            : /* other */                     #8a94a2;
-    out property <color> border: self.fill.darker(0.35);
+// Host-supplied category → colour map. The component owns NO colours;
+// the single source of truth is default_palette() in graph_view_model.rs.
+// The host resolves each node's fill/border from this and writes them
+// onto the GraphNode (Slint cannot search an array in a binding).
+export struct CategoryColor {
+    category: string,
+    fill: color,
+    border: color,
 }
 
 // Single node card. Pure visual; drag/click are owned by the parent
@@ -79,22 +74,18 @@ component GraphNodeCard inherits Rectangle {
     border-width: root.node.selected ? 2px : 1px;
     border-color: root.node.selected
         ? #f5f7fb
-        : palette.border;
+        : root.node.border;
     background: root.node.bypass
-        ? palette.fill.with-alpha(0.35)
+        ? root.node.fill.with-alpha(0.35)
         : root.dragging
-        ? palette.fill.brighter(0.20)
+        ? root.node.fill.brighter(0.20)
         : root.hovered
-        ? palette.fill.brighter(0.10)
-        : palette.fill;
+        ? root.node.fill.brighter(0.10)
+        : root.node.fill;
     opacity: root.node.bypass ? 0.7 : 1.0;
     drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
     drop-shadow-color: #00000080;
     drop-shadow-offset-y: 2px;
-
-    palette := CategoryPalette {
-        category: root.node.category;
-    }
 
     Text {
         x: 8px;
@@ -180,6 +171,12 @@ export component GraphView inherits Rectangle {
     in property <color> background_color: #11141a;
     in property <color> grid_color: #1a1f2a;
     in property <bool> show_grid: true;
+
+    // When true the host computes positions via topological_layout and
+    // re-tidies on drag end via reorder_for_drop. Documentational on the
+    // Slint side — the algorithm is host-owned (project rule: no logic
+    // in the UI layer).
+    in property <bool> auto_layout: true;
 
     // Zoom limits (matches issue #435 acceptance criteria 0.3..3.0).
     in property <float> min_zoom: 0.3;
