@@ -30,7 +30,6 @@ mod node_category {
 }
 
 mod palette {
-    use super::*;
     use crate::graph_view_model::{default_palette, NodeCategory};
 
     #[test]
@@ -68,6 +67,189 @@ mod palette {
                 s.category
             );
         }
+    }
+}
+
+mod topological_rank {
+    use super::*;
+    use crate::graph_view_model::topological_layout;
+
+    fn tn(id: &str) -> GraphNode {
+        GraphNode {
+            id: id.into(),
+            label: id.into(),
+            category: NodeCategory::Other,
+            x: 0.0,
+            y: 0.0,
+            bypass: false,
+        }
+    }
+    fn te(a: &str, b: &str) -> GraphEdge {
+        GraphEdge {
+            from_id: a.into(),
+            to_id: b.into(),
+        }
+    }
+
+    #[test]
+    fn linear_chain_ranks_left_to_right() {
+        let m = GridMetrics {
+            origin_x: 0.0,
+            origin_y: 0.0,
+            column_spacing: 100.0,
+            lane_spacing: 50.0,
+        };
+        let nodes = vec![tn("a"), tn("b"), tn("c")];
+        let edges = vec![te("a", "b"), te("b", "c")];
+        let out = topological_layout(&nodes, &edges, m);
+        let get = |id| out.iter().find(|x| x.id == id).unwrap().x;
+        assert_eq!(get("a"), 0.0);
+        assert_eq!(get("b"), 100.0);
+        assert_eq!(get("c"), 200.0);
+    }
+
+    #[test]
+    fn diamond_longest_path_wins() {
+        let m = GridMetrics {
+            origin_x: 0.0,
+            origin_y: 0.0,
+            column_spacing: 100.0,
+            lane_spacing: 50.0,
+        };
+        let nodes = vec![tn("a"), tn("b"), tn("d")];
+        let edges = vec![te("a", "b"), te("b", "d"), te("a", "d")];
+        let out = topological_layout(&nodes, &edges, m);
+        let get = |id| out.iter().find(|x| x.id == id).unwrap().x;
+        assert_eq!(get("d"), 200.0);
+    }
+
+    #[test]
+    fn cycle_falls_back_to_input_order_no_panic() {
+        let m = GridMetrics::default();
+        let nodes = vec![tn("a"), tn("b")];
+        let edges = vec![te("a", "b"), te("b", "a")];
+        let out = topological_layout(&nodes, &edges, m);
+        assert_eq!(out.len(), 2);
+    }
+}
+
+mod topological_lane {
+    use super::*;
+    use crate::graph_view_model::topological_layout;
+
+    fn tn(id: &str) -> GraphNode {
+        GraphNode {
+            id: id.into(),
+            label: id.into(),
+            category: NodeCategory::Other,
+            x: 0.0,
+            y: 0.0,
+            bypass: false,
+        }
+    }
+    fn te(a: &str, b: &str) -> GraphEdge {
+        GraphEdge {
+            from_id: a.into(),
+            to_id: b.into(),
+        }
+    }
+
+    #[test]
+    fn parallel_siblings_get_symmetric_lanes() {
+        let m = GridMetrics {
+            origin_x: 0.0,
+            origin_y: 100.0,
+            column_spacing: 100.0,
+            lane_spacing: 40.0,
+        };
+        let nodes = vec![tn("s"), tn("p"), tn("q"), tn("m")];
+        let edges = vec![te("s", "p"), te("s", "q"), te("p", "m"), te("q", "m")];
+        let out = topological_layout(&nodes, &edges, m);
+        let y = |id| out.iter().find(|x| x.id == id).unwrap().y;
+        assert_eq!(y("s"), 100.0);
+        assert_eq!(y("m"), 100.0);
+        let mut ys = [y("p"), y("q")];
+        ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(ys, [80.0, 120.0]);
+    }
+
+    #[test]
+    fn single_node_per_rank_stays_on_centre_lane() {
+        let m = GridMetrics {
+            origin_x: 0.0,
+            origin_y: 50.0,
+            column_spacing: 100.0,
+            lane_spacing: 40.0,
+        };
+        let nodes = vec![tn("a"), tn("b")];
+        let edges = vec![te("a", "b")];
+        let out = topological_layout(&nodes, &edges, m);
+        assert_eq!(out.iter().find(|x| x.id == "a").unwrap().y, 50.0);
+        assert_eq!(out.iter().find(|x| x.id == "b").unwrap().y, 50.0);
+    }
+}
+
+mod reorder {
+    use super::*;
+    use crate::graph_view_model::{reorder_for_drop, topological_layout};
+
+    fn tn(id: &str) -> GraphNode {
+        GraphNode {
+            id: id.into(),
+            label: id.into(),
+            category: NodeCategory::Other,
+            x: 0.0,
+            y: 0.0,
+            bypass: false,
+        }
+    }
+    fn te(a: &str, b: &str) -> GraphEdge {
+        GraphEdge {
+            from_id: a.into(),
+            to_id: b.into(),
+        }
+    }
+
+    #[test]
+    fn dropping_swaps_sibling_lane_order() {
+        let m = GridMetrics {
+            origin_x: 0.0,
+            origin_y: 0.0,
+            column_spacing: 100.0,
+            lane_spacing: 40.0,
+        };
+        let nodes = vec![tn("s"), tn("p"), tn("q"), tn("g")];
+        let edges = vec![te("s", "p"), te("s", "q"), te("p", "g"), te("q", "g")];
+        let base = topological_layout(&nodes, &edges, m);
+        let p_y = base.iter().find(|x| x.id == "p").unwrap().y;
+        let q_y = base.iter().find(|x| x.id == "q").unwrap().y;
+        let p_x = base.iter().find(|x| x.id == "p").unwrap().x;
+        let after = reorder_for_drop(&nodes, &edges, "p", p_x, q_y, m);
+        let p_y2 = after.iter().find(|x| x.id == "p").unwrap().y;
+        let q_y2 = after.iter().find(|x| x.id == "q").unwrap().y;
+        assert_ne!((p_y, q_y), (p_y2, q_y2), "lane order must change");
+        assert_eq!(p_y2, q_y, "p takes q's old lane");
+        assert_eq!(q_y2, p_y, "q takes p's old lane");
+    }
+
+    #[test]
+    fn dropping_in_place_is_idempotent() {
+        let m = GridMetrics::default();
+        let nodes = vec![tn("a"), tn("b")];
+        let edges = vec![te("a", "b")];
+        let base = topological_layout(&nodes, &edges, m);
+        let a = base.iter().find(|x| x.id == "a").unwrap();
+        let after = reorder_for_drop(&nodes, &edges, "a", a.x, a.y, m);
+        assert_eq!(after, base);
+    }
+
+    #[test]
+    fn unknown_id_returns_clean_layout_no_panic() {
+        let m = GridMetrics::default();
+        let nodes = vec![tn("a"), tn("b")];
+        let edges = vec![te("a", "b")];
+        let after = reorder_for_drop(&nodes, &edges, "zzz", 0.0, 0.0, m);
+        assert_eq!(after, topological_layout(&nodes, &edges, m));
     }
 }
 

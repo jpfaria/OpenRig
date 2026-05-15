@@ -358,6 +358,172 @@ pub fn validate_graph(nodes: &[GraphNode], edges: &[GraphEdge]) -> Vec<String> {
     errors
 }
 
+/// Auto-layout from graph topology. Column = longest path from a source
+/// (in-degree 0). Lane assignment spreads nodes that share a column
+/// symmetrically around `origin_y`, ordered by the barycenter of their
+/// predecessors so parallel paths stay readable. Panic-free: a cycle or
+/// malformed graph falls back to input-order ranking on the centre lane.
+pub fn topological_layout(
+    nodes: &[GraphNode],
+    edges: &[GraphEdge],
+    metrics: GridMetrics,
+) -> Vec<GraphNode> {
+    let ids: Vec<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+    let mut indeg: HashMap<&str, usize> = ids.iter().map(|i| (*i, 0)).collect();
+    let mut outs: HashMap<&str, Vec<&str>> = ids.iter().map(|i| (*i, vec![])).collect();
+    for ed in edges {
+        let (f, t) = (ed.from_id.as_str(), ed.to_id.as_str());
+        if indeg.contains_key(f) && indeg.contains_key(t) {
+            *indeg.get_mut(t).unwrap() += 1;
+            outs.get_mut(f).unwrap().push(t);
+        }
+    }
+    let mut rank: HashMap<&str, usize> = ids.iter().map(|i| (*i, 0)).collect();
+    let mut queue: Vec<&str> = ids.iter().filter(|i| indeg[*i] == 0).copied().collect();
+    let mut processed = 0usize;
+    let mut indeg_w = indeg.clone();
+    let mut head = 0;
+    while head < queue.len() {
+        let u = queue[head];
+        head += 1;
+        processed += 1;
+        for &v in &outs[u] {
+            let nr = rank[u] + 1;
+            if nr > rank[v] {
+                *rank.get_mut(v).unwrap() = nr;
+            }
+            let d = indeg_w.get_mut(v).unwrap();
+            *d -= 1;
+            if *d == 0 {
+                queue.push(v);
+            }
+        }
+    }
+    if processed < ids.len() {
+        // Cycle / malformed: degrade to input order, never panic.
+        return nodes
+            .iter()
+            .enumerate()
+            .map(|(i, src)| GraphNode {
+                x: metrics.origin_x + i as f32 * metrics.column_spacing,
+                y: metrics.origin_y,
+                ..src.clone()
+            })
+            .collect();
+    }
+
+    // Group node indices by rank, then assign lanes left→right using the
+    // barycenter (mean lane of predecessors) with input index as tiebreak.
+    let max_rank = ids.iter().map(|i| rank[*i]).max().unwrap_or(0);
+    let mut by_rank: Vec<Vec<usize>> = vec![Vec::new(); max_rank + 1];
+    for (idx, src) in nodes.iter().enumerate() {
+        by_rank[rank[src.id.as_str()]].push(idx);
+    }
+    let id_of = |idx: usize| nodes[idx].id.as_str();
+    let preds: HashMap<&str, Vec<&str>> = {
+        let mut m: HashMap<&str, Vec<&str>> = ids.iter().map(|i| (*i, vec![])).collect();
+        for ed in edges {
+            let (f, t) = (ed.from_id.as_str(), ed.to_id.as_str());
+            if m.contains_key(t) && m.contains_key(f) {
+                m.get_mut(t).unwrap().push(f);
+            }
+        }
+        m
+    };
+    let mut lane: HashMap<&str, f32> = HashMap::new();
+    for group in by_rank.iter() {
+        let mut group = group.clone();
+        let bary = |idx: usize| -> f32 {
+            let id = id_of(idx);
+            let known: Vec<f32> = preds[id]
+                .iter()
+                .filter_map(|p| lane.get(*p).copied())
+                .collect();
+            if known.is_empty() {
+                idx as f32
+            } else {
+                known.iter().sum::<f32>() / known.len() as f32
+            }
+        };
+        group.sort_by(|&a, &b| {
+            bary(a)
+                .partial_cmp(&bary(b))
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.cmp(&b))
+        });
+        let k = group.len() as f32;
+        for (slot, idx) in group.into_iter().enumerate() {
+            lane.insert(id_of(idx), slot as f32 - (k - 1.0) / 2.0);
+        }
+    }
+    nodes
+        .iter()
+        .map(|src| GraphNode {
+            x: metrics.origin_x + rank[src.id.as_str()] as f32 * metrics.column_spacing,
+            y: metrics.origin_y + lane[src.id.as_str()] * metrics.lane_spacing,
+            ..src.clone()
+        })
+        .collect()
+}
+
+/// Re-tidy after a drag in auto mode. The dragged node keeps its
+/// edge-derived column; `drop_y` only reorders it among its column
+/// siblings. Returns a fresh [`topological_layout`]. Panic-free: an
+/// unknown id yields the clean layout unchanged.
+pub fn reorder_for_drop(
+    nodes: &[GraphNode],
+    edges: &[GraphEdge],
+    dragged_id: &str,
+    _drop_x: f32,
+    drop_y: f32,
+    metrics: GridMetrics,
+) -> Vec<GraphNode> {
+    let laid = topological_layout(nodes, edges, metrics);
+    let Some(dragged) = laid.iter().find(|n| n.id == dragged_id) else {
+        return laid;
+    };
+    let dragged_x = dragged.x;
+    let mut siblings: Vec<&GraphNode> = laid.iter().filter(|n| n.x == dragged_x).collect();
+    if siblings.len() < 2 {
+        return laid;
+    }
+    siblings.sort_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
+    let order: Vec<&str> = siblings.iter().map(|n| n.id.as_str()).collect();
+    let cur = order.iter().position(|id| *id == dragged_id).unwrap();
+    let mut target = 0usize;
+    let mut best = f32::MAX;
+    for (i, s) in siblings.iter().enumerate() {
+        let d = (s.y - drop_y).abs();
+        if d < best {
+            best = d;
+            target = i;
+        }
+    }
+    if target == cur {
+        return laid;
+    }
+    let mut new_sib_ids: Vec<&str> = order
+        .iter()
+        .filter(|id| **id != dragged_id)
+        .copied()
+        .collect();
+    new_sib_ids.insert(target.min(new_sib_ids.len()), dragged_id);
+    let sib_set: std::collections::HashSet<&str> = order.iter().copied().collect();
+    let mut sib_iter = new_sib_ids.iter();
+    let feed: Vec<GraphNode> = nodes
+        .iter()
+        .map(|src| {
+            if sib_set.contains(src.id.as_str()) {
+                let next = *sib_iter.next().unwrap();
+                nodes.iter().find(|n| n.id == next).unwrap().clone()
+            } else {
+                src.clone()
+            }
+        })
+        .collect();
+    topological_layout(&feed, edges, metrics)
+}
+
 #[cfg(test)]
 #[path = "graph_view_model_tests.rs"]
 mod tests;
