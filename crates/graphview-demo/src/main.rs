@@ -2,10 +2,14 @@
 //! topology (compressor → drive → split → 2 amps → time fx → reverb)
 //! so the component can be validated without the rest of OpenRig.
 //!
-//! Run:
-//!     cargo run -p adapter-gui --example graph_view_demo
+//! Kept as its own crate (not an `adapter-gui` example) so the gui crate
+//! carries no demo build weight while the demo stays preserved and
+//! runnable.
 //!
-//! The example imports the component from
+//! Run:
+//!     cargo run -p graphview-demo
+//!
+//! The demo imports the component from
 //! `crates/adapter-gui/ui/components/graph_view.slint` via the `slint!`
 //! macro — same source the production UI consumes, no duplication.
 
@@ -19,7 +23,7 @@ use std::collections::HashMap;
 slint::slint! {
     import { CheckBox } from "std-widgets.slint";
     import { GraphView, GraphNode, GraphEdgeGeometry }
-        from "ui/components/graph_view.slint";
+        from "../../adapter-gui/ui/components/graph_view.slint";
 
     export component DemoWindow inherits Window {
         in property <[GraphNode]> nodes;
