@@ -371,6 +371,7 @@ pub(crate) fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<
     let preset = ChainBlocksPreset {
         id: preset_id_from_path(path)?,
         name: chain.description.clone(),
+        volume: chain.volume,
         blocks: effect_blocks,
     };
     save_chain_preset_file(path, &preset)

@@ -49,10 +49,6 @@ pub(crate) fn default_io_yaml_model() -> String {
     "standard".to_string()
 }
 
-fn default_chain_volume() -> f32 {
-    100.0
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct ChainOutputEntryYaml {
@@ -84,6 +80,10 @@ pub(crate) struct ChainOutputYaml {
     channels: Option<Vec<usize>>,
 }
 
+fn default_chain_volume() -> f32 {
+    100.0
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct ChainYaml {
@@ -111,7 +111,6 @@ pub(crate) struct ChainYaml {
     output_device_id: Option<String>,
     #[serde(default, skip_serializing)]
     output_channels: Option<Vec<usize>>,
-    #[serde(default)]
     blocks: Vec<Value>,
     #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,

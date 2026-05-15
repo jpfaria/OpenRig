@@ -283,17 +283,6 @@ impl ChainRuntimeState {
         self.draining.load(Ordering::Acquire)
     }
 
-    /// Re-arm the audio callback after a teardown-and-rebuild cycle that
-    /// reuses this `ChainRuntimeState` (the Arc is kept alive in
-    /// `RuntimeGraph` across `infra_cpal::teardown_active_chain_for_rebuild`).
-    /// Without this reset the new CPAL/JACK streams attached to the same
-    /// runtime would see `is_draining()` return `true` on every callback and
-    /// silence audio indefinitely until the chain is fully removed and
-    /// re-added — issue #316.
-    pub fn clear_draining(&self) {
-        self.draining.store(false, Ordering::Release);
-    }
-
     /// Output volume da chain em percentual (issue #440). Linear ratio
     /// aplicado no master output do `process_output_f32`. Audio-thread safe.
     pub fn volume_pct(&self) -> f32 {
@@ -305,6 +294,17 @@ impl ChainRuntimeState {
     /// callback (single atomic load por iteração).
     pub fn set_volume_pct(&self, pct: f32) {
         self.volume_pct_bits.store(pct.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Re-arm the audio callback after a teardown-and-rebuild cycle that
+    /// reuses this `ChainRuntimeState` (the Arc is kept alive in
+    /// `RuntimeGraph` across `infra_cpal::teardown_active_chain_for_rebuild`).
+    /// Without this reset the new CPAL/JACK streams attached to the same
+    /// runtime would see `is_draining()` return `true` on every callback and
+    /// silence audio indefinitely until the chain is fully removed and
+    /// re-added — issue #316.
+    pub fn clear_draining(&self) {
+        self.draining.store(false, Ordering::Release);
     }
 
     /// Subscribe to raw pre-FX samples from one input. Returns one

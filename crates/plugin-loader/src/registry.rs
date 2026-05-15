@@ -76,12 +76,12 @@ pub fn register_native_simple(
         brand: brand.map(str::to_string),
         thumbnail: None,
         photo: None,
+        output_gain_pct: None,
         screenshot: None,
         brand_logo: None,
         license: Some("internal".to_string()),
         homepage: None,
         sources: None,
-        output_gain_db: None,
         block_type,
         backend: Backend::Native {
             runtime_id: id.to_string(),

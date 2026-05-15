@@ -923,7 +923,7 @@ fn _suppress_audio_frame_dead_code(f: AudioFrame) -> AudioFrame {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// K. Chain volume slider (issue #440)
+// K. preset.volume (issue #440)
 // ─────────────────────────────────────────────────────────────────────────
 //
 // Chain.volume é aplicado pelo engine no master output do

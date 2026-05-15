@@ -181,7 +181,7 @@ fn round_trip_nam_preserves_data() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_db: None,
+        output_gain_pct: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
