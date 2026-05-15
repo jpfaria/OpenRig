@@ -199,10 +199,18 @@ export component GraphView inherits Rectangle {
     // ── Internal state ──────────────────────────────────────────────
     private property <string> hover_id: "";
     private property <string> drag_id: "";
-    private property <length> drag_offset_x: 0px;
-    private property <length> drag_offset_y: 0px;
+    // Local mouse position (TouchArea space) captured at press. The drag
+    // math is delta-based: new_layout = node.layout + (mouse - press)/zoom.
+    // The node's own layout cancels out of that expression, so it tracks
+    // the real cursor without feedback even though the TouchArea moves
+    // with the node it drags.
     private property <length> press_x: 0px;
     private property <length> press_y: 0px;
+    // Set once movement exceeds the threshold so mouse-up can tell a
+    // click from a drag. Local delta collapses to ~0 once the node
+    // catches the cursor, so the decision must latch on the first
+    // significant move, not be re-derived at release.
+    private property <bool> did_drag: false;
     // Click vs drag — threshold of 5px in viewport space (matches issue
     // #435 acceptance criteria).
     private property <length> click_threshold: 5px;
@@ -370,15 +378,13 @@ export component GraphView inherits Rectangle {
                     root.drag_id = node.id;
                     root.press_x = self.mouse-x;
                     root.press_y = self.mouse-y;
-                    root.drag_offset_x = self.mouse-x / root.zoom - root.node_width / 2;
-                    root.drag_offset_y = self.mouse-y / root.zoom - root.node_height / 2;
+                    root.did_drag = false;
                 } else if (event.kind == PointerEventKind.up) {
                     if (root.drag_id == node.id) {
-                        if (abs(self.mouse-x - root.press_x) < root.click_threshold
-                         && abs(self.mouse-y - root.press_y) < root.click_threshold) {
-                            root.node_clicked(node.id);
-                        } else {
+                        if (root.did_drag) {
                             root.node_drag_ended(node.id, node.layout_x, node.layout_y);
+                        } else {
+                            root.node_clicked(node.id);
                         }
                     }
                     root.drag_id = "";
@@ -386,9 +392,18 @@ export component GraphView inherits Rectangle {
             }
             moved => {
                 if (self.pressed && root.drag_id == node.id) {
-                    let new_x = (self.mouse-x - root.pan_x) / root.zoom;
-                    let new_y = (self.mouse-y - root.pan_y) / root.zoom;
-                    root.node_dragged(node.id, new_x, new_y);
+                    if (abs(self.mouse-x - root.press_x) > root.click_threshold
+                     || abs(self.mouse-y - root.press_y) > root.click_threshold) {
+                        root.did_drag = true;
+                    }
+                    // Delta-based: the node's current layout cancels out
+                    // (see press_x note), so this tracks the cursor
+                    // without drift even though the TouchArea moves with
+                    // the node.
+                    root.node_dragged(
+                        node.id,
+                        node.layout_x + (self.mouse-x - root.press_x) / root.zoom,
+                        node.layout_y + (self.mouse-y - root.press_y) / root.zoom);
                 }
             }
             changed has-hover => {

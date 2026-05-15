@@ -152,19 +152,26 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let (slint_nodes, slint_edges) = into_slint_models(nodes, edges);
 
-    let window = DemoWindow::new()?;
-    window.set_nodes(slint::ModelRc::new(slint::VecModel::from(slint_nodes)));
-    window.set_edges(slint::ModelRc::new(slint::VecModel::from(slint_edges)));
+    // Shared models, mutated in place. Issue #435 invariant: drag/zoom
+    // must not reallocate per frame — so the host keeps one VecModel and
+    // edits rows via set_row_data, never rebuilds the Vec each callback.
+    let node_model = std::rc::Rc::new(slint::VecModel::from(slint_nodes));
+    let edge_model = std::rc::Rc::new(slint::VecModel::from(slint_edges));
 
-    let weak = window.as_weak();
+    let window = DemoWindow::new()?;
+    window.set_nodes(node_model.clone().into());
+    window.set_edges(edge_model.clone().into());
+
+    let nodes_for_click = node_model.clone();
     window.on_node_clicked(move |id| {
         log::info!("clicked: {id}");
-        if let Some(w) = weak.upgrade() {
-            let mut nodes: Vec<_> = w.get_nodes().iter().collect();
-            for n in nodes.iter_mut() {
-                n.selected = n.id == id;
+        for i in 0..nodes_for_click.row_count() {
+            let mut n = nodes_for_click.row_data(i).unwrap();
+            let want = n.id == id;
+            if n.selected != want {
+                n.selected = want;
+                nodes_for_click.set_row_data(i, n);
             }
-            w.set_nodes(slint::ModelRc::new(slint::VecModel::from(nodes)));
         }
     });
 
@@ -172,29 +179,35 @@ fn main() -> Result<(), slint::PlatformError> {
         log::info!("double-clicked: {id} (would open block editor)");
     });
 
-    let weak_drag = window.as_weak();
+    let nodes_for_drag = node_model.clone();
+    let edges_for_drag = edge_model.clone();
     window.on_node_dragged(move |id, x, y| {
-        let Some(w) = weak_drag.upgrade() else { return };
-        let mut nodes: Vec<_> = w.get_nodes().iter().collect();
-        let mut edges: Vec<_> = w.get_edges().iter().collect();
-        for n in nodes.iter_mut() {
+        for i in 0..nodes_for_drag.row_count() {
+            let mut n = nodes_for_drag.row_data(i).unwrap();
             if n.id == id {
                 n.layout_x = x;
                 n.layout_y = y;
+                nodes_for_drag.set_row_data(i, n);
+                break;
             }
         }
-        for e in edges.iter_mut() {
+        for i in 0..edges_for_drag.row_count() {
+            let mut e = edges_for_drag.row_data(i).unwrap();
+            let mut touched = false;
             if e.from_id == id {
                 e.from_x = x;
                 e.from_y = y;
+                touched = true;
             }
             if e.to_id == id {
                 e.to_x = x;
                 e.to_y = y;
+                touched = true;
+            }
+            if touched {
+                edges_for_drag.set_row_data(i, e);
             }
         }
-        w.set_nodes(slint::ModelRc::new(slint::VecModel::from(nodes)));
-        w.set_edges(slint::ModelRc::new(slint::VecModel::from(edges)));
     });
 
     window.on_node_drag_ended(|id, x, y| {
