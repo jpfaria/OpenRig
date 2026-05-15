@@ -24,6 +24,12 @@ POT="$TRANSLATIONS/$DOMAIN.pot"
 
 cd "$REPO_ROOT"
 
+# --check: regenerate, then fail if catalogs drift from what's committed.
+# This is the durable guard against the root cause of issue #446 — the
+# script having silently never run while .slint keys were renamed.
+CHECK_MODE=0
+[ "${1:-}" = "--check" ] && CHECK_MODE=1
+
 # Make sure slint-tr-extractor is on PATH; install if missing.
 if ! command -v slint-tr-extractor >/dev/null 2>&1; then
   echo "slint-tr-extractor not found — installing via cargo..."
@@ -49,6 +55,14 @@ slint-tr-extractor \
   -o "$POT" \
   $SLINT_FILES
 
+# slint-tr-extractor stamps a fresh POT-Creation-Date every run, which would
+# make --check perpetually fail in CI on pure timestamp churn. Pin it so the
+# .pot is reproducible — content changes still surface, noise doesn't.
+if [ -f "$POT" ]; then
+  sed -i.bak 's/^"POT-Creation-Date:.*/"POT-Creation-Date: 2026-01-01 00:00+0000\\n"/' "$POT"
+  rm -f "$POT.bak"
+fi
+
 echo "→ updated $POT"
 
 # Sync each per-locale .po against the new template.
@@ -59,7 +73,25 @@ for lang_dir in "$TRANSLATIONS"/*/; do
   if [ -f "$po" ]; then
     echo "→ merging into $lang/LC_MESSAGES/$DOMAIN.po…"
     msgmerge --update --backup=none --no-fuzzy-matching "$po" "$POT"
+    # A pure key/context rename orphans the old entry as obsolete (#~).
+    # po_reconcile recovers its human translation onto the new active
+    # entry sharing the same msgid (UI labels are context-independent:
+    # "Inputs" is "Inputs" in every window), then drops obsolete so the
+    # catalog can't rot the way it did before issue #446 (178 dead
+    # entries had accumulated). Done in-script (not via `msgattrib
+    # --no-obsolete`) because some non-GNU msgattrib builds wipe active
+    # msgstr — po_reconcile is deterministic and dependency-free.
+    python3 "$REPO_ROOT/scripts/po_reconcile.py" "$po"
   fi
 done
 
-echo "✓ translations refreshed"
+if [ "$CHECK_MODE" = "1" ]; then
+  if ! git diff --quiet -- "$TRANSLATIONS"; then
+    echo "✗ translation catalogs are stale — run scripts/extract-translations.sh and commit" >&2
+    git --no-pager diff --stat -- "$TRANSLATIONS" >&2
+    exit 1
+  fi
+  echo "✓ translation catalogs in sync"
+else
+  echo "✓ translations refreshed"
+fi
