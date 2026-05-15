@@ -91,7 +91,6 @@ fn build_dual_input_graph() -> RuntimeGraph {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — engine groups all InputBlocks of a chain into ONE ChainRuntimeState"]
 fn two_input_blocks_in_same_chain_produce_two_independent_runtimes() {
     let graph = build_dual_input_graph();
 
@@ -107,7 +106,6 @@ fn two_input_blocks_in_same_chain_produce_two_independent_runtimes() {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — output_routes are currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_output_routes_arc() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -135,7 +133,6 @@ fn two_input_blocks_must_not_share_output_routes_arc() {
 }
 
 #[test]
-#[ignore = "PENDING #350 — input_taps Vec is currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_input_taps_arc() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -154,7 +151,6 @@ fn two_input_blocks_must_not_share_input_taps_arc() {
 }
 
 #[test]
-#[ignore = "PENDING #350 — processing scratch is currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_processing_state() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -183,7 +179,6 @@ fn two_input_blocks_must_not_share_processing_state() {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — output route ElasticBuffer is currently a single instance shared by N InputBlocks pushing concurrently"]
 fn each_output_route_buffer_has_exactly_one_producer() {
     // The ElasticBuffer field of OutputRoutingState is declared SPSC
     // (`crates/engine/src/runtime.rs:90-99`). With multiple InputBlocks

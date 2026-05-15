@@ -88,10 +88,15 @@ pub fn build_streams_for_project(
             if !chain.enabled {
                 continue;
             }
+            // PHASE 3 (#350): a chain may own N per-input runtimes (one
+            // per physical input device). This builds streams against the
+            // first per-input runtime only — full multi-runtime cpal
+            // wiring (each input cpal stream feeding runtime (C, i); the
+            // output cpal stream mixing the per-input runtimes at the
+            // backend) is Phase 3. Single-input chains (the common case)
+            // have exactly one runtime here and are unaffected.
             let runtime = runtime_graph
-                .chains
-                .get(&chain.id)
-                .cloned()
+                .runtime_for_chain(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' has no runtime state", chain.id.0))?;
             let resolved = resolved_chains
                 .remove(&chain.id)

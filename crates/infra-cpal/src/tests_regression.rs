@@ -158,7 +158,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
     };
     graph
         .chains
-        .insert(chain_id.clone(), Arc::clone(&runtime_arc));
+        .insert((chain_id.clone(), 0), Arc::clone(&runtime_arc));
 
     let mut active_chains = std::collections::HashMap::new();
     active_chains.insert(

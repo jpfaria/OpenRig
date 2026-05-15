@@ -2299,7 +2299,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
 
     let runtime = build_runtime_graph(&project, &rates, &HashMap::new()).unwrap();
     assert_eq!(runtime.chains.len(), 1);
-    assert!(runtime.chains.contains_key(&ChainId("enabled".into())));
+    assert!(!runtime.runtimes_for(&ChainId("enabled".into())).is_empty());
 }
 
 // ── process_input_f32 edge cases ────────────────────────────────────────
