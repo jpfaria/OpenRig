@@ -536,31 +536,28 @@ pub fn process_output_f32(
             return;
         }
     };
+    // Issue #440 / #350 fidelity: apply Chain.volume to the AudioFrame
+    // BEFORE `write_output_frame` (which runs the output limiter). Applying
+    // it after the limiter let a hot chain × volume>100 clip the DAC with
+    // nothing to catch it on the single-stream path. Single atomic load of
+    // volume_pct per callback. No clamp here — the limiter inside
+    // write_output_frame is the gate (this file's pinned contract:
+    // "clipping is the output limiter's job"). Sub-knee signals are
+    // unaffected (tanh transparent below 0.95), so k01–k04 stay green.
+    let volume_ratio = runtime.volume_pct() / 100.0;
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = route.buffer.pop();
+        let mut processed = route.buffer.pop();
+        if volume_ratio != 1.0 {
+            processed = processed.scaled(volume_ratio);
+        }
         write_output_frame(
             processed,
             &route.output_channels,
             frame,
             route.output_mixdown,
         );
-    }
-
-    // Issue #440: aplica o volume do preset no master output. Linear ratio
-    // = volume / 100 (100 = unity). Substitui o uso histórico do bloco
-    // `gain:volume` no fim da chain como controle de output — agora vive
-    // top-level no preset/chain, fora da cadeia de blocos. O bloco continua
-    // existindo pra uso expressivo (volume swell etc).
-    //
-    // Single atomic load (volume_pct) por callback. Sem clamp: a chain é
-    // responsável por entregar signal dentro do range; engine só multiplica.
-    let volume_ratio = runtime.volume_pct() / 100.0;
-    if volume_ratio != 1.0 {
-        for s in out.iter_mut() {
-            *s *= volume_ratio;
-        }
     }
 
     // Output mute: silence the entire output stage when toggled by any
