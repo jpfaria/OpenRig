@@ -639,6 +639,20 @@ impl RuntimeGraph {
     /// vec. Issue #350: callers that fan a chain edit / teardown across
     /// every isolated stream iterate this.
     pub fn runtimes_for(&self, chain_id: &ChainId) -> Vec<Arc<ChainRuntimeState>> {
+        self.runtimes_with_groups_for(chain_id)
+            .into_iter()
+            .map(|(_, rt)| rt)
+            .collect()
+    }
+
+    /// Like [`runtimes_for`] but keeps the group id (the cpal input index
+    /// the runtime owns) alongside each runtime, ordered by group. Issue
+    /// #350 phase 3: the cpal layer needs the group id to bind each
+    /// physical input device's stream to ITS OWN runtime `(chain, group)`.
+    pub fn runtimes_with_groups_for(
+        &self,
+        chain_id: &ChainId,
+    ) -> Vec<(usize, Arc<ChainRuntimeState>)> {
         let mut entries: Vec<(usize, Arc<ChainRuntimeState>)> = self
             .chains
             .iter()
@@ -646,7 +660,7 @@ impl RuntimeGraph {
             .map(|((_, g), rt)| (*g, rt.clone()))
             .collect();
         entries.sort_by_key(|(g, _)| *g);
-        entries.into_iter().map(|(_, rt)| rt).collect()
+        entries
     }
 
     pub fn upsert_chain(
