@@ -307,23 +307,23 @@ export component ChainVolumeControl inherits Rectangle {
             height: parent.height + 12px;
             mouse-cursor: pointer;
 
+            // Durante o arrasto só atualiza o preview visual (root.volume).
+            // O Command só é disparado no `up` — senão cada pixel rebuilda o
+            // RuntimeGraph e o slider fica impossível de usar.
             moved => {
                 if (self.pressed) {
                     let raw = (self.mouse-x - 6px) / track.width * 200;
-                    let clamped = Math.max(0, Math.min(200, Math.round(raw)));
-                    if (clamped != root.volume) {
-                        root.volume = clamped;
-                        root.value-changed(clamped);
-                    }
+                    root.volume = Math.max(0, Math.min(200, Math.round(raw)));
                 }
             }
 
-            clicked => {
-                let raw = (self.mouse-x - 6px) / track.width * 200;
-                let clamped = Math.max(0, Math.min(200, Math.round(raw)));
-                if (clamped != root.volume) {
-                    root.volume = clamped;
-                    root.value-changed(clamped);
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down) {
+                    let raw = (self.mouse-x - 6px) / track.width * 200;
+                    root.volume = Math.max(0, Math.min(200, Math.round(raw)));
+                }
+                if (e.kind == PointerEventKind.up) {
+                    root.value-changed(root.volume);
                 }
             }
 
