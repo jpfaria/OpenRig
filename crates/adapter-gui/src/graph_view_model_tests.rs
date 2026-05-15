@@ -29,6 +29,48 @@ mod node_category {
     }
 }
 
+mod palette {
+    use super::*;
+    use crate::graph_view_model::{default_palette, NodeCategory};
+
+    #[test]
+    fn default_palette_covers_every_category() {
+        let pal = default_palette();
+        for cat in [
+            NodeCategory::Input,
+            NodeCategory::Output,
+            NodeCategory::Dynamics,
+            NodeCategory::Drive,
+            NodeCategory::Amp,
+            NodeCategory::Modulation,
+            NodeCategory::Time,
+            NodeCategory::Reverb,
+            NodeCategory::Eq,
+            NodeCategory::Util,
+            NodeCategory::Other,
+        ] {
+            assert!(
+                pal.iter().any(|s| s.category == cat.as_str()),
+                "missing palette entry for {}",
+                cat.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn default_palette_border_is_darker_than_fill() {
+        for s in default_palette() {
+            assert!(
+                s.border <= s.fill,
+                "border 0x{:06x} not darker than fill 0x{:06x} for {}",
+                s.border,
+                s.fill,
+                s.category
+            );
+        }
+    }
+}
+
 mod linear_layout_single_stage {
     use super::*;
 
