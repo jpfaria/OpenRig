@@ -1,0 +1,188 @@
+// #453 — Project picker + per-input bank/scene navigator.
+//
+// PURE DISPATCHER. No business logic here: every interaction is a callback
+// the host turns into a `BankSceneEvent`; every value shown comes from `in`
+// properties the host computes from `BankSceneState`. The signal chain of the
+// selected input is rendered by reusing the #435 `GraphView` (not duplicated).
+
+import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
+import { BankNavItem } from "../models.slint";
+
+component PillButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked();
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+    height: 28px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: #2a3140;
+    background: root.active ? #2d6cdf : touch.has-hover ? #20242e : #171a21;
+    animate background { duration: 120ms; }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        Text {
+            text: root.text;
+            color: root.active ? #ffffff : #c4ccd8;
+            vertical-alignment: center;
+            font-size: 13px;
+        }
+    }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component SceneStrip inherits HorizontalLayout {
+    in property <int> active-scene;
+    in property <string> input;
+    callback select-scene(string, int);
+    spacing: 4px;
+    for n in 8: PillButton {
+        text: "\{n + 1}";
+        active: root.active-scene == n + 1;
+        clicked => { root.select-scene(root.input, n + 1); }
+    }
+}
+
+component InputRow inherits Rectangle {
+    in property <BankNavItem> item;
+    callback select-input(string);
+    callback bank-prev(string);
+    callback bank-next(string);
+    callback select-scene(string, int);
+
+    height: 78px;
+    border-radius: 8px;
+    background: root.item.selected ? #1b2330 : #14171d;
+    border-width: 1px;
+    border-color: root.item.selected ? #2d6cdf : #232833;
+    animate background, border-color { duration: 140ms; }
+
+    TouchArea {
+        clicked => { root.select-input(root.item.input); }
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.item.label != "" ? root.item.label : root.item.input;
+                color: #eef2f8;
+                font-size: 15px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            PillButton {
+                text: @tr("◀ bank");
+                clicked => { root.bank-prev(root.item.input); }
+            }
+            Text {
+                text: @tr("preset {}", root.item.active-preset);
+                color: #9fb0c6;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+            PillButton {
+                text: @tr("bank ▶");
+                clicked => { root.bank-next(root.item.input); }
+            }
+        }
+        SceneStrip {
+            active-scene: root.item.active-scene;
+            input: root.item.input;
+            select-scene(i, s) => { root.select-scene(i, s); }
+        }
+    }
+}
+
+export component BankSceneNavigator inherits Rectangle {
+    // ── inputs from the host (computed from BankSceneState) ──────────────
+    in property <bool> project-open;
+    in property <string> project-title;
+    in property <[BankNavItem]> inputs;
+    // Signal chain of the selected input, rendered via the #435 GraphView.
+    in property <[GraphNode]> chain-nodes;
+    in property <[GraphEdgeGeometry]> chain-edges;
+
+    // ── events to the host (→ BankSceneEvent) ───────────────────────────
+    callback open-project();
+    callback create-project();
+    callback select-input(string);
+    callback bank-prev(string);
+    callback bank-next(string);
+    callback select-scene(string, int);
+    callback node-clicked(string);
+
+    background: #0f1116;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 14px;
+
+        HorizontalLayout {
+            spacing: 10px;
+            Text {
+                text: root.project-open ? root.project-title : @tr("No project open");
+                color: #ffffff;
+                font-size: 20px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            PillButton {
+                text: @tr("Open project…");
+                accessible-label: @tr("Open project");
+                clicked => { root.open-project(); }
+            }
+            PillButton {
+                text: @tr("New project");
+                accessible-label: @tr("Create project");
+                clicked => { root.create-project(); }
+            }
+        }
+
+        if !root.project-open: Text {
+            text: @tr("Open or create a project to navigate its inputs.");
+            color: #7e8aa0;
+            font-size: 14px;
+        }
+
+        if root.project-open: HorizontalLayout {
+            spacing: 14px;
+
+            // Left: per-input bank/scene navigator.
+            Flickable {
+                width: 46%;
+                VerticalLayout {
+                    spacing: 8px;
+                    for item in root.inputs: InputRow {
+                        item: item;
+                        select-input(i) => { root.select-input(i); }
+                        bank-prev(i) => { root.bank-prev(i); }
+                        bank-next(i) => { root.bank-next(i); }
+                        select-scene(i, s) => { root.select-scene(i, s); }
+                    }
+                }
+            }
+
+            // Right: the selected input's signal chain (reused GraphView).
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 10px;
+                clip: true;
+                GraphView {
+                    nodes: root.chain-nodes;
+                    edges: root.chain-edges;
+                    node_clicked(id) => { root.node-clicked(id); }
+                }
+            }
+        }
+    }
+}

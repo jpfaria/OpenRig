@@ -233,3 +233,14 @@ export struct PluginInfoData {
     has-homepage: bool,
 }
 
+// One input row in the #453 bank/scene navigator. Pure presentation —
+// derived in Rust from `BankSceneState`; the screen carries no logic.
+export struct BankNavItem {
+    input: string,
+    label: string,
+    active-preset: int,
+    active-scene: int,
+    bank-slots: [int],
+    selected: bool,
+}
+
