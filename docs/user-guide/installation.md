@@ -71,7 +71,19 @@ pedalboard and needs a real audio I/O path:
    the interface, OpenRig's `jackd` may fail to grab it exclusively.
    Either suspend the device in the sound server or point OpenRig at the
    PipeWire JACK/ALSA bridge.
-5. In OpenRig's **audio screen**, select the interface as input and
+5. **Set the interface mixer to unity gain.** Without PipeWire/PulseAudio,
+   nothing initializes the card's ALSA mixer — many USB interfaces ship
+   with playback attenuated (e.g. −23 dB), so the sound comes out weak
+   and muffled ("inside a bag") even with everything maxed in OpenRig.
+   On macOS CoreAudio handles this, which is why the same setup is fine
+   there. Raise it and persist (replace `<CARD>` with the name from
+   `cat /proc/asound/cards`, e.g. `Q26`):
+   ```bash
+   amixer -c <CARD> sset PCM 100% unmute
+   sudo alsactl store          # survives reboot
+   amixer -c <CARD> sget PCM   # confirm: [100%] [0.00dB] [on]
+   ```
+6. In OpenRig's **audio screen**, select the interface as input and
    output, set sample rate / buffer size, then enable the chain.
 
 The `.deb` declares `libasound2` and `libseat1`; `jackd2` is recommended
