@@ -242,3 +242,108 @@ export component HeaderIconAction inherits Rectangle {
     }
 }
 
+
+// Volume control for a chain row (issue #440). Ícone de speaker SVG +
+// slider horizontal 0-200 + readout numérico. Bind read-write via
+// `volume` (i32 0-200, 100 = unity). Emite `value-changed(new_value)`
+// quando o usuário arrasta — caller (ChainRow) dispara o callback Rust
+// que persiste no `Chain.volume` e propaga pro `RuntimeGraph`.
+export component ChainVolumeControl inherits Rectangle {
+    in-out property <int> volume: 100;
+    callback value-changed(int);
+
+    width: 168px;
+    height: 24px;
+    background: transparent;
+
+    Image {
+        x: 0px;
+        y: 4px;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/volume.svg");
+        image-fit: contain;
+        colorize: #8a94a2;
+    }
+
+    track := Rectangle {
+        x: 22px;
+        y: 10px;
+        width: 110px;
+        height: 4px;
+        background: #2a3140;
+        border-radius: 2px;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width * Math.min(1.0, root.volume / 200);
+            height: parent.height;
+            background: root.volume > 100 ? #d97757 : #6e8aff;
+            border-radius: 2px;
+        }
+
+        Rectangle {
+            x: parent.width * Math.min(1.0, root.volume / 200) - 6px;
+            y: -4px;
+            width: 12px;
+            height: 12px;
+            background: drag-area.has-hover || drag-area.pressed ? #ffffff : #c5cad4;
+            border-radius: 6px;
+        }
+
+        Rectangle {
+            x: parent.width * 0.5 - 0.5px;
+            y: -2px;
+            width: 1px;
+            height: parent.height + 4px;
+            background: #ffffff40;
+        }
+
+        drag-area := TouchArea {
+            x: -6px;
+            y: -6px;
+            width: parent.width + 12px;
+            height: parent.height + 12px;
+            mouse-cursor: pointer;
+
+            moved => {
+                if (self.pressed) {
+                    let raw = (self.mouse-x - 6px) / track.width * 200;
+                    let clamped = Math.max(0, Math.min(200, Math.round(raw)));
+                    if (clamped != root.volume) {
+                        root.volume = clamped;
+                        root.value-changed(clamped);
+                    }
+                }
+            }
+
+            clicked => {
+                let raw = (self.mouse-x - 6px) / track.width * 200;
+                let clamped = Math.max(0, Math.min(200, Math.round(raw)));
+                if (clamped != root.volume) {
+                    root.volume = clamped;
+                    root.value-changed(clamped);
+                }
+            }
+
+            double-clicked => {
+                root.volume = 100;
+                root.value-changed(100);
+            }
+        }
+    }
+
+    Text {
+        x: 138px;
+        y: 0px;
+        width: 30px;
+        height: 24px;
+        text: root.volume + "%";
+        color: drag-area.has-hover ? #ffffff : #8a94a2;
+        font-size: 11px;
+        font-weight: 600;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+}

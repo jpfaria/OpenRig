@@ -143,6 +143,11 @@ export component AppWindow inherits Window {
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    /// Slider de volume da chain mudou (issue #440). Args: chain-index na
+    /// ordem de project-chains, volume no range 0-200 (100 = unity). Rust
+    /// atualiza `Chain.volume` e propaga via `RuntimeGraph::upsert_chain`
+    /// (engine vê o novo valor na próxima callback de áudio).
+    callback chain-volume-changed(int, int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);

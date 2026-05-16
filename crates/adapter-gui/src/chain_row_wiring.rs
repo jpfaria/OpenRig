@@ -19,6 +19,39 @@ use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
 use crate::{remove_live_chain_runtime, AppWindow, ProjectChainItem};
 
+/// Aplica uma mudança de volume da chain in-memory (issue #440).
+///
+/// Lógica pura — separada do handler Slint pra que tests possam validar
+/// o caminho do user (chain disabled → slider arrasta → toggle enabled
+/// → volume preservado) sem precisar de Slint window.
+///
+/// Retorna o `ChainId` afetado pra que o caller possa fazer
+/// `sync_live_chain_runtime` em seguida. Retorna `None` se index inválido.
+pub(crate) fn apply_chain_volume_change(
+    session: &mut ProjectSession,
+    index: usize,
+    volume: f32,
+) -> Option<domain::ids::ChainId> {
+    let chain = session.project.chains.get_mut(index)?;
+    chain.volume = volume;
+    Some(chain.id.clone())
+}
+
+/// Aplica um toggle de enabled da chain in-memory (issue #440).
+///
+/// Espelha exatamente o que o handler `on_toggle_chain_enabled` faz com
+/// o project: só muda `chain.enabled`. Volume (e qualquer outro campo)
+/// NÃO É TOCADO. Retorna o novo estado + chain_id.
+#[cfg(test)]
+pub(crate) fn apply_toggle_chain_enabled(
+    session: &mut ProjectSession,
+    index: usize,
+) -> Option<(bool, domain::ids::ChainId)> {
+    let chain = session.project.chains.get_mut(index)?;
+    chain.enabled = !chain.enabled;
+    Some((chain.enabled, chain.id.clone()))
+}
+
 pub(crate) struct ChainRowCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -204,6 +237,54 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             );
             // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
+        });
+    }
+    // --- chain volume slider (issue #440) ---
+    // O slider no header da chain manda (chain-index, volume 0-200) toda
+    // vez que o usuário arrasta. Atualizamos `Chain.volume` no projeto e
+    // chamamos `sync_live_chain_runtime` — no engine, `upsert_chain`
+    // chega no `update_chain_runtime_state` que faz `set_volume_pct`,
+    // que o audio thread vê na próxima callback via single atomic load.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        let auto_save = auto_save;
+        window.on_chain_volume_changed(move |index, volume| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let index = index as usize;
+            let Some(chain_id) = apply_chain_volume_change(session, index, volume as f32) else {
+                return;
+            };
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
         });
     }
     // --- chain reorder (issue #246) ---

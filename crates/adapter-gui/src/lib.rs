@@ -109,3 +109,7 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chain_row_wiring_tests.rs"]
+mod chain_row_wiring_tests;

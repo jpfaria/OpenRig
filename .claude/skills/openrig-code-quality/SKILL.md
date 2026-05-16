@@ -110,9 +110,25 @@ Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabi
 
 ---
 
+## Processo de validação (LEI — não pular nenhum passo)
+
+Ordem obrigatória antes de abrir PR:
+
+1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
+2. **`cargo test --workspace --lib`** verde no solver.
+3. **`git push` da branch** (sem PR ainda).
+4. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
+5. **`./scripts/qa.sh`** rodar e ficar verde.
+6. **Só ENTÃO** `gh pr create`.
+
+Não inverter:
+- PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.
+- PR antes do qa.sh = CI falha e abre sticky comment no PR.
+- qa.sh antes do push = bloqueia o usuário de testar enquanto roda (qa.sh demora ~25min).
+
 ## Quality Gate — comparativo único (issues #404 / #410)
 
-`scripts/qa.sh` é o **único** gate, igual local e em CI. Comando obrigatório antes de qualquer `git push`:
+`scripts/qa.sh` é o **único** gate, igual local e em CI. Roda no passo 5 acima:
 
 ```bash
 ./scripts/qa.sh

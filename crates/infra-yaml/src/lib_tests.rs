@@ -4,8 +4,10 @@
 //! the original 4-space indent so raw-string YAML literals stay intact.
 
 use super::{
-    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
+    load_chain_preset_file, save_chain_preset_file, serialize_project, ChainBlocksPreset,
+    YamlProjectRepository,
 };
+use tempfile::TempDir;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
@@ -33,6 +35,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
             description: Some("Guitar 1".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -315,6 +318,7 @@ fn preset_roundtrips_generic_select_options() {
     let preset = ChainBlocksPreset {
         id: "select".into(),
         name: Some("Delay Select".into()),
+        volume: 100.0,
         blocks: vec![AudioBlock {
             id: BlockId("preset:select:block:0".into()),
             enabled: true,
@@ -637,6 +641,7 @@ fn chain_with_only_io_blocks_roundtrips() {
             description: Some("Empty chain".into()),
             instrument: "electric_guitar".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -955,6 +960,7 @@ fn serialize_project_produces_valid_yaml_string() {
             description: Some("ch1".into()),
             instrument: "generic".to_string(),
             enabled: false,
+            volume: 100.0,
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -1005,6 +1011,7 @@ fn preset_roundtrips_with_core_blocks() {
     let preset = ChainBlocksPreset {
         id: "multi".into(),
         name: Some("Multi Block Preset".into()),
+        volume: 100.0,
         blocks: vec![
             core_block("preset:multi:block:0", "delay", delay_model, Vec::new()),
             core_block("preset:multi:block:1", "reverb", reverb_model, Vec::new()),
@@ -1026,6 +1033,7 @@ fn preset_roundtrips_with_no_blocks() {
     let preset = ChainBlocksPreset {
         id: "empty".into(),
         name: None,
+        volume: 100.0,
         blocks: Vec::new(),
     };
     save_chain_preset_file(&path, &preset).expect("save");
@@ -1042,6 +1050,7 @@ fn preset_roundtrips_with_input_output_blocks() {
     let preset = ChainBlocksPreset {
         id: "io_preset".into(),
         name: Some("IO Preset".into()),
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("preset:io_preset:block:0".into()),
@@ -1361,6 +1370,7 @@ fn project_with_multiple_chains_roundtrips() {
                 description: Some("Guitar".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: false,
+                volume: 100.0,
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:0:input:0".into()),
@@ -1385,6 +1395,7 @@ fn project_with_multiple_chains_roundtrips() {
                 description: Some("Bass".into()),
                 instrument: "bass".to_string(),
                 enabled: false,
+                volume: 100.0,
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:1:input:0".into()),
@@ -1571,3 +1582,66 @@ params:
         other => panic!("expected Core block, got {other:?}"),
     }
 }
+
+#[test]
+fn load_project_preserves_chain_volume_from_yaml() {
+    // Reproduz o bug do user (issue #440): chain YAML tem `volume: 175`
+    // mas o `into_chain()` hardcodava `volume: 100.0`, fazendo o valor
+    // do disco ser ignorado. Toda re-carga do projeto resetava o slider.
+    let temp_dir = tempdir().expect("temp dir should be created");
+    let project_path = temp_dir.path().join("project.yaml");
+    fs::write(
+        &project_path,
+        r#"
+chains:
+  - enabled: true
+    instrument: electric_guitar
+    volume: 175
+    blocks: []
+"#,
+    )
+    .expect("write project");
+    let repo = YamlProjectRepository {
+        path: project_path,
+    };
+    let project = repo.load_current_project().expect("load: chain.volume");
+    assert_eq!(
+        project.chains.len(),
+        1,
+        "should parse the single chain"
+    );
+    assert!(
+        (project.chains[0].volume - 175.0).abs() < 0.01,
+        "chain.volume from YAML should be preserved; got {}",
+        project.chains[0].volume
+    );
+}
+
+#[test]
+fn load_project_defaults_chain_volume_to_100_when_absent() {
+    // Sem `volume:` no YAML, default = 100 (unity). Confirma compat
+    // pra projetos pré-#440 que não têm o field.
+    let temp_dir = tempdir().expect("temp dir should be created");
+    let project_path = temp_dir.path().join("project.yaml");
+    fs::write(
+        &project_path,
+        r#"
+chains:
+  - enabled: true
+    instrument: electric_guitar
+    blocks: []
+"#,
+    )
+    .expect("write project");
+    let repo = YamlProjectRepository {
+        path: project_path,
+    };
+    let project = repo.load_current_project().expect("load: chain.volume default");
+    assert_eq!(project.chains.len(), 1);
+    assert!(
+        (project.chains[0].volume - 100.0).abs() < 0.01,
+        "absent volume should default to 100; got {}",
+        project.chains[0].volume
+    );
+}
+

@@ -155,6 +155,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             description: normalized_chain_description(&draft.name),
             instrument: draft.instrument.clone(),
             enabled: existing.enabled,
+            volume: existing.volume,
             blocks,
         }
     } else {
@@ -209,6 +210,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             description: normalized_chain_description(&draft.name),
             instrument: draft.instrument.clone(),
             enabled: false,
+            volume: 100.0,
             blocks,
         }
     }

@@ -124,7 +124,7 @@ pub(crate) fn synthesize_parameters_from_manifest(
                 parameters.iter().map(grid_parameter_to_spec).collect();
             // Keep input_db / noise_gate.* / eq.* but drop output_db —
             // issue #402 moved per-NAM loudness compensation into the
-            // manifest's `output_gain_db` field (applied automatically
+            // manifest's `output_gain_pct` field (applied automatically
             // by the loader) so users no longer see / fight a level
             // knob.
             specs.extend(
@@ -517,7 +517,7 @@ mod tests {
                 license: None,
                 homepage: None,
                 sources: None,
-                output_gain_db: None,
+                output_gain_pct: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
                     parameters: vec![GridParameter {
@@ -537,7 +537,7 @@ mod tests {
     #[test]
     fn nam_synthesized_schema_does_not_expose_output_db_knob() {
         // Issue #402: loudness compensation is per-package, baked into
-        // the manifest's `output_gain_db` by the audit tool. The user
+        // the manifest's `output_gain_pct` by the audit tool. The user
         // does NOT see a knob — every NAM is meant to ride at the same
         // perceived level out of the box.
         let pkg = nam_package_with_axes();
@@ -571,7 +571,7 @@ mod tests {
                 license: None,
                 homepage: None,
                 sources: None,
-                output_gain_db: None,
+                output_gain_pct: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
                     parameters: vec![GridParameter {

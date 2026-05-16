@@ -547,21 +547,18 @@ pub fn process_output_f32(
         );
     }
 
-    // Chain-level loudness normalisation: single linear gain applied
-    // at the master output (issue #413). Calculated offline por
-    // `chain_loudness::compute_chain_normalization_gain_db` quando a
-    // chain é construída/editada. Per-bloco manifest gains foram
-    // removidos porque empilhavam em série (Klon +28 + Amp +35 =
-    // estouro). Aqui o gain é único, calibrado pra chain INTEIRA.
+    // Issue #440: aplica o volume do preset no master output. Linear ratio
+    // = volume / 100 (100 = unity). Substitui o uso histórico do bloco
+    // `gain:volume` no fim da chain como controle de output — agora vive
+    // top-level no preset/chain, fora da cadeia de blocos. O bloco continua
+    // existindo pra uso expressivo (volume swell etc).
     //
-    // Aplica ANTES do `output_muted` (que zera tudo igual) e ANTES
-    // do latency probe detect (que escaneia amplitude com threshold
-    // fixo — multiplicar after detection mantém a calibração do
-    // probe constante).
-    let norm_gain = runtime.normalization_gain();
-    if norm_gain != 1.0 {
+    // Single atomic load (volume_pct) por callback. Sem clamp: a chain é
+    // responsável por entregar signal dentro do range; engine só multiplica.
+    let volume_ratio = runtime.volume_pct() / 100.0;
+    if volume_ratio != 1.0 {
         for s in out.iter_mut() {
-            *s *= norm_gain;
+            *s *= volume_ratio;
         }
     }
 
