@@ -91,7 +91,8 @@ fn resync_live_audio(ctx: &BankSceneNavCtx, input_name: &str) {
 
     if let Some(runtime) = ctx.project_runtime.borrow_mut().as_mut() {
         let proj = session.project.borrow();
-        if let Err(e) = runtime.upsert_chain(&proj, &chain_clone) {
+        // #454-T5: spillover — previous preset/scene tail rings out.
+        if let Err(e) = runtime.upsert_chain_spillover(&proj, &chain_clone) {
             log::error!("[bank-scene] live resync failed: {e}");
         }
     }

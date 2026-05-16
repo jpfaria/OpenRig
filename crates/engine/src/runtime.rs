@@ -62,7 +62,8 @@ pub(crate) use crate::runtime_endpoints::{
     effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
 };
 pub use crate::runtime_graph::{
-    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state, RuntimeGraph,
+    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state,
+    update_chain_runtime_state_spillover, RuntimeGraph,
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
@@ -715,6 +716,10 @@ mod stream_isolation;
 #[cfg(test)]
 #[path = "volume_invariants_tests.rs"]
 mod volume_invariants;
+
+#[cfg(test)]
+#[path = "rig_spillover_tests.rs"]
+mod rig_spillover;
 
 #[cfg(test)]
 #[path = "audio_deadline_tests.rs"]
