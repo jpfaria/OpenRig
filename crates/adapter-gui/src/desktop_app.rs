@@ -473,6 +473,7 @@ pub fn run_desktop_app(
         &window,
         crate::bank_scene_navigator_wiring::BankSceneNavCtx {
             project_session: project_session.clone(),
+            project_runtime: project_runtime.clone(),
             bank_nav_items: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_nodes: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_edges: Rc::new(slint::VecModel::from(Vec::new())),

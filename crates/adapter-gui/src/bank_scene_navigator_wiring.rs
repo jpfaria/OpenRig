@@ -18,21 +18,83 @@ use project::migrate::migrate_legacy_project;
 use project::rig::RigProject;
 
 use crate::bank_scene_render::render;
-use crate::bank_scene_session::{BankSceneEvent, BankSceneState};
+use crate::bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState};
 use crate::graph_view_model::{
     self as gvm, default_palette, linear_chain_layout, BlockBlueprint, ChainStage, GridMetrics,
     NodeCategory,
 };
 use crate::state::ProjectSession;
 use crate::{AppWindow, BankNavItem, GraphEdgeGeometry, GraphNode};
+use infra_cpal::ProjectRuntimeController;
+use project::block::AudioBlock;
 
 pub(crate) struct BankSceneNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
+    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub bank_nav_items: Rc<VecModel<BankNavItem>>,
     pub bank_chain_nodes: Rc<VecModel<GraphNode>>,
     pub bank_chain_edges: Rc<VecModel<GraphEdgeGeometry>>,
     /// Presentation state, rebuilt from the live project when the screen opens.
     pub state: Rc<RefCell<Option<BankSceneState>>>,
+}
+
+/// Recompute the live chain backing `input-{N}` from the rig's active
+/// preset+scene and push it to the running audio via the proven in-place
+/// lock-free `upsert_chain` (click-free; spillover is #454-T5). The chain's
+/// own Input/Output blocks (per-machine device config) are preserved; only
+/// the processing blocks are replaced. This is what makes a preset/scene
+/// switch actually change the sound.
+fn resync_live_audio(ctx: &BankSceneNavCtx, input_name: &str) {
+    let Some(idx) = input_name
+        .strip_prefix("input-")
+        .and_then(|n| n.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .map(|n| n - 1)
+    else {
+        return;
+    };
+    let session_ref = ctx.project_session.borrow();
+    let Some(session) = session_ref.as_ref() else {
+        return;
+    };
+    let rig = migrate_legacy_project(&session.project.borrow());
+    let Some(rig_input) = rig.inputs.get(input_name) else {
+        return;
+    };
+    let processing: Vec<AudioBlock> = rig_input
+        .bank
+        .get(&rig_input.active_preset)
+        .and_then(|name| rig.presets.get(name))
+        .map(|p| p.apply_scene(rig_input.active_scene))
+        .unwrap_or_default();
+
+    let chain_clone = {
+        let mut proj = session.project.borrow_mut();
+        let Some(chain) = proj.chains.get_mut(idx) else {
+            return;
+        };
+        let io: Vec<AudioBlock> = chain
+            .blocks
+            .iter()
+            .filter(|b| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .cloned()
+            .collect();
+        let (inputs, outputs): (Vec<_>, Vec<_>) = io
+            .into_iter()
+            .partition(|b| matches!(b.kind, AudioBlockKind::Input(_)));
+        let mut blocks = inputs;
+        blocks.extend(processing);
+        blocks.extend(outputs);
+        chain.blocks = blocks;
+        chain.clone()
+    };
+
+    if let Some(runtime) = ctx.project_runtime.borrow_mut().as_mut() {
+        let proj = session.project.borrow();
+        if let Err(e) = runtime.upsert_chain(&proj, &chain_clone) {
+            log::error!("[bank-scene] live resync failed: {e}");
+        }
+    }
 }
 
 fn category_for(effect_type: &str) -> NodeCategory {
@@ -173,25 +235,42 @@ fn rebuild(ctx: &BankSceneNavCtx) {
 }
 
 fn dispatch(ctx: &BankSceneNavCtx, ev: BankSceneEvent) {
-    let mut guard = ctx.state.borrow_mut();
-    let Some(state) = guard.as_mut() else { return };
-    let _effects = state.apply(ev);
-    let rows: Vec<BankNavItem> = render(state)
-        .into_iter()
-        .map(|r| BankNavItem {
-            input: r.input.into(),
-            label: r.label.into(),
-            active_preset: r.active_preset,
-            active_scene: r.active_scene,
-            bank_slots: ModelRc::from(Rc::new(VecModel::from(r.bank_slots))),
-            selected: r.selected,
-        })
-        .collect();
+    let (rows, selected, affected): (Vec<BankNavItem>, Option<String>, Vec<String>) = {
+        let mut guard = ctx.state.borrow_mut();
+        let Some(state) = guard.as_mut() else { return };
+        let effects = state.apply(ev);
+        let affected: Vec<String> = effects
+            .iter()
+            .filter_map(|e| match e {
+                BankSceneEffect::SwitchPreset { input, .. }
+                | BankSceneEffect::SwitchScene { input, .. } => Some(input.clone()),
+                _ => None,
+            })
+            .collect();
+        let rows = render(state)
+            .into_iter()
+            .map(|r| BankNavItem {
+                input: r.input.into(),
+                label: r.label.into(),
+                active_preset: r.active_preset,
+                active_scene: r.active_scene,
+                bank_slots: ModelRc::from(Rc::new(VecModel::from(r.bank_slots))),
+                selected: r.selected,
+            })
+            .collect();
+        (rows, state.selected_input.clone(), affected)
+    };
     ctx.bank_nav_items.set_vec(rows);
-    // Re-render the selected input's chain by re-deriving the rig view.
+
+    // Make the switch actually change the sound (proven lock-free upsert).
+    for input in &affected {
+        resync_live_audio(ctx, input);
+    }
+
+    // Re-render the selected input's chain in the GraphView.
     if let Some(ps) = ctx.project_session.borrow().as_ref() {
         let rig = migrate_legacy_project(&ps.project.borrow());
-        let (n, e) = graph_for_selected(&rig, state.selected_input.as_deref());
+        let (n, e) = graph_for_selected(&rig, selected.as_deref());
         ctx.bank_chain_nodes.set_vec(n);
         ctx.bank_chain_edges.set_vec(e);
     }
