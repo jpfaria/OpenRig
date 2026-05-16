@@ -3,24 +3,25 @@ FROM debian:12
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_TERM_COLOR=always
 
-# Cortex-A53 is the baseline ARMv8.0-A core: zero optional extensions, the
-# absolute lowest-common-denominator AArch64 ISA. Necessary because builds
-# run under qemu-aarch64-user (Docker Desktop on macOS) and the emulator
-# does not implement every newer ISA feature stable rustc would otherwise
-# emit — tracing-attributes proc-macro hits SIGILL when loaded by rustc
-# during the tracing crate compilation.
+# RUSTFLAGS is per-arch and MUST be empty for anything but aarch64.
+# The aarch64 build runs under qemu-aarch64-user (Docker Desktop on
+# macOS), whose emulator lacks newer ISA features stable rustc would
+# emit (tracing-attributes proc-macro SIGILLs). So the aarch64 path
+# passes `-C target-cpu=cortex-a53` — baseline ARMv8.0-A; RK3588's
+# A55/A76 are backward-compatible so binaries run full-speed on the
+# Orange Pi. The SAME image also serves the x86_64 build, where an ARM
+# target-cpu makes rustc/LLVM abort ("64-bit code requested on a
+# subtarget that doesn't support it"). Hence a build ARG, empty by
+# default, set only for aarch64 by build-linux-local.sh (issue #466).
 #
-# Three env vars are needed because they apply to different build phases:
-#   RUSTFLAGS               → both host (proc-macros, build scripts) AND target
-#   CARGO_HOST_RUSTFLAGS    → host-only build (proc-macros, build scripts)
-#   CARGO_BUILD_RUSTFLAGS   → target-only build (the actual binary)
-# Setting just the target one leaves proc-macros built with default ISA.
-#
-# The RK3588 (A55 little + A76 big) is fully backward-compatible with A53
-# at runtime, so produced binaries run at full performance on hardware.
-ENV RUSTFLAGS="-C target-cpu=cortex-a53"
-ENV CARGO_HOST_RUSTFLAGS="-C target-cpu=cortex-a53"
-ENV CARGO_BUILD_RUSTFLAGS="-C target-cpu=cortex-a53"
+# Three vars cover different build phases:
+#   RUSTFLAGS               → host (proc-macros, build scripts) AND target
+#   CARGO_HOST_RUSTFLAGS    → host-only (proc-macros, build scripts)
+#   CARGO_BUILD_RUSTFLAGS   → target-only (the actual binary)
+ARG RUSTFLAGS_CPU=
+ENV RUSTFLAGS="${RUSTFLAGS_CPU}"
+ENV CARGO_HOST_RUSTFLAGS="${RUSTFLAGS_CPU}"
+ENV CARGO_BUILD_RUSTFLAGS="${RUSTFLAGS_CPU}"
 
 # Build deps for Debian 12 (Bookworm) — glibc 2.36 compatible
 # libegl-dev / libgles2-mesa-dev / libfreetype6-dev added for Slints
