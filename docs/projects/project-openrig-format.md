@@ -105,11 +105,22 @@ the audio-thread contract:
 Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
 `RuntimeGraph` to its backend.
 
-> **Spillover (old preset's delay/reverb tail decaying across a switch)** is
-> intentionally consolidated in **#454**, where it is the headline deliverable
-> and uses the *same* swap mechanism — keeping the audio-thread-sensitive
-> change in one golden/volume-gated place. #451's switch is click-free but
-> does not yet preserve the previous preset's tail.
+## Spillover (#454-T5) — DONE
+
+A preset/scene switch retains the **previous** pipeline as a decaying
+`OutgoingTail` so its delay/reverb tail rings out in parallel while the new
+pipeline fades in. SPSC-safe: the old pipeline is fed silence and summed into
+the segment's own `frame_buffer` *before* the single per-route push (one
+producer per ring preserved); built off the audio thread; equal-power
+fade over `SPILLOVER_FRAMES` then dropped. Reached via
+`ProjectRuntimeController::upsert_chain_spillover` →
+`RuntimeGraph::upsert_chain_spillover` →
+`update_chain_runtime_state_spillover`; the bank/scene navigator uses it on
+every switch. `None` ⇒ behaviour byte-identical to the in-place path.
+
+Gated by `rig_spillover` golden (retains-then-drops + non-spillover
+byte-identical) plus `volume_invariants`/`stream_isolation`/
+`audio_signal_integrity` all green.
 
 ## Migration from legacy `chain.yaml` (#450)
 
