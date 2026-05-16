@@ -14,6 +14,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-bank-scene-navigator;
     in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
+    in property <[BankNavItem]> bank-nav-selected;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in property <bool> show-chain-editor;
@@ -266,6 +267,7 @@ export component DesktopMain inherits Rectangle {
             project-open: true;
             project-title: root.project-title;
             inputs: root.bank-nav-items;
+            selected: root.bank-nav-selected;
             chain-nodes: root.bank-chain-nodes;
             chain-edges: root.bank-chain-edges;
             select-input(i) => { root.bank-select-input(i); }

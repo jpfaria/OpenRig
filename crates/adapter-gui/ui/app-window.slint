@@ -46,6 +46,7 @@ export component AppWindow inherits Window {
     in property <bool> show-bank-scene-navigator;
     in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
+    in property <[BankNavItem]> bank-nav-selected;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in-out property <int> wizard-step;
@@ -276,6 +277,7 @@ export component AppWindow inherits Window {
         show-bank-scene-navigator: root.show-bank-scene-navigator;
         show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
+        bank-nav-selected: root.bank-nav-selected;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;
@@ -485,6 +487,7 @@ export component AppWindow inherits Window {
         show-bank-scene-navigator: root.show-bank-scene-navigator;
         show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
+        bank-nav-selected: root.bank-nav-selected;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;

@@ -9,6 +9,8 @@
 //
 // All callbacks emit ids and coords in *layout* space.
 
+import { EffectTypeIcon } from "effect_type_icon.slint";
+
 export struct GraphNode {
     // Stable identifier — unique within the graph. Must match what the
     // host gave when computing the layout.
@@ -68,37 +70,54 @@ component GraphNodeCard inherits Rectangle {
     in property <length> card_width;
     in property <length> card_height;
 
+    // Category slug (graph_view_model) → EffectTypeIcon kind.
+    private property <string> icon-kind:
+          root.node.category == "drive"  ? "gain"
+        : root.node.category == "time"   ? "delay"
+        : root.node.category == "eq"     ? "filter"
+        : root.node.category == "util"   ? "utility"
+        : root.node.category == "other"  ? "gear"
+        : root.node.category;
+
     width: root.card_width;
     height: root.card_height;
-    border-radius: 8px;
-    border-width: root.node.selected ? 2px : 1px;
-    border-color: root.node.selected
-        ? #f5f7fb
-        : root.node.border;
-    background: root.node.bypass
-        ? root.node.fill.with-alpha(0.35)
-        : root.dragging
-        ? root.node.fill.brighter(0.20)
+    border-radius: 14px;
+    border-width: root.node.selected ? 3px : 2px;
+    border-color: root.node.selected ? #ffffff : root.node.border;
+    background: root.dragging
+        ? #232a36
         : root.hovered
-        ? root.node.fill.brighter(0.10)
-        : root.node.fill;
-    opacity: root.node.bypass ? 0.7 : 1.0;
-    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
-    drop-shadow-color: #00000080;
+        ? #1b212c
+        : #14181f;
+    opacity: root.node.bypass ? 0.4 : 1.0;
+    drop-shadow-blur: root.dragging ? 16px : (root.hovered ? 8px : 3px);
+    drop-shadow-color: #000000aa;
     drop-shadow-offset-y: 2px;
 
-    Text {
-        x: 8px;
-        y: 0px;
-        width: parent.width - 16px;
-        height: parent.height;
-        text: root.node.label;
-        color: #f5f7fb;
-        font-size: 12px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        overflow: elide;
+    // Model-abbrev pill on top, category-tinted (skip for In/Out).
+    if root.node.label != "" && root.node.category != "input" && root.node.category != "output" : Rectangle {
+        y: -9px;
+        height: 18px;
+        width: pill-txt.preferred-width + 14px;
+        border-radius: 9px;
+        background: root.node.border;
+        pill-txt := Text {
+            text: root.node.label;
+            color: #0a0d12;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    EffectTypeIcon {
+        width: parent.width * 0.52;
+        height: parent.height * 0.52;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        icon-kind: root.icon-kind;
+        tint: root.node.bypass ? #6b7689 : #ffffff;
     }
 
     accessible-role: button;

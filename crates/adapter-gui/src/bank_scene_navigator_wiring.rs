@@ -32,6 +32,8 @@ pub(crate) struct BankSceneNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub bank_nav_items: Rc<VecModel<BankNavItem>>,
+    /// 0 or 1 element — the focused input (header/scene strip bind to this).
+    pub bank_nav_selected: Rc<VecModel<BankNavItem>>,
     pub bank_chain_nodes: Rc<VecModel<GraphNode>>,
     pub bank_chain_edges: Rc<VecModel<GraphEdgeGeometry>>,
     /// Presentation state, rebuilt from the live project when the screen opens.
@@ -211,6 +213,7 @@ fn rebuild(ctx: &BankSceneNavCtx) {
         .map(|ps| migrate_legacy_project(&ps.project.borrow()));
     let Some(rig) = rig else {
         ctx.bank_nav_items.set_vec(Vec::new());
+        ctx.bank_nav_selected.set_vec(Vec::new());
         ctx.bank_chain_nodes.set_vec(Vec::new());
         ctx.bank_chain_edges.set_vec(Vec::new());
         *ctx.state.borrow_mut() = None;
@@ -228,6 +231,12 @@ fn rebuild(ctx: &BankSceneNavCtx) {
             selected: r.selected,
         })
         .collect();
+    ctx.bank_nav_selected.set_vec(
+        rows.iter()
+            .filter(|r| r.selected)
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
     ctx.bank_nav_items.set_vec(rows);
     let (n, e) = graph_for_selected(&rig, st.selected_input.as_deref());
     ctx.bank_chain_nodes.set_vec(n);
@@ -261,6 +270,12 @@ fn dispatch(ctx: &BankSceneNavCtx, ev: BankSceneEvent) {
             .collect();
         (rows, state.selected_input.clone(), affected)
     };
+    ctx.bank_nav_selected.set_vec(
+        rows.iter()
+            .filter(|r| r.selected)
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
     ctx.bank_nav_items.set_vec(rows);
 
     // Make the switch actually change the sound (proven lock-free upsert).
@@ -280,6 +295,7 @@ fn dispatch(ctx: &BankSceneNavCtx, ev: BankSceneEvent) {
 pub(crate) fn wire(window: &AppWindow, ctx: BankSceneNavCtx) {
     let ctx = Rc::new(ctx);
     window.set_bank_nav_items(ModelRc::from(ctx.bank_nav_items.clone()));
+    window.set_bank_nav_selected(ModelRc::from(ctx.bank_nav_selected.clone()));
     window.set_bank_chain_nodes(ModelRc::from(ctx.bank_chain_nodes.clone()));
     window.set_bank_chain_edges(ModelRc::from(ctx.bank_chain_edges.clone()));
 

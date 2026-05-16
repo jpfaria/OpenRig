@@ -1,117 +1,80 @@
-// #453 — Project picker + per-input bank/scene navigator.
+// #436 — Quad-Cortex-style rig screen. The signal chain is the HERO
+// (full-body GraphView with QC tiles); a compact header carries the big
+// preset·scene indicator + input name + bank nav; input tabs switch the
+// focused input; a floorboard strip of 8 scenes sits at the bottom.
 //
-// PURE DISPATCHER. No business logic here: every interaction is a callback
-// the host turns into a `BankSceneEvent`; every value shown comes from `in`
-// properties the host computes from `BankSceneState`. The signal chain of the
-// selected input is rendered by reusing the #435 `GraphView` (not duplicated).
+// PURE DISPATCHER — every interaction is a callback the host turns into a
+// BankSceneEvent; every value comes from `in` properties. No logic here.
 
-import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
+import { Theme } from "../theme.slint";
 import { BankNavItem } from "../models.slint";
+import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
 
-component PillButton inherits Rectangle {
+component QcButton inherits Rectangle {
     in property <string> text;
     in property <bool> active;
     callback clicked();
     accessible-role: button;
     accessible-label: root.text;
     accessible-action-default => { root.clicked(); }
-    height: 28px;
-    border-radius: 6px;
+    height: 30px;
+    border-radius: 7px;
     border-width: 1px;
-    border-color: #2a3140;
-    background: root.active ? #2d6cdf : touch.has-hover ? #20242e : #171a21;
+    border-color: root.active ? Theme.palette.accent-border : Theme.palette.border-strong;
+    background: root.active
+        ? Theme.palette.accent-end
+        : ta.has-hover ? Theme.palette.card-secondary : Theme.palette.card;
     animate background { duration: 120ms; }
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
         Text {
             text: root.text;
-            color: root.active ? #ffffff : #c4ccd8;
+            color: root.active ? #ffffff : Theme.palette.text-secondary;
             vertical-alignment: center;
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: 600;
         }
     }
-    touch := TouchArea {
-        clicked => { root.clicked(); }
-    }
+    ta := TouchArea { clicked => { root.clicked(); } }
 }
 
-component SceneStrip inherits HorizontalLayout {
-    in property <int> active-scene;
-    in property <string> input;
-    callback select-scene(string, int);
-    spacing: 4px;
-    for n in 8: PillButton {
-        text: "\{n + 1}";
-        active: root.active-scene == n + 1;
-        clicked => { root.select-scene(root.input, n + 1); }
+// One scene footswitch (1..8) — QC/Helix floorboard style.
+component SceneSwitch inherits Rectangle {
+    in property <int> number;
+    in property <bool> active;
+    callback clicked();
+    accessible-role: button;
+    accessible-label: "scene \{root.number}";
+    accessible-action-default => { root.clicked(); }
+    horizontal-stretch: 1;
+    height: 52px;
+    border-radius: 10px;
+    border-width: root.active ? 2px : 1px;
+    border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
+    background: root.active ? Theme.palette.accent-end : Theme.palette.card;
+    animate background, border-color { duration: 130ms; }
+    Text {
+        text: "\{root.number}";
+        color: root.active ? #ffffff : Theme.palette.text-muted;
+        font-size: 20px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
-}
-
-component InputRow inherits Rectangle {
-    in property <BankNavItem> item;
-    callback select-input(string);
-    callback bank-prev(string);
-    callback bank-next(string);
-    callback select-scene(string, int);
-
-    height: 78px;
-    border-radius: 8px;
-    background: root.item.selected ? #1b2330 : #14171d;
-    border-width: 1px;
-    border-color: root.item.selected ? #2d6cdf : #232833;
-    animate background, border-color { duration: 140ms; }
-
-    TouchArea {
-        clicked => { root.select-input(root.item.input); }
-    }
-
-    VerticalLayout {
-        padding: 10px;
-        spacing: 6px;
-        HorizontalLayout {
-            spacing: 8px;
-            Text {
-                text: root.item.label != "" ? root.item.label : root.item.input;
-                color: #eef2f8;
-                font-size: 15px;
-                font-weight: 600;
-                vertical-alignment: center;
-            }
-            Rectangle { horizontal-stretch: 1; }
-            PillButton {
-                text: @tr("◀ bank");
-                clicked => { root.bank-prev(root.item.input); }
-            }
-            Text {
-                text: @tr("preset {}", root.item.active-preset);
-                color: #9fb0c6;
-                font-size: 13px;
-                vertical-alignment: center;
-            }
-            PillButton {
-                text: @tr("bank ▶");
-                clicked => { root.bank-next(root.item.input); }
-            }
-        }
-        SceneStrip {
-            active-scene: root.item.active-scene;
-            input: root.item.input;
-            select-scene(i, s) => { root.select-scene(i, s); }
-        }
-    }
+    TouchArea { clicked => { root.clicked(); } }
 }
 
 export component BankSceneNavigator inherits Rectangle {
-    // ── inputs from the host (computed from BankSceneState) ──────────────
     in property <bool> project-open;
     in property <string> project-title;
     in property <[BankNavItem]> inputs;
-    // Signal chain of the selected input, rendered via the #435 GraphView.
+    // 0 or 1 element — the focused input (computed host-side; avoids
+    // `for:if` which Slint doesn't allow).
+    in property <[BankNavItem]> selected;
     in property <[GraphNode]> chain-nodes;
     in property <[GraphEdgeGeometry]> chain-edges;
 
-    // ── events to the host (→ BankSceneEvent) ───────────────────────────
     callback open-project();
     callback create-project();
     callback select-input(string);
@@ -120,68 +83,120 @@ export component BankSceneNavigator inherits Rectangle {
     callback select-scene(string, int);
     callback node-clicked(string);
 
-    background: #0f1116;
+    background: Theme.palette.pure-black;
 
-    VerticalLayout {
-        padding: 16px;
-        spacing: 14px;
+    Rectangle {
+        background: Theme.palette.background-gradient;
 
-        HorizontalLayout {
+        VerticalLayout {
+            padding: 14px;
             spacing: 10px;
-            Text {
-                text: root.project-open ? root.project-title : @tr("No project open");
-                color: #ffffff;
-                font-size: 20px;
-                font-weight: 700;
-                vertical-alignment: center;
-            }
-            Rectangle { horizontal-stretch: 1; }
-            PillButton {
-                text: @tr("Open project…");
-                accessible-label: @tr("Open project");
-                clicked => { root.open-project(); }
-            }
-            PillButton {
-                text: @tr("New project");
-                accessible-label: @tr("Create project");
-                clicked => { root.create-project(); }
-            }
-        }
 
-        if !root.project-open: Text {
-            text: @tr("Open or create a project to navigate its inputs.");
-            color: #7e8aa0;
-            font-size: 14px;
-        }
-
-        if root.project-open: HorizontalLayout {
-            spacing: 14px;
-
-            // Left: per-input bank/scene navigator.
-            Flickable {
-                width: 46%;
-                VerticalLayout {
-                    spacing: 8px;
-                    for item in root.inputs: InputRow {
-                        item: item;
-                        select-input(i) => { root.select-input(i); }
-                        bank-prev(i) => { root.bank-prev(i); }
-                        bank-next(i) => { root.bank-next(i); }
-                        select-scene(i, s) => { root.select-scene(i, s); }
+            // ── Header: big preset·scene + input name + bank nav ──────────
+            Rectangle {
+                height: 56px;
+                border-radius: 10px;
+                background: Theme.palette.card;
+                border-width: 1px;
+                border-color: Theme.palette.border;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 12px;
+                    spacing: 14px;
+                    for it in root.selected : HorizontalLayout {
+                        spacing: 14px;
+                        Text {
+                            text: "\{it.active-preset}·S\{it.active-scene}";
+                            color: Theme.palette.accent-border;
+                            font-size: 26px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: it.label != "" ? it.label : it.input;
+                            color: #ffffff;
+                            font-size: 18px;
+                            font-weight: 650;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        QcButton {
+                            text: "◀ BANK";
+                            clicked => { root.bank-prev(it.input); }
+                        }
+                        QcButton {
+                            text: "BANK ▶";
+                            clicked => { root.bank-next(it.input); }
+                        }
+                    }
+                    if !root.project-open : Text {
+                        text: @tr("No project open");
+                        color: Theme.palette.text-muted;
+                        font-size: 18px;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        horizontal-stretch: root.project-open ? 0 : 1;
+                    }
+                    QcButton {
+                        text: @tr("↻");
+                        clicked => { root.open-project(); }
+                    }
+                    QcButton {
+                        text: @tr("Classic ▶");
+                        clicked => { root.create-project(); }
                     }
                 }
             }
 
-            // Right: the selected input's signal chain (reused GraphView).
+            // ── Input tabs (switch focused input) ─────────────────────────
+            Flickable {
+                height: 36px;
+                viewport-width: tabs.preferred-width;
+                tabs := HorizontalLayout {
+                    spacing: 8px;
+                    for it in root.inputs : QcButton {
+                        text: it.label != "" ? it.label : it.input;
+                        active: it.selected;
+                        clicked => { root.select-input(it.input); }
+                    }
+                }
+            }
+
+            // ── HERO: the signal chain (QC tiles) fills the body ──────────
             Rectangle {
-                horizontal-stretch: 1;
-                border-radius: 10px;
+                vertical-stretch: 1;
+                border-radius: 12px;
                 clip: true;
+                background: Theme.palette.deep-space;
+                border-width: 1px;
+                border-color: Theme.palette.border;
                 GraphView {
                     nodes: root.chain-nodes;
                     edges: root.chain-edges;
+                    node_width: 76px;
+                    node_height: 76px;
                     node_clicked(id) => { root.node-clicked(id); }
                 }
+                if root.chain-nodes.length == 0 : Text {
+                    text: @tr("Open a project to see the signal chain");
+                    color: Theme.palette.text-muted;
+                    font-size: 14px;
+                }
+            }
+
+            // ── Floorboard: 8 scenes for the focused input ────────────────
+            for it in root.selected : HorizontalLayout {
+                height: 52px;
+                spacing: 8px;
+                SceneSwitch { number: 1; active: it.active-scene == 1; clicked => { root.select-scene(it.input, 1); } }
+                SceneSwitch { number: 2; active: it.active-scene == 2; clicked => { root.select-scene(it.input, 2); } }
+                SceneSwitch { number: 3; active: it.active-scene == 3; clicked => { root.select-scene(it.input, 3); } }
+                SceneSwitch { number: 4; active: it.active-scene == 4; clicked => { root.select-scene(it.input, 4); } }
+                SceneSwitch { number: 5; active: it.active-scene == 5; clicked => { root.select-scene(it.input, 5); } }
+                SceneSwitch { number: 6; active: it.active-scene == 6; clicked => { root.select-scene(it.input, 6); } }
+                SceneSwitch { number: 7; active: it.active-scene == 7; clicked => { root.select-scene(it.input, 7); } }
+                SceneSwitch { number: 8; active: it.active-scene == 8; clicked => { root.select-scene(it.input, 8); } }
             }
         }
     }

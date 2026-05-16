@@ -475,6 +475,7 @@ pub fn run_desktop_app(
             project_session: project_session.clone(),
             project_runtime: project_runtime.clone(),
             bank_nav_items: Rc::new(slint::VecModel::from(Vec::new())),
+            bank_nav_selected: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_nodes: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_edges: Rc::new(slint::VecModel::from(Vec::new())),
             state: Rc::new(RefCell::new(None)),
