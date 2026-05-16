@@ -12,6 +12,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-bank-scene-navigator;
+    in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
@@ -102,6 +103,7 @@ export component DesktopMain inherits Rectangle {
     callback filter-recent-projects(string);
     callback open-bank-scene-navigator();
     callback close-bank-scene-navigator();
+    callback bank-scene-refresh();
     callback bank-select-input(string);
     callback bank-prev(string);
     callback bank-next(string);
@@ -255,10 +257,12 @@ export component DesktopMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        // #453 — bank/scene navigator (replaces the chains view when open).
-        if root.show-bank-scene-navigator : BankSceneNavigator {
+        // #436 — bank/scene navigator is the PRIMARY chain view (GraphView).
+        // Classic chain list is opt-in via `show-classic-chains`.
+        if root.show-project-chains && !root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : BankSceneNavigator {
             width: parent.width;
             height: parent.height;
+            init => { root.bank-scene-refresh(); }
             project-open: true;
             project-title: root.project-title;
             inputs: root.bank-nav-items;
@@ -269,12 +273,12 @@ export component DesktopMain inherits Rectangle {
             bank-next(i) => { root.bank-next(i); }
             select-scene(i, s) => { root.bank-select-scene(i, s); }
             node-clicked(id) => { root.bank-node-clicked(id); }
-            open-project => { root.open-bank-scene-navigator(); }
-            create-project => { root.close-bank-scene-navigator(); }
+            open-project => { root.bank-scene-refresh(); }
+            create-project => { root.show-classic-chains = true; }
         }
 
         // Entry button — overlaid on the chains screen.
-        if root.show-project-chains && !root.show-bank-scene-navigator && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
+        if root.show-project-chains && root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
@@ -458,7 +462,9 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Entry button — declared AFTER ProjectChainsPage so it draws on top.
-        if root.show-project-chains && !root.show-bank-scene-navigator : TouchArea {
+        // View toggle — switch between the GraphView navigator (default)
+        // and the classic chain list, without losing either.
+        if root.show-project-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : TouchArea {
             x: parent.width - 178px;
             y: 16px;
             width: 160px;
@@ -469,12 +475,15 @@ export component DesktopMain inherits Rectangle {
                 border-width: 1px;
                 border-color: #2d6cdf;
                 Text {
-                    text: @tr("Bank / Scene");
+                    text: root.show-classic-chains ? @tr("◀ Graph view") : @tr("Classic list ▶");
                     color: #ffffff;
                     font-size: 13px;
                 }
             }
-            clicked => { root.open-bank-scene-navigator(); }
+            clicked => {
+                root.show-classic-chains = !root.show-classic-chains;
+                if !root.show-classic-chains { root.bank-scene-refresh(); }
+            }
         }
 
         if !root.show-project-chains : Rectangle {

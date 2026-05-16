@@ -10,6 +10,7 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-bank-scene-navigator;
+    in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
@@ -92,6 +93,7 @@ export component TouchMain inherits Rectangle {
     callback filter-recent-projects(string);
     callback open-bank-scene-navigator();
     callback close-bank-scene-navigator();
+    callback bank-scene-refresh();
     callback bank-select-input(string);
     callback bank-prev(string);
     callback bank-next(string);
@@ -259,9 +261,10 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        if root.show-bank-scene-navigator : BankSceneNavigator {
+        if root.show-project-chains && !root.show-classic-chains : BankSceneNavigator {
             width: parent.width;
             height: parent.height;
+            init => { root.bank-scene-refresh(); }
             project-open: true;
             project-title: root.project-title;
             inputs: root.bank-nav-items;
@@ -272,11 +275,11 @@ export component TouchMain inherits Rectangle {
             bank-next(i) => { root.bank-next(i); }
             select-scene(i, s) => { root.bank-select-scene(i, s); }
             node-clicked(id) => { root.bank-node-clicked(id); }
-            open-project => { root.open-bank-scene-navigator(); }
-            create-project => { root.close-bank-scene-navigator(); }
+            open-project => { root.bank-scene-refresh(); }
+            create-project => { root.show-classic-chains = true; }
         }
 
-        if root.show-project-chains && !root.show-bank-scene-navigator : TouchArea {
+        if root.show-project-chains : TouchArea {
             x: parent.width - 168px;
             y: 14px;
             width: 150px;
@@ -287,15 +290,18 @@ export component TouchMain inherits Rectangle {
                 border-width: 1px;
                 border-color: #2d6cdf;
                 Text {
-                    text: @tr("Bank / Scene");
+                    text: root.show-classic-chains ? @tr("◀ Graph view") : @tr("Classic list ▶");
                     color: #ffffff;
                     font-size: 14px;
                 }
             }
-            clicked => { root.open-bank-scene-navigator(); }
+            clicked => {
+                root.show-classic-chains = !root.show-classic-chains;
+                if !root.show-classic-chains { root.bank-scene-refresh(); }
+            }
         }
 
-        if root.show-project-chains && !root.show-bank-scene-navigator : ProjectChainsPage {
+        if root.show-project-chains && root.show-classic-chains : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;

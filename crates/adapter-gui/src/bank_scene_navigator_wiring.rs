@@ -299,6 +299,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: BankSceneNavCtx) {
     });
 
     let c = ctx.clone();
+    window.on_bank_scene_refresh(move || rebuild(&c));
+
+    let c = ctx.clone();
     window.on_bank_select_input(move |i| dispatch(&c, BankSceneEvent::SelectInput(i.to_string())));
     let c = ctx.clone();
     window.on_bank_prev(move |_i| dispatch(&c, BankSceneEvent::BankPrev));

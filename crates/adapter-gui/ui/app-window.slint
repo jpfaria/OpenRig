@@ -44,6 +44,7 @@ export component AppWindow inherits Window {
     in property <bool> show-audio-settings;
     // #453 bank/scene navigator
     in property <bool> show-bank-scene-navigator;
+    in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
@@ -131,6 +132,7 @@ export component AppWindow inherits Window {
     callback filter-recent-projects(string);
     callback open-bank-scene-navigator();
     callback close-bank-scene-navigator();
+    callback bank-scene-refresh();
     callback bank-select-input(string);
     callback bank-prev(string);
     callback bank-next(string);
@@ -272,6 +274,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-bank-scene-navigator: root.show-bank-scene-navigator;
+        show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
@@ -388,6 +391,7 @@ export component AppWindow inherits Window {
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
         open-bank-scene-navigator => { root.open-bank-scene-navigator(); }
         close-bank-scene-navigator => { root.close-bank-scene-navigator(); }
+        bank-scene-refresh => { root.bank-scene-refresh(); }
         bank-select-input(i) => { root.bank-select-input(i); }
         bank-prev(i) => { root.bank-prev(i); }
         bank-next(i) => { root.bank-next(i); }
@@ -479,6 +483,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-bank-scene-navigator: root.show-bank-scene-navigator;
+        show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
@@ -561,6 +566,7 @@ export component AppWindow inherits Window {
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
         open-bank-scene-navigator => { root.open-bank-scene-navigator(); }
         close-bank-scene-navigator => { root.close-bank-scene-navigator(); }
+        bank-scene-refresh => { root.bank-scene-refresh(); }
         bank-select-input(i) => { root.bank-select-input(i); }
         bank-prev(i) => { root.bank-prev(i); }
         bank-next(i) => { root.bank-next(i); }
