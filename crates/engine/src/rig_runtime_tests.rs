@@ -358,3 +358,91 @@ fn bridge_result_builds_runtime() {
             .unwrap_or_else(|e| panic!("synthetic chain {} must build: {e}", c.id.0));
     }
 }
+
+// ── #454 T4: scene-aware bridge + RigRuntime::switch_scene ─────────────────
+
+use project::rig::RigScene;
+use std::collections::BTreeMap;
+
+fn rig_with_scene() -> RigProject {
+    let mut r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+        )],
+        vec![("p", vec![fx("od")])],
+        vec![],
+    );
+    let preset = r.presets.get_mut("p").unwrap();
+    preset.scenes = BTreeMap::from([(
+        2,
+        RigScene {
+            label: None,
+            bypass: BTreeMap::from([("od".to_string(), true)]),
+            params: BTreeMap::new(),
+        },
+    )]);
+    r
+}
+
+#[test]
+fn rig_to_chains_applies_active_scene_bypass() {
+    let mut r = rig_with_scene();
+    r.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let c = &rig_to_chains(&r)[0];
+    let od = c.blocks.iter().find(|b| b.id.0 == "od").unwrap();
+    assert!(!od.enabled, "scene 2 bypasses od");
+}
+
+#[test]
+fn switch_scene_updates_active_and_rebuilds_only_that_input() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("b", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![fx("od")])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    let other_before = Arc::clone(arc_for(&rt, "input-2"));
+    rt.switch_scene("input-1", 3).expect("switch scene");
+    assert_eq!(rt.project().inputs["input-1"].active_scene, 3);
+    assert!(
+        Arc::ptr_eq(&other_before, arc_for(&rt, "input-2")),
+        "switching scene on input-1 must not touch input-2 (invariant #4)"
+    );
+}
+
+#[test]
+fn switch_scene_invalid_index_errs_and_keeps_active() {
+    let mut rt = RigRuntime::build(rig_with_scene(), SR).expect("build");
+    assert!(rt.switch_scene("input-1", 9).is_err());
+    assert!(rt.switch_scene("input-1", 0).is_err());
+    assert_eq!(rt.project().inputs["input-1"].active_scene, 1);
+}
+
+#[test]
+fn switch_scene_is_lockfree_same_runtime_arc() {
+    let r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("a", vec![0])], &[(1, "p")], 1, vec!["o"]),
+        )],
+        vec![("p", vec![fx("od")])],
+        vec![("o", out_entry("a", vec![0, 1]))],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    let before = Arc::clone(arc_for(&rt, "input-1"));
+    rt.switch_scene("input-1", 2).expect("switch");
+    assert!(
+        Arc::ptr_eq(&before, arc_for(&rt, "input-1")),
+        "scene swap reuses the runtime Arc (lock-free in-place, like #451)"
+    );
+}

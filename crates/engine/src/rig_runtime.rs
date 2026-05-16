@@ -42,7 +42,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                 entries: input.sources.clone(),
             }),
         });
-        blocks.extend(preset.blocks.iter().cloned());
+        blocks.extend(preset.apply_scene(input.active_scene));
         let routed: Vec<_> = input
             .routing
             .iter()
@@ -129,6 +129,35 @@ impl RigRuntime {
             return Err(anyhow!("input '{input}' has no bank slot {idx}"));
         }
         ri.active_preset = idx;
+
+        let id = ChainId(format!("rig:{input}"));
+        let chain = rig_to_chains(&self.project)
+            .into_iter()
+            .find(|c| c.id == id)
+            .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
+        self.graph
+            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+        Ok(())
+    }
+
+    /// Switch the active scene of one input (`1..=8`).
+    ///
+    /// Same lock-free in-place path as [`Self::switch_preset`] — only that
+    /// input's chain is rebuilt (new blocks from `RigPreset::apply_scene`),
+    /// other inputs untouched (#4). The previous-scene tail spillover is the
+    /// dedicated #454-T5 RT step.
+    pub fn switch_scene(&mut self, input: &str, scene: usize) -> Result<()> {
+        if !(1..=8).contains(&scene) {
+            return Err(anyhow!(
+                "scene {scene} out of range 1..=8 for input '{input}'"
+            ));
+        }
+        let ri = self
+            .project
+            .inputs
+            .get_mut(input)
+            .ok_or_else(|| anyhow!("unknown input '{input}'"))?;
+        ri.active_scene = scene;
 
         let id = ChainId(format!("rig:{input}"));
         let chain = rig_to_chains(&self.project)
