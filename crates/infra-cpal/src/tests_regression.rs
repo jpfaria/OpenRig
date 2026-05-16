@@ -288,17 +288,14 @@ fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
 // group ids match the cpal input indices the input streams bind to;
 // (c) the output mix helper consumes from ALL of them (multi-runtime
 // path) while a single-runtime chain stays on the byte-identical path.
-#[test]
-fn two_device_inputs_each_wire_their_own_runtime() {
+/// Fixture: a chain with two `InputBlock`s on two distinct physical devices,
+/// both feeding one stereo `OutputBlock`. Mirrors the issue #350 bug shape.
+fn two_device_chain() -> project::chain::Chain {
     use domain::ids::{BlockId, ChainId, DeviceId};
-    use engine::runtime::process_output_f32_mixed;
     use project::block::{
         AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
     };
     use project::chain::{Chain, ChainInputMode, ChainOutputMode};
-    use project::project::Project;
-    use std::collections::HashMap;
-    use std::sync::Arc;
 
     let input = |id: &str, dev: &str| AudioBlock {
         id: BlockId(id.into()),
@@ -312,7 +309,7 @@ fn two_device_inputs_each_wire_their_own_runtime() {
             }],
         }),
     };
-    let chain = Chain {
+    Chain {
         id: ChainId("two_dev".into()),
         description: None,
         instrument: "electric_guitar".into(),
@@ -334,7 +331,17 @@ fn two_device_inputs_each_wire_their_own_runtime() {
                 }),
             },
         ],
-    };
+    }
+}
+
+#[test]
+fn two_device_inputs_each_wire_their_own_runtime() {
+    use engine::runtime::process_output_f32_mixed;
+    use project::project::Project;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    let chain = two_device_chain();
     let project = Project {
         name: Some("two_dev_test".into()),
         chains: vec![chain.clone()],

@@ -13,6 +13,34 @@ use project::block::{
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::project::Project;
 
+/// I/O endpoint configuration for [`build_default_chain`].
+///
+/// Groups the device id + channel list for one side (input or output) so the
+/// factory takes one cohesive value per side instead of two loose arguments.
+pub struct EndpointSpec<'a> {
+    /// Optional device id string. `None` => empty entries on this side.
+    pub device_id: Option<&'a str>,
+    /// Channel indices for this side. Empty => empty entries on this side.
+    pub channels: Vec<usize>,
+}
+
+/// Parameters for [`build_default_chain`], grouped to keep the call site and
+/// signature cohesive (one struct instead of seven positional arguments).
+pub struct DefaultChainParams<'a> {
+    /// The current project; used only to determine the next available chain
+    /// index for default ids. **Not mutated.**
+    pub project: &'a Project,
+    /// Instrument key (e.g. `"electric_guitar"`). Use
+    /// `block_core::DEFAULT_INSTRUMENT` if unknown.
+    pub instrument: &'a str,
+    /// Optional human-readable chain name.
+    pub description: Option<String>,
+    /// Input-side endpoint spec.
+    pub input: EndpointSpec<'a>,
+    /// Output-side endpoint spec.
+    pub output: EndpointSpec<'a>,
+}
+
 /// Build a new [`Chain`] with default I/O blocks ready for dispatch via
 /// `Command::AddChain`.
 ///
@@ -25,27 +53,18 @@ use project::project::Project;
 ///   no device is specified).
 /// - One `OutputBlock` with the provided device + channels (or empty entries).
 /// - An empty effects list.
-///
-/// # Parameters
-///
-/// * `project` — the current project; used only to determine the next available
-///   chain index for logging and default naming. **Not mutated.**
-/// * `instrument` — instrument key (e.g. `"electric_guitar"`). Use
-///   `block_core::DEFAULT_INSTRUMENT` if unknown.
-/// * `description` — optional human-readable chain name.
-/// * `input_device_id` — optional input device id string.
-/// * `input_channels` — input channel indices.
-/// * `output_device_id` — optional output device id string.
-/// * `output_channels` — output channel indices.
-pub fn build_default_chain(
-    project: &Project,
-    instrument: &str,
-    description: Option<String>,
-    input_device_id: Option<&str>,
-    input_channels: Vec<usize>,
-    output_device_id: Option<&str>,
-    output_channels: Vec<usize>,
-) -> project::chain::Chain {
+pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Chain {
+    let DefaultChainParams {
+        project,
+        instrument,
+        description,
+        input,
+        output,
+    } = params;
+    let input_device_id = input.device_id;
+    let input_channels = input.channels;
+    let output_device_id = output.device_id;
+    let output_channels = output.channels;
     let chain_idx = project.chains.len();
     let chain_id = ChainId::generate();
 

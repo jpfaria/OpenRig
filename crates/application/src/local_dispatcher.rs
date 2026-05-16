@@ -24,7 +24,7 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
-use domain::ids::BlockId;
+use domain::ids::{BlockId, ChainId};
 use project::project::Project;
 
 use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
@@ -55,6 +55,100 @@ impl LocalDispatcher {
 
 impl CommandDispatcher for LocalDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
+        // Pure grouping switch: no logic, just routes each command to the
+        // handler that owns its category. Behaviour is byte-identical to the
+        // original flat match — each handler runs the original arm body
+        // unchanged.
+        match cmd {
+            Command::SetBlockParameterNumber { .. }
+            | Command::SetBlockParameterBool { .. }
+            | Command::SetBlockParameterText { .. }
+            | Command::SelectBlockParameterOption { .. }
+            | Command::PickBlockParameterFile { .. } => self.handle_block_param(cmd),
+
+            Command::ToggleBlockEnabled { .. }
+            | Command::ReplaceBlockModel { .. }
+            | Command::AddBlock { .. }
+            | Command::InsertPrebuiltBlock { .. } => self.handle_block_lifecycle(cmd),
+
+            Command::OverwriteBlock { .. }
+            | Command::RemoveBlock { .. }
+            | Command::MoveBlock { .. }
+            | Command::SaveInsertBlock { .. } => self.handle_block_edit(cmd),
+
+            Command::AddChain { .. }
+            | Command::ConfigureChain { .. }
+            | Command::RemoveChain { .. }
+            | Command::SetChainVolume { .. } => self.handle_chain_crud(cmd),
+
+            Command::MoveChainUp { .. }
+            | Command::MoveChainDown { .. }
+            | Command::ToggleChainEnabled { .. } => self.handle_chain_order(cmd),
+
+            Command::SaveChain { .. }
+            | Command::SaveChainInputEndpoints { .. }
+            | Command::SaveChainOutputEndpoints { .. } => self.handle_chain_save(cmd),
+
+            Command::SaveChainIo { .. } | Command::LoadChainPreset { .. } => {
+                self.handle_chain_io_replace(cmd)
+            }
+
+            Command::SaveProject
+            | Command::LoadProject { .. }
+            | Command::CreateProject { .. }
+            | Command::UpdateProjectName { .. }
+            | Command::SaveAudioSettings { .. } => self.handle_project(cmd),
+        }
+    }
+
+    fn subscribe(&self) -> EventStream {
+        // Phase 2 will return a real event stream. For now this is a no-op.
+    }
+}
+
+impl LocalDispatcher {
+    /// Borrow the project mutably, locate `chain` then `block`, and run `f`
+    /// against the located block. Centralises the chain-not-found /
+    /// block-not-found lookup that every block-scoped arm performed inline.
+    ///
+    /// Behaviour is byte-identical to the previous inline form: same
+    /// `borrow_mut` scope, same `find` order, same error strings, same `?`
+    /// propagation point.
+    fn with_block<R>(
+        &self,
+        chain: &ChainId,
+        block: &BlockId,
+        f: impl FnOnce(&mut project::block::AudioBlock) -> Result<R>,
+    ) -> Result<R> {
+        let mut proj = self.project.borrow_mut();
+        let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == *chain) else {
+            return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+        };
+        let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == *block) else {
+            return Err(anyhow::anyhow!("block not found: {:?}", block));
+        };
+        f(target_block)
+    }
+
+    /// Borrow the project mutably, locate `chain`, and run `f` against it.
+    /// Centralises the chain-not-found lookup shared by chain-scoped arms.
+    ///
+    /// Behaviour is byte-identical to the previous inline form: same
+    /// `borrow_mut` scope, same `find` order, same error string.
+    fn with_chain<R>(
+        &self,
+        chain: &ChainId,
+        f: impl FnOnce(&mut project::chain::Chain) -> Result<R>,
+    ) -> Result<R> {
+        let mut proj = self.project.borrow_mut();
+        let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == *chain) else {
+            return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+        };
+        f(target_chain)
+    }
+
+    /// Block-parameter commands: set/select a single parameter on a block.
+    fn handle_block_param(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::SetBlockParameterNumber {
                 chain,
@@ -62,15 +156,9 @@ impl CommandDispatcher for LocalDispatcher {
                 path,
                 value,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                project::block::param_writer::set_parameter_number(target_block, &path, value)?;
+                self.with_block(&chain, &block, |b| {
+                    project::block::param_writer::set_parameter_number(b, &path, value)
+                })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::SetBlockParameterBool {
@@ -79,15 +167,9 @@ impl CommandDispatcher for LocalDispatcher {
                 path,
                 value,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                project::block::param_writer::set_parameter_bool(target_block, &path, value)?;
+                self.with_block(&chain, &block, |b| {
+                    project::block::param_writer::set_parameter_bool(b, &path, value)
+                })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::SetBlockParameterText {
@@ -96,15 +178,9 @@ impl CommandDispatcher for LocalDispatcher {
                 path,
                 value,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                project::block::param_writer::set_parameter_text(target_block, &path, &value)?;
+                self.with_block(&chain, &block, |b| {
+                    project::block::param_writer::set_parameter_text(b, &path, &value)
+                })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::SelectBlockParameterOption {
@@ -114,15 +190,9 @@ impl CommandDispatcher for LocalDispatcher {
                 value,
                 index: _,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                project::block::param_writer::set_parameter_option(target_block, &path, &value)?;
+                self.with_block(&chain, &block, |b| {
+                    project::block::param_writer::set_parameter_option(b, &path, &value)
+                })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
             Command::PickBlockParameterFile {
@@ -131,33 +201,24 @@ impl CommandDispatcher for LocalDispatcher {
                 path,
                 file,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                let file_str = file.to_string_lossy();
-                project::block::param_writer::set_parameter_text(
-                    target_block,
-                    &path,
-                    file_str.as_ref(),
-                )?;
+                self.with_block(&chain, &block, |b| {
+                    let file_str = file.to_string_lossy();
+                    project::block::param_writer::set_parameter_text(b, &path, file_str.as_ref())
+                })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
+            other => unreachable!("handle_block_param received non-param command: {other:?}"),
+        }
+    }
+
+    /// Block-lifecycle commands: enable/model swap/add.
+    fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             Command::ToggleBlockEnabled { chain, block } => {
-                let mut project = self.project.borrow_mut();
-                let Some(target_chain) = project.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                target_block.enabled = !target_block.enabled;
-                let new_state = target_block.enabled;
+                let new_state = self.with_block(&chain, &block, |b| {
+                    b.enabled = !b.enabled;
+                    Ok(b.enabled)
+                })?;
                 Ok(vec![Event::BlockEnabledChanged {
                     chain,
                     block,
@@ -177,16 +238,11 @@ impl CommandDispatcher for LocalDispatcher {
                     &effect_type,
                     &model_id,
                 )?;
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                // Preserve id and enabled; replace only the kind (defaults reset).
-                target_block.kind = new_block.kind;
+                self.with_block(&chain, &block, |b| {
+                    // Preserve id and enabled; replace only the kind (defaults reset).
+                    b.kind = new_block.kind;
+                    Ok(())
+                })?;
                 Ok(vec![Event::BlockReplaced { chain, block }])
             }
             Command::AddBlock {
@@ -205,12 +261,11 @@ impl CommandDispatcher for LocalDispatcher {
                 };
                 let new_block = build_default_block(block_id, &kind, &model_id)?;
                 let new_block_id = new_block.id.clone();
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let insert_at = position.min(target_chain.blocks.len());
-                target_chain.blocks.insert(insert_at, new_block);
+                self.with_chain(&chain, |c| {
+                    let insert_at = position.min(c.blocks.len());
+                    c.blocks.insert(insert_at, new_block);
+                    Ok(())
+                })?;
                 Ok(vec![Event::BlockAdded {
                     chain,
                     block: new_block_id,
@@ -222,45 +277,47 @@ impl CommandDispatcher for LocalDispatcher {
                 position,
             } => {
                 let block_id = block.id.clone();
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let insert_at = position.min(target_chain.blocks.len());
-                target_chain.blocks.insert(insert_at, block);
+                self.with_chain(&chain, |c| {
+                    let insert_at = position.min(c.blocks.len());
+                    c.blocks.insert(insert_at, block);
+                    Ok(())
+                })?;
                 Ok(vec![Event::BlockAdded {
                     chain,
                     block: block_id,
                 }])
             }
+            other => {
+                unreachable!("handle_block_lifecycle received non-lifecycle command: {other:?}")
+            }
+        }
+    }
+
+    /// Block-edit commands: overwrite/remove/move/insert-config.
+    fn handle_block_edit(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             Command::OverwriteBlock {
                 chain,
                 block,
                 mut replacement,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                // Preserve the original block id; replace kind and enabled.
-                replacement.id = block.clone();
-                *target_block = replacement;
+                self.with_block(&chain, &block, |b| {
+                    // Preserve the original block id; replace kind and enabled.
+                    replacement.id = block.clone();
+                    *b = replacement;
+                    Ok(())
+                })?;
                 Ok(vec![Event::BlockReplaced { chain, block }])
             }
             Command::RemoveBlock { chain, block } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let pre_len = target_chain.blocks.len();
-                target_chain.blocks.retain(|b| b.id != block);
-                if target_chain.blocks.len() == pre_len {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                }
+                self.with_chain(&chain, |c| {
+                    let pre_len = c.blocks.len();
+                    c.blocks.retain(|b| b.id != block);
+                    if c.blocks.len() == pre_len {
+                        return Err(anyhow::anyhow!("block not found: {:?}", block));
+                    }
+                    Ok(())
+                })?;
                 Ok(vec![Event::BlockRemoved { chain, block }])
             }
             Command::MoveBlock {
@@ -268,18 +325,43 @@ impl CommandDispatcher for LocalDispatcher {
                 block,
                 new_position,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(from_idx) = target_chain.blocks.iter().position(|b| b.id == block) else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                let moved = target_chain.blocks.remove(from_idx);
-                let insert_at = new_position.min(target_chain.blocks.len());
-                target_chain.blocks.insert(insert_at, moved);
+                self.with_chain(&chain, |c| {
+                    let Some(from_idx) = c.blocks.iter().position(|b| b.id == block) else {
+                        return Err(anyhow::anyhow!("block not found: {:?}", block));
+                    };
+                    let moved = c.blocks.remove(from_idx);
+                    let insert_at = new_position.min(c.blocks.len());
+                    c.blocks.insert(insert_at, moved);
+                    Ok(())
+                })?;
                 Ok(vec![Event::ChainReloaded { chain }])
             }
+            // ── Insert block ──────────────────────────────────────────────────
+            Command::SaveInsertBlock {
+                chain,
+                block,
+                send,
+                return_,
+            } => {
+                self.with_block(&chain, &block, |b| match &mut b.kind {
+                    project::block::AudioBlockKind::Insert(ref mut ib) => {
+                        ib.send = send;
+                        ib.return_ = return_;
+                        Ok(())
+                    }
+                    _ => Err(anyhow::anyhow!("block {:?} is not an InsertBlock", block)),
+                })?;
+                Ok(vec![Event::InsertBlockSaved { chain, block }])
+            }
+            other => {
+                unreachable!("handle_block_edit received non-edit command: {other:?}")
+            }
+        }
+    }
+
+    /// Chain CRUD commands: add/configure/remove/volume.
+    fn handle_chain_crud(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
             Command::AddChain { chain } => {
                 // Validate that enabling this chain (enabled=true) would not
@@ -301,15 +383,14 @@ impl CommandDispatcher for LocalDispatcher {
             }
             Command::ConfigureChain { chain } => {
                 let chain_id = chain.id.clone();
-                let mut proj = self.project.borrow_mut();
-                let Some(existing) = proj.chains.iter_mut().find(|c| c.id == chain_id) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain_id));
-                };
-                // Preserve runtime-only state (enabled) — callers must use
-                // ToggleChainEnabled to change the running state.
-                let keep_enabled = existing.enabled;
-                *existing = chain;
-                existing.enabled = keep_enabled;
+                self.with_chain(&chain_id, |existing| {
+                    // Preserve runtime-only state (enabled) — callers must use
+                    // ToggleChainEnabled to change the running state.
+                    let keep_enabled = existing.enabled;
+                    *existing = chain;
+                    existing.enabled = keep_enabled;
+                    Ok(())
+                })?;
                 Ok(vec![
                     Event::ChainConfigured { chain: chain_id },
                     Event::ProjectMutated,
@@ -324,6 +405,24 @@ impl CommandDispatcher for LocalDispatcher {
                 }
                 Ok(vec![Event::ChainRemoved { chain }, Event::ProjectMutated])
             }
+            // ── Chain volume (issue #440) ─────────────────────────────────────
+            Command::SetChainVolume { chain, value } => {
+                self.with_chain(&chain, |c| {
+                    c.volume = value;
+                    Ok(())
+                })?;
+                Ok(vec![
+                    Event::ChainVolumeChanged { chain, value },
+                    Event::ProjectMutated,
+                ])
+            }
+            other => unreachable!("handle_chain_crud received non-crud command: {other:?}"),
+        }
+    }
+
+    /// Chain ordering / enable commands: move up/down, toggle enabled.
+    fn handle_chain_order(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             Command::MoveChainUp { chain } => {
                 let mut proj = self.project.borrow_mut();
                 let Some(idx) = proj.chains.iter().position(|c| c.id == chain) else {
@@ -393,33 +492,13 @@ impl CommandDispatcher for LocalDispatcher {
                     enabled: will_enable,
                 }])
             }
-            // ── Insert block ──────────────────────────────────────────────────
-            Command::SaveInsertBlock {
-                chain,
-                block,
-                send,
-                return_,
-            } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == block)
-                else {
-                    return Err(anyhow::anyhow!("block not found: {:?}", block));
-                };
-                match &mut target_block.kind {
-                    project::block::AudioBlockKind::Insert(ref mut ib) => {
-                        ib.send = send;
-                        ib.return_ = return_;
-                    }
-                    _ => {
-                        return Err(anyhow::anyhow!("block {:?} is not an InsertBlock", block));
-                    }
-                }
-                Ok(vec![Event::InsertBlockSaved { chain, block }])
-            }
+            other => unreachable!("handle_chain_order received non-order command: {other:?}"),
+        }
+    }
 
+    /// Chain save/upsert + input/output endpoint replacement commands.
+    fn handle_chain_save(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             // ── Chain save (upsert) ───────────────────────────────────────────
             Command::SaveChain { chain } => {
                 let chain_id = chain.id.clone();
@@ -444,18 +523,16 @@ impl CommandDispatcher for LocalDispatcher {
                 chain,
                 input_blocks,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                // Remove all existing Input blocks, retaining non-input blocks.
-                target_chain
-                    .blocks
-                    .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
-                // Insert the new input blocks at the head (inputs-first convention).
-                for (i, blk) in input_blocks.into_iter().enumerate() {
-                    target_chain.blocks.insert(i, blk);
-                }
+                self.with_chain(&chain, |c| {
+                    // Remove all existing Input blocks, retaining non-input blocks.
+                    c.blocks
+                        .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                    // Insert the new input blocks at the head (inputs-first convention).
+                    for (i, blk) in input_blocks.into_iter().enumerate() {
+                        c.blocks.insert(i, blk);
+                    }
+                    Ok(())
+                })?;
                 Ok(vec![
                     Event::ChainInputEndpointsSaved {
                         chain: chain.clone(),
@@ -468,16 +545,14 @@ impl CommandDispatcher for LocalDispatcher {
                 chain,
                 output_blocks,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                // Remove all existing Output blocks, retaining non-output blocks.
-                target_chain
-                    .blocks
-                    .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
-                // Append the new output blocks at the tail (outputs-last convention).
-                target_chain.blocks.extend(output_blocks);
+                self.with_chain(&chain, |c| {
+                    // Remove all existing Output blocks, retaining non-output blocks.
+                    c.blocks
+                        .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
+                    // Append the new output blocks at the tail (outputs-last convention).
+                    c.blocks.extend(output_blocks);
+                    Ok(())
+                })?;
                 Ok(vec![
                     Event::ChainOutputEndpointsSaved {
                         chain: chain.clone(),
@@ -485,38 +560,43 @@ impl CommandDispatcher for LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
+            other => unreachable!("handle_chain_save received non-save command: {other:?}"),
+        }
+    }
 
+    /// Chain I/O block replacement + preset load commands.
+    fn handle_chain_io_replace(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             Command::SaveChainIo {
                 chain,
                 input_block,
                 output_block,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                let in_pos = target_chain
-                    .blocks
-                    .iter()
-                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
-                let Some(in_idx) = in_pos else {
-                    return Err(anyhow::anyhow!(
-                        "chain {:?} has no InputBlock to replace",
-                        chain
-                    ));
-                };
-                let out_pos = target_chain
-                    .blocks
-                    .iter()
-                    .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
-                let Some(out_idx) = out_pos else {
-                    return Err(anyhow::anyhow!(
-                        "chain {:?} has no OutputBlock to replace",
-                        chain
-                    ));
-                };
-                target_chain.blocks[in_idx] = input_block;
-                target_chain.blocks[out_idx] = output_block;
+                self.with_chain(&chain, |c| {
+                    let in_pos = c
+                        .blocks
+                        .iter()
+                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                    let Some(in_idx) = in_pos else {
+                        return Err(anyhow::anyhow!(
+                            "chain {:?} has no InputBlock to replace",
+                            chain
+                        ));
+                    };
+                    let out_pos = c
+                        .blocks
+                        .iter()
+                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
+                    let Some(out_idx) = out_pos else {
+                        return Err(anyhow::anyhow!(
+                            "chain {:?} has no OutputBlock to replace",
+                            chain
+                        ));
+                    };
+                    c.blocks[in_idx] = input_block;
+                    c.blocks[out_idx] = output_block;
+                    Ok(())
+                })?;
                 Ok(vec![
                     Event::ChainIoSaved {
                         chain: chain.clone(),
@@ -530,14 +610,21 @@ impl CommandDispatcher for LocalDispatcher {
                 chain,
                 preset_blocks,
             } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                target.blocks = preset_blocks;
+                self.with_chain(&chain, |c| {
+                    c.blocks = preset_blocks;
+                    Ok(())
+                })?;
                 Ok(vec![Event::ChainPresetLoaded { chain }])
             }
+            other => {
+                unreachable!("handle_chain_io_replace received non-replace command: {other:?}")
+            }
+        }
+    }
 
+    /// Project lifecycle + settings commands.
+    fn handle_project(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
             // ── Project lifecycle ─────────────────────────────────────────────
             // File I/O happens in the adapter before dispatch. The dispatcher
             // signals the completion via events only.
@@ -570,23 +657,7 @@ impl CommandDispatcher for LocalDispatcher {
                 self.project.borrow_mut().device_settings = device_settings;
                 Ok(vec![Event::AudioSettingsSaved])
             }
-
-            // ── Chain volume (issue #440) ─────────────────────────────────────
-            Command::SetChainVolume { chain, value } => {
-                let mut proj = self.project.borrow_mut();
-                let Some(target) = proj.chains.iter_mut().find(|c| c.id == chain) else {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-                };
-                target.volume = value;
-                Ok(vec![
-                    Event::ChainVolumeChanged { chain, value },
-                    Event::ProjectMutated,
-                ])
-            }
+            other => unreachable!("handle_project received non-project command: {other:?}"),
         }
-    }
-
-    fn subscribe(&self) -> EventStream {
-        // Phase 2 will return a real event stream. For now this is a no-op.
     }
 }
