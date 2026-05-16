@@ -124,6 +124,20 @@ Todo `model:` ID está registrado no [Blocks Reference Quick Reference](docs/use
 
 Releases para todas as plataformas suportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) são publicados na [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest).
 
+#### macOS: "OpenRig está danificado e não pode ser aberto"
+
+**O app não está danificado.** O OpenRig é assinado ad-hoc mas não notarizado pela Apple (sem certificado de Desenvolvedor pago), então o macOS põe o download em quarentena e mostra essa mensagem enganosa — no Apple Silicon é bloqueio duro. Depois de mover o OpenRig pra Aplicativos, remova o atributo de quarentena:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OpenRig.app
+```
+
+Ou instale com um comando (downloads via `curl` nunca entram em quarentena — ele baixa o `.dmg`, instala em Aplicativos e remove o atributo pra você):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
+```
+
 ### Compilar do código
 
 ```bash

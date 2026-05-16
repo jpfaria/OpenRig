@@ -50,6 +50,12 @@ A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and
 
 Download `OpenRig-<ver>-macos-universal.dmg`, open it, and drag OpenRig to Applications. The build is universal (Apple Silicon + Intel).
 
+> ⚠️ **Required step — otherwise macOS says "OpenRig is damaged".** The build is not Apple-notarized, so the download is quarantined (a hard block on Apple Silicon). After moving the app to Applications, run:
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/OpenRig.app
+> ```
+> Or use the one-line `curl` installer below, which does this for you.
+
 ### Windows
 
 Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
