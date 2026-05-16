@@ -72,3 +72,64 @@ fn save_then_load_file_round_trips() {
     let loaded = load_rig_project_file(&path).unwrap();
     assert_eq!(p, loaded);
 }
+
+// ── #454 T3: scenes / scene-params persistence + backward-compat ───────────
+
+const WITH_SCENES: &str = r#"
+project:
+  inputs:
+    input-1:
+      sources:
+        - device_id: sc
+          mode: mono
+          channels: [0]
+      bank:
+        1: drive
+      active-preset: 1
+      active-scene: 2
+  outputs: {}
+  presets:
+    drive:
+      blocks: []
+      scene-params:
+        - od.gain
+      scenes:
+        1:
+          bypass: {}
+          params: { od.gain: 0.4 }
+        2:
+          label: solo
+          bypass: { comp: true }
+          params: { od.gain: 0.8 }
+"#;
+
+#[test]
+fn scenes_and_scene_params_round_trip_deterministic() {
+    let p1 = parse_rig_project(WITH_SCENES).unwrap();
+    let preset = p1.presets.get("drive").unwrap();
+    assert_eq!(preset.scene_params, vec!["od.gain".to_string()]);
+    assert_eq!(preset.scenes.len(), 2);
+    assert_eq!(preset.scenes[&2].label.as_deref(), Some("solo"));
+    assert_eq!(preset.scenes[&2].bypass.get("comp"), Some(&true));
+    assert_eq!(preset.scenes[&2].params.get("od.gain"), Some(&0.8));
+
+    let s1 = serialize_rig_project(&p1).unwrap();
+    let p2 = parse_rig_project(&s1).unwrap();
+    assert_eq!(
+        s1,
+        serialize_rig_project(&p2).unwrap(),
+        "byte-deterministic"
+    );
+    assert_eq!(p1, p2);
+}
+
+#[test]
+fn preset_without_scenes_loads_as_default_scene() {
+    // MINIMAL has presets with `blocks: []` and no scenes ⇒ backward-compat:
+    // scene_or_default(1) is the empty Default scene.
+    let p = parse_rig_project(MINIMAL).unwrap();
+    let clean = p.presets.get("clean").unwrap();
+    assert!(clean.scenes.is_empty());
+    assert!(clean.scene_params.is_empty());
+    assert_eq!(clean.scene_or_default(1), project::rig::RigScene::default());
+}
