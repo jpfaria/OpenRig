@@ -472,11 +472,12 @@ export component DesktopMain inherits Rectangle {
             cancel => { root.chain-io-cancel(); }
         }
 
-        // Entry button — declared AFTER ProjectChainsPage so it draws on top.
-        // View toggle — switch between the GraphView navigator (default)
-        // and the classic chain list, without losing either.
-        if root.show-project-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : TouchArea {
-            x: parent.width - 178px;
+        // Back-to-graph button — ONLY on the classic list screen (the
+        // graph navigator has its own in-header "Classic ▶" toggle, so a
+        // second absolute button there just overlapped the header/globe).
+        // Kept clear of DesktopMain's global language globe (x: width-32).
+        if root.show-project-chains && root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : TouchArea {
+            x: parent.width - 224px;
             y: 16px;
             width: 160px;
             height: 34px;
@@ -486,14 +487,16 @@ export component DesktopMain inherits Rectangle {
                 border-width: 1px;
                 border-color: #2d6cdf;
                 Text {
-                    text: root.show-classic-chains ? @tr("◀ Graph view") : @tr("Classic list ▶");
+                    text: @tr("◀ Graph view");
                     color: #ffffff;
                     font-size: 13px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
                 }
             }
             clicked => {
-                root.show-classic-chains = !root.show-classic-chains;
-                if !root.show-classic-chains { root.bank-scene-refresh(); }
+                root.show-classic-chains = false;
+                root.bank-scene-refresh();
             }
         }
 

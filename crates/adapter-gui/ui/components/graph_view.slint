@@ -259,11 +259,15 @@ export component GraphView inherits Rectangle {
     private property <float> fit_zoom_raw:
         min((root.width - 2 * root.fit_pad) / max(root.box_w, 1px),
             (root.height - 2 * root.fit_pad) / max(root.box_h, 1px));
+    // Fit NEVER enlarges past full size (1.0) — tiles keep their real
+    // size and the serpentine layout wraps onto more rows instead of
+    // shrinking. Only clamps down if the content is still too wide.
+    private property <float> fit_capped:
+        root.fit_zoom_raw > 1.0 ? 1.0 : root.fit_zoom_raw;
     private property <float> eff_zoom:
         !root.fit ? root.zoom
-        : root.fit_zoom_raw < root.min_zoom ? root.min_zoom
-        : root.fit_zoom_raw > root.max_zoom ? root.max_zoom
-        : root.fit_zoom_raw;
+        : root.fit_capped < root.min_zoom ? root.min_zoom
+        : root.fit_capped;
     private property <length> eff_pan_x:
         !root.fit ? root.pan_x
         : (root.width - root.box_w * root.eff_zoom) / 2

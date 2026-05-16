@@ -290,8 +290,10 @@ export component TouchMain inherits Rectangle {
             create-project => { root.show-classic-chains = true; }
         }
 
-        if root.show-project-chains : TouchArea {
-            x: parent.width - 168px;
+        // Back-to-graph — only on classic screen (navigator has its own
+        // in-header toggle); kept clear of the global language globe.
+        if root.show-project-chains && root.show-classic-chains : TouchArea {
+            x: parent.width - 214px;
             y: 14px;
             width: 150px;
             height: 36px;
@@ -301,14 +303,16 @@ export component TouchMain inherits Rectangle {
                 border-width: 1px;
                 border-color: #2d6cdf;
                 Text {
-                    text: root.show-classic-chains ? @tr("◀ Graph view") : @tr("Classic list ▶");
+                    text: @tr("◀ Graph view");
                     color: #ffffff;
                     font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
                 }
             }
             clicked => {
-                root.show-classic-chains = !root.show-classic-chains;
-                if !root.show-classic-chains { root.bank-scene-refresh(); }
+                root.show-classic-chains = false;
+                root.bank-scene-refresh();
             }
         }
 

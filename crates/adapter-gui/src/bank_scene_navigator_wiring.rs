@@ -20,7 +20,7 @@ use project::rig::RigProject;
 use crate::bank_scene_render::render;
 use crate::bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState};
 use crate::graph_view_model::{
-    self as gvm, default_palette, linear_chain_layout, BlockBlueprint, ChainStage, GridMetrics,
+    self as gvm, default_palette, serpentine_chain_layout, BlockBlueprint, GridMetrics,
     NodeCategory,
 };
 use crate::state::ProjectSession;
@@ -171,11 +171,8 @@ fn graph_for_selected(
         .map(|p| p.apply_scene(input.active_scene))
         .unwrap_or_default();
 
-    let mut stages: Vec<ChainStage> = vec![ChainStage::Single(BlockBlueprint::new(
-        "in",
-        "Input",
-        NodeCategory::Input,
-    ))];
+    let mut bps: Vec<BlockBlueprint> =
+        vec![BlockBlueprint::new("in", "Input", NodeCategory::Input)];
     for b in &blocks {
         // Human display NAME (catalog), never the raw model id.
         let (et, model) = match &b.kind {
@@ -191,15 +188,15 @@ fn graph_for_selected(
         };
         let mut bp = BlockBlueprint::new(b.id.0.clone(), label, category_for(et));
         bp.bypass = !b.enabled;
-        stages.push(ChainStage::Single(bp));
+        bps.push(bp);
     }
-    stages.push(ChainStage::Single(BlockBlueprint::new(
-        "out",
-        "Output",
-        NodeCategory::Output,
-    )));
+    bps.push(BlockBlueprint::new("out", "Output", NodeCategory::Output));
 
-    let (nodes, edges) = linear_chain_layout(&stages, GridMetrics::default());
+    // Serpentine: full-size tiles wrap onto the next lane (Quad Cortex
+    // style) instead of shrinking to a single line. ~8 tiles per row
+    // keeps them readable on a desktop window.
+    const WRAP_COLS: usize = 8;
+    let (nodes, edges) = serpentine_chain_layout(&bps, GridMetrics::default(), WRAP_COLS);
 
     let palette: std::collections::HashMap<String, (slint::Color, slint::Color)> =
         default_palette()
