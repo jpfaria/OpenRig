@@ -139,7 +139,7 @@ jobs:
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick \
-            gettext
+            gettext patchelf
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -207,7 +207,7 @@ jobs:
             libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick \
-            gettext
+            gettext patchelf
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
