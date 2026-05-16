@@ -1,7 +1,6 @@
 mod audio_settings_save_wiring;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
-mod bank_scene_navigator_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
 mod block_choose_type_callback;

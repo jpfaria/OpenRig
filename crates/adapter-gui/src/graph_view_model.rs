@@ -301,53 +301,6 @@ pub fn linear_chain_layout(
     (nodes, edges)
 }
 
-/// Lay a purely linear chain into a *serpentine* grid: blocks fill a
-/// row left→right until `wrap_cols` is reached, then drop one lane and
-/// continue right→left (snake), and so on. Tiles keep their full size —
-/// the chain wraps onto the next row instead of being shrunk to fit a
-/// single line. This is the Quad Cortex / Helix lane layout.
-///
-/// `wrap_cols` is clamped to at least 1. Edges connect the blocks in
-/// chain order, including the vertical "U-turn" between rows. Output is
-/// always a valid graph (see [`validate_graph`]).
-pub fn serpentine_chain_layout(
-    blocks: &[BlockBlueprint],
-    metrics: GridMetrics,
-    wrap_cols: usize,
-) -> (Vec<GraphNode>, Vec<GraphEdge>) {
-    let wrap = wrap_cols.max(1);
-    let mut nodes = Vec::with_capacity(blocks.len());
-    let mut edges = Vec::with_capacity(blocks.len().saturating_sub(1));
-
-    for (i, block) in blocks.iter().enumerate() {
-        let row = i / wrap;
-        let idx_in_row = i % wrap;
-        // Even rows run left→right, odd rows right→left (snake) so the
-        // cable turns down at the row end without crossing back.
-        let grid_col = if row % 2 == 0 {
-            idx_in_row
-        } else {
-            wrap - 1 - idx_in_row
-        };
-        nodes.push(GraphNode {
-            id: block.id.clone(),
-            label: block.label.clone(),
-            category: block.category,
-            x: metrics.origin_x + grid_col as f32 * metrics.column_spacing,
-            y: metrics.origin_y + row as f32 * metrics.lane_spacing,
-            bypass: block.bypass,
-        });
-        if i > 0 {
-            edges.push(GraphEdge {
-                from_id: blocks[i - 1].id.clone(),
-                to_id: block.id.clone(),
-            });
-        }
-    }
-
-    (nodes, edges)
-}
-
 fn position_block(
     block: &BlockBlueprint,
     col: usize,

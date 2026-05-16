@@ -252,61 +252,6 @@ mod reorder {
     }
 }
 
-mod serpentine_wrap {
-    use super::*;
-    use crate::graph_view_model::serpentine_chain_layout;
-
-    fn blocks(n: usize) -> Vec<BlockBlueprint> {
-        (0..n)
-            .map(|i| block(&format!("b{i}"), &format!("B{i}"), NodeCategory::Drive))
-            .collect()
-    }
-
-    #[test]
-    fn empty_chain_is_empty() {
-        let (nodes, edges) = serpentine_chain_layout(&[], GridMetrics::default(), 4);
-        assert!(nodes.is_empty());
-        assert!(edges.is_empty());
-    }
-
-    #[test]
-    fn fewer_than_wrap_stays_on_one_row_same_y() {
-        let bs = blocks(3);
-        let (nodes, _) = serpentine_chain_layout(&bs, GridMetrics::default(), 5);
-        let y0 = nodes[0].y;
-        assert!(nodes.iter().all(|n| (n.y - y0).abs() < f32::EPSILON));
-        // strictly increasing x, no shrink (full column spacing).
-        assert!(nodes[1].x > nodes[0].x);
-        assert!(nodes[2].x > nodes[1].x);
-    }
-
-    #[test]
-    fn wraps_to_next_row_snaking_right_to_left() {
-        // 7 blocks, wrap at 3 → rows: [0,1,2] L→R, [3,4,5] R→L, [6].
-        let bs = blocks(7);
-        let m = GridMetrics::default();
-        let (nodes, edges) = serpentine_chain_layout(&bs, m, 3);
-
-        let n = |id: &str| find_node(&nodes, id);
-        // Row 0 left→right.
-        assert!(n("b1").x > n("b0").x);
-        assert!(n("b2").x > n("b1").x);
-        // Row 1 sits one lane below and snakes back: b3 above b2 column,
-        // b3.x == b2.x (turn), then x decreases.
-        assert!((n("b3").y - n("b0").y - m.lane_spacing).abs() < 0.01);
-        assert!((n("b3").x - n("b2").x).abs() < 0.01);
-        assert!(n("b4").x < n("b3").x);
-        assert!(n("b5").x < n("b4").x);
-        // Row 2 starts below b5, same column as b5.
-        assert!((n("b6").y - n("b0").y - 2.0 * m.lane_spacing).abs() < 0.01);
-        assert!((n("b6").x - n("b5").x).abs() < 0.01);
-
-        // Fully chained, valid, n-1 edges.
-        assert_eq!(edges.len(), 6);
-        assert!(validate_graph(&nodes, &edges).is_empty());
-    }
-}
-
 mod linear_layout_single_stage {
     use super::*;
 

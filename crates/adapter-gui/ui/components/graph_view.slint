@@ -9,8 +9,6 @@
 //
 // All callbacks emit ids and coords in *layout* space.
 
-import { EffectTypeIcon } from "effect_type_icon.slint";
-
 export struct GraphNode {
     // Stable identifier — unique within the graph. Must match what the
     // host gave when computing the layout.
@@ -70,58 +68,37 @@ component GraphNodeCard inherits Rectangle {
     in property <length> card_width;
     in property <length> card_height;
 
-    // Ampero/QC-style tile: dark card, category colour as the BORDER,
-    // small bold category tag on top, a white line icon centred.
-    property <string> icon-kind:
-          root.node.category == "drive"  ? "gain"
-        : root.node.category == "time"   ? "delay"
-        : root.node.category == "eq"     ? "filter"
-        : root.node.category == "util"   ? "utility"
-        : root.node.category == "other"  ? "gear"
-        : root.node.category;
-    property <string> tag:
-          root.node.category == "drive" ? "DRV"
-        : root.node.category == "time" ? "DLY"
-        : root.node.category == "modulation" ? "MOD"
-        : root.node.category == "dynamics" ? "DYN"
-        : root.node.category == "reverb" ? "RVB"
-        : root.node.category == "amp" ? "AMP"
-        : root.node.category == "eq" ? "FREQ"
-        : root.node.category == "util" ? "UTIL"
-        : root.node.category == "input" ? "IN"
-        : root.node.category == "output" ? "OUT"
-        : "FX";
-
     width: root.card_width;
     height: root.card_height;
-    border-radius: 12px;
-    border-width: root.node.selected ? 3px : 2px;
-    border-color: root.node.selected ? #ffffff : root.node.border;
-    background: root.dragging ? #232b38 : root.hovered ? #1b212c : #141922;
-    opacity: root.node.bypass ? 0.38 : 1.0;
-    drop-shadow-blur: root.dragging ? 14px : (root.hovered ? 8px : 3px);
-    drop-shadow-color: #000000aa;
+    border-radius: 8px;
+    border-width: root.node.selected ? 2px : 1px;
+    border-color: root.node.selected
+        ? #f5f7fb
+        : root.node.border;
+    background: root.node.bypass
+        ? root.node.fill.with-alpha(0.35)
+        : root.dragging
+        ? root.node.fill.brighter(0.20)
+        : root.hovered
+        ? root.node.fill.brighter(0.10)
+        : root.node.fill;
+    opacity: root.node.bypass ? 0.7 : 1.0;
+    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
+    drop-shadow-color: #00000080;
     drop-shadow-offset-y: 2px;
 
     Text {
         x: 8px;
-        y: 6px;
+        y: 0px;
         width: parent.width - 16px;
-        text: root.tag;
-        color: root.node.border;
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 1px;
+        height: parent.height;
+        text: root.node.label;
+        color: #f5f7fb;
+        font-size: 12px;
+        font-weight: 700;
         horizontal-alignment: center;
-    }
-
-    EffectTypeIcon {
-        width: parent.width * 0.46;
-        height: parent.height * 0.46;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2 + 6px;
-        icon-kind: root.icon-kind;
-        tint: root.node.bypass ? #6b7689 : #ffffff;
+        vertical-alignment: center;
+        overflow: elide;
     }
 
     accessible-role: button;
@@ -241,44 +218,6 @@ export component GraphView inherits Rectangle {
     private property <length> pan_initial_y: 0px;
     private property <bool> panning: false;
 
-    // ── Fit-to-viewport (#436) — opt-in, additive ──────────────────
-    // When `fit` is true the graph auto-scales+centres to the visible
-    // area (host passes the layout bounding box of node CENTRES). The
-    // interactive zoom/pan path is untouched (used only when fit=false),
-    // so the #435 component / demo behaviour is unchanged.
-    in property <bool> fit: false;
-    in property <float> content_min_x: 0;
-    in property <float> content_min_y: 0;
-    in property <float> content_max_x: 0;
-    in property <float> content_max_y: 0;
-    private property <length> fit_pad: 28px;
-    private property <length> box_w:
-        (root.content_max_x - root.content_min_x) * 1px + root.node_width;
-    private property <length> box_h:
-        (root.content_max_y - root.content_min_y) * 1px + root.node_height;
-    private property <float> fit_zoom_raw:
-        min((root.width - 2 * root.fit_pad) / max(root.box_w, 1px),
-            (root.height - 2 * root.fit_pad) / max(root.box_h, 1px));
-    // Fit NEVER enlarges past full size (1.0) — tiles keep their real
-    // size and the serpentine layout wraps onto more rows instead of
-    // shrinking. Only clamps down if the content is still too wide.
-    private property <float> fit_capped:
-        root.fit_zoom_raw > 1.0 ? 1.0 : root.fit_zoom_raw;
-    private property <float> eff_zoom:
-        !root.fit ? root.zoom
-        : root.fit_capped < root.min_zoom ? root.min_zoom
-        : root.fit_capped;
-    private property <length> eff_pan_x:
-        !root.fit ? root.pan_x
-        : (root.width - root.box_w * root.eff_zoom) / 2
-          + root.node_width / 2
-          - root.content_min_x * 1px * root.eff_zoom;
-    private property <length> eff_pan_y:
-        !root.fit ? root.pan_y
-        : (root.height - root.box_h * root.eff_zoom) / 2
-          + root.node_height / 2
-          - root.content_min_y * 1px * root.eff_zoom;
-
     background: root.background_color;
     clip: true;
 
@@ -349,7 +288,7 @@ export component GraphView inherits Rectangle {
         // which costs more than its visual value at this stage — keep
         // the hint cheap until we know we need more.
         Rectangle {
-            x: root.eff_pan_x;
+            x: root.pan_x;
             y: 0px;
             width: 1px;
             height: parent.height;
@@ -357,7 +296,7 @@ export component GraphView inherits Rectangle {
         }
         Rectangle {
             x: 0px;
-            y: root.eff_pan_y;
+            y: root.pan_y;
             width: parent.width;
             height: 1px;
             background: root.grid_color;
@@ -372,11 +311,11 @@ export component GraphView inherits Rectangle {
     for edge in root.edges : GraphWire {
         canvas_width: root.width;
         canvas_height: root.height;
-        from_x: root.eff_pan_x + edge.from_x * root.eff_zoom;
-        from_y: root.eff_pan_y + edge.from_y * root.eff_zoom;
-        to_x: root.eff_pan_x + edge.to_x * root.eff_zoom;
-        to_y: root.eff_pan_y + edge.to_y * root.eff_zoom;
-        stroke_thickness: 3px * root.eff_zoom;
+        from_x: root.pan_x + edge.from_x * root.zoom;
+        from_y: root.pan_y + edge.from_y * root.zoom;
+        to_x: root.pan_x + edge.to_x * root.zoom;
+        to_y: root.pan_y + edge.to_y * root.zoom;
+        stroke_thickness: 2px * root.zoom;
     }
 
     // ── Routing dots for util nodes with no label ─────────────────
@@ -385,10 +324,10 @@ export component GraphView inherits Rectangle {
     // but visually they are just routing points — a small dot, not a
     // full card. Drawn here so they sit between wires and full cards.
     for node[idx] in root.nodes : Rectangle {
-        x: root.eff_pan_x + node.layout_x * root.eff_zoom - self.width / 2;
-        y: root.eff_pan_y + node.layout_y * root.eff_zoom - self.height / 2;
+        x: root.pan_x + node.layout_x * root.zoom - self.width / 2;
+        y: root.pan_y + node.layout_y * root.zoom - self.height / 2;
         width: node.label == "" && node.category == "util"
-            ? 8px * root.eff_zoom
+            ? 8px * root.zoom
             : 0px;
         height: self.width;
         border-radius: self.width / 2;
@@ -406,11 +345,11 @@ export component GraphView inherits Rectangle {
     // a routing dot.
     for node[idx] in root.nodes : Rectangle {
         property <bool> is-routing: node.label == "" && node.category == "util";
-        property <length> w: root.node_width * root.eff_zoom;
-        property <length> h: root.node_height * root.eff_zoom;
+        property <length> w: root.node_width * root.zoom;
+        property <length> h: root.node_height * root.zoom;
 
-        x: root.eff_pan_x + node.layout_x * root.eff_zoom - self.w / 2;
-        y: root.eff_pan_y + node.layout_y * root.eff_zoom - self.h / 2;
+        x: root.pan_x + node.layout_x * root.zoom - self.w / 2;
+        y: root.pan_y + node.layout_y * root.zoom - self.h / 2;
         width: self.is-routing ? 0px : self.w;
         height: self.is-routing ? 0px : self.h;
         visible: !self.is-routing;

@@ -1,7 +1,6 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem, ChainBlockItem } from "models.slint";
-import { GraphNode, GraphEdgeGeometry } from "components/graph_view.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
@@ -42,18 +41,6 @@ export component AppWindow inherits Window {
     in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <bool> show-audio-settings;
-    // #453 bank/scene navigator
-    in property <bool> show-bank-scene-navigator;
-    in-out property <bool> show-classic-chains;
-    in property <[BankNavItem]> bank-nav-items;
-    in property <[BankNavItem]> bank-nav-selected;
-    in property <[ChainBlockItem]> bank-chain-blocks;
-    in property <float> bank-content-min-x;
-    in property <float> bank-content-min-y;
-    in property <float> bank-content-max-x;
-    in property <float> bank-content-max-y;
-    in property <[GraphNode]> bank-chain-nodes;
-    in property <[GraphEdgeGeometry]> bank-chain-edges;
     in-out property <int> wizard-step;
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
@@ -136,14 +123,6 @@ export component AppWindow inherits Window {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
-    callback open-bank-scene-navigator();
-    callback close-bank-scene-navigator();
-    callback bank-scene-refresh();
-    callback bank-select-input(string);
-    callback bank-prev(string);
-    callback bank-next(string);
-    callback bank-select-scene(string, int);
-    callback bank-node-clicked(string);
     callback back-to-launcher();
     callback add-chain();
     callback save-project();
@@ -279,17 +258,6 @@ export component AppWindow inherits Window {
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
-        show-bank-scene-navigator: root.show-bank-scene-navigator;
-        show-classic-chains <=> root.show-classic-chains;
-        bank-nav-items: root.bank-nav-items;
-        bank-nav-selected: root.bank-nav-selected;
-        bank-chain-blocks: root.bank-chain-blocks;
-        bank-content-min-x: root.bank-content-min-x;
-        bank-content-min-y: root.bank-content-min-y;
-        bank-content-max-x: root.bank-content-max-x;
-        bank-content-max-y: root.bank-content-max-y;
-        bank-chain-nodes: root.bank-chain-nodes;
-        bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
@@ -401,14 +369,6 @@ export component AppWindow inherits Window {
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
-        open-bank-scene-navigator => { root.open-bank-scene-navigator(); }
-        close-bank-scene-navigator => { root.close-bank-scene-navigator(); }
-        bank-scene-refresh => { root.bank-scene-refresh(); }
-        bank-select-input(i) => { root.bank-select-input(i); }
-        bank-prev(i) => { root.bank-prev(i); }
-        bank-next(i) => { root.bank-next(i); }
-        bank-select-scene(i, s) => { root.bank-select-scene(i, s); }
-        bank-node-clicked(id) => { root.bank-node-clicked(id); }
         back-to-launcher => { root.back-to-launcher(); }
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
@@ -494,17 +454,6 @@ export component AppWindow inherits Window {
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
-        show-bank-scene-navigator: root.show-bank-scene-navigator;
-        show-classic-chains <=> root.show-classic-chains;
-        bank-nav-items: root.bank-nav-items;
-        bank-nav-selected: root.bank-nav-selected;
-        bank-chain-blocks: root.bank-chain-blocks;
-        bank-content-min-x: root.bank-content-min-x;
-        bank-content-min-y: root.bank-content-min-y;
-        bank-content-max-x: root.bank-content-max-x;
-        bank-content-max-y: root.bank-content-max-y;
-        bank-chain-nodes: root.bank-chain-nodes;
-        bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
@@ -582,14 +531,6 @@ export component AppWindow inherits Window {
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
-        open-bank-scene-navigator => { root.open-bank-scene-navigator(); }
-        close-bank-scene-navigator => { root.close-bank-scene-navigator(); }
-        bank-scene-refresh => { root.bank-scene-refresh(); }
-        bank-select-input(i) => { root.bank-select-input(i); }
-        bank-prev(i) => { root.bank-prev(i); }
-        bank-next(i) => { root.bank-next(i); }
-        bank-select-scene(i, s) => { root.bank-select-scene(i, s); }
-        bank-node-clicked(id) => { root.bank-node-clicked(id); }
         back-to-launcher => { root.back-to-launcher(); }
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }

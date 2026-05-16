@@ -1,8 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, BankNavItem, ChainBlockItem } from "models.slint";
-import { GraphNode, GraphEdgeGeometry } from "components/graph_view.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, BankSceneNavigator } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 import { LanguageSelector } from "components/language_selector.slint";
 
@@ -11,17 +10,6 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-launcher;
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
-    in property <bool> show-bank-scene-navigator;
-    in-out property <bool> show-classic-chains;
-    in property <[BankNavItem]> bank-nav-items;
-    in property <[BankNavItem]> bank-nav-selected;
-    in property <[ChainBlockItem]> bank-chain-blocks;
-    in property <float> bank-content-min-x;
-    in property <float> bank-content-min-y;
-    in property <float> bank-content-max-x;
-    in property <float> bank-content-max-y;
-    in property <[GraphNode]> bank-chain-nodes;
-    in property <[GraphEdgeGeometry]> bank-chain-edges;
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
@@ -107,14 +95,6 @@ export component DesktopMain inherits Rectangle {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
-    callback open-bank-scene-navigator();
-    callback close-bank-scene-navigator();
-    callback bank-scene-refresh();
-    callback bank-select-input(string);
-    callback bank-prev(string);
-    callback bank-next(string);
-    callback bank-select-scene(string, int);
-    callback bank-node-clicked(string);
     callback back-to-launcher();
     callback add-chain();
     callback save-project();
@@ -263,33 +243,7 @@ export component DesktopMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        // #436 — bank/scene navigator is the PRIMARY chain view (GraphView).
-        // Classic chain list is opt-in via `show-classic-chains`.
-        if root.show-project-chains && !root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : BankSceneNavigator {
-            width: parent.width;
-            height: parent.height;
-            init => { root.bank-scene-refresh(); }
-            project-open: true;
-            project-title: root.project-title;
-            inputs: root.bank-nav-items;
-            selected: root.bank-nav-selected;
-            chain-nodes: root.bank-chain-nodes;
-            chain-edges: root.bank-chain-edges;
-            content-min-x: root.bank-content-min-x;
-            content-min-y: root.bank-content-min-y;
-            content-max-x: root.bank-content-max-x;
-            content-max-y: root.bank-content-max-y;
-            select-input(i) => { root.bank-select-input(i); }
-            bank-prev(i) => { root.bank-prev(i); }
-            bank-next(i) => { root.bank-next(i); }
-            select-scene(i, s) => { root.bank-select-scene(i, s); }
-            node-clicked(id) => { root.bank-node-clicked(id); }
-            open-project => { root.bank-scene-refresh(); }
-            create-project => { root.show-classic-chains = true; }
-        }
-
-        // Entry button — overlaid on the chains screen.
-        if root.show-project-chains && root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
+        if root.show-project-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
@@ -470,34 +424,6 @@ export component DesktopMain inherits Rectangle {
             select-mode(index) => { root.chain-io-select-mode(index); }
             save => { root.chain-io-save(); }
             cancel => { root.chain-io-cancel(); }
-        }
-
-        // Back-to-graph button — ONLY on the classic list screen (the
-        // graph navigator has its own in-header "Classic ▶" toggle, so a
-        // second absolute button there just overlapped the header/globe).
-        // Kept clear of DesktopMain's global language globe (x: width-32).
-        if root.show-project-chains && root.show-classic-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : TouchArea {
-            x: parent.width - 224px;
-            y: 16px;
-            width: 160px;
-            height: 34px;
-            Rectangle {
-                border-radius: 6px;
-                background: parent.has-hover ? #2d6cdf : #1f2733;
-                border-width: 1px;
-                border-color: #2d6cdf;
-                Text {
-                    text: @tr("◀ Graph view");
-                    color: #ffffff;
-                    font-size: 13px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
-            clicked => {
-                root.show-classic-chains = false;
-                root.bank-scene-refresh();
-            }
         }
 
         if !root.show-project-chains : Rectangle {
