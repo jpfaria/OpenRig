@@ -48,9 +48,16 @@ impl ProjectRuntimeController {
 
     /// Returns the measured real-time latency in milliseconds for a given chain.
     pub fn measured_latency_ms(&self, chain_id: &ChainId) -> Option<f32> {
+        // Issue #350: the latency probe injects/detects the beep ONLY on
+        // the primary signal path — `process_input_f32`/`process_output_f32`
+        // gate the probe on `index == 0`. `runtime_for_chain` returns the
+        // lowest-group (group 0) per-input runtime, which IS the primary
+        // input. So measuring that runtime is correct, not a fan-out gap:
+        // it reports the user-visible round-trip the probe is designed to
+        // measure. Secondary input devices share the same chain DSP cost
+        // profile and are not separately probed by design.
         self.runtime_graph
-            .chains
-            .get(chain_id)
+            .runtime_for_chain(chain_id)
             .map(|runtime| runtime.measured_latency_ms())
     }
 
@@ -58,7 +65,12 @@ impl ProjectRuntimeController {
     /// injects a short beep, and the first output callback that sees it
     /// updates `measured_latency_ms`. No-op if the chain has no runtime.
     pub fn arm_latency_probe(&self, chain_id: &ChainId) {
-        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+        // Issue #350: arm the primary-input runtime (group 0). The probe is
+        // intentionally single-path — `process_input_f32` only injects the
+        // beep when `input_index == 0`, so arming any other per-input
+        // runtime would never fire. This measures the user-visible round
+        // trip, which is what the UI displays.
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
             runtime.arm_latency_probe();
         }
     }
@@ -67,7 +79,9 @@ impl ProjectRuntimeController {
     /// calls this when the on-screen probe display window expires so a
     /// probe that never produced a detection does not stay armed.
     pub fn cancel_latency_probe(&self, chain_id: &ChainId) {
-        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+        // Issue #350: cancels the primary-input runtime (group 0) — the
+        // only one `arm_latency_probe` ever arms (see the note there).
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
             runtime.cancel_latency_probe();
         }
     }
@@ -87,7 +101,16 @@ impl ProjectRuntimeController {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> Vec<Arc<engine::spsc::SpscRing<f32>>> {
-        match self.runtime_graph.chains.get(chain_id) {
+        // Issue #350: the per-input runtime that owns this cpal input is
+        // keyed (chain_id, input_index). Fall back to the first runtime
+        // for single-input chains where the tap subscribes input 0.
+        let runtime = self
+            .runtime_graph
+            .chains
+            .get(&(chain_id.clone(), input_index))
+            .cloned()
+            .or_else(|| self.runtime_graph.runtime_for_chain(chain_id));
+        match runtime {
             Some(runtime) => runtime.subscribe_input_tap(
                 input_index,
                 total_channels,
@@ -119,20 +142,36 @@ impl ProjectRuntimeController {
         stream_index: usize,
         capacity_per_channel: usize,
     ) -> Option<[Arc<engine::spsc::SpscRing<f32>>; 2]> {
-        self.runtime_graph
-            .chains
-            .get(chain_id)
-            .map(|runtime| runtime.subscribe_stream_tap(stream_index, capacity_per_channel))
+        // Issue #350 phase 3: a chain owns N per-input runtimes, each with
+        // its own LOCAL segment indices starting at 0. `stream_count`
+        // (used by the UI to drive `0..count`) is the SUM across runtimes,
+        // so `stream_index` is GLOBAL. Walk the per-input runtimes in
+        // group order, subtracting each runtime's stream count, and
+        // subscribe on the runtime that owns this global index using its
+        // local index — otherwise a tap for a secondary input device would
+        // wrongly attach to the primary runtime (which never produces that
+        // segment) and stay silent.
+        let mut remaining = stream_index;
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            let local_count = runtime.stream_count();
+            if remaining < local_count {
+                return Some(runtime.subscribe_stream_tap(remaining, capacity_per_channel));
+            }
+            remaining -= local_count;
+        }
+        None
     }
 
     /// How many streams (input pipelines) a chain currently runs. Empty
     /// chains and chains without a runtime return 0.
     pub fn stream_count(&self, chain_id: &ChainId) -> usize {
+        // Issue #350: a chain may own N per-input runtimes; the chain's
+        // total stream count is the sum across all of them.
         self.runtime_graph
-            .chains
-            .get(chain_id)
+            .runtimes_for(chain_id)
+            .iter()
             .map(|runtime| runtime.stream_count())
-            .unwrap_or(0)
+            .sum()
     }
 
     /// Drop stream taps with no surviving consumer handles across all chains.

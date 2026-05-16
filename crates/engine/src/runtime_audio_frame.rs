@@ -59,6 +59,18 @@ impl AudioFrame {
             AudioFrame::Stereo([left, right]) => (left + right) * 0.5,
         }
     }
+
+    /// Linear gain applied to the frame. Used to apply `Chain.volume`
+    /// BEFORE the output limiter so the limiter (in `write_output_frame`)
+    /// sees the post-volume signal and holds a hot chain ≤ full scale
+    /// instead of clipping at the DAC (volume × already-limited signal).
+    #[inline(always)]
+    pub(crate) fn scaled(self, k: f32) -> AudioFrame {
+        match self {
+            AudioFrame::Mono(s) => AudioFrame::Mono(s * k),
+            AudioFrame::Stereo([l, r]) => AudioFrame::Stereo([l * k, r * k]),
+        }
+    }
 }
 
 /// Elastic audio buffer for clock drift compensation.

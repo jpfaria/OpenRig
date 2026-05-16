@@ -17,6 +17,9 @@ use domain::ids::{BlockId, DeviceId};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::chain_editor::input_mode_from_index;
 use crate::io_groups::apply_chain_io_groups;
 use crate::project_ops::sync_project_dirty;
@@ -156,7 +159,7 @@ pub(crate) fn wire(
                         return;
                     }
                     let chain_index = io_draft.chain_index;
-                    let before_index = io_draft.before_index;
+                    let _before_index = io_draft.before_index;
                     *io_block_insert_draft.borrow_mut() = None;
                     *chain_draft.borrow_mut() = None;
                     let mut session_borrow = project_session.borrow_mut();
@@ -164,12 +167,15 @@ pub(crate) fn wire(
                         chain_window.set_show_input_editor(false);
                         return;
                     };
-                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
-                        chain_window.set_show_input_editor(false);
-                        return;
+                    let real_chain_id = {
+                        let proj = session.project.borrow();
+                        let Some(chain) = proj.chains.get(chain_index) else {
+                            chain_window.set_show_input_editor(false);
+                            return;
+                        };
+                        chain.id.clone()
                     };
-                    let real_chain_id = chain.id.clone();
-                    let input_block = AudioBlock {
+                    let new_input_block = AudioBlock {
                         id: BlockId::generate_for_chain(&real_chain_id),
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
@@ -183,8 +189,27 @@ pub(crate) fn wire(
                             }],
                         }),
                     };
-                    let insert_pos = before_index.min(chain.blocks.len());
-                    chain.blocks.insert(insert_pos, input_block);
+                    let mut all_input_blocks: Vec<AudioBlock> = {
+                        let proj = session.project.borrow();
+                        let chain = proj.chains.get(chain_index).unwrap();
+                        chain
+                            .blocks
+                            .iter()
+                            .filter(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
+                            .cloned()
+                            .collect()
+                    };
+                    all_input_blocks.push(new_input_block);
+                    if let Err(error) =
+                        session
+                            .dispatcher
+                            .dispatch(Command::SaveChainInputEndpoints {
+                                chain: real_chain_id.clone(),
+                                input_blocks: all_input_blocks,
+                            })
+                    {
+                        eprintln!("io block insert error: {error}");
+                    }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &real_chain_id)
                     {
@@ -192,7 +217,7 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &session.project,
+                        &*session.project.borrow(),
                         &*input_chain_devices.borrow(),
                         &*output_chain_devices.borrow(),
                     );
@@ -230,45 +255,51 @@ pub(crate) fn wire(
                 let Some(session) = session_borrow.as_mut() else {
                     return;
                 };
-                let Some(chain) = session.project.chains.get_mut(index) else {
-                    return;
+                let chain_id = {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(index) else {
+                        return;
+                    };
+                    chain.id.clone()
                 };
-                let new_input_blocks: Vec<AudioBlock> = draft
-                    .inputs
-                    .iter()
-                    .enumerate()
-                    .map(|(i, ig)| AudioBlock {
-                        id: BlockId(format!("{}:input:{}", chain.id.0, i)),
-                        enabled: true,
-                        kind: AudioBlockKind::Input(InputBlock {
-                            model: "standard".to_string(),
-                            entries: vec![InputEntry {
-                                device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                                mode: ig.mode,
-                                channels: ig.channels.clone(),
-                            }],
-                        }),
+                let new_input_blocks: Vec<AudioBlock> = {
+                    let proj = session.project.borrow();
+                    let chain = proj.chains.get(index).unwrap();
+                    draft
+                        .inputs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, ig)| AudioBlock {
+                            id: BlockId(format!("{}:input:{}", chain.id.0, i)),
+                            enabled: true,
+                            kind: AudioBlockKind::Input(InputBlock {
+                                model: "standard".to_string(),
+                                entries: vec![InputEntry {
+                                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                                    mode: ig.mode,
+                                    channels: ig.channels.clone(),
+                                }],
+                            }),
+                        })
+                        .collect()
+                };
+                if let Err(error) = session
+                    .dispatcher
+                    .dispatch(Command::SaveChainInputEndpoints {
+                        chain: chain_id.clone(),
+                        input_blocks: new_input_blocks,
                     })
-                    .collect();
-                let non_input_blocks: Vec<AudioBlock> = chain
-                    .blocks
-                    .iter()
-                    .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
-                    .cloned()
-                    .collect();
-                let mut all_blocks =
-                    Vec::with_capacity(new_input_blocks.len() + non_input_blocks.len());
-                all_blocks.extend(new_input_blocks);
-                all_blocks.extend(non_input_blocks);
-                chain.blocks = all_blocks;
-                let chain_id = chain.id.clone();
+                {
+                    eprintln!("input editor save error: {error}");
+                    return;
+                }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("input editor save error: {error}");
                     return;
                 }
                 replace_project_chains(
                     &project_chains,
-                    &session.project,
+                    &*session.project.borrow(),
                     &*input_chain_devices.borrow(),
                     &*output_chain_devices.borrow(),
                 );

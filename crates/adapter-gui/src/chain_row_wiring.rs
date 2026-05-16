@@ -1,15 +1,22 @@
 //! Wiring for the per-chain row actions on the main window.
 //!
-//! Owns `on_remove_chain` (confirms with the user, removes the chain from
-//! the session, kills its runtime, and refreshes the chain list) and
-//! `on_toggle_chain_enabled` (toggles enabled state with a channel-conflict
-//! pre-check against other enabled chains).
+//! Owns `on_remove_chain` (confirms with the user, dispatches
+//! `Command::RemoveChain`, kills its runtime, and refreshes the chain list)
+//! and `on_toggle_chain_enabled` (dispatches `Command::ToggleChainEnabled`;
+//! channel-conflict validation is performed inside the dispatcher via
+//! `chain_validation::validate_no_channel_conflict`).
+//!
+//! `on_move_chain_up` and `on_move_chain_down` dispatch `Command::MoveChainUp`
+//! and `Command::MoveChainDown` respectively; both are no-ops when the chain
+//! is already at the boundary.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::{clear_status, set_status_error};
@@ -18,39 +25,6 @@ use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
 use crate::{remove_live_chain_runtime, AppWindow, ProjectChainItem};
-
-/// Aplica uma mudança de volume da chain in-memory (issue #440).
-///
-/// Lógica pura — separada do handler Slint pra que tests possam validar
-/// o caminho do user (chain disabled → slider arrasta → toggle enabled
-/// → volume preservado) sem precisar de Slint window.
-///
-/// Retorna o `ChainId` afetado pra que o caller possa fazer
-/// `sync_live_chain_runtime` em seguida. Retorna `None` se index inválido.
-pub(crate) fn apply_chain_volume_change(
-    session: &mut ProjectSession,
-    index: usize,
-    volume: f32,
-) -> Option<domain::ids::ChainId> {
-    let chain = session.project.chains.get_mut(index)?;
-    chain.volume = volume;
-    Some(chain.id.clone())
-}
-
-/// Aplica um toggle de enabled da chain in-memory (issue #440).
-///
-/// Espelha exatamente o que o handler `on_toggle_chain_enabled` faz com
-/// o project: só muda `chain.enabled`. Volume (e qualquer outro campo)
-/// NÃO É TOCADO. Retorna o novo estado + chain_id.
-#[cfg(test)]
-pub(crate) fn apply_toggle_chain_enabled(
-    session: &mut ProjectSession,
-    index: usize,
-) -> Option<(bool, domain::ids::ChainId)> {
-    let chain = session.project.chains.get_mut(index)?;
-    chain.enabled = !chain.enabled;
-    Some((chain.enabled, chain.id.clone()))
-}
 
 pub(crate) struct ChainRowCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
@@ -77,6 +51,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         auto_save,
     } = ctx;
 
+    // ── on_remove_chain ──────────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -91,7 +66,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let chain_name = {
+            // Resolve chain id + name for the dialog (immutable borrow).
+            let (chain_id, chain_name) = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
                     set_status_error(
@@ -101,18 +77,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                     );
                     return;
                 };
+                let proj = session.project.borrow();
                 let index = index as usize;
-                if index >= session.project.chains.len() {
+                if index >= proj.chains.len() {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 }
-                session.project.chains[index]
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| {
-                        rust_i18n::t!("default-chain-name", n = index + 1).to_string()
-                    })
+                let chain = &proj.chains[index];
+                let name = chain.description.clone().unwrap_or_else(|| {
+                    rust_i18n::t!("default-chain-name", n = index + 1).to_string()
+                });
+                (chain.id.clone(), name)
             };
+            // Confirmation dialog — UI concern, stays in the adapter.
             let confirmed = rfd::MessageDialog::new()
                 .set_title(rust_i18n::t!("dialog-delete-chain").as_ref())
                 .set_description(
@@ -124,20 +101,22 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
                 return;
             }
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
+            // Dispatch — the dispatcher mutates project via the shared Rc.
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            let index = index as usize;
-            if index >= session.project.chains.len() {
+            if let Err(err) = session.dispatcher.dispatch(Command::RemoveChain {
+                chain: chain_id.clone(),
+            }) {
+                set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
-            let removed_chain_id = session.project.chains[index].id.clone();
-            session.project.chains.remove(index);
-            remove_live_chain_runtime(&project_runtime, &removed_chain_id);
+            // Kill the live audio runtime for the removed chain.
+            remove_live_chain_runtime(&project_runtime, &chain_id);
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -151,6 +130,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             clear_status(&window, &toast_timer);
         });
     }
+
+    // ── on_toggle_chain_enabled ──────────────────────────────────────────────
+    // Channel-conflict validation is now inside the dispatcher
+    // (chain_validation::validate_no_channel_conflict).
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -172,66 +155,30 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 );
                 return;
             };
-            let index = index as usize;
-            let Some(chain) = session.project.chains.get(index) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
-            };
-            let will_enable = !chain.enabled;
-            log::info!(
-                "on_toggle_chain_enabled: index={}, will_enable={}",
-                index,
-                will_enable
-            );
-            // Check channel conflict before enabling
-            if will_enable {
-                let chain_id = chain.id.clone();
-                let our_inputs = chain.input_blocks();
-                let mut conflict = false;
-                'outer: for other in &session.project.chains {
-                    if other.id != chain_id && other.enabled {
-                        for (_, other_input) in other.input_blocks() {
-                            for (_, our_input) in &our_inputs {
-                                let other_entries_conflict = other_input.entries.iter().any(|oe| {
-                                    our_input.entries.iter().any(|ue| {
-                                        oe.device_id == ue.device_id
-                                            && oe.channels.iter().any(|ch| ue.channels.contains(ch))
-                                    })
-                                });
-                                if other_entries_conflict {
-                                    let other_name_default =
-                                        rust_i18n::t!("default-other-chain").to_string();
-                                    let other_name =
-                                        other.description.as_deref().unwrap_or(&other_name_default);
-                                    set_status_error(
-                                        &window,
-                                        &toast_timer,
-                                        &rust_i18n::t!("error-channel-in-use", name = other_name)
-                                            .to_string(),
-                                    );
-                                    conflict = true;
-                                    break 'outer;
-                                }
-                            }
-                        }
-                    }
-                }
-                if conflict {
+            // Resolve chain id (immutable borrow, then release before dispatch).
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
-                }
-            }
-            let Some(chain) = session.project.chains.get_mut(index) else {
-                return;
+                };
+                chain.id.clone()
             };
-            chain.enabled = will_enable;
-            let chain_id = chain.id.clone();
+            // Dispatch — validation + mutation inside the dispatcher.
+            if let Err(err) = session.dispatcher.dispatch(Command::ToggleChainEnabled {
+                chain: chain_id.clone(),
+            }) {
+                // Error could be a channel conflict or a missing chain.
+                set_status_error(&window, &toast_timer, &err.to_string());
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -239,12 +186,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             clear_status(&window, &toast_timer);
         });
     }
-    // --- chain volume slider (issue #440) ---
-    // O slider no header da chain manda (chain-index, volume 0-200) toda
-    // vez que o usuário arrasta. Atualizamos `Chain.volume` no projeto e
-    // chamamos `sync_live_chain_runtime` — no engine, `upsert_chain`
-    // chega no `update_chain_runtime_state` que faz `set_volume_pct`,
-    // que o audio thread vê na próxima callback via single atomic load.
+
+    // ── on_chain_volume_changed ──────────────────────────────────────────────
+    // Dispatches Command::SetChainVolume; updates live runtime and persists.
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -255,26 +199,42 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
-        let auto_save = auto_save;
-        window.on_chain_volume_changed(move |index, volume| {
+        window.on_chain_volume_changed(move |index, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
-            let index = index as usize;
-            let Some(chain_id) = apply_chain_volume_change(session, index, volume as f32) else {
-                return;
+            // Resolve chain id in a scoped borrow — never hold across dispatch.
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                chain.id.clone()
             };
+            if let Err(err) = session.dispatcher.dispatch(Command::SetChainVolume {
+                chain: chain_id.clone(),
+                value: value as f32,
+            }) {
+                set_status_error(&window, &toast_timer, &err.to_string());
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -287,12 +247,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             );
         });
     }
-    // --- chain reorder (issue #246) ---
-    // Reordering swaps Chain entries inside `Project::chains`. ChainIds stay
-    // stable, so the live runtime doesn't need to be torn down — only the
-    // ProjectChainItem VecModel needs to be rebuilt so the UI reflects the
-    // new order. The project YAML preserves the order on save, so the new
-    // arrangement persists.
+
+    // ── on_move_chain_up ────────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -310,12 +266,32 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if !session.project.move_chain_up(index as usize) {
-                return;
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
+                chain.id.clone()
+            };
+            // Dispatch — dispatcher performs the swap and returns ChainMoved or
+            // an empty event list (no-op when already first).
+            let result = session
+                .dispatcher
+                .dispatch(Command::MoveChainUp { chain: chain_id });
+            match result {
+                Ok(events) if events.is_empty() => {
+                    // No-op: already at the top.
+                    return;
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    set_status_error(&window, &toast_timer, &err.to_string());
+                    return;
+                }
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
@@ -329,6 +305,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             clear_status(&window, &toast_timer);
         });
     }
+
+    // ── on_move_chain_down ──────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -346,12 +324,30 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if !session.project.move_chain_down(index as usize) {
-                return;
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
+                chain.id.clone()
+            };
+            let result = session
+                .dispatcher
+                .dispatch(Command::MoveChainDown { chain: chain_id });
+            match result {
+                Ok(events) if events.is_empty() => {
+                    // No-op: already at the bottom.
+                    return;
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    set_status_error(&window, &toast_timer, &err.to_string());
+                    return;
+                }
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

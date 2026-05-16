@@ -1,11 +1,14 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::BlockEditorWindow;
+use application::local_dispatcher::LocalDispatcher;
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use project::project::Project;
 use serde::{Deserialize, Serialize};
 use slint::Timer;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProjectPaths {
@@ -18,12 +21,50 @@ pub(crate) struct AppConfigYaml {
     pub(crate) presets_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct ProjectSession {
-    pub(crate) project: Project,
+    /// The project data, shared with the `LocalDispatcher` so both sides
+    /// operate on the same allocation with no sync step.
+    pub(crate) project: Rc<RefCell<Project>>,
+    /// Dispatcher backed by the same `project` handle.
+    pub(crate) dispatcher: Rc<LocalDispatcher>,
     pub(crate) project_path: Option<PathBuf>,
     pub(crate) config_path: Option<PathBuf>,
     pub(crate) presets_path: PathBuf,
+}
+
+impl ProjectSession {
+    /// Create a new session from an owned `Project`.
+    ///
+    /// Both `self.project` and `self.dispatcher` share the same
+    /// `Rc<RefCell<Project>>` handle.
+    pub(crate) fn new(
+        project: Project,
+        project_path: Option<PathBuf>,
+        config_path: Option<PathBuf>,
+        presets_path: PathBuf,
+    ) -> Self {
+        let project = Rc::new(RefCell::new(project));
+        let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
+        Self {
+            project,
+            dispatcher,
+            project_path,
+            config_path,
+            presets_path,
+        }
+    }
+}
+
+impl std::fmt::Debug for ProjectSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProjectSession")
+            .field("project", &self.project.borrow().name)
+            .field("project_path", &self.project_path)
+            .field("config_path", &self.config_path)
+            .field("presets_path", &self.presets_path)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]

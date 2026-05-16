@@ -18,8 +18,9 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::AudioBlockKind;
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 
@@ -140,7 +141,7 @@ pub(crate) fn wire(
         // Handle I/O and Insert block types: open the dedicated window instead of the block editor
         let effect_type_str = block_type.effect_type.as_str();
         if effect_type_str == "insert" {
-            // Insert block: create directly with empty endpoints
+            // Insert block: create via Command::AddBlock so business logic stays in the dispatcher.
             let (chain_index, before_index) = {
                 let draft_borrow = block_editor_draft.borrow();
                 let Some(draft) = draft_borrow.as_ref() else {
@@ -148,47 +149,33 @@ pub(crate) fn wire(
                 };
                 (draft.chain_index, draft.before_index)
             };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let Some(chain) = session.project.chains.get(chain_index) else {
-                return;
-            };
-            let block_id = domain::ids::BlockId(format!("{}:insert:{}", chain.id.0, before_index));
-            drop(session_borrow);
-            let insert_block = project::block::AudioBlock {
-                id: block_id,
-                enabled: true,
-                kind: AudioBlockKind::Insert(project::block::InsertBlock {
-                    model: "standard".to_string(),
-                    send: project::block::InsertEndpoint {
-                        device_id: domain::ids::DeviceId(String::new()),
-                        mode: ChainInputMode::Mono,
-                        channels: Vec::new(),
-                    },
-                    return_: project::block::InsertEndpoint {
-                        device_id: domain::ids::DeviceId(String::new()),
-                        mode: ChainInputMode::Mono,
-                        channels: Vec::new(),
-                    },
-                }),
-            };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_index) else {
-                return;
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                chain.id.clone()
             };
-            chain.blocks.insert(before_index, insert_block);
-            let chain_id = chain.id.clone();
+            // Dispatch Command::AddBlock — mutates project via shared Rc.
+            if let Err(e) = session.dispatcher.dispatch(Command::AddBlock {
+                chain: chain_id.clone(),
+                kind: "insert".to_string(),
+                model_id: "standard".to_string(),
+                position: before_index,
+            }) {
+                log::error!("insert block AddBlock dispatch error: {e}");
+                return;
+            }
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("insert block create error: {e}");
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );

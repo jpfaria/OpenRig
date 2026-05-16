@@ -7,7 +7,6 @@ use super::{
     load_chain_preset_file, save_chain_preset_file, serialize_project, ChainBlocksPreset,
     YamlProjectRepository,
 };
-use tempfile::TempDir;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
@@ -19,6 +18,7 @@ use project::project::Project;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
+use tempfile::TempDir;
 
 #[test]
 fn save_project_creates_yaml_that_roundtrips_basic_project() {
@@ -1583,6 +1583,63 @@ params:
     }
 }
 
+// ─── Chain volume round-trip (issue #440) ───
+
+/// PIN: Chain.volume=150 survives save → load with the exact value.
+#[test]
+fn chain_volume_150_roundtrips_through_yaml() {
+    let temp_dir = tempdir().expect("temp dir");
+    let path = temp_dir.path().join("vol_roundtrip.yaml");
+    let repo = YamlProjectRepository { path: path.clone() };
+    let project = Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![Chain {
+            id: ChainId("chain:0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 150.0,
+            blocks: Vec::new(),
+        }],
+    };
+    repo.save_project(&project).expect("save should succeed");
+    let loaded = repo.load_current_project().expect("load should succeed");
+    assert_eq!(
+        loaded.chains[0].volume, 150.0,
+        "volume=150 must survive YAML save+load round-trip"
+    );
+}
+
+/// PIN: legacy YAML without a `volume:` key must default to 100.0
+/// (backward compatibility — existing user projects are unaffected).
+#[test]
+fn chain_volume_missing_in_yaml_defaults_to_100() {
+    let temp_dir = tempdir().expect("temp dir");
+    let path = temp_dir.path().join("legacy_no_volume.yaml");
+    let yaml = "\
+chains:
+  - instrument: electric_guitar
+    enabled: true
+    input:
+      - device_id: dev
+        mode: mono
+        channels: [0]
+    output:
+      - device_id: dev
+        mode: stereo
+        channels: [0, 1]
+    blocks: []
+";
+    fs::write(&path, yaml).expect("write legacy yaml");
+    let repo = YamlProjectRepository { path };
+    let loaded = repo.load_current_project().expect("load legacy yaml");
+    assert_eq!(
+        loaded.chains[0].volume, 100.0,
+        "missing volume key in legacy YAML must default to 100.0"
+    );
+}
+
 #[test]
 fn load_project_preserves_chain_volume_from_yaml() {
     // Reproduz o bug do user (issue #440): chain YAML tem `volume: 175`
@@ -1601,15 +1658,9 @@ chains:
 "#,
     )
     .expect("write project");
-    let repo = YamlProjectRepository {
-        path: project_path,
-    };
+    let repo = YamlProjectRepository { path: project_path };
     let project = repo.load_current_project().expect("load: chain.volume");
-    assert_eq!(
-        project.chains.len(),
-        1,
-        "should parse the single chain"
-    );
+    assert_eq!(project.chains.len(), 1, "should parse the single chain");
     assert!(
         (project.chains[0].volume - 175.0).abs() < 0.01,
         "chain.volume from YAML should be preserved; got {}",
@@ -1633,10 +1684,10 @@ chains:
 "#,
     )
     .expect("write project");
-    let repo = YamlProjectRepository {
-        path: project_path,
-    };
-    let project = repo.load_current_project().expect("load: chain.volume default");
+    let repo = YamlProjectRepository { path: project_path };
+    let project = repo
+        .load_current_project()
+        .expect("load: chain.volume default");
     assert_eq!(project.chains.len(), 1);
     assert!(
         (project.chains[0].volume - 100.0).abs() < 0.01,
@@ -1644,4 +1695,3 @@ chains:
         project.chains[0].volume
     );
 }
-

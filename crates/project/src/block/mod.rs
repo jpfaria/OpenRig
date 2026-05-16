@@ -14,6 +14,7 @@
 pub mod dispatch;
 pub mod manifest_labels;
 pub mod methods;
+pub mod param_writer;
 pub mod types;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};

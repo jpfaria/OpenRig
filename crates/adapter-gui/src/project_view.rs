@@ -472,7 +472,7 @@ pub(crate) fn replace_project_chains(
                 },
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
                 latency_ms,
-                volume: chain.volume as i32,
+                volume: chain.volume.round() as i32,
                 blocks: {
                     let first_input_idx = chain
                         .blocks

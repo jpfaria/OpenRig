@@ -211,12 +211,12 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         device_settings: Vec::new(),
         chains: Vec::new(),
     };
-    ProjectSession {
+    ProjectSession::new(
         project,
-        project_path: None,
-        config_path: None,
-        presets_path: config.presets_path.unwrap_or_else(default_presets_path),
-    }
+        None,
+        None,
+        config.presets_path.unwrap_or_else(default_presets_path),
+    )
 }
 
 pub(crate) fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
@@ -286,20 +286,20 @@ pub(crate) fn load_project_session(
     project.device_settings =
         build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
-    Ok(ProjectSession {
+    Ok(ProjectSession::new(
         project,
-        project_path: Some(project_path.to_path_buf()),
-        config_path: Some(config_path.to_path_buf()),
-        presets_path: project_path
+        Some(project_path.to_path_buf()),
+        Some(config_path.to_path_buf()),
+        project_path
             .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
-    })
+    ))
 }
 
 pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    infra_yaml::serialize_project(&session.project)
+    infra_yaml::serialize_project(&*session.project.borrow())
 }
 
 pub(crate) fn set_project_dirty(

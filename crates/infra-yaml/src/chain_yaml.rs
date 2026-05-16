@@ -93,6 +93,10 @@ pub(crate) struct ChainYaml {
     instrument: String,
     #[serde(default, skip_serializing)]
     enabled: bool,
+    /// Output volume da chain em percentual (issue #440). 100 = unity.
+    /// Legados sem campo deserializam como 100.0.
+    #[serde(default = "default_chain_volume")]
+    volume: f32,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
     inputs: Vec<ChainInputYaml>,
@@ -107,8 +111,6 @@ pub(crate) struct ChainYaml {
     output_device_id: Option<String>,
     #[serde(default, skip_serializing)]
     output_channels: Option<Vec<usize>>,
-    #[serde(default = "default_chain_volume")]
-    volume: f32,
     blocks: Vec<Value>,
     #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,
@@ -307,13 +309,13 @@ impl ChainYaml {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
             enabled: false, // chains always start disabled on project load, regardless of saved state
+            volume: chain.volume,
             inputs: Vec::new(),
             outputs: Vec::new(),
             input_device_id: None,
             input_channels: None,
             output_device_id: None,
             output_channels: None,
-            volume: chain.volume,
             blocks: audio_blocks,
             output_mixdown: ChainOutputMixdown::Average,
             input_mode: ChainInputMode::default(),

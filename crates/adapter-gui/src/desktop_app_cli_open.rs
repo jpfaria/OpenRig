@@ -46,11 +46,11 @@ pub(crate) fn try_auto_open(
     match open_cli_project(cli_path) {
         Ok(session) => {
             let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
-            let title = project_title_for_path(Some(&canonical_path), &session.project);
-            let display_name = project_display_name(&session.project);
+            let title = project_title_for_path(Some(&canonical_path), &*session.project.borrow());
+            let display_name = project_display_name(&*session.project.borrow());
             replace_project_chains(
                 project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );

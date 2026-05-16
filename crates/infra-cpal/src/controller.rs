@@ -493,7 +493,12 @@ impl ProjectRuntimeController {
         }
 
         let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
-        let runtime = self.runtime_graph.upsert_chain(
+        // upsert_chain (re)builds every per-input runtime for this chain and
+        // returns the first; fetch the full ordered (group, runtime) list
+        // from the graph so the cpal layer can wire each physical input
+        // device to its own runtime and mix them at the shared output
+        // (issue #350 phase 3).
+        self.runtime_graph.upsert_chain(
             chain,
             resolved.sample_rate,
             needs_stream_rebuild,
@@ -501,7 +506,8 @@ impl ProjectRuntimeController {
         )?;
 
         if needs_stream_rebuild {
-            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, runtime)?;
+            let runtimes = self.runtime_graph.runtimes_with_groups_for(&chain.id);
+            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, runtimes)?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 

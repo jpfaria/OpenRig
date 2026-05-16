@@ -940,10 +940,7 @@ const VOLUME_TOLERANCE: f32 = 0.01;
 fn unity_passthrough_chain(id: &str, volume: f32) -> Chain {
     let mut chain = chain_with_blocks(
         id,
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
     );
     chain.volume = volume;
     chain
@@ -994,6 +991,28 @@ fn k03_chain_volume_200_doubles_output() {
 }
 
 #[test]
+fn k07_volume_boost_on_hot_signal_is_limited_not_clipped() {
+    // The user's CPM 22 case: Chain.volume = 145 on a hot chain. Today the
+    // master volume is multiplied AFTER the per-sample output limiter, so a
+    // hot signal (≈0.9) limited to ≈0.72 then ×2.0 = 1.43 — hard clip at the
+    // DAC, NOTHING limits after the multiply on the single-stream path.
+    //
+    // Contract (this file's header: "clipping is the output limiter's job"):
+    // volume must be applied BEFORE the limiter so the limiter sees the
+    // post-volume signal and holds it ≤ full scale. With the fix:
+    //   0.9 × 2.0 = 1.8 → tanh(1.8) ≈ 0.947  (clip-free)
+    // The k01–k04 invariants use sub-0.95 signals so they are unaffected
+    // either way (tanh transparent below the knee).
+    let chain = unity_passthrough_chain("k07", 200.0);
+    let peak = measure_steady_peak(&chain, 1, &[0.9], 1, 5);
+    assert!(
+        peak <= 1.0 + VOLUME_TOLERANCE,
+        "hot signal × volume boost must be limited ≤ full scale, not hard \
+         clipped; got peak {peak} (volume applied after the limiter = bug)"
+    );
+}
+
+#[test]
 fn k04_chain_volume_zero_silences_output() {
     let chain = unity_passthrough_chain("k04", 0.0);
     let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
@@ -1016,14 +1035,8 @@ fn k05_update_chain_runtime_state_propagates_volume() {
 
     let mut chain150 = chain100.clone();
     chain150.volume = 150.0;
-    super::update_chain_runtime_state(
-        &runtime,
-        &chain150,
-        SR,
-        false,
-        &[DEFAULT_ELASTIC_TARGET],
-    )
-    .expect("update_chain_runtime_state should propagate volume");
+    super::update_chain_runtime_state(&runtime, &chain150, SR, false, &[DEFAULT_ELASTIC_TARGET])
+        .expect("update_chain_runtime_state should propagate volume");
     assert!(
         (runtime.volume_pct() - 150.0).abs() < VOLUME_TOLERANCE,
         "after update_chain_runtime_state with chain.volume=150, \

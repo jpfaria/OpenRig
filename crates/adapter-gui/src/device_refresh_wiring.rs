@@ -62,7 +62,7 @@ pub(crate) fn wire(
             project_devices.set_vec(build_project_device_rows(
                 &fresh_input,
                 &fresh_output,
-                &session.project.device_settings,
+                &session.project.borrow().device_settings,
             ));
             set_status_info(
                 &window,
@@ -85,7 +85,7 @@ pub(crate) fn wire(
             project_devices.set_vec(build_project_device_rows(
                 &fresh_input,
                 &fresh_output,
-                &session.project.device_settings,
+                &session.project.borrow().device_settings,
             ));
             if let Some(window) = main_window_weak.upgrade() {
                 set_status_info(

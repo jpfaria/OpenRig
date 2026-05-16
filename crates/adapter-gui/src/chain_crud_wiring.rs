@@ -151,7 +151,7 @@ pub(crate) fn wire(
             };
             let devs_in = input_chain_devices.borrow();
             let devs_out = output_chain_devices.borrow();
-            let draft = create_chain_draft(&session.project, &devs_in, &devs_out);
+            let draft = create_chain_draft(&*session.project.borrow(), &devs_in, &devs_out);
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
             apply_chain_io_groups(&window, editor_window, &draft, &devs_in, &devs_out);
@@ -257,22 +257,25 @@ pub(crate) fn wire(
             *chain_editor_window.borrow_mut() = Some(editor_window);
             let ce_borrow = chain_editor_window.borrow();
             let editor_window = ce_borrow.as_ref().unwrap();
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(
-                    &window,
-                    &toast_timer,
-                    &rust_i18n::t!("error-no-project-loaded"),
-                );
-                return;
-            };
-            let Some(chain) = session.project.chains.get(index as usize) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
+            let draft = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-no-project-loaded"),
+                    );
+                    return;
+                };
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                chain_draft_from_chain(index as usize, chain)
             };
             let devs_in = input_chain_devices.borrow();
             let devs_out = output_chain_devices.borrow();
-            let draft = chain_draft_from_chain(index as usize, chain);
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,

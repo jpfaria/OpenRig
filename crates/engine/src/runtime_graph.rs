@@ -52,7 +52,7 @@ use crate::runtime::{
 };
 use crate::runtime_audio_frame::ElasticBuffer;
 use crate::runtime_endpoints::{effective_inputs, effective_outputs};
-use crate::runtime_segments::split_chain_into_segments;
+use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
     InputProcessingState, OutputRoutingState,
@@ -64,8 +64,72 @@ use crate::runtime_state::{
 /// 48 kHz / 64-frame buffers.
 pub(crate) const ERROR_QUEUE_CAPACITY: usize = 64;
 
+/// Issue #350 — stream isolation invariant (CLAUDE.md #4).
+///
+/// One `ChainRuntimeState` per effective input runtime, NOT one per YAML
+/// chain. The key is `(ChainId, input_group)` where `input_group` is the
+/// CPAL stream index of the segments that runtime owns. Two InputBlocks
+/// on two physical devices in the same YAML chain therefore produce TWO
+/// fully isolated runtimes — each with its own `output_routes`
+/// (`OutputRoutingState` + `ElasticBuffer`), its own `input_taps`, and
+/// its own `processing` Mutex. No buffer/lock/route/tap is shared across
+/// streams; mixing into one physical device happens at the cpal/JACK
+/// backend, never by two producers on one of our SPSC rings.
+///
+/// `.len()` = total isolated streams. `.values()` = every per-input
+/// runtime. Single-input chains produce exactly one entry
+/// `(chain.id, group)` and are byte-identical to the pre-#350 behaviour
+/// (same segments, same routes — the audio path is unchanged).
 pub struct RuntimeGraph {
-    pub chains: HashMap<ChainId, Arc<ChainRuntimeState>>,
+    pub chains: HashMap<(ChainId, usize), Arc<ChainRuntimeState>>,
+}
+
+/// Whether the chain has at least one enabled Insert block. Insert chains
+/// form a cross-cpal-index pipeline (input → insert send → insert return →
+/// output); splitting them by cpal index would sever the pipeline. Phase 1
+/// keeps Insert chains as a single runtime (byte-identical to pre-#350);
+/// the structural per-input isolation targets the no-Insert multi-input
+/// case (the user-visible "two guitars, one chain" scenario).
+fn chain_has_enabled_insert(chain: &Chain) -> bool {
+    chain
+        .blocks
+        .iter()
+        .any(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
+}
+
+/// Partition a chain's segments into per-effective-input groups. Each
+/// group becomes one isolated `ChainRuntimeState`. The group id is the
+/// CPAL stream index shared by the segments of one effective input
+/// (segments split from the same effective input — e.g. one OutputBlock
+/// per output entry — keep the same cpal index, so they stay together).
+///
+/// Insert chains are NOT partitioned (single group `0`) — see
+/// `chain_has_enabled_insert`.
+fn group_segments_by_input(
+    chain: &Chain,
+    segments: Vec<ChainSegment>,
+) -> Vec<(usize, Vec<ChainSegment>)> {
+    if chain_has_enabled_insert(chain) || segments.is_empty() {
+        return vec![(0, segments)];
+    }
+    // Preserve first-seen order of cpal indices so runtime 0 is the first
+    // input, runtime 1 the second, etc. (stable across rebuilds).
+    let mut order: Vec<usize> = Vec::new();
+    let mut groups: HashMap<usize, Vec<ChainSegment>> = HashMap::new();
+    for seg in segments {
+        let key = seg.cpal_input_index;
+        if !groups.contains_key(&key) {
+            order.push(key);
+        }
+        groups.entry(key).or_default().push(seg);
+    }
+    order
+        .into_iter()
+        .map(|k| {
+            let segs = groups.remove(&k).unwrap_or_default();
+            (k, segs)
+        })
+        .collect()
 }
 
 pub fn build_runtime_graph(
@@ -85,12 +149,46 @@ pub fn build_runtime_graph(
         let elastic_targets = chain_elastic_targets
             .get(&chain.id)
             .unwrap_or(&default_targets);
-        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
-        state.set_volume_pct(chain.volume);
-        let state_arc = Arc::new(state);
-        chains.insert(chain.id.clone(), state_arc);
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+            state.set_volume_pct(chain.volume);
+            chains.insert((chain.id.clone(), group), Arc::new(state));
+        }
     }
     Ok(RuntimeGraph { chains })
+}
+
+/// Build one `ChainRuntimeState` per effective-input group of the chain.
+/// Returns `(group_id, state)` pairs. For single-input / Insert chains
+/// this is exactly one pair whose state equals the legacy
+/// `build_chain_runtime_state` output (byte-identical audio path).
+fn build_per_input_runtimes(
+    chain: &Chain,
+    sample_rate: f32,
+    elastic_targets: &[usize],
+) -> Result<Vec<(usize, ChainRuntimeState)>> {
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let eff_outputs = effective_outputs(chain);
+    let all_segments = split_chain_into_segments(
+        chain,
+        &eff_inputs,
+        &eff_input_cpal_indices,
+        &eff_split_positions,
+        &eff_outputs,
+    );
+    let groups = group_segments_by_input(chain, all_segments);
+    let mut out = Vec::with_capacity(groups.len());
+    for (group, segments) in groups {
+        let state = assemble_chain_runtime_state(
+            chain,
+            &segments,
+            &eff_outputs,
+            sample_rate,
+            elastic_targets,
+            None,
+        )?;
+        out.push((group, state));
+    }
+    Ok(out)
 }
 
 /// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
@@ -166,8 +264,43 @@ pub fn build_chain_runtime_state(
     }
     log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
+    // Build the full single-runtime state (ALL segments). Probe / unit
+    // tests / single-physical-device chains rely on this whole-chain
+    // shape; per-input isolation for the multi-device case is composed in
+    // `build_per_input_runtimes` which calls `assemble_chain_runtime_state`
+    // per cpal-input group.
+    assemble_chain_runtime_state(
+        chain,
+        &segments,
+        &eff_outputs,
+        sample_rate,
+        elastic_targets,
+        None,
+    )
+}
+
+/// Construct a `ChainRuntimeState` from a (possibly filtered) set of
+/// segments. This is the single source of truth for runtime assembly —
+/// used both by `build_chain_runtime_state` (all segments → one runtime)
+/// and `build_per_input_runtimes` (one segment group → one isolated
+/// per-input runtime). Each call produces its OWN `output_routes`
+/// (`OutputRoutingState` + `ElasticBuffer`), `input_taps`, `stream_taps`,
+/// and `processing` Mutex — nothing is shared across invocations, which is
+/// what makes two per-input runtimes structurally isolated (issue #350).
+///
+/// `existing_blocks` (when `Some`) carries per-segment processor nodes to
+/// reuse on a rebuild so a param edit does not drop audio; the outer Vec
+/// is indexed by segment position within `segments`.
+fn assemble_chain_runtime_state(
+    chain: &Chain,
+    segments: &[ChainSegment],
+    eff_outputs: &[OutputEntry],
+    sample_rate: f32,
+    elastic_targets: &[usize],
+    mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
+) -> Result<ChainRuntimeState> {
     let mut input_states = Vec::with_capacity(segments.len());
-    for segment in &segments {
+    for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
         let segment_output_channels: Vec<usize> = segment
             .output_route_indices
@@ -175,12 +308,16 @@ pub fn build_chain_runtime_state(
             .filter_map(|&idx| eff_outputs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
+        let existing = existing_blocks
+            .as_mut()
+            .and_then(|v| v.get_mut(seg_idx))
+            .map(std::mem::take);
         let input_state = build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
             sample_rate,
-            None,
+            existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
             segment.split_mono_sibling_count,
@@ -188,7 +325,11 @@ pub fn build_chain_runtime_state(
         input_states.push(input_state);
     }
 
-    // Build input_to_segments: CPAL input_index → which segments to process
+    // Build input_to_segments: CPAL input_index → which (local) segments
+    // to process. Indexed by the absolute cpal index so a per-input
+    // runtime's slot lands where the cpal callback dispatches
+    // (`process_input_f32(runtime, cpal_index, …)`); unrelated slots stay
+    // empty for that runtime.
     let max_input_idx = segments
         .iter()
         .map(|s| s.cpal_input_index)
@@ -484,7 +625,7 @@ pub fn update_chain_runtime_state(
     }
     runtime.output_routes.store(Arc::new(new_output_routes));
 
-    // Issue #440: chain edits (incluindo o slider de volume futuro) re-aplicam
+    // Issue #440: chain edits (incluindo o slider de volume) re-aplicam
     // o preset.volume no master output sem destruir o runtime — atomic store
     // que o audio thread vê na próxima callback.
     runtime.set_volume_pct(chain.volume);
@@ -493,6 +634,35 @@ pub fn update_chain_runtime_state(
 }
 
 impl RuntimeGraph {
+    /// All per-input runtimes for a chain, ordered by group id (the cpal
+    /// input index). For single-input / Insert chains this is a one-element
+    /// vec. Issue #350: callers that fan a chain edit / teardown across
+    /// every isolated stream iterate this.
+    pub fn runtimes_for(&self, chain_id: &ChainId) -> Vec<Arc<ChainRuntimeState>> {
+        self.runtimes_with_groups_for(chain_id)
+            .into_iter()
+            .map(|(_, rt)| rt)
+            .collect()
+    }
+
+    /// Like [`runtimes_for`] but keeps the group id (the cpal input index
+    /// the runtime owns) alongside each runtime, ordered by group. Issue
+    /// #350 phase 3: the cpal layer needs the group id to bind each
+    /// physical input device's stream to ITS OWN runtime `(chain, group)`.
+    pub fn runtimes_with_groups_for(
+        &self,
+        chain_id: &ChainId,
+    ) -> Vec<(usize, Arc<ChainRuntimeState>)> {
+        let mut entries: Vec<(usize, Arc<ChainRuntimeState>)> = self
+            .chains
+            .iter()
+            .filter(|((cid, _), _)| cid == chain_id)
+            .map(|((_, g), rt)| (*g, rt.clone()))
+            .collect();
+        entries.sort_by_key(|(g, _)| *g);
+        entries
+    }
+
     pub fn upsert_chain(
         &mut self,
         chain: &Chain,
@@ -500,30 +670,84 @@ impl RuntimeGraph {
         reset_output_queue: bool,
         elastic_targets: &[usize],
     ) -> Result<Arc<ChainRuntimeState>> {
-        if let Some(runtime) = self.chains.get(&chain.id) {
-            update_chain_runtime_state(
-                runtime,
-                chain,
-                sample_rate,
-                reset_output_queue,
-                elastic_targets,
-            )?;
-            return Ok(runtime.clone());
+        let existing_groups: Vec<usize> = self
+            .chains
+            .keys()
+            .filter(|(cid, _)| cid == &chain.id)
+            .map(|(_, g)| *g)
+            .collect();
+
+        // Fast in-place rebuild path: the per-input topology is UNCHANGED
+        // (same set of group ids). Update every existing runtime in place
+        // so the `Arc<ChainRuntimeState>` each live cpal callback captured
+        // stays valid and observes the edit (volume, knob, block toggle).
+        //
+        // Issue #350 regression: the previous version only took this path
+        // for single-input chains (`existing_groups.len() == 1`). For a
+        // multi-input chain (e.g. 2 guitars on 2 devices) it fell through
+        // to the full rebuild below, which drops the old Arcs and inserts
+        // brand-new ones — but a volume/param edit does NOT rebuild the
+        // cpal streams, so the callbacks kept the OLD Arcs and the edit
+        // never reached the audio thread (slider did nothing).
+        if !existing_groups.is_empty() {
+            let new_runtimes = build_per_input_runtimes(chain, sample_rate, elastic_targets)?;
+            let mut new_groups: Vec<usize> = new_runtimes.iter().map(|(g, _)| *g).collect();
+            let mut existing_sorted = existing_groups.clone();
+            new_groups.sort_unstable();
+            existing_sorted.sort_unstable();
+            if new_groups == existing_sorted {
+                // Topology unchanged → in-place update of each existing
+                // runtime, preserving the Arcs the callbacks hold.
+                for group in &existing_sorted {
+                    if let Some(runtime) = self.chains.get(&(chain.id.clone(), *group)) {
+                        update_chain_runtime_state(
+                            runtime,
+                            chain,
+                            sample_rate,
+                            reset_output_queue,
+                            elastic_targets,
+                        )?;
+                    }
+                }
+                let first_group = existing_sorted[0];
+                if let Some(rt) = self.chains.get(&(chain.id.clone(), first_group)) {
+                    return Ok(rt.clone());
+                }
+            }
+            // Topology changed (input added/removed/device swapped):
+            // fall through to a full per-input rebuild (the stream
+            // signature also changed, so the cpal streams WILL be rebuilt
+            // and will capture the fresh Arcs).
         }
 
-        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
-        state.set_volume_pct(chain.volume);
-        let runtime = Arc::new(state);
-        self.chains.insert(chain.id.clone(), runtime.clone());
-        Ok(runtime)
+        // Full rebuild: drop every stale per-input runtime for this chain
+        // and recreate one isolated runtime per effective input.
+        for g in &existing_groups {
+            self.chains.remove(&(chain.id.clone(), *g));
+        }
+        let mut first: Option<Arc<ChainRuntimeState>> = None;
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+            state.set_volume_pct(chain.volume);
+            let arc = Arc::new(state);
+            if first.is_none() {
+                first = Some(arc.clone());
+            }
+            self.chains.insert((chain.id.clone(), group), arc);
+        }
+        first.ok_or_else(|| anyhow!("chain '{}' produced no input runtimes", chain.id.0))
     }
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
-        self.chains.remove(chain_id);
+        // Issue #350: a chain may own N per-input runtimes; drop them all.
+        self.chains.retain(|(cid, _), _| cid != chain_id);
     }
 
+    /// First (lowest-group) per-input runtime for a chain. Kept for
+    /// callers that historically operated on "the chain's runtime"
+    /// (latency probe arming, draining a single runtime). Multi-input
+    /// fan-out for these call sites is Phase 3 (#350).
     pub fn runtime_for_chain(&self, chain_id: &ChainId) -> Option<Arc<ChainRuntimeState>> {
-        self.chains.get(chain_id).cloned()
+        self.runtimes_for(chain_id).into_iter().next()
     }
 }
 

@@ -403,6 +403,27 @@ After writing code:
 
 ---
 
+## LEI — testes que contradizem invariante pinado: PARAR, não decidir sozinho
+
+Se dois testes exigem comportamentos incompatíveis e um deles é invariante **pinado** (`volume_invariants_tests.rs`, qualquer teste marcado como pin de CLAUDE.md #10):
+
+- O invariante pinado **vence por padrão**. O outro teste está obsoleto.
+- **NUNCA** enfraquecer/editar o invariante pinado sem pedido explícito do usuário (única via sancionada).
+- **NUNCA** chutar no audio path pra "fazer os dois passarem".
+- Reportar ao usuário em **1-2 frases**: qual o conflito, qual teste está obsoleto, e seguir com o que não depende do conflito.
+
+**Caso real (2026-05-15, #350 vs #400):** testes Fase-2 do #350 (`two_channel_mono_input_must_not_saturate/cancel`) assumiam split-mono **não soma**; `g02`/`g03` (pinados, #400) exigem split-mono dual **soma** (`[0.3,0.3]→0.6`, `[0.8,0.8]→tanh(1.6)`). Decisão posterior (#355/#400) tornou a soma o invariante correto → os 2 testes Fase-2 do #350 ficaram obsoletos. Resolução: manter os obsoletos `#[ignore]` com a razão do conflito documentada, seguir com a parte não afetada (multi-device, Fase 3). Não mexer em `g02`/`g03`.
+
+## LEI — resposta ao usuário: 1-3 frases, problema antes de solução
+
+O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc precisa ser mais objetivo." Reforço de `feedback_terse_replies`:
+
+- Diagnóstico técnico longo → vai pra issue/skill, **não** pro chat.
+- No chat: **o problema em 1 frase**, **a decisão em 1 frase**. Tabelas/inventários só se o usuário pedir.
+- Se o caso do usuário NÃO depende do detalhe técnico, diga isso primeiro e siga — não despeje a análise inteira.
+
+---
+
 ## Living Document
 
 This skill is a LIVING DOCUMENT. Every time the user corrects a methodology mistake:
