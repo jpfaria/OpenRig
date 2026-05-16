@@ -35,17 +35,16 @@ pub fn serialize_rig_project(project: &RigProject) -> Result<String> {
 
 /// Load + validate a `project.openrig` file from disk.
 pub fn load_rig_project_file(path: &Path) -> Result<RigProject> {
-    let raw = fs::read_to_string(path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
     parse_rig_project(&raw)
 }
 
 /// Serialize and write a [`RigProject`] to disk (creating parent dirs).
 pub fn save_rig_project_file(path: &Path, project: &RigProject) -> Result<()> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).with_context(|| {
-            format!("failed to create {}", parent.display())
-        })?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     fs::write(path, serialize_rig_project(project)?)
         .with_context(|| format!("failed to write {}", path.display()))?;

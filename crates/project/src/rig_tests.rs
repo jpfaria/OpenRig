@@ -51,7 +51,10 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
 fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
     RigProject {
         name: Some("Studio".into()),
-        inputs: inputs.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        inputs: inputs
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect(),
         outputs: BTreeMap::new(),
         presets: presets
             .iter()
