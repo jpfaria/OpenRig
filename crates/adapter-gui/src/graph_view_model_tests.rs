@@ -223,8 +223,7 @@ mod reorder {
         let base = topological_layout(&nodes, &edges, m);
         let p_y = base.iter().find(|x| x.id == "p").unwrap().y;
         let q_y = base.iter().find(|x| x.id == "q").unwrap().y;
-        let p_x = base.iter().find(|x| x.id == "p").unwrap().x;
-        let after = reorder_for_drop(&nodes, &edges, "p", p_x, q_y, m);
+        let after = reorder_for_drop(&nodes, &edges, "p", q_y, m);
         let p_y2 = after.iter().find(|x| x.id == "p").unwrap().y;
         let q_y2 = after.iter().find(|x| x.id == "q").unwrap().y;
         assert_ne!((p_y, q_y), (p_y2, q_y2), "lane order must change");
@@ -239,7 +238,7 @@ mod reorder {
         let edges = vec![te("a", "b")];
         let base = topological_layout(&nodes, &edges, m);
         let a = base.iter().find(|x| x.id == "a").unwrap();
-        let after = reorder_for_drop(&nodes, &edges, "a", a.x, a.y, m);
+        let after = reorder_for_drop(&nodes, &edges, "a", a.y, m);
         assert_eq!(after, base);
     }
 
@@ -248,7 +247,7 @@ mod reorder {
         let m = GridMetrics::default();
         let nodes = vec![tn("a"), tn("b")];
         let edges = vec![te("a", "b")];
-        let after = reorder_for_drop(&nodes, &edges, "zzz", 0.0, 0.0, m);
+        let after = reorder_for_drop(&nodes, &edges, "zzz", 0.0, m);
         assert_eq!(after, topological_layout(&nodes, &edges, m));
     }
 }

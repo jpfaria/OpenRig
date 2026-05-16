@@ -185,38 +185,50 @@ fn into_slint_models(
     (slint_nodes, slint_edges)
 }
 
-fn main() -> Result<(), slint::PlatformError> {
-    env_logger::init();
+type NodeModel = std::rc::Rc<slint::VecModel<GraphNode>>;
+type EdgeModel = std::rc::Rc<slint::VecModel<GraphEdgeGeometry>>;
 
-    let (nodes, edges) = demo_chain();
-    let errors = adapter_gui::graph_view_model::validate_graph(&nodes, &edges);
-    assert!(errors.is_empty(), "demo graph is invalid: {errors:?}");
+/// Apply resolved coords back to the shared models in place (no Vec
+/// rebuild — issue #435 invariant: zero per-frame reallocation).
+fn apply_coords(nm: &NodeModel, em: &EdgeModel, coords: &HashMap<String, (f32, f32)>) {
+    for i in 0..nm.row_count() {
+        let mut nd = nm.row_data(i).unwrap();
+        if let Some((x, y)) = coords.get(nd.id.as_str()) {
+            nd.layout_x = *x;
+            nd.layout_y = *y;
+            nm.set_row_data(i, nd);
+        }
+    }
+    for i in 0..em.row_count() {
+        let mut ed = em.row_data(i).unwrap();
+        if let Some((x, y)) = coords.get(ed.from_id.as_str()) {
+            ed.from_x = *x;
+            ed.from_y = *y;
+        }
+        if let Some((x, y)) = coords.get(ed.to_id.as_str()) {
+            ed.to_x = *x;
+            ed.to_y = *y;
+        }
+        em.set_row_data(i, ed);
+    }
+}
 
-    let metrics = GridMetrics::default();
-    let palette = palette_lookup();
-    // Start from the topological auto-layout (auto-layout defaults on).
-    let laid = topological_layout(&nodes, &edges, metrics);
-    let (slint_nodes, slint_edges) = into_slint_models(laid, edges.clone(), &palette);
-
-    // Shared models, mutated in place. Issue #435 invariant: drag/zoom
-    // must not reallocate per frame — so the host keeps one VecModel and
-    // edits rows via set_row_data, never rebuilds the Vec each callback.
-    let node_model = std::rc::Rc::new(slint::VecModel::from(slint_nodes));
-    let edge_model = std::rc::Rc::new(slint::VecModel::from(slint_edges));
-
-    let window = DemoWindow::new()?;
-    window.set_nodes(node_model.clone().into());
-    window.set_edges(edge_model.clone().into());
-
-    let nodes_for_click = node_model.clone();
+fn wire_callbacks(
+    window: &DemoWindow,
+    node_model: &NodeModel,
+    edge_model: &EdgeModel,
+    nodes: Vec<model::GraphNode>,
+    edges: Vec<model::GraphEdge>,
+) {
+    let nm = node_model.clone();
     window.on_node_clicked(move |id| {
         log::info!("clicked: {id}");
-        for i in 0..nodes_for_click.row_count() {
-            let mut n = nodes_for_click.row_data(i).unwrap();
+        for i in 0..nm.row_count() {
+            let mut n = nm.row_data(i).unwrap();
             let want = n.id == id;
             if n.selected != want {
                 n.selected = want;
-                nodes_for_click.set_row_data(i, n);
+                nm.set_row_data(i, n);
             }
         }
     });
@@ -225,79 +237,47 @@ fn main() -> Result<(), slint::PlatformError> {
         log::info!("double-clicked: {id} (would open block editor)");
     });
 
-    let nodes_for_drag = node_model.clone();
-    let edges_for_drag = edge_model.clone();
+    let (nm, em) = (node_model.clone(), edge_model.clone());
     window.on_node_dragged(move |id, x, y| {
-        for i in 0..nodes_for_drag.row_count() {
-            let mut n = nodes_for_drag.row_data(i).unwrap();
-            if n.id == id {
-                n.layout_x = x;
-                n.layout_y = y;
-                nodes_for_drag.set_row_data(i, n);
-                break;
-            }
-        }
-        for i in 0..edges_for_drag.row_count() {
-            let mut e = edges_for_drag.row_data(i).unwrap();
-            let mut touched = false;
-            if e.from_id == id {
-                e.from_x = x;
-                e.from_y = y;
-                touched = true;
-            }
-            if e.to_id == id {
-                e.to_x = x;
-                e.to_y = y;
-                touched = true;
-            }
-            if touched {
-                edges_for_drag.set_row_data(i, e);
-            }
-        }
+        let mut c = HashMap::new();
+        c.insert(id.to_string(), (x, y));
+        apply_coords(&nm, &em, &c);
     });
 
-    let nodes_dl = node_model.clone();
-    let edges_dl = edge_model.clone();
-    let win_weak = window.as_weak();
-    let base_nodes = nodes.clone();
-    let base_edges = edges.clone();
+    let (nm, em, weak) = (node_model.clone(), edge_model.clone(), window.as_weak());
     window.on_node_drag_ended(move |id, x, y| {
         log::info!("drag end: {id} -> ({x}, {y})");
-        let Some(w) = win_weak.upgrade() else { return };
+        let Some(w) = weak.upgrade() else { return };
         if !w.get_auto() {
             return;
         }
-        let relaid = reorder_for_drop(
-            &base_nodes,
-            &base_edges,
-            id.as_str(),
-            x,
-            y,
-            GridMetrics::default(),
-        );
+        let relaid = reorder_for_drop(&nodes, &edges, id.as_str(), y, GridMetrics::default());
         let coords: HashMap<String, (f32, f32)> =
             relaid.iter().map(|n| (n.id.clone(), (n.x, n.y))).collect();
-        for i in 0..nodes_dl.row_count() {
-            let mut nd = nodes_dl.row_data(i).unwrap();
-            if let Some((nx, ny)) = coords.get(nd.id.as_str()) {
-                nd.layout_x = *nx;
-                nd.layout_y = *ny;
-                nodes_dl.set_row_data(i, nd);
-            }
-        }
-        for i in 0..edges_dl.row_count() {
-            let mut ed = edges_dl.row_data(i).unwrap();
-            if let Some((fx, fy)) = coords.get(ed.from_id.as_str()) {
-                ed.from_x = *fx;
-                ed.from_y = *fy;
-            }
-            if let Some((tx, ty)) = coords.get(ed.to_id.as_str()) {
-                ed.to_x = *tx;
-                ed.to_y = *ty;
-            }
-            edges_dl.set_row_data(i, ed);
-        }
+        apply_coords(&nm, &em, &coords);
     });
+}
+
+fn main() -> Result<(), slint::PlatformError> {
+    env_logger::init();
+
+    let (nodes, edges) = demo_chain();
+    let errors = adapter_gui::graph_view_model::validate_graph(&nodes, &edges);
+    assert!(errors.is_empty(), "demo graph is invalid: {errors:?}");
+
+    let palette = palette_lookup();
+    // Start from the topological auto-layout (auto-layout defaults on).
+    let laid = topological_layout(&nodes, &edges, GridMetrics::default());
+    let (slint_nodes, slint_edges) = into_slint_models(laid, edges.clone(), &palette);
+
+    // Shared models, mutated in place (see apply_coords).
+    let node_model: NodeModel = std::rc::Rc::new(slint::VecModel::from(slint_nodes));
+    let edge_model: EdgeModel = std::rc::Rc::new(slint::VecModel::from(slint_edges));
+
+    let window = DemoWindow::new()?;
+    window.set_nodes(node_model.clone().into());
+    window.set_edges(edge_model.clone().into());
+    wire_callbacks(&window, &node_model, &edge_model, nodes, edges);
 
     window.run()
 }
