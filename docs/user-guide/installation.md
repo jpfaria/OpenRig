@@ -28,6 +28,31 @@ Prebuilt binaries are available for all supported platforms. Download the approp
 
 After downloading, extract the archive and run the `adapter-gui` binary for your platform.
 
+### macOS — one-line install (recommended)
+
+The macOS build is ad-hoc signed but **not** Apple-notarized (no paid
+Developer certificate). A browser/Finder download tags it with
+`com.apple.quarantine`, so double-clicking the `.dmg` can show
+*"OpenRig is damaged and can't be opened"*. That message is misleading —
+the app is fine, Gatekeeper just blocks un-notarized downloads.
+
+Install with one command (fetched via `curl`, which does not quarantine,
+so it runs without the block):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
+```
+
+It downloads the latest release `.dmg`, copies `OpenRig.app` to
+`/Applications`, and strips the quarantine attribute. Pin a version with
+`| bash -s -- v0.1.0-dev.19`.
+
+If you installed the `.dmg` manually instead, clear the flag yourself:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OpenRig.app
+```
+
 ## Build from Source
 
 ### Prerequisites
@@ -95,6 +120,13 @@ docker build -f docker/Dockerfile.build-libs -t openrig-build .
 This is primarily intended for CI and release workflows, but can also be used for local cross-compilation.
 
 ## Troubleshooting
+
+### "OpenRig is damaged and can't be opened" (macOS)
+
+The app is not damaged. macOS shows this for downloads that are not
+Apple-notarized. Use the one-line installer, or strip the quarantine
+flag manually — see [macOS — one-line install](#macos--one-line-install-recommended)
+above. Right-click → *Open* also works once the app is a valid bundle.
 
 ### ALSA not found (Linux)
 
