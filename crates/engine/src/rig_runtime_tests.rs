@@ -64,7 +64,16 @@ fn rig(
             .collect(),
         presets: presets
             .into_iter()
-            .map(|(k, b)| (k.to_string(), RigPreset { blocks: b }))
+            .map(|(k, b)| {
+                (
+                    k.to_string(),
+                    RigPreset {
+                        blocks: b,
+                        scene_params: vec![],
+                        scenes: std::collections::BTreeMap::new(),
+                    },
+                )
+            })
             .collect(),
     }
 }

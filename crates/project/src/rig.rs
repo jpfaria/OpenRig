@@ -62,11 +62,44 @@ pub struct RigOutput {
     pub entry: OutputEntry,
 }
 
+/// One scene = only the *diff* over the base preset (Helix Snapshot style).
+/// Anything not listed here is fixed by the preset and identical across scenes.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct RigScene {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// block-id → bypassed in this scene.
+    #[serde(default)]
+    pub bypass: BTreeMap<String, bool>,
+    /// `"<block-id>.<param-id>"` → value. Must be a subset of `scene_params`.
+    #[serde(default)]
+    pub params: BTreeMap<String, f32>,
+}
+
 /// A preset in the shared pool: processing chain only, no I/O.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigPreset {
     #[serde(default)]
     pub blocks: Vec<crate::block::AudioBlock>,
+    /// Params the scenes are allowed to control (`<block-id>.<param-id>`).
+    /// Everything else is fixed by the preset (Helix Snapshot rule).
+    #[serde(rename = "scene-params", default)]
+    pub scene_params: Vec<String>,
+    /// `1..=8`. Empty ⇒ a single implicit "Default" scene (index 1).
+    #[serde(default)]
+    pub scenes: BTreeMap<usize, RigScene>,
+}
+
+impl RigPreset {
+    /// The scene for `idx`, or an empty Default scene when this preset has no
+    /// scenes (backward-compat: a pre-scenes preset behaves as one Default
+    /// scene that changes nothing).
+    pub fn scene_or_default(&self, idx: usize) -> RigScene {
+        if self.scenes.is_empty() && idx == 1 {
+            return RigScene::default();
+        }
+        self.scenes.get(&idx).cloned().unwrap_or_default()
+    }
 }
 
 impl RigProject {
@@ -125,6 +158,18 @@ impl RigProject {
                         "preset '{name}' contains an I/O block ({}); presets are processing-only",
                         block.kind.label()
                     ));
+                }
+            }
+            for (idx, scene) in &preset.scenes {
+                if !(1..=8).contains(idx) {
+                    return Err(format!("preset '{name}' scene {idx} out of range 1..=8"));
+                }
+                for key in scene.params.keys() {
+                    if !preset.scene_params.contains(key) {
+                        return Err(format!(
+                            "preset '{name}' scene {idx} sets '{key}' which is not a marked scene-param"
+                        ));
+                    }
                 }
             }
         }

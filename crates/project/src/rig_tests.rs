@@ -63,6 +63,8 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                     p.to_string(),
                     RigPreset {
                         blocks: vec![processing_block()],
+                        scene_params: vec![],
+                        scenes: BTreeMap::new(),
                     },
                 )
             })
@@ -126,4 +128,89 @@ fn validate_routing_unknown_output_err() {
     let p = project_with(vec![("input-1", inp)], &["clean"]);
     let err = p.validate().unwrap_err();
     assert!(err.contains("nope"), "got: {err}");
+}
+
+// ── #454 T1: scenes model + validation + backward-compat ──────────────────
+
+fn core_block(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "delay".into(),
+            model: "tape".into(),
+            params: ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn scene_or_default_empty_preset_returns_default_for_slot_1() {
+    let p = RigPreset {
+        blocks: vec![],
+        scene_params: vec![],
+        scenes: BTreeMap::new(),
+    };
+    assert_eq!(p.scene_or_default(1), RigScene::default());
+}
+
+#[test]
+fn scene_or_default_returns_present_scene() {
+    let scene = RigScene {
+        label: Some("solo".into()),
+        bypass: BTreeMap::from([("od".to_string(), true)]),
+        params: BTreeMap::new(),
+    };
+    let p = RigPreset {
+        blocks: vec![core_block("od")],
+        scene_params: vec![],
+        scenes: BTreeMap::from([(2, scene.clone())]),
+    };
+    assert_eq!(p.scene_or_default(2), scene);
+}
+
+#[test]
+fn validate_scene_index_out_of_range_err() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    p.presets.get_mut("clean").unwrap().scenes = BTreeMap::from([(9, RigScene::default())]);
+    let err = p.validate().unwrap_err();
+    assert!(err.contains("scene"), "got: {err}");
+}
+
+#[test]
+fn validate_scene_param_not_marked_err() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    let preset = p.presets.get_mut("clean").unwrap();
+    preset.blocks = vec![core_block("od")];
+    preset.scene_params = vec![]; // nothing marked
+    preset.scenes = BTreeMap::from([(
+        1,
+        RigScene {
+            label: None,
+            bypass: BTreeMap::new(),
+            params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+        },
+    )]);
+    let err = p.validate().unwrap_err();
+    assert!(
+        err.contains("od.gain") && err.contains("scene-param"),
+        "got: {err}"
+    );
+}
+
+#[test]
+fn validate_scene_param_marked_ok() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    let preset = p.presets.get_mut("clean").unwrap();
+    preset.blocks = vec![core_block("od")];
+    preset.scene_params = vec!["od.gain".into()];
+    preset.scenes = BTreeMap::from([(
+        1,
+        RigScene {
+            label: None,
+            bypass: BTreeMap::from([("od".to_string(), true)]),
+            params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+        },
+    )]);
+    assert!(p.validate().is_ok(), "{:?}", p.validate());
 }
