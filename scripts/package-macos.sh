@@ -149,10 +149,20 @@ PLIST
 # No `xattr -cr` here: the user's download re-applies com.apple.quarantine,
 # so stripping it at build time is a no-op (issue #459).
 echo "==> Signing app (ad-hoc, inside-out)..."
-while IFS= read -r macho; do
-    codesign --force --sign - --timestamp=none "$macho"
-done < <(find "$APP/Contents" -type f \( -name '*.dylib' -o -name '*.so' -o -perm +111 \) \
-    -exec sh -c 'file -b "$1" | grep -q "Mach-O" && printf "%s\n" "$1"' _ {} \;)
+# NUL-delimited find + `case` on full `file` output. No `grep -q` (it
+# closes the pipe early → SIGPIPE on `file`, which under `set -o
+# pipefail` aborts the loop while `find` keeps writing → a flood of
+# "printf: Broken pipe" and exit 1 once the .app's full plugin tree is
+# present). No per-file `-exec sh -c` subshell either (issue #463,
+# regression of #459 which only tested a tiny bundle).
+while IFS= read -r -d '' f; do
+    case "$(file -b "$f" 2>/dev/null)" in
+        *Mach-O*)
+            codesign --force --sign - --timestamp=none "$f" \
+                || { echo "FATAL: codesign failed for $f" >&2; exit 1; }
+            ;;
+    esac
+done < <(find "$APP/Contents" -type f -print0)
 codesign --force --sign - --timestamp=none "$APP/Contents/MacOS/openrig"
 codesign --force --sign - --timestamp=none "$APP"
 
