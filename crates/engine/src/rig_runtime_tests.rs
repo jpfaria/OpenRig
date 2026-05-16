@@ -200,6 +200,134 @@ fn bridge_empty_routing_no_output_block() {
     assert!(c.output_blocks().is_empty());
 }
 
+// ── T2/T3: RigRuntime controller + lock-free preset swap ──────────────────
+
+use crate::runtime_state::ChainRuntimeState;
+use std::sync::Arc;
+
+fn arc_for<'a>(rt: &'a RigRuntime, input: &str) -> &'a Arc<ChainRuntimeState> {
+    rt.graph()
+        .chains
+        .get(&(ChainId(format!("rig:{input}")), 0))
+        .expect("runtime for input")
+}
+
+#[test]
+fn runtime_builds_n_isolated_runtimes() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("b", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let rt = RigRuntime::build(r, SR).expect("build");
+    assert_eq!(rt.graph().chains.len(), 2, "one isolated runtime per input");
+    assert!(!Arc::ptr_eq(
+        arc_for(&rt, "input-1"),
+        arc_for(&rt, "input-2")
+    ));
+}
+
+#[test]
+fn switch_preset_updates_active_index() {
+    let r = rig(
+        vec![(
+            "input-1",
+            input(
+                vec![src("a", vec![0])],
+                &[(1, "clean"), (2, "drive")],
+                1,
+                vec![],
+            ),
+        )],
+        vec![("clean", vec![]), ("drive", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    rt.switch_preset("input-1", 2).expect("switch ok");
+    assert_eq!(rt.project().inputs["input-1"].active_preset, 2);
+}
+
+#[test]
+fn switch_preset_invalid_index_errs_and_keeps_active() {
+    let r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("a", vec![0])], &[(1, "clean")], 1, vec![]),
+        )],
+        vec![("clean", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    assert!(rt.switch_preset("input-1", 9).is_err());
+    assert_eq!(rt.project().inputs["input-1"].active_preset, 1);
+}
+
+#[test]
+fn switch_preset_does_not_touch_other_input_isolation() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(
+                    vec![src("a", vec![0])],
+                    &[(1, "clean"), (2, "drive")],
+                    1,
+                    vec![],
+                ),
+            ),
+            (
+                "input-2",
+                input(vec![src("b", vec![0])], &[(1, "clean")], 1, vec![]),
+            ),
+        ],
+        vec![("clean", vec![]), ("drive", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    let other_before = Arc::clone(arc_for(&rt, "input-2"));
+    rt.switch_preset("input-1", 2).expect("switch");
+    assert!(
+        Arc::ptr_eq(&other_before, arc_for(&rt, "input-2")),
+        "switching input-1 must not rebuild input-2 (invariant #4)"
+    );
+}
+
+#[test]
+fn switch_preset_is_lockfree_inplace_same_runtime_arc() {
+    // Same I/O signature, only processing blocks differ ⇒ the proven in-place
+    // update path keeps the SAME Arc<ChainRuntimeState> (lock-free swap, not
+    // teardown). If this regresses to a full rebuild the Arc pointer changes.
+    let r = rig(
+        vec![(
+            "input-1",
+            input(
+                vec![src("a", vec![0])],
+                &[(1, "clean"), (2, "drive")],
+                1,
+                vec!["o"],
+            ),
+        )],
+        vec![("clean", vec![]), ("drive", vec![])],
+        vec![("o", out_entry("a", vec![0, 1]))],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    let before = Arc::clone(arc_for(&rt, "input-1"));
+    rt.switch_preset("input-1", 2).expect("switch");
+    assert!(
+        Arc::ptr_eq(&before, arc_for(&rt, "input-1")),
+        "preset swap must reuse the runtime Arc (lock-free in-place)"
+    );
+}
+
 #[test]
 fn bridge_result_builds_runtime() {
     let r = rig(

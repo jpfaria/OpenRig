@@ -7,10 +7,14 @@
 //! machinery. Isolation (#4) is already enforced there — one runtime per
 //! input, distinct `ChainId` per input. Pure and hardware-free.
 
+use crate::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
+use crate::runtime_graph::RuntimeGraph;
+use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::chain::Chain;
 use project::rig::RigProject;
+use std::collections::HashMap;
 
 /// Project each input of a `RigProject` onto one synthetic legacy `Chain`:
 /// `Input(sources)` → active-preset processing blocks → `Output(routing)`.
@@ -66,6 +70,75 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
         });
     }
     chains
+}
+
+/// Owns the N isolated input runtimes of a `RigProject`.
+///
+/// Transport-agnostic (no Slint, no cpal here) — the host wires the resulting
+/// [`RuntimeGraph`] to its backend. One synthetic chain per input keeps every
+/// input in its own `ChainRuntimeState` (invariant #4). A preset switch
+/// rebuilds **only that input's** chain through the proven
+/// `RuntimeGraph::upsert_chain` path: same I/O signature ⇒ in-place lock-free
+/// update (the `Arc<ChainRuntimeState>` is preserved, build happens off the
+/// brief swap lock), so the audio thread never blocks or reallocates.
+pub struct RigRuntime {
+    project: RigProject,
+    graph: RuntimeGraph,
+    sample_rate: f32,
+}
+
+impl RigRuntime {
+    /// Validate the project and build one isolated runtime per input.
+    pub fn build(project: RigProject, sample_rate: f32) -> Result<Self> {
+        project
+            .validate()
+            .map_err(|e| anyhow!("invalid project.openrig: {e}"))?;
+        let mut graph = RuntimeGraph {
+            chains: HashMap::new(),
+        };
+        for chain in rig_to_chains(&project) {
+            graph.upsert_chain(&chain, sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+        }
+        Ok(Self {
+            project,
+            graph,
+            sample_rate,
+        })
+    }
+
+    pub fn project(&self) -> &RigProject {
+        &self.project
+    }
+
+    pub fn graph(&self) -> &RuntimeGraph {
+        &self.graph
+    }
+
+    /// Switch the active preset of one input to bank slot `idx`.
+    ///
+    /// Rebuilds only that input's synthetic chain via `upsert_chain` — the
+    /// other inputs' runtimes are untouched (isolation #4). With an unchanged
+    /// I/O signature this is the in-place lock-free swap.
+    pub fn switch_preset(&mut self, input: &str, idx: usize) -> Result<()> {
+        let ri = self
+            .project
+            .inputs
+            .get_mut(input)
+            .ok_or_else(|| anyhow!("unknown input '{input}'"))?;
+        if !ri.bank.contains_key(&idx) {
+            return Err(anyhow!("input '{input}' has no bank slot {idx}"));
+        }
+        ri.active_preset = idx;
+
+        let id = ChainId(format!("rig:{input}"));
+        let chain = rig_to_chains(&self.project)
+            .into_iter()
+            .find(|c| c.id == id)
+            .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
+        self.graph
+            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
