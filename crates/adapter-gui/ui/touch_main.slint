@@ -1,6 +1,6 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem, ChainBlockItem } from "models.slint";
 import { GraphNode, GraphEdgeGeometry } from "components/graph_view.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, BankSceneNavigator } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
@@ -13,6 +13,7 @@ export component TouchMain inherits Rectangle {
     in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
     in property <[BankNavItem]> bank-nav-selected;
+    in property <[ChainBlockItem]> bank-chain-blocks;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in property <bool> show-chain-editor;
@@ -270,8 +271,7 @@ export component TouchMain inherits Rectangle {
             project-title: root.project-title;
             inputs: root.bank-nav-items;
             selected: root.bank-nav-selected;
-            chain-nodes: root.bank-chain-nodes;
-            chain-edges: root.bank-chain-edges;
+            chain-blocks: root.bank-chain-blocks;
             select-input(i) => { root.bank-select-input(i); }
             bank-prev(i) => { root.bank-prev(i); }
             bank-next(i) => { root.bank-next(i); }

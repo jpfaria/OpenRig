@@ -36,6 +36,8 @@ pub(crate) struct BankSceneNavCtx {
     pub bank_nav_selected: Rc<VecModel<BankNavItem>>,
     pub bank_chain_nodes: Rc<VecModel<GraphNode>>,
     pub bank_chain_edges: Rc<VecModel<GraphEdgeGeometry>>,
+    /// Pedals of the focused input's live chain (BlockChip + thumbnail).
+    pub chain_blocks: Rc<VecModel<crate::ChainBlockItem>>,
     /// Presentation state, rebuilt from the live project when the screen opens.
     pub state: Rc<RefCell<Option<BankSceneState>>>,
 }
@@ -117,6 +119,33 @@ fn category_for(effect_type: &str) -> NodeCategory {
 }
 
 /// Build the GraphView models for the selected input's active preset chain.
+/// Pedals of the focused input's LIVE chain, built with the app's own
+/// `chain_block_item_from_block` (per-model thumbnail) — the same pipeline
+/// the classic chains screen uses, so the pedalboard shows real pedals.
+fn chain_blocks_for(ctx: &BankSceneNavCtx, selected: Option<&str>) -> Vec<crate::ChainBlockItem> {
+    let Some(idx) = selected
+        .and_then(|n| n.strip_prefix("input-"))
+        .and_then(|n| n.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .map(|n| n - 1)
+    else {
+        return Vec::new();
+    };
+    let sref = ctx.project_session.borrow();
+    let Some(s) = sref.as_ref() else {
+        return Vec::new();
+    };
+    let proj = s.project.borrow();
+    let Some(chain) = proj.chains.get(idx) else {
+        return Vec::new();
+    };
+    chain
+        .blocks
+        .iter()
+        .map(crate::project_view::chain_block_item_from_block)
+        .collect()
+}
+
 fn graph_for_selected(
     rig: &RigProject,
     selected: Option<&str>,
@@ -223,6 +252,8 @@ fn rebuild(ctx: &BankSceneNavCtx) {
         ctx.bank_nav_selected.set_vec(Vec::new());
         ctx.bank_chain_nodes.set_vec(Vec::new());
         ctx.bank_chain_edges.set_vec(Vec::new());
+        ctx.chain_blocks
+            .set_vec(Vec::<crate::ChainBlockItem>::new());
         *ctx.state.borrow_mut() = None;
         return;
     };
@@ -248,6 +279,8 @@ fn rebuild(ctx: &BankSceneNavCtx) {
     let (n, e) = graph_for_selected(&rig, st.selected_input.as_deref());
     ctx.bank_chain_nodes.set_vec(n);
     ctx.bank_chain_edges.set_vec(e);
+    ctx.chain_blocks
+        .set_vec(chain_blocks_for(ctx, st.selected_input.as_deref()));
     *ctx.state.borrow_mut() = Some(st);
 }
 
@@ -296,6 +329,8 @@ fn dispatch(ctx: &BankSceneNavCtx, ev: BankSceneEvent) {
         let (n, e) = graph_for_selected(&rig, selected.as_deref());
         ctx.bank_chain_nodes.set_vec(n);
         ctx.bank_chain_edges.set_vec(e);
+        ctx.chain_blocks
+            .set_vec(chain_blocks_for(ctx, selected.as_deref()));
     }
 }
 
@@ -305,6 +340,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BankSceneNavCtx) {
     window.set_bank_nav_selected(ModelRc::from(ctx.bank_nav_selected.clone()));
     window.set_bank_chain_nodes(ModelRc::from(ctx.bank_chain_nodes.clone()));
     window.set_bank_chain_edges(ModelRc::from(ctx.bank_chain_edges.clone()));
+    window.set_bank_chain_blocks(ModelRc::from(ctx.chain_blocks.clone()));
 
     let w = window.as_weak();
     let c = ctx.clone();

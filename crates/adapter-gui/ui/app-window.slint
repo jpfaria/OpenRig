@@ -1,6 +1,6 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem, ChainBlockItem } from "models.slint";
 import { GraphNode, GraphEdgeGeometry } from "components/graph_view.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -47,6 +47,7 @@ export component AppWindow inherits Window {
     in-out property <bool> show-classic-chains;
     in property <[BankNavItem]> bank-nav-items;
     in property <[BankNavItem]> bank-nav-selected;
+    in property <[ChainBlockItem]> bank-chain-blocks;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in-out property <int> wizard-step;
@@ -278,6 +279,7 @@ export component AppWindow inherits Window {
         show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
         bank-nav-selected: root.bank-nav-selected;
+        bank-chain-blocks: root.bank-chain-blocks;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;
@@ -488,6 +490,7 @@ export component AppWindow inherits Window {
         show-classic-chains <=> root.show-classic-chains;
         bank-nav-items: root.bank-nav-items;
         bank-nav-selected: root.bank-nav-selected;
+        bank-chain-blocks: root.bank-chain-blocks;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;

@@ -1,14 +1,13 @@
-// #436 — Quad-Cortex-style rig screen. The signal chain is the HERO
-// (full-body GraphView with QC tiles); a compact header carries the big
-// preset·scene indicator + input name + bank nav; input tabs switch the
-// focused input; a floorboard strip of 8 scenes sits at the bottom.
+// #436 — Pedalboard rig screen (MOD-/Quad-Cortex-quality).
 //
-// PURE DISPATCHER — every interaction is a callback the host turns into a
-// BankSceneEvent; every value comes from `in` properties. No logic here.
+// The chain is rendered with the app's REAL pedal component (`BlockChip`,
+// per-model thumbnail art) on a premium board background, linked by thick
+// patch cables — NOT generic boxes. PURE DISPATCHER: every interaction is a
+// callback; every value comes from `in` properties (no logic here).
 
 import { Theme } from "../theme.slint";
-import { BankNavItem } from "../models.slint";
-import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
+import { BankNavItem, ChainBlockItem } from "../models.slint";
+import { BlockChip } from "block_chip.slint";
 
 component QcButton inherits Rectangle {
     in property <string> text;
@@ -23,7 +22,7 @@ component QcButton inherits Rectangle {
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border-strong;
     background: root.active
         ? Theme.palette.accent-end
-        : ta.has-hover ? Theme.palette.card-secondary : Theme.palette.card;
+        : ta.has-hover ? Theme.palette.card-secondary : Theme.palette.card.with-alpha(0.85);
     animate background { duration: 120ms; }
     HorizontalLayout {
         padding-left: 12px;
@@ -39,7 +38,6 @@ component QcButton inherits Rectangle {
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
-// One scene footswitch (1..8) — QC/Helix floorboard style.
 component SceneSwitch inherits Rectangle {
     in property <int> number;
     in property <bool> active;
@@ -47,12 +45,12 @@ component SceneSwitch inherits Rectangle {
     accessible-role: button;
     accessible-label: "scene \{root.number}";
     accessible-action-default => { root.clicked(); }
-    width: 38px;
+    width: 40px;
     height: 30px;
     border-radius: 6px;
     border-width: 1px;
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
-    background: root.active ? Theme.palette.accent-end : Theme.palette.card;
+    background: root.active ? Theme.palette.accent-end : Theme.palette.card.with-alpha(0.8);
     animate background, border-color { duration: 130ms; }
     Text {
         text: "\{root.number}";
@@ -65,15 +63,46 @@ component SceneSwitch inherits Rectangle {
     TouchArea { clicked => { root.clicked(); } }
 }
 
+// One patch-cable segment between two pedals.
+component Cable inherits Rectangle {
+    width: 34px;
+    background: transparent;
+    Rectangle {
+        width: parent.width;
+        height: 7px;
+        y: parent.height / 2 - self.height / 2;
+        border-radius: 4px;
+        background: @linear-gradient(90deg, #6d3bd6 0%, #8c52ff 50%, #6d3bd6 100%);
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #00000088;
+    }
+}
+
+// Input / Output jack endpoint.
+component Jack inherits Rectangle {
+    in property <string> text;
+    width: 58px;
+    height: 64px;
+    border-radius: 8px;
+    background: Theme.palette.card-secondary;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+    Text {
+        text: root.text;
+        color: Theme.palette.text-muted;
+        font-size: 11px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
 export component BankSceneNavigator inherits Rectangle {
     in property <bool> project-open;
     in property <string> project-title;
     in property <[BankNavItem]> inputs;
-    // 0 or 1 element — the focused input (computed host-side; avoids
-    // `for:if` which Slint doesn't allow).
-    in property <[BankNavItem]> selected;
-    in property <[GraphNode]> chain-nodes;
-    in property <[GraphEdgeGeometry]> chain-edges;
+    in property <[BankNavItem]> selected;       // 0 or 1 (focused input)
+    in property <[ChainBlockItem]> chain-blocks; // pedals of the focused chain
 
     callback open-project();
     callback create-project();
@@ -85,128 +114,129 @@ export component BankSceneNavigator inherits Rectangle {
 
     background: Theme.palette.pure-black;
 
-    Rectangle {
-        background: Theme.palette.background-gradient;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
 
-        VerticalLayout {
-            padding: 14px;
-            spacing: 10px;
-
-            // ── Header: big preset·scene + input name + bank nav ──────────
-            Rectangle {
-                height: 56px;
-                border-radius: 10px;
-                background: Theme.palette.card;
-                border-width: 1px;
-                border-color: Theme.palette.border;
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 12px;
+        // ── Header (kept clear of the app's global top-right chrome) ──
+        Rectangle {
+            height: 52px;
+            border-radius: 10px;
+            background: Theme.palette.card;
+            border-width: 1px;
+            border-color: Theme.palette.border;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 14px;
+                for it in root.selected : HorizontalLayout {
                     spacing: 14px;
-                    for it in root.selected : HorizontalLayout {
-                        spacing: 14px;
-                        Text {
-                            text: "\{it.active-preset}·S\{it.active-scene}";
-                            color: Theme.palette.accent-border;
-                            font-size: 26px;
-                            font-weight: 700;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: it.label != "" ? it.label : it.input;
-                            color: #ffffff;
-                            font-size: 18px;
-                            font-weight: 650;
-                            vertical-alignment: center;
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                        QcButton {
-                            text: "◀ BANK";
-                            clicked => { root.bank-prev(it.input); }
-                        }
-                        QcButton {
-                            text: "BANK ▶";
-                            clicked => { root.bank-next(it.input); }
-                        }
-                    }
-                    if !root.project-open : Text {
-                        text: @tr("No project open");
-                        color: Theme.palette.text-muted;
-                        font-size: 18px;
+                    Text {
+                        text: "\{it.active-preset}·S\{it.active-scene}";
+                        color: Theme.palette.accent-border;
+                        font-size: 24px;
+                        font-weight: 700;
                         vertical-alignment: center;
                     }
-                    Rectangle {
-                        horizontal-stretch: root.project-open ? 0 : 1;
-                    }
-                    QcButton {
-                        text: @tr("↻");
-                        clicked => { root.open-project(); }
-                    }
-                    QcButton {
-                        text: @tr("Classic ▶");
-                        clicked => { root.create-project(); }
-                    }
-                }
-            }
-
-            // ── Input tabs (switch focused input) ─────────────────────────
-            Flickable {
-                height: 36px;
-                viewport-width: tabs.preferred-width;
-                tabs := HorizontalLayout {
-                    spacing: 8px;
-                    for it in root.inputs : QcButton {
+                    Text {
                         text: it.label != "" ? it.label : it.input;
-                        active: it.selected;
-                        clicked => { root.select-input(it.input); }
+                        color: #ffffff;
+                        font-size: 17px;
+                        font-weight: 650;
+                        vertical-alignment: center;
                     }
+                    Rectangle { horizontal-stretch: 1; }
+                    QcButton { text: "◀ BANK"; clicked => { root.bank-prev(it.input); } }
+                    QcButton { text: "BANK ▶"; clicked => { root.bank-next(it.input); } }
                 }
-            }
-
-            // ── HERO: the signal chain (QC tiles) fills the body ──────────
-            Rectangle {
-                vertical-stretch: 1;
-                border-radius: 12px;
-                clip: true;
-                background: Theme.palette.deep-space;
-                border-width: 1px;
-                border-color: Theme.palette.border;
-                GraphView {
-                    nodes: root.chain-nodes;
-                    edges: root.chain-edges;
-                    node_width: 110px;
-                    node_height: 56px;
-                    auto_layout: true;
-                    node_clicked(id) => { root.node-clicked(id); }
-                }
-                if root.chain-nodes.length == 0 : Text {
-                    text: @tr("Open a project to see the signal chain");
+                if !root.project-open : Text {
+                    text: @tr("No project open");
                     color: Theme.palette.text-muted;
-                    font-size: 14px;
-                }
-            }
-
-            // ── Scenes for the focused input (compact) ────────────────────
-            for it in root.selected : HorizontalLayout {
-                height: 32px;
-                spacing: 6px;
-                Text {
-                    text: @tr("SCENE");
-                    color: Theme.palette.text-muted;
-                    font-size: 11px;
-                    font-weight: 600;
+                    font-size: 17px;
                     vertical-alignment: center;
                 }
-                SceneSwitch { number: 1; active: it.active-scene == 1; clicked => { root.select-scene(it.input, 1); } }
-                SceneSwitch { number: 2; active: it.active-scene == 2; clicked => { root.select-scene(it.input, 2); } }
-                SceneSwitch { number: 3; active: it.active-scene == 3; clicked => { root.select-scene(it.input, 3); } }
-                SceneSwitch { number: 4; active: it.active-scene == 4; clicked => { root.select-scene(it.input, 4); } }
-                SceneSwitch { number: 5; active: it.active-scene == 5; clicked => { root.select-scene(it.input, 5); } }
-                SceneSwitch { number: 6; active: it.active-scene == 6; clicked => { root.select-scene(it.input, 6); } }
-                SceneSwitch { number: 7; active: it.active-scene == 7; clicked => { root.select-scene(it.input, 7); } }
-                SceneSwitch { number: 8; active: it.active-scene == 8; clicked => { root.select-scene(it.input, 8); } }
-                Rectangle { horizontal-stretch: 1; }
+                Rectangle { horizontal-stretch: root.project-open ? 0.0 : 1.0; }
+                QcButton { text: @tr("↻"); clicked => { root.open-project(); } }
+                QcButton { text: @tr("Classic ▶"); clicked => { root.create-project(); } }
+                // Right inset so we never sit under the window's global icons.
+                Rectangle { width: 44px; }
             }
+        }
+
+        // ── Input tabs ───────────────────────────────────────────────
+        Flickable {
+            height: 34px;
+            viewport-width: tabs.preferred-width;
+            tabs := HorizontalLayout {
+                spacing: 8px;
+                for it in root.inputs : QcButton {
+                    text: it.label != "" ? it.label : it.input;
+                    active: it.selected;
+                    clicked => { root.select-input(it.input); }
+                }
+            }
+        }
+
+        // ── HERO: the pedalboard ─────────────────────────────────────
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: 12px;
+            clip: true;
+            Image {
+                width: 100%;
+                height: 100%;
+                source: @image-url("../assets/launcher-stage-bg.jpg");
+                image-fit: cover;
+            }
+            Rectangle { background: #05070bcc; } // darken for contrast
+
+            Flickable {
+                viewport-width: board.preferred-width + 48px;
+                board := HorizontalLayout {
+                    x: 24px;
+                    spacing: 0px;
+                    Jack { text: @tr("IN"); }
+                    for b in root.chain-blocks : HorizontalLayout {
+                        spacing: 0px;
+                        Cable { }
+                        TouchArea {
+                            width: 104px;
+                            height: 104px;
+                            clicked => { root.node-clicked(b.label); }
+                            BlockChip { block: b; }
+                        }
+                    }
+                    Cable { }
+                    Jack { text: @tr("OUT"); }
+                }
+            }
+            if root.chain-blocks.length == 0 : Text {
+                text: @tr("Open a project to see the pedalboard");
+                color: Theme.palette.text-secondary;
+                font-size: 15px;
+            }
+        }
+
+        // ── Scenes (compact) ─────────────────────────────────────────
+        for it in root.selected : HorizontalLayout {
+            height: 32px;
+            spacing: 6px;
+            Text {
+                text: @tr("SCENE");
+                color: Theme.palette.text-muted;
+                font-size: 11px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            SceneSwitch { number: 1; active: it.active-scene == 1; clicked => { root.select-scene(it.input, 1); } }
+            SceneSwitch { number: 2; active: it.active-scene == 2; clicked => { root.select-scene(it.input, 2); } }
+            SceneSwitch { number: 3; active: it.active-scene == 3; clicked => { root.select-scene(it.input, 3); } }
+            SceneSwitch { number: 4; active: it.active-scene == 4; clicked => { root.select-scene(it.input, 4); } }
+            SceneSwitch { number: 5; active: it.active-scene == 5; clicked => { root.select-scene(it.input, 5); } }
+            SceneSwitch { number: 6; active: it.active-scene == 6; clicked => { root.select-scene(it.input, 6); } }
+            SceneSwitch { number: 7; active: it.active-scene == 7; clicked => { root.select-scene(it.input, 7); } }
+            SceneSwitch { number: 8; active: it.active-scene == 8; clicked => { root.select-scene(it.input, 8); } }
+            Rectangle { horizontal-stretch: 1; }
         }
     }
 }

@@ -478,6 +478,7 @@ pub fn run_desktop_app(
             bank_nav_selected: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_nodes: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_edges: Rc::new(slint::VecModel::from(Vec::new())),
+            chain_blocks: Rc::new(slint::VecModel::from(Vec::new())),
             state: Rc::new(RefCell::new(None)),
         },
     );
