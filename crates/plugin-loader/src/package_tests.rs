@@ -131,13 +131,8 @@ fn accepts_ir_package_with_existing_wav() {
     assert!(validate_package(&tmp.path, &manifest).is_ok());
 }
 
-#[test]
-fn accepts_lv2_package_with_bundle_and_binary() {
-    let tmp = TempDir::new("lv2_ok");
-    tmp.mkdir("bundles/test.lv2");
-    tmp.write("bundles/test.lv2/linux-x86_64/plugin.so", b"fake binary");
-
-    let manifest = PluginManifest {
+fn lv2_manifest(binaries: BTreeMap<Lv2Slot, PathBuf>) -> PluginManifest {
+    PluginManifest {
         manifest_version: 1,
         id: "lv2_test".to_string(),
         display_name: "LV2 Test".to_string(),
@@ -156,46 +151,72 @@ fn accepts_lv2_package_with_bundle_and_binary() {
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {
             plugin_uri: "urn:test:plugin".to_string(),
-            binaries: BTreeMap::from([(
-                Lv2Slot::LinuxX86_64,
-                PathBuf::from("bundles/test.lv2/linux-x86_64/plugin.so"),
-            )]),
+            binaries,
         },
+    }
+}
+
+/// Any slot that is NOT the host's — used to simulate the other-OS
+/// binaries that each package strips (#425).
+fn a_foreign_slot(host: Lv2Slot) -> Lv2Slot {
+    if host == Lv2Slot::MacosUniversal {
+        Lv2Slot::LinuxX86_64
+    } else {
+        Lv2Slot::MacosUniversal
+    }
+}
+
+#[test]
+fn accepts_lv2_package_with_host_binary() {
+    let Some(host) = current_platform_slot() else {
+        return; // exotic target: nothing to validate
     };
+    let tmp = TempDir::new("lv2_ok");
+    tmp.write("bundles/test.lv2/host/plugin.bin", b"fake binary");
+    let manifest = lv2_manifest(BTreeMap::from([(
+        host,
+        PathBuf::from("bundles/test.lv2/host/plugin.bin"),
+    )]));
     assert!(validate_package(&tmp.path, &manifest).is_ok());
 }
 
 #[test]
-fn rejects_lv2_package_with_missing_binary() {
+fn rejects_lv2_package_when_host_binary_missing() {
+    let Some(host) = current_platform_slot() else {
+        return;
+    };
     let tmp = TempDir::new("lv2_no_binary");
     tmp.mkdir("bundles/test.lv2");
-    let manifest = PluginManifest {
-        manifest_version: 1,
-        id: "lv2_test".to_string(),
-        display_name: "LV2 Test".to_string(),
-        author: None,
-        description: None,
-        inspired_by: None,
-        brand: None,
-        thumbnail: None,
-        photo: None,
-        screenshot: None,
-        brand_logo: None,
-        license: None,
-        homepage: None,
-        sources: None,
-        output_gain_pct: None,
-        block_type: BlockType::GainPedal,
-        backend: Backend::Lv2 {
-            plugin_uri: "urn:test:plugin".to_string(),
-            binaries: BTreeMap::from([(
-                Lv2Slot::LinuxX86_64,
-                PathBuf::from("bundles/test.lv2/linux-x86_64/missing.so"),
-            )]),
-        },
-    };
+    let manifest = lv2_manifest(BTreeMap::from([(
+        host,
+        PathBuf::from("bundles/test.lv2/host/missing.bin"),
+    )]));
     let err = validate_package(&tmp.path, &manifest).unwrap_err();
     assert!(matches!(err, PackageError::MissingBinarySlot { .. }));
+}
+
+/// Regression for #477: an OS package strips the other platforms'
+/// binaries, so a manifest declaring (host + foreign) slots with only
+/// the host file on disk MUST validate — previously the absent foreign
+/// binary rejected the whole package and ~102 LV2 plugins vanished.
+#[test]
+fn accepts_lv2_package_when_only_foreign_binary_is_absent() {
+    let Some(host) = current_platform_slot() else {
+        return;
+    };
+    let tmp = TempDir::new("lv2_foreign_absent");
+    tmp.write("p/host/plugin.bin", b"fake binary");
+    let manifest = lv2_manifest(BTreeMap::from([
+        (host, PathBuf::from("p/host/plugin.bin")),
+        (
+            a_foreign_slot(host),
+            PathBuf::from("p/other/stripped.bin"), // never created
+        ),
+    ]));
+    assert!(
+        validate_package(&tmp.path, &manifest).is_ok(),
+        "foreign-slot binary absence must not reject the package"
+    );
 }
 
 #[test]
