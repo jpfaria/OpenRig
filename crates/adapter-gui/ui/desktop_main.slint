@@ -274,25 +274,6 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Entry button — overlaid on the chains screen.
-        if root.show-project-chains && !root.show-bank-scene-navigator : TouchArea {
-            x: parent.width - 168px;
-            y: 14px;
-            width: 150px;
-            height: 32px;
-            Rectangle {
-                border-radius: 6px;
-                background: parent.has-hover ? #2d6cdf : #1f2733;
-                border-width: 1px;
-                border-color: #2d6cdf;
-                Text {
-                    text: @tr("Bank / Scene");
-                    color: #ffffff;
-                    font-size: 13px;
-                }
-            }
-            clicked => { root.open-bank-scene-navigator(); }
-        }
-
         if root.show-project-chains && !root.show-bank-scene-navigator && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
@@ -474,6 +455,26 @@ export component DesktopMain inherits Rectangle {
             select-mode(index) => { root.chain-io-select-mode(index); }
             save => { root.chain-io-save(); }
             cancel => { root.chain-io-cancel(); }
+        }
+
+        // Entry button — declared AFTER ProjectChainsPage so it draws on top.
+        if root.show-project-chains && !root.show-bank-scene-navigator : TouchArea {
+            x: parent.width - 178px;
+            y: 16px;
+            width: 160px;
+            height: 34px;
+            Rectangle {
+                border-radius: 6px;
+                background: parent.has-hover ? #2d6cdf : #1f2733;
+                border-width: 1px;
+                border-color: #2d6cdf;
+                Text {
+                    text: @tr("Bank / Scene");
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+            }
+            clicked => { root.open-bank-scene-navigator(); }
         }
 
         if !root.show-project-chains : Rectangle {
