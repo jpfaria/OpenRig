@@ -137,10 +137,30 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# ── 5. Ad-hoc signing (bypasses Gatekeeper without Apple certificate) ─────────
-echo "==> Signing app (ad-hoc)..."
-codesign --force --deep --sign - "$APP"
-xattr -cr "$APP"
+# ── 5. Ad-hoc signing — inside-out so the bundle signature is VALID ──────────
+# Ad-hoc signing does NOT bypass Gatekeeper. Its only purpose: a *valid*
+# signature downgrades the Gatekeeper block from "OpenRig is damaged"
+# (hard, unbypassable) to "unidentified developer" (right-click → Open
+# works, no Terminal). `codesign --deep` is unreliable on bundles with
+# Mach-O outside Contents/MacOS (we ship dylibs in Frameworks/ and nested
+# plugin .dylibs in Resources/plugins/.../macos-universal/) — it leaves
+# some unsigned, the seal fails verification, and macOS reports "damaged".
+# Fix: sign every Mach-O explicitly, innermost first, bundle last.
+# No `xattr -cr` here: the user's download re-applies com.apple.quarantine,
+# so stripping it at build time is a no-op (issue #459).
+echo "==> Signing app (ad-hoc, inside-out)..."
+while IFS= read -r macho; do
+    codesign --force --sign - --timestamp=none "$macho"
+done < <(find "$APP/Contents" -type f \( -name '*.dylib' -o -name '*.so' -o -perm +111 \) \
+    -exec sh -c 'file -b "$1" | grep -q "Mach-O" && printf "%s\n" "$1"' _ {} \;)
+codesign --force --sign - --timestamp=none "$APP/Contents/MacOS/openrig"
+codesign --force --sign - --timestamp=none "$APP"
+
+# Gate: an invalid signature IS the "damaged" bug. Fail the build loudly
+# here rather than ship a .dmg that no one can open.
+echo "==> Verifying signature..."
+codesign --verify --deep --strict --verbose=2 "$APP"
+echo "    signature valid"
 
 # ── 6. Verify binary ──────────────────────────────────────────────────────────
 echo "==> Verifying binary..."
