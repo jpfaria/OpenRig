@@ -468,6 +468,17 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
+    // --- #453 bank/scene navigator (mounts BankSceneNavigator + GraphView) ---
+    crate::bank_scene_navigator_wiring::wire(
+        &window,
+        crate::bank_scene_navigator_wiring::BankSceneNavCtx {
+            project_session: project_session.clone(),
+            bank_nav_items: Rc::new(slint::VecModel::from(Vec::new())),
+            bank_chain_nodes: Rc::new(slint::VecModel::from(Vec::new())),
+            bank_chain_edges: Rc::new(slint::VecModel::from(Vec::new())),
+            state: Rc::new(RefCell::new(None)),
+        },
+    );
     // --- Recent projects callbacks (extracted to recent_projects_wiring) ---
     crate::recent_projects_wiring::wire(
         &window,

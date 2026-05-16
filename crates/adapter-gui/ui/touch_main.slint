@@ -1,13 +1,18 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, BankNavItem } from "models.slint";
+import { GraphNode, GraphEdgeGeometry } from "components/graph_view.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, BankSceneNavigator } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
+    in property <bool> show-bank-scene-navigator;
+    in property <[BankNavItem]> bank-nav-items;
+    in property <[GraphNode]> bank-chain-nodes;
+    in property <[GraphEdgeGeometry]> bank-chain-edges;
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
@@ -85,6 +90,13 @@ export component TouchMain inherits Rectangle {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
+    callback open-bank-scene-navigator();
+    callback close-bank-scene-navigator();
+    callback bank-select-input(string);
+    callback bank-prev(string);
+    callback bank-next(string);
+    callback bank-select-scene(string, int);
+    callback bank-node-clicked(string);
     callback back-to-launcher();
     callback add-chain();
     callback save-project();
@@ -247,7 +259,43 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        if root.show-project-chains : ProjectChainsPage {
+        if root.show-bank-scene-navigator : BankSceneNavigator {
+            width: parent.width;
+            height: parent.height;
+            project-open: true;
+            project-title: root.project-title;
+            inputs: root.bank-nav-items;
+            chain-nodes: root.bank-chain-nodes;
+            chain-edges: root.bank-chain-edges;
+            select-input(i) => { root.bank-select-input(i); }
+            bank-prev(i) => { root.bank-prev(i); }
+            bank-next(i) => { root.bank-next(i); }
+            select-scene(i, s) => { root.bank-select-scene(i, s); }
+            node-clicked(id) => { root.bank-node-clicked(id); }
+            open-project => { root.open-bank-scene-navigator(); }
+            create-project => { root.close-bank-scene-navigator(); }
+        }
+
+        if root.show-project-chains && !root.show-bank-scene-navigator : TouchArea {
+            x: parent.width - 168px;
+            y: 14px;
+            width: 150px;
+            height: 36px;
+            Rectangle {
+                border-radius: 6px;
+                background: parent.has-hover ? #2d6cdf : #1f2733;
+                border-width: 1px;
+                border-color: #2d6cdf;
+                Text {
+                    text: @tr("Bank / Scene");
+                    color: #ffffff;
+                    font-size: 14px;
+                }
+            }
+            clicked => { root.open-bank-scene-navigator(); }
+        }
+
+        if root.show-project-chains && !root.show-bank-scene-navigator : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
