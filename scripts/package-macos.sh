@@ -155,7 +155,15 @@ echo "==> Signing app (ad-hoc, inside-out)..."
 # "printf: Broken pipe" and exit 1 once the .app's full plugin tree is
 # present). No per-file `-exec sh -c` subshell either (issue #463,
 # regression of #459 which only tested a tiny bundle).
+# Order matters: codesign of the main executable verifies that every
+# subcomponent it links (e.g. Frameworks/libNeuralAudioCAPI.dylib) is
+# already signed, else it fails "code object is not signed at all / In
+# subcomponent: ...". `find` order is not inside-out, so sign every
+# nested Mach-O here but SKIP the main executable, then sign it after
+# the loop (deps first), then the bundle last (issue #463).
+MAIN_EXE="$APP/Contents/MacOS/openrig"
 while IFS= read -r -d '' f; do
+    [ "$f" = "$MAIN_EXE" ] && continue
     case "$(file -b "$f" 2>/dev/null)" in
         *Mach-O*)
             codesign --force --sign - --timestamp=none "$f" \
@@ -163,8 +171,10 @@ while IFS= read -r -d '' f; do
             ;;
     esac
 done < <(find "$APP/Contents" -type f -print0)
-codesign --force --sign - --timestamp=none "$APP/Contents/MacOS/openrig"
-codesign --force --sign - --timestamp=none "$APP"
+codesign --force --sign - --timestamp=none "$MAIN_EXE" \
+    || { echo "FATAL: codesign failed for $MAIN_EXE" >&2; exit 1; }
+codesign --force --sign - --timestamp=none "$APP" \
+    || { echo "FATAL: codesign failed for the .app bundle" >&2; exit 1; }
 
 # Gate: an invalid signature IS the "damaged" bug. Fail the build loudly
 # here rather than ship a .dmg that no one can open.
