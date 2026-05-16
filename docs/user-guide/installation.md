@@ -46,6 +46,38 @@ Prefer `apt install ./file.deb` over `dpkg -i` — it pulls in dependencies auto
 
 A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `adapter-gui` binary directly.
 
+#### Audio setup (required for sound)
+
+Installing the package is not enough to get sound — OpenRig is a guitar
+pedalboard and needs a real audio I/O path:
+
+1. **A USB audio interface** with a guitar input and an output
+   (headphones/monitors). Class-compliant interfaces work on Linux with
+   no driver. The built-in laptop audio is not enough (no instrument
+   input). Verify it is seen: `arecord -l` / `aplay -l` or
+   `cat /proc/asound/cards`.
+2. **JACK server** — OpenRig launches `jackd` itself, so the daemon
+   (not just the libraries) must be installed:
+   ```bash
+   sudo apt install jackd2          # Debian / Ubuntu
+   sudo dnf install jack-audio-connection-kit   # Fedora
+   ```
+3. **Audio group** — add your user and re-login (so realtime/device
+   access applies):
+   ```bash
+   sudo usermod -aG audio "$USER"
+   ```
+4. **PipeWire / PulseAudio coexistence** — if a sound server is holding
+   the interface, OpenRig's `jackd` may fail to grab it exclusively.
+   Either suspend the device in the sound server or point OpenRig at the
+   PipeWire JACK/ALSA bridge.
+5. In OpenRig's **audio screen**, select the interface as input and
+   output, set sample rate / buffer size, then enable the chain.
+
+The `.deb` declares `libasound2` and `libseat1`; `jackd2` is recommended
+separately because some setups route audio through PipeWire's JACK
+bridge instead.
+
 ### macOS
 
 Download `OpenRig-<ver>-macos-universal.dmg`, open it, and drag OpenRig to Applications. The build is universal (Apple Silicon + Intel).
