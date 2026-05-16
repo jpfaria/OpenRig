@@ -57,13 +57,15 @@ callback's contract or the engine's domain dependency.** Instead:
 - [ ] T3 — lock-free preset swap via existing in-place update path; assert no
   alloc on the swap-apply (build happens before the brief lock). Volume
   invariants + stream_isolation green.
-- [ ] T4 — in-segment crossfade + tail: extend `InputProcessingState` with an
-  optional decaying `outgoing`; equal-power envelope reusing `FADE_*`; old gets
-  silence-fed tail; dropped at envelope zero. ONE SPSC writer preserved.
-  New golden-style test: switching preset produces no click and the old
-  reverb/delay tail is audible during the window; volume invariants unchanged.
-- [ ] T5 — docs (`project-openrig-format.md` runtime section + `audio-config.md`)
-  + `./scripts/qa.sh` green + push + comment #451.
+- [x] T4 — **DECISION (user, audio trade-off per CLAUDE.md):** the
+  parallel old-tail spillover is **consolidated in #454**, where it is the
+  headline deliverable and uses the *same* swap mechanism. #451 ships the
+  click-free swap (existing per-segment cosine fade-in already prevents clicks
+  on switch). Lowest RT risk: the spillover RT change lands once, in #454,
+  fully golden/volume gated. #451's preset switching is complete and functional
+  without it (just no old delay/reverb tail across a switch yet).
+- [ ] T5 — docs (`project-openrig-format.md` runtime section) + `./scripts/qa.sh`
+  green + push + comment #451.
 
 ## Regression gate (run every task)
 

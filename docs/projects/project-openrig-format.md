@@ -84,10 +84,36 @@ and rejects:
 Round-trip (`parse → serialize → parse → serialize`) is byte-deterministic
 because every map is a `BTreeMap`.
 
+## Engine runtime (#451)
+
+`engine::rig_runtime` bridges the model to the audio engine without changing
+the audio-thread contract:
+
+- `rig_to_chains(&RigProject) -> Vec<Chain>` — each input + its active preset +
+  routed outputs is projected onto one synthetic legacy `Chain`
+  (`Input(sources)` → preset blocks → `Output(routing)`), distinct `ChainId`
+  `rig:<input>` per input.
+- `RigRuntime::build(project, sample_rate)` — one **fully isolated** runtime
+  per input via the existing `RuntimeGraph::upsert_chain` (invariant #4: no
+  shared buffer/lock/route/tap; mixing stays in the backend).
+- `RigRuntime::switch_preset(input, idx)` — rebuilds **only that input's**
+  chain. Same I/O signature ⇒ the proven in-place lock-free update path: the
+  `Arc<ChainRuntimeState>` is preserved, the new pipeline is built off the
+  brief swap lock, and the existing per-segment cosine fade-in keeps the
+  switch click-free. Other inputs are untouched.
+
+Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
+`RuntimeGraph` to its backend.
+
+> **Spillover (old preset's delay/reverb tail decaying across a switch)** is
+> intentionally consolidated in **#454**, where it is the headline deliverable
+> and uses the *same* swap mechanism — keeping the audio-thread-sensitive
+> change in one golden/volume-gated place. #451's switch is click-free but
+> does not yet preserve the previous preset's tail.
+
 ## Out of scope here (tracked elsewhere)
 
-- Engine wiring / N isolated input runtimes + preset switching — #451
+- Scenes + spillover (old-tail crossfade; `scenes`/`scene-params`) — #454 (same swap mechanism)
 - Legacy `chain.yaml` migration — #450
 - CLI `--project` — #452
-- Scenes (the `scenes` / `scene-params` structure) — #454
 - UI project picker + bank/scene navigator — #453
