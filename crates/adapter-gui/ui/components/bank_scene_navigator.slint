@@ -1,13 +1,11 @@
-// #436 — Pedalboard rig screen (MOD-/Quad-Cortex-quality).
-//
-// The chain is rendered with the app's REAL pedal component (`BlockChip`,
-// per-model thumbnail art) on a premium board background, linked by thick
-// patch cables — NOT generic boxes. PURE DISPATCHER: every interaction is a
-// callback; every value comes from `in` properties (no logic here).
+// #436 — Rig screen: the team's #435 GraphView is the HERO, auto-fitted
+// to the visible area (it organises itself and never leaves the screen).
+// PURE DISPATCHER: every interaction is a callback; values come from `in`
+// properties. No invented visuals — uses the GraphView as built.
 
 import { Theme } from "../theme.slint";
-import { BankNavItem, ChainBlockItem } from "../models.slint";
-import { BlockChip } from "block_chip.slint";
+import { BankNavItem } from "../models.slint";
+import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
 
 component QcButton inherits Rectangle {
     in property <string> text;
@@ -22,7 +20,7 @@ component QcButton inherits Rectangle {
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border-strong;
     background: root.active
         ? Theme.palette.accent-end
-        : ta.has-hover ? Theme.palette.card-secondary : Theme.palette.card.with-alpha(0.85);
+        : ta.has-hover ? Theme.palette.card-secondary : Theme.palette.card;
     animate background { duration: 120ms; }
     HorizontalLayout {
         padding-left: 12px;
@@ -50,7 +48,7 @@ component SceneSwitch inherits Rectangle {
     border-radius: 6px;
     border-width: 1px;
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
-    background: root.active ? Theme.palette.accent-end : Theme.palette.card.with-alpha(0.8);
+    background: root.active ? Theme.palette.accent-end : Theme.palette.card;
     animate background, border-color { duration: 130ms; }
     Text {
         text: "\{root.number}";
@@ -63,46 +61,17 @@ component SceneSwitch inherits Rectangle {
     TouchArea { clicked => { root.clicked(); } }
 }
 
-// One patch-cable segment between two pedals.
-component Cable inherits Rectangle {
-    width: 34px;
-    background: transparent;
-    Rectangle {
-        width: parent.width;
-        height: 7px;
-        y: parent.height / 2 - self.height / 2;
-        border-radius: 4px;
-        background: @linear-gradient(90deg, #6d3bd6 0%, #8c52ff 50%, #6d3bd6 100%);
-        drop-shadow-blur: 4px;
-        drop-shadow-color: #00000088;
-    }
-}
-
-// Input / Output jack endpoint.
-component Jack inherits Rectangle {
-    in property <string> text;
-    width: 58px;
-    height: 64px;
-    border-radius: 8px;
-    background: Theme.palette.card-secondary;
-    border-width: 1px;
-    border-color: Theme.palette.border-strong;
-    Text {
-        text: root.text;
-        color: Theme.palette.text-muted;
-        font-size: 11px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-}
-
 export component BankSceneNavigator inherits Rectangle {
     in property <bool> project-open;
     in property <string> project-title;
     in property <[BankNavItem]> inputs;
-    in property <[BankNavItem]> selected;       // 0 or 1 (focused input)
-    in property <[ChainBlockItem]> chain-blocks; // pedals of the focused chain
+    in property <[BankNavItem]> selected;     // 0 or 1 (focused input)
+    in property <[GraphNode]> chain-nodes;
+    in property <[GraphEdgeGeometry]> chain-edges;
+    in property <float> content-min-x;
+    in property <float> content-min-y;
+    in property <float> content-max-x;
+    in property <float> content-max-y;
 
     callback open-project();
     callback create-project();
@@ -118,7 +87,8 @@ export component BankSceneNavigator inherits Rectangle {
         padding: 12px;
         spacing: 10px;
 
-        // ── Header (kept clear of the app's global top-right chrome) ──
+        // ── Header. A fixed right reservation keeps every button clear
+        //    of DesktopMain's global language globe (x: width-32, z:200).
         Rectangle {
             height: 52px;
             border-radius: 10px;
@@ -128,9 +98,9 @@ export component BankSceneNavigator inherits Rectangle {
             HorizontalLayout {
                 padding-left: 16px;
                 padding-right: 16px;
-                spacing: 14px;
+                spacing: 12px;
                 for it in root.selected : HorizontalLayout {
-                    spacing: 14px;
+                    spacing: 12px;
                     Text {
                         text: "\{it.active-preset}·S\{it.active-scene}";
                         color: Theme.palette.accent-border;
@@ -145,9 +115,6 @@ export component BankSceneNavigator inherits Rectangle {
                         font-weight: 650;
                         vertical-alignment: center;
                     }
-                    Rectangle { horizontal-stretch: 1; }
-                    QcButton { text: "◀ BANK"; clicked => { root.bank-prev(it.input); } }
-                    QcButton { text: "BANK ▶"; clicked => { root.bank-next(it.input); } }
                 }
                 if !root.project-open : Text {
                     text: @tr("No project open");
@@ -155,11 +122,19 @@ export component BankSceneNavigator inherits Rectangle {
                     font-size: 17px;
                     vertical-alignment: center;
                 }
-                Rectangle { horizontal-stretch: root.project-open ? 0.0 : 1.0; }
+                Rectangle { horizontal-stretch: 1; }
+                for it in root.selected : QcButton {
+                    text: "◀ BANK";
+                    clicked => { root.bank-prev(it.input); }
+                }
+                for it in root.selected : QcButton {
+                    text: "BANK ▶";
+                    clicked => { root.bank-next(it.input); }
+                }
                 QcButton { text: @tr("↻"); clicked => { root.open-project(); } }
                 QcButton { text: @tr("Classic ▶"); clicked => { root.create-project(); } }
-                // Right inset so we never sit under the window's global icons.
-                Rectangle { width: 44px; }
+                // Clears DesktopMain's global globe (top-right, z:200).
+                Rectangle { width: 88px; }
             }
         }
 
@@ -177,41 +152,30 @@ export component BankSceneNavigator inherits Rectangle {
             }
         }
 
-        // ── HERO: the pedalboard ─────────────────────────────────────
+        // ── HERO: the #435 graph, auto-fitted to this area ───────────
         Rectangle {
             vertical-stretch: 1;
             border-radius: 12px;
             clip: true;
-            Image {
-                width: 100%;
-                height: 100%;
-                source: @image-url("../assets/launcher-stage-bg.jpg");
-                image-fit: cover;
+            border-width: 1px;
+            border-color: Theme.palette.border;
+            GraphView {
+                width: parent.width;
+                height: parent.height;
+                nodes: root.chain-nodes;
+                edges: root.chain-edges;
+                node_width: 116px;
+                node_height: 64px;
+                auto_layout: true;
+                fit: true;
+                content_min_x: root.content-min-x;
+                content_min_y: root.content-min-y;
+                content_max_x: root.content-max-x;
+                content_max_y: root.content-max-y;
+                node_clicked(id) => { root.node-clicked(id); }
             }
-            Rectangle { background: #05070bcc; } // darken for contrast
-
-            Flickable {
-                viewport-width: board.preferred-width + 48px;
-                board := HorizontalLayout {
-                    x: 24px;
-                    spacing: 0px;
-                    Jack { text: @tr("IN"); }
-                    for b in root.chain-blocks : HorizontalLayout {
-                        spacing: 0px;
-                        Cable { }
-                        TouchArea {
-                            width: 104px;
-                            height: 104px;
-                            clicked => { root.node-clicked(b.label); }
-                            BlockChip { block: b; }
-                        }
-                    }
-                    Cable { }
-                    Jack { text: @tr("OUT"); }
-                }
-            }
-            if root.chain-blocks.length == 0 : Text {
-                text: @tr("Open a project to see the pedalboard");
+            if root.chain-nodes.length == 0 : Text {
+                text: @tr("Open a project to see the chain");
                 color: Theme.palette.text-secondary;
                 font-size: 15px;
             }

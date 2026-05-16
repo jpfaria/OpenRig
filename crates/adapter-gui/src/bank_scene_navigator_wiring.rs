@@ -40,6 +40,17 @@ pub(crate) struct BankSceneNavCtx {
     pub chain_blocks: Rc<VecModel<crate::ChainBlockItem>>,
     /// Presentation state, rebuilt from the live project when the screen opens.
     pub state: Rc<RefCell<Option<BankSceneState>>>,
+    /// For pushing fit-to-viewport content bounds (scalars) to the window.
+    pub win: slint::Weak<AppWindow>,
+}
+
+fn push_bounds(ctx: &BankSceneNavCtx, b: (f32, f32, f32, f32)) {
+    if let Some(w) = ctx.win.upgrade() {
+        w.set_bank_content_min_x(b.0);
+        w.set_bank_content_min_y(b.1);
+        w.set_bank_content_max_x(b.2);
+        w.set_bank_content_max_y(b.3);
+    }
 }
 
 /// Recompute the live chain backing `input-{N}` from the rig's active
@@ -149,9 +160,9 @@ fn chain_blocks_for(ctx: &BankSceneNavCtx, selected: Option<&str>) -> Vec<crate:
 fn graph_for_selected(
     rig: &RigProject,
     selected: Option<&str>,
-) -> (Vec<GraphNode>, Vec<GraphEdgeGeometry>) {
+) -> (Vec<GraphNode>, Vec<GraphEdgeGeometry>, (f32, f32, f32, f32)) {
     let Some(input) = selected.and_then(|s| rig.inputs.get(s)) else {
-        return (Vec::new(), Vec::new());
+        return (Vec::new(), Vec::new(), (0.0, 0.0, 0.0, 0.0));
     };
     let blocks = input
         .bank
@@ -238,7 +249,18 @@ fn graph_for_selected(
             })
         })
         .collect();
-    (sn, se)
+    // Bounding box of node CENTRES — GraphView fit-to-viewport uses it.
+    let (mut minx, mut miny, mut maxx, mut maxy) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for n in &nodes {
+        minx = minx.min(n.x);
+        miny = miny.min(n.y);
+        maxx = maxx.max(n.x);
+        maxy = maxy.max(n.y);
+    }
+    if nodes.is_empty() {
+        (minx, miny, maxx, maxy) = (0.0, 0.0, 0.0, 0.0);
+    }
+    (sn, se, (minx, miny, maxx, maxy))
 }
 
 fn rebuild(ctx: &BankSceneNavCtx) {
@@ -276,7 +298,8 @@ fn rebuild(ctx: &BankSceneNavCtx) {
             .collect::<Vec<_>>(),
     );
     ctx.bank_nav_items.set_vec(rows);
-    let (n, e) = graph_for_selected(&rig, st.selected_input.as_deref());
+    let (n, e, bounds) = graph_for_selected(&rig, st.selected_input.as_deref());
+    push_bounds(ctx, bounds);
     ctx.bank_chain_nodes.set_vec(n);
     ctx.bank_chain_edges.set_vec(e);
     ctx.chain_blocks
@@ -326,7 +349,8 @@ fn dispatch(ctx: &BankSceneNavCtx, ev: BankSceneEvent) {
     // Re-render the selected input's chain in the GraphView.
     if let Some(ps) = ctx.project_session.borrow().as_ref() {
         let rig = migrate_legacy_project(&ps.project.borrow());
-        let (n, e) = graph_for_selected(&rig, selected.as_deref());
+        let (n, e, bounds) = graph_for_selected(&rig, selected.as_deref());
+        push_bounds(ctx, bounds);
         ctx.bank_chain_nodes.set_vec(n);
         ctx.bank_chain_edges.set_vec(e);
         ctx.chain_blocks

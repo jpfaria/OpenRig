@@ -479,6 +479,7 @@ pub fn run_desktop_app(
             bank_chain_nodes: Rc::new(slint::VecModel::from(Vec::new())),
             bank_chain_edges: Rc::new(slint::VecModel::from(Vec::new())),
             chain_blocks: Rc::new(slint::VecModel::from(Vec::new())),
+            win: window.as_weak(),
             state: Rc::new(RefCell::new(None)),
         },
     );

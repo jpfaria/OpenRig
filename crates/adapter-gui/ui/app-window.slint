@@ -48,6 +48,10 @@ export component AppWindow inherits Window {
     in property <[BankNavItem]> bank-nav-items;
     in property <[BankNavItem]> bank-nav-selected;
     in property <[ChainBlockItem]> bank-chain-blocks;
+    in property <float> bank-content-min-x;
+    in property <float> bank-content-min-y;
+    in property <float> bank-content-max-x;
+    in property <float> bank-content-max-y;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in-out property <int> wizard-step;
@@ -280,6 +284,10 @@ export component AppWindow inherits Window {
         bank-nav-items: root.bank-nav-items;
         bank-nav-selected: root.bank-nav-selected;
         bank-chain-blocks: root.bank-chain-blocks;
+        bank-content-min-x: root.bank-content-min-x;
+        bank-content-min-y: root.bank-content-min-y;
+        bank-content-max-x: root.bank-content-max-x;
+        bank-content-max-y: root.bank-content-max-y;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;
@@ -491,6 +499,10 @@ export component AppWindow inherits Window {
         bank-nav-items: root.bank-nav-items;
         bank-nav-selected: root.bank-nav-selected;
         bank-chain-blocks: root.bank-chain-blocks;
+        bank-content-min-x: root.bank-content-min-x;
+        bank-content-min-y: root.bank-content-min-y;
+        bank-content-max-x: root.bank-content-max-x;
+        bank-content-max-y: root.bank-content-max-y;
         bank-chain-nodes: root.bank-chain-nodes;
         bank-chain-edges: root.bank-chain-edges;
         show-chain-editor: root.show-chain-editor;

@@ -61,6 +61,7 @@ dependencies = [
  "slint",
  "slint-build",
  "sys-locale",
+ "tempfile",
  "ui-openrig",
  "webbrowser",
 ]

@@ -16,6 +16,10 @@ export component DesktopMain inherits Rectangle {
     in property <[BankNavItem]> bank-nav-items;
     in property <[BankNavItem]> bank-nav-selected;
     in property <[ChainBlockItem]> bank-chain-blocks;
+    in property <float> bank-content-min-x;
+    in property <float> bank-content-min-y;
+    in property <float> bank-content-max-x;
+    in property <float> bank-content-max-y;
     in property <[GraphNode]> bank-chain-nodes;
     in property <[GraphEdgeGeometry]> bank-chain-edges;
     in property <bool> show-chain-editor;
@@ -269,7 +273,12 @@ export component DesktopMain inherits Rectangle {
             project-title: root.project-title;
             inputs: root.bank-nav-items;
             selected: root.bank-nav-selected;
-            chain-blocks: root.bank-chain-blocks;
+            chain-nodes: root.bank-chain-nodes;
+            chain-edges: root.bank-chain-edges;
+            content-min-x: root.bank-content-min-x;
+            content-min-y: root.bank-content-min-y;
+            content-max-x: root.bank-content-max-x;
+            content-max-y: root.bank-content-max-y;
             select-input(i) => { root.bank-select-input(i); }
             bank-prev(i) => { root.bank-prev(i); }
             bank-next(i) => { root.bank-next(i); }
