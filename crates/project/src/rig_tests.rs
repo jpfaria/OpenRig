@@ -198,6 +198,109 @@ fn validate_scene_param_not_marked_err() {
     );
 }
 
+// ── #454 T2: pure apply_scene (bypass + marked-param override) ─────────────
+
+fn preset_with(
+    blocks: Vec<AudioBlock>,
+    marked: &[&str],
+    scenes: Vec<(usize, RigScene)>,
+) -> RigPreset {
+    RigPreset {
+        blocks,
+        scene_params: marked.iter().map(|s| s.to_string()).collect(),
+        scenes: scenes.into_iter().collect(),
+    }
+}
+
+#[test]
+fn apply_scene_no_scenes_returns_blocks_unchanged() {
+    let p = preset_with(vec![core_block("od")], &[], vec![]);
+    let out = p.apply_scene(1);
+    assert_eq!(out, p.blocks, "pre-scenes preset = identity Default scene");
+}
+
+#[test]
+fn apply_scene_bypass_disables_named_block() {
+    let p = preset_with(
+        vec![core_block("od"), core_block("dl")],
+        &[],
+        vec![(
+            1,
+            RigScene {
+                label: None,
+                bypass: BTreeMap::from([("od".to_string(), true)]),
+                params: BTreeMap::new(),
+            },
+        )],
+    );
+    let out = p.apply_scene(1);
+    assert!(!out[0].enabled, "od bypassed in scene 1");
+    assert!(out[1].enabled, "dl untouched");
+}
+
+#[test]
+fn apply_scene_bypass_false_keeps_block_enabled() {
+    let p = preset_with(
+        vec![core_block("od")],
+        &[],
+        vec![(
+            1,
+            RigScene {
+                label: None,
+                bypass: BTreeMap::from([("od".to_string(), false)]),
+                params: BTreeMap::new(),
+            },
+        )],
+    );
+    assert!(p.apply_scene(1)[0].enabled);
+}
+
+#[test]
+fn apply_scene_overrides_only_marked_param() {
+    let p = preset_with(
+        vec![core_block("od")],
+        &["od.gain"],
+        vec![(
+            2,
+            RigScene {
+                label: None,
+                bypass: BTreeMap::new(),
+                params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+            },
+        )],
+    );
+    let out = p.apply_scene(2);
+    let params = match &out[0].kind {
+        AudioBlockKind::Core(c) => &c.params,
+        _ => unreachable!(),
+    };
+    assert_eq!(params.get_f32("gain"), Some(0.7));
+}
+
+#[test]
+fn apply_scene_ignores_param_not_in_scene_params() {
+    // Defensive: even if a scene carries an unmarked key, apply_scene only
+    // applies keys listed in scene_params (validate also rejects this).
+    let p = preset_with(
+        vec![core_block("od")],
+        &[], // nothing marked
+        vec![(
+            1,
+            RigScene {
+                label: None,
+                bypass: BTreeMap::new(),
+                params: BTreeMap::from([("od.gain".to_string(), 0.9)]),
+            },
+        )],
+    );
+    let out = p.apply_scene(1);
+    let params = match &out[0].kind {
+        AudioBlockKind::Core(c) => &c.params,
+        _ => unreachable!(),
+    };
+    assert_eq!(params.get_f32("gain"), None, "unmarked param not applied");
+}
+
 #[test]
 fn validate_scene_param_marked_ok() {
     let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
