@@ -247,6 +247,7 @@ fn process_single_segment(
         fade_in_remaining,
         output_route_indices,
         split_mono_sibling_count,
+        outgoing,
     } = input_state;
 
     frame_buffer.clear();
@@ -347,6 +348,60 @@ fn process_single_segment(
             AudioFrame::Stereo([l, r]) => AudioFrame::Stereo([l * split_scale, r * split_scale]),
         }
     };
+
+    // #454-T5 spillover: the previous pipeline keeps decaying in parallel.
+    // It is fed SILENCE (so only its delay/reverb tail emits), equal-power
+    // faded out, and summed into THIS segment's frame_buffer *before* the
+    // single per-route push below — so there is still exactly one producer
+    // per output ring (SPSC invariant intact). `None` ⇒ this whole block is
+    // skipped and behaviour is byte-identical to pre-#454-T5.
+    if let Some(tail) = outgoing.as_mut() {
+        let n = frame_buffer.len();
+        let silent = match *processing_layout {
+            AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+            _ => AudioFrame::Mono(0.0),
+        };
+        tail.scratch.clear();
+        if n > tail.scratch.capacity() {
+            tail.scratch.reserve(n - tail.scratch.capacity());
+        }
+        for _ in 0..n {
+            tail.scratch.push(silent);
+        }
+        for block in tail.blocks.iter_mut() {
+            process_audio_block(block, tail.scratch.as_mut_slice(), error_queue);
+        }
+        let total = crate::runtime_state::SPILLOVER_FRAMES as f32;
+        for (i, fb) in frame_buffer.iter_mut().enumerate() {
+            if tail.frames_remaining == 0 {
+                break;
+            }
+            let progress = 1.0 - (tail.frames_remaining as f32 / total).min(1.0);
+            // wet→dry equal-power: 1.0 at switch, 0.0 at window end.
+            let g = 0.5 * (1.0 + (std::f32::consts::PI * progress).cos());
+            let t = tail.scratch[i];
+            match (fb, t) {
+                (AudioFrame::Stereo([l, r]), AudioFrame::Stereo([tl, tr])) => {
+                    *l += tl * g;
+                    *r += tr * g;
+                }
+                (AudioFrame::Mono(s), AudioFrame::Mono(ts)) => {
+                    *s += ts * g;
+                }
+                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(ts)) => {
+                    *l += ts * g;
+                    *r += ts * g;
+                }
+                (AudioFrame::Mono(s), AudioFrame::Stereo([tl, tr])) => {
+                    *s += (tl + tr) * 0.5 * g;
+                }
+            }
+            tail.frames_remaining -= 1;
+        }
+        if tail.frames_remaining == 0 {
+            *outgoing = None;
+        }
+    }
 
     for &route_idx in output_route_indices.iter() {
         let buf = scratch.mixed_per_route.entry(route_idx).or_default();
