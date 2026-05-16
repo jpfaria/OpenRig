@@ -1,6 +1,7 @@
 mod audio_settings_save_wiring;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
+mod bank_scene_render;
 mod bank_scene_session;
 mod block_choose_type_callback;
 mod block_delete_wiring;
@@ -54,6 +55,7 @@ mod tuner_session;
 mod tuner_wiring;
 mod virtual_keyboard_wiring;
 mod vst3_editor_wiring;
+pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub use cli::parse_cli_args_from;
