@@ -54,7 +54,7 @@ mod tuner_wiring;
 mod virtual_keyboard_wiring;
 mod vst3_editor_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
-pub use cli::parse_cli_args_from;
+pub use cli::{parse_cli_args_from, validate_project_path};
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
     sync_project_runtime, system_language, ui_index_to_real_block_index,
