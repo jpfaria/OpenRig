@@ -92,6 +92,30 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
+# Desktop integration — staged into $S so it ships in .deb/.rpm/.tar.gz
+# (and reused by the AppImage below). Without this the .deb installs no
+# launcher/icon and the app only starts from a terminal (issue #475).
+# Exec=openrig (bare name): /usr/bin is on PATH for the FHS install, and
+# the AppImage's AppRun resolves it too — one .desktop for all formats.
+mkdir -p "$S/usr/share/applications" \
+         "$S/usr/share/icons/hicolor/scalable/apps" \
+         "$S/usr/share/icons/hicolor/256x256/apps"
+cat > "$S/usr/share/applications/openrig.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=OpenRig
+Comment=Virtual guitar pedalboard
+Exec=openrig
+Icon=openrig
+Type=Application
+Categories=AudioVideo;Audio;Music;
+Terminal=false
+DESKTOP
+cp crates/adapter-gui/ui/assets/openrig-logomark.svg \
+   "$S/usr/share/icons/hicolor/scalable/apps/openrig.svg"
+rsvg-convert -w 256 -h 256 \
+    crates/adapter-gui/ui/assets/openrig-logomark.svg \
+    -o "$S/usr/share/icons/hicolor/256x256/apps/openrig.png"
+
 # The binary links libNeuralAudioCAPI.so with RUNPATH=$ORIGIN, but the lib
 # is staged under usr/lib/openrig/libs/nam/, NOT next to the binary — so
 # ld.so can't find it and the app dies at startup with "cannot open
@@ -252,18 +276,11 @@ if $BUILD_APPIMAGE; then
         > "$APPDIR/AppRun"
     chmod +x "$APPDIR/AppRun"
 
-    printf '%s\n' \
-        '[Desktop Entry]' \
-        'Name=OpenRig' \
-        'Exec=openrig' \
-        'Icon=openrig' \
-        'Type=Application' \
-        'Categories=AudioVideo;Audio;Music;' \
-        > "$APPDIR/openrig.desktop"
-
-    rsvg-convert -w 256 -h 256 \
-        crates/adapter-gui/ui/assets/openrig-logomark.svg \
-        -o "$APPDIR/openrig.png"
+    # appimagetool wants the .desktop + icon at the AppDir root. Reuse
+    # the ones already staged under usr/share (AppDir is a copy of the
+    # stage tree) — single source, no divergence (issue #475).
+    cp "$APPDIR/usr/share/applications/openrig.desktop" "$APPDIR/openrig.desktop"
+    cp "$APPDIR/usr/share/icons/hicolor/256x256/apps/openrig.png" "$APPDIR/openrig.png"
 
     APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$OUTPUT_DIR/appimagetool" "$APPDIR" \
         "$OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
