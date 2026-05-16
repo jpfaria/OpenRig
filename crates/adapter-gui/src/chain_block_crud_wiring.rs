@@ -16,6 +16,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::{clear_status, set_status_error};
@@ -141,25 +143,42 @@ pub(crate) fn wire(
                 );
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                return;
+            // Resolve real block index and IDs (read-only) before dispatching.
+            let (block_index, chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index as usize) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                };
+                // Convert UI index to real block index from current chain state
+                let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
+                log::info!(
+                    "on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}",
+                    chain_index,
+                    ui_block_index,
+                    block_index
+                );
+                let Some(block) = chain.blocks.get(block_index) else {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
+                    return;
+                };
+                (block_index, chain.id.clone(), block.id.clone())
             };
-            // Convert UI index to real block index from current chain state
-            let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
-            log::info!(
-                "on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}",
-                chain_index,
-                ui_block_index,
-                block_index
-            );
-            let Some(block) = chain.blocks.get_mut(block_index) else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
+            if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
+            }
+            let new_enabled = {
+                let proj = session.project.borrow();
+                proj.chains
+                    .get(chain_index as usize)
+                    .and_then(|c| c.blocks.get(block_index))
+                    .map(|b| b.enabled)
+                    .unwrap_or(false)
             };
-            block.enabled = !block.enabled;
-            let new_enabled = block.enabled;
-            let chain_id = chain.id.clone();
             // Keep block_editor_draft in sync to prevent stale persist from reverting
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
                 if draft.chain_index == chain_index as usize
@@ -176,16 +195,20 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
-            let chain_ref = session.project.chains.get(chain_index as usize);
-            *selected_block.borrow_mut() = Some(SelectedBlock {
+            let selected = SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index,
-            });
-            set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
+            };
+            *selected_block.borrow_mut() = Some(selected);
+            {
+                let proj = session.project.borrow();
+                let chain_ref = proj.chains.get(chain_index as usize);
+                set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
+            }
             sync_project_dirty(
                 &window,
                 session,
@@ -219,12 +242,14 @@ pub(crate) fn wire(
                 set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
                 return;
             };
-            let (chain_id, _insert_at) = {
-                let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
+            // Compute real indices and resolve block_id; the dispatcher handles the actual move.
+            let (chain_id, block_id, insert_at) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index as usize) else {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
                 };
-                // Both from_index and before_index are in UI space — convert to real indices
+                // Both from_index and before_index are in UI space — convert to real indices.
                 let from_index = ui_index_to_real_block_index(chain, ui_from_index as usize) as i32;
                 let real_before =
                     ui_index_to_real_block_index(chain, ui_before_index as usize) as i32;
@@ -243,22 +268,34 @@ pub(crate) fn wire(
                 if real_before == from_index || real_before == from_index + 1 {
                     return;
                 }
-                let block = chain.blocks.remove(from_index as usize);
+                let block_id = chain.blocks[from_index as usize].id.clone();
+                // Compute the post-removal insert position (same logic as before, but without
+                // actually mutating — the dispatcher will do the mutation).
                 let mut normalized_before = real_before;
                 if normalized_before > from_index {
                     normalized_before -= 1;
                 }
-                let insert_at = normalized_before.clamp(0, chain.blocks.len() as i32) as usize;
-                chain.blocks.insert(insert_at, block);
-                (chain.id.clone(), insert_at)
+                // blocks.len() - 1 because we'll have removed one block before inserting.
+                let insert_at =
+                    normalized_before.clamp(0, block_count - 1) as usize;
+                (chain.id.clone(), block_id, insert_at)
             };
+            // Dispatch Command::MoveBlock — mutates project via shared Rc.
+            if let Err(error) = session.dispatcher.dispatch(Command::MoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+                new_position: insert_at,
+            }) {
+                set_status_error(&window, &toast_timer, &error.to_string());
+                return;
+            }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );

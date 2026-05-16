@@ -13,7 +13,9 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
+use block_core::{
+    wrap_with_output_gain_pct, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+};
 use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2PortRole};
 use plugin_loader::manifest::{Backend, Lv2Slot};
 use plugin_loader::LoadedPackage;
@@ -103,7 +105,7 @@ pub fn build_from_package(
     let bundle_str = path_str(&bundle_path)?;
     let sr = sample_rate as f64;
 
-    match (audio_in.len(), audio_out.len()) {
+    let processor = match (audio_in.len(), audio_out.len()) {
         (1, 1) | (1, 2) => build_mono_input(
             &lib_str,
             &plugin_uri,
@@ -115,7 +117,7 @@ pub fn build_from_package(
             &atom_ports,
             layout,
             &package.manifest.id,
-        ),
+        )?,
         (2, 2) => build_stereo_input(
             &lib_str,
             &plugin_uri,
@@ -127,12 +129,20 @@ pub fn build_from_package(
             &atom_ports,
             layout,
             &package.manifest.id,
-        ),
+        )?,
         (a_in, a_out) => bail!(
             "LV2 plugin `{}` has unsupported audio shape: {a_in} in / {a_out} out",
             package.manifest.id
         ),
-    }
+    };
+    // Issue #440: aplica `manifest.output_gain_pct` (baseline objetivo do
+    // audit) como wrapper linear pós-process. NAM faz isso via
+    // `plugin_params.output_level_db`; LV2 não tem level shift embutido,
+    // então um wrapper estático é o caminho mais simples.
+    Ok(wrap_with_output_gain_pct(
+        processor,
+        package.manifest.output_gain_pct,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]

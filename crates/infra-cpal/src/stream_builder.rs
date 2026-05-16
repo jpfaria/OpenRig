@@ -36,7 +36,7 @@ use cpal::Stream;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime::{process_input_f32, process_output_f32};
+use engine::runtime::{process_input_f32, process_output_f32_mixed};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
@@ -88,16 +88,21 @@ pub fn build_streams_for_project(
             if !chain.enabled {
                 continue;
             }
-            let runtime = runtime_graph
-                .chains
-                .get(&chain.id)
-                .cloned()
-                .ok_or_else(|| anyhow!("chain '{}' has no runtime state", chain.id.0))?;
+            // Issue #350 phase 3: a chain owns N per-input runtimes (one
+            // per physical input device). Pass the full ordered
+            // (group_id, runtime) list so each input cpal stream feeds
+            // runtime (chain, group) and the output cpal stream mixes them
+            // at the backend. Single-input chains have exactly one entry
+            // here and take the byte-identical fast path.
+            let runtimes = runtime_graph.runtimes_with_groups_for(&chain.id);
+            if runtimes.is_empty() {
+                return Err(anyhow!("chain '{}' has no runtime state", chain.id.0));
+            }
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
             let (input_streams, output_streams) =
-                build_chain_streams(&chain.id, resolved, runtime)?;
+                build_chain_streams(&chain.id, resolved, runtimes)?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -217,12 +222,21 @@ pub(crate) fn build_input_stream_for_input(
     Ok(stream)
 }
 
+/// Build the cpal output stream for one physical output device. Issue
+/// #350 phase 3: a chain may own N per-input runtimes (one isolated
+/// `ChainRuntimeState` per physical input device). This single physical
+/// output device must SUM all of them — the backend mix CLAUDE.md
+/// invariant #4 mandates (each runtime's SPSC ring still has exactly one
+/// producer and is consumed once here). The `scratch` mix buffer is
+/// pre-allocated here at stream-build time and reused every callback so
+/// the audio thread allocates nothing. Single-runtime chains (99% case)
+/// hit the byte-identical fast path inside `process_output_f32_mixed`.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn build_output_stream_for_output(
     chain_id: &ChainId,
     output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
-    runtime: Arc<ChainRuntimeState>,
+    runtimes: Vec<Arc<ChainRuntimeState>>,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -244,14 +258,28 @@ pub(crate) fn build_output_stream_for_output(
     let device = resolved_output_device.device;
     let stream = match sample_format {
         SampleFormat::F32 => {
-            let runtime_for_data = runtime.clone();
+            let runtimes_for_data = runtimes.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            // Pre-allocated backend-mix scratch (issue #350 phase 3). Sized
+            // to the configured buffer once here; the steady-state callback
+            // never allocates. `process_output_f32_mixed` takes the
+            // single-runtime byte-identical fast path when len()==1.
+            let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
+                    if mix_scratch.len() < out.len() {
+                        mix_scratch.resize(out.len(), 0.0);
+                    }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32(&runtime_for_data, output_index, out, channels);
+                        process_output_f32_mixed(
+                            &runtimes_for_data,
+                            output_index,
+                            out,
+                            channels,
+                            &mut mix_scratch,
+                        );
                     }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -259,16 +287,26 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I16 => {
-            let runtime_for_data = runtime.clone();
+            let runtimes_for_data = runtimes.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
+            let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     temp.resize(out.len(), 0.0);
+                    if mix_scratch.len() < out.len() {
+                        mix_scratch.resize(out.len(), 0.0);
+                    }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                        process_output_f32_mixed(
+                            &runtimes_for_data,
+                            output_index,
+                            &mut temp,
+                            channels,
+                            &mut mix_scratch,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -280,16 +318,26 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::U16 => {
-            let runtime_for_data = runtime.clone();
+            let runtimes_for_data = runtimes.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
+            let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     temp.resize(out.len(), 0.0);
+                    if mix_scratch.len() < out.len() {
+                        mix_scratch.resize(out.len(), 0.0);
+                    }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                        process_output_f32_mixed(
+                            &runtimes_for_data,
+                            output_index,
+                            &mut temp,
+                            channels,
+                            &mut mix_scratch,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
@@ -302,16 +350,26 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I32 => {
-            let runtime_for_data = runtime.clone();
+            let runtimes_for_data = runtimes.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
+            let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i32], _| {
                     temp.resize(out.len(), 0.0);
+                    if mix_scratch.len() < out.len() {
+                        mix_scratch.resize(out.len(), 0.0);
+                    }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                        process_output_f32_mixed(
+                            &runtimes_for_data,
+                            output_index,
+                            &mut temp,
+                            channels,
+                            &mut mix_scratch,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -333,17 +391,45 @@ pub(crate) fn build_output_stream_for_output(
     Ok(stream)
 }
 
+/// Stitch the per-input + per-output cpal streams for one chain.
+///
+/// Issue #350 phase 3: `runtimes` is the chain's ordered list of
+/// per-input runtimes — `(group_id, ChainRuntimeState)` where `group_id`
+/// is the cpal input index that runtime owns (see
+/// `RuntimeGraph::runtimes_with_groups_for`). The engine's
+/// `effective_inputs` assigns cpal indices by first-seen distinct device
+/// over the chain's raw input entries; `resolved.inputs` is in that same
+/// raw-entry order, so deduplicating it by device in iteration order
+/// yields the Nth distinct device == group N. Each physical input device
+/// therefore gets its OWN cpal stream bound to its OWN runtime
+/// `(chain, group)` — never collapsed to the first. The shared output
+/// device's stream is handed EVERY runtime and sums them at the backend
+/// (the only mix point invariant #4 permits).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
-    runtime: Arc<ChainRuntimeState>,
+    runtimes: Vec<(usize, Arc<ChainRuntimeState>)>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
-    // Deduplicate input streams by device: one CPAL stream per unique device.
-    // Multiple entries on the same device share the stream — the engine
-    // reads each entry's channels from the same raw data buffer.
+    // group_id -> runtime, for binding each physical input device to the
+    // isolated runtime that owns its cpal index.
+    let runtime_by_group: std::collections::HashMap<usize, Arc<ChainRuntimeState>> =
+        runtimes.iter().map(|(g, rt)| (*g, rt.clone())).collect();
+    // Flat list (group order) for the backend output mix.
+    let all_runtimes: Vec<Arc<ChainRuntimeState>> =
+        runtimes.iter().map(|(_, rt)| rt.clone()).collect();
+    // Fallback used only if a chain somehow has no per-input runtime for a
+    // given group (degenerate config) — keeps behaviour defined instead of
+    // panicking on the audio-setup path.
+    let first_runtime = all_runtimes.first().cloned();
+
+    // Deduplicate input streams by device: one CPAL stream per unique
+    // device. Iteration order over resolved.inputs matches the engine's
+    // first-seen-device cpal-index assignment, so the Nth distinct device
+    // is group N and binds to runtime (chain, N).
     let mut input_streams = Vec::new();
     let mut seen_devices: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut next_group: usize = 0;
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
         let device_key = resolved_input
             .device
@@ -358,24 +444,44 @@ fn build_chain_streams(
             );
             continue;
         }
-        let stream = build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
+        let group = next_group;
+        next_group += 1;
+        let runtime = runtime_by_group
+            .get(&group)
+            .cloned()
+            .or_else(|| first_runtime.clone())
+            .ok_or_else(|| {
+                anyhow!(
+                    "chain '{}' input group {} has no per-input runtime",
+                    chain_id.0,
+                    group
+                )
+            })?;
+        let stream = build_input_stream_for_input(chain_id, group, resolved_input, runtime)?;
         input_streams.push(stream);
     }
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        let stream = build_output_stream_for_output(chain_id, j, resolved_output, runtime.clone())?;
+        let stream =
+            build_output_stream_for_output(chain_id, j, resolved_output, all_runtimes.clone())?;
         output_streams.push(stream);
     }
 
     Ok((input_streams, output_streams))
 }
 
+/// Build (and start) the cpal streams for one chain. Issue #350 phase 3:
+/// `runtimes` is the chain's full ordered `(group_id, runtime)` list — the
+/// cpal path wires each physical input device to its own runtime and the
+/// shared output device sums them. The Linux/JACK path is unchanged: it
+/// keeps the single-runtime model (Insert / JACK-direct chains are one
+/// runtime by Phase-1 design) and uses the first runtime.
 pub(crate) fn build_active_chain_runtime(
     chain_id: &ChainId,
     #[allow(unused_variables)] chain: &Chain,
     resolved: ResolvedChainAudioConfig,
-    runtime: Arc<ChainRuntimeState>,
+    runtimes: Vec<(usize, Arc<ChainRuntimeState>)>,
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -391,6 +497,13 @@ pub(crate) fn build_active_chain_runtime(
     {
         if jack_server_is_running() {
             log::info!("JACK detected — using direct JACK backend (bypassing CPAL)");
+            // JACK-direct chains are a single runtime by Phase-1 design
+            // (Insert pipelines are not partitioned). Use the first.
+            let runtime = runtimes
+                .into_iter()
+                .next()
+                .map(|(_, rt)| rt)
+                .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
             let (jack_client, dsp_worker) = build_jack_direct_chain(chain_id, chain, runtime)?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
@@ -406,7 +519,7 @@ pub(crate) fn build_active_chain_runtime(
         // through to the CPAL path with nothing to build.
         let _ = chain_id;
         let _ = resolved;
-        let _ = runtime;
+        let _ = runtimes;
         return Ok(ActiveChainRuntime {
             stream_signature,
             _input_streams: Vec::new(),
@@ -418,7 +531,7 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
-        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtime)?;
+        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtimes)?;
         for stream in &input_streams {
             stream.play()?;
         }

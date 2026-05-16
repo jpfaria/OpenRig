@@ -78,14 +78,25 @@ pub fn processing_layout_for_input_entry(entry: &InputEntry) -> ProcessingLayout
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+fn default_chain_volume() -> f32 {
+    100.0
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Chain {
-    #[serde(skip)]
+    #[serde(skip, default = "ChainId::generate")]
     pub id: ChainId,
     #[serde(default)]
     pub description: Option<String>,
     pub instrument: String,
     pub enabled: bool,
+    /// Output volume da chain em percentual. 100 = unity (sem mudança).
+    /// 200 = 2× (+6 dB). 50 = metade (-6 dB). Aplicado no master output
+    /// do `process_output_f32`. Controlado via slider na chain row UI.
+    /// Persistido no YAML do projeto. Default 100.0 para projetos legados
+    /// que não têm o campo.
+    #[serde(default = "default_chain_volume")]
+    pub volume: f32,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
 }

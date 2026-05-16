@@ -103,24 +103,23 @@ pub(crate) fn wire(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let instrument = project_session.borrow().as_ref()
-                .and_then(|s| {
-                    let chain = s.project.chains.get(chain_index as usize)?;
-                    log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
-                        chain_index, chain.instrument, chain.description);
-                    Some(chain.instrument.clone())
-                })
-                .unwrap_or_else(|| {
-                    log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
-                    block_core::DEFAULT_INSTRUMENT.to_string()
-                });
-            // Map UI before_index to real chain.blocks index (UI excludes hidden I/O blocks)
-            let real_before_index = {
+            let (instrument, real_before_index) = {
                 let session_borrow = project_session.borrow();
-                session_borrow.as_ref()
-                    .and_then(|s| s.project.chains.get(chain_index as usize))
-                    .map(|chain| ui_index_to_real_block_index(chain, before_index as usize))
-                    .unwrap_or(before_index as usize)
+                if let Some(s) = session_borrow.as_ref() {
+                    let proj = s.project.borrow();
+                    if let Some(chain) = proj.chains.get(chain_index as usize) {
+                        log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
+                            chain_index, chain.instrument, chain.description);
+                        let real_idx = ui_index_to_real_block_index(chain, before_index as usize);
+                        (chain.instrument.clone(), real_idx)
+                    } else {
+                        log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
+                        (block_core::DEFAULT_INSTRUMENT.to_string(), before_index as usize)
+                    }
+                } else {
+                    log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
+                    (block_core::DEFAULT_INSTRUMENT.to_string(), before_index as usize)
+                }
             };
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {

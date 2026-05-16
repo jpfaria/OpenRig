@@ -71,6 +71,7 @@ mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
 mod eq;
+pub mod graph_view_model;
 mod helpers;
 mod io_groups;
 mod latency_probe;

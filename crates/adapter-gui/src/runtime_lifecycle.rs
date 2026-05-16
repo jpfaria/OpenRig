@@ -46,10 +46,11 @@ pub(crate) fn sync_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
 ) -> Result<()> {
+    let proj = session.project.borrow();
     let mut borrow = project_runtime.borrow_mut();
     if let Some(runtime) = borrow.as_mut() {
-        validate_project(&session.project)?;
-        runtime.sync_project(&session.project)?;
+        validate_project(&*proj)?;
+        runtime.sync_project(&*proj)?;
     }
     Ok(())
 }
@@ -60,13 +61,14 @@ pub(crate) fn sync_live_chain_runtime(
     chain_id: &ChainId,
 ) -> Result<()> {
     log::debug!("sync_live_chain_runtime: chain_id='{}'", chain_id.0);
-    let chain = session.project.chains.iter().find(|c| &c.id == chain_id);
+    let proj = session.project.borrow();
+    let chain = proj.chains.iter().find(|c| &c.id == chain_id);
     let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
     // If chain is being enabled and no runtime exists, create one
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
-            *borrow = Some(ProjectRuntimeController::start(&session.project)?);
+            *borrow = Some(ProjectRuntimeController::start(&*proj)?);
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
@@ -74,9 +76,9 @@ pub(crate) fn sync_live_chain_runtime(
     // Normal sync
     let mut borrow = project_runtime.borrow_mut();
     if let Some(runtime) = borrow.as_mut() {
-        validate_project(&session.project)?;
+        validate_project(&*proj)?;
         if let Some(chain) = chain {
-            runtime.upsert_chain(&session.project, chain)?;
+            runtime.upsert_chain(&*proj, chain)?;
         } else {
             runtime.remove_chain(chain_id);
         }

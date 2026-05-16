@@ -30,6 +30,10 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::catalog::{model_brand, model_display_name, model_type_label};
 use project::param::ParameterSet;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use application::event::Event;
+
 use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, build_params_from_items,
     persist_block_editor_draft, schedule_block_editor_persist_for_block_win,
@@ -209,7 +213,8 @@ pub(crate) fn wire(
             let Some(main) = weak_main.upgrade() else {
                 return;
             };
-            let (chain_idx, block_idx, chain_id_opt) = {
+            // Step 1: read chain_id and block_id from the draft + project (immutable).
+            let (chain_id, block_id) = {
                 let (chain_index, block_index) = {
                     let draft_borrow = win_draft.borrow();
                     let Some(draft) = draft_borrow.as_ref() else {
@@ -220,55 +225,66 @@ pub(crate) fn wire(
                     };
                     (draft.chain_index, bi)
                 };
-                let mut session_borrow = project_session.borrow_mut();
-                let Some(session) = session_borrow.as_mut() else {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get_mut(block_index) else {
+                let Some(block) = chain.blocks.get(block_index) else {
                     return;
                 };
-                block.enabled = !block.enabled;
-                let new_enabled = block.enabled;
-                let chain_id = chain.id.clone();
-                drop(session_borrow);
-                if let Some(draft) = win_draft.borrow_mut().as_mut() {
-                    draft.enabled = new_enabled;
-                }
-                (chain_index, block_index, Some(chain_id))
+                (chain.id.clone(), block.id.clone())
             };
+            // Step 2: dispatch Command::ToggleBlockEnabled — mutates project via shared Rc.
             let new_enabled = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                let Some(chain) = session.project.chains.get(chain_idx) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_idx) else {
-                    return;
-                };
-                block.enabled
+                match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                }) {
+                    Ok(events) => events.into_iter().find_map(|e| {
+                        if let Event::BlockEnabledChanged { enabled, .. } = e {
+                            Some(enabled)
+                        } else {
+                            None
+                        }
+                    }),
+                    Err(e) => {
+                        log::error!("[adapter-gui] block-window.toggle-enabled dispatch: {e}");
+                        main.set_block_drawer_status_message(e.to_string().into());
+                        return;
+                    }
+                }
             };
-            let Some(chain_id) = chain_id_opt else {
+            let Some(new_enabled) = new_enabled else {
+                log::error!(
+                    "[adapter-gui] block-window.toggle-enabled: no BlockEnabledChanged event"
+                );
                 return;
             };
+            // Step 3: update draft enabled state.
+            if let Some(draft) = win_draft.borrow_mut().as_mut() {
+                draft.enabled = new_enabled;
+            }
+            // Step 4: resync runtime + refresh UI.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                log::error!("[adapter-gui] block-window.toggle-enabled: {e}");
-                if let Some(w) = weak_main.upgrade() {
-                    w.set_block_drawer_status_message(e.to_string().into());
-                }
+                log::error!("[adapter-gui] block-window.toggle-enabled runtime sync: {e}");
+                main.set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
@@ -383,14 +399,28 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else {
-                return;
+            // Resolve chain_id and block_id before dispatching.
+            let (chain_id, block_id) = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(draft.chain_index) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_index) else {
+                    return;
+                };
+                (chain.id.clone(), block.id.clone())
             };
-            if block_index >= chain.blocks.len() {
+            // Dispatch Command::RemoveBlock — mutates project via shared Rc.
+            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
+                chain: chain_id.clone(),
+                block: block_id,
+            }) {
+                log::error!("[adapter-gui] block-window.delete dispatch: {e}");
+                if let Some(w) = weak_main.upgrade() {
+                    w.set_block_drawer_status_message(e.to_string().into());
+                }
                 return;
             }
-            let chain_id = chain.id.clone();
-            chain.blocks.remove(block_index);
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[adapter-gui] block-window.delete: {e}");
                 if let Some(w) = weak_main.upgrade() {
@@ -400,7 +430,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &session.project,
+                &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );

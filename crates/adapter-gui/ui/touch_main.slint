@@ -105,6 +105,7 @@ export component TouchMain inherits Rectangle {
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
+    callback chain-volume-changed(int, int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -287,6 +288,7 @@ export component TouchMain inherits Rectangle {
             open-spectrum-window => { root.open-spectrum-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+            chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
             move-chain-up(index) => { root.move-chain-up(index); }
             move-chain-down(index) => { root.move-chain-down(index); }
             configure-chain(index) => { root.configure-chain(index); }

@@ -22,6 +22,9 @@ pub struct YamlProjectRepository {
 pub struct ChainBlocksPreset {
     pub id: String,
     pub name: Option<String>,
+    /// Output volume do preset em percentual. 100 = unity. Default ao
+    /// carregar quando o campo `volume:` está ausente do YAML.
+    pub volume: f32,
     pub blocks: Vec<project::block::AudioBlock>,
 }
 
@@ -124,8 +127,16 @@ struct PresetYaml {
     id: String,
     #[serde(default)]
     name: Option<String>,
+    /// Output volume do preset em percentual. Default 100 (unity) quando
+    /// ausente do YAML. Multiplicado no master output do engine.
+    #[serde(default = "default_preset_volume")]
+    volume: f32,
     #[serde(default)]
     blocks: Vec<Value>,
+}
+
+fn default_preset_volume() -> f32 {
+    100.0
 }
 
 impl PresetYaml {
@@ -134,6 +145,7 @@ impl PresetYaml {
         Ok(ChainBlocksPreset {
             id: self.id.clone(),
             name: self.name,
+            volume: self.volume,
             blocks: self
                 .blocks
                 .into_iter()
@@ -147,6 +159,7 @@ impl PresetYaml {
         Ok(Self {
             id: preset.id.clone(),
             name: preset.name.clone(),
+            volume: preset.volume,
             blocks: preset
                 .blocks
                 .iter()

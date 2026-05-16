@@ -143,13 +143,19 @@ pub(crate) fn wire(
             set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
             return;
         };
-        let Some(chain) = session.project.chains.get(chain_index as usize) else {
-            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-            return;
+        let chain = {
+            let proj = session.project.borrow();
+            match proj.chains.get(chain_index as usize).cloned() {
+                Some(c) => c,
+                None => {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                }
+            }
         };
         // Convert UI index (position in filtered array without first Input/last Output)
         // to real index in chain.blocks — always computed from current chain state
-        let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize) as i32;
+        let block_index = ui_index_to_real_block_index(&chain, ui_block_index as usize) as i32;
         log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
         let Some(block) = chain.blocks.get(block_index as usize) else {
             log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
@@ -166,7 +172,7 @@ pub(crate) fn wire(
                     channels: e.channels.clone(),
                     mode: e.mode,
                 }).collect();
-                let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
                 draft.inputs = inputs;
                 draft.editing_io_block_index = Some(block_index as usize);
                 let (input_items, _) = build_io_group_items(&draft, &fresh_input, &fresh_output);
@@ -189,7 +195,7 @@ pub(crate) fn wire(
                     channels: e.channels.clone(),
                     mode: e.mode,
                 }).collect();
-                let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
                 draft.outputs = outputs;
                 draft.editing_io_block_index = Some(block_index as usize);
                 let (_, output_items) = build_io_group_items(&draft, &fresh_input, &fresh_output);
@@ -287,7 +293,7 @@ pub(crate) fn wire(
         let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params);
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
         window.set_eq_total_curve(eq_total.into());
-        set_selected_block(&window, selected_block.borrow().as_ref(), Some(chain));
+        set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));
         let drawer_state =
             block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
         window.set_block_drawer_title(drawer_state.title.into());

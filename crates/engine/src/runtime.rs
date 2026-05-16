@@ -72,7 +72,8 @@ pub(crate) use crate::runtime_segments::split_chain_into_segments;
 // Slices 5+5b: helpers split by what they actually do
 // (runtime_dsp / runtime_layout / runtime_io).
 #[cfg(test)]
-pub(crate) use crate::runtime_dsp::{apply_mixdown, output_limiter};
+pub(crate) use crate::runtime_dsp::apply_mixdown;
+use crate::runtime_dsp::output_limiter;
 use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
 use crate::runtime_io::write_output_frame;
 #[cfg(test)]
@@ -535,34 +536,28 @@ pub fn process_output_f32(
             return;
         }
     };
+    // Issue #440 / #350 fidelity: apply Chain.volume to the AudioFrame
+    // BEFORE `write_output_frame` (which runs the output limiter). Applying
+    // it after the limiter let a hot chain × volume>100 clip the DAC with
+    // nothing to catch it on the single-stream path. Single atomic load of
+    // volume_pct per callback. No clamp here — the limiter inside
+    // write_output_frame is the gate (this file's pinned contract:
+    // "clipping is the output limiter's job"). Sub-knee signals are
+    // unaffected (tanh transparent below 0.95), so k01–k04 stay green.
+    let volume_ratio = runtime.volume_pct() / 100.0;
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = route.buffer.pop();
+        let mut processed = route.buffer.pop();
+        if volume_ratio != 1.0 {
+            processed = processed.scaled(volume_ratio);
+        }
         write_output_frame(
             processed,
             &route.output_channels,
             frame,
             route.output_mixdown,
         );
-    }
-
-    // Chain-level loudness normalisation: single linear gain applied
-    // at the master output (issue #413). Calculated offline por
-    // `chain_loudness::compute_chain_normalization_gain_db` quando a
-    // chain é construída/editada. Per-bloco manifest gains foram
-    // removidos porque empilhavam em série (Klon +28 + Amp +35 =
-    // estouro). Aqui o gain é único, calibrado pra chain INTEIRA.
-    //
-    // Aplica ANTES do `output_muted` (que zera tudo igual) e ANTES
-    // do latency probe detect (que escaneia amplitude com threshold
-    // fixo — multiplicar after detection mantém a calibração do
-    // probe constante).
-    let norm_gain = runtime.normalization_gain();
-    if norm_gain != 1.0 {
-        for s in out.iter_mut() {
-            *s *= norm_gain;
-        }
     }
 
     // Output mute: silence the entire output stage when toggled by any
@@ -595,6 +590,59 @@ pub fn process_output_f32(
                 .measured_latency_nanos
                 .store(delta, Ordering::Relaxed);
             runtime.probe_state.store(PROBE_IDLE, Ordering::Release);
+        }
+    }
+}
+
+/// Drive one physical output device from the N per-input runtimes of a
+/// chain (issue #350, phase 3). Each `InputBlock` entry on a distinct
+/// physical device is its own isolated [`ChainRuntimeState`] with its own
+/// SPSC output ring; the shared output device must sum them at the
+/// backend — the ONLY place CLAUDE.md invariant #4 permits mixing across
+/// streams. Each ring still has exactly one producer (its own input
+/// callback) and is consumed once here, so SPSC is preserved.
+///
+/// Single-runtime chains (the 99% case, and every `volume_invariants` /
+/// golden scenario) take the `[1]` fast path: `process_output_f32` writes
+/// straight into `out` with ZERO extra work — byte-identical to pre-#350.
+///
+/// Multi-runtime: each runtime's output (already per-runtime limited +
+/// volume-scaled inside `process_output_f32`) is rendered into the
+/// caller-owned `scratch` and summed into `out`; the summed buffer then
+/// passes through `output_limiter` (the same tanh the chain already
+/// trusts to hold a multi-stream sum transparent below 0 dBFS — see the
+/// route-mix note in `mix_segment_into_routes`) so the device never
+/// receives a clipped buffer. `scratch` MUST be pre-allocated by the
+/// caller at stream-build time and be at least `out.len()` long — this
+/// function performs ZERO allocation and ZERO locking on the audio
+/// thread (it only does the lock-free work `process_output_f32` already
+/// did, once per runtime).
+pub fn process_output_f32_mixed(
+    runtimes: &[Arc<ChainRuntimeState>],
+    output_index: usize,
+    out: &mut [f32],
+    output_total_channels: usize,
+    scratch: &mut [f32],
+) {
+    match runtimes {
+        [] => out.fill(0.0),
+        // Fast path: one isolated stream → byte-identical to pre-#350.
+        [runtime] => process_output_f32(runtime, output_index, out, output_total_channels),
+        many => {
+            out.fill(0.0);
+            let n = out.len();
+            for runtime in many {
+                let buf = &mut scratch[..n];
+                process_output_f32(runtime, output_index, buf, output_total_channels);
+                for (dst, src) in out.iter_mut().zip(buf.iter()) {
+                    *dst += *src;
+                }
+            }
+            // Backend mix saturation guard: N per-runtime-limited streams
+            // can sum past 1.0; tanh holds it transparent below 0 dBFS.
+            for s in out.iter_mut() {
+                *s = output_limiter(*s);
+            }
         }
     }
 }

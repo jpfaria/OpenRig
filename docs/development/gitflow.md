@@ -46,6 +46,15 @@ NUNCA atribuir ao milestone de release final puro durante ciclo dev.
 
 NUNCA editar código no workspace principal. Cada agent trabalha numa cópia.
 
+**Duas pastas, isolamento simétrico:**
+
+| Pasta | Quem usa | Quem NÃO usa |
+|---|---|---|
+| principal (`/Users/<user>/.../OpenRig`) | usuário — edição, validação visual, testes em hardware real | agent — NUNCA `git checkout`, `pull`, `commit`, `push`, edit, revert |
+| `.solvers/issue-N/` (rsync) | agent — implementação, commits, push, `cargo test` | usuário — NUNCA entra, não testa daqui |
+
+Pra o usuário testar uma branch do agent, ele faz `git fetch && git checkout feature/issue-N && git pull` **na pasta principal dele**. O agent NUNCA propõe `cd .solvers/...` pro usuário — `.solvers/` é exclusivo do agent.
+
 Diretórios sempre excluídos da cópia: `target`, `.logs`, `coverage`, `deps`, `plugins`, `.solvers`.
 
 ```bash

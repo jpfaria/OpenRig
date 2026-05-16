@@ -36,5 +36,8 @@ pub use dsp::{
     calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadFilter, BiquadKind,
     EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
 };
-pub use traits::{BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle, StereoProcessor};
+pub use traits::{
+    wrap_with_output_gain_pct, BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle,
+    StereoProcessor,
+};
 pub use visual::{KnobLayoutEntry, ModelVisualData};

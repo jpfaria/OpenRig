@@ -44,10 +44,11 @@ pub fn install_handler(
         let Some(session) = session_borrow.as_ref() else {
             return;
         };
-        let Some(chain) = session.project.chains.get(index as usize) else {
+        let proj = session.project.borrow();
+        let Some(chain) = proj.chains.get(index as usize) else {
             return;
         };
-        let device = session.project.device_settings.first();
+        let device = proj.device_settings.first();
         let sample_rate = device.map(|d| d.sample_rate as f32).unwrap_or(48_000.0);
         let buffer_frames = device.map(|d| d.buffer_size_frames as usize).unwrap_or(256);
         let ms = engine::probe::measure_chain_dsp_latency_ms(chain, sample_rate, buffer_frames);

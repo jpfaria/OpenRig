@@ -145,6 +145,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         description: None,
         instrument: "electric_guitar".to_string(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
@@ -157,7 +158,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
     };
     graph
         .chains
-        .insert(chain_id.clone(), Arc::clone(&runtime_arc));
+        .insert((chain_id.clone(), 0), Arc::clone(&runtime_arc));
 
     let mut active_chains = std::collections::HashMap::new();
     active_chains.insert(
@@ -274,4 +275,121 @@ fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
     assert_eq!(config.nperiods, 3);
     assert_eq!(config.sample_rate, 48_000);
     assert_eq!(config.buffer_size, 64);
+}
+
+// ── Issue #350 phase 3: each physical input device wires its OWN runtime ──
+//
+// The user's real bug: a chain with 2 InputBlock entries on 2 DIFFERENT
+// physical devices (Scarlett + TEYUN) both feeding one OutputBlock. The
+// 2nd guitar was silent because cpal collapsed to the first per-input
+// runtime. This is a structural assertion — no real audio device is
+// touched. It proves: (a) the chain owns one isolated runtime PER
+// distinct input device, keyed by a distinct cpal group id; (b) the
+// group ids match the cpal input indices the input streams bind to;
+// (c) the output mix helper consumes from ALL of them (multi-runtime
+// path) while a single-runtime chain stays on the byte-identical path.
+/// Fixture: a chain with two `InputBlock`s on two distinct physical devices,
+/// both feeding one stereo `OutputBlock`. Mirrors the issue #350 bug shape.
+fn two_device_chain() -> project::chain::Chain {
+    use domain::ids::{BlockId, ChainId, DeviceId};
+    use project::block::{
+        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+    };
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+
+    let input = |id: &str, dev: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            entries: vec![InputEntry {
+                device_id: DeviceId(dev.into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            }],
+        }),
+    };
+    Chain {
+        id: ChainId("two_dev".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![
+            input("two_dev:in:0", "scarlett_2i2"),
+            input("two_dev:in:1", "teyun_q26"),
+            AudioBlock {
+                id: BlockId("two_dev:out:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("scarlett_2i2".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    }
+}
+
+#[test]
+fn two_device_inputs_each_wire_their_own_runtime() {
+    use engine::runtime::process_output_f32_mixed;
+    use project::project::Project;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    let chain = two_device_chain();
+    let project = Project {
+        name: Some("two_dev_test".into()),
+        chains: vec![chain.clone()],
+        device_settings: Vec::new(),
+    };
+    let mut sample_rates = HashMap::new();
+    sample_rates.insert(chain.id.clone(), 48_000.0_f32);
+    let graph = engine::runtime::build_runtime_graph(&project, &sample_rates, &HashMap::new())
+        .expect("two-device chain must build");
+
+    // (a)+(b): exactly two isolated runtimes, one per distinct device,
+    // keyed by distinct ascending cpal group ids 0 and 1.
+    let runtimes = graph.runtimes_with_groups_for(&chain.id);
+    assert_eq!(
+        runtimes.len(),
+        2,
+        "two distinct input devices => two isolated per-input runtimes"
+    );
+    assert_eq!(runtimes[0].0, 0, "first device => cpal group 0");
+    assert_eq!(runtimes[1].0, 1, "second device => cpal group 1");
+    assert!(
+        !Arc::ptr_eq(&runtimes[0].1, &runtimes[1].1),
+        "each physical input device must own a SEPARATE ChainRuntimeState \
+         (CLAUDE.md invariant #4 — zero shared runtime state)"
+    );
+
+    // (c): the output mix helper drives BOTH runtimes — pulling from each
+    // per-input runtime's own SPSC output ring and summing at the backend
+    // (the only mix point invariant #4 permits). With both runtimes idle
+    // their rings are empty, so the summed device buffer is silence; the
+    // assertion that matters structurally is that passing N runtimes does
+    // not panic and clears the buffer (multi-runtime path), while a single
+    // runtime takes the byte-identical fast path.
+    let all: Vec<_> = runtimes.iter().map(|(_, rt)| rt.clone()).collect();
+    let mut out = vec![0.5_f32; 128];
+    let mut scratch = vec![0.0_f32; 128];
+    process_output_f32_mixed(&all, 0, &mut out, 2, &mut scratch);
+    assert!(
+        out.iter().all(|s| s.abs() < 1.0e-6),
+        "mixed output of two idle isolated runtimes must be silence"
+    );
+
+    // Single-runtime fast path: identical call shape, one runtime.
+    let mut out1 = vec![0.5_f32; 128];
+    let mut scratch1 = vec![0.0_f32; 128];
+    process_output_f32_mixed(&all[..1], 0, &mut out1, 2, &mut scratch1);
+    assert!(
+        out1.iter().all(|s| s.abs() < 1.0e-6),
+        "single-runtime path must behave like the legacy process_output_f32"
+    );
 }

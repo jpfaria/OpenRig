@@ -63,6 +63,7 @@ fn dual_input_chain() -> Chain {
         description: Some("two guitars, one chain".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             input_block("dual_input:input:0", "guitar_a", vec![0]),
             input_block("dual_input:input:1", "guitar_b", vec![0]),
@@ -90,7 +91,6 @@ fn build_dual_input_graph() -> RuntimeGraph {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — engine groups all InputBlocks of a chain into ONE ChainRuntimeState"]
 fn two_input_blocks_in_same_chain_produce_two_independent_runtimes() {
     let graph = build_dual_input_graph();
 
@@ -106,7 +106,6 @@ fn two_input_blocks_in_same_chain_produce_two_independent_runtimes() {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — output_routes are currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_output_routes_arc() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -134,7 +133,6 @@ fn two_input_blocks_must_not_share_output_routes_arc() {
 }
 
 #[test]
-#[ignore = "PENDING #350 — input_taps Vec is currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_input_taps_arc() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -153,7 +151,6 @@ fn two_input_blocks_must_not_share_input_taps_arc() {
 }
 
 #[test]
-#[ignore = "PENDING #350 — processing scratch is currently shared across InputBlocks of the same chain"]
 fn two_input_blocks_must_not_share_processing_state() {
     let graph = build_dual_input_graph();
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
@@ -182,7 +179,6 @@ fn two_input_blocks_must_not_share_processing_state() {
 // ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "PENDING #350 — output route ElasticBuffer is currently a single instance shared by N InputBlocks pushing concurrently"]
 fn each_output_route_buffer_has_exactly_one_producer() {
     // The ElasticBuffer field of OutputRoutingState is declared SPSC
     // (`crates/engine/src/runtime.rs:90-99`). With multiple InputBlocks
@@ -244,6 +240,7 @@ fn every_effective_input_index_has_at_least_one_segment() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             // 1 InputBlock, 2 channels, mono mode — the user's "duas
             // guitarras na mesma chain" config.
@@ -320,6 +317,7 @@ fn no_segment_is_orphaned_from_input_dispatch() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -382,6 +380,7 @@ fn every_output_route_has_at_least_one_producer_segment() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             input_block("input:0", "scarlett", vec![0]),
             output_block("output:0", "main_out", vec![0]),
@@ -453,6 +452,7 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -528,6 +528,7 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -612,6 +613,7 @@ fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             // 1 InputBlock, 2 channels, mono mode → 2 effective entries
             // (one per channel) — the user's "duas guitarras na mesma
@@ -679,6 +681,7 @@ fn dual_mono_segment_keeps_stereo_processing() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -734,6 +737,7 @@ fn mono_input_with_mono_output_stays_mono() {
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
+        volume: 100.0,
         blocks: vec![
             input_block("input:0", "scarlett", vec![0]),
             output_block("output:0", "monitor", vec![0]),
