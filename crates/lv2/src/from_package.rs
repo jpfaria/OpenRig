@@ -9,6 +9,7 @@
 //!
 //! Issue: #287
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Result};
@@ -79,6 +80,46 @@ fn plan_ports(ports: &[Lv2Port], params: &ParameterSet) -> PortPlan {
     }
 }
 
+/// Pre-flight safety net: every port the TTL scanner found MUST be in a
+/// connected bucket before the plugin runs. LV2 requires all ports
+/// connected before `run()`; an unconnected one makes the plugin write
+/// to null/garbage memory → SIGSEGV, which no `catch_unwind` can catch
+/// because it is a hardware fault inside foreign C code (issue #457).
+///
+/// Returning `Err` here converts that unrecoverable process crash into a
+/// graceful "block failed to load" — the app stays alive. This guards
+/// the #457 fix against future regressions (e.g. a new port role added
+/// to the scanner but not bucketed in [`plan_ports`]).
+///
+/// It does NOT see ports the TTL scanner skipped or could not classify
+/// (`scan_lv2_ports` drops `Other`): catching those needs the plugin's
+/// real port count from the host, which the bare-ABI loader doesn't
+/// expose — that is the out-of-process-sandbox boundary, out of scope.
+fn assert_all_ports_connected(ports: &[Lv2Port], plan: &PortPlan, plugin_id: &str) -> Result<()> {
+    let mut connected: BTreeSet<usize> = BTreeSet::new();
+    connected.extend(&plan.audio_in);
+    connected.extend(&plan.audio_out);
+    connected.extend(plan.control.iter().map(|(idx, _)| *idx));
+    connected.extend(&plan.atom);
+    connected.extend(&plan.extra_out);
+
+    let orphans: Vec<String> = ports
+        .iter()
+        .filter(|p| !connected.contains(&p.index))
+        .map(|p| format!("port {} `{}` ({:?})", p.index, p.symbol, p.role))
+        .collect();
+
+    if !orphans.is_empty() {
+        bail!(
+            "LV2 plugin `{plugin_id}` has {} unconnectable port(s) — refusing \
+             to load to avoid a SIGSEGV on run(): {}",
+            orphans.len(),
+            orphans.join(", ")
+        );
+    }
+    Ok(())
+}
+
 /// Build a [`BlockProcessor`] from a disk-backed LV2 package.
 pub fn build_from_package(
     package: &LoadedPackage,
@@ -121,6 +162,7 @@ pub fn build_from_package(
 
     let ports = scan_lv2_ports(&bundle_path, &plugin_uri)?;
     let plan = plan_ports(&ports, params);
+    assert_all_ports_connected(&ports, &plan, &package.manifest.id)?;
 
     let lib_str = path_str(&lib_path)?;
     let bundle_str = path_str(&bundle_path)?;

@@ -74,6 +74,50 @@ fn tap_deesser_layout_connects_the_attenuation_meter() {
 }
 
 #[test]
+fn fully_connected_plan_passes_preflight() {
+    let ports = vec![
+        port(0, "audio_in", Lv2PortRole::AudioIn),
+        port(1, "audio_out", Lv2PortRole::AudioOut),
+        port(2, "threshold", Lv2PortRole::ControlIn),
+        port(4, "attenuation", Lv2PortRole::ControlOut),
+    ];
+    let plan = plan_ports(&ports, &ParameterSet::default());
+
+    assert!(assert_all_ports_connected(&ports, &plan, "tap_deesser").is_ok());
+}
+
+#[test]
+fn dropped_control_out_is_refused_instead_of_crashing() {
+    // Simulate the original #457 regression: the partitioner forgot to
+    // route ControlOut → extra_out. The pre-flight must turn the
+    // would-be SIGSEGV into a graceful load error.
+    let ports = vec![
+        port(0, "audio_in", Lv2PortRole::AudioIn),
+        port(1, "audio_out", Lv2PortRole::AudioOut),
+        port(4, "attenuation", Lv2PortRole::ControlOut),
+    ];
+    let buggy_plan = PortPlan {
+        audio_in: vec![0],
+        audio_out: vec![1],
+        control: vec![],
+        atom: vec![],
+        extra_out: vec![], // regression: port 4 dropped
+    };
+
+    let err = assert_all_ports_connected(&ports, &buggy_plan, "tap_deesser")
+        .expect_err("an unconnected ControlOut port must be refused");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("port 4"),
+        "error must name the orphan port: {msg}"
+    );
+    assert!(
+        msg.contains("attenuation"),
+        "error must name the symbol: {msg}"
+    );
+}
+
+#[test]
 fn every_role_lands_in_exactly_one_bucket() {
     // Registry-style guard: a mixed port set must partition cleanly so
     // no future role change leaks a port into the wrong bucket.
