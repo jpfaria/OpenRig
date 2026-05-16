@@ -92,6 +92,26 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
+# The binary links libNeuralAudioCAPI.so with RUNPATH=$ORIGIN, but the lib
+# is staged under usr/lib/openrig/libs/nam/, NOT next to the binary — so
+# ld.so can't find it and the app dies at startup with "cannot open
+# shared object file" (issue #461; macOS solves the equivalent via
+# install_name_tool). Point RUNPATH at the staged lib, relative to the
+# binary. The path resolves identically once installed to /usr (.deb/
+# .rpm), unpacked (.tar.gz), or inside the AppImage's AppDir.
+patchelf --set-rpath "\$ORIGIN/../lib/openrig/libs/nam/linux-${ARCH}" \
+    "$S/usr/bin/openrig"
+
+# Gate: a package no one can open is worse than a failed build. Verify
+# the NAM lib actually resolves through the new RUNPATH before we wrap
+# it in a .deb/.AppImage (lesson from #459).
+if ldd "$S/usr/bin/openrig" 2>/dev/null \
+    | grep -q 'libNeuralAudioCAPI\.so .*not found'; then
+    echo "FATAL: libNeuralAudioCAPI.so still unresolved after RUNPATH patch" >&2
+    exit 1
+fi
+echo "    RUNPATH patched; libNeuralAudioCAPI.so resolves"
+
 # Bundled preset library: the 21 default presets under presets/*.yaml ship
 # next to plugins/ and assets/ so the app finds them via
 # infra_filesystem::detect_data_root().join("presets"). Without this copy,
@@ -174,6 +194,7 @@ if $BUILD_DEB; then
         --maintainer "Joao Paulo Faria" \
         --category sound \
         --depends libasound2 \
+        --depends libseat1 \
         --deb-no-default-config-files \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig_${VERSION}_${DEB_ARCH}.deb" \
@@ -189,6 +210,7 @@ if $BUILD_RPM; then
         --url "https://github.com/jpfaria/OpenRig" \
         --maintainer "Joao Paulo Faria" \
         --category "Applications/Multimedia" \
+        --depends libseat \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig-${VERSION}-1.${RPM_ARCH}.rpm" \
         usr
@@ -204,11 +226,28 @@ if $BUILD_APPIMAGE; then
     APPDIR="$OUTPUT_DIR/AppDir"
     cp -r "$OUTPUT_DIR/stage" "$APPDIR"
 
+    # An AppImage must be self-contained. libseat.so.1 is NEEDED by the
+    # binary (Slint/winit backend) but is absent on minimal desktops
+    # (no compositor/seatd) — bundle it (issue #461). The build runner
+    # links against it, so it is present here to copy.
+    mkdir -p "$APPDIR/usr/lib/openrig/syslibs"
+    seat_lib="$(ldconfig -p | awk '/libseat\.so\.1/ {print $NF; exit}')"
+    if [ -z "$seat_lib" ] || [ ! -e "$seat_lib" ]; then
+        echo "FATAL: libseat.so.1 not found on build host — cannot bundle" >&2
+        exit 1
+    fi
+    cp -L "$seat_lib" "$APPDIR/usr/lib/openrig/syslibs/libseat.so.1"
+
     printf '%s\n' \
         '#!/bin/bash' \
         'HERE="$(dirname "$(readlink -f "${0}")")"' \
         'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
         'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+        'LD_LIBRARY_PATH="$HERE/usr/lib/openrig/syslibs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' \
+        'for d in "$HERE"/usr/lib/openrig/libs/nam/linux-*; do' \
+        '    [ -d "$d" ] && LD_LIBRARY_PATH="$d:$LD_LIBRARY_PATH"' \
+        'done' \
+        'export LD_LIBRARY_PATH' \
         'exec "$HERE/usr/bin/openrig" "$@"' \
         > "$APPDIR/AppRun"
     chmod +x "$APPDIR/AppRun"

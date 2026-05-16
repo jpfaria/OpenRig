@@ -154,6 +154,18 @@ Apple-notarized. Use the one-line installer, or strip the quarantine
 flag manually — see [macOS — one-line install](#macos--one-line-install-recommended)
 above. Right-click → *Open* also works once the app is a valid bundle.
 
+### "cannot open shared object file" on Linux
+
+Builds from `v0.1.0-dev.20` onward bundle `libNeuralAudioCAPI.so` (via
+RUNPATH) and the `.deb` declares `libseat1` as a dependency, so this is
+handled automatically. On older builds the app fails to start with
+`error while loading shared libraries: libNeuralAudioCAPI.so` or
+`libseat.so.1`. Fix by upgrading, or for `libseat`:
+
+```bash
+sudo apt install libseat1   # Debian / Ubuntu
+```
+
 ### ALSA not found (Linux)
 
 If you encounter errors related to ALSA during compilation on Linux, install the ALSA development headers:
