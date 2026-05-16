@@ -19,6 +19,9 @@ pub struct StereoLv2Processor {
     in_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Scratch buffer for output control ports (meters, latency) that
+    /// must be connected but are never read (issue #457).
+    _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     control_values: Vec<f32>,
     _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
@@ -45,6 +48,32 @@ impl StereoLv2Processor {
         control_ports: &[(usize, f32)],
         atom_ports: &[usize],
     ) -> Self {
+        Self::with_extra_ports(
+            plugin,
+            audio_in_ports,
+            audio_out_ports,
+            control_ports,
+            atom_ports,
+            &[],
+        )
+    }
+
+    /// Create a stereo processor with atom ports and extra (dummy)
+    /// output ports.
+    ///
+    /// `extra_out_ports` are output control ports (gain-reduction
+    /// meters, latency indicators). LV2 requires every port to be
+    /// connected before `run()`; leaving an output control port
+    /// unconnected makes the plugin write to null/garbage memory →
+    /// SIGSEGV (issue #457). They are connected to a scratch buffer.
+    pub fn with_extra_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+        extra_out_ports: &[usize],
+    ) -> Self {
         assert!(audio_in_ports.len() == 2, "stereo requires 2 audio inputs");
         assert!(
             audio_out_ports.len() == 2,
@@ -55,6 +84,7 @@ impl StereoLv2Processor {
         let mut in_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut dummy_out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
 
         let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
@@ -63,6 +93,14 @@ impl StereoLv2Processor {
         for &port_idx in atom_ports {
             unsafe {
                 plugin.connect_port(port_idx as u32, atom_buf.as_mut_ptr() as *mut c_void);
+            }
+        }
+
+        // Connect output control ports to the scratch buffer so the
+        // plugin never writes to unconnected memory (issue #457).
+        for &port_idx in extra_out_ports {
+            unsafe {
+                plugin.connect_port(port_idx as u32, dummy_out_buf.as_mut_ptr() as *mut c_void);
             }
         }
 
@@ -100,6 +138,7 @@ impl StereoLv2Processor {
             in_buf_r,
             out_buf_l,
             out_buf_r,
+            _dummy_out_buf: dummy_out_buf,
             control_values,
             _atom_buf: atom_buf,
         }
