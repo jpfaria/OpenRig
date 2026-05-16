@@ -2318,6 +2318,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphview-demo"
+version = "0.1.0"
+dependencies = [
+ "adapter-gui",
+ "env_logger",
+ "log",
+ "slint",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
