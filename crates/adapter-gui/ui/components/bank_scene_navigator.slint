@@ -47,18 +47,18 @@ component SceneSwitch inherits Rectangle {
     accessible-role: button;
     accessible-label: "scene \{root.number}";
     accessible-action-default => { root.clicked(); }
-    horizontal-stretch: 1;
-    height: 52px;
-    border-radius: 10px;
-    border-width: root.active ? 2px : 1px;
+    width: 38px;
+    height: 30px;
+    border-radius: 6px;
+    border-width: 1px;
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
     background: root.active ? Theme.palette.accent-end : Theme.palette.card;
     animate background, border-color { duration: 130ms; }
     Text {
         text: "\{root.number}";
         color: root.active ? #ffffff : Theme.palette.text-muted;
-        font-size: 20px;
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -174,8 +174,9 @@ export component BankSceneNavigator inherits Rectangle {
                 GraphView {
                     nodes: root.chain-nodes;
                     edges: root.chain-edges;
-                    node_width: 76px;
-                    node_height: 76px;
+                    node_width: 110px;
+                    node_height: 56px;
+                    auto_layout: true;
                     node_clicked(id) => { root.node-clicked(id); }
                 }
                 if root.chain-nodes.length == 0 : Text {
@@ -185,10 +186,17 @@ export component BankSceneNavigator inherits Rectangle {
                 }
             }
 
-            // ── Floorboard: 8 scenes for the focused input ────────────────
+            // ── Scenes for the focused input (compact) ────────────────────
             for it in root.selected : HorizontalLayout {
-                height: 52px;
-                spacing: 8px;
+                height: 32px;
+                spacing: 6px;
+                Text {
+                    text: @tr("SCENE");
+                    color: Theme.palette.text-muted;
+                    font-size: 11px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
                 SceneSwitch { number: 1; active: it.active-scene == 1; clicked => { root.select-scene(it.input, 1); } }
                 SceneSwitch { number: 2; active: it.active-scene == 2; clicked => { root.select-scene(it.input, 2); } }
                 SceneSwitch { number: 3; active: it.active-scene == 3; clicked => { root.select-scene(it.input, 3); } }
@@ -197,6 +205,7 @@ export component BankSceneNavigator inherits Rectangle {
                 SceneSwitch { number: 6; active: it.active-scene == 6; clicked => { root.select-scene(it.input, 6); } }
                 SceneSwitch { number: 7; active: it.active-scene == 7; clicked => { root.select-scene(it.input, 7); } }
                 SceneSwitch { number: 8; active: it.active-scene == 8; clicked => { root.select-scene(it.input, 8); } }
+                Rectangle { horizontal-stretch: 1; }
             }
         }
     }

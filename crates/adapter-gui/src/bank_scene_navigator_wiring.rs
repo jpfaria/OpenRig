@@ -137,10 +137,17 @@ fn graph_for_selected(
         NodeCategory::Input,
     ))];
     for b in &blocks {
-        let (label, et) = match &b.kind {
-            AudioBlockKind::Core(c) => (c.model.clone(), c.effect_type.as_str()),
-            AudioBlockKind::Nam(n) => (n.model.clone(), "amp"),
-            _ => (b.id.0.clone(), "other"),
+        // Human display NAME (catalog), never the raw model id.
+        let (et, model) = match &b.kind {
+            AudioBlockKind::Core(c) => (c.effect_type.as_str(), c.model.as_str()),
+            AudioBlockKind::Nam(n) => ("nam", n.model.as_str()),
+            _ => ("other", ""),
+        };
+        let name = project::catalog::model_display_name(et, model);
+        let label = if name.is_empty() {
+            model.to_string()
+        } else {
+            name
         };
         let mut bp = BlockBlueprint::new(b.id.0.clone(), label, category_for(et));
         bp.bypass = !b.enabled;
