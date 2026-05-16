@@ -2,6 +2,7 @@ pub mod block;
 pub mod catalog;
 pub mod chain;
 pub mod device;
+pub mod migrate;
 pub mod param;
 pub mod project;
 pub mod rig;

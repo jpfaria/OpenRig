@@ -133,3 +133,122 @@ fn preset_without_scenes_loads_as_default_scene() {
     assert!(clean.scene_params.is_empty());
     assert_eq!(clean.scene_or_default(1), project::rig::RigScene::default());
 }
+
+// ── #450 legacy file migration orchestrator ───────────────────────────────
+
+use domain::ids::{BlockId, ChainId, DeviceId};
+use project::block::{
+    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
+use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::param::ParameterSet;
+use project::project::Project;
+
+fn legacy_chain(desc: &str, vol: f32) -> Chain {
+    Chain {
+        id: ChainId("chain:0".into()),
+        description: Some(desc.into()),
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: vol,
+        blocks: vec![
+            AudioBlock {
+                id: BlockId("in".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    entries: vec![InputEntry {
+                        device_id: DeviceId("sc".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0],
+                    }],
+                }),
+            },
+            AudioBlock {
+                id: BlockId("fx".into()),
+                enabled: true,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    effect_type: "delay".into(),
+                    model: "tape".into(),
+                    params: ParameterSet::default(),
+                }),
+            },
+            AudioBlock {
+                id: BlockId("out".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("sc".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    }
+}
+
+fn write_legacy(dir: &std::path::Path, chains: Vec<Chain>) -> std::path::PathBuf {
+    let project = Project {
+        name: Some("Studio".into()),
+        device_settings: vec![],
+        chains,
+    };
+    let path = dir.join("project.yaml");
+    std::fs::write(&path, crate::serialize_project(&project).unwrap()).unwrap();
+    path
+}
+
+#[test]
+fn migrate_file_creates_target_and_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let legacy = write_legacy(dir.path(), vec![legacy_chain("clean", 130.0)]);
+    let out = dir.path().join("project.openrig");
+
+    let rig = migrate_legacy_project_file(&legacy, &out).unwrap();
+
+    assert_eq!(rig.presets.get("clean").unwrap().volume, 130.0);
+    assert!(out.exists(), "project.openrig written");
+    assert_eq!(load_rig_project_file(&out).unwrap(), rig);
+    assert!(
+        dir.path().join("project.yaml.bak").exists(),
+        "legacy backed up"
+    );
+}
+
+#[test]
+fn migrate_file_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let legacy = write_legacy(dir.path(), vec![legacy_chain("clean", 100.0)]);
+    let out = dir.path().join("project.openrig");
+
+    let first = migrate_legacy_project_file(&legacy, &out).unwrap();
+    let bak = std::fs::read_to_string(dir.path().join("project.yaml.bak")).unwrap();
+    let second = migrate_legacy_project_file(&legacy, &out).unwrap();
+
+    assert_eq!(first, second, "second run yields identical project");
+    assert_eq!(
+        bak,
+        std::fs::read_to_string(dir.path().join("project.yaml.bak")).unwrap(),
+        "backup not rewritten on the idempotent re-run"
+    );
+}
+
+#[test]
+fn migrate_file_does_not_clobber_existing_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let legacy = write_legacy(dir.path(), vec![legacy_chain("fromlegacy", 100.0)]);
+    let out = dir.path().join("project.openrig");
+    // Pre-existing valid target with different content.
+    let preexisting = parse_rig_project(MINIMAL).unwrap();
+    save_rig_project_file(&out, &preexisting).unwrap();
+
+    let returned = migrate_legacy_project_file(&legacy, &out).unwrap();
+
+    assert_eq!(returned, preexisting, "existing target preserved as-is");
+    assert!(
+        !dir.path().join("project.yaml.bak").exists(),
+        "legacy untouched when target already valid"
+    );
+}

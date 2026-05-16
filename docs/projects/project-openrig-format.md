@@ -111,9 +111,32 @@ Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
 > change in one golden/volume-gated place. #451's switch is click-free but
 > does not yet preserve the previous preset's tail.
 
+## Migration from legacy `chain.yaml` (#450)
+
+`project::migrate::migrate_legacy_project(&Project) -> RigProject` is a pure,
+deterministic (⇒ idempotent) transform:
+
+| Legacy `Chain` (1-based index N) | `RigProject` |
+|---|---|
+| chain N | `inputs["input-{N}"]` |
+| all `input_blocks` entries, flattened in order | `input.sources` (multi-source preserved) |
+| `output_blocks` entries, deduped by `(device, mode, channels)` | `outputs["output-{M}"]` (first-seen) + `input.routing` |
+| blocks minus `Input`/`Output`, order preserved | `presets[name].blocks` |
+| `chain.volume` | `presets[name].volume` (audio unchanged) |
+| `chain.description` slug, else `preset-{N}` (uniquified) | preset name; `bank{1: name}`, `active-preset 1`, `active-scene 1` |
+
+No preset is lost (`presets.len() == chains.len()`, each in a bank slot) and the
+result always passes `validate()`.
+
+File orchestrator `infra-yaml::migrate_legacy_project_file(legacy, out)`:
+
+- returns the existing target untouched if it is already a valid `RigProject`
+  (idempotent — legacy not re-read, target not clobbered);
+- backs the legacy file up to `<legacy>.bak` exactly once before writing;
+- validates the migrated project before saving.
+
 ## Out of scope here (tracked elsewhere)
 
-- Scenes + spillover (old-tail crossfade; `scenes`/`scene-params`) — #454 (same swap mechanism)
-- Legacy `chain.yaml` migration — #450
+- Spillover — old preset/scene tail decaying in parallel (#454-T5; design locked in spec)
 - CLI `--project` — #452
 - UI project picker + bank/scene navigator — #453

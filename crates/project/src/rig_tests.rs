@@ -65,6 +65,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                         blocks: vec![processing_block()],
                         scene_params: vec![],
                         scenes: BTreeMap::new(),
+                        volume: 100.0,
                     },
                 )
             })
@@ -150,6 +151,7 @@ fn scene_or_default_empty_preset_returns_default_for_slot_1() {
         blocks: vec![],
         scene_params: vec![],
         scenes: BTreeMap::new(),
+        volume: 100.0,
     };
     assert_eq!(p.scene_or_default(1), RigScene::default());
 }
@@ -165,6 +167,7 @@ fn scene_or_default_returns_present_scene() {
         blocks: vec![core_block("od")],
         scene_params: vec![],
         scenes: BTreeMap::from([(2, scene.clone())]),
+        volume: 100.0,
     };
     assert_eq!(p.scene_or_default(2), scene);
 }
@@ -209,6 +212,7 @@ fn preset_with(
         blocks,
         scene_params: marked.iter().map(|s| s.to_string()).collect(),
         scenes: scenes.into_iter().collect(),
+        volume: 100.0,
     }
 }
 

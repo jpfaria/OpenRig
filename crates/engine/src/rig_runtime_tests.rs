@@ -71,6 +71,7 @@ fn rig(
                         blocks: b,
                         scene_params: vec![],
                         scenes: std::collections::BTreeMap::new(),
+                        volume: 100.0,
                     },
                 )
             })

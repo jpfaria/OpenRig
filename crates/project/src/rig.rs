@@ -77,6 +77,10 @@ pub struct RigScene {
     pub params: BTreeMap<String, f32>,
 }
 
+fn default_preset_volume() -> f32 {
+    100.0
+}
+
 /// A preset in the shared pool: processing chain only, no I/O.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigPreset {
@@ -89,6 +93,10 @@ pub struct RigPreset {
     /// `1..=8`. Empty ⇒ a single implicit "Default" scene (index 1).
     #[serde(default)]
     pub scenes: BTreeMap<usize, RigScene>,
+    /// Output volume %, 100 = unity. Carried from `Chain.volume` on migration
+    /// so master gain is unchanged (CLAUDE.md invariant). Default 100.0.
+    #[serde(default = "default_preset_volume")]
+    pub volume: f32,
 }
 
 impl RigPreset {
