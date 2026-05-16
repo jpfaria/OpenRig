@@ -16,17 +16,43 @@ This guide covers how to install and run OpenRig on your system, either from pre
 
 ## Download Binaries
 
-Prebuilt binaries are available for all supported platforms. Download the appropriate archive from the latest release page.
+Prebuilt binaries for every supported platform are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Pick the artifact for your OS and architecture (`x86_64` for most desktops/laptops, `aarch64` for ARM boards such as the Orange Pi).
 
-| Platform | Architecture | Download |
-|----------|--------------|----------|
-| macOS | Apple Silicon (aarch64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| macOS | Intel (x86_64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | aarch64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Windows | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
+### Linux
 
-After downloading, extract the archive and run the `adapter-gui` binary for your platform.
+Two ways to install — pick one.
+
+**AppImage (recommended — no root, self-contained, nothing installed system-wide):**
+
+```bash
+# x86_64 — replace <ver> with the release tag, e.g. 0.1.0-dev.19
+chmod +x OpenRig-<ver>-linux-x86_64.AppImage
+./OpenRig-<ver>-linux-x86_64.AppImage
+```
+
+To remove it, just delete the file. Use the `-linux-aarch64.AppImage` asset on ARM boards.
+
+**`.deb` / `.rpm` (system-integrated — adds a desktop entry and resolves dependencies, requires root):**
+
+```bash
+# Ubuntu / Debian, x86_64 (use openrig_<ver>_arm64.deb on ARM)
+sudo apt install ./openrig_<ver>_amd64.deb
+
+# Fedora / RHEL, x86_64 (use the .aarch64.rpm on ARM)
+sudo dnf install ./openrig-<ver>-1.x86_64.rpm
+```
+
+Prefer `apt install ./file.deb` over `dpkg -i` — it pulls in dependencies automatically.
+
+A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `adapter-gui` binary directly.
+
+### macOS
+
+Download `OpenRig-<ver>-macos-universal.dmg`, open it, and drag OpenRig to Applications. The build is universal (Apple Silicon + Intel).
+
+### Windows
+
+Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
 
 ### macOS — one-line install (recommended)
 
