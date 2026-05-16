@@ -11,8 +11,13 @@ use std::path::{Path, PathBuf};
 
 mod block_yaml;
 mod chain_yaml;
+mod rig_yaml;
 use block_yaml::{load_audio_block_value, AudioBlockYaml};
 use chain_yaml::ChainYaml;
+pub use rig_yaml::{
+    load_rig_project_file, parse_rig_project, save_rig_project_file,
+    serialize_rig_project,
+};
 
 pub struct YamlProjectRepository {
     pub path: PathBuf,
