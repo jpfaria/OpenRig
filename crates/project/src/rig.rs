@@ -62,11 +62,19 @@ pub struct RigOutput {
     pub entry: OutputEntry,
 }
 
+fn default_preset_volume() -> f32 {
+    100.0
+}
+
 /// A preset in the shared pool: processing chain only, no I/O.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigPreset {
     #[serde(default)]
     pub blocks: Vec<crate::block::AudioBlock>,
+    /// Output volume %, 100 = unity. Carried from `Chain.volume` on migration
+    /// so master gain is unchanged (CLAUDE.md invariant). Default 100.0.
+    #[serde(default = "default_preset_volume")]
+    pub volume: f32,
 }
 
 impl RigProject {

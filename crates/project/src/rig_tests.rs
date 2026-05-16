@@ -63,6 +63,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                     p.to_string(),
                     RigPreset {
                         blocks: vec![processing_block()],
+                        volume: 100.0,
                     },
                 )
             })
