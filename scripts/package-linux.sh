@@ -245,10 +245,6 @@ fi
 
 if $BUILD_APPIMAGE; then
     APPIMAGE_ARCH="$ARCH"
-    curl -fsSL -o "$OUTPUT_DIR/appimagetool" \
-        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${APPIMAGE_ARCH}.AppImage"
-    chmod +x "$OUTPUT_DIR/appimagetool"
-
     APPDIR="$OUTPUT_DIR/AppDir"
     cp -r "$OUTPUT_DIR/stage" "$APPDIR"
 
@@ -284,9 +280,22 @@ if $BUILD_APPIMAGE; then
     cp "$APPDIR/usr/share/applications/openrig.desktop" "$APPDIR/openrig.desktop"
     cp "$APPDIR/usr/share/icons/hicolor/256x256/apps/openrig.png" "$APPDIR/openrig.png"
 
-    APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$OUTPUT_DIR/appimagetool" "$APPDIR" \
-        "$OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
-    echo "  → $OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
+    # Assemble the AppImage manually: type2 runtime + appended squashfs.
+    # We do NOT exec appimagetool — its own AppImage runtime can't run
+    # under emulated Docker (x86_64 build on an Apple Silicon host →
+    # "Exec format error"), and `cat runtime sqfs > app` is exactly what
+    # appimagetool does internally. Nothing foreign is executed at build
+    # time, so this is emulation-proof (issue #470/#479).
+    out_appimage="$OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
+    runtime="$OUTPUT_DIR/type2-runtime-${APPIMAGE_ARCH}"
+    curl -fsSL -o "$runtime" \
+        "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${APPIMAGE_ARCH}"
+    mksquashfs "$APPDIR" "$OUTPUT_DIR/appdir.sqfs" \
+        -root-owned -noappend -no-progress -quiet -comp zstd -mkfs-time 0
+    cat "$runtime" "$OUTPUT_DIR/appdir.sqfs" > "$out_appimage"
+    chmod +x "$out_appimage"
+    rm -f "$runtime" "$OUTPUT_DIR/appdir.sqfs"
+    echo "  → $out_appimage"
 fi
 
 echo ""
