@@ -1,6 +1,10 @@
-# OpenRig — clippy thresholds (issue #404)
+# OpenRig — clippy thresholds
 #
-# Limites duros aplicados pelo quality gate (scripts/qa.sh + CI pr.yml).
+# Aplicado ao `cargo clippy` LOCAL e ao `scripts/validate.sh`.
+# NÃO é mais o gate: o quality gate compartilhado
+# (github.com/xgodev/quality-gate) IGNORA este arquivo de propósito
+# (tamper-resistance) e usa rulesets próprios embutidos. Mantido aqui
+# como referência de estilo do projeto e pro validate.sh por-arquivo.
 # Ajustar com cuidado: subir threshold = aceitar dívida.
 cognitive-complexity-threshold = 15
 too-many-arguments-threshold = 5

@@ -1,83 +1,116 @@
 # Quality Gate — OpenRig
 
-Gate **único** comparativo. Roda local e em CI com mesmo comando, mesmo comportamento. Falha apenas quando o PR piora alguma métrica em relação a `develop`. Dívida preexistente nunca bloqueia.
+OpenRig **não tem mais gate interno**. Usa o gate **compartilhado** mantido
+centralmente em [`github.com/xgodev/quality-gate`](https://github.com/xgodev/quality-gate),
+igual para todos os projetos. Mesma filosofia de sempre: **comparativo**,
+falha só quando o PR **piora** uma métrica vs `develop`; dívida preexistente
+nunca bloqueia.
 
-> Issues #404 (criação) e #410 (unificação).
+> Migração: issue #482 (removeu `scripts/qa.sh` + gate interno).
+> Canônico de uso/contrato: `~/.quality-gate/docs/` após clonar.
 
 ## TL;DR
 
 ```bash
-./scripts/qa.sh
+# primeira vez (clona) — depois, manter atualizado:
+git -C ~/.quality-gate pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+
+~/.quality-gate/qg --base origin/develop
 ```
 
-Local: extrai `origin/develop` em `/tmp/qa-baseline` e compara. Se vermelho → arruma o que regrediu → roda de novo → só então `git push`.
+Vermelho → arrumar a **causa raiz** do que regrediu → rodar de novo → só
+então `git push`.
 
-## Filosofia
+### Agentes (Claude Code)
 
-O gate quebra quando o PR **piora** o projeto. Não importa quanta dívida preexistente exista — se o PR não a aumenta, passa. Cada PR pode reduzir dívida; nunca aumentar.
+A skill **`claude-plugin:quality-gate`** faz isso automaticamente. Triggers:
+"rodar quality gate", "rodar QG", "verificar qualidade", "validar antes do
+PR", "qa antes do push" (e equivalentes em EN). Ela clona/atualiza
+`~/.quality-gate`, roda o dispatcher e interpreta o JSON. Instalação:
 
-## Métricas comparadas (PR vs base)
+```
+/plugin marketplace add git@github.com:xgodev/claude-plugin.git
+/plugin install claude-plugin
+```
 
-| # | Métrica | Como conta | Falha se… |
-|---|---|---|---|
-| 1 | fmt | `cargo fmt --check` (linhas `Diff in `) | PR > base |
-| 2 | clippy | `cargo clippy -D warnings` sem complexity (linhas `^error`) | PR > base |
-| 3 | build | `cargo build --workspace --all-targets` (linhas `^error`) | PR > base |
-| 4 | test | `cargo test --no-fail-fast` (soma de `failed: N`) | PR > base |
-| 5 | complexity | `clippy -A all -W cognitive_complexity/too_many_lines/too_many_arguments/type_complexity` | PR > base |
-| 6 | coverage | `cargo llvm-cov --json` → `lines.percent` | PR < base − `QA_COV_MARGIN` |
+## Filosofia (inalterada)
 
-Thresholds de complexidade em `clippy.toml` (cognitive 15, lines 80, args 5, type 250) — usados como referência pra contagem, não como bloqueio absoluto.
+O gate quebra quando o PR **piora** o projeto. Não importa quanta dívida
+preexistente exista — se o PR não a aumenta, passa. Cada PR pode reduzir
+dívida; nunca aumentar.
 
-## Local vs CI — mesmo script
+## Métricas comparadas (PR vs base) — Rust
+
+| Métrica | Como conta |
+|---|---|
+| `fmt` | `cargo fmt --check` (rulesets embutidos do gate) |
+| `lint` | `cargo clippy -D warnings` sem complexity |
+| `build` | `cargo build --all-targets` |
+| `test` | `cargo test --no-fail-fast` (soma de falhas) |
+| `complexity` | clippy cognitive/lines/args/type (defaults do gate) |
+| `coverage` | `cargo llvm-cov` → `lines.percent`, margem `QG_COV_MARGIN` |
+
+> O gate **ignora** `clippy.toml`/`rustfmt.toml` do projeto de propósito
+> (tamper-resistance) e usa rulesets próprios (defaults da comunidade:
+> cognitive 25, lines 100, args 7, type 250). Nosso `clippy.toml` continua
+> valendo só pro `cargo clippy` local e pro `scripts/validate.sh`.
+
+## Local vs CI — mesmo dispatcher
 
 | Aspecto | Local | CI (`.github/workflows/pr.yml`) |
 |---|---|---|
-| Comando | `./scripts/qa.sh` | `QA_BASELINE_DIR=baseline ./scripts/qa.sh` |
-| Baseline | extraído via `git archive origin/develop` em `/tmp/qa-baseline` | reusa checkout que `actions/checkout` faz em `baseline/` |
-| Tempo | dois cargos do workspace inteiro (lento) | igual + cache compartilhado entre runs |
+| Comando | `~/.quality-gate/qg --base origin/develop` | mesmo `qg`, clonado no job |
+| Baseline | `git archive origin/develop` (cache em `/tmp`) | `--baseline-dir baseline/` (checkout paralelo) + `--force-full` |
+| Falha no CI | — | sticky comment (header `openrig-quality-gate`) + `request-changes` formal do `github-actions[bot]`; sucesso → comment ✅ + dismissal |
+| Codecov | — | reusa profraw do PR → `lcov.info` → upload |
 
-## Env vars
+## Exit codes
+
+| Código | Significado |
+|---|---|
+| 0 | Passou / bypass / sem linguagem suportada relevante |
+| 1 | Regrediu ≥1 métrica vs base |
+| 2 | Erro de ferramenta/setup (NÃO é regressão — relatar stderr) |
+| 3 | Nenhuma linguagem suportada detectada |
+
+## Env vars (prefixo `QG_`)
 
 | Variável | Default | Uso |
 |---|---|---|
-| `QA_BASELINE_DIR` | `/tmp/qa-baseline` (auto) | Path de um baseline pronto. Se setado, pula provisionamento. |
-| `QA_BASE_REF` | `origin/develop` | Git ref a usar como base. |
-| `QA_REFRESH_BASELINE` | `0` | `1` força re-extração do baseline antes de medir. |
-| `QA_COV_MARGIN` | `1.0` | Tolerância (pp) pra coverage não regredir. |
-| `QA_LOG_DIR` | `target/qa-logs` | Logs por etapa. |
+| `QG_BASE_REF` | (vazio) | = `--base`. Vazio → modo absoluto |
+| `QG_BASELINE_DIR` | (vazio) | = `--baseline-dir` (checkout pronto, CI) |
+| `QG_COV_MARGIN` | `1.0` | Tolerância (pp) de coverage |
+| `QG_LOG_DIR` | `target/qg-logs` | Logs por etapa |
+| `QG_FORCE_FULL` | `0` | `1` = desliga fast-path |
+| `QG_FORMAT` | `text` | `text` ou `json` |
+| `QG_BYPASS_REASON` | (vazio) | **NUNCA setar por conta própria.** Força exit 0 + audit log |
 
 ## Validação de negócio — testes obrigatórios
 
-Cobertura sozinha não basta. Toda lógica nova ou alterada **exige teste que valide comportamento esperado**, não apenas execute o caminho.
+Cobertura sozinha não basta. Toda lógica nova ou alterada **exige teste que
+valide comportamento esperado**, não apenas execute o caminho.
 
 - Bug fix → teste vermelho que reproduz o bug primeiro, fix depois (TDD).
 - Feature → teste cobrindo cenário esperado **e** edge cases.
 - Refactor que muda comportamento observável → teste antes do refactor.
 
-## Hook git pre-push (recomendado)
-
-```bash
-cat > .git/hooks/pre-push <<'EOF'
-#!/usr/bin/env bash
-exec ./scripts/qa.sh
-EOF
-chmod +x .git/hooks/pre-push
-```
-
-(Hook é local; cada dev opta.)
-
-## CI — `.github/workflows/pr.yml`
-
-`on: pull_request → develop`. Faz dois checkouts (PR head + base.sha), instala toolchain/deps, e roda `qa.sh`. Em failure: sticky comment com diagnóstico + `gh pr review --request-changes` formal pelo `github-actions[bot]`. Em success: comment ✅ + dismissal automático.
-
 ## Forbidden
 
 Pra silenciar o gate sem fix real:
 
-- Subir thresholds em `clippy.toml`.
+- `QG_BYPASS_REASON` por iniciativa própria.
+- Subir thresholds em `clippy.toml` (não adianta — o gate ignora) ou editar
+  código/teste/config só pra "passar".
 - Marcar testes como `#[ignore]`.
 - `#[allow(clippy::...)]` sem causa raiz justificada.
 - `--no-verify` no commit.
 
 A regra: **causa raiz ou escalar**.
+
+## `validate.sh` — checagem estática por-arquivo (continua)
+
+`scripts/validate.sh` **não é o gate** e segue existindo: caps de LOC,
+`cargo fmt`/`clippy` por-arquivo, compile Slint, proibição de
+`#[cfg(test)] mod tests` inline. É a operacionalização das regras OpenRig
+que o gate genérico não cobre. Rodar a cada arquivo `.rs`/`.slint` tocado.

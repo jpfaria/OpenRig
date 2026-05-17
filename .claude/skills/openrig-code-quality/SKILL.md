@@ -118,20 +118,22 @@ Ordem obrigatória antes de abrir PR:
 2. **`cargo test --workspace --lib`** verde no solver.
 3. **`git push` da branch** (sem PR ainda).
 4. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
-5. **`./scripts/qa.sh`** rodar e ficar verde.
+5. **Quality gate compartilhado** rodar e ficar verde.
 6. **Só ENTÃO** `gh pr create`.
 
 Não inverter:
 - PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.
-- PR antes do qa.sh = CI falha e abre sticky comment no PR.
-- qa.sh antes do push = bloqueia o usuário de testar enquanto roda (qa.sh demora ~25min).
+- PR antes do gate = CI falha e abre sticky comment no PR.
+- Gate antes do push = bloqueia o usuário de testar enquanto roda (gate demora ~25min).
 
-## Quality Gate — comparativo único (issues #404 / #410)
+## Quality Gate — compartilhado `xgodev/quality-gate` (issue #482)
 
-`scripts/qa.sh` é o **único** gate, igual local e em CI. Roda no passo 5 acima:
+Gate **único**, mantido fora do repo, igual local e em CI. Roda no passo 5 acima (ou via skill `claude-plugin:quality-gate`):
 
 ```bash
-./scripts/qa.sh
+git -C ~/.quality-gate pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+~/.quality-gate/qg --base origin/develop
 ```
 
 Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma piorou:
@@ -139,13 +141,13 @@ Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma p
 | # | Métrica | Falha se |
 |---|---|---|
 | 1 | fmt errors | PR > base |
-| 2 | clippy errors (`-D warnings`) | PR > base |
+| 2 | lint errors (`-D warnings`) | PR > base |
 | 3 | build errors | PR > base |
 | 4 | test failures | PR > base |
 | 5 | complexity violations | PR > base |
-| 6 | coverage % | PR < base − `QA_COV_MARGIN` (1.0pp) |
+| 6 | coverage % | PR < base − `QG_COV_MARGIN` (1.0pp) |
 
-Local extrai baseline em `/tmp/qa-baseline` automaticamente; CI passa `QA_BASELINE_DIR=baseline`. Detalhes em `docs/development/quality-gate.md`.
+CI clona o gate no job e passa `--baseline-dir baseline/ --force-full`. O gate **ignora** o `clippy.toml` do projeto (tamper-resistance). Detalhes em `docs/development/quality-gate.md`.
 
 **Regra desta skill:** o gate cuida da regressão de métrica mecânica. Esta skill foca no que o gate não consegue medir — invariantes de áudio, decisões de arquitetura, qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns.
 
