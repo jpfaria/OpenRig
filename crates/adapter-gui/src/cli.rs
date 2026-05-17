@@ -13,7 +13,31 @@
 //! is silently ignored to leave room for future flags without breaking
 //! existing callers.
 
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+
+/// Parse the opt-in MCP server flag.
+///
+/// * `--mcp` → default `127.0.0.1:4123`
+/// * `--mcp=ADDR` → that socket address (invalid value → `None`, logged)
+/// * absent → `None` (server not started; zero overhead)
+pub fn parse_mcp_addr(args: &[&str]) -> Option<SocketAddr> {
+    for arg in args.iter().skip(1) {
+        if *arg == "--mcp" {
+            return Some("127.0.0.1:4123".parse().expect("valid default mcp addr"));
+        }
+        if let Some(rest) = arg.strip_prefix("--mcp=") {
+            return match rest.parse() {
+                Ok(addr) => Some(addr),
+                Err(_) => {
+                    eprintln!("openrig: invalid --mcp address: {rest}");
+                    None
+                }
+            };
+        }
+    }
+    None
+}
 
 pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
     let mut project_path: Option<PathBuf> = None;

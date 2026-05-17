@@ -6,6 +6,8 @@
 | `openrig /path/project.yaml` (posicional) | Idem (forma legada, ainda aceita) |
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
 | `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
+| `--mcp` | Sobe servidor MCP em `http://127.0.0.1:4123` (GUI continua) — ver `docs/mcp.md` |
+| `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`) |
 
 Precedência do path: `--project <PATH>` > posicional > `OPENRIG_PROJECT_PATH`
 (last-wins entre formas CLI). O path resolvido é **validado** (`validate_project_path`):

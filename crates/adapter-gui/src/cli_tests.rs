@@ -58,3 +58,25 @@ fn validate_existing_file_ok() {
     std::fs::write(&path, "project:\n  name: x\n").unwrap();
     assert!(validate_project_path(&path).is_ok());
 }
+
+#[test]
+fn mcp_flag_bare_uses_default_addr() {
+    let addr = parse_mcp_addr(&["openrig", "--mcp"]);
+    assert_eq!(addr, Some("127.0.0.1:4123".parse().unwrap()));
+}
+
+#[test]
+fn mcp_flag_with_value_parses_addr() {
+    let addr = parse_mcp_addr(&["openrig", "--mcp=0.0.0.0:9000"]);
+    assert_eq!(addr, Some("0.0.0.0:9000".parse().unwrap()));
+}
+
+#[test]
+fn mcp_flag_absent_is_none() {
+    assert_eq!(parse_mcp_addr(&["openrig", "/tmp/p.openrig"]), None);
+}
+
+#[test]
+fn mcp_flag_invalid_value_is_none() {
+    assert_eq!(parse_mcp_addr(&["openrig", "--mcp=not-an-addr"]), None);
+}

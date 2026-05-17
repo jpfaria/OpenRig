@@ -17,6 +17,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::FilesystemStorage;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 use std::cell::{Cell, RefCell};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
@@ -40,6 +41,7 @@ pub fn run_desktop_app(
     cli_project_path: Option<PathBuf>,
     auto_save: bool,
     fullscreen: bool,
+    mcp_addr: Option<SocketAddr>,
 ) -> Result<()> {
     log::info!(
         "starting desktop app: runtime_mode={:?}, interaction_mode={:?}",
@@ -727,6 +729,54 @@ pub fn run_desktop_app(
     // Virtual keyboard: dispatch key events to the focused element
     // Virtual keyboard (extracted to virtual_keyboard_wiring)
     crate::virtual_keyboard_wiring::wire(&window);
+
+    // ── MCP server (opt-in, --mcp[=addr]) ──────────────────────────────────
+    // A complementary network server on the live instance: an agent drives
+    // the same `ProjectSession` the user has open. The server runs on its own
+    // thread (tokio); commands/queries cross the `!Send` boundary via the
+    // bridge and are serviced here on the Slint event-loop thread (same place
+    // GUI callbacks dispatch), so GUI and MCP share one project with no lock.
+    // Bound for the whole `window.run()` so the timer keeps firing.
+    let _mcp_drain_timer = if let Some(addr) = mcp_addr {
+        let (bridge, drain) = application::bridge::channel();
+        std::thread::Builder::new()
+            .name("openrig-mcp".into())
+            .spawn(move || {
+                if let Err(e) = adapter_mcp::run_blocking(bridge, addr) {
+                    log::error!("MCP server stopped: {e}");
+                }
+            })?;
+        log::info!("MCP server listening on http://{addr}");
+        let session_for_mcp = project_session.clone();
+        let timer = Timer::default();
+        timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_millis(16),
+            move || {
+                if let Some(session) = session_for_mcp.borrow().as_ref() {
+                    drain.drain(session.dispatcher.as_ref(), 32);
+                    let project = &session.project;
+                    drain.serve_queries(
+                        |kind| match kind {
+                            application::bridge::QueryKind::ProjectYaml => {
+                                infra_yaml::serialize_project(&project.borrow())
+                                    .map_err(|e| e.to_string())
+                            }
+                            application::bridge::QueryKind::Devices => {
+                                infra_cpal::list_devices()
+                                    .map(|d| d.join("\n"))
+                                    .map_err(|e| e.to_string())
+                            }
+                        },
+                        32,
+                    );
+                }
+            },
+        );
+        Some(timer)
+    } else {
+        None
+    };
 
     window.run().map_err(|error| anyhow!(error.to_string()))
 }

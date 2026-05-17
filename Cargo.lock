@@ -39,6 +39,7 @@ dependencies = [
 name = "adapter-gui"
 version = "0.1.0"
 dependencies = [
+ "adapter-mcp",
  "anyhow",
  "application",
  "block-core",

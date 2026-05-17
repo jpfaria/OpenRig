@@ -31,6 +31,7 @@ fn main() -> anyhow::Result<()> {
     let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
     let (arg_project_path, arg_auto_save, arg_fullscreen) =
         adapter_gui::parse_cli_args_from(&raw_refs);
+    let mcp_addr = adapter_gui::parse_mcp_addr(&raw_refs);
     let cli_project_path = arg_project_path
         .or_else(|| {
             std::env::var("OPENRIG_PROJECT_PATH")
@@ -63,5 +64,6 @@ fn main() -> anyhow::Result<()> {
         cli_project_path,
         auto_save,
         fullscreen,
+        mcp_addr,
     )
 }

@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 application = { path = "../application" }
+adapter-mcp = { path = "../adapter-mcp" }
 block-core = { path = "../block-core" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 cpal = "0.17"
