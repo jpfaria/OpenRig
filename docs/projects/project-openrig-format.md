@@ -102,9 +102,20 @@ the audio-thread contract:
   routed outputs is projected onto one synthetic legacy `Chain`
   (`Input(sources)` → preset blocks → `Output(routing)`), distinct `ChainId`
   `rig:<input>` per input.
-- `RigRuntime::build(project, sample_rate)` — one **fully isolated** runtime
-  per input via the existing `RuntimeGraph::upsert_chain` (invariant #4: no
-  shared buffer/lock/route/tap; mixing stays in the backend).
+- `RigRuntime::build(project, sample_rate)` — brings up one **fully isolated**
+  runtime per input via the existing `RuntimeGraph::upsert_chain` (invariant
+  #4: no shared buffer/lock/route/tap; mixing stays in the backend),
+  **skipping** any input whose `(device, channel)` tap is already held by an
+  earlier-enabled input (deterministic by input name).
+- Enabled state is **in-memory only**, never persisted to the file:
+  - `RigRuntime::enable_input(name)` — activates an input at runtime; errors
+    if any of its taps is already used by an active input (free it first).
+  - `RigRuntime::disable_input(name)` — tears down that input's runtime and
+    frees its taps for another input.
+  - `RigRuntime::is_enabled(name)` — current activation state.
+  A project may freely *define* many tap-sharing inputs (a library of
+  configs); only the *active set* must be tap-disjoint, enforced here — not
+  by `validate()`. `switch_preset`/`switch_scene` require the input active.
 - `RigRuntime::switch_preset(input, idx)` — rebuilds **only that input's**
   chain. Same I/O signature ⇒ the proven in-place lock-free update path: the
   `Arc<ChainRuntimeState>` is preserved, the new pipeline is built off the

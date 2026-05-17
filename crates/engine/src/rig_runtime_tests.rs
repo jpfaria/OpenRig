@@ -447,3 +447,113 @@ fn switch_scene_is_lockfree_same_runtime_arc() {
         "scene swap reuses the runtime Arc (lock-free in-place, like #451)"
     );
 }
+
+// ── runtime tap-exclusivity (enabled is in-memory only) ───────────────────
+
+#[test]
+fn build_skips_second_input_conflicting_on_same_tap() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let rt = RigRuntime::build(r, SR).expect("build");
+    assert_eq!(
+        rt.graph().chains.len(),
+        1,
+        "conflicting input not auto-enabled"
+    );
+    assert!(rt.is_enabled("input-1"));
+    assert!(!rt.is_enabled("input-2"));
+}
+
+#[test]
+fn enable_input_rejects_tap_already_in_use() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    let err = rt.enable_input("input-2").unwrap_err().to_string();
+    assert!(err.contains("sc") && err.contains("input-1"), "got: {err}");
+    assert!(!rt.is_enabled("input-2"));
+}
+
+#[test]
+fn disable_then_enable_other_frees_the_tap() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    rt.disable_input("input-1").expect("disable");
+    assert!(!rt.is_enabled("input-1"));
+    rt.enable_input("input-2").expect("tap now free");
+    assert!(rt.is_enabled("input-2"));
+    assert_eq!(rt.graph().chains.len(), 1);
+}
+
+#[test]
+fn enable_disable_unknown_input_errs() {
+    let r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+        )],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let mut rt = RigRuntime::build(r, SR).expect("build");
+    assert!(rt.enable_input("ghost").is_err());
+    assert!(rt.disable_input("ghost").is_err());
+}
+
+#[test]
+fn non_conflicting_inputs_both_auto_enabled() {
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("sc", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("sc", vec![1])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![])],
+        vec![],
+    );
+    let rt = RigRuntime::build(r, SR).expect("build");
+    assert!(rt.is_enabled("input-1") && rt.is_enabled("input-2"));
+    assert_eq!(rt.graph().chains.len(), 2);
+}

@@ -13,8 +13,43 @@ use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::chain::Chain;
-use project::rig::RigProject;
-use std::collections::HashMap;
+use project::rig::{RigInput, RigProject};
+use std::collections::{BTreeSet, HashMap};
+
+/// The `(device, channel)` capture taps an input occupies. Two inputs are
+/// in conflict iff their tap sets intersect — they would read the same
+/// physical capture point, which two isolated runtimes must never share
+/// (invariant #4).
+fn input_taps(input: &RigInput) -> Vec<(String, usize)> {
+    let mut taps = Vec::new();
+    for entry in &input.sources {
+        for &ch in &entry.channels {
+            taps.push((entry.device_id.0.clone(), ch));
+        }
+    }
+    taps
+}
+
+/// First tap of `candidate` already claimed by a currently-enabled input,
+/// if any: `(device, channel, holder-input-name)`. Deterministic via the
+/// project's `BTreeMap` ordering.
+fn tap_conflict(
+    project: &RigProject,
+    enabled: &BTreeSet<String>,
+    candidate: &RigInput,
+) -> Option<(String, usize, String)> {
+    let want = input_taps(candidate);
+    for name in enabled {
+        if let Some(other) = project.inputs.get(name) {
+            for (dev, ch) in input_taps(other) {
+                if want.iter().any(|(d, c)| *d == dev && *c == ch) {
+                    return Some((dev, ch, name.clone()));
+                }
+            }
+        }
+    }
+    None
+}
 
 /// Project each input of a `RigProject` onto one synthetic legacy `Chain`:
 /// `Input(sources)` → active-preset processing blocks → `Output(routing)`.
@@ -85,10 +120,19 @@ pub struct RigRuntime {
     project: RigProject,
     graph: RuntimeGraph,
     sample_rate: f32,
+    /// Inputs currently activated, **in memory only** — never persisted to
+    /// `project.openrig`. A tap-sharing input can only be enabled if no
+    /// already-enabled input holds the same `(device, channel)`.
+    enabled: BTreeSet<String>,
 }
 
 impl RigRuntime {
-    /// Validate the project and build one isolated runtime per input.
+    /// Validate the project and bring up one isolated runtime per input,
+    /// **skipping** any input whose `(device, channel)` tap is already held
+    /// by an earlier-enabled input (deterministic by input name). Enabled
+    /// state lives only here, never in the file; conflicting inputs stay
+    /// defined but inactive and can be enabled later via [`Self::enable_input`]
+    /// once the tap is freed.
     pub fn build(project: RigProject, sample_rate: f32) -> Result<Self> {
         project
             .validate()
@@ -96,14 +140,70 @@ impl RigRuntime {
         let mut graph = RuntimeGraph {
             chains: HashMap::new(),
         };
-        for chain in rig_to_chains(&project) {
-            graph.upsert_chain(&chain, sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+        let mut enabled = BTreeSet::new();
+        for (name, input) in &project.inputs {
+            if tap_conflict(&project, &enabled, input).is_some() {
+                continue; // tap already in use ⇒ leave this input inactive
+            }
+            let id = ChainId(format!("rig:{name}"));
+            if let Some(chain) = rig_to_chains(&project).into_iter().find(|c| c.id == id) {
+                graph.upsert_chain(&chain, sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+                enabled.insert(name.clone());
+            }
         }
         Ok(Self {
             project,
             graph,
             sample_rate,
+            enabled,
         })
+    }
+
+    /// Is this input currently activated (in-memory)?
+    pub fn is_enabled(&self, input: &str) -> bool {
+        self.enabled.contains(input)
+    }
+
+    /// Activate an input at runtime. Fails if the input is unknown or any of
+    /// its `(device, channel)` taps is already held by an enabled input
+    /// (disable that one first). No-op if already enabled.
+    pub fn enable_input(&mut self, input: &str) -> Result<()> {
+        let ri = self
+            .project
+            .inputs
+            .get(input)
+            .ok_or_else(|| anyhow!("unknown input '{input}'"))?;
+        if self.enabled.contains(input) {
+            return Ok(());
+        }
+        if let Some((dev, ch, holder)) = tap_conflict(&self.project, &self.enabled, ri) {
+            return Err(anyhow!(
+                "cannot enable input '{input}': device '{dev}' channel {ch} \
+                 is already in use by active input '{holder}'"
+            ));
+        }
+        let id = ChainId(format!("rig:{input}"));
+        let chain = rig_to_chains(&self.project)
+            .into_iter()
+            .find(|c| c.id == id)
+            .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
+        self.graph
+            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+        self.enabled.insert(input.to_string());
+        Ok(())
+    }
+
+    /// Deactivate an input at runtime, tearing down its isolated runtime and
+    /// freeing its capture taps for another input. Fails if unknown; no-op
+    /// if already disabled.
+    pub fn disable_input(&mut self, input: &str) -> Result<()> {
+        if !self.project.inputs.contains_key(input) {
+            return Err(anyhow!("unknown input '{input}'"));
+        }
+        if self.enabled.remove(input) {
+            self.graph.remove_chain(&ChainId(format!("rig:{input}")));
+        }
+        Ok(())
     }
 
     pub fn project(&self) -> &RigProject {
@@ -120,6 +220,11 @@ impl RigRuntime {
     /// other inputs' runtimes are untouched (isolation #4). With an unchanged
     /// I/O signature this is the in-place lock-free swap.
     pub fn switch_preset(&mut self, input: &str, idx: usize) -> Result<()> {
+        if !self.enabled.contains(input) {
+            return Err(anyhow!(
+                "input '{input}' is not active; enable it before switching presets"
+            ));
+        }
         let ri = self
             .project
             .inputs
@@ -150,6 +255,11 @@ impl RigRuntime {
         if !(1..=8).contains(&scene) {
             return Err(anyhow!(
                 "scene {scene} out of range 1..=8 for input '{input}'"
+            ));
+        }
+        if !self.enabled.contains(input) {
+            return Err(anyhow!(
+                "input '{input}' is not active; enable it before switching scenes"
             ));
         }
         let ri = self
