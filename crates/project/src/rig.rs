@@ -81,6 +81,13 @@ fn default_preset_volume() -> f32 {
     100.0
 }
 
+/// Single source of truth for the on-disk format versions. Bumped only
+/// when the YAML schema changes in a way that needs a staged upgrade;
+/// the loader uses these to migrate older docs and to refuse newer ones.
+pub const PROJECT_FORMAT_VERSION: u32 = 1;
+/// See [`PROJECT_FORMAT_VERSION`]; the standalone preset file schema.
+pub const PRESET_FORMAT_VERSION: u32 = 1;
+
 /// A preset in the shared pool: processing chain only, no I/O.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigPreset {
@@ -100,6 +107,20 @@ pub struct RigPreset {
 }
 
 impl RigPreset {
+    /// Build a preset from a legacy standalone preset's processing blocks
+    /// and volume. Blocks are kept bit-identical and in order, volume is
+    /// preserved exact, and the preset has no scenes/scene-params — so it
+    /// behaves as a single Default scene that changes nothing. Audio is
+    /// identical to the legacy preset (CLAUDE.md invariant).
+    pub fn from_legacy_blocks(blocks: Vec<AudioBlock>, volume: f32) -> Self {
+        Self {
+            blocks,
+            scene_params: Vec::new(),
+            scenes: BTreeMap::new(),
+            volume,
+        }
+    }
+
     /// The scene for `idx`, or an empty Default scene when this preset has no
     /// scenes (backward-compat: a pre-scenes preset behaves as one Default
     /// scene that changes nothing).

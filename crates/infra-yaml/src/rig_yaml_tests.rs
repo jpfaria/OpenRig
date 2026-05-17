@@ -47,6 +47,36 @@ fn parse_minimal_ok() {
 }
 
 #[test]
+fn serialize_writes_current_version() {
+    let p = parse_rig_project(MINIMAL).unwrap();
+    let s = serialize_rig_project(&p).unwrap();
+    assert!(
+        s.contains(&format!(
+            "version: {}",
+            project::rig::PROJECT_FORMAT_VERSION
+        )),
+        "serialized doc must carry the format version, got:\n{s}"
+    );
+}
+
+#[test]
+fn parse_without_version_defaults_to_current() {
+    // MINIMAL has no `version:` key (pre-version file) ⇒ loads as v1.
+    let p = parse_rig_project(MINIMAL).expect("pre-version doc still loads");
+    assert_eq!(p.presets.len(), 2);
+}
+
+#[test]
+fn parse_rejects_future_version() {
+    let future = format!("version: 999\n{MINIMAL}");
+    let err = parse_rig_project(&future).unwrap_err().to_string();
+    assert!(
+        err.contains("999") && err.to_lowercase().contains("newer"),
+        "future version must be refused cleanly, got: {err}"
+    );
+}
+
+#[test]
 fn round_trip_deterministic() {
     let p1 = parse_rig_project(MINIMAL).unwrap();
     let s1 = serialize_rig_project(&p1).unwrap();
@@ -251,4 +281,45 @@ fn migrate_file_does_not_clobber_existing_target() {
         !dir.path().join("project.yaml.bak").exists(),
         "legacy untouched when target already valid"
     );
+}
+
+// ── #450 transparent load (new format or auto-migrated legacy) ────────────
+
+#[test]
+fn load_project_any_reads_new_openrig() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("project.openrig");
+    let p = parse_rig_project(MINIMAL).unwrap();
+    save_rig_project_file(&path, &p).unwrap();
+
+    let loaded = load_project_any(&path).expect("new format loads");
+    assert_eq!(loaded, p);
+}
+
+#[test]
+fn load_project_any_migrates_legacy_transparently_and_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let legacy = write_legacy(dir.path(), vec![legacy_chain("clean", 133.0)]);
+
+    let rig = load_project_any(&legacy).expect("legacy migrates on load");
+    assert_eq!(rig.presets.get("clean").unwrap().volume, 133.0);
+
+    let sibling = dir.path().join("project.openrig");
+    assert!(sibling.exists(), "sibling project.openrig written");
+    assert!(
+        dir.path().join("project.yaml.bak").exists(),
+        "legacy backed up"
+    );
+
+    let again = load_project_any(&legacy).expect("idempotent");
+    assert_eq!(rig, again, "second load yields identical project");
+}
+
+#[test]
+fn load_project_any_rejects_future_version() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("project.openrig");
+    std::fs::write(&path, format!("version: 999\n{MINIMAL}")).unwrap();
+    let err = load_project_any(&path).unwrap_err().to_string();
+    assert!(err.contains("999"), "got: {err}");
 }

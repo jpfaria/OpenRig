@@ -1695,3 +1695,89 @@ chains:
         project.chains[0].volume
     );
 }
+
+// ── #450 preset YAML versioning + legacy preset → RigPreset ───────────────
+
+#[test]
+fn legacy_preset_without_version_still_loads() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("old.yaml");
+    fs::write(&path, "id: old\nvolume: 120.0\nblocks: []\n").unwrap();
+    // No `version:` key (pre-version preset) ⇒ loads, volume preserved.
+    let p = load_chain_preset_file(&path).expect("pre-version preset loads");
+    assert_eq!(p.id, "old");
+    assert_eq!(p.volume, 120.0);
+}
+
+#[test]
+fn preset_save_writes_version() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("p.yaml");
+    let preset = ChainBlocksPreset {
+        id: "p".into(),
+        name: None,
+        volume: 100.0,
+        blocks: Vec::new(),
+    };
+    save_chain_preset_file(&path, &preset).expect("save");
+    let raw = fs::read_to_string(&path).unwrap();
+    assert!(
+        raw.contains(&format!("version: {}", project::rig::PRESET_FORMAT_VERSION)),
+        "preset file must stamp version, got:\n{raw}"
+    );
+}
+
+#[test]
+fn preset_rejects_future_version() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("future.yaml");
+    fs::write(&path, "version: 999\nid: f\nblocks: []\n").unwrap();
+    let err = load_chain_preset_file(&path).unwrap_err().to_string();
+    assert!(
+        err.contains("999") && err.to_lowercase().contains("newer"),
+        "future preset version must be refused, got: {err}"
+    );
+}
+
+#[test]
+fn legacy_preset_loads_as_rig_preset_blocks_and_volume_preserved() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("lead.yaml");
+    let delay_model = first_model(block_delay::supported_models());
+    let preset = ChainBlocksPreset {
+        id: "lead".into(),
+        name: Some("Lead Tone".into()),
+        volume: 142.0,
+        blocks: vec![core_block(
+            "preset:lead:block:0",
+            "delay",
+            delay_model,
+            Vec::new(),
+        )],
+    };
+    save_chain_preset_file(&path, &preset).expect("save");
+
+    let (name, rig) = super::load_legacy_preset_as_rig(&path).expect("convert");
+
+    assert_eq!(name, "Lead Tone", "human name preferred over id");
+    assert_eq!(rig.volume, 142.0, "volume preserved exact");
+    assert_eq!(rig.blocks.len(), 1);
+    assert_eq!(rig.blocks[0].model_ref().unwrap().model, delay_model);
+    assert!(rig.scenes.is_empty(), "no scenes (back-compat default)");
+    assert!(rig.scene_params.is_empty());
+}
+
+#[test]
+fn legacy_preset_without_name_uses_id() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("raw.yaml");
+    let preset = ChainBlocksPreset {
+        id: "raw-id".into(),
+        name: None,
+        volume: 100.0,
+        blocks: Vec::new(),
+    };
+    save_chain_preset_file(&path, &preset).expect("save");
+    let (name, _) = super::load_legacy_preset_as_rig(&path).expect("convert");
+    assert_eq!(name, "raw-id");
+}

@@ -321,3 +321,22 @@ fn validate_scene_param_marked_ok() {
     )]);
     assert!(p.validate().is_ok(), "{:?}", p.validate());
 }
+
+#[test]
+fn format_version_constants_are_one() {
+    assert_eq!(crate::rig::PROJECT_FORMAT_VERSION, 1);
+    assert_eq!(crate::rig::PRESET_FORMAT_VERSION, 1);
+}
+
+#[test]
+fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
+    let blocks = vec![core_block("od"), core_block("amp")];
+    let preset = RigPreset::from_legacy_blocks(blocks.clone(), 137.0);
+
+    assert_eq!(preset.blocks, blocks, "blocks bit-identical and in order");
+    assert_eq!(preset.volume, 137.0, "volume preserved exact");
+    assert!(preset.scene_params.is_empty());
+    assert!(preset.scenes.is_empty());
+    // Behaves as one Default scene that changes nothing (back-compat).
+    assert_eq!(preset.apply_scene(1), blocks);
+}

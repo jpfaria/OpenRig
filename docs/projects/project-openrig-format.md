@@ -1,7 +1,8 @@
 # `project.openrig` — format reference
 
-Project-level I/O + per-input preset banks (rig architecture, #436). Introduced
-by #449 (model + parser only — no engine wiring, migration, UI or scenes yet).
+Project-level I/O + per-input preset banks (rig architecture, #436). Model +
+parser (#449), engine runtime (#451), migration + format versioning (#450),
+scenes + spillover (#454).
 
 The legacy chain-based project (`project::project::Project`) is **untouched**;
 this is an additive model. Migration of legacy `chain.yaml` is #450.
@@ -76,10 +77,12 @@ and rejects:
 
 | Fn | Purpose |
 |---|---|
-| `parse_rig_project(&str) -> Result<RigProject>` | parse + validate from a string |
-| `serialize_rig_project(&RigProject) -> Result<String>` | deterministic serialize |
+| `parse_rig_project(&str) -> Result<RigProject>` | parse + version-check + validate |
+| `serialize_rig_project(&RigProject) -> Result<String>` | deterministic serialize (stamps `version`) |
 | `load_rig_project_file(&Path) -> Result<RigProject>` | read + parse + validate |
 | `save_rig_project_file(&Path, &RigProject)` | serialize + write (creates dirs) |
+| `load_project_any(&Path) -> Result<RigProject>` | transparent: new format as-is, **or** auto-migrate legacy on load |
+| `load_legacy_preset_as_rig(&Path) -> Result<(String, RigPreset)>` | convert a standalone legacy preset file into a `RigPreset` |
 
 Round-trip (`parse → serialize → parse → serialize`) is byte-deterministic
 because every map is a `BTreeMap`.
@@ -145,6 +148,33 @@ File orchestrator `infra-yaml::migrate_legacy_project_file(legacy, out)`:
   (idempotent — legacy not re-read, target not clobbered);
 - backs the legacy file up to `<legacy>.bak` exactly once before writing;
 - validates the migrated project before saving.
+
+## Format versioning + backward-compat (#450)
+
+Both `project.openrig` and standalone preset files carry an explicit
+top-level `version:` (single source of truth:
+`project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` — currently
+`1`):
+
+```yaml
+version: 1
+project: { ... }
+```
+
+- **Missing `version`** ⇒ a pre-version file; its shape *is* v1, so it loads
+  unchanged (older files keep working).
+- **`version > CURRENT`** ⇒ refused with a clear "newer than this build"
+  error instead of silently dropping unknown fields (an old binary will not
+  corrupt a newer project).
+- **`version < CURRENT`** ⇒ staged in-memory upgrade (no upgrades exist for
+  v1 yet; the hook is in `parse_rig_project`).
+
+`load_project_any` makes migration transparent: opening a legacy chain
+`*.yaml` auto-writes a sibling `project.openrig` (+ one-time `<legacy>.bak`),
+idempotently, and returns the migrated `RigProject` — the caller never
+branches on format. Legacy standalone presets convert via
+`load_legacy_preset_as_rig` (blocks + volume preserved bit-identical ⇒ audio
+unchanged; no scenes/scene-params ⇒ behaves as one Default scene).
 
 ## Out of scope here (tracked elsewhere)
 
