@@ -90,6 +90,37 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 ---
 
+## LEI — toda funcionalidade nova é um `Command` (paridade GUI/MCP/gRPC)
+
+**Nenhuma operação que muda estado vive só num frontend.** O `Command` enum em `crates/application/src/command.rs` é a **única fonte de verdade** do "que o app sabe fazer". Toda funcionalidade nova que muta `Project`/sessão:
+
+1. **Nasce como variante de `Command`** + (se observável) variante de `Event`, com handler no `LocalDispatcher`. Nunca como `borrow_mut()` direto dentro de um callback de frontend.
+2. **GUI** dispara via `dispatcher.dispatch(cmd)` e reage aos `Event` — nunca muta `Project` direto.
+3. **MCP** (`adapter-mcp`) ganha a tool **automaticamente** (schema auto-derivado de `Command` via `application::command_schema`). Não há passo manual — mas o teste de paridade (`tool count == command_variant_names().len()`) **tem** que continuar verde.
+4. **gRPC** (`adapter-server`, quando existir): mesma variante, idem.
+
+Funcionalidade que existe num frontend mas **não** é `Command` = **gap do command bus**, não "feature do frontend". Fechar o gap adicionando a variante (ex.: `SetLanguage` foi exatamente isso — idioma era derivado de env, nunca settável; #165 fechou). Consistente com #295 ("um `Command` por operação de usuário") e com `[[feedback_backend_transport_agnostic]]`.
+
+**Why:** o core vai virar gRPC + MCP + remoto. Se a operação só existe na GUI, o agente (MCP) e o cliente remoto (gRPC) ficam cegos pra ela — a "mão do agente" não alcança o que a "mão do usuário" alcança. Paridade não é opcional; é o contrato da arquitetura de adapters.
+
+**How to apply:** antes de escrever qualquer fluxo que muda estado — "isso é um `Command`?". Não? Cria a variante primeiro (TDD: teste no `local_dispatcher_tests.rs`), depois liga o frontend. Auditoria de paridade ao adicionar feature: `command_variant_names()` cobre toda operação de usuário? Gap → variante nova, no mesmo PR.
+
+**Anti-padrão:**
+```
+❌ on_troca_idioma => { session.project.borrow_mut().language = tag; }
+   // WRONG: muta direto no callback. MCP/gRPC nunca verão "trocar idioma".
+
+❌ "essa feature é só da GUI, não precisa de Command"
+   // WRONG: toda operação de estado é Command. Sem exceção de frontend.
+```
+**Padrão:**
+```
+✅ Command::SetLanguage { tag } + Event::LanguageChanged + handler no LocalDispatcher
+   → GUI dispatch(cmd); MCP tool auto; gRPC variante idem.
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
