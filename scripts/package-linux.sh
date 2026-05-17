@@ -109,6 +109,11 @@ Icon=openrig
 Type=Application
 Categories=AudioVideo;Audio;Music;
 Terminal=false
+# GNOME/Wayland matches the running window to this .desktop by app_id
+# (Wayland) / WM_CLASS (X11). Slint's winit backend uses the binary
+# name ("openrig"); without this key the shell shows it as an unknown
+# app — no dock icon, can't pin (#479).
+StartupWMClass=openrig
 DESKTOP
 cp crates/adapter-gui/ui/assets/openrig-logomark.svg \
    "$S/usr/share/icons/hicolor/scalable/apps/openrig.svg"
