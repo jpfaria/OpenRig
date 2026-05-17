@@ -5,7 +5,12 @@
 # so output is identical to GitHub Actions.
 #
 # Usage:
-#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V] [--format FORMAT] [--output-dir DIR] [--clean] [--nuke]
+#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V] [--format FORMAT] [--output-dir DIR] [--plugins-src DIR] [--clean] [--nuke]
+#
+#   --plugins-src DIR  OpenRig-plugins plugin tree to bundle (mounted
+#                      read-only into the container). Default:
+#                      ../OpenRig-plugins/plugins/source (or
+#                      $OPENRIG_PLUGINS_SRC). No manual `cp` needed.
 #
 # Flags:
 #   --clean  Remove target/ and output/ before building. Use when the build
@@ -39,6 +44,7 @@ while [ $# -gt 0 ]; do
         --version)    VERSION="$2"; shift 2 ;;
         --format)     FORMAT="$2"; shift 2 ;;
         --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
+        --plugins-src) PLUGINS_SRC="$2"; shift 2 ;;
         --clean)      CLEAN=1; shift ;;
         --nuke)       CLEAN=1; NUKE=1; shift ;;
         --help|-h)
@@ -116,6 +122,22 @@ docker build --platform "$DOCKER_PLATFORM" -t "$DOCKER_IMAGE" \
     "${DOCKER_BUILD_ARGS[@]+"${DOCKER_BUILD_ARGS[@]}"}" \
     -f "$DOCKERFILE" "$PROJECT_ROOT/docker"
 
+# ── Plugin tree: mounted, not copied ─────────────────────────────────────────
+# plugins/ is gitignored in OpenRig; the bundled LV2/NAM tree lives in the
+# sibling OpenRig-plugins repo. Mount it read-only at /workspace/plugins/source
+# so package-linux.sh's `cp -r plugins/source` finds it — no manual `cp -cR`
+# into the repo. Precedence: --plugins-src > $OPENRIG_PLUGINS_SRC > sibling
+# default. If none exists, package-linux.sh just warns and ships no plugins.
+PLUGINS_SRC="${PLUGINS_SRC:-${OPENRIG_PLUGINS_SRC:-$PROJECT_ROOT/../OpenRig-plugins/plugins/source}}"
+PLUGINS_MOUNT=()
+if [ -d "$PLUGINS_SRC" ]; then
+    PLUGINS_ABS="$(cd "$PLUGINS_SRC" && pwd)"
+    PLUGINS_MOUNT=(-v "$PLUGINS_ABS:/workspace/plugins/source:ro")
+    echo "Plugins: mounting $PLUGINS_ABS (read-only)"
+else
+    echo "Plugins: '$PLUGINS_SRC' not found — package will ship without plugins"
+fi
+
 # ── Run package-linux.sh inside Docker ───────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════"
@@ -123,6 +145,7 @@ echo "  2/2  Building packages inside Docker"
 echo "══════════════════════════════════════════"
 docker run --rm --platform "$DOCKER_PLATFORM" \
     -v "$PROJECT_ROOT:/workspace:delegated" \
+    "${PLUGINS_MOUNT[@]+"${PLUGINS_MOUNT[@]}"}" \
     -v "$HOME/.cargo/registry:/root/.cargo/registry:delegated" \
     -v "$HOME/.cargo/git:/root/.cargo/git:delegated" \
     -e CARGO_NET_OFFLINE="${CARGO_NET_OFFLINE:-false}" \
