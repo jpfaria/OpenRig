@@ -485,10 +485,25 @@ impl<B: JackBackend> JackSupervisor<B> {
     /// `Ready` with a matching config. The latter two cases are handled
     /// in-place by `ensure_server` without needing a pre-kill teardown.
     pub fn would_restart(&self, name: &ServerName, desired: &JackConfig) -> bool {
+        // Restart ONLY for params jackd cannot change on a live server:
+        // ALSA device (`card_num`), sample rate (no live SR API), and
+        // buffer size (the live-resize fast-path runs *before* this is
+        // consulted; a residual delta here means soft-resize failed and
+        // a restart is the fallback). Channel counts / nperiods /
+        // rt_priority / realtime are EXCLUDED — they differ run-to-run
+        // from device re-detection (a 4-capture-channel Scarlett,
+        // default vs stored values) with NO port-shape change. Comparing
+        // the whole struct made every chain edit (even a pure block
+        // swap) spuriously report "restart", driving the destructive
+        // stop()+kill+libjack-recreate that wedges into the #294/#308
+        // "Cannot open shm segment" limbo and freezes the app. Mirrors
+        // `ensure_server`'s adopt criteria so the predicates agree (#479).
         matches!(
             self.servers.get(name).map(|s| &s.state),
             Some(JackServerState::Ready { launched_config, .. })
-                if launched_config != desired
+                if launched_config.sample_rate != desired.sample_rate
+                    || launched_config.buffer_size != desired.buffer_size
+                    || launched_config.card_num != desired.card_num
         )
     }
 
