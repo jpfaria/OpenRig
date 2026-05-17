@@ -74,6 +74,17 @@ pedalboard and needs a real audio I/O path:
 5. In OpenRig's **audio screen**, select the interface as input and
    output, set sample rate / buffer size, then enable the chain.
 
+> **Note — interface mixer:** OpenRig raises the selected card's ALSA
+> playback mixer to unity (100% / 0 dB, unmuted) automatically before
+> starting JACK, because without PipeWire/PulseAudio nothing else does,
+> and many USB interfaces ship attenuated (~−23 dB → weak, muffled
+> sound). If your interface uses an unusual mixer control OpenRig
+> doesn't recognise, set it by hand and persist it:
+> ```bash
+> amixer -c <CARD> sset <CONTROL> 100% unmute   # <CARD> from `cat /proc/asound/cards`
+> sudo alsactl store                            # survives reboot
+> ```
+
 The `.deb` declares `libasound2` and `libseat1`; `jackd2` is recommended
 separately because some setups route audio through PipeWire's JACK
 bridge instead.

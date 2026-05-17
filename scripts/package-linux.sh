@@ -219,6 +219,7 @@ if $BUILD_DEB; then
         --category sound \
         --depends libasound2 \
         --depends libseat1 \
+        --depends alsa-utils \
         --deb-no-default-config-files \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig_${VERSION}_${DEB_ARCH}.deb" \
@@ -235,6 +236,7 @@ if $BUILD_RPM; then
         --maintainer "Joao Paulo Faria" \
         --category "Applications/Multimedia" \
         --depends libseat \
+        --depends alsa-utils \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig-${VERSION}-1.${RPM_ARCH}.rpm" \
         usr
