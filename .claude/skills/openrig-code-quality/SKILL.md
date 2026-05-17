@@ -75,6 +75,21 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 ---
 
+## LEI — tela/string nova exige atualizar TODOS os catálogos de tradução
+
+**Toda string visível ao usuário passa por i18n. Adicionou/criou tela, componente, dialog, overlay, label, botão com `@tr("chave")` (Slint) ou `t!("chave")` (Rust)? No MESMO commit:**
+
+1. Adicionar a `chave` ao `crates/adapter-gui/translations/adapter-gui.pot`.
+2. Adicionar `msgid "chave"` + `msgstr "..."` traduzido em **TODOS** os locales: `crates/adapter-gui/translations/<locale>/LC_MESSAGES/adapter-gui.po` (de_DE, en_US, es_ES, fr_FR, hi_IN, ja_JP, ko_KR, pt_BR, zh_CN — confirmar a lista com `ls translations/`).
+3. Recompilar os `.mo` (o `build.rs` gera de `.po`; rodar o build/`validate.sh` confirma).
+4. **Nunca** deixar `msgstr ""` numa chave nova — `.mo` vazio = a UI mostra a **tag crua** (`btn-load-preset` em vez de "Carregar preset"). Foi exatamente o bug do overlay de presets (#479): chave nova sem catálogo → tela "só com as tags".
+
+**Por que:** sem isso a tela sai com as chaves cruas pra todo usuário não-inglês (ou todos). Não dá pra "traduzir depois" — vai pra produção quebrado. Validação: `grep -L 'msgid "chave"' translations/*/LC_MESSAGES/adapter-gui.po` deve ser vazio.
+
+**Anti-padrão:** `@tr("nova-chave")` num componente novo sem tocar nenhum `.po`. **Padrão:** mesmo commit = componente + `.pot` + todos os `.po` + `.mo` regenerados.
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
