@@ -93,7 +93,15 @@ impl ProjectRuntimeController {
             .iter()
             .find(|s| s.device_id.0 == card.device_id);
         let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
-        let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
+        // Unconfigured-device fallback. 64 frames continuously xruns on a
+        // generic (non-RT) desktop kernel with USB audio — the stream
+        // smears into a dull "muffled / in a bag" sound (NOT clicks),
+        // which is exactly what users reported (#479). 256 is the safe
+        // USB minimum. Configured setups carry an explicit value so this
+        // is never hit (Orange Pi unaffected). THIS is the path that
+        // builds the live JackConfig — device_settings.rs has a twin
+        // fallback (kept in sync; both 256).
+        let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(256);
         let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
         let realtime = matched.map(|s| s.realtime).unwrap_or(true);
         let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);

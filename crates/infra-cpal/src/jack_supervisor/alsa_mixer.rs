@@ -10,7 +10,6 @@
 use std::process::{Command, Stdio};
 
 /// Playback control names seen across the USB interfaces we target.
-/// A card only has a few of these; the rest are skipped silently.
 const PLAYBACK_CONTROLS: &[&str] = &[
     "PCM",
     "Master",
@@ -21,30 +20,38 @@ const PLAYBACK_CONTROLS: &[&str] = &[
     "Speaker+LO",
 ];
 
-/// Drive the card's playback mixer to unity (100% / 0 dB, unmuted).
+/// Capture control names. These ship maxed on many USB interfaces
+/// (e.g. Teyun Q26: Mic at +27 dB) — a guitar into a +27 dB input
+/// clips the ADC, so the signal is loud but distorted/muffled. Unity
+/// (0 dB = no boost) is the safe default; the player raises it if they
+/// actually need gain (#479).
+const CAPTURE_CONTROLS: &[&str] = &["Mic", "Capture", "Line In", "Line", "Mic Boost"];
+
+/// Drive the card to unity: playback AND capture to 0 dB, unmuted.
 ///
-/// Best-effort and never fatal: an absent control is expected and
-/// skipped; a missing `amixer` (alsa-utils not installed) is logged
-/// and ignored — jackd still starts, only the level is left as-is.
-/// Capture gain is intentionally untouched (instrument level is the
-/// player's call / the interface's hardware knob).
-pub(super) fn set_playback_mixer_unity(card_num: u32) {
-    for ctrl in PLAYBACK_CONTROLS {
+/// `0dB` (not `100%`): on many interfaces 100% is well above unity and
+/// either over-drives the output or, on capture, clips the input.
+/// Best-effort and never fatal: an absent control is skipped; a missing
+/// `amixer` (alsa-utils not installed) is logged once and ignored —
+/// jackd still starts, only the level is left as-is.
+pub(super) fn set_mixer_unity(card_num: u32) {
+    let card = card_num.to_string();
+    for ctrl in PLAYBACK_CONTROLS.iter().chain(CAPTURE_CONTROLS) {
         let status = Command::new("amixer")
-            .args(["-c", &card_num.to_string(), "sset", ctrl, "100%", "unmute"])
+            .args(["-c", &card, "sset", ctrl, "0dB", "unmute"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
         match status {
             Ok(s) if s.success() => {
-                log::info!("mixer: {ctrl} -> 100% unmute on card {card_num}");
+                log::info!("mixer: {ctrl} -> 0dB unmute on card {card_num}");
             }
             Ok(_) => {} // control absent on this card — expected
             Err(e) => {
                 log::warn!(
                     "mixer: `amixer` unavailable ({e}); card {card_num} \
-                     playback left as-is (install alsa-utils)"
+                     levels left as-is (install alsa-utils)"
                 );
                 return;
             }

@@ -72,8 +72,12 @@ export component BlockEditorWindow inherits Window {
         root.use-panel-editor ?
             (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
             520px;
+    // Non-panel editor (form/knob blocks): 640px clipped the lower
+    // controls once the size was applied explicitly (#479) — the Linux
+    // WM used to over-size the window and hid the shortfall. 820px
+    // fits the model picker + parameter grid + drawer with margin.
     out property <length> panel-height:
-        root.use-panel-editor ? eq-extra-height : 640px;
+        root.use-panel-editor ? eq-extra-height : 820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
