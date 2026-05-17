@@ -8,6 +8,7 @@ cpal.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 application = { path = "../application" }
+adapter-mcp = { path = "../adapter-mcp" }
 engine = { path = "../engine" }
 infra-cpal = { path = "../infra-cpal" }
 infra-filesystem = { path = "../infra-filesystem" }
