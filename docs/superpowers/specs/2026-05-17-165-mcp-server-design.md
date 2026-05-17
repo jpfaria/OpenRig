@@ -126,13 +126,31 @@ with the future gRPC adapter.
 
 ## MCP surface
 
-### Tools — one per `Command` variant (28)
+### Functional-parity principle (non-negotiable)
+
+**Every user-facing operation the app can do MUST be MCP-callable.** MCP is the agent's
+hands; it must reach everything the user's hands reach via the GUI. The mechanism: the
+single source of truth for "what the app can do" is the `Command` enum. If a feature
+exists that is *not* yet a `Command` (e.g. "change language"/locale, or any operation a
+frontend performs by mutating state directly), that is a **command-bus gap**, not an MCP
+gap — the `Command` variant is added in `crates/application` so the GUI, gRPC, and MCP all
+gain it uniformly (consistent with #295's "one `Command` per user operation" intent and the
+backend-transport-agnostic rule). MCP then exposes it for free.
+
+The implementation plan begins with a **parity audit**: enumerate every user-facing
+operation (every GUI `on_*` path, language/locale switch, any direct state mutation) and
+confirm each maps to a `Command`. Gaps get a `Command` added. The schema-lock test is
+extended to a **parity guard**: tool set ⇔ `Command` variants, and a checklist asserting no
+known user operation lacks a `Command`.
+
+### Tools — one per `Command` variant
 
 Each `Command` variant becomes one tool. The tool's input schema is the variant's
 `schemars`-derived JSON Schema. The handler deserializes arguments into the `Command`,
 sends it over the bridge, and returns the resulting `Vec<Event>` (serialized) as the tool
-result. A test locks the generated tool set to the `Command` enum shape so adding/removing
-a variant without updating nothing-extra is caught (regression guard).
+result. The variant count is whatever the parity audit yields (≥ the current 28; e.g. a
+`SetLanguage`/locale command is added if the app supports switching language and no such
+command exists yet).
 
 Tool naming: derive from the variant name in a stable snake_case form
 (e.g. `SetBlockParameterNumber` → `set_block_parameter_number`).
