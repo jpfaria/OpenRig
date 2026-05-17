@@ -6,7 +6,9 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 schemars.workspace = true
+futures.workspace = true
 project = { path = "../project" }
 block-core = { path = "../block-core" }
 domain = { path = "../domain" }
