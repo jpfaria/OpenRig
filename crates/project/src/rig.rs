@@ -173,38 +173,14 @@ impl RigProject {
     /// 4. no preset may contain an `Input`/`Output` block;
     /// 5. per-input source channel conflicts — reuses
     ///    [`InputBlock::validate_channel_conflicts`];
-    /// 6. every `routing` target must name an `outputs` entry;
-    /// 7. a `(device, channel)` capture source belongs to **at most one**
-    ///    input — two isolated runtimes must never share a capture tap
-    ///    (CLAUDE.md isolation invariant #4).
+    /// 6. every `routing` target must name an `outputs` entry.
+    ///
+    /// Cross-input capture exclusivity is **not** validated here: a project
+    /// may freely hold many inputs that share a `(device, channel)` tap
+    /// (a library of alternative configs). The constraint that two inputs
+    /// sharing a tap cannot be *active simultaneously* is enforced by the
+    /// engine at runtime, not by the static model.
     pub fn validate(&self) -> Result<(), String> {
-        // Rule 7: cross-input capture exclusivity. BTreeMap ⇒ deterministic
-        // iteration ⇒ deterministic error message.
-        let mut claimed: std::collections::BTreeMap<(String, usize), String> =
-            std::collections::BTreeMap::new();
-        for (name, input) in &self.inputs {
-            for entry in &input.sources {
-                for &ch in &entry.channels {
-                    let key = (entry.device_id.0.clone(), ch);
-                    match claimed.get(&key) {
-                        // Same input claiming it twice ⇒ a per-input conflict;
-                        // leave the precise message to rule 5 below.
-                        Some(owner) if owner == name => {}
-                        Some(owner) => {
-                            return Err(format!(
-                                "input '{name}' source device '{}' channel {ch} is \
-                                 already used by input '{owner}' (capture taps cannot \
-                                 be shared between inputs)",
-                                entry.device_id.0
-                            ));
-                        }
-                        None => {
-                            claimed.insert(key, name.clone());
-                        }
-                    }
-                }
-            }
-        }
         for (name, input) in &self.inputs {
             for (idx, preset_name) in &input.bank {
                 if !self.presets.contains_key(preset_name) {

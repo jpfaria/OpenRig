@@ -323,39 +323,15 @@ fn validate_scene_param_marked_ok() {
 }
 
 #[test]
-fn validate_rejects_same_device_channel_across_two_inputs() {
-    // Isolation invariant #4: two isolated runtimes must never share a
-    // capture tap. The same (device, channel) in two inputs = shared tap.
-    let mut a = input(&[(1, "clean")], 1);
-    a.sources = vec![source("scarlett", vec![0, 1])];
-    let mut b = input(&[(1, "clean")], 1);
-    b.sources = vec![source("scarlett", vec![1])]; // ch1 overlaps input a
-    let p = project_with(vec![("input-1", a), ("input-2", b)], &["clean"]);
-
-    let err = p.validate().unwrap_err();
-    assert!(
-        err.contains("scarlett") && err.contains('1'),
-        "must name the shared device+channel, got: {err}"
-    );
-}
-
-#[test]
-fn validate_allows_distinct_channels_per_input() {
+fn validate_allows_inputs_sharing_a_tap_at_rest() {
+    // Cross-input tap exclusivity is a RUNTIME concern, not a static one:
+    // a project may hold many inputs sharing a (device, channel) as a
+    // library of alternative configs. The engine refuses to *activate*
+    // two conflicting inputs together — validate() does not reject them.
     let mut a = input(&[(1, "clean")], 1);
     a.sources = vec![source("scarlett", vec![0])];
     let mut b = input(&[(1, "clean")], 1);
-    b.sources = vec![source("scarlett", vec![1])]; // different channel
-    let p = project_with(vec![("input-1", a), ("input-2", b)], &["clean"]);
-
-    assert!(p.validate().is_ok(), "{:?}", p.validate());
-}
-
-#[test]
-fn validate_allows_same_channel_on_different_devices() {
-    let mut a = input(&[(1, "clean")], 1);
-    a.sources = vec![source("scarlett", vec![0])];
-    let mut b = input(&[(1, "clean")], 1);
-    b.sources = vec![source("focusrite", vec![0])]; // same ch, other device
+    b.sources = vec![source("scarlett", vec![0])]; // same tap, on purpose
     let p = project_with(vec![("input-1", a), ("input-2", b)], &["clean"]);
 
     assert!(p.validate().is_ok(), "{:?}", p.validate());

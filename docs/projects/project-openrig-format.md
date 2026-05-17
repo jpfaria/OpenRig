@@ -71,12 +71,13 @@ and rejects:
 5. per-input source channel conflicts — delegates to
    `InputBlock::validate_channel_conflicts` (same `(device, channel)` used by
    two sources of the same input);
-6. a `routing` target not naming an `outputs` entry;
-7. the same `(device, channel)` capture source claimed by **two different
-   inputs** — a tap can belong to at most one input, since each input is a
-   fully isolated runtime and capture taps are never shared (CLAUDE.md
-   isolation invariant #4). Two sources of the *same* input colliding is
-   rule 5; across inputs is rule 7.
+6. a `routing` target not naming an `outputs` entry.
+
+Cross-input capture exclusivity is **not** validated statically: a project
+may freely hold many inputs sharing a `(device, channel)` tap (a library of
+alternative configs). The rule that two inputs sharing a tap cannot be
+**active at the same time** (isolation invariant #4) is enforced by the
+engine at runtime, not by `validate()`.
 
 ## Parser API (`infra-yaml`)
 
