@@ -6,6 +6,7 @@ import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
@@ -669,5 +670,18 @@ export component AppWindow inherits Window {
         level: root.toast-level;
         container-width: root.width;
         container-height: root.height;
+    }
+
+    // Root-level modal: works in BOTH desktop and touch modes so the
+    // bundled presets are always reachable in-app (issue #479 — desktop
+    // previously had only a native FileDialog and no visible list).
+    PresetPickerOverlay {
+        width: root.width;
+        height: root.height;
+        visible-overlay: root.show-preset-picker;
+        items: root.preset-picker-items;
+        confirm(i) => { root.preset-picker-confirm(i); }
+        cancel() => { root.preset-picker-cancel(); }
+        delete(i) => { root.preset-picker-delete(i); }
     }
 }
