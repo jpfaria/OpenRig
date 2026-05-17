@@ -110,23 +110,26 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
     chains
 }
 
-/// Project a `RigProject` onto a synthetic **legacy** [`Project`] holding
-/// one `Chain` per *enabled* input — so the existing, proven cpal/runtime
-/// path (`build_runtime_graph` / `build_streams_for_project` /
-/// `ProjectRuntimeController`) drives the rig with zero new audio code.
-/// `device_settings` is empty (per-machine settings live elsewhere); the
-/// name is carried for diagnostics. Inputs not in `enabled` are omitted
-/// (a tap-conflicting input is simply not run — invariant #4).
+/// Project a `RigProject` onto a synthetic **legacy** [`Project`]: **every**
+/// input becomes a `Chain` so the existing GUI shows them all, and each
+/// chain's `enabled` flag reflects whether that input is in `enabled`.
+/// Enabling is the USER's action (in memory, at runtime) — nothing is
+/// auto-started; pass an empty set to load everything OFF. Drives the
+/// proven cpal/runtime path with zero new audio code; `device_settings`
+/// is empty (per-machine settings live elsewhere).
 pub fn rig_to_legacy_project(
     rig: &RigProject,
     enabled: &std::collections::BTreeSet<String>,
 ) -> project::project::Project {
     let chains = rig_to_chains(rig)
         .into_iter()
-        .filter(|c| {
-            c.id.0
-                .strip_prefix("rig:")
-                .is_some_and(|name| enabled.contains(name))
+        .map(|mut c| {
+            let on =
+                c.id.0
+                    .strip_prefix("rig:")
+                    .is_some_and(|name| enabled.contains(name));
+            c.enabled = on;
+            c
         })
         .collect();
     project::project::Project {

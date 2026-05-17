@@ -178,7 +178,7 @@ fn bridge_uses_active_preset() {
 }
 
 #[test]
-fn rig_to_legacy_project_filters_to_enabled_inputs() {
+fn rig_to_legacy_project_emits_all_inputs_enabled_flag_reflects_set() {
     use std::collections::BTreeSet;
     let r = rig(
         vec![
@@ -194,12 +194,32 @@ fn rig_to_legacy_project_filters_to_enabled_inputs() {
         vec![("p", vec![fx("x")])],
         vec![],
     );
-    let enabled: BTreeSet<String> = ["input-2".to_string()].into_iter().collect();
 
-    let proj = super::rig_to_legacy_project(&r, &enabled);
+    // Empty set ⇒ every input present, ALL off (nothing auto-starts;
+    // the user enables at runtime).
+    let none = super::rig_to_legacy_project(&r, &BTreeSet::new());
+    assert_eq!(none.chains.len(), 2, "all inputs become chains");
+    assert!(
+        none.chains.iter().all(|c| !c.enabled),
+        "nothing is auto-enabled"
+    );
 
-    assert_eq!(proj.chains.len(), 1, "only enabled inputs become chains");
-    assert_eq!(proj.chains[0].id.0, "rig:input-2");
+    // Enabled set ⇒ same chains, only the named one flagged on.
+    let some: BTreeSet<String> = ["input-2".to_string()].into_iter().collect();
+    let proj = super::rig_to_legacy_project(&r, &some);
+    assert_eq!(proj.chains.len(), 2);
+    let c2 = proj
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "rig:input-2")
+        .unwrap();
+    let c1 = proj
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "rig:input-1")
+        .unwrap();
+    assert!(c2.enabled, "input-2 enabled");
+    assert!(!c1.enabled, "input-1 stays off");
     assert_eq!(proj.name.as_deref(), Some("Studio"));
     assert!(proj.device_settings.is_empty());
 }

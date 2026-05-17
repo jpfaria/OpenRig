@@ -1163,10 +1163,14 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
 
     let proj = crate::project_ops::rig_project_for(&path).expect("rig load");
 
-    assert_eq!(proj.chains.len(), 1, "one enabled input -> one chain");
+    assert_eq!(proj.chains.len(), 1, "rig input shown as a chain");
     assert_eq!(
         proj.chains[0].id.0, "rig:input-1",
         "GUI sees rig input as a chain"
+    );
+    assert!(
+        !proj.chains[0].enabled,
+        "nothing auto-starts — the user enables it"
     );
     assert_eq!(
         proj.chains[0].volume, 137.0,

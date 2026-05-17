@@ -262,21 +262,15 @@ pub(crate) fn build_device_settings_from_gui(
 /// Preset/scene switching has no UI yet (front deferred) — the rest
 /// behaves exactly as before.
 pub(crate) fn rig_project_for(project_path: &Path) -> Result<Project> {
+    // `load_project_any` already returns a validated RigProject (legacy
+    // `*.yaml` migrated transparently). Every input is projected as a
+    // chain, all OFF: the user enables what they want (in memory, at
+    // runtime) via the existing per-chain toggle — nothing auto-starts.
     let rig = infra_yaml::load_project_any(project_path)?;
-    // RigRuntime is the single source of truth for validation + which
-    // inputs run (it skips tap-conflicting ones). Its internal graph is
-    // built at a placeholder rate and discarded — the GUI controller
-    // rebuilds its own graph from the synthetic chains at the real
-    // device rate, so this off-thread cost never reaches audio.
-    let runtime = engine::rig_runtime::RigRuntime::build(rig, 48_000.0)?;
-    let proj = runtime.project();
-    let enabled: std::collections::BTreeSet<String> = proj
-        .inputs
-        .keys()
-        .filter(|name| runtime.is_enabled(name))
-        .cloned()
-        .collect();
-    Ok(engine::rig_runtime::rig_to_legacy_project(proj, &enabled))
+    Ok(engine::rig_runtime::rig_to_legacy_project(
+        &rig,
+        &std::collections::BTreeSet::new(),
+    ))
 }
 
 pub(crate) fn load_project_session(
