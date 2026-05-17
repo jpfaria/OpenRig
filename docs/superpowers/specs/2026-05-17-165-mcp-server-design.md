@@ -103,10 +103,16 @@ frontend thread. `rmcp` is async/tokio and runs on its own thread. They are conn
   frontend drains this channel on each event-loop tick (the same place GUI callbacks run
   today), calls `dispatcher.dispatch(cmd)` on the frontend thread, and replies on the
   `oneshot`. The MCP handler `await`s the reply and returns the events to the client.
-- **Event path**: the frontend publishes every `Vec<Event>` produced by *any* dispatch
-  (GUI-originated or MCP-originated) onto a `tokio::sync::broadcast` channel. `adapter-mcp`
-  subscribes and surfaces events as MCP notifications. This is the minimal real
-  `EventStream` the Phase 1 placeholder deferred.
+- **Event path (full fan-out, no narrowing)**: every frontend swaps the single
+  `dispatcher` it holds for a thin `PublishingDispatcher` decorator
+  (`impl CommandDispatcher`) that calls the inner `LocalDispatcher` and then publishes the
+  resulting `Vec<Event>` to a `std::sync::mpsc`/broadcast sink. Because all 57 GUI mutation
+  call sites already funnel through the one `ProjectSession.dispatcher` field (Phase 1
+  #295 is complete — the remaining direct `borrow_mut`s are UI/session/runtime bookkeeping,
+  not domain mutations), this is a **single change point** that captures GUI-originated
+  **and** MCP-originated events alike. `adapter-mcp` subscribes and surfaces every event as
+  an MCP notification — a knob moved in the GUI notifies the agent in real time. This is
+  the minimal real `EventStream` the Phase 1 placeholder deferred.
 - **Backpressure / safety**: the channel is bounded; drain is non-blocking and O(pending)
   per tick with a per-tick cap so a flood of agent calls cannot stall the frontend loop.
   No locks, no blocking, no allocation on the audio thread — **the audio thread is never
@@ -115,12 +121,14 @@ frontend thread. `rmcp` is async/tokio and runs on its own thread. They are conn
 
 ### Frontend wiring
 
-An opt-in flag/config (e.g. `--mcp[=addr:port]`, plus the equivalent in the project/app
-config) makes the frontend (a) construct the bridge, (b) spawn the `adapter-mcp` server
-thread, (c) drain the command channel each tick, (d) publish events to the broadcast. When
-the flag is absent, nothing changes and there is zero overhead. `adapter-gui` and
-`adapter-console` both gain this wiring; the wiring itself is small and shared in spirit
-with the future gRPC adapter.
+An opt-in flag/config (`--mcp[=addr:port]`) makes the frontend (a) construct the bridge,
+(b) wrap its dispatcher with `PublishingDispatcher`, (c) spawn the `adapter-mcp` server
+thread, (d) drain the command channel each tick, (e) publish events to the sink. When the
+flag is absent, nothing changes and there is zero overhead. **Both frontends are wired in
+v1**: `adapter-gui` (drain on a Slint `Timer` tick) and `adapter-console` (which gains a
+`ProjectSession`/dispatcher — today it builds the runtime directly — and turns its
+`loop { sleep }` into a drain loop). The wiring is small and shared in spirit with the
+future gRPC adapter.
 
 ---
 
