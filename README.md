@@ -54,7 +54,8 @@ The foundation that makes the bigger vision possible already runs on every deskt
 - **[560+ registered models](docs/user-guide/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](docs/user-guide/blocks-reference.md))
 - **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
-- **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full presets from a song name by researching the original signal chain in public sources and writing the YAML.
+- **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
+- **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](plugin/openrig/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full presets from a song name by researching the original signal chain in public sources and writing the YAML.
 
 > 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Start with the [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
 
@@ -116,7 +117,7 @@ blocks:
   # ...post-amp EQ, reverb, limiter, master volume
 ```
 
-Every `model:` ID is registered in the [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) skill generates the full chain from just an artist + song name.
+Every `model:` ID is registered in the [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig-tone-builder`](plugin/openrig/skills/openrig-tone-builder/SKILL.md) skill generates the full chain from just an artist + song name.
 
 ## Installation
 
@@ -179,7 +180,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](docs/user-guide/blocks-reference.md)
-- [x] **AI-assisted preset building** — the [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) Claude Code skill ships in the repo and writes full presets from a song or artist name
+- [x] **AI-assisted preset building** — the [`openrig-tone-builder`](plugin/openrig/skills/openrig-tone-builder/SKILL.md) Claude Code skill ships in the repo and writes full presets from a song or artist name
 
 ### Stage features
 
