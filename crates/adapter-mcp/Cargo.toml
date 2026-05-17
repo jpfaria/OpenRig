@@ -11,6 +11,7 @@ infra-yaml = { path = "../infra-yaml" }
 infra-cpal = { path = "../infra-cpal" }
 serde_json.workspace = true
 futures.workspace = true
-rmcp.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+rmcp = { workspace = true, features = ["server", "transport-streamable-http-server"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+axum = "0.8"
 schemars.workspace = true

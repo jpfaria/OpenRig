@@ -145,11 +145,15 @@ gap — the `Command` variant is added in `crates/application` so the GUI, gRPC,
 gain it uniformly (consistent with #295's "one `Command` per user operation" intent and the
 backend-transport-agnostic rule). MCP then exposes it for free.
 
-The implementation plan begins with a **parity audit**: enumerate every user-facing
-operation (every GUI `on_*` path, language/locale switch, any direct state mutation) and
-confirm each maps to a `Command`. Gaps get a `Command` added. The schema-lock test is
-extended to a **parity guard**: tool set ⇔ `Command` variants, and a checklist asserting no
-known user operation lacks a `Command`.
+The implementation began with a **parity audit**: every GUI mutation funnels through the
+single `ProjectSession.dispatcher` (57 dispatch sites; the remaining `borrow_mut`s are
+UI/session/runtime bookkeeping, not domain mutations). **Conclusion: the command bus is
+already complete for every existing user operation — no gap to close.** (Language is read
+from the environment, read-only; there is no language-switch feature today, so nothing to
+add. When such a feature is built, the codified LEI in `openrig-code-quality` requires it
+to be born as a `Command`, which makes it an MCP tool for free.) The schema-lock test is a
+**parity guard**: tool set ⇔ `Command` variants — if a future `Command` is added without
+the tool surface tracking it, the test fails.
 
 ### Tools — one per `Command` variant
 

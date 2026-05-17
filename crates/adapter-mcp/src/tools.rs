@@ -1,0 +1,98 @@
+//! One MCP tool per `Command` variant. Schema from `application::command_schema`
+//! (single source of truth). A tool call rebuilds the externally-tagged
+//! `Command` JSON (`{ "<Variant>": <args> }`), deserializes, and submits to
+//! the bridge.
+
+use std::sync::Arc;
+
+use anyhow::Result;
+use application::bridge::CommandBridge;
+use application::command::Command;
+use application::command_schema::{
+    command_variant_names, command_variant_schema, tool_name, variant_from_tool_name,
+};
+use application::event::Event;
+use rmcp::model::Tool;
+use serde_json::{json, Map, Value};
+
+/// Every variant as an MCP [`Tool`] with an auto-derived input schema.
+pub fn tools() -> Vec<Tool> {
+    command_variant_names()
+        .iter()
+        .map(|variant| {
+            let schema = command_variant_schema(variant);
+            let obj: Map<String, Value> = schema
+                .as_object()
+                .cloned()
+                .unwrap_or_else(|| Map::new());
+            Tool::new(
+                tool_name(variant),
+                format!("OpenRig command: {variant}"),
+                Arc::new(obj),
+            )
+        })
+        .collect()
+}
+
+/// Pure mapping: a tool name + JSON args → a typed `Command`. Reconstructs
+/// the externally-tagged form serde expects (`{ "<Variant>": <args> }`).
+pub fn build_command(tool: &str, args: Value) -> Result<Command> {
+    let variant = variant_from_tool_name(tool)
+        .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
+    let tagged = json!({ variant: args });
+    serde_json::from_value(tagged)
+        .map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
+}
+
+/// Map an incoming tool call to a `Command`, submit it over the bridge, and
+/// await the resulting events.
+pub async fn dispatch_tool(
+    bridge: &CommandBridge,
+    tool: &str,
+    args: Value,
+) -> Result<Vec<Event>> {
+    let cmd = build_command(tool, args)?;
+    let rx = bridge.submit(cmd);
+    rx.await
+        .map_err(|_| anyhow::anyhow!("frontend dropped the bridge"))?
+        .map_err(|e| anyhow::anyhow!(e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use application::command_schema::command_variant_names;
+
+    #[test]
+    fn parity_guard_one_tool_per_command_variant() {
+        assert_eq!(tools().len(), command_variant_names().len());
+        // every tool name resolves back to a real variant
+        for t in tools() {
+            assert!(variant_from_tool_name(&t.name).is_some(), "{}", t.name);
+        }
+    }
+
+    #[test]
+    fn build_command_maps_unit_variant() {
+        let cmd = build_command("save_project", Value::Null).unwrap();
+        assert!(matches!(cmd, Command::SaveProject));
+    }
+
+    #[test]
+    fn build_command_maps_struct_variant() {
+        let cmd = build_command(
+            "update_project_name",
+            serde_json::json!({ "name": "Rig X" }),
+        )
+        .unwrap();
+        match cmd {
+            Command::UpdateProjectName { name } => assert_eq!(name, "Rig X"),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_command_rejects_unknown_tool() {
+        assert!(build_command("nope", Value::Null).is_err());
+    }
+}

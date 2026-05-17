@@ -26,6 +26,7 @@ struct BridgeRequest {
 #[derive(Clone)]
 pub struct CommandBridge {
     tx: Sender<BridgeRequest>,
+    qtx: Sender<QueryRequest>,
 }
 
 impl CommandBridge {
@@ -40,9 +41,35 @@ impl CommandBridge {
     }
 }
 
+/// Read-only state a transport can request. Resolved on the frontend thread
+/// (which owns the `!Send` `Project`); serialization is done by domain code,
+/// never re-derived in the adapter.
+#[derive(Clone, Debug)]
+pub enum QueryKind {
+    /// Whole project as YAML.
+    ProjectYaml,
+    /// Available audio devices, one per line.
+    Devices,
+}
+
+struct QueryRequest {
+    kind: QueryKind,
+    reply: oneshot::Sender<Result<String, String>>,
+}
+
+impl CommandBridge {
+    /// Queue a read-only query. Resolves once the frontend services it.
+    pub fn query(&self, kind: QueryKind) -> oneshot::Receiver<Result<String, String>> {
+        let (reply, rx) = oneshot::channel();
+        let _ = self.qtx.send(QueryRequest { kind, reply });
+        rx
+    }
+}
+
 /// Receiver side, owned by the frontend thread.
 pub struct BridgeDrain {
     rx: Receiver<BridgeRequest>,
+    qrx: Receiver<QueryRequest>,
 }
 
 impl BridgeDrain {
@@ -62,12 +89,33 @@ impl BridgeDrain {
         }
         handled
     }
+
+    /// Service queued read-only queries on the calling (frontend) thread.
+    /// `resolver` runs with the frontend's `Project` access and returns the
+    /// serialized payload (or an error message) for each [`QueryKind`].
+    pub fn serve_queries<F>(&self, resolver: F, cap: usize) -> usize
+    where
+        F: Fn(&QueryKind) -> Result<String, String>,
+    {
+        let mut handled = 0;
+        while handled < cap {
+            match self.qrx.try_recv() {
+                Ok(req) => {
+                    let _ = req.reply.send(resolver(&req.kind));
+                    handled += 1;
+                }
+                Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => break,
+            }
+        }
+        handled
+    }
 }
 
 /// Create a connected `(transport handle, frontend drain)` pair.
 pub fn channel() -> (CommandBridge, BridgeDrain) {
     let (tx, rx) = mpsc::channel();
-    (CommandBridge { tx }, BridgeDrain { rx })
+    let (qtx, qrx) = mpsc::channel();
+    (CommandBridge { tx, qtx }, BridgeDrain { rx, qrx })
 }
 
 /// Broadcast sink for fanned-out event batches (GUI- and MCP-originated).
