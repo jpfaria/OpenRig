@@ -100,7 +100,10 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             description: input.label.clone().or_else(|| Some(name.clone())),
             instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
             enabled: true,
-            volume: 100.0,
+            // Invariant #10: carry the preset's volume (legacy migration
+            // preserved Chain.volume → RigPreset.volume). Hardcoding 100
+            // would silently retune every preset on the rig path.
+            volume: preset.volume,
             blocks,
         });
     }

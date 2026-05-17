@@ -178,6 +178,26 @@ fn bridge_uses_active_preset() {
 }
 
 #[test]
+fn bridge_carries_preset_volume_not_hardcoded_100() {
+    // Invariant #10: volume per stream is immutable. The synthetic chain
+    // MUST carry the active preset's volume (legacy migration preserved
+    // Chain.volume → RigPreset.volume); hardcoding 100 silently retunes
+    // every preset on the rig path.
+    let mut r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("sc", vec![0])], &[(1, "lead")], 1, vec![]),
+        )],
+        vec![("lead", vec![fx("a")])],
+        vec![],
+    );
+    r.presets.get_mut("lead").unwrap().volume = 147.0;
+
+    let c = &rig_to_chains(&r)[0];
+    assert_eq!(c.volume, 147.0, "synthetic chain must carry preset volume");
+}
+
+#[test]
 fn bridge_preserves_multi_source() {
     let r = rig(
         vec![(
