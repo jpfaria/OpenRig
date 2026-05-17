@@ -36,19 +36,21 @@ Os arquivos abaixo contêm o conteúdo **completo e original** de cada capítulo
 
 Regras específicas de Rust e Cargo que aplicam ao **este projeto**. Princípios de metodologia (zero coupling, single source of truth, separação business/presentation, file organization) vivem em `openrig-code-quality` e são linguagem-agnósticos — esta seção complementa com o que é de Rust/Cargo.
 
-## Quality Gate — `scripts/qa.sh` (issues #404 / #410)
+## Quality Gate — compartilhado `xgodev/quality-gate` (issue #482)
 
-Gate **único** comparativo. Mesmo script local e CI; falha apenas se o PR piora alguma métrica vs `origin/develop`. Antes de qualquer `git push`:
+Gate **único** comparativo, mantido fora do repo. Mesmo dispatcher local e CI; falha apenas se o PR piora alguma métrica vs `origin/develop`. Antes de qualquer `git push` (ou use a skill `claude-plugin:quality-gate`):
 
 ```bash
-./scripts/qa.sh
+git -C ~/.quality-gate pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+~/.quality-gate/qg --base origin/develop
 ```
 
-Compara 6 métricas (fmt, clippy `-D warnings`, build, test, complexity, coverage). Local extrai baseline em `/tmp/qa-baseline` via `git archive origin/develop`; CI passa `QA_BASELINE_DIR=baseline` (checkout paralelo).
+Compara 6 métricas (fmt, lint `-D warnings`, build, test, complexity, coverage). CI clona o gate no job e passa `--baseline-dir baseline/ --force-full`.
 
 **Regras absolutas:**
 - Nunca pushar com gate vermelho.
-- Nunca subir thresholds em `clippy.toml`, marcar testes `#[ignore]`, `#[allow(...)]` sem causa raiz, ou `--no-verify`.
+- O gate **ignora** o `clippy.toml`/`rustfmt.toml` do projeto (tamper-resistance) — não adianta subir threshold. Nunca setar `QG_BYPASS_REASON`, marcar testes `#[ignore]`, `#[allow(...)]` sem causa raiz, ou `--no-verify`.
 - Em CI: falha vira sticky comment + request-changes formal pelo `github-actions[bot]`. Agent autor itera até verde (limite 3 tentativas).
 
 Detalhes em `docs/development/quality-gate.md`.
