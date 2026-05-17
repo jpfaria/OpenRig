@@ -100,11 +100,40 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             description: input.label.clone().or_else(|| Some(name.clone())),
             instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
             enabled: true,
-            volume: 100.0,
+            // Invariant #10: carry the preset's volume (legacy migration
+            // preserved Chain.volume → RigPreset.volume). Hardcoding 100
+            // would silently retune every preset on the rig path.
+            volume: preset.volume,
             blocks,
         });
     }
     chains
+}
+
+/// Project a `RigProject` onto a synthetic **legacy** [`Project`] holding
+/// one `Chain` per *enabled* input — so the existing, proven cpal/runtime
+/// path (`build_runtime_graph` / `build_streams_for_project` /
+/// `ProjectRuntimeController`) drives the rig with zero new audio code.
+/// `device_settings` is empty (per-machine settings live elsewhere); the
+/// name is carried for diagnostics. Inputs not in `enabled` are omitted
+/// (a tap-conflicting input is simply not run — invariant #4).
+pub fn rig_to_legacy_project(
+    rig: &RigProject,
+    enabled: &std::collections::BTreeSet<String>,
+) -> project::project::Project {
+    let chains = rig_to_chains(rig)
+        .into_iter()
+        .filter(|c| {
+            c.id.0
+                .strip_prefix("rig:")
+                .is_some_and(|name| enabled.contains(name))
+        })
+        .collect();
+    project::project::Project {
+        name: rig.name.clone(),
+        device_settings: Vec::new(),
+        chains,
+    }
 }
 
 /// Owns the N isolated input runtimes of a `RigProject`.

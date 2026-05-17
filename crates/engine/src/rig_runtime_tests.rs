@@ -178,6 +178,53 @@ fn bridge_uses_active_preset() {
 }
 
 #[test]
+fn rig_to_legacy_project_filters_to_enabled_inputs() {
+    use std::collections::BTreeSet;
+    let r = rig(
+        vec![
+            (
+                "input-1",
+                input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+            (
+                "input-2",
+                input(vec![src("b", vec![0])], &[(1, "p")], 1, vec![]),
+            ),
+        ],
+        vec![("p", vec![fx("x")])],
+        vec![],
+    );
+    let enabled: BTreeSet<String> = ["input-2".to_string()].into_iter().collect();
+
+    let proj = super::rig_to_legacy_project(&r, &enabled);
+
+    assert_eq!(proj.chains.len(), 1, "only enabled inputs become chains");
+    assert_eq!(proj.chains[0].id.0, "rig:input-2");
+    assert_eq!(proj.name.as_deref(), Some("Studio"));
+    assert!(proj.device_settings.is_empty());
+}
+
+#[test]
+fn bridge_carries_preset_volume_not_hardcoded_100() {
+    // Invariant #10: volume per stream is immutable. The synthetic chain
+    // MUST carry the active preset's volume (legacy migration preserved
+    // Chain.volume → RigPreset.volume); hardcoding 100 silently retunes
+    // every preset on the rig path.
+    let mut r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("sc", vec![0])], &[(1, "lead")], 1, vec![]),
+        )],
+        vec![("lead", vec![fx("a")])],
+        vec![],
+    );
+    r.presets.get_mut("lead").unwrap().volume = 147.0;
+
+    let c = &rig_to_chains(&r)[0];
+    assert_eq!(c.volume, 147.0, "synthetic chain must carry preset volume");
+}
+
+#[test]
 fn bridge_preserves_multi_source() {
     let r = rig(
         vec![(

@@ -64,10 +64,20 @@ export component BlockEditorWindow inherits Window {
         curve-editor-points.length > 0 ?
             Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
             600px;
-    property <length> panel-width:
+    // `out` so the Rust side can read the computed size and call
+    // window().set_size() explicitly. Without an explicit set_size some
+    // Linux WMs ignore min/max/preferred-* and open the window huge
+    // (issue #479); the main AppWindow already sets its size in Rust.
+    out property <length> panel-width:
         root.use-panel-editor ?
             (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
             520px;
+    // Non-panel editor (form/knob blocks): 640px clipped the lower
+    // controls once the size was applied explicitly (#479) — the Linux
+    // WM used to over-size the window and hid the shortfall. 820px
+    // fits the model picker + parameter grid + drawer with margin.
+    out property <length> panel-height:
+        root.use-panel-editor ? eq-extra-height : 820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
@@ -88,11 +98,11 @@ export component BlockEditorWindow inherits Window {
 
     title: root.block-window-title;
     min-width: panel-width;
-    min-height: root.use-panel-editor ? eq-extra-height : 640px;
+    min-height: panel-height;
     max-width: panel-width;
-    max-height: root.use-panel-editor ? eq-extra-height : 640px;
+    max-height: panel-height;
     preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
+    preferred-height: panel-height;
     background: #040708;
 
     // Amp head: visual panel editor

@@ -122,21 +122,11 @@ Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](docs/
 
 ### Descarga
 
-Releases para todas las plataformas soportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) se publican en la [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest).
+Los binarios para todas las plataformas soportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) están en la [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest). Cada SO tiene sus pasos en el Installation Guide:
 
-#### macOS: "OpenRig está dañado y no se puede abrir"
-
-**La app no está dañada.** OpenRig está firmada ad-hoc pero no notarizada por Apple (sin certificado de Desarrollador de pago), así que macOS pone la descarga en cuarentena y muestra ese mensaje engañoso — en Apple Silicon es un bloqueo duro. Tras mover OpenRig a Aplicaciones, quita el atributo de cuarentena:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/OpenRig.app
-```
-
-O instala con un comando (las descargas vía `curl` nunca quedan en cuarentena — baja el `.dmg`, instala en Aplicaciones y quita el atributo por ti):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
-```
+- **macOS** — [descarga, fix de cuarentena e instalador de una línea](docs/user-guide/installation.md#macos)
+- **Linux** — [AppImage / `.deb` / `.rpm` + setup de audio](docs/user-guide/installation.md#linux)
+- **Windows** — [instalador `.msi` / zip portátil](docs/user-guide/installation.md#windows)
 
 ### Compilar desde el código
 

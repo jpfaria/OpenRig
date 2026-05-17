@@ -4,9 +4,7 @@ use crate::{AppWindow, UNTITLED_PROJECT_NAME};
 use anyhow::{anyhow, Result};
 use domain::ids::DeviceId;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
-use infra_yaml::{
-    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
-};
+use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset};
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 use project::device::DeviceSettings;
@@ -257,6 +255,30 @@ pub(crate) fn build_device_settings_from_gui(
     result
 }
 
+/// #436 #1: load any project (new `project.openrig` or legacy `*.yaml`,
+/// migrated transparently) through the NEW rig engine, projecting the
+/// enabled inputs onto synthetic legacy chains so the existing GUI and
+/// the proven cpal/runtime path drive the rig with zero new audio code.
+/// Preset/scene switching has no UI yet (front deferred) — the rest
+/// behaves exactly as before.
+pub(crate) fn rig_project_for(project_path: &Path) -> Result<Project> {
+    let rig = infra_yaml::load_project_any(project_path)?;
+    // RigRuntime is the single source of truth for validation + which
+    // inputs run (it skips tap-conflicting ones). Its internal graph is
+    // built at a placeholder rate and discarded — the GUI controller
+    // rebuilds its own graph from the synthetic chains at the real
+    // device rate, so this off-thread cost never reaches audio.
+    let runtime = engine::rig_runtime::RigRuntime::build(rig, 48_000.0)?;
+    let proj = runtime.project();
+    let enabled: std::collections::BTreeSet<String> = proj
+        .inputs
+        .keys()
+        .filter(|name| runtime.is_enabled(name))
+        .cloned()
+        .collect();
+    Ok(engine::rig_runtime::rig_to_legacy_project(proj, &enabled))
+}
+
 pub(crate) fn load_project_session(
     project_path: &Path,
     config_path: &Path,
@@ -271,10 +293,9 @@ pub(crate) fn load_project_session(
         .presets_path
         .clone()
         .unwrap_or_else(default_presets_path);
-    let mut project = YamlProjectRepository {
-        path: project_path.to_path_buf(),
-    }
-    .load_current_project()?;
+    // #436 #1: the app now runs the new rig engine. Legacy `*.yaml` is
+    // migrated transparently to `project.openrig` on first open.
+    let mut project = rig_project_for(project_path)?;
 
     // Populate device_settings from per-machine config (gui-settings.yaml)
     // instead of the project YAML. Old projects may still have device_settings

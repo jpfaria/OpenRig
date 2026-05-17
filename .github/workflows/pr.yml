@@ -12,7 +12,10 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  QA_LOG_DIR: target/qa-logs
+  # Shared gate: github.com/xgodev/quality-gate (dispatcher `qg`).
+  # The gate ignores the project's clippy.toml/rustfmt.toml on purpose
+  # (tamper-resistance) and uses its own embedded rulesets.
+  QG_LOG_DIR: target/qg-logs
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ permissions:
 
 jobs:
   quality-gate:
-    name: Quality Gate (qa.sh + comparative)
+    name: Quality Gate (shared xgodev/quality-gate)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -68,26 +71,55 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev
 
-      - name: Run quality gate (qa.sh)
+      - name: Clone shared quality gate
+        run: |
+          git clone --depth 1 \
+            https://github.com/xgodev/quality-gate.git "$HOME/.quality-gate"
+          echo "QG_REV=$(git -C "$HOME/.quality-gate" rev-parse --short HEAD)" \
+            >> "$GITHUB_ENV"
+
+      - name: Run quality gate
         id: gate
         env:
-          QA_BASELINE_DIR: baseline
+          # Pre-prepared base checkout — skips `git archive` extraction.
+          QG_BASELINE_DIR: ${{ github.workspace }}/baseline
         run: |
-          mkdir -p target/qa-logs
-          bash scripts/qa.sh | tee target/qa-logs/qa.log
+          mkdir -p target/qg-logs
+          # origin/develop must resolve locally for diff/labelling.
+          git fetch --quiet origin develop || true
+          set +e
+          "$HOME/.quality-gate/qg" \
+            --base origin/develop \
+            --baseline-dir "$QG_BASELINE_DIR" \
+            --force-full \
+            --format json \
+            --log-dir target/qg-logs \
+            > qg-result.json 2> target/qg-logs/qg-stderr.log
+          gate_exit=$?
+          set -e
+          echo "gate_exit=$gate_exit" >> "$GITHUB_OUTPUT"
+          echo "Gate exit: $gate_exit (rev ${QG_REV:-?})"
+          cat qg-result.json 2>/dev/null || true
+          # 0 = passed/bypassed, 1 = regressed, 2 = tool/setup error,
+          # 3 = no supported language (treat as pass — nothing to gate).
+          if [ "$gate_exit" = "0" ] || [ "$gate_exit" = "3" ]; then
+            exit 0
+          fi
+          exit 1
 
-      - name: Upload qa logs
+      - name: Upload gate logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-logs
-          path: target/qa-logs/
+          name: qg-logs
+          path: |
+            target/qg-logs/
+            qg-result.json
           if-no-files-found: ignore
 
       - name: Generate lcov.info for Codecov (reuses PR coverage run)
-        # Pula quando qa.sh tomou o fast-path: PR sem .rs/Cargo.* não
-        # roda llvm-cov, então `target/llvm-cov-target/**/*.profraw` não
-        # existe e `cargo llvm-cov report` falha. Issue #431.
+        # Pula quando o gate tomou o fast-path / não rodou llvm-cov:
+        # sem `target/llvm-cov-target/**/*.profraw` o report falha.
         if: success() && hashFiles('target/llvm-cov-target/**/*.profraw') != ''
         run: cargo llvm-cov report --lcov --output-path lcov.info
 
@@ -102,54 +134,78 @@ jobs:
       - name: Build failure summary
         if: failure()
         id: summary
+        env:
+          GATE_EXIT: ${{ steps.gate.outputs.gate_exit }}
         run: |
           set -u
           summary_file=$(mktemp)
           {
             echo "## ❌ Quality gate failed"
             echo ""
-            echo "Rode o gate localmente até passar antes de pushar de novo:"
-            echo ""
-            echo '```bash'
-            echo "./scripts/qa.sh"
-            echo '```'
-            echo ""
-            echo "Filosofia: o gate **absoluto** (qa.sh) cobre fmt, lints, build, test."
-            echo "O gate **comparativo** (qa-comparative.sh, só em CI) verifica que"
-            echo "complexidade e cobertura não pioraram em relação a \`develop\`."
-            echo ""
-            echo "### Failing steps"
-            echo ""
-            shopt -s nullglob
-            had_logs=0
-            for log in target/qa-logs/*.log; do
-              had_logs=1
-              name=$(basename "$log" .log | tr '_' ' ')
-              if grep -qE 'error(\[|:|s)| FAIL |regressed' "$log"; then
-                echo "<details><summary><b>$name</b></summary>"
-                echo ""
-                echo '```'
-                tail -n 60 "$log"
-                echo '```'
-                echo ""
-                echo "</details>"
-                echo ""
+            if [ "${GATE_EXIT:-1}" = "2" ]; then
+              echo "**Erro de ferramenta/setup (exit 2)** — não é regressão."
+              echo "O gate não conseguiu medir (tool faltando, baseline"
+              echo "inválido, infra de build). Veja o stderr abaixo."
+              echo ""
+              echo '```'
+              tail -n 60 target/qg-logs/qg-stderr.log 2>/dev/null \
+                || echo "(sem stderr capturado)"
+              echo '```'
+            else
+              echo "O PR **piorou** ≥1 métrica vs \`develop\`. Dívida"
+              echo "preexistente nunca bloqueia — só regressão do PR."
+              echo ""
+              echo "Rode o gate compartilhado localmente até passar:"
+              echo ""
+              echo '```bash'
+              echo "git -C ~/.quality-gate pull --ff-only \\"
+              echo "  || git clone --depth 1 \\"
+              echo "       https://github.com/xgodev/quality-gate.git \\"
+              echo "       ~/.quality-gate"
+              echo "~/.quality-gate/qg --base origin/develop"
+              echo '```'
+              echo ""
+              echo "### Métricas regredidas"
+              echo ""
+              if jq -e '.metrics' qg-result.json >/dev/null 2>&1; then
+                echo "| Métrica | base | PR | Δ |"
+                echo "|---|---|---|---|"
+                jq -r '.metrics[]
+                  | select(.verdict == "regressed")
+                  | "| \(.name) | \(.base) | \(.pr) | \(.delta) |"' \
+                  qg-result.json
+              else
+                echo "_(JSON sem métricas — veja logs por etapa)_"
               fi
-            done
-            if [ "$had_logs" = "0" ]; then
-              echo "_(no per-step logs captured — see job log for details)_"
+              echo ""
+              echo "### Logs por etapa"
+              echo ""
+              shopt -s nullglob
+              for log in target/qg-logs/pr-*.log; do
+                name=$(basename "$log" .log)
+                if grep -qE 'error(\[|:)|FAILED|panicked' "$log"; then
+                  echo "<details><summary><b>$name</b></summary>"
+                  echo ""
+                  echo '```'
+                  tail -n 60 "$log"
+                  echo '```'
+                  echo ""
+                  echo "</details>"
+                  echo ""
+                fi
+              done
             fi
             echo ""
             echo "### Run"
             echo ""
             echo "[View full CI log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo ""
-            echo "_Posted by quality-gate workflow — issue #404._"
+            echo "_Posted by quality-gate workflow — shared gate \`xgodev/quality-gate@${QG_REV:-?}\`. Issue #482._"
           } > "$summary_file"
           {
-            echo 'body<<__QA_BODY__'
+            echo 'body<<__QG_BODY__'
             cat "$summary_file"
-            echo '__QA_BODY__'
+            echo '__QG_BODY__'
           } >> "$GITHUB_OUTPUT"
 
       - name: Post sticky failure comment
@@ -183,10 +239,11 @@ jobs:
           message: |
             ## ✅ Quality gate passed
 
-            Comparativo (PR vs `develop`): nenhuma métrica regrediu.
-            Verificadas: fmt, clippy, build, testes, complexidade, cobertura.
+            Comparativo (PR vs `develop`) pelo gate compartilhado
+            `xgodev/quality-gate`: nenhuma métrica regrediu.
+            Verificadas: fmt, lint, build, test, complexity, coverage.
 
-            _Posted by quality-gate workflow — issue #404._
+            _Posted by quality-gate workflow — issue #482._
 
       - name: Dismiss prior request-changes review on success
         if: success() && github.event.pull_request.head.repo.full_name == github.repository

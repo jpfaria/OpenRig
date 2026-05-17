@@ -91,28 +91,14 @@ bridge instead.
 
 ### macOS
 
-Download `OpenRig-<ver>-macos-universal.dmg`, open it, and drag OpenRig to Applications. The build is universal (Apple Silicon + Intel).
+The build is universal (Apple Silicon + Intel) but **not** Apple-notarized
+(no paid Developer certificate), so a browser/Finder download is
+quarantined and double-clicking the `.dmg` can show *"OpenRig is damaged
+and can't be opened"*. The message is misleading — Gatekeeper just blocks
+un-notarized downloads.
 
-> ⚠️ **Required step — otherwise macOS says "OpenRig is damaged".** The build is not Apple-notarized, so the download is quarantined (a hard block on Apple Silicon). After moving the app to Applications, run:
-> ```bash
-> xattr -dr com.apple.quarantine /Applications/OpenRig.app
-> ```
-> Or use the one-line `curl` installer below, which does this for you.
-
-### Windows
-
-Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
-
-### macOS — one-line install (recommended)
-
-The macOS build is ad-hoc signed but **not** Apple-notarized (no paid
-Developer certificate). A browser/Finder download tags it with
-`com.apple.quarantine`, so double-clicking the `.dmg` can show
-*"OpenRig is damaged and can't be opened"*. That message is misleading —
-the app is fine, Gatekeeper just blocks un-notarized downloads.
-
-Install with one command (fetched via `curl`, which does not quarantine,
-so it runs without the block):
+**One-line install (recommended)** — fetched via `curl`, which does not
+quarantine, so it runs without the block:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
@@ -122,11 +108,16 @@ It downloads the latest release `.dmg`, copies `OpenRig.app` to
 `/Applications`, and strips the quarantine attribute. Pin a version with
 `| bash -s -- v0.1.0-dev.19`.
 
-If you installed the `.dmg` manually instead, clear the flag yourself:
+**Manual** — download `OpenRig-<ver>-macos-universal.dmg`, drag OpenRig to
+Applications, then clear the quarantine flag yourself:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/OpenRig.app
 ```
+
+### Windows
+
+Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
 
 ## Build from Source
 
@@ -200,8 +191,8 @@ This is primarily intended for CI and release workflows, but can also be used fo
 
 The app is not damaged. macOS shows this for downloads that are not
 Apple-notarized. Use the one-line installer, or strip the quarantine
-flag manually — see [macOS — one-line install](#macos--one-line-install-recommended)
-above. Right-click → *Open* also works once the app is a valid bundle.
+flag manually — see [macOS](#macos) above. Right-click → *Open* also
+works once the app is a valid bundle.
 
 ### "cannot open shared object file" on Linux
 
