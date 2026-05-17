@@ -667,3 +667,53 @@ fn probe_meta_returned_by_ensure_server_is_the_backends_meta() {
         .unwrap();
     assert_eq!(meta, custom_meta());
 }
+
+// Regression #479: a chain edit (swapping a block) re-detects the USB
+// card and rebuilds the JackConfig. Incidental fields (channel counts,
+// nperiods, rt_priority, realtime) can differ run-to-run (a
+// 4-capture-channel Scarlett, default vs stored values) WITHOUT any
+// port-shape change. would_restart must NOT report a restart for those
+// — the old full-struct compare did, driving the destructive
+// stop()+kill+libjack-recreate that froze the app on every block swap.
+// Only sample_rate / buffer_size / card_num may restart.
+#[test]
+fn would_restart_ignores_incidental_config_fields() {
+    let mut sup = make_supervisor();
+    let base = JackConfig::test_default();
+    sup.ensure_server(&name(), &base, &mut noop_hook()).unwrap();
+
+    let incidental_only = JackConfig {
+        capture_channels: base.capture_channels + 2,
+        playback_channels: base.playback_channels + 1,
+        nperiods: base.nperiods + 1,
+        rt_priority: base.rt_priority.wrapping_add(5),
+        realtime: !base.realtime,
+        ..base
+    };
+    assert!(
+        !sup.would_restart(&name(), &incidental_only),
+        "incidental field delta must NOT trigger a jackd restart (#479)"
+    );
+
+    assert!(sup.would_restart(
+        &name(),
+        &JackConfig {
+            sample_rate: base.sample_rate + 1000,
+            ..base
+        }
+    ));
+    assert!(sup.would_restart(
+        &name(),
+        &JackConfig {
+            buffer_size: base.buffer_size * 2,
+            ..base
+        }
+    ));
+    assert!(sup.would_restart(
+        &name(),
+        &JackConfig {
+            card_num: base.card_num + 1,
+            ..base
+        }
+    ));
+}

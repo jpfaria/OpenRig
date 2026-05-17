@@ -303,6 +303,18 @@ pub(crate) fn create_and_wire(
         },
     );
 
+    // All size-driving data (params, EQ points, use_panel_editor) is set
+    // above, so the Slint-computed panel size is now final. Apply it as
+    // an explicit window size: some Linux WMs ignore Slint's
+    // min/max/preferred-* and otherwise open this window huge (#479).
+    // Harmless on macOS/Windows — it matches the existing constraints.
+    let pw = win.get_panel_width();
+    let ph = win.get_panel_height();
+    if pw.is_finite() && ph.is_finite() && pw > 0.0 && ph > 0.0 {
+        win.window()
+            .set_size(slint::WindowSize::Logical(slint::LogicalSize::new(pw, ph)));
+    }
+
     Ok((win, block_stream_timer))
 }
 
