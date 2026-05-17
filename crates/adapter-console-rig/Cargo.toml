@@ -1,0 +1,14 @@
+[package]
+name = "adapter-console-rig"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+cpal.workspace = true
+application = { path = "../application" }
+engine = { path = "../engine" }
+infra-cpal = { path = "../infra-cpal" }
+infra-filesystem = { path = "../infra-filesystem" }
+infra-yaml = { path = "../infra-yaml" }
+project = { path = "../project" }
