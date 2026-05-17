@@ -33,6 +33,8 @@ pub mod supervisor;
 pub mod types;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+pub mod alsa_mixer;
+#[cfg(all(target_os = "linux", feature = "jack"))]
 pub mod live_backend;
 
 // Re-exports used by `crate::ProjectRuntimeController`. Internal types

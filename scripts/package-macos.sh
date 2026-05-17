@@ -137,10 +137,50 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# ── 5. Ad-hoc signing (bypasses Gatekeeper without Apple certificate) ─────────
-echo "==> Signing app (ad-hoc)..."
-codesign --force --deep --sign - "$APP"
-xattr -cr "$APP"
+# ── 5. Ad-hoc signing — inside-out so the bundle signature is VALID ──────────
+# Ad-hoc signing does NOT bypass Gatekeeper. Its only purpose: a *valid*
+# signature downgrades the Gatekeeper block from "OpenRig is damaged"
+# (hard, unbypassable) to "unidentified developer" (right-click → Open
+# works, no Terminal). `codesign --deep` is unreliable on bundles with
+# Mach-O outside Contents/MacOS (we ship dylibs in Frameworks/ and nested
+# plugin .dylibs in Resources/plugins/.../macos-universal/) — it leaves
+# some unsigned, the seal fails verification, and macOS reports "damaged".
+# Fix: sign every Mach-O explicitly, innermost first, bundle last.
+# No `xattr -cr` here: the user's download re-applies com.apple.quarantine,
+# so stripping it at build time is a no-op (issue #459).
+echo "==> Signing app (ad-hoc, inside-out)..."
+# NUL-delimited find + `case` on full `file` output. No `grep -q` (it
+# closes the pipe early → SIGPIPE on `file`, which under `set -o
+# pipefail` aborts the loop while `find` keeps writing → a flood of
+# "printf: Broken pipe" and exit 1 once the .app's full plugin tree is
+# present). No per-file `-exec sh -c` subshell either (issue #463,
+# regression of #459 which only tested a tiny bundle).
+# Order matters: codesign of the main executable verifies that every
+# subcomponent it links (e.g. Frameworks/libNeuralAudioCAPI.dylib) is
+# already signed, else it fails "code object is not signed at all / In
+# subcomponent: ...". `find` order is not inside-out, so sign every
+# nested Mach-O here but SKIP the main executable, then sign it after
+# the loop (deps first), then the bundle last (issue #463).
+MAIN_EXE="$APP/Contents/MacOS/openrig"
+while IFS= read -r -d '' f; do
+    [ "$f" = "$MAIN_EXE" ] && continue
+    case "$(file -b "$f" 2>/dev/null)" in
+        *Mach-O*)
+            codesign --force --sign - --timestamp=none "$f" \
+                || { echo "FATAL: codesign failed for $f" >&2; exit 1; }
+            ;;
+    esac
+done < <(find "$APP/Contents" -type f -print0)
+codesign --force --sign - --timestamp=none "$MAIN_EXE" \
+    || { echo "FATAL: codesign failed for $MAIN_EXE" >&2; exit 1; }
+codesign --force --sign - --timestamp=none "$APP" \
+    || { echo "FATAL: codesign failed for the .app bundle" >&2; exit 1; }
+
+# Gate: an invalid signature IS the "damaged" bug. Fail the build loudly
+# here rather than ship a .dmg that no one can open.
+echo "==> Verifying signature..."
+codesign --verify --deep --strict --verbose=2 "$APP"
+echo "    signature valid"
 
 # ── 6. Verify binary ──────────────────────────────────────────────────────────
 echo "==> Verifying binary..."

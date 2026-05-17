@@ -16,17 +16,117 @@ This guide covers how to install and run OpenRig on your system, either from pre
 
 ## Download Binaries
 
-Prebuilt binaries are available for all supported platforms. Download the appropriate archive from the latest release page.
+Prebuilt binaries for every supported platform are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Pick the artifact for your OS and architecture (`x86_64` for most desktops/laptops, `aarch64` for ARM boards such as the Orange Pi).
 
-| Platform | Architecture | Download |
-|----------|--------------|----------|
-| macOS | Apple Silicon (aarch64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| macOS | Intel (x86_64) | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Linux | aarch64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
-| Windows | x86_64 | [Latest Release](https://github.com/jpfaria/OpenRig/releases/latest) |
+### Linux
 
-After downloading, extract the archive and run the `adapter-gui` binary for your platform.
+Two ways to install — pick one.
+
+**AppImage (recommended — no root, self-contained, nothing installed system-wide):**
+
+```bash
+# x86_64 — replace <ver> with the release tag, e.g. 0.1.0-dev.19
+chmod +x OpenRig-<ver>-linux-x86_64.AppImage
+./OpenRig-<ver>-linux-x86_64.AppImage
+```
+
+To remove it, just delete the file. Use the `-linux-aarch64.AppImage` asset on ARM boards.
+
+**`.deb` / `.rpm` (system-integrated — adds a desktop entry and resolves dependencies, requires root):**
+
+```bash
+# Ubuntu / Debian, x86_64 (use openrig_<ver>_arm64.deb on ARM)
+sudo apt install ./openrig_<ver>_amd64.deb
+
+# Fedora / RHEL, x86_64 (use the .aarch64.rpm on ARM)
+sudo dnf install ./openrig-<ver>-1.x86_64.rpm
+```
+
+Prefer `apt install ./file.deb` over `dpkg -i` — it pulls in dependencies automatically.
+
+A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `adapter-gui` binary directly.
+
+#### Audio setup (required for sound)
+
+Installing the package is not enough to get sound — OpenRig is a guitar
+pedalboard and needs a real audio I/O path:
+
+1. **A USB audio interface** with a guitar input and an output
+   (headphones/monitors). Class-compliant interfaces work on Linux with
+   no driver. The built-in laptop audio is not enough (no instrument
+   input). Verify it is seen: `arecord -l` / `aplay -l` or
+   `cat /proc/asound/cards`.
+2. **JACK server** — OpenRig launches `jackd` itself, so the daemon
+   (not just the libraries) must be installed:
+   ```bash
+   sudo apt install jackd2          # Debian / Ubuntu
+   sudo dnf install jack-audio-connection-kit   # Fedora
+   ```
+3. **Audio group** — add your user and re-login (so realtime/device
+   access applies):
+   ```bash
+   sudo usermod -aG audio "$USER"
+   ```
+4. **PipeWire / PulseAudio coexistence** — if a sound server is holding
+   the interface, OpenRig's `jackd` may fail to grab it exclusively.
+   Either suspend the device in the sound server or point OpenRig at the
+   PipeWire JACK/ALSA bridge.
+5. In OpenRig's **audio screen**, select the interface as input and
+   output, set sample rate / buffer size, then enable the chain.
+
+> **Note — interface mixer:** OpenRig raises the selected card's ALSA
+> playback mixer to unity (100% / 0 dB, unmuted) automatically before
+> starting JACK, because without PipeWire/PulseAudio nothing else does,
+> and many USB interfaces ship attenuated (~−23 dB → weak, muffled
+> sound). If your interface uses an unusual mixer control OpenRig
+> doesn't recognise, set it by hand and persist it:
+> ```bash
+> amixer -c <CARD> sset <CONTROL> 100% unmute   # <CARD> from `cat /proc/asound/cards`
+> sudo alsactl store                            # survives reboot
+> ```
+
+The `.deb` declares `libasound2` and `libseat1`; `jackd2` is recommended
+separately because some setups route audio through PipeWire's JACK
+bridge instead.
+
+### macOS
+
+Download `OpenRig-<ver>-macos-universal.dmg`, open it, and drag OpenRig to Applications. The build is universal (Apple Silicon + Intel).
+
+> ⚠️ **Required step — otherwise macOS says "OpenRig is damaged".** The build is not Apple-notarized, so the download is quarantined (a hard block on Apple Silicon). After moving the app to Applications, run:
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/OpenRig.app
+> ```
+> Or use the one-line `curl` installer below, which does this for you.
+
+### Windows
+
+Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
+
+### macOS — one-line install (recommended)
+
+The macOS build is ad-hoc signed but **not** Apple-notarized (no paid
+Developer certificate). A browser/Finder download tags it with
+`com.apple.quarantine`, so double-clicking the `.dmg` can show
+*"OpenRig is damaged and can't be opened"*. That message is misleading —
+the app is fine, Gatekeeper just blocks un-notarized downloads.
+
+Install with one command (fetched via `curl`, which does not quarantine,
+so it runs without the block):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
+```
+
+It downloads the latest release `.dmg`, copies `OpenRig.app` to
+`/Applications`, and strips the quarantine attribute. Pin a version with
+`| bash -s -- v0.1.0-dev.19`.
+
+If you installed the `.dmg` manually instead, clear the flag yourself:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OpenRig.app
+```
 
 ## Build from Source
 
@@ -95,6 +195,25 @@ docker build -f docker/Dockerfile.build-libs -t openrig-build .
 This is primarily intended for CI and release workflows, but can also be used for local cross-compilation.
 
 ## Troubleshooting
+
+### "OpenRig is damaged and can't be opened" (macOS)
+
+The app is not damaged. macOS shows this for downloads that are not
+Apple-notarized. Use the one-line installer, or strip the quarantine
+flag manually — see [macOS — one-line install](#macos--one-line-install-recommended)
+above. Right-click → *Open* also works once the app is a valid bundle.
+
+### "cannot open shared object file" on Linux
+
+Builds from `v0.1.0-dev.20` onward bundle `libNeuralAudioCAPI.so` (via
+RUNPATH) and the `.deb` declares `libseat1` as a dependency, so this is
+handled automatically. On older builds the app fails to start with
+`error while loading shared libraries: libNeuralAudioCAPI.so` or
+`libseat.so.1`. Fix by upgrading, or for `libseat`:
+
+```bash
+sudo apt install libseat1   # Debian / Ubuntu
+```
 
 ### ALSA not found (Linux)
 

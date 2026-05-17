@@ -83,14 +83,25 @@ pub fn validate_package(
             }
         }
         Backend::Lv2 { binaries, .. } => {
-            for (slot, file) in binaries {
-                let absolute = package_root.join(file);
-                if !absolute.is_file() {
-                    return Err(PackageError::MissingBinarySlot {
-                        slot: *slot,
-                        file: file.clone(),
-                    });
+            // Only the CURRENT platform's binary must exist on disk. Each
+            // OS package strips the other platforms' binaries (#425), so
+            // requiring every declared slot wrongly rejects ~100 LV2
+            // packages per OS (#477). Other-slot entries are expected to
+            // be absent here — not a validation failure; the doc-comment
+            // above already states only the host slot is testable.
+            if let Some(slot) = current_platform_slot() {
+                if let Some(file) = binaries.get(&slot) {
+                    let absolute = package_root.join(file);
+                    if !absolute.is_file() {
+                        return Err(PackageError::MissingBinarySlot {
+                            slot,
+                            file: file.clone(),
+                        });
+                    }
                 }
+                // No binary for this slot → package just isn't usable on
+                // this platform; the loader skips it without flagging it
+                // as corrupt.
             }
         }
         Backend::Vst3 { bundle, .. } => {
