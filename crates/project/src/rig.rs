@@ -95,6 +95,16 @@ pub const PRESET_FORMAT_VERSION: u32 = 1;
 /// A preset in the shared pool: processing chain only, no I/O.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigPreset {
+    /// Stable identity of this pool entry (the bank references it by
+    /// key; this mirrors it so a loaded preset keeps its id). Empty for
+    /// pre-#436 docs (`#[serde(default)]`) — back-compat.
+    #[serde(default)]
+    pub id: String,
+    /// Human description shown in the UI (the original chain
+    /// description on migration, or the preset file's `name`). `None`
+    /// ⇒ fall back to the id/key. Pre-#436 docs have no field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default)]
     pub blocks: Vec<crate::block::AudioBlock>,
     /// Params the scenes are allowed to control (`<block-id>.<param-id>`).
@@ -118,6 +128,8 @@ impl RigPreset {
     /// identical to the legacy preset (CLAUDE.md invariant).
     pub fn from_legacy_blocks(blocks: Vec<AudioBlock>, volume: f32) -> Self {
         Self {
+            id: String::new(),
+            name: None,
             blocks,
             scene_params: Vec::new(),
             scenes: BTreeMap::new(),
