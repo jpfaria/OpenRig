@@ -73,7 +73,7 @@ mod tests {
     /// `Command` has exactly this many variants. If you add/remove one,
     /// update this AND ensure its payload types derive `JsonSchema`
     /// (otherwise the variant silently drops from the schema → no tool).
-    const COMMAND_VARIANT_COUNT: usize = 31;
+    const COMMAND_VARIANT_COUNT: usize = 32;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
