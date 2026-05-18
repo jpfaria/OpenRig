@@ -164,6 +164,30 @@ impl RigPreset {
 }
 
 impl RigProject {
+    /// Persist the edited processing blocks of `input`'s active preset
+    /// back into the shared preset pool, so a block/param edit made on
+    /// the projected synthetic chain survives re-projection and is saved
+    /// to `project.openrig`. With no `scene_params` (the only state
+    /// reachable from the UI today) `apply_scene` is the identity, so the
+    /// synthetic chain's processing blocks ARE the preset's blocks. No-op
+    /// if the input or its active preset is unknown.
+    pub fn write_back_processing_blocks(
+        &mut self,
+        input: &str,
+        blocks: Vec<crate::block::AudioBlock>,
+    ) {
+        let Some(preset_name) = self
+            .inputs
+            .get(input)
+            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
+        else {
+            return;
+        };
+        if let Some(preset) = self.presets.get_mut(&preset_name) {
+            preset.blocks = blocks;
+        }
+    }
+
     /// Validate cross-references and per-input source channel conflicts.
     ///
     /// Rules (closed in #436 / scoped by #449):

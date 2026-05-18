@@ -88,3 +88,49 @@ fn non_rig_chain_yields_empty_row() {
     let rows = rig_nav_rows(&r, &proj);
     assert_eq!(rows[0], RigNavRow::default(), "no selectors for non-rig");
 }
+
+#[test]
+fn sync_synthetic_into_rig_writes_edited_blocks_back_to_active_preset() {
+    use domain::ids::BlockId;
+    use domain::value_objects::ParameterValue;
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::param::ParameterSet;
+
+    let mut params = ParameterSet::default();
+    params.insert("volume", ParameterValue::Float(80.0));
+    let blk = AudioBlock {
+        id: BlockId("vol".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "volume".into(),
+            params,
+        }),
+    };
+    let mut r = rig();
+    r.presets.get_mut("clean").unwrap().blocks = vec![blk.clone()];
+    // active preset of input-1 is slot 2 ("drive") in rig(); point it at clean.
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1;
+
+    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    // User edits the param on the projected synthetic chain.
+    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
+        for b in c.blocks.iter_mut() {
+            if let AudioBlockKind::Core(core) = &mut b.kind {
+                core.params.insert("volume", ParameterValue::Float(90.0));
+            }
+        }
+    }
+
+    super::sync_synthetic_into_rig(&mut r, &proj);
+
+    let got = match &r.presets.get("clean").unwrap().blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(
+        got,
+        Some(90.0),
+        "synthetic edit written back into rig preset"
+    );
+}

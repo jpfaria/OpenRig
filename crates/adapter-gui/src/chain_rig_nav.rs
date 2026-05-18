@@ -7,8 +7,28 @@
 //! scene, in the SAME order as `project.chains` so the Slint row at
 //! index `i` reads `rows[i]`. No Slint, no I/O — fully testable.
 
+use project::block::AudioBlockKind;
 use project::project::Project;
 use project::rig::RigProject;
+
+/// Write every rig chain's edited processing blocks back into the rig's
+/// active presets, so block/param edits made on the projected synthetic
+/// chains survive re-projection and are saved to `project.openrig`.
+/// Non-rig chains are ignored. Pure; mirrors `rig_to_chains` in reverse.
+pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
+    for chain in &project.chains {
+        let Some(input) = chain.id.0.strip_prefix("rig:") else {
+            continue;
+        };
+        let processing: Vec<_> = chain
+            .blocks
+            .iter()
+            .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .cloned()
+            .collect();
+        rig.write_back_processing_blocks(input, processing);
+    }
+}
 
 /// One chain's rig preset/scene navigation state. Empty `preset_labels`
 /// ⇒ not a rig chain (or input vanished) → the UI hides the selectors.

@@ -92,6 +92,11 @@ fn apply_switch(
         (chain.id.clone(), name.to_string())
     };
 
+    // Capture any pending block/param edits on the synthetic chains into
+    // the rig BEFORE re-projecting, so switching preset/scene never
+    // discards an in-progress edit.
+    crate::chain_rig_nav::sync_synthetic_into_rig(&mut rig.borrow_mut(), &session.project.borrow());
+
     let rebuilt = engine::rig_runtime::switch_and_project_input(
         &mut rig.borrow_mut(),
         &input,

@@ -355,3 +355,42 @@ fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
     // Behaves as one Default scene that changes nothing (back-compat).
     assert_eq!(preset.apply_scene(1), blocks);
 }
+
+// #436 #1 — write-back: editing a rig chain's processing blocks must
+// persist into the active preset and survive re-projection.
+
+#[test]
+fn write_back_processing_blocks_persists_edit_into_active_preset() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User edits the param on the (re-projected) synthetic chain.
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(90.0));
+    }
+
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let blk = &p.presets.get("p").unwrap().blocks[0];
+    let got = match &blk.kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(got, Some(90.0), "edit written into the base preset");
+
+    // Survives re-projection (apply_scene with no scene-params = identity).
+    let reprojected = &p.presets.get("p").unwrap().apply_scene(2)[0];
+    let after = match &reprojected.kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(after, Some(90.0), "edit survives switching/reproject");
+}

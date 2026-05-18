@@ -3,7 +3,8 @@
 // remove). 541 LOC over the 500-line cap; this is one logical component
 // and splitting its body would require inventing artificial sub-components.
 
-import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
+import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav } from "../models.slint";
+import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, ChainVolumeControl, HeaderIconAction } from "../components/chain_chips.slint";
@@ -13,6 +14,9 @@ import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
 
 export component ChainRow inherits Rectangle {
     in property <ProjectChainItem> chain;
+    in property <ChainRigNav> rig-nav;
+    callback switch-chain-preset(int);
+    callback switch-chain-scene(int);
     in property <int> chain-index;
     in property <int> chain-count;
     in property <int> selected-block-chain-index;
@@ -100,29 +104,22 @@ export component ChainRow inherits Rectangle {
             colorize: #6a7483;
         }
 
-        Rectangle {
+        ChainTitlePreset {
             x: 72px;
-            y: 14px;
-            width: 320px;
-            height: 24px;
-
-            Text {
-                width: parent.width;
-                height: parent.height;
-                text: root.chain.title;
-                color: title-ta.has-hover ? #ffffff : #f1f4f8;
-                font-size: 14px;
-                font-weight: 600;
-                vertical-alignment: center;
+            y: 12px;
+            width: parent.width - 72px - 332px;
+            height: 28px;
+            title: root.chain.title;
+            nav: root.rig-nav;
+            fullscreen: root.fullscreen;
+            open-compact => {
+                root.open-compact-chain-view(root.chain-index);
             }
-
-            title-ta := TouchArea {
-                mouse-cursor: root.fullscreen ? default : pointer;
-                clicked => {
-                    if !root.fullscreen {
-                        root.open-compact-chain-view(root.chain-index);
-                    }
-                }
+            preset-picked(slot) => {
+                root.switch-chain-preset(slot);
+            }
+            scene-picked(s) => {
+                root.switch-chain-scene(s);
             }
         }
 

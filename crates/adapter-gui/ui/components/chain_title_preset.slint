@@ -1,6 +1,7 @@
-// #436 #1 — per-chain rig preset/scene selector for the legacy chains
-// screen. Kept in its own file (chain_row.slint is over the 500-line
-// cap). Pure dispatcher: emits events, holds no business logic.
+// #436 #1 — the chain row's title slot. For a rig chain it IS the
+// preset picker + scene strip (the title is the song you pick); for a
+// non-rig chain it falls back to the plain clickable title. Own file so
+// chain_row.slint (over the 500-line cap) shrinks instead of growing.
 
 import { ComboBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
@@ -10,16 +11,15 @@ component SceneCell inherits Rectangle {
     in property <int> n;
     in property <bool> active;
     callback picked();
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
     border-width: 1px;
     border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
     background: root.active
         ? Theme.palette.accent-end
         : (touch.has-hover ? Theme.palette.card-secondary : Theme.palette.card);
     animate background { duration: 150ms; }
-
     Text {
         text: root.n;
         color: root.active ? #ffffff : Theme.palette.text-muted;
@@ -38,29 +38,39 @@ component SceneCell inherits Rectangle {
     accessible-label: "Scene " + root.n;
 }
 
-export component PresetSceneBar inherits Rectangle {
+export component ChainTitlePreset inherits Rectangle {
+    in property <string> title;
     in property <ChainRigNav> nav;
+    in property <bool> fullscreen: false;
+    callback open-compact();
     callback preset-picked(int);
     callback scene-picked(int);
 
-    height: root.nav.has-rig ? 38px : 0px;
-    visible: root.nav.has-rig;
-
-    HorizontalLayout {
-        spacing: Theme.spaces.medium;
-        padding-left: 4px;
-        padding-right: 4px;
-
-        VerticalLayout {
-            alignment: center;
-            Text {
-                text: @tr("PRESET");
-                color: Theme.palette.text-muted;
-                font-size: Theme.typo.caption.size;
-                letter-spacing: 1px;
+    // ── Non-rig chain: the plain clickable title (unchanged behaviour).
+    if !root.nav.has-rig : Rectangle {
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.title;
+            color: title-ta.has-hover ? #ffffff : #f1f4f8;
+            font-size: 14px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        title-ta := TouchArea {
+            mouse-cursor: root.fullscreen ? default : pointer;
+            clicked => {
+                if !root.fullscreen {
+                    root.open-compact();
+                }
             }
         }
-        preset := ComboBox {
+    }
+
+    // ── Rig chain: the title slot becomes the preset picker + scenes.
+    if root.nav.has-rig : HorizontalLayout {
+        spacing: Theme.spaces.medium;
+        ComboBox {
             width: 220px;
             model: root.nav.preset-labels;
             current-index: root.nav.active-preset-index;
@@ -70,12 +80,6 @@ export component PresetSceneBar inherits Rectangle {
             }
             accessible-label: @tr("Preset selector");
         }
-
-        Rectangle {
-            width: 1px;
-            background: Theme.palette.border;
-        }
-
         VerticalLayout {
             alignment: center;
             Text {
@@ -86,7 +90,7 @@ export component PresetSceneBar inherits Rectangle {
             }
         }
         HorizontalLayout {
-            spacing: 5px;
+            spacing: 4px;
             for i in 8: SceneCell {
                 n: i + 1;
                 active: root.nav.scene == i + 1;
