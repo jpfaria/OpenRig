@@ -132,6 +132,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
+                    crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
                     register_recent_project(
                         &mut app_config.borrow_mut(),

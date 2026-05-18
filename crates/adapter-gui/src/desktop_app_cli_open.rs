@@ -56,9 +56,7 @@ pub(crate) fn try_auto_open(
             );
             let snapshot = project_session_snapshot(&session).ok();
             *project_session.borrow_mut() = Some(session);
-            if let Some(s) = project_session.borrow().as_ref() {
-                crate::chain_rig_nav_wiring::refresh_chain_rig_nav(window, s);
-            }
+            crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
             *saved_project_snapshot.borrow_mut() = snapshot;
             register_recent_project(&mut app_config.borrow_mut(), &canonical_path, &display_name);
             let _ = FilesystemStorage::save_app_config(&app_config.borrow());
