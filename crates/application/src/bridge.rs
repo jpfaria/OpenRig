@@ -77,20 +77,27 @@ pub struct BridgeDrain {
 
 impl BridgeDrain {
     /// Dispatch up to `cap` queued commands on the calling (frontend) thread.
-    /// Returns how many were handled. Non-blocking; safe to call every tick.
-    pub fn drain(&self, dispatcher: &dyn CommandDispatcher, cap: usize) -> usize {
+    /// Returns the events every dispatched command produced, in order, so the
+    /// caller (the GUI's MIDI/MCP drain timer) can run the same screen/runtime
+    /// refresh a GUI click does — a footswitch must move the screen too.
+    /// Non-blocking; safe to call every tick. Empty result ⇒ nothing changed.
+    pub fn drain(&self, dispatcher: &dyn CommandDispatcher, cap: usize) -> Vec<Event> {
+        let mut events = Vec::new();
         let mut handled = 0;
         while handled < cap {
             match self.rx.try_recv() {
                 Ok(req) => {
                     let outcome = dispatcher.dispatch(req.cmd).map_err(|e| e.to_string());
+                    if let Ok(produced) = &outcome {
+                        events.extend(produced.iter().cloned());
+                    }
                     let _ = req.reply.send(outcome);
                     handled += 1;
                 }
                 Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => break,
             }
         }
-        handled
+        events
     }
 
     /// Service queued read-only queries on the calling (frontend) thread.
@@ -185,8 +192,8 @@ mod tests {
         // Nothing dispatched until the frontend drains.
         assert!(reply_rx.try_recv().unwrap().is_none());
 
-        let handled = drain.drain(&dispatcher, 16);
-        assert_eq!(handled, 1);
+        let drained = drain.drain(&dispatcher, 16);
+        assert_eq!(drained.len(), 1);
 
         let events = reply_rx
             .try_recv()
@@ -197,14 +204,34 @@ mod tests {
     }
 
     #[test]
+    fn drain_returns_dispatched_events_so_midi_path_can_refresh() {
+        // A footswitch-originated command goes through the same drain as the
+        // GUI. The drain must hand back what was dispatched so the MIDI/MCP
+        // timer can run the same screen/runtime refresh the GUI does — today
+        // it only returns a count and the events are lost.
+        let dispatcher = LocalDispatcher::new(test_project());
+        let (bridge, drain) = channel();
+        let _ = bridge.submit(Command::SaveProject);
+
+        let events = drain.drain(&dispatcher, 16);
+
+        assert!(
+            events.iter().any(|e| matches!(e, Event::ProjectSaved)),
+            "drain must surface dispatched events for the caller to react: {events:?}"
+        );
+    }
+
+    #[test]
     fn drain_respects_cap() {
         let dispatcher = LocalDispatcher::new(test_project());
         let (bridge, drain) = channel();
         for _ in 0..5 {
             let _ = bridge.submit(Command::SaveProject);
         }
-        assert_eq!(drain.drain(&dispatcher, 2), 2);
-        assert_eq!(drain.drain(&dispatcher, 10), 3);
+        // SaveProject yields exactly one ProjectSaved, so the event count
+        // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.
+        assert_eq!(drain.drain(&dispatcher, 2).len(), 2);
+        assert_eq!(drain.drain(&dispatcher, 10).len(), 3);
     }
 
     #[test]

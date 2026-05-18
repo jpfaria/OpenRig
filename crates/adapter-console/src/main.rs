@@ -94,7 +94,7 @@ fn main() -> Result<()> {
     );
 
     loop {
-        let handled = drain.drain(&dispatcher, 64);
+        let changed = !drain.drain(&dispatcher, 64).is_empty();
         drain.serve_queries(
             |kind| match kind {
                 QueryKind::ProjectYaml => {
@@ -107,7 +107,7 @@ fn main() -> Result<()> {
             },
             64,
         );
-        if handled > 0 {
+        if changed {
             // A command mutated the project: rebuild the live graph. On a
             // validation/build error keep the previous streams running.
             match validate_project(&shared.borrow()).and_then(|_| build_streams(&shared.borrow())) {
