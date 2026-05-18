@@ -146,12 +146,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
                         rig.add_preset_to_input(input)?;
                         engine::rig_runtime::switch_and_project_input(rig, input, None, None)
                     } else {
-                        engine::rig_runtime::switch_and_project_input(
-                            rig,
-                            input,
-                            Some(slot as usize),
-                            None,
-                        )
+                        // `slot` is the ComboBox POSITION; map it to the
+                        // real bank key (they diverge once "+" makes the
+                        // bank sparse) before switching.
+                        let key = crate::chain_rig_nav::preset_slot_at(rig, input, slot as usize)?;
+                        engine::rig_runtime::switch_and_project_input(rig, input, Some(key), None)
                     }
                 });
             }

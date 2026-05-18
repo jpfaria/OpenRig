@@ -46,6 +46,17 @@ pub(crate) struct RigNavRow {
     pub(crate) scene: usize,
 }
 
+/// Translate a preset ComboBox **positional** index into the rig
+/// input's real bank **slot key**. The widget reports a position into
+/// `preset_labels`; `switch_and_project_input` wants the bank key. The
+/// two diverge whenever the bank is sparse/non-1-based (exactly what the
+/// "+" add-preset produces: key = max+1). Uses the SAME ascending
+/// `bank.keys()` ordering `rig_nav_rows` exposes, so position N here is
+/// the same row the user clicked. `None` ⇒ unknown input or out of range.
+pub(crate) fn preset_slot_at(rig: &RigProject, input: &str, position: usize) -> Option<usize> {
+    rig.inputs.get(input)?.bank.keys().nth(position).copied()
+}
+
 /// Build the nav rows aligned 1:1 with `project.chains`.
 pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow> {
     project

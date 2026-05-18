@@ -1,4 +1,4 @@
-use super::{rig_nav_rows, RigNavRow};
+use super::{preset_slot_at, rig_nav_rows, RigNavRow};
 use engine::rig_runtime::{rig_to_legacy_project, switch_and_project_input};
 use project::block::InputEntry;
 use project::chain::ChainInputMode;
@@ -78,6 +78,49 @@ fn switch_then_nav_reflects_new_active_preset_and_scene() {
     let after = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
     assert_eq!(after[0].active_index, 2, "active preset 3 → index 2");
     assert_eq!(after[0].scene, 7);
+}
+
+#[test]
+fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
+    // The ComboBox hands back a POSITIONAL index into preset_labels;
+    // switch_and_project_input wants the bank KEY. With a non-1-based or
+    // sparse bank (the shape "+" produces: max+1) the two diverge, so
+    // the position must be translated through the same ordering
+    // rig_nav_rows uses (bank.keys() ascending).
+    let mut r = rig();
+    // Make the bank sparse like an added preset would: {1,2,3} -> add 7.
+    r.presets.insert(
+        "added".to_string(),
+        RigPreset {
+            blocks: vec![],
+            scene_params: vec![],
+            scenes: BTreeMap::new(),
+            volume: 100.0,
+        },
+    );
+    r.inputs
+        .get_mut("input-1")
+        .unwrap()
+        .bank
+        .insert(7, "added".to_string());
+
+    assert_eq!(preset_slot_at(&r, "input-1", 0), Some(1));
+    assert_eq!(preset_slot_at(&r, "input-1", 2), Some(3));
+    assert_eq!(
+        preset_slot_at(&r, "input-1", 3),
+        Some(7),
+        "position 3 → key 7"
+    );
+    assert_eq!(preset_slot_at(&r, "input-1", 4), None, "out of range");
+    assert_eq!(preset_slot_at(&r, "missing", 0), None, "unknown input");
+
+    // The position the GUI would send for the added preset must activate
+    // exactly that preset (not a key-vs-position off-by-one mismatch).
+    let key = preset_slot_at(&r, "input-1", 3).unwrap();
+    switch_and_project_input(&mut r, "input-1", Some(key), None).expect("rebuilt");
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].active_index, 3, "added preset is now active");
+    assert_eq!(rows[0].preset_labels[3], "added");
 }
 
 #[test]

@@ -1,26 +1,28 @@
 // #436 #1 — the chain row's title slot. For a rig chain it IS the
 // preset picker (the title is the song you pick) + an "add preset"
-// button + a scene icon that reveals the scene select on press; for a
-// non-rig chain it falls back to the plain clickable title. Own file so
-// chain_row.slint (over the 500-line cap) shrinks instead of growing.
+// button + an always-visible scene stepper (just the number, no
+// dropdown); for a non-rig chain it falls back to the plain clickable
+// title. Own file so chain_row.slint (over the 500-line cap) shrinks
+// instead of growing.
 
 import { ComboBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 
-// Small square icon button (press to toggle a panel). Mirrors the look
-// of the chain action icons; own copy so this file has no chain_row dep.
+// Small square icon button (press to fire). Mirrors the look of the
+// chain action icons; own copy so this file has no chain_row dep.
 component IconButton inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
     in property <string> a11y;
+    in property <bool> enabled: true;
     callback clicked();
     width: 28px;
     height: 28px;
     border-radius: 5px;
     background: root.active
         ? Theme.palette.accent-end
-        : (ta.has-hover ? Theme.palette.card-secondary : transparent);
+        : (ta.has-hover && root.enabled ? Theme.palette.card-secondary : transparent);
     animate background { duration: 150ms; }
     Image {
         x: 5px;
@@ -29,16 +31,67 @@ component IconButton inherits Rectangle {
         height: 18px;
         source: root.icon;
         image-fit: contain;
-        colorize: root.active ? #ffffff : (ta.has-hover ? #ffffff : #8a94a2);
+        colorize: !root.enabled
+            ? #4a525f
+            : (root.active ? #ffffff : (ta.has-hover ? #ffffff : #8a94a2));
     }
     ta := TouchArea {
-        mouse-cursor: pointer;
+        mouse-cursor: root.enabled ? pointer : default;
         clicked => {
-            root.clicked();
+            if root.enabled {
+                root.clicked();
+            }
         }
     }
     accessible-role: button;
     accessible-label: root.a11y;
+}
+
+// Always-visible scene selector: just the number, flanked by ‹ ›. No
+// dropdown — prettier and one-tap. Clamped 1..8; each arrow fires
+// `picked` with the new scene (no-op at the ends, arrow dims).
+component SceneStepper inherits Rectangle {
+    in property <int> scene;
+    callback picked(int);
+    private property <bool> at-min: root.scene <= 1;
+    private property <bool> at-max: root.scene >= 8;
+    width: 86px;
+    height: 32px;
+    border-radius: 6px;
+    background: Theme.palette.card-secondary;
+    border-width: 1px;
+    border-color: #3b4250;
+
+    HorizontalLayout {
+        padding: 2px;
+        IconButton {
+            icon: @image-url("../assets/arrow-left.svg");
+            a11y: @tr("Previous scene");
+            enabled: !root.at-min;
+            clicked => {
+                root.picked(root.scene - 1);
+            }
+        }
+        Text {
+            horizontal-stretch: 1;
+            text: root.scene;
+            color: #f1f4f8;
+            font-size: 15px;
+            font-weight: 800;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        IconButton {
+            icon: @image-url("../assets/arrow-right.svg");
+            a11y: @tr("Next scene");
+            enabled: !root.at-max;
+            clicked => {
+                root.picked(root.scene + 1);
+            }
+        }
+    }
+    accessible-role: text;
+    accessible-label: @tr("Scene {}", root.scene);
 }
 
 export component ChainTitlePreset inherits Rectangle {
@@ -51,7 +104,6 @@ export component ChainTitlePreset inherits Rectangle {
     // new callback has to be threaded through the over-cap shells).
     callback preset-picked(int);
     callback scene-picked(int);
-    private property <bool> show-scene: false;
 
     // ── Non-rig chain: the plain clickable title (unchanged behaviour).
     if !root.nav.has-rig : Rectangle {
@@ -74,7 +126,7 @@ export component ChainTitlePreset inherits Rectangle {
         }
     }
 
-    // ── Rig chain: preset picker + add button + scene icon.
+    // ── Rig chain: preset picker + add button + scene stepper.
     if root.nav.has-rig : HorizontalLayout {
         spacing: Theme.spaces.small;
         alignment: start;
@@ -104,38 +156,15 @@ export component ChainTitlePreset inherits Rectangle {
         }
         VerticalLayout {
             alignment: center;
-            IconButton {
-                icon: @image-url("../assets/scene.svg");
-                active: root.show-scene;
-                a11y: @tr("Scene selector");
-                clicked => {
-                    root.show-scene = !root.show-scene;
+            SceneStepper {
+                scene: root.nav.scene;
+                picked(s) => {
+                    root.scene-picked(s);
                 }
             }
         }
         Rectangle {
             horizontal-stretch: 1;
-        }
-    }
-
-    // ── Scene select — revealed only when the scene icon is pressed.
-    // Floats below the row (absolute + high z) so it is not clipped.
-    if root.nav.has-rig && root.show-scene : Rectangle {
-        x: 252px;
-        y: 36px;
-        width: 132px;
-        height: 36px;
-        z: 100;
-        ComboBox {
-            width: parent.width;
-            height: 32px;
-            model: ["Scene 1", "Scene 2", "Scene 3", "Scene 4", "Scene 5", "Scene 6", "Scene 7", "Scene 8"];
-            current-index: root.nav.scene - 1;
-            selected => {
-                root.scene-picked(self.current-index + 1);
-                root.show-scene = false;
-            }
-            accessible-label: @tr("Scene selector");
         }
     }
 }

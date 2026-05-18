@@ -1,7 +1,8 @@
 // #436 — chain volume behind an icon. Press the speaker icon to reveal
-// the volume slider (floats below, high z so it is not clipped). Keeps
-// the always-on slider out of the crowded header. The slider itself is
-// the unchanged ChainVolumeControl (issue #440 behaviour preserved).
+// the volume slider. It lives in a PopupWindow so it renders on the
+// top overlay layer (like the ComboBox dropdown) and is never clipped
+// or painted under the pedal blocks below the header row. The slider
+// itself is the unchanged ChainVolumeControl (#440 behaviour preserved).
 
 import { Theme } from "../theme.slint";
 import { ChainVolumeControl } from "chain_chips.slint";
@@ -9,14 +10,11 @@ import { ChainVolumeControl } from "chain_chips.slint";
 export component ChainVolumeButton inherits Rectangle {
     in-out property <int> volume: 100;
     callback value-changed(int);
-    private property <bool> open: false;
 
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    background: root.open
-        ? Theme.palette.accent-end
-        : (ta.has-hover ? Theme.palette.card-secondary : transparent);
+    background: ta.has-hover ? Theme.palette.card-secondary : transparent;
     animate background { duration: 150ms; }
 
     Image {
@@ -26,35 +24,40 @@ export component ChainVolumeButton inherits Rectangle {
         height: 18px;
         source: @image-url("../assets/volume.svg");
         image-fit: contain;
-        colorize: root.open || ta.has-hover ? #ffffff : #8a94a2;
+        colorize: ta.has-hover ? #ffffff : #8a94a2;
     }
 
     ta := TouchArea {
         mouse-cursor: pointer;
         clicked => {
-            root.open = !root.open;
+            pop.show();
         }
     }
     accessible-role: button;
     accessible-label: @tr("Volume");
 
-    if root.open : Rectangle {
+    pop := PopupWindow {
         x: -184px;
         y: 32px;
         width: 192px;
         height: 40px;
-        z: 100;
-        border-radius: 8px;
-        background: #11141af2;
-        border-width: 1px;
-        border-color: #3b4250;
+        close-policy: close-on-click-outside;
 
-        ChainVolumeControl {
-            x: 12px;
-            y: 8px;
-            volume <=> root.volume;
-            value-changed(v) => {
-                root.value-changed(v);
+        Rectangle {
+            width: 192px;
+            height: 40px;
+            border-radius: 8px;
+            background: #11141af2;
+            border-width: 1px;
+            border-color: #3b4250;
+
+            ChainVolumeControl {
+                x: 12px;
+                y: 8px;
+                volume <=> root.volume;
+                value-changed(v) => {
+                    root.value-changed(v);
+                }
             }
         }
     }
