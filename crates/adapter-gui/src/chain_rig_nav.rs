@@ -11,8 +11,11 @@ use project::project::Project;
 use project::rig::RigProject;
 
 // #436 architectural fix: the synthetic→rig capture moved to the
-// `project` crate so the dispatcher can run it too. Re-exported here so
-// existing callers/tests (`super::sync_synthetic_into_rig`) don't move.
+// `project` crate (the dispatcher runs it via Command now). Production
+// no longer calls it from the UI; the existing #436 tests still
+// reference `super::sync_synthetic_into_rig`, so keep the re-export
+// test-only (no unused-import warning in the lib build).
+#[cfg(test)]
 pub(crate) use project::rig_sync::sync_synthetic_into_rig;
 
 /// One chain's rig preset/scene navigation state. Empty `preset_labels`

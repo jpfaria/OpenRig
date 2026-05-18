@@ -112,13 +112,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
-            // Rig session: also drop the RigInput, else any later
-            // re-projection regenerates the deleted chain ("excluí a
-            // chain e a view não atualizou / voltou").
-            if let Some(rig) = &session.rig {
-                if let Some(name) = chain_id.0.strip_prefix("rig:") {
-                    rig.borrow_mut().remove_input(name);
-                }
+            // #436: the RigInput drop is done by the RemoveChain handler
+            // now (business logic belongs behind the Command, not here).
+            // The GUI only re-renders the rig-nav model.
+            if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             }
             // Kill the live audio runtime for the removed chain.
