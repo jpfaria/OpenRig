@@ -71,7 +71,11 @@ export component ChainTitlePreset inherits Rectangle {
     if root.nav.has-rig : HorizontalLayout {
         spacing: Theme.spaces.medium;
         ComboBox {
-            width: 220px;
+            // Same widget + size as the block editor's enum select
+            // (block_parameter_row.slint): std ComboBox, height 32px,
+            // no font/color override → identical font and colour.
+            width: 240px;
+            height: 32px;
             model: root.nav.preset-labels;
             current-index: root.nav.active-preset-index;
             enabled: root.nav.preset-labels.length > 0;
