@@ -122,15 +122,23 @@ fn sync_synthetic_into_rig_writes_edited_blocks_back_to_active_preset() {
         }
     }
 
+    let sc = r.inputs["input-1"].active_scene;
     super::sync_synthetic_into_rig(&mut r, &proj);
 
-    let got = match &r.presets.get("clean").unwrap().blocks[0].kind {
+    // Snapshot: the edit lands in the active scene, not the template.
+    let preset = r.presets.get("clean").unwrap();
+    let active = match &preset.apply_scene(sc)[0].kind {
         AudioBlockKind::Core(c) => c.params.get_f32("volume"),
         _ => None,
     };
     assert_eq!(
-        got,
+        active,
         Some(90.0),
-        "synthetic edit written back into rig preset"
+        "synthetic edit written into active scene"
     );
+    let base = match &preset.blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(base, Some(80.0), "factory template untouched");
 }

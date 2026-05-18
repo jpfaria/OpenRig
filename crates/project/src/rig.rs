@@ -164,27 +164,89 @@ impl RigPreset {
 }
 
 impl RigProject {
-    /// Persist the edited processing blocks of `input`'s active preset
-    /// back into the shared preset pool, so a block/param edit made on
-    /// the projected synthetic chain survives re-projection and is saved
-    /// to `project.openrig`. With no `scene_params` (the only state
-    /// reachable from the UI today) `apply_scene` is the identity, so the
-    /// synthetic chain's processing blocks ARE the preset's blocks. No-op
-    /// if the input or its active preset is unknown.
+    /// Persist a block/param edit made on the projected synthetic chain
+    /// back into the active preset, **per scene (snapshot semantics)**:
+    /// the edit is captured into the input's *active scene* only, so each
+    /// scene keeps its own values. `preset.blocks` stays the factory
+    /// template; a float param / bypass that differs from the template is
+    /// stored as that scene's override (and the key auto-marked as a
+    /// scene-param so `apply_scene` applies it). A value back at the
+    /// template clears the override. No-op if input/preset is unknown.
     pub fn write_back_processing_blocks(
         &mut self,
         input: &str,
         blocks: Vec<crate::block::AudioBlock>,
     ) {
-        let Some(preset_name) = self
-            .inputs
-            .get(input)
-            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
-        else {
+        let Some((preset_name, scene_idx)) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .cloned()
+                .map(|n| (n, ri.active_scene))
+        }) else {
             return;
         };
-        if let Some(preset) = self.presets.get_mut(&preset_name) {
-            preset.blocks = blocks;
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return;
+        };
+
+        // Factory template, indexed by block id (immutable diff base).
+        let base: BTreeMap<String, AudioBlock> = preset
+            .blocks
+            .iter()
+            .map(|b| (b.id.0.clone(), b.clone()))
+            .collect();
+
+        let mut set_param: Vec<(String, f32)> = Vec::new();
+        let mut clear_param: Vec<String> = Vec::new();
+        let mut set_bypass: Vec<(String, bool)> = Vec::new();
+        let mut clear_bypass: Vec<String> = Vec::new();
+
+        for edited in &blocks {
+            let bid = edited.id.0.clone();
+            let Some(base_blk) = base.get(&bid) else {
+                continue;
+            };
+            if edited.enabled != base_blk.enabled {
+                set_bypass.push((bid.clone(), !edited.enabled));
+            } else {
+                clear_bypass.push(bid.clone());
+            }
+            let pair = match (&edited.kind, &base_blk.kind) {
+                (AudioBlockKind::Core(e), AudioBlockKind::Core(b)) => Some((&e.params, &b.params)),
+                (AudioBlockKind::Nam(e), AudioBlockKind::Nam(b)) => Some((&e.params, &b.params)),
+                _ => None,
+            };
+            if let Some((ep, bp)) = pair {
+                for (pid, val) in &ep.values {
+                    if let ParameterValue::Float(v) = val {
+                        let key = format!("{bid}.{pid}");
+                        if bp.get_f32(pid) != Some(*v) {
+                            set_param.push((key, *v));
+                        } else {
+                            clear_param.push(key);
+                        }
+                    }
+                }
+            }
+        }
+
+        let scene = preset.scenes.entry(scene_idx).or_default();
+        for (b, v) in &set_bypass {
+            scene.bypass.insert(b.clone(), *v);
+        }
+        for b in &clear_bypass {
+            scene.bypass.remove(b);
+        }
+        for (k, v) in &set_param {
+            scene.params.insert(k.clone(), *v);
+        }
+        for k in &clear_param {
+            scene.params.remove(k);
+        }
+        for (k, _) in &set_param {
+            if !preset.scene_params.contains(k) {
+                preset.scene_params.push(k.clone());
+            }
         }
     }
 

@@ -379,18 +379,57 @@ fn write_back_processing_blocks_persists_edit_into_active_preset() {
 
     p.write_back_processing_blocks("input-1", vec![edited]);
 
-    let blk = &p.presets.get("p").unwrap().blocks[0];
-    let got = match &blk.kind {
+    // Snapshot semantics: the edit is captured into the ACTIVE scene
+    // (2), not baked into the factory template. apply_scene(2) reflects
+    // it; the base template stays unchanged.
+    let preset = p.presets.get("p").unwrap();
+    let active = match &preset.apply_scene(2)[0].kind {
         AudioBlockKind::Core(c) => c.params.get_f32("volume"),
         _ => None,
     };
-    assert_eq!(got, Some(90.0), "edit written into the base preset");
+    assert_eq!(active, Some(90.0), "edit visible on the scene it was made");
+    let base = match &preset.blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(base, Some(80.0), "factory template untouched");
+}
 
-    // Survives re-projection (apply_scene with no scene-params = identity).
-    let reprojected = &p.presets.get("p").unwrap().apply_scene(2)[0];
-    let after = match &reprojected.kind {
+// #436 #1 — SNAPSHOT scenes: editing a param while on scene N must NOT
+// leak into other scenes (user: changed volume on scene 2 → it changed
+// in ALL scenes). Reproduces the bug; drives the snapshot fix.
+#[test]
+fn editing_on_scene_2_does_not_change_scene_1() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User is on scene 2 and sets volume to 100.
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(100.0));
+    }
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let vol_in = |blocks: &[AudioBlock]| match &blocks[0].kind {
         AudioBlockKind::Core(c) => c.params.get_f32("volume"),
         _ => None,
     };
-    assert_eq!(after, Some(90.0), "edit survives switching/reproject");
+    let preset = p.presets.get("p").unwrap();
+    assert_eq!(
+        vol_in(&preset.apply_scene(2)),
+        Some(100.0),
+        "scene 2 = edited"
+    );
+    assert_eq!(
+        vol_in(&preset.apply_scene(1)),
+        Some(80.0),
+        "scene 1 must KEEP its own value (snapshot, not shared base)"
+    );
 }
