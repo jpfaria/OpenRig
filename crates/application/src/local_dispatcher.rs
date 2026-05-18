@@ -47,6 +47,10 @@ pub struct LocalDispatcher {
     /// `None` for non-rig sessions (legacy projects) — set via
     /// [`Self::attach_rig`] at project load.
     pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
+    /// #22: per-chain block-selection *pair* cursor (left block index).
+    /// Dispatcher-owned so a footswitch moves it exactly like the mouse.
+    /// Absent ⇒ cursor 0.
+    pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
 }
 
 impl LocalDispatcher {
@@ -59,6 +63,7 @@ impl LocalDispatcher {
         Self {
             project,
             rig: RefCell::new(None),
+            selection: RefCell::new(std::collections::HashMap::new()),
         }
     }
 
@@ -116,6 +121,10 @@ impl CommandDispatcher for LocalDispatcher {
             | Command::SaveAudioSettings { .. } => self.handle_project(cmd),
 
             Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
+
+            Command::SelectChainBlock { .. } | Command::ToggleSelectedBlock { .. } => {
+                self.handle_block_selection(cmd)
+            }
         }
     }
 

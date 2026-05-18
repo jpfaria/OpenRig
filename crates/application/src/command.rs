@@ -281,6 +281,25 @@ pub enum Command {
     /// `kind` carries the GUI's existing sentinel int (≥0 select, -1
     /// add, -2 remove) so no new behaviour is introduced.
     ApplyRigNav { chain: ChainId, kind: RigNavKind },
+
+    /// #22: move the per-chain block-selection *pair* cursor by `delta`
+    /// blocks, wrapping. The footswitch binds A=-2 / D=+2 ("anda de
+    /// dois em dois"). The dispatcher owns the cursor so MIDI/MCP/GUI
+    /// agree; only emits a selection event, never changes audio.
+    SelectChainBlock { chain: ChainId, delta: i32 },
+
+    /// #22: toggle `enabled` on one side of the selected pair
+    /// (B = left block, C = right block). No-op if that side is past
+    /// the end of the chain.
+    ToggleSelectedBlock { chain: ChainId, side: PairSide },
+}
+
+/// Which block of the selected pair [`Command::ToggleSelectedBlock`]
+/// flips: the footswitch B = `Left`, C = `Right`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum PairSide {
+    Left,
+    Right,
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

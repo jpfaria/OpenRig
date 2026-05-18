@@ -102,6 +102,11 @@ pub enum Event {
 
     /// An error occurred while processing a command.
     Error { message: String },
+
+    /// #22: the per-chain block-selection pair cursor moved; `left` is
+    /// the left block index of the pair. Drives the transient selection
+    /// border (shown on a footswitch stimulus, fades after a timeout).
+    BlockSelectionChanged { chain: ChainId, left: usize },
 }
 
 impl Event {
@@ -128,7 +133,8 @@ impl Event {
             | Event::ChainIoSaved { chain }
             | Event::InsertBlockSaved { chain, .. }
             | Event::ChainPresetLoaded { chain }
-            | Event::ChainVolumeChanged { chain, .. } => Some(chain),
+            | Event::ChainVolumeChanged { chain, .. }
+            | Event::BlockSelectionChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded
