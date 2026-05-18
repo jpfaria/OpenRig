@@ -65,36 +65,125 @@ bindings:
   A `cc` binding without `scale` passes the raw 0..=127 as `value`.
 - First matching binding wins.
 
-## M-Vave Chocolate (BLE-MIDI) — worked example
+## Connecting the M-Vave Chocolate — step by step
 
-1. Pair the Chocolate over Bluetooth at the OS level (macOS:
-   *Audio MIDI Setup → MIDI Studio → Bluetooth*; the device then appears as a
-   normal MIDI input — no OpenRig-specific step).
-2. Drop this at the default `midi-map.yaml` path (the Chocolate's four
-   switches default to Program Change / CC; adjust `program`/`note` to your
-   unit's mode):
+The M-Vave Chocolate (and Chocolate Plus) is a 4-switch **BLE-MIDI**
+footswitch. OpenRig needs no driver: once the OS pairs it, it is just another
+MIDI input and the steps below are the whole setup.
+
+### 1. Know what the switches send
+
+Each switch can be set to send **Program Change**, **Control Change (CC)** or
+**Note**, per channel, using the free **MVAVE MIDI** app (iOS/Android) — pair
+the pedal there, open *Footswitch settings*, and read off, per switch:
+
+- the **message type** (PC / CC / Note),
+- the **number** (program / controller / note),
+- the **MIDI channel** (1–16).
+
+Common factory default: the four switches send **Program Change 0..3 on
+channel 1**. Whatever you see in the app is exactly what goes into the map
+(`kind`, the number, `channel`). You don't need to change the pedal — you
+mirror its config in `midi-map.yaml`.
+
+> Tip: leave the MVAVE app's monitor open while you press switches to confirm
+> the exact message before writing the binding.
+
+### 2. Pair the pedal with your computer
+
+The pedal must be a system MIDI input. Hold the pairing switch combo until the
+LED blinks (see the pedal manual), then:
+
+- **macOS** — open *Audio MIDI Setup* → menu *Window ▸ Show MIDI Studio* →
+  *Bluetooth* icon → **Connect** next to "Chocolate". It now shows up as a
+  MIDI source.
+- **Windows** — *Settings ▸ Bluetooth & devices ▸ Add device ▸ Bluetooth*,
+  pick "Chocolate". Windows 10/11 exposes paired BLE-MIDI devices to apps
+  automatically.
+- **Linux** — pair via `bluetoothctl` (`scan on`, `pair <MAC>`, `connect
+  <MAC>`), then bridge BLE-MIDI to ALSA with
+  [`bluez-alsa`/`midi`](https://github.com/bluez/bluez) or `btmidi` so it
+  appears as an ALSA MIDI port. (Linux BLE-MIDI exposure varies by distro;
+  this is OS-level setup, not OpenRig.)
+
+Verify the OS sees it (macOS example): the device appears in *Audio MIDI
+Setup*; on Linux `aconnect -i` lists the port.
+
+### 3. Find the chain/block ids to target
+
+`chain`/`block` in the map are the project's **string ids**, not positions.
+Get them from the running rig:
+
+- with `--mcp` on, read the `openrig://project` resource (or call the
+  `list_*` tools) from any MCP client; or
+- open the project file (`project.yaml` / the `.openrig` you load) and copy
+  the `id:` of the chain and block you want to control.
+
+### 4. Write `midi-map.yaml`
+
+Put it at the default path (see table above) or pass `--midi=PATH`. Example
+for a Chocolate sending **Program Change 0..3 on ch 1** (factory default),
+plus a CC expression input if your unit has one:
 
 ```yaml
-input: Chocolate
+input: Chocolate          # case-insensitive substring of the MIDI port name
+
 bindings:
+  # Switch 1 → load the clean preset
   - source: { kind: program_change, program: 0 }
     command: LoadProject
     args: { path: presets/clean.yaml }
+
+  # Switch 2 → load the crunch preset
   - source: { kind: program_change, program: 1 }
     command: LoadProject
-    args: { path: presets/crunch.yaml }
-  - source: { kind: note_on, channel: 1, note: 60 }
+    args: { path: presets/lead.yaml }
+
+  # Switch 3 → toggle the delay block on/off
+  - source: { kind: program_change, program: 2 }
     command: ToggleBlockEnabled
     args: { chain: "<chain-id>", block: "<delay-block-id>" }
+
+  # Switch 4 → save the project
+  - source: { kind: program_change, program: 3 }
+    command: SaveProject
+
+  # Expression pedal on CC 11, ch 1 → ride amp gain 0..100
   - source: { kind: cc, channel: 1, controller: 11 }
     command: SetBlockParameterNumber
     args: { chain: "<chain-id>", block: "<amp-block-id>", path: gain }
     scale: { min: 0.0, max: 100.0 }
 ```
 
-3. Run `openrig --midi`. The log prints the matched input port. Footswitches
-   now drive the live rig; a knob moved in the GUI is still visible to MCP and
-   vice-versa (one shared `ProjectSession`).
+If a switch is set to **Note** instead, use
+`source: { kind: note_on, channel: <ch>, note: <n> }`; for **CC**,
+`source: { kind: cc, channel: <ch>, controller: <n> }`.
+
+### 5. Run and verify
+
+```
+openrig --midi              # GUI + MIDI adapter on the default map
+openrig --midi=~/maps/chocolate.yaml
+```
+
+On start the log prints the matched input port
+(`adapter-midi: listening on 'Chocolate ...'`). Press a switch — the bound
+action happens on the live rig, and the GUI updates in real time (footswitch,
+GUI and MCP all share one `ProjectSession`).
+
+### Troubleshooting
+
+- **"no MIDI input port matched ..."** — the `input:` substring didn't match.
+  Remove `input:` to use the system default, or set it to a substring of the
+  exact port name the log lists.
+- **Adapter refuses to start, logs `binding #N (...)`** — that binding's
+  command name or args don't match the `Command` schema. Fix the YAML; the
+  daemon never starts with a half-valid map (no silently dropped bindings).
+- **Nothing happens on a press** — the pedal is sending a different
+  type/number/channel than the binding. Re-check it in the MVAVE app monitor
+  and align `kind`/number/`channel`.
+- **Pedal not in the OS MIDI list** — it isn't paired/connected at the OS
+  level yet; redo step 2 (this is never an OpenRig step).
 
 ## Scope (v1)
 
