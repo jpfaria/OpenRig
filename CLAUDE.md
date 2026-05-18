@@ -51,6 +51,13 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Separação de concerns** — business logic sem config visual/UI.
 - Documentação é parte da tarefa: mudou modelo/block/parâmetro/tela/comportamento de áudio → atualizar `docs/` no mesmo commit.
 
+### Leis de arquitetura (inegociáveis)
+
+- **Toda operação que muda estado nasce `Command`.** `crates/application/src/command.rs` é a única fonte de verdade do que o app faz. GUI dispara via `dispatcher.dispatch`; MCP/gRPC herdam a mesma variante (paridade). Funcionalidade que existe num frontend mas não é `Command` = gap do bus, fecha no mesmo PR. Nunca `borrow_mut()` direto num callback.
+- **Tela não tem regra de negócio.** Slint é dispatcher puro: callback → `Event` → função pura testável. Sem `AppWindow` em teste.
+- **Backend transport-agnostic.** Core (`State`/`Event`/`Command`/`SideEffect`) sem dependência de Slint. Vai virar gRPC + MCP + remoto.
+- **Conteúdo de repo sempre em inglês.** Todo `.md` (`docs/**`, `CLAUDE.md`, READMEs, specs/plans), comentários de código, commits, branches, PRs e comentários de issue no GitHub: inglês. Única exceção: `README.pt-BR.md` / `README.es-ES.md`.
+
 ## Referências (ler quando precisar)
 
 | Doc | Quando |
