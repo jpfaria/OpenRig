@@ -470,6 +470,23 @@ O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc p
 - No chat: **o problema em 1 frase**, **a decisão em 1 frase**. Tabelas/inventários só se o usuário pedir.
 - Se o caso do usuário NÃO depende do detalhe técnico, diga isso primeiro e siga — não despeje a análise inteira.
 
+## LEI — RED-FIRST OBRIGATÓRIO. Proibido implementar sem teste que falha antes
+
+**NUNCA** escrever/alterar código de produção sem um teste que **falhou primeiro**. Teste escrito depois da implementação (que passa de imediato) é **proibido** — não prova nada, "vicia" a suíte. Se você não viu o teste falhar, você não sabe se ele testa a coisa certa.
+
+**Fluxo de bug (único sancionado):**
+1. **Entrevistar o usuário** — cenário exato, dados, passos, esperado vs obtido. Não adivinhar.
+2. **Escrever um teste que reproduz o bug** no caminho mais real possível (o que o app executa).
+3. **Rodar e VER FALHAR.** Mostrar a falha ao usuário (RED real). Se passa, não captura o bug — refazer até pegar, OU dizer honestamente que não é bug de lógica (ex.: render Slint não é unit-testável) e **parar**.
+4. **Só então** investigar e corrigir, guiado pelo teste, até GREEN.
+5. Suíte cheia + invariantes de áudio.
+
+**Proibido:** implementar e depois "cobrir com teste"; tentativa-e-erro usando o usuário como QA; teste que passa de primeira apresentado como prova; prosseguir pro fix antes do RED visível (com gate explícito do usuário, **parar e aguardar**).
+
+**Provar que um teste é real:** reverter SÓ a produção pro estado pré-fix (mantendo os testes), rodar → tem que dar RED. Restaurar depois (nada se perde, está commitado).
+
+**Caso real (2026-05-18, #436):** entreguei fixes de preset/scene/volume com testes escritos DEPOIS (passavam de imediato). Usuário cobrou várias vezes ("testes viciados", "vc só escreve teste que passa"). Reverter produção pro baseline `dc7f3b73` provou o RED (suíte nem compilava). Lição: red-first não é opção.
+
 ---
 
 ## Living Document

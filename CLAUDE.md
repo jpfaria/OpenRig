@@ -50,6 +50,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Single source of truth** — constantes uma vez.
 - **Separação de concerns** — business logic sem config visual/UI.
 - Documentação é parte da tarefa: mudou modelo/block/parâmetro/tela/comportamento de áudio → atualizar `docs/` no mesmo commit.
+- **TDD red-first OBRIGATÓRIO** — proibido implementar/alterar produção sem um teste que falhou ANTES. Bug = entrevistar → teste que reproduz → ver falhar → só então corrigir. Teste-depois (passa de primeira) é proibido. Spec: `docs/testing.md` + `.claude/skills/openrig-code-quality/SKILL.md`.
 
 ## Referências (ler quando precisar)
 
