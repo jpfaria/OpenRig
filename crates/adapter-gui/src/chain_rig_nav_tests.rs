@@ -238,6 +238,33 @@ fn nav_row_exposes_scene_count_and_grows_when_a_scene_is_added() {
     assert_eq!(rows[0].scene, 2, "the added scene is active");
 }
 
+// End-to-end through the REAL engine path the GUI uses: a per-scene
+// volume override must surface as the projected chain's volume, and
+// switching scenes must switch the volume — this is exactly the
+// "salvei 100% na scene 2, agora todas as scenes com 100%" bug.
+#[test]
+fn switching_scene_projects_that_scenes_volume() {
+    let mut r = rig(); // active_scene 4
+    r.presets.get_mut("drive").unwrap().volume = 80.0; // active preset
+    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
+
+    // scene 1 inherits the preset volume.
+    let c1 = switch_and_project_input(&mut r, "input-1", None, Some(1)).expect("s1");
+    assert_eq!(c1.volume, 80.0, "scene 1 = preset volume");
+
+    // Add scene 2 and set its volume to 100 via the GUI write-back path.
+    let s2 = r.add_scene_to_input("input-1").expect("scene 2");
+    r.write_back_chain_volume("input-1", 100.0);
+
+    let c2 = switch_and_project_input(&mut r, "input-1", None, Some(s2)).expect("s2");
+    assert_eq!(c2.volume, 100.0, "scene 2 = its own 100");
+    let back1 = switch_and_project_input(&mut r, "input-1", None, Some(1)).expect("s1");
+    assert_eq!(
+        back1.volume, 80.0,
+        "scene 1 still 80 — per-scene, not bled to all"
+    );
+}
+
 #[test]
 fn non_rig_chain_yields_empty_row() {
     let r = rig();
