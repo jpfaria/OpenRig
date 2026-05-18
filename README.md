@@ -153,8 +153,6 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 - [Audio Config](docs/audio-config.md) — I/O as blocks, JACK lifecycle
 - [CLI & env vars](docs/cli.md) — `openrig` arguments and environment variables
 - [MCP server & plugin](docs/mcp.md) — control the rig from Claude/Cursor; install the OpenRig plugin
-- [Languages (i18n)](docs/i18n.md) — UI translation, adding a locale
-- [Hardware](docs/hardware.md) · [Orange Pi deploy](docs/hardware/orange-pi-deploy.md) — pedalboard hardware & board image
 
 ### For Developers
 
@@ -170,6 +168,8 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 - [Project format](docs/projects/project-openrig-format.md) — the `.openrig` project model
 - [GUI architecture](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — desktop window internals ([window design](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
 - [Backend contract](docs/backend/current-contract.md) · [Native model catalog](docs/backend/native-model-catalog.md) · [MK-300 effects reference](docs/backend/mk-300-v69-effects-reference.md)
+- [Languages (i18n)](docs/i18n.md) — UI translation framework, adding a locale
+- [Hardware](docs/hardware.md) · [Orange Pi deploy](docs/hardware/orange-pi-deploy.md) — pedalboard board build & image deploy
 - [ADRs](docs/adr/0001-project-model.md) — architecture decision records ([device routing](docs/adr/0002-device-routing-and-validation.md))
 
 ## Contributing

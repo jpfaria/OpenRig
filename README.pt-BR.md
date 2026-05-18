@@ -153,8 +153,6 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Audio Config](docs/audio-config.md) — I/O como blocos, ciclo de vida do JACK
 - [CLI & env vars](docs/cli.md) — argumentos e variáveis de ambiente do `openrig`
 - [Servidor MCP & plugin](docs/mcp.md) — controlar a rig pelo Claude/Cursor; instalar o plugin OpenRig
-- [Idiomas (i18n)](docs/i18n.md) — tradução da UI, adicionar um locale
-- [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — hardware do pedalboard & imagem da placa
 
 ### Para desenvolvedores
 
@@ -170,6 +168,8 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Formato do projeto](docs/projects/project-openrig-format.md) — o modelo de projeto `.openrig`
 - [Arquitetura da GUI](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — internos da janela desktop ([design da janela](docs/gui/2026-03-20-desktop-window-architecture.md) · [plano](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
 - [Contrato do backend](docs/backend/current-contract.md) · [Catálogo de modelos nativos](docs/backend/native-model-catalog.md) · [Referência de efeitos MK-300](docs/backend/mk-300-v69-effects-reference.md)
+- [Idiomas (i18n)](docs/i18n.md) — framework de tradução da UI, adicionar um locale
+- [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — build da placa do pedalboard & deploy da imagem
 - [ADRs](docs/adr/0001-project-model.md) — registros de decisão de arquitetura ([roteamento de device](docs/adr/0002-device-routing-and-validation.md))
 
 ## Contribuindo
