@@ -50,6 +50,9 @@ pub enum QueryKind {
     ProjectYaml,
     /// Available audio devices, one per line.
     Devices,
+    /// Human-readable chain/block ID listing (for `midi-map.yaml` authors
+    /// and the MCP `openrig://ids` resource). See [`crate::query::list_ids`].
+    Ids,
 }
 
 struct QueryRequest {

@@ -225,4 +225,46 @@ mod tests {
             assert!(err.contains("invalid arguments"), "{err}");
         }
     }
+
+    /// Adapter-agnostic parity guard. The previous guard
+    /// (`parity_guard_one_tool_per_command_variant` in `adapter-mcp`) only
+    /// proved the MCP projection. This proves the contract every adapter
+    /// shares — MCP, `adapter-midi`, and the future gRPC adapter all reach
+    /// `Command` through `command_from_variant` / the schema-derived names.
+    /// If a `Command` variant loses `JsonSchema` (silently dropping it from
+    /// the surface) or stops round-tripping, this fails next to `Command`
+    /// itself, not buried in one transport crate.
+    mod adapter_agnostic_parity {
+        use super::super::{
+            command_from_variant, command_variant_names, tool_name, variant_from_tool_name,
+        };
+
+        #[test]
+        fn every_command_variant_is_reachable_by_all_adapters() {
+            let names = command_variant_names();
+            assert!(!names.is_empty(), "no Command variants in the schema");
+            for v in names {
+                // 1. snake_case tool name round-trips (MCP naming).
+                assert_eq!(
+                    variant_from_tool_name(&tool_name(v)),
+                    Some(*v),
+                    "tool-name does not round-trip for {v}"
+                );
+                // 2. the single builder every adapter uses honors the
+                //    variant *name*. Struct variants legitimately fail with
+                //    "invalid arguments" given empty args — that is fine; the
+                //    contract is that the variant is never "unknown", i.e.
+                //    no adapter is blind to it.
+                let err = command_from_variant(v, serde_json::json!({}))
+                    .err()
+                    .map(|e| e.to_string())
+                    .unwrap_or_default();
+                assert!(
+                    !err.contains("unknown command"),
+                    "{v}: unreachable via command_from_variant — MCP/MIDI/gRPC \
+                     would all be blind to it (lost JsonSchema?)"
+                );
+            }
+        }
+    }
 }

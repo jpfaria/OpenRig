@@ -777,6 +777,9 @@ pub fn run_desktop_app(
                             application::bridge::QueryKind::Devices => infra_cpal::list_devices()
                                 .map(|d| d.join("\n"))
                                 .map_err(|e| e.to_string()),
+                            application::bridge::QueryKind::Ids => {
+                                Ok(application::query::list_ids(&project.borrow()))
+                            }
                         },
                         32,
                     );

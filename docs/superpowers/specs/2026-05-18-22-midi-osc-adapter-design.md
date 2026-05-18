@@ -179,6 +179,15 @@ blocker.
   the frontend thread sequentially per tick — correct and still zero audio-thread impact.
   Unifying into one bridge when both flags are set is a deferred cleanup.
 - **Hot-reload**: deferred (not in this cut).
+- **ID discovery (graph rec #4)**: `application::query::list_ids` + `QueryKind::Ids`
+  + MCP resource `openrig://ids` — a copy-paste-ready chain/block ID listing so a
+  `midi-map.yaml` author never greps `project.yaml`. Single formatter, served by
+  the existing bridge query path (console + GUI), zero new transport.
+- **Adapter-agnostic parity guard (graph rec #3)**: `command_schema` test asserting
+  every `Command` variant round-trips and is reachable via `command_from_variant` —
+  the contract MCP, MIDI, and gRPC share now lives next to `Command`, not only in
+  `adapter-mcp`. MCP `build_command` now delegates to `command_from_variant` (one
+  builder, not two).
 - **Pre-existing clippy debt** in `block-core/dsp/hilbert_iir.rs` (`excessive_precision`)
   makes the absolute `validate.sh` clippy step fail for any adapter crate; untouched by
   #22 and ignored by the comparative quality-gate (not worsened).

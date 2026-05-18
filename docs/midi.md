@@ -111,13 +111,16 @@ Setup*; on Linux `aconnect -i` lists the port.
 
 ### 3. Find the chain/block ids to target
 
-`chain`/`block` in the map are the project's **string ids**, not positions.
-Get them from the running rig:
+`chain`/`block` in the map are the project's **string ids**
+(`chain:<uuid>`, `chain:<uuid>:block:<uuid>`), not positions. Get them from
+the running rig — easiest first:
 
-- with `--mcp` on, read the `openrig://project` resource (or call the
-  `list_*` tools) from any MCP client; or
-- open the project file (`project.yaml` / the `.openrig` you load) and copy
-  the `id:` of the chain and block you want to control.
+- **`openrig://ids` MCP resource** (with `--mcp` on): a flat, copy-paste-ready
+  listing of every chain and block with its full id, instrument/kind, and
+  enabled state. This is the intended path — no YAML grepping.
+- `openrig://project` resource — the whole project YAML, if you want context.
+- Fallback: open the project file (`project.yaml` / the `.openrig`) and copy
+  the `id:` of the chain/block by hand.
 
 ### 4. Write `midi-map.yaml`
 

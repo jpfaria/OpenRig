@@ -103,6 +103,7 @@ fn main() -> Result<()> {
                 QueryKind::Devices => list_devices()
                     .map(|d| d.join("\n"))
                     .map_err(|e| e.to_string()),
+                QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
             },
             64,
         );
