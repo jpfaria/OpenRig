@@ -36,6 +36,15 @@ pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             rig.write_back_processing_blocks(input, processing);
         }
         rig.write_back_chain_volume(input, chain.volume);
+        // The synthetic Input block carries `RigInput.sources`; an edit
+        // there (added device/channel) was being dropped because the
+        // loop only wrote processing blocks back. Persist it too.
+        if let Some(entries) = chain.blocks.iter().find_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) if !ib.entries.is_empty() => Some(ib.entries.clone()),
+            _ => None,
+        }) {
+            rig.set_input_sources(input, entries);
+        }
     }
 }
 

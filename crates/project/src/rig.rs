@@ -321,6 +321,15 @@ impl RigProject {
         Some(next)
     }
 
+    /// Persist edited capture sources back into `input` (the synthetic
+    /// chain's Input block carries `RigInput.sources`; an edit there must
+    /// survive save/re-projection). No-op if the input is unknown.
+    pub fn set_input_sources(&mut self, input: &str, sources: Vec<InputEntry>) {
+        if let Some(ri) = self.inputs.get_mut(input) {
+            ri.sources = sources;
+        }
+    }
+
     /// Replace the active preset's base blocks when `blocks` is a
     /// **structural** change (different block ids/order/count vs the
     /// preset's base) — e.g. a preset was loaded over the slot, or
