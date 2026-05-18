@@ -7,7 +7,8 @@ import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav }
 import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
-import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, ChainVolumeControl, HeaderIconAction } from "../components/chain_chips.slint";
+import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
+import { ChainVolumeButton } from "../components/chain_volume_button.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
@@ -123,12 +124,11 @@ export component ChainRow inherits Rectangle {
             }
         }
 
-        // Volume control da chain (issue #440). Posicionado entre o
-        // título (que vai até x=392) e os ícones de ação (que começam
-        // em parent.width-316). Slider 0-200 com knob, readout numérico.
-        ChainVolumeControl {
-            x: 400px;
-            y: 17px;
+        // Volume da chain (#440) atrás de ícone (#436): clica no alto-
+        // falante e o slider aparece; fica junto ao cluster de ações.
+        ChainVolumeButton {
+            x: parent.width - 356px;
+            y: 15px;
             volume: root.chain.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }

@@ -65,12 +65,15 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
     window.set_chain_rig_nav(ModelRc::new(VecModel::from(items)));
 }
 
-fn apply_switch(
+/// Capture pending edits, run `project` to mutate+re-project the rig
+/// input behind `chain_index`, swap the rebuilt synthetic chain in
+/// place, re-sync the runtime and refresh both models. Every per-chain
+/// rig action (preset switch, scene switch, add preset) is one closure.
+fn reproject(
     window: &AppWindow,
     ctx: &ChainRigNavCtx,
     chain_index: i32,
-    preset_slot: Option<usize>,
-    scene: Option<usize>,
+    project: impl FnOnce(&mut project::rig::RigProject, &str) -> Option<project::chain::Chain>,
 ) {
     let mut session_borrow = ctx.project_session.borrow_mut();
     let Some(session) = session_borrow.as_mut() else {
@@ -93,16 +96,11 @@ fn apply_switch(
     };
 
     // Capture any pending block/param edits on the synthetic chains into
-    // the rig BEFORE re-projecting, so switching preset/scene never
-    // discards an in-progress edit.
+    // the rig BEFORE re-projecting, so switching never discards an
+    // in-progress edit.
     crate::chain_rig_nav::sync_synthetic_into_rig(&mut rig.borrow_mut(), &session.project.borrow());
 
-    let rebuilt = engine::rig_runtime::switch_and_project_input(
-        &mut rig.borrow_mut(),
-        &input,
-        preset_slot,
-        scene,
-    );
+    let rebuilt = project(&mut rig.borrow_mut(), &input);
     let Some(new_chain) = rebuilt else {
         set_status_error(
             window,
@@ -141,7 +139,21 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_preset(move |chain_index, slot| {
             if let Some(window) = weak.upgrade() {
-                apply_switch(&window, &ctx, chain_index, Some(slot as usize), None);
+                reproject(&window, &ctx, chain_index, |rig, input| {
+                    if slot < 0 {
+                        // Sentinel from the "+" button: add a preset
+                        // (it becomes active) and project it.
+                        rig.add_preset_to_input(input)?;
+                        engine::rig_runtime::switch_and_project_input(rig, input, None, None)
+                    } else {
+                        engine::rig_runtime::switch_and_project_input(
+                            rig,
+                            input,
+                            Some(slot as usize),
+                            None,
+                        )
+                    }
+                });
             }
         });
     }
@@ -150,7 +162,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
-                apply_switch(&window, &ctx, chain_index, None, Some(scene as usize));
+                reproject(&window, &ctx, chain_index, |rig, input| {
+                    engine::rig_runtime::switch_and_project_input(
+                        rig,
+                        input,
+                        None,
+                        Some(scene as usize),
+                    )
+                });
             }
         });
     }

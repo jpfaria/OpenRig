@@ -433,3 +433,55 @@ fn editing_on_scene_2_does_not_change_scene_1() {
         "scene 1 must KEEP its own value (snapshot, not shared base)"
     );
 }
+
+// #436 — "como adiciono um preset?" Adding a preset to an input's bank
+// must: take the next free slot, clone the currently active preset as a
+// starting point (independent snapshot), get a unique name, and make the
+// new slot active. No collision with existing preset names.
+#[test]
+fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
+    let mut p = project_with(
+        vec![(
+            "input-1",
+            input(&[(1, "clean"), (2, "drive"), (3, "lead")], 2),
+        )],
+        &["clean", "drive", "lead"],
+    );
+    // Make the active preset ("drive") distinguishable.
+    p.presets.get_mut("drive").unwrap().volume = 137.0;
+    let presets_before = p.presets.len();
+
+    let slot = p
+        .add_preset_to_input("input-1")
+        .expect("preset added to known input");
+
+    assert_eq!(slot, 4, "next free slot after the max key (3)");
+    let inp = &p.inputs["input-1"];
+    assert_eq!(inp.active_preset, 4, "new preset becomes active");
+    let name = inp.bank.get(&4).expect("bank has the new slot");
+    assert!(
+        !["clean", "drive", "lead"].contains(&name.as_str()),
+        "unique name, no collision: {name}"
+    );
+    assert_eq!(p.presets.len(), presets_before + 1, "one new preset");
+    assert_eq!(
+        p.presets[name].volume, 137.0,
+        "cloned from the previously active preset (drive)"
+    );
+}
+
+#[test]
+fn add_preset_to_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    assert_eq!(p.add_preset_to_input("nope"), None);
+    assert_eq!(p.presets.len(), 1, "nothing added");
+}
+
+#[test]
+fn add_preset_to_empty_bank_uses_slot_1() {
+    let mut p = project_with(vec![("input-1", input(&[], 0))], &[]);
+    let slot = p.add_preset_to_input("input-1").expect("added");
+    assert_eq!(slot, 1, "first slot in an empty bank");
+    assert_eq!(p.inputs["input-1"].active_preset, 1);
+    assert_eq!(p.presets.len(), 1, "a blank preset was created");
+}

@@ -1,5 +1,6 @@
 // #436 #1 — the chain row's title slot. For a rig chain it IS the
-// preset picker + scene strip (the title is the song you pick); for a
+// preset picker (the title is the song you pick) + an "add preset"
+// button + a scene icon that reveals the scene select on press; for a
 // non-rig chain it falls back to the plain clickable title. Own file so
 // chain_row.slint (over the 500-line cap) shrinks instead of growing.
 
@@ -7,35 +8,37 @@ import { ComboBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 
-component SceneCell inherits Rectangle {
-    in property <int> n;
-    in property <bool> active;
-    callback picked();
-    width: 24px;
-    height: 24px;
+// Small square icon button (press to toggle a panel). Mirrors the look
+// of the chain action icons; own copy so this file has no chain_row dep.
+component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active: false;
+    in property <string> a11y;
+    callback clicked();
+    width: 28px;
+    height: 28px;
     border-radius: 5px;
-    border-width: 1px;
-    border-color: root.active ? Theme.palette.accent-border : Theme.palette.border;
     background: root.active
         ? Theme.palette.accent-end
-        : (touch.has-hover ? Theme.palette.card-secondary : Theme.palette.card);
+        : (ta.has-hover ? Theme.palette.card-secondary : transparent);
     animate background { duration: 150ms; }
-    Text {
-        text: root.n;
-        color: root.active ? #ffffff : Theme.palette.text-muted;
-        font-size: Theme.typo.caption.size;
-        font-weight: root.active ? 700 : 500;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.active ? #ffffff : (ta.has-hover ? #ffffff : #8a94a2);
     }
-    touch := TouchArea {
+    ta := TouchArea {
         mouse-cursor: pointer;
         clicked => {
-            root.picked();
+            root.clicked();
         }
     }
     accessible-role: button;
-    accessible-label: "Scene " + root.n;
+    accessible-label: root.a11y;
 }
 
 export component ChainTitlePreset inherits Rectangle {
@@ -43,8 +46,12 @@ export component ChainTitlePreset inherits Rectangle {
     in property <ChainRigNav> nav;
     in property <bool> fullscreen: false;
     callback open-compact();
+    // preset-picked(slot): slot >= 0 selects that combo entry; the
+    // sentinel -1 means "add a new preset" (reuses this callback so no
+    // new callback has to be threaded through the over-cap shells).
     callback preset-picked(int);
     callback scene-picked(int);
+    private property <bool> show-scene: false;
 
     // ── Non-rig chain: the plain clickable title (unchanged behaviour).
     if !root.nav.has-rig : Rectangle {
@@ -67,9 +74,10 @@ export component ChainTitlePreset inherits Rectangle {
         }
     }
 
-    // ── Rig chain: the title slot becomes the preset picker + scenes.
+    // ── Rig chain: preset picker + add button + scene icon.
     if root.nav.has-rig : HorizontalLayout {
-        spacing: Theme.spaces.medium;
+        spacing: Theme.spaces.small;
+        alignment: start;
         ComboBox {
             // Same widget + size as the block editor's enum select
             // (block_parameter_row.slint): std ComboBox, height 32px,
@@ -86,25 +94,48 @@ export component ChainTitlePreset inherits Rectangle {
         }
         VerticalLayout {
             alignment: center;
-            Text {
-                text: @tr("SCENE");
-                color: Theme.palette.text-muted;
-                font-size: Theme.typo.caption.size;
-                letter-spacing: 1px;
+            IconButton {
+                icon: @image-url("../assets/plus.svg");
+                a11y: @tr("Add preset");
+                clicked => {
+                    root.preset-picked(-1);
+                }
             }
         }
-        HorizontalLayout {
-            spacing: 4px;
-            for i in 8: SceneCell {
-                n: i + 1;
-                active: root.nav.scene == i + 1;
-                picked => {
-                    root.scene-picked(i + 1);
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/scene.svg");
+                active: root.show-scene;
+                a11y: @tr("Scene selector");
+                clicked => {
+                    root.show-scene = !root.show-scene;
                 }
             }
         }
         Rectangle {
             horizontal-stretch: 1;
+        }
+    }
+
+    // ── Scene select — revealed only when the scene icon is pressed.
+    // Floats below the row (absolute + high z) so it is not clipped.
+    if root.nav.has-rig && root.show-scene : Rectangle {
+        x: 252px;
+        y: 36px;
+        width: 132px;
+        height: 36px;
+        z: 100;
+        ComboBox {
+            width: parent.width;
+            height: 32px;
+            model: ["Scene 1", "Scene 2", "Scene 3", "Scene 4", "Scene 5", "Scene 6", "Scene 7", "Scene 8"];
+            current-index: root.nav.scene - 1;
+            selected => {
+                root.scene-picked(self.current-index + 1);
+                root.show-scene = false;
+            }
+            accessible-label: @tr("Scene selector");
         }
     }
 }

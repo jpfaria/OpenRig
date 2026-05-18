@@ -250,6 +250,39 @@ impl RigProject {
         }
     }
 
+    /// Add a new preset to `input`'s bank: takes the next free slot
+    /// (max key + 1, or 1 for an empty bank), clones the currently active
+    /// preset as a starting point (an **independent** snapshot — no shared
+    /// state), gives it a unique name, and makes the new slot active.
+    /// Returns the new slot, or `None` if the input is unknown.
+    pub fn add_preset_to_input(&mut self, input: &str) -> Option<usize> {
+        let ri = self.inputs.get(input)?;
+        let slot = ri.bank.keys().max().map(|m| m + 1).unwrap_or(1);
+        let template = ri
+            .bank
+            .get(&ri.active_preset)
+            .and_then(|n| self.presets.get(n))
+            .cloned()
+            .unwrap_or_else(|| RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+        let name = self.unique_preset_name("New Preset");
+        self.presets.insert(name.clone(), template);
+        let ri = self.inputs.get_mut(input)?;
+        ri.bank.insert(slot, name);
+        ri.active_preset = slot;
+        Some(slot)
+    }
+
+    /// A preset-pool name not yet in use: `base`, else `base 2`, `base 3`…
+    fn unique_preset_name(&self, base: &str) -> String {
+        if !self.presets.contains_key(base) {
+            return base.to_string();
+        }
+        (2..)
+            .map(|n| format!("{base} {n}"))
+            .find(|c| !self.presets.contains_key(c))
+            .expect("infinite range always yields a free name")
+    }
+
     /// Validate cross-references and per-input source channel conflicts.
     ///
     /// Rules (closed in #436 / scoped by #449):
