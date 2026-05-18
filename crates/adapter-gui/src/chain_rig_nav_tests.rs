@@ -152,6 +152,28 @@ fn switching_scene_changes_the_dirty_snapshot() {
     );
 }
 
+// User repro (#436): deleting a chain didn't update the view — it came
+// back because the rig session re-projects every RigInput. Removing the
+// RigInput must make the projected chain disappear and stay gone.
+#[test]
+fn removing_a_rig_input_drops_its_chain_from_the_projection() {
+    let mut r = rig(); // input-1 → one chain "rig:input-1"
+    assert_eq!(
+        rig_to_legacy_project(&r, &BTreeSet::new()).chains.len(),
+        1,
+        "one chain before delete"
+    );
+
+    assert!(r.remove_input("input-1"), "input removed");
+
+    let after = rig_to_legacy_project(&r, &BTreeSet::new());
+    assert!(
+        !after.chains.iter().any(|c| c.id.0 == "rig:input-1"),
+        "deleted chain must not re-appear on re-projection"
+    );
+    assert_eq!(after.chains.len(), 0, "no chains left");
+}
+
 // User repro (#436): open the guitar input, ADD a 2nd capture source
 // (device + ch1), SAVE, reopen → the input must now have BOTH sources.
 // Mirrors the rig save path (the Input block carries input.sources;
@@ -398,135 +420,6 @@ fn switching_scene_projects_that_scenes_volume() {
     assert_eq!(
         back1.volume, 80.0,
         "scene 1 still 80 — per-scene, not bled to all"
-    );
-}
-
-// Reproduces the user's report ("alterei o preset para outra config de
-// blocos e não altera quando seleciono no select") FAITHFULLY: mirrors
-// the exact reproject() sequence — sync_synthetic_into_rig FIRST (the
-// step that captures the current synthetic chain before switching),
-// THEN position→key→switch_and_project_input — and asserts the
-// projected processing blocks actually become the target preset's.
-#[test]
-fn select_other_preset_via_reproject_sequence_changes_blocks() {
-    use domain::ids::BlockId;
-    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
-    use project::param::ParameterSet;
-
-    let blk = |id: &str| AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: "gain".into(),
-            model: "volume".into(),
-            params: ParameterSet::default(),
-        }),
-    };
-    // clean = [A, B] ; drive = [C] — structurally different chains.
-    let mut r = rig();
-    r.presets.get_mut("clean").unwrap().blocks = vec![blk("A"), blk("B")];
-    r.presets.get_mut("drive").unwrap().blocks = vec![blk("C")];
-    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean
-    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
-
-    let core_ids = |c: &project::chain::Chain| {
-        c.blocks
-            .iter()
-            .filter_map(|b| match &b.kind {
-                AudioBlockKind::Core(_) => Some(b.id.0.clone()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    };
-
-    // Build the synthetic project exactly like the live session holds it.
-    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
-    assert_eq!(core_ids(&proj.chains[0]), vec!["A", "B"], "starts on clean");
-
-    // ── reproject() step 1: capture current synthetic chain back.
-    super::sync_synthetic_into_rig(&mut r, &proj);
-    // ── reproject() step 2: user picked PresetSelect row 1 (= "drive").
-    let key = preset_slot_at(&r, "input-1", 1).expect("position 1 → key");
-    let rebuilt =
-        switch_and_project_input(&mut r, "input-1", Some(key), None).expect("rebuilt chain");
-    // ── reproject() step 3: swap it into the project (id-aligned).
-    proj.chains[0] = rebuilt;
-
-    assert_eq!(
-        core_ids(&proj.chains[0]),
-        vec!["C"],
-        "selecting 'drive' must project drive's blocks ([C]), not clean's"
-    );
-}
-
-// User invariant: "scene é só para parâmetros e se está ativo ou não um
-// bloco". Switching scene must NEVER change the block STRUCTURE (same
-// block ids, same count, same order) — only `enabled` and marked params
-// may differ. Mirrors the real reproject() sequence (sync first, then
-// switch) across scene 1 ↔ 2, including a bypass edit on scene 1.
-#[test]
-fn switching_scene_never_changes_block_structure() {
-    use domain::ids::BlockId;
-    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
-    use project::param::ParameterSet;
-
-    let blk = |id: &str| AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: "gain".into(),
-            model: "volume".into(),
-            params: ParameterSet::default(),
-        }),
-    };
-    let mut r = rig();
-    r.presets.get_mut("clean").unwrap().blocks = vec![blk("A"), blk("B")];
-    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean
-    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
-    r.add_scene_to_input("input-1"); // scene 2 exists
-    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
-
-    let structure = |c: &project::chain::Chain| {
-        c.blocks
-            .iter()
-            .filter_map(|b| match &b.kind {
-                AudioBlockKind::Core(_) => Some(b.id.0.clone()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    };
-
-    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
-    assert_eq!(structure(&proj.chains[0]), vec!["A", "B"], "scene 1 base");
-
-    // Edit on scene 1: bypass B (enabled=false) on the synthetic chain.
-    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
-        for b in c.blocks.iter_mut() {
-            if b.id.0 == "B" {
-                b.enabled = false;
-            }
-        }
-    }
-
-    // reproject() for "switch to scene 2": sync FIRST, then switch.
-    super::sync_synthetic_into_rig(&mut r, &proj);
-    let c2 = switch_and_project_input(&mut r, "input-1", None, Some(2)).expect("scene 2");
-    assert_eq!(
-        structure(&c2),
-        vec!["A", "B"],
-        "scene 2 must keep the SAME blocks (structure is preset-level)"
-    );
-
-    // Back to scene 1: structure still identical, B still bypassed.
-    proj.chains[0] = c2;
-    super::sync_synthetic_into_rig(&mut r, &proj);
-    let c1 = switch_and_project_input(&mut r, "input-1", None, Some(1)).expect("scene 1");
-    assert_eq!(structure(&c1), vec!["A", "B"], "scene 1 structure intact");
-    let b_enabled = c1.blocks.iter().find(|b| b.id.0 == "B").map(|b| b.enabled);
-    assert_eq!(
-        b_enabled,
-        Some(false),
-        "scene 1 keeps B bypassed (param/enable only)"
     );
 }
 

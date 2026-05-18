@@ -273,4 +273,21 @@ pub enum Command {
     SaveAudioSettings {
         device_settings: Vec<project::device::DeviceSettings>,
     },
+
+    /// #436: per-chain rig navigation (preset/scene switch/add/remove).
+    /// The GUI used to mutate `RigProject` by hand in a wiring closure —
+    /// business logic in the UI. Now it dispatches this and the
+    /// dispatcher (which owns the rig) re-projects the synthetic chain.
+    /// `kind` carries the GUI's existing sentinel int (≥0 select, -1
+    /// add, -2 remove) so no new behaviour is introduced.
+    ApplyRigNav { chain: ChainId, kind: RigNavKind },
+}
+
+/// What [`Command::ApplyRigNav`] does to the chain's rig input. The
+/// `i32` is the existing GUI sentinel: `>= 0` selects that
+/// preset-position / scene number, `-1` adds, `-2` removes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum RigNavKind {
+    Preset(i32),
+    Scene(i32),
 }

@@ -328,6 +328,20 @@ impl RigProject {
         Some(next)
     }
 
+    /// Remove an entire input (a "chain" on the legacy screen). Presets
+    /// it banked are dropped from the shared pool unless another input
+    /// still references them. Returns `true` if the input existed —
+    /// `false` is a no-op (so the GUI can ignore a stale delete).
+    pub fn remove_input(&mut self, input: &str) -> bool {
+        if self.inputs.remove(input).is_none() {
+            return false;
+        }
+        let inputs = &self.inputs;
+        self.presets
+            .retain(|name, _| inputs.values().any(|i| i.bank.values().any(|n| n == name)));
+        true
+    }
+
     /// Remove the **active** preset from `input`'s bank. The last
     /// remaining preset can't be removed (a bank must keep ≥ 1). The
     /// largest remaining slot becomes active. If the removed preset name
