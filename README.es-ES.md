@@ -148,13 +148,29 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Quick Start](docs/user-guide/quick-start.md) — primer proyecto y signal chain
 - [Blocks Reference](docs/user-guide/blocks-reference.md) — cada modelo con IDs canónicos y parámetros
 - [Presets](docs/user-guide/presets.md) — crear, guardar, compartir
+- [Blocks Catalog](docs/blocks-catalog.md) — tipos de bloque, modelos, parámetros, backends
+- [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
+- [Audio Config](docs/audio-config.md) — I/O como bloques, ciclo de vida de JACK
+- [CLI & env vars](docs/cli.md) — argumentos y variables de entorno de `openrig`
+- [Servidor MCP y plugin](docs/mcp.md) — controlar la rig desde Claude/Cursor; instalar el plugin OpenRig
+- [Idiomas (i18n)](docs/i18n.md) — traducción de la UI, añadir un locale
+- [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — hardware del pedalboard e imagen de la placa
 
 ### Para desarrolladores
 
-- [Architecture](docs/development/architecture.md) — mapa de crates, capas, design patterns
+- [Architecture](docs/architecture.md) · [Architecture (a fondo)](docs/development/architecture.md) — mapa de crates, capas, design patterns
 - [Building](docs/development/building.md) — guía de build completa, incluyendo el motor NAM y Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — cómo añadir nuevos modelos de audio
 - [Audio Backends](docs/development/audio-backends.md) — internos de Native, NAM, IR y LV2
+- [File Organization](docs/development/file-organization.md) — dónde vive cada cosa, límites de LOC
+- [Gitflow](docs/development/gitflow.md) — issues, branches, commits, workspace
+- [Quality Gate](docs/development/quality-gate.md) — el gate comparativo único de CI
+- [Testing](docs/testing.md) — cobertura, convenciones, comandos
+- [Scripts](docs/scripts.md) — build/deploy, flujo `.deb` → Orange Pi
+- [Formato del proyecto](docs/projects/project-openrig-format.md) — el modelo de proyecto `.openrig`
+- [Arquitectura de la GUI](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — internos de la ventana desktop ([diseño de ventana](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
+- [Contrato del backend](docs/backend/current-contract.md) · [Catálogo de modelos nativos](docs/backend/native-model-catalog.md) · [Referencia de efectos MK-300](docs/backend/mk-300-v69-effects-reference.md)
+- [ADRs](docs/adr/0001-project-model.md) — registros de decisión de arquitectura ([enrutamiento de device](docs/adr/0002-device-routing-and-validation.md))
 
 ## Contribuir
 

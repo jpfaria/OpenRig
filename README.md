@@ -148,13 +148,29 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 - [Quick Start](docs/user-guide/quick-start.md) — first project and signal chain
 - [Blocks Reference](docs/user-guide/blocks-reference.md) — every model with canonical IDs and parameters
 - [Presets](docs/user-guide/presets.md) — create, save, share
+- [Blocks Catalog](docs/blocks-catalog.md) — block types, models, parameters, backends
+- [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
+- [Audio Config](docs/audio-config.md) — I/O as blocks, JACK lifecycle
+- [CLI & env vars](docs/cli.md) — `openrig` arguments and environment variables
+- [MCP server & plugin](docs/mcp.md) — control the rig from Claude/Cursor; install the OpenRig plugin
+- [Languages (i18n)](docs/i18n.md) — UI translation, adding a locale
+- [Hardware](docs/hardware.md) · [Orange Pi deploy](docs/hardware/orange-pi-deploy.md) — pedalboard hardware & board image
 
 ### For Developers
 
-- [Architecture](docs/development/architecture.md) — crate map, layers, design patterns
+- [Architecture](docs/architecture.md) · [Architecture (deep)](docs/development/architecture.md) — crate map, layers, design patterns
 - [Building](docs/development/building.md) — full build guide including the NAM engine and Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — how to add new audio models
 - [Audio Backends](docs/development/audio-backends.md) — Native, NAM, IR, and LV2 internals
+- [File Organization](docs/development/file-organization.md) — where each thing lives, LOC caps
+- [Gitflow](docs/development/gitflow.md) — issues, branches, commits, workspace
+- [Quality Gate](docs/development/quality-gate.md) — the single comparative CI gate
+- [Testing](docs/testing.md) — coverage, conventions, commands
+- [Scripts](docs/scripts.md) — build/deploy, `.deb` → Orange Pi flow
+- [Project format](docs/projects/project-openrig-format.md) — the `.openrig` project model
+- [GUI architecture](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — desktop window internals ([window design](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
+- [Backend contract](docs/backend/current-contract.md) · [Native model catalog](docs/backend/native-model-catalog.md) · [MK-300 effects reference](docs/backend/mk-300-v69-effects-reference.md)
+- [ADRs](docs/adr/0001-project-model.md) — architecture decision records ([device routing](docs/adr/0002-device-routing-and-validation.md))
 
 ## Contributing
 
