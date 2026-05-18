@@ -624,3 +624,62 @@ fn non_conflicting_inputs_both_auto_enabled() {
     assert!(rt.is_enabled("input-1") && rt.is_enabled("input-2"));
     assert_eq!(rt.graph().chains.len(), 2);
 }
+
+// #436 #1: pure preset/scene switch + reproject (drives the legacy GUI path)
+
+#[test]
+fn switch_and_project_changes_active_preset_and_rebuilds_chain() {
+    let mut r = rig(
+        vec![(
+            "input-1",
+            input(
+                vec![src("a", vec![0])],
+                &[(1, "clean"), (2, "drive")],
+                1,
+                vec![],
+            ),
+        )],
+        vec![("clean", vec![fx("c")]), ("drive", vec![fx("d")])],
+        vec![],
+    );
+
+    let chain =
+        super::switch_and_project_input(&mut r, "input-1", Some(2), None).expect("buildable chain");
+    assert_eq!(chain.id.0, "rig:input-1");
+    assert_eq!(r.inputs["input-1"].active_preset, 2, "active preset moved");
+    let fx_ids: Vec<&str> = chain
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Core(_) => Some(b.id.0.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(fx_ids, vec!["d"], "rebuilt with the new preset's blocks");
+}
+
+#[test]
+fn switch_and_project_sets_scene_in_range_only() {
+    let mut r = rig(
+        vec![(
+            "input-1",
+            input(vec![src("a", vec![0])], &[(1, "p")], 1, vec![]),
+        )],
+        vec![("p", vec![fx("x")])],
+        vec![],
+    );
+    assert!(super::switch_and_project_input(&mut r, "input-1", None, Some(5)).is_some());
+    assert_eq!(r.inputs["input-1"].active_scene, 5);
+
+    // Out of range ⇒ rejected, no mutation.
+    assert!(super::switch_and_project_input(&mut r, "input-1", None, Some(9)).is_none());
+    assert_eq!(
+        r.inputs["input-1"].active_scene, 5,
+        "unchanged on bad scene"
+    );
+    // Unknown input ⇒ None.
+    assert!(super::switch_and_project_input(&mut r, "ghost", Some(1), None).is_none());
+    // Bad bank slot ⇒ None, no mutation.
+    assert!(super::switch_and_project_input(&mut r, "input-1", Some(7), None).is_none());
+    assert_eq!(r.inputs["input-1"].active_preset, 1);
+}
