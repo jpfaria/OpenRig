@@ -7,6 +7,9 @@ instance. It is the MIDI sibling of the MCP adapter (`docs/mcp.md`): an opt-in
 input that attaches to a live frontend through the command bridge. No
 audio-thread code is touched — real-time invariants hold by construction.
 
+> **Full command list:** see `docs/midi-commands.md` — every one of the
+> 33 commands OpenRig accepts, in plain language, with its map syntax.
+
 ## Enabling it
 
 ```
