@@ -28,6 +28,18 @@ pub(crate) struct ChainRigNavCtx {
     pub toast_timer: Rc<Timer>,
 }
 
+/// Refresh the `chain-rig-nav` model from the current session (no-op if
+/// none). Single entry point for every project-open path — avoids the
+/// borrow-dance being copy-pasted at each call site.
+pub(crate) fn refresh_from_session(
+    window: &AppWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+) {
+    if let Some(session) = project_session.borrow().as_ref() {
+        refresh_chain_rig_nav(window, session);
+    }
+}
+
 /// Rebuild the `chain-rig-nav` model from the session's retained rig,
 /// aligned 1:1 with the current synthetic chains. No rig ⇒ empty model
 /// (every chain shows no selector).

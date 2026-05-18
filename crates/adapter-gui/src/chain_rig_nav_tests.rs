@@ -1,5 +1,5 @@
 use super::{rig_nav_rows, RigNavRow};
-use engine::rig_runtime::rig_to_legacy_project;
+use engine::rig_runtime::{rig_to_legacy_project, switch_and_project_input};
 use project::block::InputEntry;
 use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
@@ -59,6 +59,25 @@ fn nav_row_exposes_bank_active_and_scene_aligned_to_chains() {
     assert_eq!(row.preset_labels, vec!["clean", "drive", "lead"]);
     assert_eq!(row.active_index, 1, "active_preset 2 → index 1");
     assert_eq!(row.scene, 4);
+}
+
+#[test]
+fn switch_then_nav_reflects_new_active_preset_and_scene() {
+    // The exact round-trip the GUI wiring performs, pure (no AppWindow):
+    // switch_and_project_input mutates the rig, the chains are
+    // re-projected, and rig_nav_rows must report the new active state.
+    let mut r = rig(); // input-1: bank {1 clean, 2 drive, 3 lead}, active 2, scene 4
+    let before = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(before[0].active_index, 1, "active preset 2 → index 1");
+    assert_eq!(before[0].scene, 4);
+
+    let chain =
+        switch_and_project_input(&mut r, "input-1", Some(3), Some(7)).expect("rebuilt chain");
+    assert_eq!(chain.id.0, "rig:input-1");
+
+    let after = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(after[0].active_index, 2, "active preset 3 → index 2");
+    assert_eq!(after[0].scene, 7);
 }
 
 #[test]
