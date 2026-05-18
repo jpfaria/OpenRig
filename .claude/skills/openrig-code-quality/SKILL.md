@@ -471,6 +471,25 @@ O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc p
 - No chat: **o problema em 1 frase**, **a decisão em 1 frase**. Tabelas/inventários só se o usuário pedir.
 - Se o caso do usuário NÃO depende do detalhe técnico, diga isso primeiro e siga — não despeje a análise inteira.
 
+## LEI — RED-FIRST OBRIGATÓRIO. Proibido implementar sem teste que falha antes
+
+**NUNCA** escrever/alterar código de produção sem um teste que **falhou primeiro**. Teste escrito depois da implementação (que passa de imediato) é **proibido** — não prova nada, "vicia" a suíte. Se você não viu o teste falhar, você não sabe se ele testa a coisa certa.
+
+**Fluxo de bug (único sancionado) — ORDEM ESTRITA:**
+1. **Entrevistar o usuário** — cenário exato, dados, passos, esperado vs obtido. Não adivinhar.
+2. **Escrever um teste que reproduz o bug** no caminho mais real possível (o que o app executa). **SEM ler o código procurando a causa antes disso.**
+3. **Rodar e VER FALHAR.** Mostrar a falha ao usuário (RED real). Se passa, não captura o bug — refazer até pegar, OU dizer honestamente que não é bug de lógica (ex.: render Slint não é unit-testável) e **parar**.
+4. **SÓ DEPOIS do RED**, investigar a causa — guiado pelo teste que falhou — e corrigir até GREEN.
+5. Suíte cheia + invariantes de áudio.
+
+**NÃO investigue o código pra achar a causa antes do teste existir e falhar.** Ler o código primeiro gera hipótese enviesada apresentada como "causa"; a causa só é válida quando o teste vermelho a demonstra. Hipótese de leitura ≠ causa. A investigação de código acontece **no passo 4**, dirigida pelo RED — nunca antes do passo 3.
+
+**Proibido:** investigar/ler código pra "achar a causa" antes do teste falhar; implementar e depois "cobrir com teste"; tentativa-e-erro usando o usuário como QA; teste que passa de primeira apresentado como prova; prosseguir pro fix antes do RED visível (com gate explícito do usuário, **parar e aguardar**).
+
+**Provar que um teste é real:** reverter SÓ a produção pro estado pré-fix (mantendo os testes), rodar → tem que dar RED. Restaurar depois (nada se perde, está commitado).
+
+**Caso real (2026-05-18, #436):** (a) entreguei fixes com testes escritos DEPOIS (passavam de imediato) — usuário: "testes viciados", "vc só escreve teste que passa"; reverter produção pro baseline `dc7f3b73` provou o RED. (b) Num bug seguinte, anunciei a causa lendo o código ANTES de escrever o teste — usuário: "eu não quero que vc ache a causa olhando o código. escreve o teste e DEPOIS ache a causa". Lição: red-first não é opção, e investigar código antes do teste falhar também é proibido.
+
 ---
 
 ## Living Document

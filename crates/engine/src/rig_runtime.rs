@@ -102,8 +102,11 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             enabled: true,
             // Invariant #10: carry the preset's volume (legacy migration
             // preserved Chain.volume → RigPreset.volume). Hardcoding 100
-            // would silently retune every preset on the rig path.
-            volume: preset.volume,
+            // would silently retune every preset on the rig path. The
+            // active scene may override it (#436); a scene with no
+            // override resolves to `preset.volume` ⇒ audibly unchanged
+            // for every pre-#436 project (back-compat).
+            volume: preset.scene_volume(input.active_scene),
             blocks,
         });
     }

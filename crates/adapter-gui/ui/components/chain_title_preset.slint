@@ -1,0 +1,278 @@
+// #436 #1 — the chain row's title slot. For a rig chain it IS the
+// preset picker (a dark, big-type select like the title) + an "add
+// preset" button + a dynamic scene bar (scenes grow on demand: a
+// preset starts with scene 1, the user adds 2, 3…). For a non-rig
+// chain it falls back to the plain clickable title. Own file so
+// chain_row.slint (over the 500-line cap) shrinks instead of growing.
+
+import { Theme } from "../theme.slint";
+import { ChainRigNav } from "../models.slint";
+
+// Small square icon button (press to fire). Mirrors the chain action
+// icons; own copy so this file has no chain_row dependency.
+component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active: false;
+    in property <string> a11y;
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+    background: root.active
+        ? Theme.palette.accent-end
+        : (ta.has-hover ? Theme.palette.card-secondary : transparent);
+    animate background { duration: 150ms; }
+    Image {
+        x: 6px;
+        y: 6px;
+        width: 18px;
+        height: 18px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.active ? #ffffff : (ta.has-hover ? #ffffff : #8a94a2);
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+    accessible-role: button;
+    accessible-label: root.a11y;
+}
+
+// The preset select: dark/near-black field, big bold type (matches the
+// chain title), caret on the right. The list is a PopupWindow so it
+// renders on the overlay layer (never clipped by / under the blocks).
+component PresetSelect inherits Rectangle {
+    in property <[string]> labels;
+    in property <int> active-index;
+    callback picked(int);
+    height: 38px;
+    border-radius: 6px;
+    background: #0a0d12;
+    border-width: 1px;
+    border-color: ta.has-hover ? #4d5868 : #2b3340;
+    animate border-color { duration: 150ms; }
+
+    Text {
+        x: 14px;
+        width: parent.width - 44px;
+        height: parent.height;
+        text: root.active-index >= 0 && root.active-index < root.labels.length
+            ? root.labels[root.active-index]
+            : "";
+        color: #f1f4f8;
+        font-size: 18px;
+        font-weight: 800;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Image {
+        x: parent.width - 30px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/arrow-down.svg");
+        image-fit: contain;
+        colorize: ta.has-hover ? #ffffff : #8a94a2;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            pop.show();
+        }
+    }
+    accessible-role: button;
+    accessible-label: @tr("Preset selector");
+
+    pop := PopupWindow {
+        x: 0px;
+        y: 40px;
+        // PopupWindow has no intrinsic size — without an EXPLICIT
+        // width/height it collapses to 0 and the list is invisible /
+        // unclickable (the bug: selecting did nothing). Size it to the
+        // item count, exactly like the working ChainVolumeButton popup.
+        width: root.width;
+        height: root.labels.length * 34px + 8px;
+        close-policy: close-on-click-outside;
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
+            border-width: 1px;
+            border-color: #2b3340;
+            border-radius: 6px;
+            VerticalLayout {
+                padding: 4px;
+                for label[i] in root.labels: Rectangle {
+                    height: 34px;
+                    border-radius: 4px;
+                    background: i == root.active-index
+                        ? Theme.palette.accent-end
+                        : (row-ta.has-hover ? #1b2230 : transparent);
+                    Text {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        height: parent.height;
+                        text: label;
+                        color: #f1f4f8;
+                        font-size: 16px;
+                        font-weight: i == root.active-index ? 800 : 600;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    row-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.picked(i);
+                            pop.close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// One compact scene number button. Active = filled accent; otherwise a
+// thin outline. Only the number — no dropdown.
+component SceneBtn inherits Rectangle {
+    in property <int> idx;
+    in property <bool> active;
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+    background: root.active
+        ? Theme.palette.accent-end
+        : (sta.has-hover ? Theme.palette.card-secondary : transparent);
+    border-width: root.active ? 0px : 1px;
+    border-color: #2b3340;
+    animate background { duration: 120ms; }
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.idx;
+        color: root.active ? #ffffff : #aeb6c2;
+        font-size: 14px;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    sta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+    accessible-role: button;
+    accessible-label: @tr("Scene {}", root.idx);
+}
+
+// Dynamic scene bar: one button per existing scene (1..scene-count;
+// max 8), the active one highlighted, plus a "+" that adds the next
+// scene. Scenes grow on demand — a preset starts with just scene 1.
+component SceneBar inherits HorizontalLayout {
+    in property <int> scene;
+    in property <int> scene-count;
+    callback picked(int);
+    spacing: 4px;
+
+    if root.scene-count >= 1 : SceneBtn { idx: 1; active: root.scene == 1; clicked => { root.picked(1); } }
+    if root.scene-count >= 2 : SceneBtn { idx: 2; active: root.scene == 2; clicked => { root.picked(2); } }
+    if root.scene-count >= 3 : SceneBtn { idx: 3; active: root.scene == 3; clicked => { root.picked(3); } }
+    if root.scene-count >= 4 : SceneBtn { idx: 4; active: root.scene == 4; clicked => { root.picked(4); } }
+    if root.scene-count >= 5 : SceneBtn { idx: 5; active: root.scene == 5; clicked => { root.picked(5); } }
+    if root.scene-count >= 6 : SceneBtn { idx: 6; active: root.scene == 6; clicked => { root.picked(6); } }
+    if root.scene-count >= 7 : SceneBtn { idx: 7; active: root.scene == 7; clicked => { root.picked(7); } }
+    if root.scene-count >= 8 : SceneBtn { idx: 8; active: root.scene == 8; clicked => { root.picked(8); } }
+    if root.scene-count < 8 : IconButton {
+        icon: @image-url("../assets/plus.svg");
+        a11y: @tr("Add scene");
+        clicked => {
+            root.picked(-1);
+        }
+    }
+    // Remove the last scene (stack pop). Hidden when only scene 1
+    // exists — a preset must keep at least one scene.
+    if root.scene-count > 1 : IconButton {
+        icon: @image-url("../assets/trash.svg");
+        a11y: @tr("Remove last scene");
+        clicked => {
+            root.picked(-2);
+        }
+    }
+}
+
+export component ChainTitlePreset inherits Rectangle {
+    in property <string> title;
+    in property <ChainRigNav> nav;
+    in property <bool> fullscreen: false;
+    callback open-compact();
+    // preset-picked(slot): slot >= 0 selects that combo entry; the
+    // sentinel -1 means "add a new preset". scene-picked(s): s >= 1
+    // selects scene s; the sentinel -1 means "add the next scene".
+    // Both reuse one callback so no new one is threaded through the
+    // over-cap shells.
+    callback preset-picked(int);
+    callback scene-picked(int);
+
+    // ── Non-rig chain: the plain clickable title (unchanged behaviour).
+    if !root.nav.has-rig : Rectangle {
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.title;
+            color: title-ta.has-hover ? #ffffff : #f1f4f8;
+            font-size: 14px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        title-ta := TouchArea {
+            mouse-cursor: root.fullscreen ? default : pointer;
+            clicked => {
+                if !root.fullscreen {
+                    root.open-compact();
+                }
+            }
+        }
+    }
+
+    // ── Rig chain: preset select + add button + dynamic scene bar.
+    if root.nav.has-rig : HorizontalLayout {
+        spacing: Theme.spaces.small;
+        alignment: start;
+        PresetSelect {
+            width: 280px;
+            labels: root.nav.preset-labels;
+            active-index: root.nav.active-preset-index;
+            picked(i) => {
+                root.preset-picked(i);
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/plus.svg");
+                a11y: @tr("Add preset");
+                clicked => {
+                    root.preset-picked(-1);
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            SceneBar {
+                scene: root.nav.scene;
+                scene-count: root.nav.scene-count;
+                picked(s) => {
+                    root.scene-picked(s);
+                }
+            }
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+    }
+}

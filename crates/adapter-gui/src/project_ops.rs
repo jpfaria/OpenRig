@@ -319,8 +319,29 @@ pub(crate) fn load_project_session(
     Ok(session)
 }
 
+/// The dirty-detection fingerprint. For a rig session the saved artifact
+/// is the `.openrig` (the `RigProject`), so the fingerprint MUST include
+/// it — switching preset/scene or editing sources often projects an
+/// identical legacy `Project` (e.g. a scene with no overrides), so a
+/// legacy-only snapshot would never flip dirty and Save would never be
+/// offered ("cliquei numa scene e não deu opção de salvar"). Pure.
+pub(crate) fn dirty_snapshot(
+    project: &project::project::Project,
+    rig: Option<&project::rig::RigProject>,
+) -> Result<String> {
+    let legacy = infra_yaml::serialize_project(project)?;
+    match rig {
+        Some(rig) => Ok(format!(
+            "{legacy}\n---openrig---\n{}",
+            infra_yaml::serialize_rig_project(rig)?
+        )),
+        None => Ok(legacy),
+    }
+}
+
 pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    infra_yaml::serialize_project(&*session.project.borrow())
+    let rig = session.rig.as_ref().map(|r| r.borrow());
+    dirty_snapshot(&session.project.borrow(), rig.as_deref())
 }
 
 pub(crate) fn set_project_dirty(
@@ -369,7 +390,28 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
-    fs::write(project_path, project_session_snapshot(session)?)?;
+    // #436 #1: rig session → the source of truth is the RigProject.
+    // Write the synthetic chains' edits back into it and save the
+    // `project.openrig` (load_project_any reloads it idempotently).
+    // Non-rig session keeps the legacy serialize. Config + presets-dir
+    // steps below run either way.
+    match &session.rig {
+        Some(rig) => {
+            crate::chain_rig_nav::sync_synthetic_into_rig(
+                &mut rig.borrow_mut(),
+                &session.project.borrow(),
+            );
+            let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
+                project_path.clone()
+            } else {
+                project_path.with_extension("openrig")
+            };
+            infra_yaml::save_rig_project_file(&openrig, &rig.borrow())?;
+        }
+        None => {
+            fs::write(project_path, project_session_snapshot(session)?)?;
+        }
+    }
     let config_path = session
         .config_path
         .clone()

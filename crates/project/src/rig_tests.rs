@@ -162,6 +162,7 @@ fn scene_or_default_returns_present_scene() {
         label: Some("solo".into()),
         bypass: BTreeMap::from([("od".to_string(), true)]),
         params: BTreeMap::new(),
+        volume: None,
     };
     let p = RigPreset {
         blocks: vec![core_block("od")],
@@ -192,6 +193,7 @@ fn validate_scene_param_not_marked_err() {
             label: None,
             bypass: BTreeMap::new(),
             params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+            volume: None,
         },
     )]);
     let err = p.validate().unwrap_err();
@@ -234,6 +236,7 @@ fn apply_scene_bypass_disables_named_block() {
                 label: None,
                 bypass: BTreeMap::from([("od".to_string(), true)]),
                 params: BTreeMap::new(),
+                volume: None,
             },
         )],
     );
@@ -253,6 +256,7 @@ fn apply_scene_bypass_false_keeps_block_enabled() {
                 label: None,
                 bypass: BTreeMap::from([("od".to_string(), false)]),
                 params: BTreeMap::new(),
+                volume: None,
             },
         )],
     );
@@ -270,6 +274,7 @@ fn apply_scene_overrides_only_marked_param() {
                 label: None,
                 bypass: BTreeMap::new(),
                 params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+                volume: None,
             },
         )],
     );
@@ -294,6 +299,7 @@ fn apply_scene_ignores_param_not_in_scene_params() {
                 label: None,
                 bypass: BTreeMap::new(),
                 params: BTreeMap::from([("od.gain".to_string(), 0.9)]),
+                volume: None,
             },
         )],
     );
@@ -317,6 +323,7 @@ fn validate_scene_param_marked_ok() {
             label: None,
             bypass: BTreeMap::from([("od".to_string(), true)]),
             params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+            volume: None,
         },
     )]);
     assert!(p.validate().is_ok(), "{:?}", p.validate());
@@ -354,4 +361,169 @@ fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
     assert!(preset.scenes.is_empty());
     // Behaves as one Default scene that changes nothing (back-compat).
     assert_eq!(preset.apply_scene(1), blocks);
+}
+
+// #436 #1 — write-back: editing a rig chain's processing blocks must
+// persist into the active preset and survive re-projection.
+
+#[test]
+fn write_back_processing_blocks_persists_edit_into_active_preset() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User edits the param on the (re-projected) synthetic chain.
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(90.0));
+    }
+
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    // Snapshot semantics: the edit is captured into the ACTIVE scene
+    // (2), not baked into the factory template. apply_scene(2) reflects
+    // it; the base template stays unchanged.
+    let preset = p.presets.get("p").unwrap();
+    let active = match &preset.apply_scene(2)[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(active, Some(90.0), "edit visible on the scene it was made");
+    let base = match &preset.blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(base, Some(80.0), "factory template untouched");
+}
+
+// #436 #1 — SNAPSHOT scenes: editing a param while on scene N must NOT
+// leak into other scenes (user: changed volume on scene 2 → it changed
+// in ALL scenes). Reproduces the bug; drives the snapshot fix.
+#[test]
+fn editing_on_scene_2_does_not_change_scene_1() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User is on scene 2 and sets volume to 100.
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(100.0));
+    }
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let vol_in = |blocks: &[AudioBlock]| match &blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    let preset = p.presets.get("p").unwrap();
+    assert_eq!(
+        vol_in(&preset.apply_scene(2)),
+        Some(100.0),
+        "scene 2 = edited"
+    );
+    assert_eq!(
+        vol_in(&preset.apply_scene(1)),
+        Some(80.0),
+        "scene 1 must KEEP its own value (snapshot, not shared base)"
+    );
+}
+
+// #436 — "como adiciono um preset?" Adding a preset to an input's bank
+// must: take the next free slot, clone the currently active preset as a
+// starting point (independent snapshot), get a unique name, and make the
+// new slot active. No collision with existing preset names.
+#[test]
+fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
+    let mut p = project_with(
+        vec![(
+            "input-1",
+            input(&[(1, "clean"), (2, "drive"), (3, "lead")], 2),
+        )],
+        &["clean", "drive", "lead"],
+    );
+    // Make the active preset ("drive") distinguishable.
+    p.presets.get_mut("drive").unwrap().volume = 137.0;
+    let presets_before = p.presets.len();
+
+    let slot = p
+        .add_preset_to_input("input-1")
+        .expect("preset added to known input");
+
+    assert_eq!(slot, 4, "next free slot after the max key (3)");
+    let inp = &p.inputs["input-1"];
+    assert_eq!(inp.active_preset, 4, "new preset becomes active");
+    let name = inp.bank.get(&4).expect("bank has the new slot");
+    assert!(
+        !["clean", "drive", "lead"].contains(&name.as_str()),
+        "unique name, no collision: {name}"
+    );
+    assert_eq!(p.presets.len(), presets_before + 1, "one new preset");
+    assert_eq!(
+        p.presets[name].volume, 137.0,
+        "cloned from the previously active preset (drive)"
+    );
+}
+
+#[test]
+fn add_preset_to_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    assert_eq!(p.add_preset_to_input("nope"), None);
+    assert_eq!(p.presets.len(), 1, "nothing added");
+}
+
+#[test]
+fn add_preset_to_empty_bank_uses_slot_1() {
+    let mut p = project_with(vec![("input-1", input(&[], 0))], &[]);
+    let slot = p.add_preset_to_input("input-1").expect("added");
+    assert_eq!(slot, 1, "first slot in an empty bank");
+    assert_eq!(p.inputs["input-1"].active_preset, 1);
+    assert_eq!(p.presets.len(), 1, "a blank preset was created");
+}
+
+// User repro (#436): there was no way to remove a preset (only the
+// whole chain). Remove the active preset from the input's bank; the
+// last remaining preset can't be removed; an orphaned pool entry (no
+// bank references it) is dropped.
+#[test]
+fn remove_active_preset_drops_it_and_reactivates_another() {
+    let mut p = project_with(
+        vec![("input-1", input(&[(1, "a"), (2, "b")], 2))],
+        &["a", "b"],
+    );
+    let now = p.remove_preset_from_input("input-1").expect("removed");
+    assert_eq!(now, 1, "falls back to the remaining slot");
+    let ri = &p.inputs["input-1"];
+    assert!(
+        !ri.bank.values().any(|n| n == "b"),
+        "b unbanked: {:?}",
+        ri.bank
+    );
+    assert_eq!(ri.active_preset, 1);
+    assert!(!p.presets.contains_key("b"), "orphan pool entry dropped");
+    assert!(p.presets.contains_key("a"), "still-referenced preset kept");
+
+    assert_eq!(
+        p.remove_preset_from_input("input-1"),
+        None,
+        "can't remove the only remaining preset"
+    );
+}
+
+#[test]
+fn remove_preset_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "a")], 1))], &["a"]);
+    assert_eq!(p.remove_preset_from_input("nope"), None);
 }

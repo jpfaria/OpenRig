@@ -398,3 +398,44 @@ fn gettext_resolves_btn_new_project_in_en_us() {
         "Translation resolved but does not match expected en-US value"
     );
 }
+
+/// Bug (#436): the preset-picker dialog rendered raw keys
+/// ("BTN-LOAD-PRESET", "BTN-CANCEL"). Slint scopes `@tr` by component
+/// → gettext `msgctxt`. `PresetPickerOverlay` is a #436 component whose
+/// context was never extracted into the `.po`, so gettext fell back to
+/// the msgid (the key). Guard: every `@tr("…")` in
+/// `preset_picker_overlay.slint` must have a non-empty translation under
+/// `msgctxt "PresetPickerOverlay"` in the bundled pt_BR catalog.
+#[test]
+fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
+    let slint = include_str!("../ui/components/preset_picker_overlay.slint");
+    let po = include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po");
+
+    // Keys the component asks Slint to translate.
+    let keys: Vec<&str> = slint
+        .match_indices("@tr(\"")
+        .map(|(i, _)| {
+            let rest = &slint[i + 5..];
+            &rest[..rest.find('"').expect("closing quote")]
+        })
+        .collect();
+    assert!(
+        keys.contains(&"btn-load-preset") && keys.contains(&"btn-cancel"),
+        "fixture changed: expected btn-load-preset/btn-cancel, got {keys:?}"
+    );
+
+    // A .po record translated under the PresetPickerOverlay context, with
+    // a non-empty msgstr, must exist for each key.
+    for key in keys {
+        let resolved = po.split("\n\n").any(|rec| {
+            rec.contains("msgctxt \"PresetPickerOverlay\"")
+                && rec.contains(&format!("msgid \"{key}\""))
+                && !rec.contains("msgstr \"\"")
+        });
+        assert!(
+            resolved,
+            "no non-empty pt_BR translation for @tr(\"{key}\") under \
+             msgctxt \"PresetPickerOverlay\" — UI shows the raw key"
+        );
+    }
+}

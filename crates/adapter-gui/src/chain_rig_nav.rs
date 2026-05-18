@@ -7,8 +7,46 @@
 //! scene, in the SAME order as `project.chains` so the Slint row at
 //! index `i` reads `rows[i]`. No Slint, no I/O — fully testable.
 
+use project::block::AudioBlockKind;
 use project::project::Project;
 use project::rig::RigProject;
+
+/// Write every rig chain's edited processing blocks **and chain volume**
+/// back into the rig's active preset, per active scene, so edits made on
+/// the projected synthetic chains survive re-projection and are saved to
+/// `project.openrig`. Non-rig chains are ignored. Pure; mirrors
+/// `rig_to_chains` in reverse.
+pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
+    for chain in &project.chains {
+        let Some(input) = chain.id.0.strip_prefix("rig:") else {
+            continue;
+        };
+        let processing: Vec<_> = chain
+            .blocks
+            .iter()
+            .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .cloned()
+            .collect();
+        // Structural change (preset loaded over the slot / blocks
+        // added-removed-reordered) replaces the preset base; otherwise
+        // it's a per-scene param/bypass diff. Without the structural
+        // branch a loaded preset never persisted — its new block ids
+        // matched nothing in the diff base.
+        if !rig.replace_preset_blocks_if_structural(input, &processing) {
+            rig.write_back_processing_blocks(input, processing);
+        }
+        rig.write_back_chain_volume(input, chain.volume);
+        // The synthetic Input block carries `RigInput.sources`; an edit
+        // there (added device/channel) was being dropped because the
+        // loop only wrote processing blocks back. Persist it too.
+        if let Some(entries) = chain.blocks.iter().find_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) if !ib.entries.is_empty() => Some(ib.entries.clone()),
+            _ => None,
+        }) {
+            rig.set_input_sources(input, entries);
+        }
+    }
+}
 
 /// One chain's rig preset/scene navigation state. Empty `preset_labels`
 /// ⇒ not a rig chain (or input vanished) → the UI hides the selectors.
@@ -24,6 +62,24 @@ pub(crate) struct RigNavRow {
     pub(crate) active_index: usize,
     /// Active scene, `1..=8`.
     pub(crate) scene: usize,
+    /// Scenes the active preset exposes (≥ 1; grows on demand).
+    pub(crate) scene_count: usize,
+}
+
+/// Translate a preset ComboBox **positional** index into the rig
+/// input's real bank **slot key**. The widget reports a position into
+/// `preset_labels`; `switch_and_project_input` wants the bank key. The
+/// two diverge whenever the bank is sparse/non-1-based (exactly what the
+/// "+" add-preset produces: key = max+1). Uses the SAME ascending
+/// `bank.keys()` ordering `rig_nav_rows` exposes, so position N here is
+/// the same row the user clicked. `None` ⇒ unknown input or out of range.
+///
+/// Production now routes this through `project::rig_command::RigCommand`
+/// (`SwitchPreset` does the same position→key map, unit-tested there);
+/// kept test-only as the focused regression check for that mapping.
+#[cfg(test)]
+pub(crate) fn preset_slot_at(rig: &RigProject, input: &str, position: usize) -> Option<usize> {
+    rig.inputs.get(input)?.bank.keys().nth(position).copied()
 }
 
 /// Build the nav rows aligned 1:1 with `project.chains`.
@@ -44,12 +100,19 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 .iter()
                 .position(|&s| s == input.active_preset)
                 .unwrap_or(0);
+            let scene_count = input
+                .bank
+                .get(&input.active_preset)
+                .and_then(|n| rig.presets.get(n))
+                .map(|p| p.scene_count())
+                .unwrap_or(1);
             RigNavRow {
                 input: name.to_string(),
                 preset_slots,
                 preset_labels,
                 active_index,
                 scene: input.active_scene,
+                scene_count,
             }
         })
         .collect()

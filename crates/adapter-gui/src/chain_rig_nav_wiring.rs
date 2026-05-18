@@ -14,6 +14,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
+use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
@@ -26,6 +27,12 @@ pub(crate) struct ChainRigNavCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
+    // Marking the project dirty / autosaving after a switch — same
+    // path every other edit wiring uses. Without this a preset/scene
+    // switch or add was in-memory only ("salvei e não aconteceu nada").
+    pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    pub project_dirty: Rc<RefCell<bool>>,
+    pub auto_save: bool,
 }
 
 /// Refresh the `chain-rig-nav` model from the current session (no-op if
@@ -60,17 +67,21 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
             )),
             active_preset_index: r.active_index as i32,
             scene: r.scene as i32,
+            scene_count: r.scene_count as i32,
         })
         .collect();
     window.set_chain_rig_nav(ModelRc::new(VecModel::from(items)));
 }
 
-fn apply_switch(
+/// Capture pending edits, run `project` to mutate+re-project the rig
+/// input behind `chain_index`, swap the rebuilt synthetic chain in
+/// place, re-sync the runtime and refresh both models. Every per-chain
+/// rig action (preset switch, scene switch, add preset) is one closure.
+fn reproject(
     window: &AppWindow,
     ctx: &ChainRigNavCtx,
     chain_index: i32,
-    preset_slot: Option<usize>,
-    scene: Option<usize>,
+    project: impl FnOnce(&mut project::rig::RigProject, &str) -> Option<project::chain::Chain>,
 ) {
     let mut session_borrow = ctx.project_session.borrow_mut();
     let Some(session) = session_borrow.as_mut() else {
@@ -92,12 +103,12 @@ fn apply_switch(
         (chain.id.clone(), name.to_string())
     };
 
-    let rebuilt = engine::rig_runtime::switch_and_project_input(
-        &mut rig.borrow_mut(),
-        &input,
-        preset_slot,
-        scene,
-    );
+    // Capture any pending block/param edits on the synthetic chains into
+    // the rig BEFORE re-projecting, so switching never discards an
+    // in-progress edit.
+    crate::chain_rig_nav::sync_synthetic_into_rig(&mut rig.borrow_mut(), &session.project.borrow());
+
+    let rebuilt = project(&mut rig.borrow_mut(), &input);
     let Some(new_chain) = rebuilt else {
         set_status_error(
             window,
@@ -127,6 +138,15 @@ fn apply_switch(
         &ctx.output_chain_devices.borrow(),
     );
     refresh_chain_rig_nav(window, session);
+    // Every other edit path does this; without it a switch/add was
+    // in-memory only and Save did nothing.
+    sync_project_dirty(
+        window,
+        session,
+        &ctx.saved_project_snapshot,
+        &ctx.project_dirty,
+        ctx.auto_save,
+    );
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
@@ -136,7 +156,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_preset(move |chain_index, slot| {
             if let Some(window) = weak.upgrade() {
-                apply_switch(&window, &ctx, chain_index, Some(slot as usize), None);
+                reproject(&window, &ctx, chain_index, |rig, input| {
+                    // The click is mapped to a tested RigCommand (the
+                    // mapper + apply are unit-tested), then the active
+                    // state is projected. No sentinel logic inline.
+                    project::rig_command::rig_command_from_select(input, slot).apply(rig)?;
+                    engine::rig_runtime::switch_and_project_input(rig, input, None, None)
+                });
             }
         });
     }
@@ -145,7 +171,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
-                apply_switch(&window, &ctx, chain_index, None, Some(scene as usize));
+                reproject(&window, &ctx, chain_index, |rig, input| {
+                    // Click → tested RigCommand (mapper + apply are
+                    // unit-tested) → project the resulting active state.
+                    project::rig_command::rig_command_from_scene(input, scene).apply(rig)?;
+                    engine::rig_runtime::switch_and_project_input(rig, input, None, None)
+                });
             }
         });
     }

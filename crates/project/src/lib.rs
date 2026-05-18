@@ -6,4 +6,5 @@ pub mod migrate;
 pub mod param;
 pub mod project;
 pub mod rig;
+pub mod rig_command;
 pub mod vst3_editor;
