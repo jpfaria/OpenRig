@@ -43,7 +43,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **Vibrato**: rate_hz (0.1–8), depth (0–100%), 100% wet
 - **Autotune Chromatic**: speed (0–100ms), mix, detune (±50 cents), sensitivity
 - **Autotune Scale**: + key (C–B), scale (Major, Minor, Pent Maj/Min, Harmonic Minor, Melodic Minor, Blues, Dorian)
-- **Pitch Shifter** (`native_pitch_shifter`): `shift_semitones` (-24/+24), `shift_cents` (-100/+100), `mix` (0–100%). STFT phase vocoder (Bernsee 2003), polifônico, latência ≈32 ms @ 48 kHz (window 2048, hop 512). Foundation reusada pelo autotune nativo (Wave 2 do #381).
+- **Pitch Shifter** (`native_pitch_shifter`): `shift_semitones` (-24/+24), `shift_cents` (-100/+100), `mix` (0–100%). STFT phase vocoder por **time-stretch + resample** (Bernsee 2003 / Dolson 1986), polifônico. O remap de bin ingênuo (`round(bin·pitch)`) foi removido em #488 — colapsava o lóbulo de cada parcial num bin e fazia a nota "cortar/silenciar" em qualquer sinal multi-parcial (guitarra). Agora o pitch vem 100% do resample, preservando o lóbulo. Latência ≈75 ms @ 48 kHz (window 2048 + lag de overlap-add completo de 1536) — maior que a implementação antiga (~32 ms) por necessidade do método; trade-off aceito porque a versão antiga era inutilizável (invariante #1 vs #2, ver CLAUDE.md). Foundation reusada pelo autotune nativo (Wave 2 do #381).
 
 ## Backends de áudio
 
