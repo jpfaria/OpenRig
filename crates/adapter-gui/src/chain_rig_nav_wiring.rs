@@ -12,8 +12,9 @@ use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::command::{Command, RigNavKind};
+use application::command::{ChainId, Command, RigNavKind};
 use application::dispatcher::CommandDispatcher;
+use application::event::Event;
 
 use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
@@ -82,42 +83,70 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
 /// then refreshes the UI and the live runtime from the shared
 /// `Project`. Non-rig / missing chain ⇒ no-op.
 fn reproject(window: &AppWindow, ctx: &ChainRigNavCtx, chain_index: i32, kind: RigNavKind) {
-    let mut session_borrow = ctx.project_session.borrow_mut();
-    let Some(session) = session_borrow.as_mut() else {
-        return;
-    };
-
-    let chain_id = {
-        let proj = session.project.borrow();
-        let Some(chain) = proj.chains.get(chain_index as usize) else {
+    let events = {
+        let mut session_borrow = ctx.project_session.borrow_mut();
+        let Some(session) = session_borrow.as_mut() else {
             return;
         };
-        if chain.id.0.strip_prefix("rig:").is_none() {
-            return;
+
+        let chain_id = {
+            let proj = session.project.borrow();
+            let Some(chain) = proj.chains.get(chain_index as usize) else {
+                return;
+            };
+            if chain.id.0.strip_prefix("rig:").is_none() {
+                return;
+            }
+            chain.id.clone()
+        };
+
+        // All business logic lives behind the Command now.
+        match session
+            .dispatcher
+            .dispatch(Command::ApplyRigNav {
+                chain: chain_id,
+                kind,
+            }) {
+            Ok(events) => events,
+            Err(_) => {
+                set_status_error(
+                    window,
+                    &ctx.toast_timer,
+                    &rust_i18n::t!("error-invalid-chain"),
+                );
+                return;
+            }
         }
-        chain.id.clone()
     };
 
-    // All business logic lives behind the Command now.
-    if session
-        .dispatcher
-        .dispatch(Command::ApplyRigNav {
-            chain: chain_id.clone(),
-            kind,
-        })
-        .is_err()
-    {
-        set_status_error(
-            window,
-            &ctx.toast_timer,
-            &rust_i18n::t!("error-invalid-chain"),
-        );
+    // Same screen + live-runtime refresh the MIDI/MCP drain uses — one
+    // path, so a footswitch moves the screen exactly like a click.
+    apply_events_to_ui(window, ctx, &events);
+}
+
+/// One screen + live-runtime refresh, driven by the events a drained
+/// command produced. Both the GUI click path (`reproject`) and the
+/// MIDI/MCP drain timers call this, so a footswitch moves the screen
+/// exactly like the mouse. Empty events ⇒ no-op.
+pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, events: &[Event]) {
+    if events.is_empty() {
         return;
     }
+    let session_borrow = ctx.project_session.borrow();
+    let Some(session) = session_borrow.as_ref() else {
+        return;
+    };
 
-    // Rendering + live-runtime sync are UI concerns and stay here.
-    if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, &chain_id) {
-        set_status_error(window, &ctx.toast_timer, &e.to_string());
+    // Re-sync the live runtime for each chain a command touched (once).
+    let mut synced: Vec<ChainId> = Vec::new();
+    for chain_id in events.iter().filter_map(Event::chain) {
+        if synced.iter().any(|c| c == chain_id) {
+            continue;
+        }
+        synced.push(chain_id.clone());
+        if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, chain_id) {
+            set_status_error(window, &ctx.toast_timer, &e.to_string());
+        }
     }
     replace_project_chains(
         &ctx.project_chains,

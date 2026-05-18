@@ -763,13 +763,31 @@ pub fn run_desktop_app(
             })?;
         log::info!("MCP server listening on http://{addr}");
         let session_for_mcp = project_session.clone();
+        let mcp_ctx = crate::chain_rig_nav_wiring::ChainRigNavCtx {
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            auto_save,
+        };
+        let mcp_window = window.as_weak();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_millis(16),
             move || {
-                if let Some(session) = session_for_mcp.borrow().as_ref() {
-                    drain.drain(session.dispatcher.as_ref(), 32);
+                // Drain + serve queries under the session borrow, then drop
+                // it before refreshing (apply_events_to_ui re-borrows it).
+                let events = {
+                    let session_borrow = session_for_mcp.borrow();
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
+                    let events = drain.drain(session.dispatcher.as_ref(), 32);
                     let project = &session.project;
                     drain.serve_queries(
                         |kind| match kind {
@@ -786,6 +804,13 @@ pub fn run_desktop_app(
                         },
                         32,
                     );
+                    events
+                };
+                if events.is_empty() {
+                    return;
+                }
+                if let Some(window) = mcp_window.upgrade() {
+                    crate::chain_rig_nav_wiring::apply_events_to_ui(&window, &mcp_ctx, &events);
                 }
             },
         );
@@ -804,7 +829,18 @@ pub fn run_desktop_app(
                 crate::cli::MidiMapArg::Path(p) => p,
             };
             Some(crate::midi_adapter_wiring::wire(
-                project_session.clone(),
+                window.as_weak(),
+                crate::chain_rig_nav_wiring::ChainRigNavCtx {
+                    project_session: project_session.clone(),
+                    project_chains: project_chains.clone(),
+                    project_runtime: project_runtime.clone(),
+                    input_chain_devices: input_chain_devices.clone(),
+                    output_chain_devices: output_chain_devices.clone(),
+                    toast_timer: toast_timer.clone(),
+                    saved_project_snapshot: saved_project_snapshot.clone(),
+                    project_dirty: project_dirty.clone(),
+                    auto_save,
+                },
                 map_path,
             )?)
         }
