@@ -1,10 +1,12 @@
-use super::{PhaseVocoder, OVERLAP_FACTOR};
+use super::PitchEngine;
 use realfft::RealFftPlanner;
 use std::f32::consts::TAU;
 
 const SAMPLE_RATE: f32 = 48_000.0;
 const WINDOW: usize = 2048;
-const WARMUP_LATENCY: usize = WINDOW - WINDOW / OVERLAP_FACTOR;
+/// Generous steady-state skip — the granular engine settles in a
+/// few grains; any value well past that works for behaviour tests.
+const WARMUP_LATENCY: usize = WINDOW;
 
 fn sine(freq: f32, len: usize) -> Vec<f32> {
     (0..len)
@@ -30,13 +32,13 @@ fn peak_bin(samples: &[f32]) -> usize {
 #[test]
 fn new_does_not_panic_for_supported_window_sizes() {
     for size in [512, 1024, 2048, 4096] {
-        let _ = PhaseVocoder::new(size);
+        let _ = PitchEngine::new(size);
     }
 }
 
 #[test]
 fn silence_input_produces_silence_output() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(2.0);
     let total = WINDOW * 4;
     let mut max = 0.0_f32;
@@ -50,7 +52,7 @@ fn silence_input_produces_silence_output() {
 
 #[test]
 fn unity_pitch_preserves_peak_frequency() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(1.0);
     let freq = 1000.0_f32;
     let warmup = WARMUP_LATENCY + WINDOW;
@@ -76,7 +78,7 @@ fn unity_pitch_preserves_peak_frequency() {
 
 #[test]
 fn octave_up_doubles_peak_frequency() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(2.0);
     let freq = 440.0_f32;
     let warmup = WARMUP_LATENCY + WINDOW;
@@ -102,7 +104,7 @@ fn octave_up_doubles_peak_frequency() {
 
 #[test]
 fn octave_down_halves_peak_frequency() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(0.5);
     let freq = 1000.0_f32;
     let warmup = WARMUP_LATENCY + WINDOW;
@@ -135,22 +137,19 @@ fn rms_envelope(samples: &[f32], block: usize) -> Vec<f32> {
         .collect()
 }
 
-/// Issue #488: a sustained note must come out as a sustained note. The
-/// phase vocoder must NOT periodically drop the output amplitude to ~0
-/// (the "corta/silencia notas" symptom). Existing tests only check the
-/// peak FFT bin, which stays correct even when the envelope warbles to
-/// zero — so this regression was invisible. Asserts the short-time RMS
-/// never collapses relative to its own peak, for the user's real case
-/// (≈ -2 semitones, pitch_factor ≈ 0.8909).
+/// Issue #488: a sustained note must come out as a sustained note —
+/// the pitch engine must NOT periodically drop the output amplitude
+/// (the "corta/silencia notas" symptom). The old peak-FFT-bin tests
+/// stayed green even when the envelope warbled to zero, so this was
+/// invisible. Asserts the short-time RMS never collapses, for the
+/// user's real case (≈ -2 semitones, pitch ≈ 0.8909).
 #[test]
 fn sustained_tone_has_no_amplitude_dropouts_pitch_down() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(2.0_f32.powf(-2.0 / 12.0));
     let freq = 220.0_f32;
-    // Generous skip: the time-stretch + resample path primes over
-    // ~window/pitch + window input samples for pitch-down; measure only
-    // steady state. The old bin-remap dropout was steady-state (every 3rd
-    // hop, throughout), so a steady-state-only envelope still catches it.
+    // Measure steady state only. The old bin-remap dropout was
+    // steady-state (every 3rd hop, throughout), so this still catches it.
     let warmup = WINDOW * 6;
     let capture = WINDOW * 8;
     let input = sine(freq, warmup + capture);
@@ -163,7 +162,7 @@ fn sustained_tone_has_no_amplitude_dropouts_pitch_down() {
         }
     }
 
-    let env = rms_envelope(&output, WINDOW / OVERLAP_FACTOR);
+    let env = rms_envelope(&output, 512);
     let peak = env.iter().cloned().fold(0.0_f32, f32::max);
     let trough = env.iter().cloned().fold(f32::INFINITY, f32::min);
     assert!(peak > 1e-4, "no signal at all (peak rms {peak})");
@@ -185,15 +184,14 @@ fn plucked(freq: f32, note_len: usize, decay: f32) -> Vec<f32> {
 }
 
 /// Issue #488 — the real symptom: picking a sequence of notes. Each
-/// plucked note (attack + decay) followed by a short rest. After the
-/// vocoder warms up once, every subsequent note must still produce
-/// audible output — the algorithm must NOT re-introduce its warm-up
-/// latency on each onset (which would swallow the attack of every note
-/// and read as "corta/silencia as notas"). Asserts every note after the
-/// first carries non-trivial energy in the output.
+/// plucked note (attack + decay) then a short rest. Every note must
+/// produce audible output — energy must be conserved across onsets, not
+/// destroyed (the old bin-remap measured 0.077 unity gain on a harmonic
+/// tone, silencing notes). Latency- and smear-invariant: compares
+/// steady-region output/input energy.
 #[test]
 fn note_sequence_does_not_swallow_each_onset() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(2.0_f32.powf(-2.0 / 12.0));
 
     let note_len = WINDOW * 3;
@@ -216,17 +214,16 @@ fn note_sequence_does_not_swallow_each_onset() {
         }
     }
 
-    // Skip the first full sequence: the phase-estimate + resampler
-    // pipeline converges over roughly one sequence (one-time startup,
-    // not per-note). Steady periodic behaviour holds from rep 2 on.
+    // Skip the first full sequence as one-time startup; steady
+    // periodic behaviour holds from rep 2 on.
     let skip = input.len();
     // Energy conservation across note onsets. The old bin-remap bug
     // destroyed energy on any multi-partial / transient signal (measured
     // unity gain on a harmonic tone was 0.077 — a ~13× loss), silencing
     // notes. A correct pitch shifter conserves energy regardless of the
-    // (fixed) latency or how the phase vocoder redistributes a transient
-    // in time, so the steady-region output/input energy ratio is the
-    // latency- and smear-invariant oracle for "notes not swallowed".
+    // (fixed) latency or how a transient is redistributed in time, so the
+    // steady-region output/input energy ratio is the latency- and
+    // smear-invariant oracle for "notes not swallowed".
     let in_e: f32 = input
         .iter()
         .cycle()
@@ -251,7 +248,7 @@ fn note_sequence_does_not_swallow_each_onset() {
 /// envelope of a sustained harmonic tone does not collapse.
 #[test]
 fn harmonic_tone_pitch_down_keeps_envelope() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(2.0_f32.powf(-2.0 / 12.0));
     let f0 = 110.0_f32;
     let warmup = WINDOW * 6;
@@ -275,7 +272,7 @@ fn harmonic_tone_pitch_down_keeps_envelope() {
         }
     }
 
-    let env = rms_envelope(&output, WINDOW / OVERLAP_FACTOR);
+    let env = rms_envelope(&output, 512);
     let peak = env.iter().cloned().fold(0.0_f32, f32::max);
     let trough = env.iter().cloned().fold(f32::INFINITY, f32::min);
     assert!(peak > 1e-4, "no signal at all (peak rms {peak})");
@@ -286,9 +283,39 @@ fn harmonic_tone_pitch_down_keeps_envelope() {
     );
 }
 
+/// Issue #488 — latency budget at the SHIPPED grain. A guitar pitch
+/// shifter must be playable live; the rejected phase-vocoder attempt was
+/// ~69 ms (unusable). The granular time-domain engine at the shipped
+/// 1024-sample grain must land ≤ 20 ms for the worst case (pitch down),
+/// matching commercial pedals (Whammy/Drop ≈ 10 ms). This would fail
+/// hard on any regression back to an FFT-window-latency design.
+#[test]
+fn effective_latency_within_budget() {
+    const SHIPPED_GRAIN: usize = 1024;
+    let mut pv = PitchEngine::new(SHIPPED_GRAIN);
+    pv.set_pitch_factor(2.0_f32.powf(-2.0 / 12.0)); // E→D, worst case here
+    let max_latency = (0.020 * SAMPLE_RATE) as usize; // 960 samples / 20 ms
+    let mut onset = None;
+    for n in 0..(SHIPPED_GRAIN * 16) {
+        let s = 0.5 * (TAU * 196.0 * n as f32 / SAMPLE_RATE).sin();
+        let y = pv.process_sample(s);
+        if onset.is_none() && y.abs() > 0.02 {
+            onset = Some(n);
+            break;
+        }
+    }
+    let onset = onset.expect("output never rose above audible threshold");
+    assert!(
+        onset <= max_latency,
+        "effective latency {onset} samples ({:.1} ms) exceeds budget \
+         {max_latency} samples (20 ms)",
+        onset as f32 * 1000.0 / SAMPLE_RATE
+    );
+}
+
 #[test]
 fn process_sample_is_finite_for_extreme_inputs() {
-    let mut pv = PhaseVocoder::new(WINDOW);
+    let mut pv = PitchEngine::new(WINDOW);
     pv.set_pitch_factor(1.5);
     for n in 0..(WINDOW * 4) {
         let amp = if n % 2 == 0 { 1.0 } else { -1.0 };

@@ -1,5 +1,5 @@
 //! Pitch correction block implementations.
-mod phase_vocoder;
+mod pitch_engine;
 mod registry;
 
 use anyhow::Result;
