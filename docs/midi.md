@@ -65,6 +65,66 @@ bindings:
   A `cc` binding without `scale` passes the raw 0..=127 as `value`.
 - First matching binding wins.
 
+## Footswitch commands (#22)
+
+Any `Command` can be bound, but these are the ones built for live
+footswitch use. A footswitch press carries no value, so these are
+**relative / stepping** and the dispatcher owns the state — pressing a
+switch moves the screen **and** the live runtime exactly like a mouse
+click (same refresh path).
+
+| Action | `command` | `args` |
+|---|---|---|
+| Next preset | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepPreset: 1 } }` |
+| Previous preset | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepPreset: -1 } }` |
+| Next scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepScene: 1 } }` |
+| Previous scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepScene: -1 } }` |
+| Go to a fixed preset / scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { Preset: <pos> } }` (or `Scene`) |
+| Move block selection (pair) forward | `SelectChainBlock` | `{ chain: "rig:<input>", delta: 2 }` |
+| Move block selection back | `SelectChainBlock` | `{ chain: "rig:<input>", delta: -2 }` |
+| Toggle the **left** block of the pair | `ToggleSelectedBlock` | `{ chain: "rig:<input>", side: Left }` |
+| Toggle the **right** block of the pair | `ToggleSelectedBlock` | `{ chain: "rig:<input>", side: Right }` |
+| Toggle a whole chain on/off | `ToggleChainEnabled` | `{ chain: "<chain-id>" }` |
+| Toggle one fixed block on/off | `ToggleBlockEnabled` | `{ chain: "<chain-id>", block: "<block-id>" }` |
+| Save the project | `SaveProject` | *(none)* |
+
+Notes:
+
+- Preset/scene stepping **wraps** (after the last comes the first).
+- The block-selection pair is two adjacent blocks; `delta: 2` walks it
+  two-by-two. The on-screen border appears on the footswitch press and
+  fades out shortly after (it is a transient cue, not a persistent
+  selection).
+- `rig:<input>` is the chain id of a rig input on the chains screen.
+- `Chocolate Plus` lets you set the MIDI **channel per message** in its
+  editor, so one pedal switching banks (or several pedals) can target
+  different actions by channel.
+
+### Example — M-Vave Chocolate, 4 switches as Note on ch 1
+
+Pedal: each switch set to **Note**, channel **1**, notes **60/61/62/63**.
+
+```yaml
+input: Chocolate
+bindings:
+  - source: { kind: note_on, channel: 1, note: 60 }   # A: previous preset
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepPreset: -1 } }
+  - source: { kind: note_on, channel: 1, note: 63 }   # D: next preset
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepPreset: 1 } }
+  - source: { kind: note_on, channel: 1, note: 61 }   # B: toggle left of pair
+    command: ToggleSelectedBlock
+    args: { chain: "rig:guitar", side: Left }
+  - source: { kind: note_on, channel: 1, note: 62 }   # C: toggle right of pair
+    command: ToggleSelectedBlock
+    args: { chain: "rig:guitar", side: Right }
+```
+
+(Swap any binding for `SelectChainBlock` / `StepScene` to taste — the
+pedal only sends the note number; the meaning lives here, change it
+anytime without touching the pedal.)
+
 ## Connecting the M-Vave Chocolate — step by step
 
 The M-Vave Chocolate (and Chocolate Plus) is a 4-switch **BLE-MIDI**
