@@ -147,17 +147,24 @@ byte-identical) plus `volume_invariants`/`stream_isolation`/
 `project::migrate::migrate_legacy_project(&Project) -> RigProject` is a pure,
 deterministic (⇒ idempotent) transform:
 
-| Legacy `Chain` (1-based index N) | `RigProject` |
+Chains are **grouped by capture source**. The source key is the list of
+`(device, mode, channels)` of a chain's input entries, **mono-normalized**
+(a `mono` entry only taps one physical channel, so `mono [0,1]` ≡
+`mono [0]`). Every chain on the same source becomes a preset in **one
+input's bank** — one guitar with many songs ⇒ one input + N presets.
+
+| Legacy `Chain`s | `RigProject` |
 |---|---|
-| chain N | `inputs["input-{N}"]` |
-| all `input_blocks` entries, flattened in order | `input.sources` (multi-source preserved) |
-| `output_blocks` entries, deduped by `(device, mode, channels)` | `outputs["output-{M}"]` (first-seen) + `input.routing` |
+| chains with the same source key | one `inputs["input-{M}"]` (first-seen order) |
+| each such chain, in chain order | a bank slot `1..N`; `active-preset 1`, `active-scene 1` |
+| normalized input entries of the group's first chain | `input.sources` (multi-source preserved) |
+| `output_blocks` deduped by `(device, mode, channels)` | `outputs["output-{K}"]` (first-seen); each input's `routing` = union of its chains' outputs |
 | blocks minus `Input`/`Output`, order preserved | `presets[name].blocks` |
-| `chain.volume` | `presets[name].volume` (audio unchanged) |
-| `chain.description` slug, else `preset-{N}` (uniquified) | preset name; `bank{1: name}`, `active-preset 1`, `active-scene 1` |
+| `chain.volume` | `presets[name].volume` (audio unchanged, invariant #10) |
+| `chain.description` slug, else `preset-{N}` (uniquified) | preset name (shared pool) |
 
 No preset is lost (`presets.len() == chains.len()`, each in a bank slot) and the
-result always passes `validate()`.
+result always passes `validate()`. Deterministic ⇒ idempotent.
 
 File orchestrator `infra-yaml::migrate_legacy_project_file(legacy, out)`:
 

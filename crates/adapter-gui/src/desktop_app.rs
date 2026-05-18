@@ -710,6 +710,17 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
+    crate::chain_rig_nav_wiring::wire(
+        &window,
+        crate::chain_rig_nav_wiring::ChainRigNavCtx {
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     crate::plugin_info_inline_wiring::wire(&window);
     // Ao fechar a janela principal, encerra todo o processo
     window.window().on_close_requested(|| {
@@ -762,11 +773,9 @@ pub fn run_desktop_app(
                                 infra_yaml::serialize_project(&project.borrow())
                                     .map_err(|e| e.to_string())
                             }
-                            application::bridge::QueryKind::Devices => {
-                                infra_cpal::list_devices()
-                                    .map(|d| d.join("\n"))
-                                    .map_err(|e| e.to_string())
-                            }
+                            application::bridge::QueryKind::Devices => infra_cpal::list_devices()
+                                .map(|d| d.join("\n"))
+                                .map_err(|e| e.to_string()),
                         },
                         32,
                     );

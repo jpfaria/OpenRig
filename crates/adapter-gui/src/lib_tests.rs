@@ -1161,7 +1161,7 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
     )
     .unwrap();
 
-    let proj = crate::project_ops::rig_project_for(&path).expect("rig load");
+    let (_rig, proj) = crate::project_ops::load_rig_and_project(&path).expect("rig load");
 
     assert_eq!(proj.chains.len(), 1, "rig input shown as a chain");
     assert_eq!(

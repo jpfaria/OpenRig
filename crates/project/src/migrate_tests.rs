@@ -73,6 +73,72 @@ fn legacy(chains: Vec<Chain>) -> Project {
 }
 
 #[test]
+fn migrate_groups_same_source_chains_into_one_input_bank() {
+    // The real-world case: many songs on the same guitar input → ONE
+    // input with a bank of N presets (not N inputs).
+    let p = legacy(vec![
+        chain(
+            "song-a",
+            110.0,
+            vec![input_block("i1", vec![("sc", vec![0])]), fx("a")],
+        ),
+        chain(
+            "song-b",
+            120.0,
+            vec![input_block("i2", vec![("sc", vec![0])]), fx("b")], // same source
+        ),
+        chain(
+            "voice",
+            100.0,
+            vec![input_block("i3", vec![("sc", vec![1])]), fx("c")], // different (ch1)
+        ),
+    ]);
+    let r = migrate_legacy_project(&p);
+
+    assert_eq!(r.inputs.len(), 2, "two distinct sources → two inputs");
+    let g = r.inputs.get("input-1").expect("input-1 (ch0 group)");
+    assert_eq!(g.bank.len(), 2, "both ch0 chains share one bank");
+    assert_eq!(g.bank.get(&1).map(String::as_str), Some("song-a"));
+    assert_eq!(g.bank.get(&2).map(String::as_str), Some("song-b"));
+    assert_eq!(g.active_preset, 1);
+    assert_eq!(g.active_scene, 1);
+    let v = r.inputs.get("input-2").expect("input-2 (ch1)");
+    assert_eq!(v.bank.len(), 1);
+    assert_eq!(r.presets.len(), 3, "each chain still becomes a preset");
+    assert_eq!(
+        r.presets.get("song-b").unwrap().volume,
+        120.0,
+        "per-preset volume preserved (invariant #10)"
+    );
+}
+
+#[test]
+fn migrate_mono_multichannel_normalizes_to_first_channel() {
+    // `mode: mono, channels: [0,1]` (a data quirk) normalizes to [0] and
+    // groups with the plain ch0 input.
+    let p = legacy(vec![
+        chain(
+            "a",
+            100.0,
+            vec![input_block("i1", vec![("sc", vec![0])]), fx("a")],
+        ),
+        chain(
+            "b",
+            100.0,
+            vec![input_block("i2", vec![("sc", vec![0, 1])]), fx("b")],
+        ),
+    ]);
+    let r = migrate_legacy_project(&p);
+    assert_eq!(r.inputs.len(), 1, "mono [0,1] ≡ mono [0] → same input");
+    assert_eq!(r.inputs.get("input-1").unwrap().bank.len(), 2);
+    assert_eq!(
+        r.inputs.get("input-1").unwrap().sources[0].channels,
+        vec![0],
+        "stored source normalized to the single mono channel"
+    );
+}
+
+#[test]
 fn migrate_each_chain_becomes_input_preset_bank() {
     let p = legacy(vec![
         chain(

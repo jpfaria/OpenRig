@@ -139,6 +139,44 @@ pub fn rig_to_legacy_project(
     }
 }
 
+/// Apply a preset and/or scene change to one input of `rig` **in place**
+/// and return that input's freshly-projected synthetic [`Chain`] (the
+/// caller upserts it through the proven runtime path — zero new audio
+/// code). `preset_slot`/`scene` are applied only when `Some`. Invalid
+/// (unknown input, bank slot absent, scene ∉ `1..=8`) ⇒ **no mutation**
+/// and `None`, so the GUI can ignore a bad request without corrupting
+/// state. `None` is also returned if the resulting preset is unbuildable.
+pub fn switch_and_project_input(
+    rig: &mut RigProject,
+    input: &str,
+    preset_slot: Option<usize>,
+    scene: Option<usize>,
+) -> Option<Chain> {
+    {
+        // Validate everything before touching state (no partial mutation).
+        let ri = rig.inputs.get(input)?;
+        if let Some(s) = preset_slot {
+            if !ri.bank.contains_key(&s) {
+                return None;
+            }
+        }
+        if let Some(sc) = scene {
+            if !(1..=8).contains(&sc) {
+                return None;
+            }
+        }
+    }
+    let ri = rig.inputs.get_mut(input)?;
+    if let Some(s) = preset_slot {
+        ri.active_preset = s;
+    }
+    if let Some(sc) = scene {
+        ri.active_scene = sc;
+    }
+    let id = ChainId(format!("rig:{input}"));
+    rig_to_chains(rig).into_iter().find(|c| c.id == id)
+}
+
 /// Owns the N isolated input runtimes of a `RigProject`.
 ///
 /// Transport-agnostic (no Slint, no cpal here) — the host wires the resulting
