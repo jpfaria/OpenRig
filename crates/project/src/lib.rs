@@ -7,4 +7,5 @@ pub mod param;
 pub mod project;
 pub mod rig;
 pub mod rig_command;
+pub mod rig_sync;
 pub mod vst3_editor;
