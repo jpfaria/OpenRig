@@ -261,6 +261,18 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
+        // Remove the active preset. Hidden when only one exists — a
+        // bank must keep at least one preset.
+        if root.nav.preset-labels.length > 1 : VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/trash.svg");
+                a11y: @tr("Remove preset");
+                clicked => {
+                    root.preset-picked(-2);
+                }
+            }
+        }
         VerticalLayout {
             alignment: center;
             SceneBar {

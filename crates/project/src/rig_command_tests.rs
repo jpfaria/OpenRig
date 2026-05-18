@@ -142,6 +142,23 @@ fn select_int_maps_to_preset_command() {
         rig_command_from_select("in", -1),
         RigCommand::AddPreset { input: "in".into() }
     );
+    assert_eq!(
+        rig_command_from_select("in", -2),
+        RigCommand::RemovePreset { input: "in".into() }
+    );
+}
+
+#[test]
+fn remove_preset_command_drops_active_and_reactivates() {
+    let mut r = rig(); // bank {1 clean,2 drive,3 lead}, active 1
+    RigCommand::RemovePreset { input: "in".into() }
+        .apply(&mut r)
+        .expect("removed");
+    assert!(
+        !r.inputs["in"].bank.values().any(|n| n == "clean"),
+        "active preset removed"
+    );
+    assert_ne!(r.inputs["in"].active_preset, 1, "reactivated another slot");
 }
 
 #[test]

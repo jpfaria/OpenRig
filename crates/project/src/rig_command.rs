@@ -15,8 +15,10 @@ pub enum RigCommand {
     /// Activate the preset at ComboBox `position` (positional index into
     /// the bank, ascending by key — translated to the real bank key).
     SwitchPreset { input: String, position: usize },
-    /// Add a preset to the input's bank (clone of active; becomes active).
+    /// Add a preset to the input's bank (fresh; becomes active).
     AddPreset { input: String },
+    /// Remove the active preset (can't remove the last; reactivates another).
+    RemovePreset { input: String },
     /// Activate scene `scene` (`1..=8`).
     SwitchScene { input: String, scene: usize },
     /// Append the next scene (snapshot of the active; becomes active).
@@ -39,6 +41,7 @@ impl RigCommand {
                 Some(())
             }
             RigCommand::AddPreset { input } => rig.add_preset_to_input(input).map(|_| ()),
+            RigCommand::RemovePreset { input } => rig.remove_preset_from_input(input).map(|_| ()),
             RigCommand::SwitchScene { input, scene } => {
                 if !(1..=8).contains(scene) {
                     return None;
@@ -58,15 +61,17 @@ impl RigCommand {
 /// the sentinel `-1` means "add a preset". Pure — unit-tested so the
 /// click→command binding can't silently drift.
 pub fn rig_command_from_select(input: &str, slot: i32) -> RigCommand {
-    if slot < 0 {
-        RigCommand::AddPreset {
+    match slot {
+        -1 => RigCommand::AddPreset {
             input: input.to_string(),
-        }
-    } else {
-        RigCommand::SwitchPreset {
+        },
+        -2 => RigCommand::RemovePreset {
             input: input.to_string(),
-            position: slot as usize,
-        }
+        },
+        n => RigCommand::SwitchPreset {
+            input: input.to_string(),
+            position: n.max(0) as usize,
+        },
     }
 }
 

@@ -152,6 +152,28 @@ fn switching_scene_changes_the_dirty_snapshot() {
     );
 }
 
+// User repro (#436): deleting a chain didn't update the view — it came
+// back because the rig session re-projects every RigInput. Removing the
+// RigInput must make the projected chain disappear and stay gone.
+#[test]
+fn removing_a_rig_input_drops_its_chain_from_the_projection() {
+    let mut r = rig(); // input-1 → one chain "rig:input-1"
+    assert_eq!(
+        rig_to_legacy_project(&r, &BTreeSet::new()).chains.len(),
+        1,
+        "one chain before delete"
+    );
+
+    assert!(r.remove_input("input-1"), "input removed");
+
+    let after = rig_to_legacy_project(&r, &BTreeSet::new());
+    assert!(
+        !after.chains.iter().any(|c| c.id.0 == "rig:input-1"),
+        "deleted chain must not re-appear on re-projection"
+    );
+    assert_eq!(after.chains.len(), 0, "no chains left");
+}
+
 // User repro (#436): open the guitar input, ADD a 2nd capture source
 // (device + ch1), SAVE, reopen → the input must now have BOTH sources.
 // Mirrors the rig save path (the Input block carries input.sources;

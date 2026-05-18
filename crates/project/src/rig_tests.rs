@@ -527,3 +527,24 @@ fn remove_preset_unknown_input_is_none() {
     let mut p = project_with(vec![("input-1", input(&[(1, "a")], 1))], &["a"]);
     assert_eq!(p.remove_preset_from_input("nope"), None);
 }
+
+// User repro (#436): deleting a chain didn't update the view — the
+// chain came back (rig session re-projects every input). Deleting a
+// rig chain must remove the RigInput; its presets are dropped from the
+// pool when no other input references them. Unknown input ⇒ false.
+#[test]
+fn remove_input_drops_it_and_orphaned_presets() {
+    let mut p = project_with(
+        vec![
+            ("in-a", input(&[(1, "a")], 1)),
+            ("in-b", input(&[(1, "b")], 1)),
+        ],
+        &["a", "b"],
+    );
+    assert!(p.remove_input("in-b"), "removed");
+    assert!(!p.inputs.contains_key("in-b"), "input gone");
+    assert!(p.inputs.contains_key("in-a"), "other input kept");
+    assert!(!p.presets.contains_key("b"), "orphaned preset dropped");
+    assert!(p.presets.contains_key("a"), "still-referenced preset kept");
+    assert!(!p.remove_input("nope"), "unknown input → false");
+}
