@@ -58,6 +58,16 @@ export struct ProjectChainItem {
     blocks: [ChainBlockItem],
 }
 
+// #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
+// `ProjectChainItem` list. `has-rig` false ⇒ the selector is hidden
+// (non-rig chain). Built by `chain_rig_nav::rig_nav_rows`.
+export struct ChainRigNav {
+    has_rig: bool,
+    preset_labels: [string],
+    active_preset_index: int,
+    scene: int,
+}
+
 export struct BlockTypePickerItem {
     effect_type: string,
     label: string,

@@ -1,7 +1,8 @@
 import { ListView, ScrollView } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
+import { ProjectChainItem, ChainRigNav, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
 import { BlockPanelEditor } from "./block_panel_editor.slint";
 import { ChainRow } from "./chain_row.slint";
+import { PresetSceneBar } from "../components/preset_scene_bar.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
@@ -49,6 +50,9 @@ export component ProjectChainsPage inherits Rectangle {
     callback open-tuner-window();
     callback open-spectrum-window();
     callback remove-chain(int);
+    in property <[ChainRigNav]> chain-rig-nav;
+    callback switch-chain-preset(int, int);
+    callback switch-chain-scene(int, int);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
     callback move-chain-up(int);
@@ -212,7 +216,20 @@ export component ProjectChainsPage inherits Rectangle {
 
         for chain[index] in root.project-chains : Rectangle {
             background: transparent;
-            height: row.height + 12px;
+            height: row.height + psb.height + 12px;
+
+            psb := PresetSceneBar {
+                x: 0px;
+                y: row.height;
+                width: parent.width;
+                nav: root.chain-rig-nav[index];
+                preset-picked(slot) => {
+                    root.switch-chain-preset(index, slot);
+                }
+                scene-picked(s) => {
+                    root.switch-chain-scene(index, s);
+                }
+            }
 
             row := ChainRow {
                 x: 0px;

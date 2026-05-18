@@ -261,16 +261,18 @@ pub(crate) fn build_device_settings_from_gui(
 /// the proven cpal/runtime path drive the rig with zero new audio code.
 /// Preset/scene switching has no UI yet (front deferred) — the rest
 /// behaves exactly as before.
-pub(crate) fn rig_project_for(project_path: &Path) -> Result<Project> {
-    // `load_project_any` already returns a validated RigProject (legacy
-    // `*.yaml` migrated transparently). Every input is projected as a
-    // chain, all OFF: the user enables what they want (in memory, at
-    // runtime) via the existing per-chain toggle — nothing auto-starts.
+pub(crate) fn load_rig_and_project(
+    project_path: &Path,
+) -> Result<(project::rig::RigProject, Project)> {
+    // `load_project_any` returns a validated RigProject (legacy `*.yaml`
+    // migrated transparently). Every input is projected as a chain, all
+    // OFF: the user enables what they want at runtime via the existing
+    // per-chain toggle — nothing auto-starts. The RigProject is returned
+    // so the session can keep it for preset/scene switching.
     let rig = infra_yaml::load_project_any(project_path)?;
-    Ok(engine::rig_runtime::rig_to_legacy_project(
-        &rig,
-        &std::collections::BTreeSet::new(),
-    ))
+    let project =
+        engine::rig_runtime::rig_to_legacy_project(&rig, &std::collections::BTreeSet::new());
+    Ok((rig, project))
 }
 
 pub(crate) fn load_project_session(
@@ -288,8 +290,10 @@ pub(crate) fn load_project_session(
         .clone()
         .unwrap_or_else(default_presets_path);
     // #436 #1: the app now runs the new rig engine. Legacy `*.yaml` is
-    // migrated transparently to `project.openrig` on first open.
-    let mut project = rig_project_for(project_path)?;
+    // migrated transparently to `project.openrig` on first open. The
+    // `RigProject` is retained in the session so the chains screen can
+    // switch preset/scene per input.
+    let (rig, mut project) = load_rig_and_project(project_path)?;
 
     // Populate device_settings from per-machine config (gui-settings.yaml)
     // instead of the project YAML. Old projects may still have device_settings
@@ -301,7 +305,7 @@ pub(crate) fn load_project_session(
     project.device_settings =
         build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
-    Ok(ProjectSession::new(
+    let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),
         Some(config_path.to_path_buf()),
@@ -310,7 +314,9 @@ pub(crate) fn load_project_session(
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
-    ))
+    );
+    session.rig = Some(std::rc::Rc::new(std::cell::RefCell::new(rig)));
+    Ok(session)
 }
 
 pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<String> {

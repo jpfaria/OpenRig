@@ -32,6 +32,8 @@ mod chain_io_save_wiring;
 mod chain_name_wiring;
 mod chain_output_groups_wiring;
 mod chain_preset_wiring;
+mod chain_rig_nav;
+mod chain_rig_nav_wiring;
 mod chain_row_wiring;
 mod chain_save_cancel_callbacks;
 mod cli;
