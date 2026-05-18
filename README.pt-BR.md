@@ -153,6 +153,7 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Audio Config](docs/audio-config.md) — I/O como blocos, ciclo de vida do JACK
 - [CLI & env vars](docs/cli.md) — argumentos e variáveis de ambiente do `openrig`
 - [Servidor MCP & plugin](docs/mcp.md) — controlar a rig pelo Claude/Cursor; instalar o plugin OpenRig
+- [Controlador MIDI](docs/midi.md) — footswitches, knobs, pedais de expressão; [todo comando](docs/midi-commands.md) é mapeável por MIDI
 
 ### Para desenvolvedores
 
@@ -197,6 +198,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] **Loaders de IR e NAM do usuário** — solta qualquer arquivo `.wav` de impulso ou captura `.nam` na chain em runtime
 - [x] **Formato de preset YAML aberto** — diffável, compartilhável por gist, scriptável; registry canônico de `MODEL_ID` documentado em [Blocks Reference](docs/user-guide/blocks-reference.md)
 - [x] **Construção de preset assistida por IA** — a skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) do Claude Code vem no repo e escreve presets completos a partir de uma música ou artista
+- [x] **Adapter de controlador MIDI / BLE-MIDI** — footswitches, knobs, pedal de expressão; **todo comando é mapeável por MIDI** (presets/cenas, seleção de blocos, parâmetros) ([#22](https://github.com/jpfaria/OpenRig/issues/22), ver [docs/midi-commands.md](docs/midi-commands.md))
 
 ### Features de palco
 
@@ -204,7 +206,6 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
 - [ ] Looper, multi-camada ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / player de áudio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
-- [ ] Adapter de controlador MIDI / BLE-MIDI — footswitches, knobs, pedal de expressão; **todo comando é mapeável por MIDI** (presets/cenas, seleção de blocos, parâmetros) ([#22](https://github.com/jpfaria/OpenRig/issues/22), ver [docs/midi-commands.md](docs/midi-commands.md))
 - [ ] Mapeamento de pedal de expressão via MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
