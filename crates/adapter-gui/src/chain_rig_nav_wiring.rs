@@ -179,11 +179,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
                 reproject(&window, &ctx, chain_index, |rig, input| {
-                    if scene < 0 {
+                    if scene == -1 {
                         // Sentinel from the scene "+" button: add the
                         // next scene (it becomes active) and project it.
                         let added = rig.add_scene_to_input(input)?;
                         engine::rig_runtime::switch_and_project_input(rig, input, None, Some(added))
+                    } else if scene == -2 {
+                        // Sentinel from the scene "−" button: pop the
+                        // last scene; project the (clamped) active one.
+                        let now = rig.remove_last_scene_from_input(input)?;
+                        engine::rig_runtime::switch_and_project_input(rig, input, None, Some(now))
                     } else {
                         engine::rig_runtime::switch_and_project_input(
                             rig,

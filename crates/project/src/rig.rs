@@ -321,6 +321,29 @@ impl RigProject {
         Some(next)
     }
 
+    /// Remove the **last** scene of `input`'s active preset (stack pop,
+    /// mirrors [`Self::add_scene_to_input`]). Keeps scene indices a
+    /// dense `1..=scene_count` range. The single remaining scene can't
+    /// be removed. Returns the (possibly clamped) active scene, or
+    /// `None` if the input/preset is unknown or only one scene exists.
+    pub fn remove_last_scene_from_input(&mut self, input: &str) -> Option<usize> {
+        let preset_name = self
+            .inputs
+            .get(input)
+            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())?;
+        let preset = self.presets.get_mut(&preset_name)?;
+        let last = preset.scene_count();
+        if last <= 1 {
+            return None;
+        }
+        preset.scenes.remove(&last);
+        let ri = self.inputs.get_mut(input)?;
+        if ri.active_scene >= last {
+            ri.active_scene = last - 1;
+        }
+        Some(ri.active_scene)
+    }
+
     /// Persist the chain volume edited on the projected synthetic chain
     /// back into the active preset, **per active scene** (snapshot
     /// semantics — mirrors [`Self::write_back_processing_blocks`]). A
@@ -442,3 +465,7 @@ impl RigProject {
 #[cfg(test)]
 #[path = "rig_tests.rs"]
 mod rig_tests;
+
+#[cfg(test)]
+#[path = "rig_scene_tests.rs"]
+mod rig_scene_tests;

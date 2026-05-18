@@ -89,9 +89,16 @@ component PresetSelect inherits Rectangle {
     pop := PopupWindow {
         x: 0px;
         y: 40px;
+        // PopupWindow has no intrinsic size — without an EXPLICIT
+        // width/height it collapses to 0 and the list is invisible /
+        // unclickable (the bug: selecting did nothing). Size it to the
+        // item count, exactly like the working ChainVolumeButton popup.
         width: root.width;
+        height: root.labels.length * 34px + 8px;
         close-policy: close-on-click-outside;
         Rectangle {
+            width: 100%;
+            height: 100%;
             background: #0a0d12;
             border-width: 1px;
             border-color: #2b3340;
@@ -185,6 +192,15 @@ component SceneBar inherits HorizontalLayout {
         a11y: @tr("Add scene");
         clicked => {
             root.picked(-1);
+        }
+    }
+    // Remove the last scene (stack pop). Hidden when only scene 1
+    // exists — a preset must keep at least one scene.
+    if root.scene-count > 1 : IconButton {
+        icon: @image-url("../assets/trash.svg");
+        a11y: @tr("Remove last scene");
+        clicked => {
+            root.picked(-2);
         }
     }
 }
