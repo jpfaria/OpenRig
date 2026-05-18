@@ -161,11 +161,12 @@ Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabi
 Ordem obrigatória antes de abrir PR:
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
-2. **`cargo test --workspace --lib`** verde no solver.
-3. **`git push` da branch** (sem PR ainda).
-4. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
-5. **Quality gate compartilhado** rodar e ficar verde.
-6. **Só ENTÃO** `gh pr create`.
+2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
+3. **`cargo test --workspace --lib`** verde no solver (após o clean, se houve).
+4. **`git push` da branch** (sem PR ainda).
+5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
+6. **Quality gate compartilhado** rodar e ficar verde.
+7. **Só ENTÃO** `gh pr create`.
 
 Não inverter:
 - PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.
