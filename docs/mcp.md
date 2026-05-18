@@ -1,51 +1,78 @@
 # MCP server
 
-OpenRig expõe um servidor **MCP (Model Context Protocol)** opcional. Ele **não**
-é um modo que substitui a GUI: é um servidor de rede **complementar** que liga
-na instância viva (GUI ou console). Você usa a GUI; um agente (Claude Desktop,
-Claude Code, Cursor, …) opera a **mesma rig** pelo MCP. Os dois compartilham um
-único `ProjectSession` — mudou pela GUI, o agente vê; o agente mexeu, a GUI
-reflete.
+OpenRig exposes an optional **MCP (Model Context Protocol)** server. It is
+**not** a mode that replaces the GUI: it is a **complementary network server**
+that attaches to the live instance (GUI or console). You use the GUI; an agent
+(Claude Desktop, Claude Code, Cursor, …) drives the **same rig** over MCP. Both
+share one `ProjectSession` — a change made in the GUI is seen by the agent, and
+a change made by the agent is reflected in the GUI in real time.
 
-## Habilitar
+## Enable the server
 
-Flag opt-in (ausente = servidor não sobe, zero overhead):
+Opt-in flag (absent = server does not start, zero overhead):
 
-| Forma | Efeito |
+| Form | Effect |
 |---|---|
-| `openrig --mcp` | Sobe MCP em `http://127.0.0.1:4123` (GUI continua aberta) |
-| `openrig --mcp=ADDR:PORT` | Sobe no endereço dado (ex.: `--mcp=0.0.0.0:9000`) |
-| `openrig --mcp=...` inválido | Loga o erro e **não** sobe (app segue normal) |
+| `openrig --mcp` | Starts MCP at `http://127.0.0.1:4123` (GUI stays open) |
+| `openrig --mcp=ADDR:PORT` | Starts at the given address (e.g. `--mcp=0.0.0.0:9000`) |
+| `openrig --mcp=...` invalid | Logs the error and does **not** start (app runs normally) |
 
-Vale igual no console: `adapter-console --mcp[=ADDR]`.
+Same flag on the console: `adapter-console --mcp[=ADDR]`.
 
-Transporte: **Streamable HTTP** (padrão atual de MCP). stdio fica como
+Transport: **Streamable HTTP** (the current MCP default). stdio is a
 follow-up.
 
-## Superfície
+## Surface
 
-- **Tools** — uma por variante de `Command` (schema JSON auto-derivado de
-  `application::command`; zero schema escrito à mão). O agente adiciona blocos,
-  muda parâmetros, troca preset, salva projeto, etc.
-- **Resources** (read-only): `openrig://project` (YAML do projeto atual),
-  `openrig://devices` (dispositivos de áudio).
+- **Tools** — one per `Command` variant (JSON schema auto-derived from
+  `application::command`; no hand-written schema). The agent adds blocks,
+  changes parameters, switches presets, saves the project, etc.
+- **Resources** (read-only): `openrig://project` (current project as YAML),
+  `openrig://devices` (audio devices).
 - **Prompts**: `tune_tone`, `diagnose_chain`, `build_preset`,
   `analyze_reference`.
 
-## Plugin OpenRig (recomendado p/ end-user)
+## Install the OpenRig plugin (recommended)
 
-O próprio repo é o plugin Claude (manifest na raiz: `.claude-plugin/plugin.json`
-+ `.mcp.json` → `http://127.0.0.1:4123` + `skills/openrig-tone-builder/`).
-Instalar o plugin = o cliente já conecta no `openrig --mcp` rodando, sem
-config manual, e a skill de timbre dirige a rig pelas tools.
+The repository **is** the Claude plugin. Root layout:
 
-> `.claude/skills/` no repo é só **skills de desenvolvedor** (code-quality,
-> rust/slint best-practices). Skills end-user vivem no plugin.
+```
+.claude-plugin/plugin.json        # plugin manifest
+.claude-plugin/marketplace.json   # marketplace entry (source ".")
+.mcp.json                         # declares the MCP server (http://127.0.0.1:4123)
+skills/openrig-tone-builder/      # end-user skill, bundled with the plugin
+```
 
-## Configurar um cliente (manual, sem o plugin)
+Installing the plugin auto-wires the MCP server (via `.mcp.json`) and ships
+the `openrig-tone-builder` skill — no manual client config.
 
-`claude_desktop_config.json` (ou config MCP do Claude Code), apontando para a
-instância já rodando:
+### Claude Code
+
+```
+/plugin marketplace add jpfaria/OpenRig
+/plugin install openrig@openrig
+```
+
+Then start OpenRig with the server on: `openrig --mcp`. The plugin's
+`.mcp.json` points the client at `http://127.0.0.1:4123`; the client lists one
+tool per `Command`, the `openrig://project` / `openrig://devices` resources,
+and the prompts. The `openrig-tone-builder` skill activates when you ask for an
+artist/song tone and drives the rig through the tools.
+
+### Claude Desktop
+
+Settings → **Connectors** → Add custom connector → URL
+`http://127.0.0.1:4123` (HTTP). Start OpenRig with `openrig --mcp` first.
+(The classic `command`-based config entry is stdio-only, which v1 does not
+use.)
+
+> `.claude/skills/` in the repo holds **developer** skills only
+> (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`).
+> End-user skills live in the plugin (`skills/`).
+
+## Configure a client manually (without the plugin)
+
+Point any MCP client at the running instance:
 
 ```json
 {
@@ -55,24 +82,26 @@ instância já rodando:
 }
 ```
 
-1. Abra o OpenRig com `openrig --mcp` (GUI normal + servidor).
-2. Adicione o bloco acima na config do cliente MCP.
-3. O cliente lista as tools (uma por `Command`) e os resources; pode ler o
-   estado e executar comandos que mutam a rig viva.
+1. Start OpenRig with `openrig --mcp` (normal GUI + server).
+2. Add the entry above to the MCP client config.
+3. The client lists the tools (one per `Command`) and the resources; it can
+   read state and run commands that mutate the live rig.
 
-## Nota operacional — disputa de device
+## Operational note — device contention
 
-Cada instância OpenRig que sobe áudio toma o device. Se você roda **duas**
-instâncias no **mesmo** device de áudio, elas disputam. Rode o agente contra a
-instância que já é dona do device (a GUI/console aberta), não uma segunda
-instância paralela no mesmo device.
+Every OpenRig instance that starts audio takes the device. Running **two**
+instances on the **same** audio device contends. Point the agent at the
+instance that already owns the device (the open GUI/console), not a second
+parallel instance on the same device.
 
-## Arquitetura (resumo)
+## Architecture (summary)
 
-`crates/adapter-mcp` é biblioteca frontend-agnóstica (`rmcp` 1.7.0). O frontend
-é dono do `LocalDispatcher` (`!Send`, thread do frontend); o MCP roda em thread
-própria (tokio) e atravessa a fronteira por `application::bridge` (canal `Send`
-+ `futures` oneshot). Drenado a cada tick na thread do frontend — mesmo caminho
-dos callbacks da GUI. Zero código de audio thread tocado; invariantes 1–10
-preservados por construção. Spec:
-`docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`.
+`crates/adapter-mcp` is a frontend-agnostic library (`rmcp` 1.7.0). The
+frontend owns the `LocalDispatcher` (`!Send`, on the frontend thread); the MCP
+server runs on its own tokio thread and crosses the boundary through
+`application::bridge` (a `Send` channel + `futures` oneshot). It is drained
+each tick on the frontend thread — the same path GUI callbacks use. No
+audio-thread code is touched; invariants 1–10 hold by construction.
+
+See also: [CLI & env vars](cli.md) · [Architecture](architecture.md) · design
+spec `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`.
