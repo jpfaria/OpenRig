@@ -60,7 +60,9 @@ mod vst3_editor_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
-pub use cli::{parse_cli_args_from, parse_mcp_addr, validate_project_path};
+pub use cli::{
+    parse_cli_args_from, parse_mcp_addr, parse_midi_map, validate_project_path, MidiMapArg,
+};
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
     sync_project_runtime, system_language, ui_index_to_real_block_index,
@@ -81,6 +83,7 @@ pub mod graph_view_model;
 mod helpers;
 mod io_groups;
 mod latency_probe;
+mod midi_adapter_wiring;
 mod model_search;
 mod model_search_wiring;
 mod project_ops;

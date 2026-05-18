@@ -112,6 +112,28 @@ pub fn variant_from_tool_name(tool: &str) -> Option<&'static str> {
         .find(|v| tool_name(v) == tool)
 }
 
+/// Build a typed [`Command`] from a `Command` variant name (PascalCase, as
+/// written in `midi-map.yaml`) and its JSON arguments. Single source of truth
+/// for "(name, args) → Command": reconstructs the externally-tagged form serde
+/// expects — a bare string `"Variant"` for unit variants, `{ "Variant": args }`
+/// otherwise.
+///
+/// # Errors
+/// - the variant is not a `Command` variant;
+/// - `args` does not match the variant's schema.
+pub fn command_from_variant(variant: &str, args: Value) -> anyhow::Result<Command> {
+    if !command_variant_names().contains(&variant) {
+        anyhow::bail!("unknown command: {variant}");
+    }
+    let tagged = if is_unit_variant(variant) {
+        Value::String(variant.to_string())
+    } else {
+        serde_json::json!({ variant: args })
+    };
+    serde_json::from_value(tagged)
+        .map_err(|e| anyhow::anyhow!("invalid arguments for {variant}: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +159,70 @@ mod tests {
         );
         assert_eq!(tool_name("SaveProject"), "save_project");
     }
+
+    mod command_from_variant {
+        use super::super::command_from_variant;
+        use crate::command::Command;
+
+        #[test]
+        fn builds_unit_variant_with_empty_args() {
+            let cmd = command_from_variant("SaveProject", serde_json::json!({})).unwrap();
+            assert!(matches!(cmd, Command::SaveProject));
+        }
+
+        #[test]
+        fn builds_struct_variant_from_args() {
+            let cmd = command_from_variant(
+                "ToggleBlockEnabled",
+                serde_json::json!({ "chain": "chain:a", "block": "block:b" }),
+            )
+            .unwrap();
+            match cmd {
+                Command::ToggleBlockEnabled { chain, block } => {
+                    assert_eq!(chain.0, "chain:a");
+                    assert_eq!(block.0, "block:b");
+                }
+                other => panic!("unexpected: {other:?}"),
+            }
+        }
+
+        #[test]
+        fn builds_number_variant_with_scaled_value() {
+            let cmd = command_from_variant(
+                "SetBlockParameterNumber",
+                serde_json::json!({
+                    "chain": "chain:a", "block": "block:b",
+                    "path": "gain", "value": 75.0
+                }),
+            )
+            .unwrap();
+            match cmd {
+                Command::SetBlockParameterNumber { value, path, .. } => {
+                    assert_eq!(path, "gain");
+                    assert!((value - 75.0).abs() < 1e-9);
+                }
+                other => panic!("unexpected: {other:?}"),
+            }
+        }
+
+        #[test]
+        fn rejects_unknown_command() {
+            let err = command_from_variant("Nope", serde_json::json!({}))
+                .unwrap_err()
+                .to_string();
+            assert!(err.contains("unknown command"), "{err}");
+        }
+
+        #[test]
+        fn rejects_args_not_matching_schema() {
+            // `chain` must be a string id; a number fails the schema.
+            let err = command_from_variant(
+                "ToggleBlockEnabled",
+                serde_json::json!({ "chain": 0, "block": "block:b" }),
+            )
+            .unwrap_err()
+            .to_string();
+            assert!(err.contains("invalid arguments"), "{err}");
+        }
+    }
 }
-
-

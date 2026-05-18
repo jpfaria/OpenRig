@@ -112,39 +112,42 @@ OpenRig uses (no hardcoded paths):
 - Windows: `%APPDATA%\OpenRig\midi-map.yaml`
 - Linux: `~/.config/OpenRig/midi-map.yaml`
 
+`source` is **internally tagged on `kind`** (serde_yaml does not support the
+externally-tagged map form cleanly; the `kind:` form is also closer to the original
+Phase-3 sketch). `chain`/`block` are the project's **string ids** (`ChainId(String)` /
+`BlockId(String)`), not ordinals — the `0`/`1` in the original sketch was illustrative.
+
 ```yaml
-# Selects the input device by substring match; first match wins. Omit to use the
-# system default input.
-input: "Chocolate"
+# Selects the input device by case-insensitive substring. Omit → system default.
+input: Chocolate
 
 bindings:
-  # Footswitch A → toggle bypass on chain 0 / block 2
-  - source: { kind: midi, channel: 1, note: 60, action: note_on }
+  # Footswitch A → toggle bypass
+  - source: { kind: note_on, channel: 1, note: 60 }
     command: ToggleBlockEnabled
-    args: { chain: 0, block: 2 }
+    args: { chain: "<chain-id>", block: "<block-id>" }
 
-  # Footswitch B → load a preset
-  - source: { kind: midi, program_change: 5 }
-    command: LoadProject
-    args: { path: presets/clean.yaml }
+  # Footswitch B → save the project (unit command, no args)
+  - source: { kind: program_change, program: 5 }
+    command: SaveProject
 
-  # Expression pedal CC 7 → sweep a parameter, 0..127 mapped linearly to 0.0..100.0
-  - source: { kind: midi, channel: 1, cc: 7 }
+  # Expression pedal CC 7 → sweep a parameter, 0..127 → 0.0..100.0
+  - source: { kind: cc, channel: 1, controller: 7 }
     command: SetBlockParameterNumber
-    args:
-      chain: 0
-      block: 1
-      path: gain
-      scale: { type: linear, min: 0.0, max: 100.0 }
+    args: { chain: "<chain-id>", block: "<block-id>", path: gain }
+    scale: { min: 0.0, max: 100.0 }
 ```
 
 - `command` is the `Command` variant name; `args` is its `schemars`-derived shape. The
-  same `JsonSchema` that powers MCP tools **validates the mapping at load time** — one
-  source of truth for "what a command needs", no hand-written validation in the adapter.
-- `scale` applies only to continuous sources (`cc`, pitch bend). `{ type: linear }` for
-  v1; `log` is a follow-up.
-- Parse errors are reported once at load with file/line context; the daemon refuses to
-  start on an invalid map rather than silently ignoring bindings (no silent failure).
+  same `JsonSchema` that powers MCP tools **validates the mapping at load time** via the
+  new `application::command_schema::command_from_variant` (single source of truth for
+  "(name, args) → Command", shared with — and the canonical home for — what MCP does).
+- `scale` is a **top-level** binding field (not inside `args`), `cc`-only, linear for v1
+  (`log` is a follow-up). The scaled value is written into the arg named `into` (default
+  `value`); a `cc` without `scale` passes the raw 0..=127 as `value`.
+- Validation builds every binding's `Command` (injecting a probe value for scaled
+  bindings) at load; an unknown command or schema-mismatched args is a hard error — the
+  daemon refuses to start rather than silently ignoring bindings (no silent failure).
 
 ### Frontend wiring
 
@@ -160,6 +163,25 @@ wired, same as #165.
 Watch `midi-map.yaml`; on change, re-parse and atomically swap the binding table on the
 daemon thread. Invalid reload keeps the previous table and logs the error. Not a v1
 blocker.
+
+## Implementation notes (as built)
+
+- **Crate**: `crates/adapter-midi` — `message.rs` (raw bytes → `MidiMessage`, pure),
+  `mapping.rs` (serde types + load + validate), `translate.rs` (`resolve`, pure),
+  `daemon.rs` (`run_blocking`: `midir` open + listen, the only impure layer). `lib.rs`
+  re-exports only. `midir` pinned at `0.11` (its `alsa` range `>=0.9,<0.12` resolves to
+  cpal's `alsa-sys`, avoiding the `links = "alsa"` collision that `midir 0.10` causes).
+- **Console** reuses the single existing `CommandBridge` (`cmd_bridge.clone()`); the
+  existing loop already drains. **GUI**: the MCP wiring builds its bridge *inside* its
+  own opt-in block, so `--midi` got a **parallel** bridge + drain `Timer`
+  (`midi_adapter_wiring.rs`) rather than refactoring #165's MCP block (sibling-conflict
+  risk, out of #22 scope). Two producers → two bridges → two drains, both dispatching on
+  the frontend thread sequentially per tick — correct and still zero audio-thread impact.
+  Unifying into one bridge when both flags are set is a deferred cleanup.
+- **Hot-reload**: deferred (not in this cut).
+- **Pre-existing clippy debt** in `block-core/dsp/hilbert_iir.rs` (`excessive_precision`)
+  makes the absolute `validate.sh` clippy step fail for any adapter crate; untouched by
+  #22 and ignored by the comparative quality-gate (not worsened).
 
 ---
 

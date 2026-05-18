@@ -54,8 +54,7 @@ fn main() -> Result<()> {
     // Shared project handle: the dispatcher and this loop see the same data.
     let shared = Rc::new(RefCell::new(project));
     let (sink, _events_rx) = bridge::event_sink();
-    let dispatcher =
-        PublishingDispatcher::new(LocalDispatcher::new(Rc::clone(&shared)), sink);
+    let dispatcher = PublishingDispatcher::new(LocalDispatcher::new(Rc::clone(&shared)), sink);
     let (cmd_bridge, drain) = bridge::channel();
 
     if let Some(addr) = mcp_addr {
@@ -68,6 +67,21 @@ fn main() -> Result<()> {
                 }
             })?;
         println!("=== MCP === listening on http://{addr}");
+    }
+
+    // MIDI/BLE-MIDI controller adapter (opt-in, --midi[=PATH]). Reuses the
+    // one command bridge — multiple producers, single frontend drain.
+    if let Some(map_path) = parse_midi_map()? {
+        let bridge_for_midi = cmd_bridge.clone();
+        let map_for_thread = map_path.clone();
+        thread::Builder::new()
+            .name("openrig-midi".into())
+            .spawn(move || {
+                if let Err(e) = adapter_midi::run_blocking(bridge_for_midi, &map_for_thread) {
+                    eprintln!("MIDI adapter stopped: {e}");
+                }
+            })?;
+        println!("=== MIDI === map {}", map_path.display());
     }
 
     // `streams` is RAII: kept bound for the whole loop so audio keeps running
@@ -86,18 +100,16 @@ fn main() -> Result<()> {
                 QueryKind::ProjectYaml => {
                     serialize_project(&shared.borrow()).map_err(|e| e.to_string())
                 }
-                QueryKind::Devices => {
-                    list_devices().map(|d| d.join("\n")).map_err(|e| e.to_string())
-                }
+                QueryKind::Devices => list_devices()
+                    .map(|d| d.join("\n"))
+                    .map_err(|e| e.to_string()),
             },
             64,
         );
         if handled > 0 {
             // A command mutated the project: rebuild the live graph. On a
             // validation/build error keep the previous streams running.
-            match validate_project(&shared.borrow())
-                .and_then(|_| build_streams(&shared.borrow()))
-            {
+            match validate_project(&shared.borrow()).and_then(|_| build_streams(&shared.borrow())) {
                 Ok(new_streams) => {
                     streams = new_streams;
                     println!("runtime rebuilt: streams={}", streams.len());
@@ -123,6 +135,21 @@ fn parse_mcp_addr() -> Option<SocketAddr> {
         }
     }
     None
+}
+
+/// `--midi` → per-OS default `midi-map.yaml`; `--midi=PATH` → that file;
+/// absent → `None` (adapter not started).
+fn parse_midi_map() -> Result<Option<PathBuf>> {
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--midi" {
+            return Ok(Some(infra_filesystem::FilesystemStorage::midi_map_path()?));
+        }
+        if let Some(rest) = arg.strip_prefix("--midi=") {
+            return Ok(Some(PathBuf::from(rest)));
+        }
+    }
+    Ok(None)
 }
 
 fn parse_project_path() -> PathBuf {

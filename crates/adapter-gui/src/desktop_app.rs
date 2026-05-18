@@ -42,6 +42,7 @@ pub fn run_desktop_app(
     auto_save: bool,
     fullscreen: bool,
     mcp_addr: Option<SocketAddr>,
+    midi_map: Option<crate::cli::MidiMapArg>,
 ) -> Result<()> {
     log::info!(
         "starting desktop app: runtime_mode={:?}, interaction_mode={:?}",
@@ -785,6 +786,23 @@ pub fn run_desktop_app(
         Some(timer)
     } else {
         None
+    };
+
+    // ── MIDI/BLE-MIDI controller adapter (opt-in, --midi[=PATH]) ───────────
+    // Same complementary-input pattern as MCP; wiring extracted to keep this
+    // file within the size cap. Bound for the whole `window.run()`.
+    let _midi_drain_timer = match midi_map {
+        Some(arg) => {
+            let map_path = match arg {
+                crate::cli::MidiMapArg::Default => FilesystemStorage::midi_map_path()?,
+                crate::cli::MidiMapArg::Path(p) => p,
+            };
+            Some(crate::midi_adapter_wiring::wire(
+                project_session.clone(),
+                map_path,
+            )?)
+        }
+        None => None,
     };
 
     window.run().map_err(|error| anyhow!(error.to_string()))

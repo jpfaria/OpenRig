@@ -204,6 +204,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
 - [ ] Looper, multi-layer ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [ ] MIDI / BLE-MIDI controller adapter — footswitch, expression pedal ([#22](https://github.com/jpfaria/OpenRig/issues/22))
 - [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
