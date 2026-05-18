@@ -100,12 +100,8 @@ pub enum Command {
     /// Unlike `AddBlock`, the caller is responsible for building the block
     /// (including its kind and parameters). The block's `id` is preserved
     /// as-is — the caller must supply a unique id within the chain.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     InsertPrebuiltBlock {
         chain: ChainId,
-        #[schemars(skip)]
         block: AudioBlock,
         position: usize,
     },
@@ -115,13 +111,9 @@ pub enum Command {
     /// The dispatcher locates the block by `block_id` and replaces it with
     /// the provided `replacement`. The replacement's `id` field is ignored —
     /// the original `block_id` is preserved on the stored block.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     OverwriteBlock {
         chain: ChainId,
         block: BlockId,
-        #[schemars(skip)]
         replacement: AudioBlock,
     },
 
@@ -140,13 +132,10 @@ pub enum Command {
     ///
     /// The caller supplies the fully-resolved `send` and `return_` endpoints.
     /// The dispatcher locates the block and replaces its `InsertBlock` data.
-    #[schemars(skip)]
     SaveInsertBlock {
         chain: ChainId,
         block: BlockId,
-        #[schemars(skip)]
         send: InsertEndpoint,
-        #[schemars(skip)]
         return_: InsertEndpoint,
     },
 
@@ -157,13 +146,7 @@ pub enum Command {
     /// before dispatching. Use `chain_factory::build_default_chain` as the
     /// starting point.
     ///
-    /// **Note:** `Chain` does not currently implement `JsonSchema` (it lacks
-    /// the `schemars` dependency in the `project` crate). The schema field is
-    /// skipped here; MCP/gRPC adapters that need the schema will need to add
-    /// `schemars` to `project` in a later task.
-    #[schemars(skip)]
     AddChain {
-        #[schemars(skip)]
         chain: Chain,
     },
 
@@ -171,11 +154,7 @@ pub enum Command {
     ///
     /// The caller supplies the fully-updated chain (preserving the original
     /// `chain.id` so the dispatcher can locate and replace it).
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     ConfigureChain {
-        #[schemars(skip)]
         chain: Chain,
     },
 
@@ -184,11 +163,7 @@ pub enum Command {
     /// The caller supplies the fully-constructed chain. The dispatcher uses
     /// `chain.id` to locate the existing entry and replace it in-place, or
     /// appends the chain when no existing entry with the same id is found.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     SaveChain {
-        #[schemars(skip)]
         chain: Chain,
     },
 
@@ -214,10 +189,8 @@ pub enum Command {
     /// head of the chain (inputs-first convention), and emits
     /// `ChainInputEndpointsSaved`. An empty `input_blocks` vec clears all
     /// inputs.
-    #[schemars(skip)]
     SaveChainInputEndpoints {
         chain: ChainId,
-        #[schemars(skip)]
         input_blocks: Vec<AudioBlock>,
     },
 
@@ -226,10 +199,8 @@ pub enum Command {
     /// Same pattern as `SaveChainInputEndpoints` but for the output side.
     /// The dispatcher removes all existing `OutputBlock` entries and appends
     /// the provided blocks at the tail of the chain.
-    #[schemars(skip)]
     SaveChainOutputEndpoints {
         chain: ChainId,
-        #[schemars(skip)]
         output_blocks: Vec<AudioBlock>,
     },
 
@@ -237,12 +208,9 @@ pub enum Command {
     /// (used in fullscreen I/O editor flow).
     ///
     /// The caller supplies both the updated `InputBlock` and `OutputBlock`.
-    #[schemars(skip)]
     SaveChainIo {
         chain: ChainId,
-        #[schemars(skip)]
         input_block: AudioBlock,
-        #[schemars(skip)]
         output_block: AudioBlock,
     },
 
@@ -252,10 +220,8 @@ pub enum Command {
     /// File I/O (YAML parsing) is done in the adapter before dispatching. The
     /// adapter passes the fully-parsed, I/O-stripped list of blocks. The
     /// dispatcher replaces `chain.blocks` and emits `ChainPresetLoaded`.
-    #[schemars(skip)]
     LoadChainPreset {
         chain: ChainId,
-        #[schemars(skip)]
         preset_blocks: Vec<project::block::AudioBlock>,
     },
 
@@ -272,9 +238,7 @@ pub enum Command {
     /// dispatching. The dispatcher replaces the shared project handle contents
     /// with the provided project and emits `ProjectLoaded { path }`.
     /// `path` is carried only for the event payload (not for I/O).
-    #[schemars(skip)]
     LoadProject {
-        #[schemars(skip)]
         project: project::project::Project,
         path: PathBuf,
     },
@@ -283,9 +247,7 @@ pub enum Command {
     ///
     /// The adapter constructs the new empty `Project` before dispatching. The
     /// dispatcher replaces the shared project handle and emits `ProjectCreated`.
-    #[schemars(skip)]
     CreateProject {
-        #[schemars(skip)]
         project: project::project::Project,
     },
 
@@ -308,9 +270,7 @@ pub enum Command {
     /// The adapter collects the selected device rows and resolves them to
     /// `DeviceSettings` before dispatching. The dispatcher replaces the
     /// project's `device_settings` with the provided list.
-    #[schemars(skip)]
     SaveAudioSettings {
-        #[schemars(skip)]
         device_settings: Vec<project::device::DeviceSettings>,
     },
 }

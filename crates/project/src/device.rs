@@ -20,7 +20,7 @@ fn default_nperiods() -> u32 {
     3
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DeviceSettings {
     pub device_id: DeviceId,
     pub sample_rate: u32,

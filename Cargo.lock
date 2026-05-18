@@ -780,6 +780,7 @@ dependencies = [
  "arc-swap",
  "domain",
  "log",
+ "schemars 0.8.22",
  "serde",
  "serde_json",
 ]
@@ -4802,6 +4803,7 @@ dependencies = [
  "log",
  "nam",
  "plugin-loader",
+ "schemars 0.8.22",
  "serde",
  "vst3-host",
 ]

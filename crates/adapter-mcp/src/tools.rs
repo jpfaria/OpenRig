@@ -70,12 +70,39 @@ mod tests {
     use super::*;
     use application::command_schema::command_variant_names;
 
+    /// `Command` has exactly this many variants. If you add/remove one,
+    /// update this AND ensure its payload types derive `JsonSchema`
+    /// (otherwise the variant silently drops from the schema → no tool).
+    const COMMAND_VARIANT_COUNT: usize = 30;
+
     #[test]
-    fn parity_guard_one_tool_per_command_variant() {
-        assert_eq!(tools().len(), command_variant_names().len());
-        // every tool name resolves back to a real variant
+    fn parity_guard_every_command_variant_is_a_tool() {
+        // Honest guard: the schema-derived tool set must cover ALL Command
+        // variants, not just the schemars-describable subset. Catches the
+        // #[schemars(skip)] regression (issue #489).
+        assert_eq!(
+            command_variant_names().len(),
+            COMMAND_VARIANT_COUNT,
+            "schema-derived variants != Command variants — a payload type \
+             is missing JsonSchema (see #489)"
+        );
+        assert_eq!(tools().len(), COMMAND_VARIANT_COUNT);
         for t in tools() {
             assert!(variant_from_tool_name(&t.name).is_some(), "{}", t.name);
+        }
+        // Spot-check variants that were #[schemars(skip)]'d before #489.
+        for v in [
+            "AddChain",
+            "ConfigureChain",
+            "SaveChain",
+            "LoadProject",
+            "CreateProject",
+            "SaveAudioSettings",
+        ] {
+            assert!(
+                command_variant_names().contains(&v),
+                "{v} missing from schema — JsonSchema not derived on its payload"
+            );
         }
     }
 
