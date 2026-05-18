@@ -39,7 +39,14 @@ pub fn tools() -> Vec<Tool> {
 pub fn build_command(tool: &str, args: Value) -> Result<Command> {
     let variant = variant_from_tool_name(tool)
         .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
-    let tagged = json!({ variant: args });
+    // serde externally-tagged: unit variant = bare string `"Variant"`;
+    // struct variant = `{ "Variant": <args> }`. MCP clients send `{}` for
+    // no-arg tools, which serde rejects for a unit variant.
+    let tagged = if application::command_schema::is_unit_variant(variant) {
+        Value::String(variant.to_string())
+    } else {
+        json!({ variant: args })
+    };
     serde_json::from_value(tagged)
         .map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
 }
@@ -75,6 +82,15 @@ mod tests {
     #[test]
     fn build_command_maps_unit_variant() {
         let cmd = build_command("save_project", Value::Null).unwrap();
+        assert!(matches!(cmd, Command::SaveProject));
+    }
+
+    #[test]
+    fn build_command_unit_variant_with_empty_object_args() {
+        // MCP clients send `arguments: {}` for a no-arg tool; serde's
+        // externally-tagged unit variant rejects a map, so build_command
+        // must emit the bare string for unit variants.
+        let cmd = build_command("save_project", serde_json::json!({})).unwrap();
         assert!(matches!(cmd, Command::SaveProject));
     }
 
