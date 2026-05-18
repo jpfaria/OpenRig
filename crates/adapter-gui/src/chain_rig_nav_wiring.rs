@@ -157,18 +157,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         window.on_switch_chain_preset(move |chain_index, slot| {
             if let Some(window) = weak.upgrade() {
                 reproject(&window, &ctx, chain_index, |rig, input| {
-                    if slot < 0 {
-                        // Sentinel from the "+" button: add a preset
-                        // (it becomes active) and project it.
-                        rig.add_preset_to_input(input)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, None, None)
-                    } else {
-                        // `slot` is the ComboBox POSITION; map it to the
-                        // real bank key (they diverge once "+" makes the
-                        // bank sparse) before switching.
-                        let key = crate::chain_rig_nav::preset_slot_at(rig, input, slot as usize)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, Some(key), None)
-                    }
+                    // The click is mapped to a tested RigCommand (the
+                    // mapper + apply are unit-tested), then the active
+                    // state is projected. No sentinel logic inline.
+                    project::rig_command::rig_command_from_select(input, slot).apply(rig)?;
+                    engine::rig_runtime::switch_and_project_input(rig, input, None, None)
                 });
             }
         });
@@ -179,24 +172,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
                 reproject(&window, &ctx, chain_index, |rig, input| {
-                    if scene == -1 {
-                        // Sentinel from the scene "+" button: add the
-                        // next scene (it becomes active) and project it.
-                        let added = rig.add_scene_to_input(input)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, None, Some(added))
-                    } else if scene == -2 {
-                        // Sentinel from the scene "−" button: pop the
-                        // last scene; project the (clamped) active one.
-                        let now = rig.remove_last_scene_from_input(input)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, None, Some(now))
-                    } else {
-                        engine::rig_runtime::switch_and_project_input(
-                            rig,
-                            input,
-                            None,
-                            Some(scene as usize),
-                        )
-                    }
+                    // Click → tested RigCommand (mapper + apply are
+                    // unit-tested) → project the resulting active state.
+                    project::rig_command::rig_command_from_scene(input, scene).apply(rig)?;
+                    engine::rig_runtime::switch_and_project_input(rig, input, None, None)
                 });
             }
         });

@@ -321,6 +321,42 @@ impl RigProject {
         Some(next)
     }
 
+    /// Replace the active preset's base blocks when `blocks` is a
+    /// **structural** change (different block ids/order/count vs the
+    /// preset's base) — e.g. a preset was loaded over the slot, or
+    /// blocks were added/removed/reordered. `write_back_processing_blocks`
+    /// is diff-only (param/bypass keyed by block id) and silently drops
+    /// such edits, so they never persisted. Scenes/scene-params reference
+    /// the OLD structure, so they are reset. Returns `true` when it
+    /// replaced (the caller then skips the per-scene diff write-back for
+    /// this input). No-op / `false` if the input/preset is unknown or
+    /// the structure is identical (id-for-id) — that path stays diff-only.
+    pub fn replace_preset_blocks_if_structural(
+        &mut self,
+        input: &str,
+        blocks: &[AudioBlock],
+    ) -> bool {
+        let Some(preset_name) = self
+            .inputs
+            .get(input)
+            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
+        else {
+            return false;
+        };
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return false;
+        };
+        let same_structure = preset.blocks.len() == blocks.len()
+            && preset.blocks.iter().zip(blocks).all(|(a, b)| a.id == b.id);
+        if same_structure {
+            return false;
+        }
+        preset.blocks = blocks.to_vec();
+        preset.scenes.clear();
+        preset.scene_params.clear();
+        true
+    }
+
     /// Remove the **last** scene of `input`'s active preset (stack pop,
     /// mirrors [`Self::add_scene_to_input`]). Keeps scene indices a
     /// dense `1..=scene_count` range. The single remaining scene can't

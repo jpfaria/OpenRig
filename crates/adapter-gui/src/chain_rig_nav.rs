@@ -27,7 +27,14 @@ pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
             .cloned()
             .collect();
-        rig.write_back_processing_blocks(input, processing);
+        // Structural change (preset loaded over the slot / blocks
+        // added-removed-reordered) replaces the preset base; otherwise
+        // it's a per-scene param/bypass diff. Without the structural
+        // branch a loaded preset never persisted — its new block ids
+        // matched nothing in the diff base.
+        if !rig.replace_preset_blocks_if_structural(input, &processing) {
+            rig.write_back_processing_blocks(input, processing);
+        }
         rig.write_back_chain_volume(input, chain.volume);
     }
 }
@@ -57,6 +64,11 @@ pub(crate) struct RigNavRow {
 /// "+" add-preset produces: key = max+1). Uses the SAME ascending
 /// `bank.keys()` ordering `rig_nav_rows` exposes, so position N here is
 /// the same row the user clicked. `None` ⇒ unknown input or out of range.
+///
+/// Production now routes this through `project::rig_command::RigCommand`
+/// (`SwitchPreset` does the same position→key map, unit-tested there);
+/// kept test-only as the focused regression check for that mapping.
+#[cfg(test)]
 pub(crate) fn preset_slot_at(rig: &RigProject, input: &str, position: usize) -> Option<usize> {
     rig.inputs.get(input)?.bank.keys().nth(position).copied()
 }

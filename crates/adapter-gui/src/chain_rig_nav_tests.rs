@@ -123,6 +123,63 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     assert_eq!(rows[0].preset_labels[3], "added");
 }
 
+// User repro (#436), steps 3–7: select "New Preset 2" (clone of the
+// guitar preset), LOAD a saved preset over it (different blocks), SAVE.
+// Reopen → "New Preset 2" must hold the LOADED blocks, not the guitar's.
+// Mirrors the real path: load replaces the synthetic chain's processing
+// blocks; save runs sync_synthetic_into_rig; reopen projects the rig.
+#[test]
+fn loading_a_preset_over_a_rig_slot_persists_its_blocks_on_save() {
+    use domain::ids::BlockId;
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::param::ParameterSet;
+
+    let blk = |id: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "volume".into(),
+            params: ParameterSet::default(),
+        }),
+    };
+    let mut r = rig();
+    // The guitar preset has its own blocks; "New Preset 2" is a clone.
+    r.presets.get_mut("clean").unwrap().blocks = vec![blk("G1"), blk("G2")];
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean (guitar)
+    let slot = r.add_preset_to_input("input-1").expect("New Preset added");
+    let new_name = r.inputs["input-1"].bank[&slot].clone();
+
+    // Step 4: load a saved preset OVER the active slot — the synthetic
+    // chain's processing blocks become the loaded preset's (different).
+    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
+        c.blocks
+            .retain(|b| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+        c.blocks.push(blk("LOADED"));
+    }
+
+    // Step 5: save → the rig persistence path the GUI runs.
+    super::sync_synthetic_into_rig(&mut r, &proj);
+
+    // Step 6–7: reopen → project the rig; the slot must show LOADED.
+    let reopened = rig_to_legacy_project(&r, &BTreeSet::new());
+    let ids: Vec<String> = reopened.chains[0]
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Core(_) => Some(b.id.0.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        ids,
+        vec!["LOADED"],
+        "'{new_name}' must hold the LOADED preset, not the guitar blocks \
+         (got {ids:?})"
+    );
+}
+
 // What the user demanded: a unit test proving that switching the preset
 // SELECT actually changes the projected chain. clean → block "A",
 // drive → block "B"; picking the other ComboBox row must swap the
