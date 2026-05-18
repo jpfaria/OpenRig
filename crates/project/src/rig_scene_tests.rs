@@ -112,6 +112,27 @@ fn add_scene_caps_at_eight() {
     assert_eq!(p.inputs["input-1"].active_scene, 8, "stays on last");
 }
 
+// User repro (#436): on a preset with 2 scenes, "add preset" kept 2
+// scenes — a brand-new preset must start with a single (Default) scene.
+#[test]
+fn add_preset_starts_with_one_scene_even_if_source_has_many() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.add_scene_to_input("input-1"); // "p" now has 2 scenes
+    assert_eq!(p.presets["p"].scene_count(), 2, "source preset has 2");
+
+    let slot = p.add_preset_to_input("input-1").expect("preset added");
+    let new_name = p.inputs["input-1"].bank[&slot].clone();
+    assert_eq!(
+        p.presets[&new_name].scene_count(),
+        1,
+        "a new preset starts fresh with a single scene"
+    );
+    assert_eq!(
+        p.inputs["input-1"].active_scene, 1,
+        "and the active scene resets to 1"
+    );
+}
+
 #[test]
 fn add_scene_unknown_input_is_none() {
     let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);

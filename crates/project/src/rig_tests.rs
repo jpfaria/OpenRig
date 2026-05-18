@@ -492,3 +492,38 @@ fn add_preset_to_empty_bank_uses_slot_1() {
     assert_eq!(p.inputs["input-1"].active_preset, 1);
     assert_eq!(p.presets.len(), 1, "a blank preset was created");
 }
+
+// User repro (#436): there was no way to remove a preset (only the
+// whole chain). Remove the active preset from the input's bank; the
+// last remaining preset can't be removed; an orphaned pool entry (no
+// bank references it) is dropped.
+#[test]
+fn remove_active_preset_drops_it_and_reactivates_another() {
+    let mut p = project_with(
+        vec![("input-1", input(&[(1, "a"), (2, "b")], 2))],
+        &["a", "b"],
+    );
+    let now = p.remove_preset_from_input("input-1").expect("removed");
+    assert_eq!(now, 1, "falls back to the remaining slot");
+    let ri = &p.inputs["input-1"];
+    assert!(
+        !ri.bank.values().any(|n| n == "b"),
+        "b unbanked: {:?}",
+        ri.bank
+    );
+    assert_eq!(ri.active_preset, 1);
+    assert!(!p.presets.contains_key("b"), "orphan pool entry dropped");
+    assert!(p.presets.contains_key("a"), "still-referenced preset kept");
+
+    assert_eq!(
+        p.remove_preset_from_input("input-1"),
+        None,
+        "can't remove the only remaining preset"
+    );
+}
+
+#[test]
+fn remove_preset_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "a")], 1))], &["a"]);
+    assert_eq!(p.remove_preset_from_input("nope"), None);
+}

@@ -123,6 +123,35 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     assert_eq!(rows[0].preset_labels[3], "added");
 }
 
+// User repro (#436): clicking a scene gives NO save option. The dirty
+// check compares `serialize_project(session.project)` (the projected
+// LEGACY Project) before/after. Switching active_scene must register as
+// a change there — otherwise Save never lights up and the selected
+// scene can't be persisted. With a scene that projects identically the
+// snapshot is byte-equal ⇒ not dirty ⇒ "não me deu a opção de salvar".
+#[test]
+fn switching_scene_changes_the_dirty_snapshot() {
+    let mut r = rig(); // input-1 active_scene 4
+    r.add_scene_to_input("input-1"); // scene exists; active moves
+    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
+
+    // The dirty seam the GUI actually uses for a rig session.
+    let snap = |r: &RigProject| {
+        crate::project_ops::dirty_snapshot(&rig_to_legacy_project(r, &BTreeSet::new()), Some(r))
+            .expect("snapshot")
+    };
+    let before = snap(&r);
+
+    // The user clicks scene 2.
+    r.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let after = snap(&r);
+
+    assert_ne!(
+        before, after,
+        "switching scene must change the dirty snapshot so Save is offered"
+    );
+}
+
 // User repro (#436): open the guitar input, ADD a 2nd capture source
 // (device + ch1), SAVE, reopen → the input must now have BOTH sources.
 // Mirrors the rig save path (the Input block carries input.sources;
