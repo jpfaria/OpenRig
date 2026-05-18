@@ -34,11 +34,10 @@ follow-up.
 
 ## Plugin OpenRig (recomendado p/ end-user)
 
-`plugin/openrig/` é o plugin Claude empacotado: declara este servidor MCP
-(`.mcp.json` → `http://127.0.0.1:4123`) e traz a skill end-user
-`openrig-tone-builder`. Instalar o plugin = o cliente já conecta no
-`openrig --mcp` rodando, sem config manual, e a skill de timbre dirige a rig
-pelas tools.
+O próprio repo é o plugin Claude (manifest na raiz: `.claude-plugin/plugin.json`
++ `.mcp.json` → `http://127.0.0.1:4123` + `skills/openrig-tone-builder/`).
+Instalar o plugin = o cliente já conecta no `openrig --mcp` rodando, sem
+config manual, e a skill de timbre dirige a rig pelas tools.
 
 > `.claude/skills/` no repo é só **skills de desenvolvedor** (code-quality,
 > rust/slint best-practices). Skills end-user vivem no plugin.
