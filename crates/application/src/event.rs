@@ -103,3 +103,65 @@ pub enum Event {
     /// An error occurred while processing a command.
     Error { message: String },
 }
+
+impl Event {
+    /// The chain this event affected, if any. Project-wide events
+    /// (`ProjectSaved`, `ProjectMutated`, …) return `None`. Used by the
+    /// MIDI/MCP drain to re-sync exactly the chains a footswitch touched.
+    pub fn chain(&self) -> Option<&ChainId> {
+        match self {
+            Event::ChainReloaded { chain }
+            | Event::BlockParameterChanged { chain, .. }
+            | Event::BlockEnabledChanged { chain, .. }
+            | Event::BlockReplaced { chain, .. }
+            | Event::BlockAdded { chain, .. }
+            | Event::BlockRemoved { chain, .. }
+            | Event::DeviceChanged { chain, .. }
+            | Event::ChainAdded { chain }
+            | Event::ChainRemoved { chain }
+            | Event::ChainEnabledChanged { chain, .. }
+            | Event::ChainMoved { chain, .. }
+            | Event::ChainConfigured { chain }
+            | Event::ChainSaved { chain }
+            | Event::ChainInputEndpointsSaved { chain }
+            | Event::ChainOutputEndpointsSaved { chain }
+            | Event::ChainIoSaved { chain }
+            | Event::InsertBlockSaved { chain, .. }
+            | Event::ChainPresetLoaded { chain }
+            | Event::ChainVolumeChanged { chain, .. } => Some(chain),
+            Event::ProjectMutated
+            | Event::AudioSettingsSaved
+            | Event::ProjectLoaded
+            | Event::ProjectSaved
+            | Event::ProjectCreated
+            | Event::Error { .. } => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chain_accessor_returns_the_affected_chain() {
+        // The MIDI/MCP refresh needs to know which chain each event
+        // touched so it can re-sync that chain's live runtime.
+        let c = ChainId("rig:guitar".into());
+        assert_eq!(
+            Event::ChainReloaded { chain: c.clone() }.chain(),
+            Some(&c)
+        );
+        assert_eq!(
+            Event::ChainVolumeChanged {
+                chain: c.clone(),
+                value: 80.0
+            }
+            .chain(),
+            Some(&c)
+        );
+        // Project-wide events carry no chain.
+        assert_eq!(Event::ProjectSaved.chain(), None);
+        assert_eq!(Event::ProjectMutated.chain(), None);
+    }
+}
