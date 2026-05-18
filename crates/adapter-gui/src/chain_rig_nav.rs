@@ -7,30 +7,13 @@
 //! scene, in the SAME order as `project.chains` so the Slint row at
 //! index `i` reads `rows[i]`. No Slint, no I/O — fully testable.
 
-use project::block::AudioBlockKind;
 use project::project::Project;
 use project::rig::RigProject;
 
-/// Write every rig chain's edited processing blocks **and chain volume**
-/// back into the rig's active preset, per active scene, so edits made on
-/// the projected synthetic chains survive re-projection and are saved to
-/// `project.openrig`. Non-rig chains are ignored. Pure; mirrors
-/// `rig_to_chains` in reverse.
-pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
-    for chain in &project.chains {
-        let Some(input) = chain.id.0.strip_prefix("rig:") else {
-            continue;
-        };
-        let processing: Vec<_> = chain
-            .blocks
-            .iter()
-            .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-            .cloned()
-            .collect();
-        rig.write_back_processing_blocks(input, processing);
-        rig.write_back_chain_volume(input, chain.volume);
-    }
-}
+// #436 architectural fix: the synthetic→rig capture moved to the
+// `project` crate so the dispatcher can run it too. Re-exported here so
+// existing callers/tests (`super::sync_synthetic_into_rig`) don't move.
+pub(crate) use project::rig_sync::sync_synthetic_into_rig;
 
 /// One chain's rig preset/scene navigation state. Empty `preset_labels`
 /// ⇒ not a rig chain (or input vanished) → the UI hides the selectors.
@@ -57,6 +40,11 @@ pub(crate) struct RigNavRow {
 /// "+" add-preset produces: key = max+1). Uses the SAME ascending
 /// `bank.keys()` ordering `rig_nav_rows` exposes, so position N here is
 /// the same row the user clicked. `None` ⇒ unknown input or out of range.
+///
+/// Production now routes this through `project::rig_command::RigCommand`
+/// (`SwitchPreset` does the same position→key map, unit-tested there);
+/// kept test-only as the focused regression check for that mapping.
+#[cfg(test)]
 pub(crate) fn preset_slot_at(rig: &RigProject, input: &str, position: usize) -> Option<usize> {
     rig.inputs.get(input)?.bank.keys().nth(position).copied()
 }
@@ -100,3 +88,7 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
 #[cfg(test)]
 #[path = "chain_rig_nav_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chain_rig_nav_repro_tests.rs"]
+mod repro_tests;

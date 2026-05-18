@@ -493,93 +493,58 @@ fn add_preset_to_empty_bank_uses_slot_1() {
     assert_eq!(p.presets.len(), 1, "a blank preset was created");
 }
 
-// #436 — scenes are added incrementally (a preset normally has just
-// scene 1; the user adds 2, 3…). It makes no sense to force 8.
+// User repro (#436): there was no way to remove a preset (only the
+// whole chain). Remove the active preset from the input's bank; the
+// last remaining preset can't be removed; an orphaned pool entry (no
+// bank references it) is dropped.
 #[test]
-fn scene_count_is_one_with_no_scenes_else_highest_index() {
-    let mut pr = RigPreset::from_legacy_blocks(vec![], 100.0);
-    assert_eq!(pr.scene_count(), 1, "implicit single Default scene");
-    pr.scenes.insert(2, RigScene::default());
-    assert_eq!(pr.scene_count(), 2);
-    pr.scenes.insert(5, RigScene::default());
-    assert_eq!(pr.scene_count(), 5, "highest defined index");
-}
-
-// #436 — chain volume is PER SCENE. A scene with no override inherits
-// the preset volume; an override wins only for that scene.
-#[test]
-fn scene_volume_overrides_preset_only_for_that_scene() {
-    let mut pr = RigPreset::from_legacy_blocks(vec![], 80.0);
-    assert_eq!(pr.scene_volume(1), 80.0, "no override → preset volume");
-    pr.scenes.insert(
-        2,
-        RigScene {
-            volume: Some(100.0),
-            ..RigScene::default()
-        },
+fn remove_active_preset_drops_it_and_reactivates_another() {
+    let mut p = project_with(
+        vec![("input-1", input(&[(1, "a"), (2, "b")], 2))],
+        &["a", "b"],
     );
-    assert_eq!(pr.scene_volume(2), 100.0, "scene 2 override");
-    assert_eq!(pr.scene_volume(1), 80.0, "scene 1 still preset volume");
-}
-
-#[test]
-fn add_scene_to_input_appends_next_index_snapshots_active_and_activates() {
-    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
-    // Author a per-scene volume on the active scene (1) so we can prove
-    // the new scene starts as an INDEPENDENT snapshot of it.
-    p.write_back_chain_volume("input-1", 70.0);
-
-    let idx = p.add_scene_to_input("input-1").expect("scene added");
-    assert_eq!(idx, 2, "next scene index");
-    assert_eq!(p.inputs["input-1"].active_scene, 2, "new scene is active");
-    let pr = p.presets.get("p").unwrap();
-    assert_eq!(pr.scene_count(), 2);
-    assert_eq!(pr.scene_volume(2), 70.0, "snapshot of scene 1 at add time");
-
-    // Editing scene 2 must not bleed into scene 1 (independent snapshot).
-    p.write_back_chain_volume("input-1", 100.0);
-    let pr = p.presets.get("p").unwrap();
-    assert_eq!(pr.scene_volume(2), 100.0, "scene 2 edited");
-    assert_eq!(pr.scene_volume(1), 70.0, "scene 1 KEEPS its own volume");
-}
-
-#[test]
-fn add_scene_caps_at_eight() {
-    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
-    for expected in 2..=8 {
-        assert_eq!(p.add_scene_to_input("input-1"), Some(expected));
-    }
-    assert_eq!(p.add_scene_to_input("input-1"), None, "8 is the max");
-    assert_eq!(p.inputs["input-1"].active_scene, 8, "stays on last");
-}
-
-#[test]
-fn add_scene_unknown_input_is_none() {
-    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
-    assert_eq!(p.add_scene_to_input("nope"), None);
-}
-
-#[test]
-fn write_back_chain_volume_is_per_active_scene_only() {
-    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
-    p.add_scene_to_input("input-1"); // now on scene 2
-    p.write_back_chain_volume("input-1", 100.0); // scene 2 = 100
-    p.inputs.get_mut("input-1").unwrap().active_scene = 1;
-    p.write_back_chain_volume("input-1", 50.0); // scene 1 = 50
-
-    let pr = p.presets.get("p").unwrap();
-    assert_eq!(pr.scene_volume(1), 50.0);
-    assert_eq!(
-        pr.scene_volume(2),
-        100.0,
-        "scene 2 untouched by scene 1 edit"
+    let now = p.remove_preset_from_input("input-1").expect("removed");
+    assert_eq!(now, 1, "falls back to the remaining slot");
+    let ri = &p.inputs["input-1"];
+    assert!(
+        !ri.bank.values().any(|n| n == "b"),
+        "b unbanked: {:?}",
+        ri.bank
     );
-    // Back at the preset default clears the override (no stale snapshot).
-    p.write_back_chain_volume("input-1", 100.0);
-    let pr = p.presets.get("p").unwrap();
+    assert_eq!(ri.active_preset, 1);
+    assert!(!p.presets.contains_key("b"), "orphan pool entry dropped");
+    assert!(p.presets.contains_key("a"), "still-referenced preset kept");
+
     assert_eq!(
-        pr.scenes.get(&1).and_then(|s| s.volume),
+        p.remove_preset_from_input("input-1"),
         None,
-        "value == preset volume clears the per-scene override"
+        "can't remove the only remaining preset"
     );
+}
+
+#[test]
+fn remove_preset_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "a")], 1))], &["a"]);
+    assert_eq!(p.remove_preset_from_input("nope"), None);
+}
+
+// User repro (#436): deleting a chain didn't update the view — the
+// chain came back (rig session re-projects every input). Deleting a
+// rig chain must remove the RigInput; its presets are dropped from the
+// pool when no other input references them. Unknown input ⇒ false.
+#[test]
+fn remove_input_drops_it_and_orphaned_presets() {
+    let mut p = project_with(
+        vec![
+            ("in-a", input(&[(1, "a")], 1)),
+            ("in-b", input(&[(1, "b")], 1)),
+        ],
+        &["a", "b"],
+    );
+    assert!(p.remove_input("in-b"), "removed");
+    assert!(!p.inputs.contains_key("in-b"), "input gone");
+    assert!(p.inputs.contains_key("in-a"), "other input kept");
+    assert!(!p.presets.contains_key("b"), "orphaned preset dropped");
+    assert!(p.presets.contains_key("a"), "still-referenced preset kept");
+    assert!(!p.remove_input("nope"), "unknown input → false");
 }

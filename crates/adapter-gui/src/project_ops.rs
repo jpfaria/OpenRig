@@ -315,12 +315,37 @@ pub(crate) fn load_project_session(
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
     );
-    session.rig = Some(std::rc::Rc::new(std::cell::RefCell::new(rig)));
+    let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
+    // #436: the dispatcher owns the rig so rig-nav goes through Command
+    // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
+    session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
+    session.rig = Some(rig);
     Ok(session)
 }
 
+/// The dirty-detection fingerprint. For a rig session the saved artifact
+/// is the `.openrig` (the `RigProject`), so the fingerprint MUST include
+/// it — switching preset/scene or editing sources often projects an
+/// identical legacy `Project` (e.g. a scene with no overrides), so a
+/// legacy-only snapshot would never flip dirty and Save would never be
+/// offered ("cliquei numa scene e não deu opção de salvar"). Pure.
+pub(crate) fn dirty_snapshot(
+    project: &project::project::Project,
+    rig: Option<&project::rig::RigProject>,
+) -> Result<String> {
+    let legacy = infra_yaml::serialize_project(project)?;
+    match rig {
+        Some(rig) => Ok(format!(
+            "{legacy}\n---openrig---\n{}",
+            infra_yaml::serialize_rig_project(rig)?
+        )),
+        None => Ok(legacy),
+    }
+}
+
 pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    infra_yaml::serialize_project(&*session.project.borrow())
+    let rig = session.rig.as_ref().map(|r| r.borrow());
+    dirty_snapshot(&session.project.borrow(), rig.as_deref())
 }
 
 pub(crate) fn set_project_dirty(

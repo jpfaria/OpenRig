@@ -280,17 +280,24 @@ impl RigProject {
     pub fn add_preset_to_input(&mut self, input: &str) -> Option<usize> {
         let ri = self.inputs.get(input)?;
         let slot = ri.bank.keys().max().map(|m| m + 1).unwrap_or(1);
-        let template = ri
+        // A new preset starts FRESH: the sound (blocks + volume) is
+        // cloned from the active preset as a starting point, but it
+        // gets a single Default scene — scenes/scene-params are NOT
+        // inherited (a preset with 2 scenes must not spawn one with 2).
+        let source = ri
             .bank
             .get(&ri.active_preset)
-            .and_then(|n| self.presets.get(n))
-            .cloned()
-            .unwrap_or_else(|| RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+            .and_then(|n| self.presets.get(n));
+        let template = RigPreset::from_legacy_blocks(
+            source.map(|p| p.blocks.clone()).unwrap_or_default(),
+            source.map(|p| p.volume).unwrap_or(100.0),
+        );
         let name = self.unique_preset_name("New Preset");
         self.presets.insert(name.clone(), template);
         let ri = self.inputs.get_mut(input)?;
         ri.bank.insert(slot, name);
         ri.active_preset = slot;
+        ri.active_scene = 1;
         Some(slot)
     }
 
@@ -319,6 +326,117 @@ impl RigProject {
         preset.scenes.insert(next, snapshot);
         self.inputs.get_mut(input)?.active_scene = next;
         Some(next)
+    }
+
+    /// Remove an entire input (a "chain" on the legacy screen). Presets
+    /// it banked are dropped from the shared pool unless another input
+    /// still references them. Returns `true` if the input existed —
+    /// `false` is a no-op (so the GUI can ignore a stale delete).
+    pub fn remove_input(&mut self, input: &str) -> bool {
+        if self.inputs.remove(input).is_none() {
+            return false;
+        }
+        let inputs = &self.inputs;
+        self.presets
+            .retain(|name, _| inputs.values().any(|i| i.bank.values().any(|n| n == name)));
+        true
+    }
+
+    /// Remove the **active** preset from `input`'s bank. The last
+    /// remaining preset can't be removed (a bank must keep ≥ 1). The
+    /// largest remaining slot becomes active. If the removed preset name
+    /// is no longer referenced by ANY input bank, it's dropped from the
+    /// shared pool (no orphan). Returns the new active slot, or `None`
+    /// if the input is unknown or only one preset remains.
+    pub fn remove_preset_from_input(&mut self, input: &str) -> Option<usize> {
+        let ri = self.inputs.get(input)?;
+        if ri.bank.len() <= 1 {
+            return None;
+        }
+        let active = ri.active_preset;
+        let removed_name = ri.bank.get(&active)?.clone();
+        let ri = self.inputs.get_mut(input)?;
+        ri.bank.remove(&active);
+        let new_active = *ri.bank.keys().max()?;
+        ri.active_preset = new_active;
+        ri.active_scene = 1;
+        // Drop the pool entry only if nothing references it anymore.
+        let still_used = self
+            .inputs
+            .values()
+            .any(|i| i.bank.values().any(|n| *n == removed_name));
+        if !still_used {
+            self.presets.remove(&removed_name);
+        }
+        Some(new_active)
+    }
+
+    /// Persist edited capture sources back into `input` (the synthetic
+    /// chain's Input block carries `RigInput.sources`; an edit there must
+    /// survive save/re-projection). No-op if the input is unknown.
+    pub fn set_input_sources(&mut self, input: &str, sources: Vec<InputEntry>) {
+        if let Some(ri) = self.inputs.get_mut(input) {
+            ri.sources = sources;
+        }
+    }
+
+    /// Replace the active preset's base blocks when `blocks` is a
+    /// **structural** change (different block ids/order/count vs the
+    /// preset's base) — e.g. a preset was loaded over the slot, or
+    /// blocks were added/removed/reordered. `write_back_processing_blocks`
+    /// is diff-only (param/bypass keyed by block id) and silently drops
+    /// such edits, so they never persisted. Scenes/scene-params reference
+    /// the OLD structure, so they are reset. Returns `true` when it
+    /// replaced (the caller then skips the per-scene diff write-back for
+    /// this input). No-op / `false` if the input/preset is unknown or
+    /// the structure is identical (id-for-id) — that path stays diff-only.
+    pub fn replace_preset_blocks_if_structural(
+        &mut self,
+        input: &str,
+        blocks: &[AudioBlock],
+    ) -> bool {
+        let Some(preset_name) = self
+            .inputs
+            .get(input)
+            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
+        else {
+            return false;
+        };
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return false;
+        };
+        let same_structure = preset.blocks.len() == blocks.len()
+            && preset.blocks.iter().zip(blocks).all(|(a, b)| a.id == b.id);
+        if same_structure {
+            return false;
+        }
+        preset.blocks = blocks.to_vec();
+        preset.scenes.clear();
+        preset.scene_params.clear();
+        true
+    }
+
+    /// Remove the **last** scene of `input`'s active preset (stack pop,
+    /// mirrors [`Self::add_scene_to_input`]). Keeps scene indices a
+    /// dense `1..=scene_count` range. The single remaining scene can't
+    /// be removed. Returns the (possibly clamped) active scene, or
+    /// `None` if the input/preset is unknown or only one scene exists.
+    pub fn remove_last_scene_from_input(&mut self, input: &str) -> Option<usize> {
+        let preset_name = self
+            .inputs
+            .get(input)
+            .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())?;
+        let preset = self.presets.get_mut(&preset_name)?;
+        let last = preset.scene_count();
+        if last <= 1 {
+            return None;
+        }
+        preset.scenes.remove(&last);
+        let ri = self.inputs.get_mut(input)?;
+        if ri.active_scene >= last {
+            ri.active_scene = last - 1;
+        }
+        Some(ri.active_scene)
     }
 
     /// Persist the chain volume edited on the projected synthetic chain
@@ -442,3 +560,7 @@ impl RigProject {
 #[cfg(test)]
 #[path = "rig_tests.rs"]
 mod rig_tests;
+
+#[cfg(test)]
+#[path = "rig_scene_tests.rs"]
+mod rig_scene_tests;

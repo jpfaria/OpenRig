@@ -12,6 +12,9 @@ use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
+use application::command::{Command, RigNavKind};
+use application::dispatcher::CommandDispatcher;
+
 use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
@@ -73,61 +76,46 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
     window.set_chain_rig_nav(ModelRc::new(VecModel::from(items)));
 }
 
-/// Capture pending edits, run `project` to mutate+re-project the rig
-/// input behind `chain_index`, swap the rebuilt synthetic chain in
-/// place, re-sync the runtime and refresh both models. Every per-chain
-/// rig action (preset switch, scene switch, add preset) is one closure.
-fn reproject(
-    window: &AppWindow,
-    ctx: &ChainRigNavCtx,
-    chain_index: i32,
-    project: impl FnOnce(&mut project::rig::RigProject, &str) -> Option<project::chain::Chain>,
-) {
+/// #436: the GUI carries NO rig business logic. It resolves the
+/// synthetic chain id, dispatches `Command::ApplyRigNav` (the
+/// dispatcher owns the rig and does capture→apply→re-project→swap),
+/// then refreshes the UI and the live runtime from the shared
+/// `Project`. Non-rig / missing chain ⇒ no-op.
+fn reproject(window: &AppWindow, ctx: &ChainRigNavCtx, chain_index: i32, kind: RigNavKind) {
     let mut session_borrow = ctx.project_session.borrow_mut();
     let Some(session) = session_borrow.as_mut() else {
         return;
     };
-    let Some(rig) = session.rig.clone() else {
-        return;
-    };
 
-    // chain index → synthetic chain id → rig input name.
-    let (chain_id, input) = {
+    let chain_id = {
         let proj = session.project.borrow();
         let Some(chain) = proj.chains.get(chain_index as usize) else {
             return;
         };
-        let Some(name) = chain.id.0.strip_prefix("rig:") else {
+        if chain.id.0.strip_prefix("rig:").is_none() {
             return;
-        };
-        (chain.id.clone(), name.to_string())
+        }
+        chain.id.clone()
     };
 
-    // Capture any pending block/param edits on the synthetic chains into
-    // the rig BEFORE re-projecting, so switching never discards an
-    // in-progress edit.
-    crate::chain_rig_nav::sync_synthetic_into_rig(&mut rig.borrow_mut(), &session.project.borrow());
-
-    let rebuilt = project(&mut rig.borrow_mut(), &input);
-    let Some(new_chain) = rebuilt else {
+    // All business logic lives behind the Command now.
+    if session
+        .dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: chain_id.clone(),
+            kind,
+        })
+        .is_err()
+    {
         set_status_error(
             window,
             &ctx.toast_timer,
             &rust_i18n::t!("error-invalid-chain"),
         );
         return;
-    };
-
-    // Swap the rebuilt chain in place (same id ⇒ index/alignment kept).
-    {
-        let mut proj = session.project.borrow_mut();
-        if let Some(slot) = proj.chains.get_mut(chain_index as usize) {
-            let was_enabled = slot.enabled;
-            *slot = new_chain;
-            slot.enabled = was_enabled;
-        }
     }
 
+    // Rendering + live-runtime sync are UI concerns and stay here.
     if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, &chain_id) {
         set_status_error(window, &ctx.toast_timer, &e.to_string());
     }
@@ -138,8 +126,6 @@ fn reproject(
         &ctx.output_chain_devices.borrow(),
     );
     refresh_chain_rig_nav(window, session);
-    // Every other edit path does this; without it a switch/add was
-    // in-memory only and Save did nothing.
     sync_project_dirty(
         window,
         session,
@@ -156,20 +142,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_preset(move |chain_index, slot| {
             if let Some(window) = weak.upgrade() {
-                reproject(&window, &ctx, chain_index, |rig, input| {
-                    if slot < 0 {
-                        // Sentinel from the "+" button: add a preset
-                        // (it becomes active) and project it.
-                        rig.add_preset_to_input(input)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, None, None)
-                    } else {
-                        // `slot` is the ComboBox POSITION; map it to the
-                        // real bank key (they diverge once "+" makes the
-                        // bank sparse) before switching.
-                        let key = crate::chain_rig_nav::preset_slot_at(rig, input, slot as usize)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, Some(key), None)
-                    }
-                });
+                reproject(&window, &ctx, chain_index, RigNavKind::Preset(slot));
             }
         });
     }
@@ -178,21 +151,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         let ctx = ctx.clone();
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
-                reproject(&window, &ctx, chain_index, |rig, input| {
-                    if scene < 0 {
-                        // Sentinel from the scene "+" button: add the
-                        // next scene (it becomes active) and project it.
-                        let added = rig.add_scene_to_input(input)?;
-                        engine::rig_runtime::switch_and_project_input(rig, input, None, Some(added))
-                    } else {
-                        engine::rig_runtime::switch_and_project_input(
-                            rig,
-                            input,
-                            None,
-                            Some(scene as usize),
-                        )
-                    }
-                });
+                reproject(&window, &ctx, chain_index, RigNavKind::Scene(scene));
             }
         });
     }

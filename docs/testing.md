@@ -11,13 +11,18 @@ proibido.
 
 1. **Entrevistar quem reportou** — cenário exato, dados, passos, resultado
    esperado vs. obtido. Não adivinhar.
-2. **Escrever um teste que reproduz o bug** pelo caminho mais real possível
-   (o caminho que o app executa).
+2. **Escrever um teste que reproduz o bug** pelo caminho mais real possível —
+   **sem ler o código procurando a causa antes disso.**
 3. **Rodar e ver FALHAR** (RED real). Mostrar a falha. Se o teste passa, ele
    não pegou o bug → refazer; ou, se não for bug de lógica (ex.: renderização
    Slint, que unit test não exercita), **dizer isso honestamente e parar**.
-4. **Só então** investigar e corrigir, guiado pelo teste, até passar (GREEN).
+4. **Só depois do RED**, investigar a causa — guiada pelo teste que falhou —
+   e corrigir até passar (GREEN).
 5. Rodar a suíte cheia + invariantes de áudio.
+
+**Não investigue o código para achar a causa antes do teste existir e
+falhar.** Ler o código primeiro produz hipótese enviesada vendida como
+"causa". A investigação acontece no passo 4, dirigida pelo RED.
 
 **Provar que um teste não é "viciado":** reverter SÓ a produção para o estado
 pré-fix (mantendo os testes) e rodar — tem que dar RED. Restaurar a produção

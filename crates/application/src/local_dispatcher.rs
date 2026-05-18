@@ -26,6 +26,7 @@ use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
 use project::project::Project;
+use project::rig::RigProject;
 
 use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
 use crate::chain_validation;
@@ -39,7 +40,13 @@ use crate::event::Event;
 /// This is NOT `Send` — see the note in `dispatcher.rs` about deferred
 /// `Send + Sync` bounds.
 pub struct LocalDispatcher {
-    project: Rc<RefCell<Project>>,
+    pub(crate) project: Rc<RefCell<Project>>,
+    /// #436: the rig (presets/scenes) used to live only in the GUI and
+    /// be mutated by hand in a wiring closure. It now lives behind the
+    /// dispatcher so MIDI/MCP/GUI all go through `Command::ApplyRigNav`.
+    /// `None` for non-rig sessions (legacy projects) — set via
+    /// [`Self::attach_rig`] at project load.
+    pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
 }
 
 impl LocalDispatcher {
@@ -49,7 +56,16 @@ impl LocalDispatcher {
     /// its own project handle and pass it here so both sides share the same
     /// allocation.
     pub fn new(project: Rc<RefCell<Project>>) -> Self {
-        Self { project }
+        Self {
+            project,
+            rig: RefCell::new(None),
+        }
+    }
+
+    /// Share the session's `RigProject` handle so rig-nav commands can
+    /// mutate the same allocation the GUI renders from. Idempotent.
+    pub fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
+        *self.rig.borrow_mut() = Some(rig);
     }
 }
 
@@ -98,6 +114,8 @@ impl CommandDispatcher for LocalDispatcher {
             | Command::CreateProject { .. }
             | Command::UpdateProjectName { .. }
             | Command::SaveAudioSettings { .. } => self.handle_project(cmd),
+
+            Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
         }
     }
 

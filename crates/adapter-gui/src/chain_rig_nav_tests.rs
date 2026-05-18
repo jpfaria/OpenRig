@@ -123,6 +123,164 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     assert_eq!(rows[0].preset_labels[3], "added");
 }
 
+// User repro (#436): clicking a scene gives NO save option. The dirty
+// check compares `serialize_project(session.project)` (the projected
+// LEGACY Project) before/after. Switching active_scene must register as
+// a change there — otherwise Save never lights up and the selected
+// scene can't be persisted. With a scene that projects identically the
+// snapshot is byte-equal ⇒ not dirty ⇒ "não me deu a opção de salvar".
+#[test]
+fn switching_scene_changes_the_dirty_snapshot() {
+    let mut r = rig(); // input-1 active_scene 4
+    r.add_scene_to_input("input-1"); // scene exists; active moves
+    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
+
+    // The dirty seam the GUI actually uses for a rig session.
+    let snap = |r: &RigProject| {
+        crate::project_ops::dirty_snapshot(&rig_to_legacy_project(r, &BTreeSet::new()), Some(r))
+            .expect("snapshot")
+    };
+    let before = snap(&r);
+
+    // The user clicks scene 2.
+    r.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let after = snap(&r);
+
+    assert_ne!(
+        before, after,
+        "switching scene must change the dirty snapshot so Save is offered"
+    );
+}
+
+// User repro (#436): deleting a chain didn't update the view — it came
+// back because the rig session re-projects every RigInput. Removing the
+// RigInput must make the projected chain disappear and stay gone.
+#[test]
+fn removing_a_rig_input_drops_its_chain_from_the_projection() {
+    let mut r = rig(); // input-1 → one chain "rig:input-1"
+    assert_eq!(
+        rig_to_legacy_project(&r, &BTreeSet::new()).chains.len(),
+        1,
+        "one chain before delete"
+    );
+
+    assert!(r.remove_input("input-1"), "input removed");
+
+    let after = rig_to_legacy_project(&r, &BTreeSet::new());
+    assert!(
+        !after.chains.iter().any(|c| c.id.0 == "rig:input-1"),
+        "deleted chain must not re-appear on re-projection"
+    );
+    assert_eq!(after.chains.len(), 0, "no chains left");
+}
+
+// User repro (#436): open the guitar input, ADD a 2nd capture source
+// (device + ch1), SAVE, reopen → the input must now have BOTH sources.
+// Mirrors the rig save path (the Input block carries input.sources;
+// edit it on the synthetic chain, run sync_synthetic_into_rig, reopen).
+#[test]
+fn adding_a_capture_source_to_a_rig_input_persists_on_save() {
+    use project::block::{AudioBlockKind, InputEntry};
+    use project::chain::ChainInputMode;
+
+    let mut r = rig(); // input-1 has one source (scarlett? no: see rig())
+                       // The rig() helper builds input-1 with a single mono source on "d".
+    let before = r.inputs["input-1"].sources.len();
+    assert_eq!(before, 1, "starts with one capture source");
+
+    // Step: project, then the user adds device "scarlett" ch1 to the
+    // input — on the synthetic chain that is a 2nd entry in the Input
+    // block (entries == input.sources).
+    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
+        for b in c.blocks.iter_mut() {
+            if let AudioBlockKind::Input(ib) = &mut b.kind {
+                ib.entries.push(InputEntry {
+                    device_id: domain::ids::DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                });
+            }
+        }
+    }
+
+    // Save → the rig persistence path the GUI runs.
+    super::sync_synthetic_into_rig(&mut r, &proj);
+
+    // Reopen → the input must carry BOTH sources.
+    let reopened = rig_to_legacy_project(&r, &BTreeSet::new());
+    let entries = reopened.chains[0]
+        .blocks
+        .iter()
+        .find_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+            _ => None,
+        })
+        .expect("input block");
+    assert_eq!(
+        (r.inputs["input-1"].sources.len(), entries),
+        (2, 2),
+        "added capture source must persist into RigInput.sources"
+    );
+}
+
+// User repro (#436), steps 3–7: select "New Preset 2" (clone of the
+// guitar preset), LOAD a saved preset over it (different blocks), SAVE.
+// Reopen → "New Preset 2" must hold the LOADED blocks, not the guitar's.
+// Mirrors the real path: load replaces the synthetic chain's processing
+// blocks; save runs sync_synthetic_into_rig; reopen projects the rig.
+#[test]
+fn loading_a_preset_over_a_rig_slot_persists_its_blocks_on_save() {
+    use domain::ids::BlockId;
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::param::ParameterSet;
+
+    let blk = |id: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "volume".into(),
+            params: ParameterSet::default(),
+        }),
+    };
+    let mut r = rig();
+    // The guitar preset has its own blocks; "New Preset 2" is a clone.
+    r.presets.get_mut("clean").unwrap().blocks = vec![blk("G1"), blk("G2")];
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean (guitar)
+    let slot = r.add_preset_to_input("input-1").expect("New Preset added");
+    let new_name = r.inputs["input-1"].bank[&slot].clone();
+
+    // Step 4: load a saved preset OVER the active slot — the synthetic
+    // chain's processing blocks become the loaded preset's (different).
+    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
+        c.blocks
+            .retain(|b| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+        c.blocks.push(blk("LOADED"));
+    }
+
+    // Step 5: save → the rig persistence path the GUI runs.
+    super::sync_synthetic_into_rig(&mut r, &proj);
+
+    // Step 6–7: reopen → project the rig; the slot must show LOADED.
+    let reopened = rig_to_legacy_project(&r, &BTreeSet::new());
+    let ids: Vec<String> = reopened.chains[0]
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Core(_) => Some(b.id.0.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        ids,
+        vec!["LOADED"],
+        "'{new_name}' must hold the LOADED preset, not the guitar blocks \
+         (got {ids:?})"
+    );
+}
+
 // What the user demanded: a unit test proving that switching the preset
 // SELECT actually changes the projected chain. clean → block "A",
 // drive → block "B"; picking the other ComboBox row must swap the
