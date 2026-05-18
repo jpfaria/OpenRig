@@ -66,4 +66,15 @@ impl LocalDispatcher {
 
         Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
     }
+
+    /// #436: fold pending synthetic-chain edits back into the rig. Was
+    /// called by hand in the GUI save path — now a Command so the UI
+    /// carries no model mutation. No-op for non-rig sessions.
+    pub(crate) fn handle_capture_rig_edits(&self) -> Result<Vec<Event>> {
+        let Some(rig) = self.rig.borrow().clone() else {
+            return Ok(vec![]);
+        };
+        sync_synthetic_into_rig(&mut rig.borrow_mut(), &self.project.borrow());
+        Ok(vec![Event::ProjectMutated])
+    }
 }

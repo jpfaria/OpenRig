@@ -107,3 +107,86 @@ fn apply_rig_nav_switches_preset_and_reprojects_the_synthetic_chain() {
     );
     assert!(!events.is_empty(), "an event must be emitted");
 }
+
+#[test]
+fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
+    // The GUI used to call rig.remove_input() by hand after dispatching
+    // RemoveChain — business logic in the UI. RemoveChain must drop the
+    // RigInput itself, or the next re-projection resurrects the chain.
+    let mut r = rig();
+    r.inputs.insert(
+        "in-b".to_string(),
+        RigInput {
+            label: None,
+            sources: vec![InputEntry {
+                device_id: DeviceId("e".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![1],
+            }],
+            bank: BTreeMap::from([(1, "p1".to_string())]),
+            active_preset: 1,
+            active_scene: 1,
+            routing: vec![],
+        },
+    );
+    let rig = Rc::new(RefCell::new(r));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::RemoveChain {
+            chain: ChainId("rig:in-b".into()),
+        })
+        .expect("dispatch ok");
+
+    assert!(
+        !rig.borrow().inputs.contains_key("in-b"),
+        "RemoveChain must drop the RigInput, not only the legacy chain"
+    );
+    assert!(
+        !project.borrow().chains.iter().any(|c| c.id.0 == "rig:in-b"),
+        "legacy chain gone too"
+    );
+}
+
+#[test]
+fn capture_rig_edits_writes_synthetic_chain_back_into_the_rig() {
+    // The GUI save path called sync_synthetic_into_rig() by hand —
+    // model mutation in the UI. It must be a Command instead.
+    let rig = Rc::new(RefCell::new(rig())); // input "in", preset p1 = [A]
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    // User edited the synthetic chain: structurally different blocks.
+    for c in project.borrow_mut().chains.iter_mut() {
+        if c.id.0 == "rig:in" {
+            c.blocks
+                .retain(|b| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+            c.blocks.push(core("EDITED"));
+        }
+    }
+
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+    dispatcher
+        .dispatch(Command::CaptureRigEdits)
+        .expect("dispatch ok");
+
+    let active = rig.borrow().inputs["in"].active_preset;
+    let name = rig.borrow().inputs["in"].bank[&active].clone();
+    let ids: Vec<String> = rig.borrow().presets[&name]
+        .blocks
+        .iter()
+        .map(|b| b.id.0.clone())
+        .collect();
+    assert_eq!(
+        ids,
+        vec!["EDITED"],
+        "CaptureRigEdits must fold the synthetic edit back into the rig"
+    );
+}
