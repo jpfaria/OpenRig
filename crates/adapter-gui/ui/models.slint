@@ -66,6 +66,10 @@ export struct ChainRigNav {
     preset_labels: [string],
     active_preset_index: int,
     scene: int,
+    // How many scenes the active preset has (scenes grow on demand;
+    // a preset starts with just 1). The UI shows 1..scene-count + a
+    // "+" to add the next one.
+    scene_count: int,
 }
 
 export struct BlockTypePickerItem {

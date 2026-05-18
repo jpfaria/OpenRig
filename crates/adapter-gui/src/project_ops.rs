@@ -369,7 +369,28 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
-    fs::write(project_path, project_session_snapshot(session)?)?;
+    // #436 #1: rig session → the source of truth is the RigProject.
+    // Write the synthetic chains' edits back into it and save the
+    // `project.openrig` (load_project_any reloads it idempotently).
+    // Non-rig session keeps the legacy serialize. Config + presets-dir
+    // steps below run either way.
+    match &session.rig {
+        Some(rig) => {
+            crate::chain_rig_nav::sync_synthetic_into_rig(
+                &mut rig.borrow_mut(),
+                &session.project.borrow(),
+            );
+            let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
+                project_path.clone()
+            } else {
+                project_path.with_extension("openrig")
+            };
+            infra_yaml::save_rig_project_file(&openrig, &rig.borrow())?;
+        }
+        None => {
+            fs::write(project_path, project_session_snapshot(session)?)?;
+        }
+    }
     let config_path = session
         .config_path
         .clone()

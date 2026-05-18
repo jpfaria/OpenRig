@@ -448,6 +448,7 @@ fn rig_with_scene() -> RigProject {
             label: None,
             bypass: BTreeMap::from([("od".to_string(), true)]),
             params: BTreeMap::new(),
+            volume: None,
         },
     )]);
     r

@@ -162,6 +162,7 @@ fn scene_or_default_returns_present_scene() {
         label: Some("solo".into()),
         bypass: BTreeMap::from([("od".to_string(), true)]),
         params: BTreeMap::new(),
+        volume: None,
     };
     let p = RigPreset {
         blocks: vec![core_block("od")],
@@ -192,6 +193,7 @@ fn validate_scene_param_not_marked_err() {
             label: None,
             bypass: BTreeMap::new(),
             params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+            volume: None,
         },
     )]);
     let err = p.validate().unwrap_err();
@@ -234,6 +236,7 @@ fn apply_scene_bypass_disables_named_block() {
                 label: None,
                 bypass: BTreeMap::from([("od".to_string(), true)]),
                 params: BTreeMap::new(),
+                volume: None,
             },
         )],
     );
@@ -253,6 +256,7 @@ fn apply_scene_bypass_false_keeps_block_enabled() {
                 label: None,
                 bypass: BTreeMap::from([("od".to_string(), false)]),
                 params: BTreeMap::new(),
+                volume: None,
             },
         )],
     );
@@ -270,6 +274,7 @@ fn apply_scene_overrides_only_marked_param() {
                 label: None,
                 bypass: BTreeMap::new(),
                 params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+                volume: None,
             },
         )],
     );
@@ -294,6 +299,7 @@ fn apply_scene_ignores_param_not_in_scene_params() {
                 label: None,
                 bypass: BTreeMap::new(),
                 params: BTreeMap::from([("od.gain".to_string(), 0.9)]),
+                volume: None,
             },
         )],
     );
@@ -317,6 +323,7 @@ fn validate_scene_param_marked_ok() {
             label: None,
             bypass: BTreeMap::from([("od".to_string(), true)]),
             params: BTreeMap::from([("od.gain".to_string(), 0.7)]),
+            volume: None,
         },
     )]);
     assert!(p.validate().is_ok(), "{:?}", p.validate());
@@ -354,4 +361,225 @@ fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
     assert!(preset.scenes.is_empty());
     // Behaves as one Default scene that changes nothing (back-compat).
     assert_eq!(preset.apply_scene(1), blocks);
+}
+
+// #436 #1 — write-back: editing a rig chain's processing blocks must
+// persist into the active preset and survive re-projection.
+
+#[test]
+fn write_back_processing_blocks_persists_edit_into_active_preset() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User edits the param on the (re-projected) synthetic chain.
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(90.0));
+    }
+
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    // Snapshot semantics: the edit is captured into the ACTIVE scene
+    // (2), not baked into the factory template. apply_scene(2) reflects
+    // it; the base template stays unchanged.
+    let preset = p.presets.get("p").unwrap();
+    let active = match &preset.apply_scene(2)[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(active, Some(90.0), "edit visible on the scene it was made");
+    let base = match &preset.blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    assert_eq!(base, Some(80.0), "factory template untouched");
+}
+
+// #436 #1 — SNAPSHOT scenes: editing a param while on scene N must NOT
+// leak into other scenes (user: changed volume on scene 2 → it changed
+// in ALL scenes). Reproduces the bug; drives the snapshot fix.
+#[test]
+fn editing_on_scene_2_does_not_change_scene_1() {
+    use domain::value_objects::ParameterValue;
+
+    let mut vol = core_block("vol");
+    if let AudioBlockKind::Core(c) = &mut vol.kind {
+        c.params.insert("volume", ParameterValue::Float(80.0));
+    }
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![vol.clone()];
+
+    // User is on scene 2 and sets volume to 100.
+    p.inputs.get_mut("input-1").unwrap().active_scene = 2;
+    let mut edited = vol.clone();
+    if let AudioBlockKind::Core(c) = &mut edited.kind {
+        c.params.insert("volume", ParameterValue::Float(100.0));
+    }
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let vol_in = |blocks: &[AudioBlock]| match &blocks[0].kind {
+        AudioBlockKind::Core(c) => c.params.get_f32("volume"),
+        _ => None,
+    };
+    let preset = p.presets.get("p").unwrap();
+    assert_eq!(
+        vol_in(&preset.apply_scene(2)),
+        Some(100.0),
+        "scene 2 = edited"
+    );
+    assert_eq!(
+        vol_in(&preset.apply_scene(1)),
+        Some(80.0),
+        "scene 1 must KEEP its own value (snapshot, not shared base)"
+    );
+}
+
+// #436 — "como adiciono um preset?" Adding a preset to an input's bank
+// must: take the next free slot, clone the currently active preset as a
+// starting point (independent snapshot), get a unique name, and make the
+// new slot active. No collision with existing preset names.
+#[test]
+fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
+    let mut p = project_with(
+        vec![(
+            "input-1",
+            input(&[(1, "clean"), (2, "drive"), (3, "lead")], 2),
+        )],
+        &["clean", "drive", "lead"],
+    );
+    // Make the active preset ("drive") distinguishable.
+    p.presets.get_mut("drive").unwrap().volume = 137.0;
+    let presets_before = p.presets.len();
+
+    let slot = p
+        .add_preset_to_input("input-1")
+        .expect("preset added to known input");
+
+    assert_eq!(slot, 4, "next free slot after the max key (3)");
+    let inp = &p.inputs["input-1"];
+    assert_eq!(inp.active_preset, 4, "new preset becomes active");
+    let name = inp.bank.get(&4).expect("bank has the new slot");
+    assert!(
+        !["clean", "drive", "lead"].contains(&name.as_str()),
+        "unique name, no collision: {name}"
+    );
+    assert_eq!(p.presets.len(), presets_before + 1, "one new preset");
+    assert_eq!(
+        p.presets[name].volume, 137.0,
+        "cloned from the previously active preset (drive)"
+    );
+}
+
+#[test]
+fn add_preset_to_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
+    assert_eq!(p.add_preset_to_input("nope"), None);
+    assert_eq!(p.presets.len(), 1, "nothing added");
+}
+
+#[test]
+fn add_preset_to_empty_bank_uses_slot_1() {
+    let mut p = project_with(vec![("input-1", input(&[], 0))], &[]);
+    let slot = p.add_preset_to_input("input-1").expect("added");
+    assert_eq!(slot, 1, "first slot in an empty bank");
+    assert_eq!(p.inputs["input-1"].active_preset, 1);
+    assert_eq!(p.presets.len(), 1, "a blank preset was created");
+}
+
+// #436 — scenes are added incrementally (a preset normally has just
+// scene 1; the user adds 2, 3…). It makes no sense to force 8.
+#[test]
+fn scene_count_is_one_with_no_scenes_else_highest_index() {
+    let mut pr = RigPreset::from_legacy_blocks(vec![], 100.0);
+    assert_eq!(pr.scene_count(), 1, "implicit single Default scene");
+    pr.scenes.insert(2, RigScene::default());
+    assert_eq!(pr.scene_count(), 2);
+    pr.scenes.insert(5, RigScene::default());
+    assert_eq!(pr.scene_count(), 5, "highest defined index");
+}
+
+// #436 — chain volume is PER SCENE. A scene with no override inherits
+// the preset volume; an override wins only for that scene.
+#[test]
+fn scene_volume_overrides_preset_only_for_that_scene() {
+    let mut pr = RigPreset::from_legacy_blocks(vec![], 80.0);
+    assert_eq!(pr.scene_volume(1), 80.0, "no override → preset volume");
+    pr.scenes.insert(
+        2,
+        RigScene {
+            volume: Some(100.0),
+            ..RigScene::default()
+        },
+    );
+    assert_eq!(pr.scene_volume(2), 100.0, "scene 2 override");
+    assert_eq!(pr.scene_volume(1), 80.0, "scene 1 still preset volume");
+}
+
+#[test]
+fn add_scene_to_input_appends_next_index_snapshots_active_and_activates() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    // Author a per-scene volume on the active scene (1) so we can prove
+    // the new scene starts as an INDEPENDENT snapshot of it.
+    p.write_back_chain_volume("input-1", 70.0);
+
+    let idx = p.add_scene_to_input("input-1").expect("scene added");
+    assert_eq!(idx, 2, "next scene index");
+    assert_eq!(p.inputs["input-1"].active_scene, 2, "new scene is active");
+    let pr = p.presets.get("p").unwrap();
+    assert_eq!(pr.scene_count(), 2);
+    assert_eq!(pr.scene_volume(2), 70.0, "snapshot of scene 1 at add time");
+
+    // Editing scene 2 must not bleed into scene 1 (independent snapshot).
+    p.write_back_chain_volume("input-1", 100.0);
+    let pr = p.presets.get("p").unwrap();
+    assert_eq!(pr.scene_volume(2), 100.0, "scene 2 edited");
+    assert_eq!(pr.scene_volume(1), 70.0, "scene 1 KEEPS its own volume");
+}
+
+#[test]
+fn add_scene_caps_at_eight() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    for expected in 2..=8 {
+        assert_eq!(p.add_scene_to_input("input-1"), Some(expected));
+    }
+    assert_eq!(p.add_scene_to_input("input-1"), None, "8 is the max");
+    assert_eq!(p.inputs["input-1"].active_scene, 8, "stays on last");
+}
+
+#[test]
+fn add_scene_unknown_input_is_none() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    assert_eq!(p.add_scene_to_input("nope"), None);
+}
+
+#[test]
+fn write_back_chain_volume_is_per_active_scene_only() {
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.add_scene_to_input("input-1"); // now on scene 2
+    p.write_back_chain_volume("input-1", 100.0); // scene 2 = 100
+    p.inputs.get_mut("input-1").unwrap().active_scene = 1;
+    p.write_back_chain_volume("input-1", 50.0); // scene 1 = 50
+
+    let pr = p.presets.get("p").unwrap();
+    assert_eq!(pr.scene_volume(1), 50.0);
+    assert_eq!(
+        pr.scene_volume(2),
+        100.0,
+        "scene 2 untouched by scene 1 edit"
+    );
+    // Back at the preset default clears the override (no stale snapshot).
+    p.write_back_chain_volume("input-1", 100.0);
+    let pr = p.presets.get("p").unwrap();
+    assert_eq!(
+        pr.scenes.get(&1).and_then(|s| s.volume),
+        None,
+        "value == preset volume clears the per-scene override"
+    );
 }

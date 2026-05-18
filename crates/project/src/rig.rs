@@ -75,6 +75,10 @@ pub struct RigScene {
     /// `"<block-id>.<param-id>"` → value. Must be a subset of `scene_params`.
     #[serde(default)]
     pub params: BTreeMap<String, f32>,
+    /// Per-scene chain volume %. `None` ⇒ inherit the preset volume
+    /// (back-compat: pre-#436 docs have no field → unchanged audio).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume: Option<f32>,
 }
 
 fn default_preset_volume() -> f32 {
@@ -121,6 +125,24 @@ impl RigPreset {
         }
     }
 
+    /// How many scenes this preset exposes. A preset starts with a
+    /// single implicit scene (1); the user adds 2, 3… on demand. The
+    /// count is the highest defined index (≥ 1) — scenes are a dense
+    /// `1..=scene_count` range from the UI's point of view.
+    pub fn scene_count(&self) -> usize {
+        self.scenes.keys().max().copied().unwrap_or(1).max(1)
+    }
+
+    /// Chain volume % for `idx`: the scene's own override, else the
+    /// preset volume (back-compat: scenes without an override are
+    /// audibly identical to the legacy single-volume preset).
+    pub fn scene_volume(&self, idx: usize) -> f32 {
+        self.scenes
+            .get(&idx)
+            .and_then(|s| s.volume)
+            .unwrap_or(self.volume)
+    }
+
     /// The scene for `idx`, or an empty Default scene when this preset has no
     /// scenes (backward-compat: a pre-scenes preset behaves as one Default
     /// scene that changes nothing).
@@ -164,6 +186,179 @@ impl RigPreset {
 }
 
 impl RigProject {
+    /// Persist a block/param edit made on the projected synthetic chain
+    /// back into the active preset, **per scene (snapshot semantics)**:
+    /// the edit is captured into the input's *active scene* only, so each
+    /// scene keeps its own values. `preset.blocks` stays the factory
+    /// template; a float param / bypass that differs from the template is
+    /// stored as that scene's override (and the key auto-marked as a
+    /// scene-param so `apply_scene` applies it). A value back at the
+    /// template clears the override. No-op if input/preset is unknown.
+    pub fn write_back_processing_blocks(
+        &mut self,
+        input: &str,
+        blocks: Vec<crate::block::AudioBlock>,
+    ) {
+        let Some((preset_name, scene_idx)) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .cloned()
+                .map(|n| (n, ri.active_scene))
+        }) else {
+            return;
+        };
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return;
+        };
+
+        // Factory template, indexed by block id (immutable diff base).
+        let base: BTreeMap<String, AudioBlock> = preset
+            .blocks
+            .iter()
+            .map(|b| (b.id.0.clone(), b.clone()))
+            .collect();
+
+        let mut set_param: Vec<(String, f32)> = Vec::new();
+        let mut clear_param: Vec<String> = Vec::new();
+        let mut set_bypass: Vec<(String, bool)> = Vec::new();
+        let mut clear_bypass: Vec<String> = Vec::new();
+
+        for edited in &blocks {
+            let bid = edited.id.0.clone();
+            let Some(base_blk) = base.get(&bid) else {
+                continue;
+            };
+            if edited.enabled != base_blk.enabled {
+                set_bypass.push((bid.clone(), !edited.enabled));
+            } else {
+                clear_bypass.push(bid.clone());
+            }
+            let pair = match (&edited.kind, &base_blk.kind) {
+                (AudioBlockKind::Core(e), AudioBlockKind::Core(b)) => Some((&e.params, &b.params)),
+                (AudioBlockKind::Nam(e), AudioBlockKind::Nam(b)) => Some((&e.params, &b.params)),
+                _ => None,
+            };
+            if let Some((ep, bp)) = pair {
+                for (pid, val) in &ep.values {
+                    if let ParameterValue::Float(v) = val {
+                        let key = format!("{bid}.{pid}");
+                        if bp.get_f32(pid) != Some(*v) {
+                            set_param.push((key, *v));
+                        } else {
+                            clear_param.push(key);
+                        }
+                    }
+                }
+            }
+        }
+
+        let scene = preset.scenes.entry(scene_idx).or_default();
+        for (b, v) in &set_bypass {
+            scene.bypass.insert(b.clone(), *v);
+        }
+        for b in &clear_bypass {
+            scene.bypass.remove(b);
+        }
+        for (k, v) in &set_param {
+            scene.params.insert(k.clone(), *v);
+        }
+        for k in &clear_param {
+            scene.params.remove(k);
+        }
+        for (k, _) in &set_param {
+            if !preset.scene_params.contains(k) {
+                preset.scene_params.push(k.clone());
+            }
+        }
+    }
+
+    /// Add a new preset to `input`'s bank: takes the next free slot
+    /// (max key + 1, or 1 for an empty bank), clones the currently active
+    /// preset as a starting point (an **independent** snapshot — no shared
+    /// state), gives it a unique name, and makes the new slot active.
+    /// Returns the new slot, or `None` if the input is unknown.
+    pub fn add_preset_to_input(&mut self, input: &str) -> Option<usize> {
+        let ri = self.inputs.get(input)?;
+        let slot = ri.bank.keys().max().map(|m| m + 1).unwrap_or(1);
+        let template = ri
+            .bank
+            .get(&ri.active_preset)
+            .and_then(|n| self.presets.get(n))
+            .cloned()
+            .unwrap_or_else(|| RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+        let name = self.unique_preset_name("New Preset");
+        self.presets.insert(name.clone(), template);
+        let ri = self.inputs.get_mut(input)?;
+        ri.bank.insert(slot, name);
+        ri.active_preset = slot;
+        Some(slot)
+    }
+
+    /// Add the next scene to `input`'s active preset. Scenes grow on
+    /// demand (a preset starts with just scene 1); the new scene is an
+    /// **independent snapshot** of the currently active scene (same
+    /// bypass/params, and its volume frozen to the active scene's
+    /// effective volume) so editing it never bleeds back. Becomes the
+    /// active scene. `None` if the input/preset is unknown or already
+    /// at the 8-scene maximum.
+    pub fn add_scene_to_input(&mut self, input: &str) -> Option<usize> {
+        let (preset_name, active_scene) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .map(|n| (n.clone(), ri.active_scene))
+        })?;
+        let preset = self.presets.get_mut(&preset_name)?;
+        let next = preset.scene_count() + 1;
+        if next > 8 {
+            return None;
+        }
+        let snapshot = RigScene {
+            volume: Some(preset.scene_volume(active_scene)),
+            ..preset.scene_or_default(active_scene)
+        };
+        preset.scenes.insert(next, snapshot);
+        self.inputs.get_mut(input)?.active_scene = next;
+        Some(next)
+    }
+
+    /// Persist the chain volume edited on the projected synthetic chain
+    /// back into the active preset, **per active scene** (snapshot
+    /// semantics — mirrors [`Self::write_back_processing_blocks`]). A
+    /// value equal to the preset volume clears the per-scene override
+    /// (no stale snapshot); anything else is stored for that scene only.
+    /// No-op if the input/preset is unknown.
+    pub fn write_back_chain_volume(&mut self, input: &str, volume: f32) {
+        let Some((preset_name, scene_idx)) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .cloned()
+                .map(|n| (n, ri.active_scene))
+        }) else {
+            return;
+        };
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return;
+        };
+        let base = preset.volume;
+        let scene = preset.scenes.entry(scene_idx).or_default();
+        scene.volume = if (volume - base).abs() < f32::EPSILON {
+            None
+        } else {
+            Some(volume)
+        };
+    }
+
+    /// A preset-pool name not yet in use: `base`, else `base 2`, `base 3`…
+    fn unique_preset_name(&self, base: &str) -> String {
+        if !self.presets.contains_key(base) {
+            return base.to_string();
+        }
+        (2..)
+            .map(|n| format!("{base} {n}"))
+            .find(|c| !self.presets.contains_key(c))
+            .expect("infinite range always yields a free name")
+    }
+
     /// Validate cross-references and per-input source channel conflicts.
     ///
     /// Rules (closed in #436 / scoped by #449):
