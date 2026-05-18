@@ -315,7 +315,11 @@ pub(crate) fn load_project_session(
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
     );
-    session.rig = Some(std::rc::Rc::new(std::cell::RefCell::new(rig)));
+    let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
+    // #436: the dispatcher owns the rig so rig-nav goes through Command
+    // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
+    session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
+    session.rig = Some(rig);
     Ok(session)
 }
 
