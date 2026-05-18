@@ -123,6 +123,121 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     assert_eq!(rows[0].preset_labels[3], "added");
 }
 
+// What the user demanded: a unit test proving that switching the preset
+// SELECT actually changes the projected chain. clean → block "A",
+// drive → block "B"; picking the other ComboBox row must swap the
+// processing block, and picking back must restore it.
+#[test]
+fn switching_preset_select_changes_projected_chain_blocks() {
+    use domain::ids::BlockId;
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::param::ParameterSet;
+
+    let blk = |id: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "volume".into(),
+            params: ParameterSet::default(),
+        }),
+    };
+    let mut r = rig(); // bank {1 clean, 2 drive, 3 lead}, active 2
+    r.presets.get_mut("clean").unwrap().blocks = vec![blk("A")];
+    r.presets.get_mut("drive").unwrap().blocks = vec![blk("B")];
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean
+
+    let processing_ids = |r: &RigProject| {
+        switch_and_project_input(&mut r.clone(), "input-1", None, None)
+            .expect("chain")
+            .blocks
+            .iter()
+            .filter_map(|b| match &b.kind {
+                AudioBlockKind::Core(_) => Some(b.id.0.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(processing_ids(&r), vec!["A"], "clean projects block A");
+
+    // User picks ComboBox position 1 ("drive"): position → key → switch.
+    let key = preset_slot_at(&r, "input-1", 1).expect("slot");
+    switch_and_project_input(&mut r, "input-1", Some(key), None).expect("switched");
+    assert_eq!(processing_ids(&r), vec!["B"], "switching to drive shows B");
+
+    // Pick back to position 0 ("clean").
+    let key0 = preset_slot_at(&r, "input-1", 0).expect("slot");
+    switch_and_project_input(&mut r, "input-1", Some(key0), None).expect("switched");
+    assert_eq!(processing_ids(&r), vec!["A"], "switching back restores A");
+}
+
+// Adding a preset must give an INDEPENDENT copy: editing the new
+// (active) preset and syncing back must not mutate the source preset —
+// otherwise saving "the new preset" would corrupt the old one.
+#[test]
+fn add_preset_then_edit_keeps_source_preset_independent() {
+    use domain::ids::BlockId;
+    use domain::value_objects::ParameterValue;
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::param::ParameterSet;
+
+    let mut params = ParameterSet::default();
+    params.insert("gain", ParameterValue::Float(1.0));
+    let src = AudioBlock {
+        id: BlockId("g".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "volume".into(),
+            params,
+        }),
+    };
+    let mut r = rig();
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1; // clean
+    r.presets.get_mut("clean").unwrap().blocks = vec![src.clone()];
+
+    let slot = r.add_preset_to_input("input-1").expect("added");
+    // Project the new preset, edit gain on the synthetic chain, sync back.
+    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
+        for b in c.blocks.iter_mut() {
+            if let AudioBlockKind::Core(core) = &mut b.kind {
+                core.params.insert("gain", ParameterValue::Float(9.0));
+            }
+        }
+    }
+    super::sync_synthetic_into_rig(&mut r, &proj);
+
+    let new_name = r.inputs["input-1"].bank[&slot].clone();
+    let read_gain = |p: &project::rig::RigPreset, scene: usize| match &p.apply_scene(scene)[0].kind
+    {
+        AudioBlockKind::Core(c) => c.params.get_f32("gain"),
+        _ => None,
+    };
+    assert_eq!(
+        read_gain(&r.presets[&new_name], r.inputs["input-1"].active_scene),
+        Some(9.0),
+        "edit landed in the NEW preset"
+    );
+    assert_eq!(
+        read_gain(&r.presets["clean"], 1),
+        Some(1.0),
+        "source preset 'clean' is untouched"
+    );
+}
+
+#[test]
+fn nav_row_exposes_scene_count_and_grows_when_a_scene_is_added() {
+    let mut r = rig();
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].scene_count, 1, "starts with a single scene");
+
+    r.add_scene_to_input("input-1").expect("scene added");
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].scene_count, 2, "now two scenes");
+    assert_eq!(rows[0].scene, 2, "the added scene is active");
+}
+
 #[test]
 fn non_rig_chain_yields_empty_row() {
     let r = rig();

@@ -11,10 +11,11 @@ use project::block::AudioBlockKind;
 use project::project::Project;
 use project::rig::RigProject;
 
-/// Write every rig chain's edited processing blocks back into the rig's
-/// active presets, so block/param edits made on the projected synthetic
-/// chains survive re-projection and are saved to `project.openrig`.
-/// Non-rig chains are ignored. Pure; mirrors `rig_to_chains` in reverse.
+/// Write every rig chain's edited processing blocks **and chain volume**
+/// back into the rig's active preset, per active scene, so edits made on
+/// the projected synthetic chains survive re-projection and are saved to
+/// `project.openrig`. Non-rig chains are ignored. Pure; mirrors
+/// `rig_to_chains` in reverse.
 pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
     for chain in &project.chains {
         let Some(input) = chain.id.0.strip_prefix("rig:") else {
@@ -27,6 +28,7 @@ pub(crate) fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             .cloned()
             .collect();
         rig.write_back_processing_blocks(input, processing);
+        rig.write_back_chain_volume(input, chain.volume);
     }
 }
 
@@ -44,6 +46,8 @@ pub(crate) struct RigNavRow {
     pub(crate) active_index: usize,
     /// Active scene, `1..=8`.
     pub(crate) scene: usize,
+    /// Scenes the active preset exposes (≥ 1; grows on demand).
+    pub(crate) scene_count: usize,
 }
 
 /// Translate a preset ComboBox **positional** index into the rig
@@ -75,12 +79,19 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 .iter()
                 .position(|&s| s == input.active_preset)
                 .unwrap_or(0);
+            let scene_count = input
+                .bank
+                .get(&input.active_preset)
+                .and_then(|n| rig.presets.get(n))
+                .map(|p| p.scene_count())
+                .unwrap_or(1);
             RigNavRow {
                 input: name.to_string(),
                 preset_slots,
                 preset_labels,
                 active_index,
                 scene: input.active_scene,
+                scene_count,
             }
         })
         .collect()

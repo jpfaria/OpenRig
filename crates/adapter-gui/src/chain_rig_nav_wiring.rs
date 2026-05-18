@@ -14,6 +14,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
+use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
@@ -26,6 +27,12 @@ pub(crate) struct ChainRigNavCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
+    // Marking the project dirty / autosaving after a switch — same
+    // path every other edit wiring uses. Without this a preset/scene
+    // switch or add was in-memory only ("salvei e não aconteceu nada").
+    pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    pub project_dirty: Rc<RefCell<bool>>,
+    pub auto_save: bool,
 }
 
 /// Refresh the `chain-rig-nav` model from the current session (no-op if
@@ -60,6 +67,7 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
             )),
             active_preset_index: r.active_index as i32,
             scene: r.scene as i32,
+            scene_count: r.scene_count as i32,
         })
         .collect();
     window.set_chain_rig_nav(ModelRc::new(VecModel::from(items)));
@@ -130,6 +138,15 @@ fn reproject(
         &ctx.output_chain_devices.borrow(),
     );
     refresh_chain_rig_nav(window, session);
+    // Every other edit path does this; without it a switch/add was
+    // in-memory only and Save did nothing.
+    sync_project_dirty(
+        window,
+        session,
+        &ctx.saved_project_snapshot,
+        &ctx.project_dirty,
+        ctx.auto_save,
+    );
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
@@ -162,12 +179,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         window.on_switch_chain_scene(move |chain_index, scene| {
             if let Some(window) = weak.upgrade() {
                 reproject(&window, &ctx, chain_index, |rig, input| {
-                    engine::rig_runtime::switch_and_project_input(
-                        rig,
-                        input,
-                        None,
-                        Some(scene as usize),
-                    )
+                    if scene < 0 {
+                        // Sentinel from the scene "+" button: add the
+                        // next scene (it becomes active) and project it.
+                        let added = rig.add_scene_to_input(input)?;
+                        engine::rig_runtime::switch_and_project_input(rig, input, None, Some(added))
+                    } else {
+                        engine::rig_runtime::switch_and_project_input(
+                            rig,
+                            input,
+                            None,
+                            Some(scene as usize),
+                        )
+                    }
                 });
             }
         });

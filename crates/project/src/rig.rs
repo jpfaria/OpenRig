@@ -75,6 +75,10 @@ pub struct RigScene {
     /// `"<block-id>.<param-id>"` → value. Must be a subset of `scene_params`.
     #[serde(default)]
     pub params: BTreeMap<String, f32>,
+    /// Per-scene chain volume %. `None` ⇒ inherit the preset volume
+    /// (back-compat: pre-#436 docs have no field → unchanged audio).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume: Option<f32>,
 }
 
 fn default_preset_volume() -> f32 {
@@ -119,6 +123,24 @@ impl RigPreset {
             scenes: BTreeMap::new(),
             volume,
         }
+    }
+
+    /// How many scenes this preset exposes. A preset starts with a
+    /// single implicit scene (1); the user adds 2, 3… on demand. The
+    /// count is the highest defined index (≥ 1) — scenes are a dense
+    /// `1..=scene_count` range from the UI's point of view.
+    pub fn scene_count(&self) -> usize {
+        self.scenes.keys().max().copied().unwrap_or(1).max(1)
+    }
+
+    /// Chain volume % for `idx`: the scene's own override, else the
+    /// preset volume (back-compat: scenes without an override are
+    /// audibly identical to the legacy single-volume preset).
+    pub fn scene_volume(&self, idx: usize) -> f32 {
+        self.scenes
+            .get(&idx)
+            .and_then(|s| s.volume)
+            .unwrap_or(self.volume)
     }
 
     /// The scene for `idx`, or an empty Default scene when this preset has no
@@ -270,6 +292,60 @@ impl RigProject {
         ri.bank.insert(slot, name);
         ri.active_preset = slot;
         Some(slot)
+    }
+
+    /// Add the next scene to `input`'s active preset. Scenes grow on
+    /// demand (a preset starts with just scene 1); the new scene is an
+    /// **independent snapshot** of the currently active scene (same
+    /// bypass/params, and its volume frozen to the active scene's
+    /// effective volume) so editing it never bleeds back. Becomes the
+    /// active scene. `None` if the input/preset is unknown or already
+    /// at the 8-scene maximum.
+    pub fn add_scene_to_input(&mut self, input: &str) -> Option<usize> {
+        let (preset_name, active_scene) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .map(|n| (n.clone(), ri.active_scene))
+        })?;
+        let preset = self.presets.get_mut(&preset_name)?;
+        let next = preset.scene_count() + 1;
+        if next > 8 {
+            return None;
+        }
+        let snapshot = RigScene {
+            volume: Some(preset.scene_volume(active_scene)),
+            ..preset.scene_or_default(active_scene)
+        };
+        preset.scenes.insert(next, snapshot);
+        self.inputs.get_mut(input)?.active_scene = next;
+        Some(next)
+    }
+
+    /// Persist the chain volume edited on the projected synthetic chain
+    /// back into the active preset, **per active scene** (snapshot
+    /// semantics — mirrors [`Self::write_back_processing_blocks`]). A
+    /// value equal to the preset volume clears the per-scene override
+    /// (no stale snapshot); anything else is stored for that scene only.
+    /// No-op if the input/preset is unknown.
+    pub fn write_back_chain_volume(&mut self, input: &str, volume: f32) {
+        let Some((preset_name, scene_idx)) = self.inputs.get(input).and_then(|ri| {
+            ri.bank
+                .get(&ri.active_preset)
+                .cloned()
+                .map(|n| (n, ri.active_scene))
+        }) else {
+            return;
+        };
+        let Some(preset) = self.presets.get_mut(&preset_name) else {
+            return;
+        };
+        let base = preset.volume;
+        let scene = preset.scenes.entry(scene_idx).or_default();
+        scene.volume = if (volume - base).abs() < f32::EPSILON {
+            None
+        } else {
+            Some(volume)
+        };
     }
 
     /// A preset-pool name not yet in use: `base`, else `base 2`, `base 3`…

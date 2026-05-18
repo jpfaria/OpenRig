@@ -719,6 +719,9 @@ pub fn run_desktop_app(
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            auto_save,
         },
     );
     crate::plugin_info_inline_wiring::wire(&window);
