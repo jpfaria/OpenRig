@@ -121,3 +121,7 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
 #[cfg(test)]
 #[path = "chain_rig_nav_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chain_rig_nav_repro_tests.rs"]
+mod repro_tests;
