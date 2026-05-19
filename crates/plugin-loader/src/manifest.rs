@@ -86,28 +86,29 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sources: Option<Vec<String>>,
 
-    /// Output gain do plugin como PERCENTUAL multiplicativo (issue #440).
-    /// **NÃO é dB.**
+    /// Output gain do plugin como offset ADITIVO em **dB** (issue #491).
     ///
-    /// - `100.0` = unity (sem mudança no output do plugin)
-    /// - `125.0` = output × 1.25 (amplifica 25%)
-    /// - `80.0`  = output × 0.80 (atenua 20%)
+    /// - `0.0`   = unity (sem mudança no output do plugin)
+    /// - `+6.0`  = output +6 dB (≈ ×2.0 em amplitude linear)
+    /// - `-6.0`  = output −6 dB (≈ ×0.5)
     ///
     /// **Baseline de calibração**: o `nam_loudness_audit` mede cada
-    /// plugin com sinal de teste fixo e escreve `output_gain_pct` pra
-    /// que o output do plugin fique num nível razoável isolado.
-    /// Plugins NAM têm range natural de output muito variável (algumas
-    /// capturas saem em -25 LUFS, outras em 0 LUFS); o manifest pct
-    /// nivela esse baseline.
+    /// plugin com sinal de teste fixo e escreve `output_gain_db` pra
+    /// que o output do plugin fique num nível de referência calibrado
+    /// isolado. Plugins NAM têm range natural de output muito variável
+    /// (algumas capturas saem em -25 LUFS, outras em 0 LUFS); o offset
+    /// em dB do manifest nivela esse baseline.
     ///
-    /// **Combinação com `preset.volume`**: em runtime, o NAM aplica
-    /// `output_gain_pct` (baseline) e o engine multiplica por
-    /// `preset.volume / 100` (controle do usuário). Os dois entram
-    /// em série: signal × (manifest_pct/100) × (preset_volume/100).
+    /// **Combinação com `preset.volume`**: em runtime, o backend soma
+    /// `output_gain_db` (baseline) ao nível do plugin e o engine aplica
+    /// `preset.volume` (controle do usuário) por cima. Os dois entram
+    /// em série.
     ///
-    /// Ausente = `100.0` (default unity).
+    /// Ausente = `0.0 dB` (default unity). É o **mesmo nome e unidade**
+    /// que o `nam_loudness_audit` escreve — contrato cross-repo single
+    /// source of truth, sem serde alias.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub output_gain_pct: Option<f32>,
+    pub output_gain_db: Option<f32>,
 
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]

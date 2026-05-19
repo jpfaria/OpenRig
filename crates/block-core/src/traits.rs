@@ -46,8 +46,8 @@ pub enum BlockProcessor {
 }
 
 /// Wraps a [`MonoProcessor`] with a static linear gain applied post-process.
-/// Usado pelos `from_package` (LV2 / IR) pra aplicar `manifest.output_gain_pct`
-/// como baseline objetivo do plugin (issue #440).
+/// Usado pelos `from_package` (LV2 / IR) pra aplicar `manifest.output_gain_db`
+/// como baseline objetivo do plugin (issue #491).
 struct GainScaledMono {
     inner: Box<dyn MonoProcessor>,
     gain: f32,
@@ -95,18 +95,19 @@ impl StereoProcessor for GainScaledStereo {
     }
 }
 
-/// Aplica `manifest.output_gain_pct` (percentual multiplicativo, 100 = unity)
-/// como linha de gain estática pós-process. No-op se `pct` é `None` ou `100.0`.
+/// Aplica `manifest.output_gain_db` (offset aditivo em dB, 0 = unity) como
+/// linha de gain estática pós-process. No-op se `db` é `None` ou `0.0`.
+/// Conversão dB→linear: `10^(db/20)`.
 ///
 /// Usado pelos `from_package` dos backends LV2 / IR. NAM aplica via
 /// `plugin_params.output_level_db` (NAM C++ host nativo já tem level shift
 /// embutido), então não passa por aqui.
-pub fn wrap_with_output_gain_pct(processor: BlockProcessor, pct: Option<f32>) -> BlockProcessor {
-    let pct = match pct {
-        Some(p) if (p - 100.0).abs() > f32::EPSILON => p,
+pub fn wrap_with_output_gain_db(processor: BlockProcessor, db: Option<f32>) -> BlockProcessor {
+    let db = match db {
+        Some(d) if d.abs() > f32::EPSILON => d,
         _ => return processor,
     };
-    let gain = pct / 100.0;
+    let gain = 10.0_f32.powf(db / 20.0);
     match processor {
         BlockProcessor::Mono(inner) => {
             BlockProcessor::Mono(Box::new(GainScaledMono { inner, gain }))
@@ -127,3 +128,7 @@ pub trait NamedModel {
 /// Dropping the handle closes the window and releases all resources.
 /// The concrete type is an implementation detail of the plugin host crate.
 pub trait PluginEditorHandle: Send {}
+
+#[cfg(test)]
+#[path = "traits_tests.rs"]
+mod tests;
