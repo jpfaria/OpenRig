@@ -188,6 +188,17 @@ impl Event {
             | Event::ProjectLoaded
             | Event::ProjectSaved
             | Event::ProjectCreated
+            // #436 F/G/H/E + sweep: app/project-wide events, no ChainId.
+            | Event::LanguageChanged { .. }
+            | Event::OutputMutedChanged { .. }
+            | Event::RecentProjectRemoved { .. }
+            | Event::RecentProjectRegistered { .. }
+            | Event::RecentProjectInvalidated { .. }
+            | Event::ChainPresetSaved { .. }
+            | Event::ChainPresetDeleted { .. }
+            | Event::TunerEnabledChanged { .. }
+            | Event::SpectrumEnabledChanged { .. }
+            | Event::ProjectClosed
             | Event::Error { .. } => None,
         }
     }

@@ -13,7 +13,7 @@ use application::command_schema::{
 };
 use application::event::Event;
 use rmcp::model::Tool;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 
 /// Every variant as an MCP [`Tool`] with an auto-derived input schema.
 pub fn tools() -> Vec<Tool> {
