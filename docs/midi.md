@@ -1,7 +1,9 @@
 # Control OpenRig with a MIDI controller (#22)
 
-You can drive OpenRig live with any MIDI controller — a footswitch like
-the **M-Vave Chocolate**, a pedalboard, a knob/fader box, an iPad app.
+You can drive OpenRig live with **any** MIDI controller — a footswitch,
+a pedalboard, a knob/fader box, an expression pedal, an iPad app. There
+are hundreds of them; this guide is controller-agnostic. Device-specific
+setup notes live in their own page (see *Device guides* below).
 
 How it works, in one line: **your controller sends standard MIDI
 messages; OpenRig reads a map that turns each message into an action.**
@@ -75,25 +77,29 @@ Notes:
 
 ---
 
-## M-Vave Chocolate — quick setup
+## Generic setup (any controller)
 
-The Chocolate (and Chocolate **Plus**) is a 4-switch BLE-MIDI footswitch.
+1. Connect the controller so the OS sees it as a MIDI input (USB: plug
+   in; Bluetooth/BLE-MIDI: pair it — macOS *Audio MIDI Setup →
+   Bluetooth*, Windows *Settings → Bluetooth*, Linux it appears as an
+   ALSA/JACK MIDI port).
+2. Open **your controller's editor app** (every brand has one) and set
+   each control to send the message from the table above — type
+   (Note/CC), number, channel 1. If your controller has fewer controls
+   than the table, pick the actions you want most.
+3. Tip: keep a MIDI monitor open while you press a control to confirm
+   the exact message it sends before relying on it.
+4. Install the standard map and run `openrig --midi` (next section).
 
-1. Pair it with your computer over Bluetooth so it shows up as a MIDI
-   input (macOS: *Audio MIDI Setup → Bluetooth*; Windows: *Settings →
-   Bluetooth*; Linux: pair, it appears as an ALSA MIDI port).
-2. In **CubeSuite**, set the 4 footswitches. With only 4 switches, pick
-   the 4 actions you want from the table above — e.g.:
-   - Switch A → Note **60** (previous preset)
-   - Switch B → Note **61** (next preset)
-   - Switch C → Note **66** (toggle left block)
-   - Switch D → Note **67** (toggle right block)
-   All on channel **1**, type **Note**.
-3. On the **Plus**, each switch's channel is set per message, so a
-   second pedal (or a bank) can use the same notes on **channel 2/3/…**
-   to reach a different set of actions.
-4. `openrig --midi` — press a switch, the rig responds and the screen
-   moves in real time.
+## Device guides
+
+Brand-specific step-by-step (pairing, the editor app, quirks):
+
+- **M-Vave Chocolate / Chocolate Plus** — see
+  [`docs/midi-chocolate.md`](midi-chocolate.md).
+
+More devices will get their own page; the generic setup above works for
+any of them.
 
 ---
 
