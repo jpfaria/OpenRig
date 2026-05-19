@@ -37,4 +37,8 @@ domain = { path = "../domain" }
 nam = { path = "../nam" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
+# Issue #496: objective LUFS measurement (Spotify standard) so the
+# bare engine signal path can be compared against a reference instead
+# of judged by ear. Dev-only — not on the audio thread.
+ebur128 = "0.1"
 
