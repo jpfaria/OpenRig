@@ -119,49 +119,60 @@ it. A map line is always:
 or `program_change`. Below is **the complete list** — `command` is the
 exact name, `args` is what goes in the line.
 
-### In the standard map (the table at the top)
+Legend: **★** = already wired in the standard map (top table).
+`id` = string id from the Chains screen (`rig:<input>` for rig chains);
+`text` = string; `num` = number; `int` = integer; `uint` = ≥0 integer;
+`bool` = true/false; `path` = file path; `object` = a full structured
+object the editor produces (not hand-written in a map). Every command
+below is bindable.
 
-| Action | `command` | `args` |
-|---|---|---|
-| Previous / next preset | `ApplyRigNav` | `{ chain, kind: { StepPreset: -1 } }` / `{ StepPreset: 1 }` |
-| Previous / next scene | `ApplyRigNav` | `{ chain, kind: { StepScene: -1 } }` / `{ StepScene: 1 }` |
-| Move block selection back / forward | `SelectChainBlock` | `{ chain, delta: -2 }` / `{ delta: 2 }` |
-| Toggle left / right block of pair | `ToggleSelectedBlock` | `{ chain, side: Left }` / `{ side: Right }` |
-| Chain volume (knob) | `SetChainVolume` | `{ chain }` + `scale: { min: 0, max: 200 }` |
+| # | `command` | What it does | `args` |
+|---|---|---|---|
+| 1 | `SetBlockParameterNumber` | Set a numeric param (great on a knob + `scale`) | `{ chain: id, block: id, path: text, value: num }` |
+| 2 | `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` |
+| 3 | `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` |
+| 4 | `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` |
+| 5 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` |
+| 6 | `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` |
+| 7 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` |
+| 8 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` |
+| 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` |
+| 10 | `OverwriteBlock` | Replace a block | `{ chain: id, block: id, replacement: object }` |
+| 11 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` |
+| 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` |
+| 13 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` |
+| 14 | `AddChain` | Add a chain | `{ chain: object }` |
+| 15 | `ConfigureChain` | Reconfigure a chain | `{ chain: object }` |
+| 16 | `SaveChain` | Save a chain | `{ chain: object }` |
+| 17 | `RemoveChain` | Remove a chain | `{ chain: id }` |
+| 18 | `MoveChainUp` | Move a chain up in the list | `{ chain: id }` |
+| 19 | `MoveChainDown` | Move a chain down in the list | `{ chain: id }` |
+| 20 | `ToggleChainEnabled` | Toggle a whole chain on/off | `{ chain: id }` |
+| 21 | `SaveChainInputEndpoints` | Replace a chain's inputs | `{ chain: id, input_blocks: [object] }` |
+| 22 | `SaveChainOutputEndpoints` | Replace a chain's outputs | `{ chain: id, output_blocks: [object] }` |
+| 23 | `SaveChainIo` | Save a chain's input+output | `{ chain: id, input_block: object, output_block: object }` |
+| 24 | `LoadChainPreset` | Load a preset into a chain | `{ chain: id, preset_blocks: [object] }` |
+| 25 | `SaveProject` | Save the project | *(none)* |
+| 26 | `LoadProject` | Load a project | `{ project: object, path: path }` |
+| 27 | `CreateProject` | Create a new project | `{ project: object }` |
+| 28 ★ | `SetChainVolume` | Set chain volume (% — knob via `scale`, or fixed `value`) | `{ chain: id, value: num }` |
+| 29 | `UpdateProjectName` | Rename the project | `{ name: text }` |
+| 30 | `SaveAudioSettings` | Save audio device settings | `{ device_settings: [object] }` |
+| 31 ★ | `ApplyRigNav` | Preset/scene: step (footswitch) or jump (fixed) | `{ chain: id, kind: <see below> }` |
+| 32 ★ | `SelectChainBlock` | Move the block-selection pair cursor (wraps) | `{ chain: id, delta: int }` |
+| 33 ★ | `ToggleSelectedBlock` | Toggle one side of the selected pair | `{ chain: id, side: Left or Right }` |
+| 34 | `CaptureRigEdits` | Fold pending synthetic-chain edits back into the rig | *(none)* |
 
-### Other actions you can map (one free Note/CC each)
+`ApplyRigNav`'s `kind` (one of):
+`{ Preset: int }` (jump to preset position) ·
+`{ Scene: int }` (jump to scene) ·
+`{ StepPreset: int }` (relative, e.g. `-1`/`1`, wraps) ·
+`{ StepScene: int }` (relative, wraps).
 
-| Action | `command` | `args` |
-|---|---|---|
-| Jump to a fixed preset position `n` | `ApplyRigNav` | `{ chain, kind: { Preset: n } }` |
-| Jump to a fixed scene `n` | `ApplyRigNav` | `{ chain, kind: { Scene: n } }` |
-| Fold pending edits back into the rig | `CaptureRigEdits` | *(none)* |
-| Toggle a whole chain on/off | `ToggleChainEnabled` | `{ chain }` |
-| Toggle one fixed block on/off | `ToggleBlockEnabled` | `{ chain, block }` |
-| Set chain volume to a fixed % (button) | `SetChainVolume` | `{ chain, value: 80 }` |
-| Set a numeric param (knob) | `SetBlockParameterNumber` | `{ chain, block, path }` + `scale` |
-| Set an on/off param | `SetBlockParameterBool` | `{ chain, block, path, value: true }` |
-| Set a text param | `SetBlockParameterText` | `{ chain, block, path, value: "x" }` |
-| Pick a list option | `SelectBlockParameterOption` | `{ chain, block, path, value, index }` |
-| Point a param at a file | `PickBlockParameterFile` | `{ chain, block, path, file }` |
-| Swap a block's model | `ReplaceBlockModel` | `{ chain, block, model_id }` |
-| Move a chain up / down | `MoveChainUp` / `MoveChainDown` | `{ chain }` |
-| Remove a chain | `RemoveChain` | `{ chain }` |
-| Rename the project | `UpdateProjectName` | `{ name: "My Rig" }` |
-| Save the project | `SaveProject` | *(none)* |
-
-### Editor-grade (mappable, but take whole objects — not hand-written)
-
-These exist and are bindable, but their `args` is a full structured
-object the editor produces, so you don't write them by hand in a map:
-`AddBlock`, `InsertPrebuiltBlock`, `OverwriteBlock`, `RemoveBlock`,
-`MoveBlock`, `SaveInsertBlock`, `AddChain`, `ConfigureChain`,
-`SaveChain`, `SaveChainInputEndpoints`, `SaveChainOutputEndpoints`,
-`SaveChainIo`, `LoadChainPreset`, `LoadProject`, `CreateProject`,
-`SaveAudioSettings`.
-
-That is **all 34 commands**. `chain`/`block` are the string ids on the
-Chains screen; for rig chains the id is `rig:<input>`.
+That is **all 34 commands** (enum order). The 9 live actions in the
+standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
+★32 `SelectChainBlock` ±2, ★33 `ToggleSelectedBlock` Left/Right,
+★28 `SetChainVolume` on a knob.
 
 ---
 
