@@ -153,7 +153,6 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Audio Config](docs/audio-config.md) — I/O como bloques, ciclo de vida de JACK
 - [CLI & env vars](docs/cli.md) — argumentos y variables de entorno de `openrig`
 - [Servidor MCP y plugin](docs/mcp.md) — controlar la rig desde Claude/Cursor; instalar el plugin OpenRig
-- [Controlador MIDI](docs/midi.md) — footswitches, knobs, pedales de expresión; [cualquier comando](docs/midi.md) es mapeable por MIDI
 
 ### Para desarrolladores
 
@@ -198,7 +197,6 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] **Loaders de IR y NAM del usuario** — coloca cualquier `.wav` de respuesta al impulso o captura `.nam` en la cadena en runtime
 - [x] **Formato de preset YAML abierto** — diffeable, compartible por gist, scriptable; registry canónico de `MODEL_ID` documentado en [Blocks Reference](docs/user-guide/blocks-reference.md)
 - [x] **Construcción de preset asistida por IA** — la skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) de Claude Code va con el repo y escribe presets completos a partir de una canción o un artista
-- [x] **Adaptador de controlador MIDI / BLE-MIDI** — footswitches, knobs, pedal de expresión; **cualquier comando es mapeable por MIDI** (presets/escenas, selección de bloques, parámetros) ([#22](https://github.com/jpfaria/OpenRig/issues/22), ver [docs/midi.md](docs/midi.md))
 
 ### Features de escenario
 

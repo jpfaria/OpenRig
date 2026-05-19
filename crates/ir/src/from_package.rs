@@ -10,7 +10,7 @@
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{
-    wrap_with_output_gain_pct, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+    wrap_with_output_gain_db, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
 };
 use plugin_loader::manifest::Backend;
 use plugin_loader::LoadedPackage;
@@ -69,13 +69,13 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    // Issue #440: aplica `manifest.output_gain_pct` (baseline objetivo do
-    // audit) como wrapper linear pós-convolução. IR pura é gain-passive,
-    // mas o ganho efetivo perceptual varia bastante (cab/body shapers
-    // atenuam graves diferente) — manifest pct nivela.
-    Ok(wrap_with_output_gain_pct(
+    // Issue #491: aplica `manifest.output_gain_db` (baseline objetivo do
+    // audit, em dB) como wrapper estático pós-convolução. IR pura é
+    // gain-passive, mas o ganho efetivo perceptual varia bastante
+    // (cab/body shapers atenuam graves diferente) — o offset nivela.
+    Ok(wrap_with_output_gain_db(
         processor,
-        package.manifest.output_gain_pct,
+        package.manifest.output_gain_db,
     ))
 }
 

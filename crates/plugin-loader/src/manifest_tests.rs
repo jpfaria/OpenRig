@@ -181,7 +181,7 @@ fn round_trip_nam_preserves_data() {
         license: None,
         homepage: None,
         sources: None,
-        output_gain_pct: None,
+        output_gain_db: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
@@ -199,6 +199,37 @@ fn round_trip_nam_preserves_data() {
     let yaml = serde_yaml::to_string(&original).expect("serialize");
     let decoded: PluginManifest = serde_yaml::from_str(&yaml).expect("deserialize");
     assert_eq!(original, decoded);
+}
+
+#[test]
+fn nam_manifest_surfaces_output_gain_db_calibration_to_engine() {
+    // Issue #491: every shipped NAM manifest carries the measured loudness
+    // offset under `output_gain_db` (dB, written by `nam_loudness_audit`).
+    // The engine must read that exact key+unit, or the calibration is
+    // silently dead (field deserializes to None, plugin plays at raw level).
+    // This is a production-shaped manifest copied from `plugins/source/`.
+    let yaml = r#"
+manifest_version: 1
+id: calibrated_amp
+display_name: Calibrated Amp
+type: amp
+backend: nam
+output_gain_db: 13.0556831
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(
+        m.output_gain_db,
+        Some(13.0556831),
+        "manifest output_gain_db calibration must reach the engine in dB, unchanged"
+    );
 }
 
 #[test]

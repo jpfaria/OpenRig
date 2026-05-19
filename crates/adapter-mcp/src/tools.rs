@@ -42,7 +42,16 @@ pub fn tools() -> Vec<Tool> {
 pub fn build_command(tool: &str, args: Value) -> Result<Command> {
     let variant = variant_from_tool_name(tool)
         .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
-    application::command_schema::command_from_variant(variant, args)
+    // serde externally-tagged: unit variant = bare string `"Variant"`;
+    // struct variant = `{ "Variant": <args> }`. MCP clients send `{}` for
+    // no-arg tools, which serde rejects for a unit variant.
+    let tagged = if application::command_schema::is_unit_variant(variant) {
+        Value::String(variant.to_string())
+    } else {
+        json!({ variant: args })
+    };
+    serde_json::from_value(tagged)
+        .map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
 }
 
 /// Map an incoming tool call to a `Command`, submit it over the bridge, and

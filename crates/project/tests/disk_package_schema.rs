@@ -148,7 +148,7 @@ binaries:
     // (input_db/noise_gate.{enabled,threshold_db}/eq.{enabled,bass,middle,treble})
     // restored by the disk-package synthesizer post-#287 migration. The
     // 8th NAM-standard knob (output_db) is intentionally dropped — issue
-    // #402 moved per-NAM loudness compensation into manifest.output_gain_pct.
+    // #402 moved per-NAM loudness compensation into manifest.output_gain_db.
     assert_eq!(amp_schema.parameters.len(), 9);
 
     // ── IR: one text axis → one enum parameter ──
