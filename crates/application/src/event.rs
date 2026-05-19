@@ -4,6 +4,8 @@
 //!
 //! **Spec reference:** `docs/superpowers/specs/2026-04-23-command-dispatch-architecture-design.md`
 
+use std::path::PathBuf;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -135,6 +137,16 @@ pub enum Event {
     /// tears down runtime/session; this records it went through the
     /// dispatcher.
     ProjectClosed,
+
+    /// #436 (sweep): a recent-projects entry was registered/refreshed.
+    /// The adapter persists app-config; this records it went through
+    /// the dispatcher.
+    RecentProjectRegistered { path: PathBuf, name: String },
+
+    /// #436 (sweep): a recent-projects entry was marked invalid. The
+    /// adapter persists app-config; this records it went through the
+    /// dispatcher.
+    RecentProjectInvalidated { path: PathBuf, reason: String },
 
     /// An error occurred while processing a command.
     Error { message: String },

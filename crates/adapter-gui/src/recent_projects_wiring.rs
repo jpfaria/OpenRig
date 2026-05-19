@@ -154,6 +154,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         &canonical_path,
                         &display_name,
                     );
+                    // #436 (sweep): registrar recente via Command.
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
+                            path: canonical_path.clone(),
+                            name: display_name.clone(),
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
@@ -184,11 +191,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
-                    mark_recent_project_invalid(
-                        &mut app_config.borrow_mut(),
-                        &path,
-                        &error.to_string(),
-                    );
+                    let reason = error.to_string();
+                    mark_recent_project_invalid(&mut app_config.borrow_mut(), &path, &reason);
+                    // #436 (sweep): invalidar recente via Command (quando
+                    // há sessão; open falhou, pode não haver). Persist
+                    // abaixo é adapter-side (precedente SaveProject).
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::MarkRecentProjectInvalid {
+                            path: path.clone(),
+                            reason,
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,

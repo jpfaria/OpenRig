@@ -126,6 +126,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         &canonical_path,
                         &display_name,
                     );
+                    // #436 (sweep): registrar recente é negócio → Command
+                    // no dispatcher (MCP/MIDI, observável). save_app_config
+                    // abaixo é adapter-side (precedente SaveProject).
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
+                            path: canonical_path.clone(),
+                            name: display_name.clone(),
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
@@ -302,11 +311,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     let _ = session.dispatcher.dispatch(Command::SaveProject);
                     let canonical_path =
                         canonical_project_path(&project_path).unwrap_or(project_path.clone());
+                    let recent_name = project_display_name(&*session.project.borrow());
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
-                        &project_display_name(&*session.project.borrow()),
+                        &recent_name,
                     );
+                    // #436 (sweep): registrar recente via Command.
+                    let _ = session.dispatcher.dispatch(Command::RegisterRecentProject {
+                        path: canonical_path.clone(),
+                        name: recent_name,
+                    });
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,

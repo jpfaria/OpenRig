@@ -390,6 +390,17 @@ pub enum Command {
     /// session; the dispatcher records the intent and signals
     /// `Event::ProjectClosed`.
     CloseProject,
+
+    /// #436 (sweep): register/refresh a recent-projects entry. Was
+    /// GUI-only (`register_recent_project` + `save_app_config` in
+    /// open/save closures). `SaveProject` precedent: the adapter
+    /// persists app-config; the dispatcher records the intent and
+    /// signals `Event::RecentProjectRegistered`.
+    RegisterRecentProject { path: PathBuf, name: String },
+
+    /// #436 (sweep): mark a recent-projects entry invalid (failed open).
+    /// Same precedent; signals `Event::RecentProjectInvalidated`.
+    MarkRecentProjectInvalid { path: PathBuf, reason: String },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

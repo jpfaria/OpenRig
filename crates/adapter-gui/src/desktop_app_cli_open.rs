@@ -13,6 +13,8 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_filesystem::FilesystemStorage;
 use slint::VecModel;
 
@@ -59,6 +61,13 @@ pub(crate) fn try_auto_open(
             crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
             *saved_project_snapshot.borrow_mut() = snapshot;
             register_recent_project(&mut app_config.borrow_mut(), &canonical_path, &display_name);
+            // #436 (sweep): registrar recente via Command (startup CLI).
+            if let Some(s) = project_session.borrow().as_ref() {
+                let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
+                    path: canonical_path.clone(),
+                    name: display_name.clone(),
+                });
+            }
             let _ = FilesystemStorage::save_app_config(&app_config.borrow());
             recent_projects.set_vec(recent_project_items(
                 &app_config.borrow().recent_projects,

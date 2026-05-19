@@ -153,6 +153,10 @@ impl CommandDispatcher for LocalDispatcher {
             }
 
             Command::CloseProject => self.handle_close_project(cmd),
+
+            Command::RegisterRecentProject { .. } | Command::MarkRecentProjectInvalid { .. } => {
+                self.handle_recent_register(cmd)
+            }
         }
     }
 
