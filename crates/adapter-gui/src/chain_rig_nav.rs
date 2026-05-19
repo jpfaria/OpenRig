@@ -65,7 +65,18 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 return RigNavRow::default();
             };
             let preset_slots: Vec<usize> = input.bank.keys().copied().collect();
-            let preset_labels: Vec<String> = input.bank.values().cloned().collect();
+            // #436: show the human `name`, not the pool key/slug id.
+            // Fall back to the key when a preset has no name yet.
+            let preset_labels: Vec<String> = input
+                .bank
+                .values()
+                .map(|key| {
+                    rig.presets
+                        .get(key)
+                        .and_then(|p| p.name.clone())
+                        .unwrap_or_else(|| key.clone())
+                })
+                .collect();
             let active_index = preset_slots
                 .iter()
                 .position(|&s| s == input.active_preset)

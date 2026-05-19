@@ -41,6 +41,8 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                 (
                     p.to_string(),
                     RigPreset {
+                        id: String::new(),
+                        name: None,
                         blocks: vec![],
                         scene_params: vec![],
                         scenes: BTreeMap::new(),

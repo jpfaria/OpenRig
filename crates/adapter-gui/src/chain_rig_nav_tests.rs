@@ -11,6 +11,8 @@ fn rig() -> RigProject {
         presets.insert(
             n.to_string(),
             RigPreset {
+                id: String::new(),
+                name: None,
                 blocks: vec![],
                 scene_params: vec![],
                 scenes: BTreeMap::new(),
@@ -92,6 +94,8 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     r.presets.insert(
         "added".to_string(),
         RigPreset {
+            id: String::new(),
+            name: None,
             blocks: vec![],
             scene_params: vec![],
             scenes: BTreeMap::new(),
