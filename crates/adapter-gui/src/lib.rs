@@ -73,6 +73,7 @@ mod audio_devices;
 mod block_drawer_toggle_enabled;
 mod block_editor;
 mod block_editor_choose_model;
+mod block_window_param_apply;
 mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;

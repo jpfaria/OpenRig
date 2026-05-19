@@ -28,9 +28,14 @@ use slint::{ComponentHandle, Model, SharedString, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::{
-    block_parameter_extensions, build_params_from_items,
+    block_parameter_extensions, build_params_from_items, internal_block_parameter_value,
     schedule_block_editor_persist_for_block_win, set_block_parameter_bool,
     set_block_parameter_number, set_block_parameter_option, set_block_parameter_text,
+};
+use crate::block_window_param_apply::{
+    apply_pick_block_parameter_file, apply_select_block_parameter_option,
+    apply_set_block_parameter_bool, apply_set_block_parameter_number,
+    apply_set_block_parameter_text,
 };
 use crate::eq::compute_eq_curves;
 use crate::state::{BlockEditorDraft, ProjectSession};
@@ -158,12 +163,23 @@ pub(crate) fn wire(
                     }
                 }
             }
-            if win_draft
+            // #436 D-4: bloco existente → param vai por
+            // Command::SetBlockParameterNumber. set_block_parameter_number
+            // acima é render imediato (tela); persist abaixo = D-5.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) =
+                        apply_set_block_parameter_number(session, ci, bi, path.as_str(), value)
+                    {
+                        log::error!("[block-window.number] SetBlockParameterNumber: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
@@ -207,12 +223,21 @@ pub(crate) fn wire(
                 return;
             };
             set_block_parameter_number(&win_param_items, path.as_str(), value);
-            if win_draft
+            // #436 D-4: bloco existente → Command::SetBlockParameterNumber.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) =
+                        apply_set_block_parameter_number(session, ci, bi, path.as_str(), value)
+                    {
+                        log::error!("[block-window.number-text] SetBlockParameterNumber: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
@@ -252,12 +277,21 @@ pub(crate) fn wire(
                 return;
             };
             set_block_parameter_bool(&win_param_items, path.as_str(), value);
-            if win_draft
+            // #436 D-4: bloco existente → Command::SetBlockParameterBool.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) =
+                        apply_set_block_parameter_bool(session, ci, bi, path.as_str(), value)
+                    {
+                        log::error!("[block-window.bool] SetBlockParameterBool: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
@@ -297,12 +331,25 @@ pub(crate) fn wire(
                 return;
             };
             set_block_parameter_text(&win_param_items, path.as_str(), value.as_str());
-            if win_draft
+            // #436 D-4: bloco existente → Command::SetBlockParameterText.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) = apply_set_block_parameter_text(
+                        session,
+                        ci,
+                        bi,
+                        path.as_str(),
+                        value.as_str(),
+                    ) {
+                        log::error!("[block-window.text] SetBlockParameterText: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
@@ -342,12 +389,35 @@ pub(crate) fn wire(
                 return;
             };
             set_block_parameter_option(&win_param_items, path.as_str(), index);
-            if win_draft
+            // #436 D-4: bloco existente → Command::SelectBlockParameterOption.
+            // value canônico resolvido do item (mesma fonte que a GUI
+            // renderiza); index só p/ round-trip. set_block_parameter_option
+            // acima é render (tela); persist abaixo = D-5.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(value) =
+                    internal_block_parameter_value(&win_param_items, path.as_str())
+                {
+                    if let Some(session) = project_session.borrow().as_ref() {
+                        if let Err(e) = apply_select_block_parameter_option(
+                            session,
+                            ci,
+                            bi,
+                            path.as_str(),
+                            &value,
+                            index.max(0) as usize,
+                        ) {
+                            log::error!(
+                                "[block-window.option] SelectBlockParameterOption: {e}"
+                            );
+                        }
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
@@ -400,12 +470,26 @@ pub(crate) fn wire(
                 path.as_str(),
                 file.to_string_lossy().as_ref(),
             );
-            if win_draft
+            // #436 D-4: bloco existente → Command::PickBlockParameterFile.
+            // set_block_parameter_text acima é render (tela); persist = D-5.
+            let existing = win_draft
                 .borrow()
                 .as_ref()
-                .map(|d| d.block_index.is_some())
-                .unwrap_or(false)
-            {
+                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
+            if let Some((ci, bi)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) = apply_pick_block_parameter_file(
+                        session,
+                        ci,
+                        bi,
+                        path.as_str(),
+                        file.clone(),
+                    ) {
+                        log::error!("[block-window.file] PickBlockParameterFile: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),
