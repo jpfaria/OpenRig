@@ -1,0 +1,50 @@
+# OpenRig — standard MIDI map.
+#
+# Copy this file to OpenRig's config folder (see docs/midi.md) and run
+# OpenRig with `--midi`. Then set your MIDI controller to send the
+# messages listed in docs/midi.md. The only thing you may need to change
+# is the input name below ("guitar") to match your rig input.
+#
+# Convention used here: everything on MIDI channel 1, footswitches as
+# Note On (notes 60..67), one knob as Control Change 7.
+
+# Open every connected input port whose name matches this substring.
+# Leave it as is for an M-Vave Chocolate; change to match your device.
+input: Chocolate
+
+bindings:
+  # ── Presets ───────────────────────────────────────────────────────
+  - source: { kind: note_on, channel: 1, note: 60 }   # previous preset
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepPreset: -1 } }
+  - source: { kind: note_on, channel: 1, note: 61 }   # next preset
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepPreset: 1 } }
+
+  # ── Scenes ────────────────────────────────────────────────────────
+  - source: { kind: note_on, channel: 1, note: 62 }   # previous scene
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepScene: -1 } }
+  - source: { kind: note_on, channel: 1, note: 63 }   # next scene
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepScene: 1 } }
+
+  # ── Block selection (pair) ────────────────────────────────────────
+  - source: { kind: note_on, channel: 1, note: 64 }   # selection back
+    command: SelectChainBlock
+    args: { chain: "rig:guitar", delta: -2 }
+  - source: { kind: note_on, channel: 1, note: 65 }   # selection forward
+    command: SelectChainBlock
+    args: { chain: "rig:guitar", delta: 2 }
+  - source: { kind: note_on, channel: 1, note: 66 }   # toggle left of pair
+    command: ToggleSelectedBlock
+    args: { chain: "rig:guitar", side: Left }
+  - source: { kind: note_on, channel: 1, note: 67 }   # toggle right of pair
+    command: ToggleSelectedBlock
+    args: { chain: "rig:guitar", side: Right }
+
+  # ── Volume knob ───────────────────────────────────────────────────
+  - source: { kind: cc, channel: 1, controller: 7 }   # chain volume 0..200%
+    command: SetChainVolume
+    args: { chain: "rig:guitar" }
+    scale: { min: 0.0, max: 200.0, into: value }
