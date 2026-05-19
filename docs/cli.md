@@ -8,6 +8,8 @@
 | `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
 | `--mcp` | Sobe servidor MCP em `http://127.0.0.1:4123` (GUI continua) — ver `docs/mcp.md` |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`) |
+| `--midi` | Sobe o adapter MIDI/BLE-MIDI com o `midi-map.yaml` padrão por-OS (GUI continua) — ver `docs/midi.md` |
+| `--midi=PATH` | Idem com mapa explícito (ex.: `--midi=~/maps/chocolate.yaml`) |
 
 Precedência do path: `--project <PATH>` > posicional > `OPENRIG_PROJECT_PATH`
 (last-wins entre formas CLI). O path resolvido é **validado** (`validate_project_path`):

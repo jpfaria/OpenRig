@@ -320,6 +320,22 @@ impl FilesystemStorage {
         Ok(base_dir.join("OpenRig").join("config.yaml"))
     }
 
+    /// Per-OS path of the global MIDI mapping file (`adapter-midi`, issue
+    /// #22). macOS `~/Library/Application Support/OpenRig/midi-map.yaml`,
+    /// Windows `%APPDATA%\OpenRig\midi-map.yaml`, Linux
+    /// `~/.config/OpenRig/midi-map.yaml`. Never hardcoded — resolved like
+    /// every other OpenRig config file.
+    pub fn midi_map_path() -> Result<PathBuf> {
+        let base_dir = dirs::config_dir()
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".config"))
+            })
+            .context("failed to resolve user config directory")?;
+        Ok(base_dir.join("OpenRig").join("midi-map.yaml"))
+    }
+
     /// Read GUI audio settings (input/output devices + language) from
     /// the unified `config.yaml`. Issue #287: previously these lived in
     /// a separate `gui-settings.yaml`, now folded into `AppConfig`.

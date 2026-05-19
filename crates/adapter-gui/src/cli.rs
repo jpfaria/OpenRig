@@ -39,6 +39,33 @@ pub fn parse_mcp_addr(args: &[&str]) -> Option<SocketAddr> {
     None
 }
 
+/// How the opt-in `--midi` flag was given. Resolving `Default` to the
+/// per-OS `midi-map.yaml` path is the caller's job (keeps this parser pure).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MidiMapArg {
+    /// `--midi` → use the per-OS default `midi-map.yaml`.
+    Default,
+    /// `--midi=PATH` → use this explicit mapping file.
+    Path(PathBuf),
+}
+
+/// Parse the opt-in MIDI controller adapter flag (issue #22).
+///
+/// * `--midi` → [`MidiMapArg::Default`]
+/// * `--midi=PATH` → [`MidiMapArg::Path`]
+/// * absent → `None` (adapter not started; zero overhead)
+pub fn parse_midi_map(args: &[&str]) -> Option<MidiMapArg> {
+    for arg in args.iter().skip(1) {
+        if *arg == "--midi" {
+            return Some(MidiMapArg::Default);
+        }
+        if let Some(rest) = arg.strip_prefix("--midi=") {
+            return Some(MidiMapArg::Path(PathBuf::from(rest)));
+        }
+    }
+    None
+}
+
 pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
     let mut project_path: Option<PathBuf> = None;
     let mut auto_save = false;

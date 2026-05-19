@@ -80,3 +80,24 @@ fn mcp_flag_absent_is_none() {
 fn mcp_flag_invalid_value_is_none() {
     assert_eq!(parse_mcp_addr(&["openrig", "--mcp=not-an-addr"]), None);
 }
+
+#[test]
+fn midi_flag_bare_is_default() {
+    assert_eq!(
+        parse_midi_map(&["openrig", "--midi"]),
+        Some(MidiMapArg::Default)
+    );
+}
+
+#[test]
+fn midi_flag_with_path_is_explicit() {
+    assert_eq!(
+        parse_midi_map(&["openrig", "--midi=/tmp/m.yaml"]),
+        Some(MidiMapArg::Path("/tmp/m.yaml".into()))
+    );
+}
+
+#[test]
+fn midi_flag_absent_is_none() {
+    assert_eq!(parse_midi_map(&["openrig", "/tmp/p.openrig"]), None);
+}

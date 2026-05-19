@@ -24,6 +24,7 @@ mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 pub mod publishing_dispatcher;
+pub mod query;
 pub mod session;
 pub mod validate;
 

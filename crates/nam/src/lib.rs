@@ -51,7 +51,7 @@ pub fn build_processor_with_assets_for_layout(
     _sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // Loudness alignment is now metadata — `output_gain_pct` baked into
+    // Loudness alignment is now metadata — `output_gain_db` baked into
     // the plugin's `manifest.yaml` by `tools/nam_loudness_audit` and
     // summed into `plugin_params.output_level_db` in
     // `from_package::build_from_package`. So this entry point is a

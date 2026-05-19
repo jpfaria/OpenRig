@@ -130,7 +130,7 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
-    /// True quando o `output_gain_pct` do manifest (audit-populated)
+    /// True quando o `output_gain_db` do manifest (audit-populated)
     /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
     /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
     /// a atenuação típica do trainer (-7 a -8 dB) come o boost do
@@ -184,7 +184,7 @@ pub fn plugin_params_from_set_with_defaults(
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
         // Não vem de `params` — é setado pelo `from_package` quando
-        // o manifest tem `output_gain_pct`. Defaults inherit do caller.
+        // o manifest tem `output_gain_db`. Defaults inherit do caller.
         audit_overrides_baked_output: defaults.audit_overrides_baked_output,
     })
 }
@@ -262,7 +262,7 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
     )
 }
 
-// Loudness alignment lives in `manifest.output_gain_pct`, populated
+// Loudness alignment lives in `manifest.output_gain_db`, populated
 // offline by `tools/nam_loudness_audit` (issue #413). The per-NAM
 // `loudness_probe` module is kept around as the measurement engine
 // the tool uses; it does not drive gain at runtime.
@@ -335,7 +335,7 @@ impl NamProcessor {
 
         // Loudness alignment do catalog vai por dentro do
         // `params.input_level_db` (somado pelo `from_package` a
-        // partir de `manifest.output_gain_pct`). Aplicar mais signal
+        // partir de `manifest.output_gain_db`). Aplicar mais signal
         // pelo MODELO do NAM faz o amp responder com sua própria
         // curva — sem clip digital, sem virar gain linear pós-amp.
         //

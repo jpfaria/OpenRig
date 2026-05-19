@@ -487,6 +487,16 @@ fn gui_settings_path_ends_with_expected_filename() {
 }
 
 #[test]
+fn midi_map_path_ends_with_expected_filename() {
+    let path = FilesystemStorage::midi_map_path().unwrap();
+    assert!(
+        path.ends_with("OpenRig/midi-map.yaml"),
+        "unexpected midi map path: {:?}",
+        path
+    );
+}
+
+#[test]
 fn app_config_path_ends_with_expected_filename() {
     let path = FilesystemStorage::app_config_path().unwrap();
     assert!(

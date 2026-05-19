@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, Result};
 
-use project::rig_command::{rig_command_from_scene, rig_command_from_select};
+use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
 use crate::command::{Command, RigNavKind};
@@ -32,6 +32,29 @@ impl LocalDispatcher {
         let rig_cmd = match kind {
             RigNavKind::Preset(n) => rig_command_from_select(&input, n),
             RigNavKind::Scene(n) => rig_command_from_scene(&input, n),
+            // Footswitch next/previous: resolve the relative delta
+            // against the live rig (wrap math is the single source in
+            // `RigProject`), then reuse the proven absolute switch.
+            RigNavKind::StepPreset(delta) => {
+                let pos = rig
+                    .borrow()
+                    .step_preset(&input, delta)
+                    .ok_or_else(|| anyhow!("error-invalid-chain"))?;
+                RigCommand::SwitchPreset {
+                    input: input.clone(),
+                    position: pos,
+                }
+            }
+            RigNavKind::StepScene(delta) => {
+                let scene = rig
+                    .borrow()
+                    .step_scene(&input, delta)
+                    .ok_or_else(|| anyhow!("error-invalid-chain"))?;
+                RigCommand::SwitchScene {
+                    input: input.clone(),
+                    scene,
+                }
+            }
         };
 
         // 1. Capture pending block/param/volume/source edits on the

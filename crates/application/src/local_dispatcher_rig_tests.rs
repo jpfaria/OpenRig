@@ -109,6 +109,76 @@ fn apply_rig_nav_switches_preset_and_reprojects_the_synthetic_chain() {
 }
 
 #[test]
+fn apply_rig_nav_step_preset_advances_then_wraps() {
+    let rig = Rc::new(RefCell::new(rig()));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    let core_ids = |p: &project::project::Project| {
+        p.chains[0]
+            .blocks
+            .iter()
+            .filter_map(|b| match &b.kind {
+                AudioBlockKind::Core(_) => Some(b.id.0.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(core_ids(&project.borrow()), vec!["A"], "starts on p1");
+
+    // Footswitch "next preset": relative step, no fixed position.
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::StepPreset(1),
+        })
+        .expect("dispatch ok");
+    assert_eq!(rig.borrow().inputs["in"].active_preset, 2, "advanced to p2");
+    assert_eq!(core_ids(&project.borrow()), vec!["B"]);
+
+    // Next again wraps back to the first preset.
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::StepPreset(1),
+        })
+        .expect("dispatch ok");
+    assert_eq!(rig.borrow().inputs["in"].active_preset, 1, "wrapped to p1");
+}
+
+#[test]
+fn apply_rig_nav_step_scene_advances() {
+    let r = {
+        let mut r = rig();
+        r.presets
+            .get_mut("p1")
+            .unwrap()
+            .scenes
+            .insert(2, project::rig::RigScene::default());
+        r
+    };
+    let rig = Rc::new(RefCell::new(r));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::StepScene(1),
+        })
+        .expect("dispatch ok");
+    assert_eq!(rig.borrow().inputs["in"].active_scene, 2, "scene advanced");
+}
+
+#[test]
 fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
     // The GUI used to call rig.remove_input() by hand after dispatching
     // RemoveChain — business logic in the UI. RemoveChain must drop the

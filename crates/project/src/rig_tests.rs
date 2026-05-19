@@ -556,3 +556,43 @@ fn remove_input_drops_it_and_orphaned_presets() {
     assert!(p.presets.contains_key("a"), "still-referenced preset kept");
     assert!(!p.remove_input("nope"), "unknown input → false");
 }
+
+#[test]
+fn step_preset_wraps_both_directions() {
+    // bank slots [1,2,3]; active_preset=2 ⇒ position 1 (0-based ordinal).
+    let p = project_with(
+        vec![("in", input(&[(1, "a"), (2, "b"), (3, "c")], 2))],
+        &["a", "b", "c"],
+    );
+    assert_eq!(p.step_preset("in", 1), Some(2), "next from middle");
+    assert_eq!(p.step_preset("in", -1), Some(0), "prev from middle");
+
+    let last = project_with(
+        vec![("in", input(&[(1, "a"), (2, "b"), (3, "c")], 3))],
+        &["a", "b", "c"],
+    );
+    assert_eq!(last.step_preset("in", 1), Some(0), "next wraps to first");
+
+    let first = project_with(
+        vec![("in", input(&[(1, "a"), (2, "b"), (3, "c")], 1))],
+        &["a", "b", "c"],
+    );
+    assert_eq!(first.step_preset("in", -1), Some(2), "prev wraps to last");
+    assert_eq!(first.step_preset("missing", 1), None, "unknown input → None");
+}
+
+#[test]
+fn step_scene_wraps_within_scene_count() {
+    let mut p = project_with(vec![("in", input(&[(1, "a")], 1))], &["a"]);
+    let pa = p.presets.get_mut("a").unwrap();
+    pa.scenes.insert(2, RigScene::default());
+    pa.scenes.insert(3, RigScene::default()); // scene_count = 3
+
+    // active_scene = 1
+    assert_eq!(p.step_scene("in", 1), Some(2), "next scene");
+    assert_eq!(p.step_scene("in", -1), Some(3), "prev wraps to last scene");
+
+    p.inputs.get_mut("in").unwrap().active_scene = 3;
+    assert_eq!(p.step_scene("in", 1), Some(1), "next wraps to first scene");
+    assert_eq!(p.step_scene("missing", 1), None, "unknown input → None");
+}
