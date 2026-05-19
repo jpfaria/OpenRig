@@ -18,7 +18,7 @@ mod translate;
 #[path = "resolve_tests.rs"]
 mod resolve_tests;
 
-pub use daemon::run_blocking;
+pub use daemon::{run_blocking, run_blocking_with_map};
 pub use mapping::{Binding, MidiMap, Scale, Source};
 pub use message::MidiMessage;
 pub use resolve::resolve_midi_map;

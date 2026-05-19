@@ -37,14 +37,22 @@ fn select_ports(available: &[String], wanted: Option<&str>) -> Vec<usize> {
     }
 }
 
-/// Load the map at `map_path`, open **every** matching MIDI input, and
+/// Load the legacy single-file map at `map_path`, validate it, and run the
+/// daemon. Thin wrapper around [`run_blocking_with_map`] preserved for the
+/// `--midi=PATH` (explicit legacy file) flow.
+pub fn run_blocking(bridge: CommandBridge, map_path: &Path) -> Result<()> {
+    let map = MidiMap::load(map_path)?;
+    run_blocking_with_map(bridge, map)
+}
+
+/// Open **every** matching MIDI input for the pre-resolved [`MidiMap`] and
 /// run until the process exits. Call from a dedicated thread. midir
 /// consumes one `MidiInput` per connection, so we create one per port;
-/// all callbacks submit to the **same** command bridge (clone is
-/// cheap + `Send`). Submitting is fire-and-forget: a footswitch does
-/// not block on the dispatch result.
-pub fn run_blocking(bridge: CommandBridge, map_path: &Path) -> Result<()> {
-    let map = std::sync::Arc::new(MidiMap::load(map_path)?);
+/// all callbacks submit to the **same** command bridge (clone is cheap +
+/// `Send`). Submitting is fire-and-forget: a footswitch does not block on
+/// the dispatch result.
+pub fn run_blocking_with_map(bridge: CommandBridge, map: MidiMap) -> Result<()> {
+    let map = std::sync::Arc::new(map);
 
     // One throwaway client just to enumerate ports + names.
     let enumerator = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
