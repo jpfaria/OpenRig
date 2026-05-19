@@ -4,14 +4,14 @@ use block_core::param::{
 };
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, StereoProcessor};
 
-use crate::phase_vocoder::PhaseVocoder;
+use crate::pitch_engine::PitchEngine;
 use crate::registry::PitchModelDefinition;
 use crate::PitchBackendKind;
 
 pub const MODEL_ID: &str = "native_pitch_shifter";
 pub const DISPLAY_NAME: &str = "Pitch Shifter";
 
-const WINDOW_SIZE: usize = 2048;
+const GRAIN_LEN: usize = 1024;
 const MIN_SEMITONES: f32 = -24.0;
 const MAX_SEMITONES: f32 = 24.0;
 const MIN_CENTS: f32 = -100.0;
@@ -93,16 +93,16 @@ fn semitones_to_pitch_factor(semitones: f32, cents: f32) -> f32 {
 }
 
 struct PitchShifter {
-    voc_l: PhaseVocoder,
-    voc_r: PhaseVocoder,
+    voc_l: PitchEngine,
+    voc_r: PitchEngine,
     mix: f32,
 }
 
 impl PitchShifter {
     fn new(params: Params) -> Self {
         let factor = semitones_to_pitch_factor(params.shift_semitones, params.shift_cents);
-        let mut voc_l = PhaseVocoder::new(WINDOW_SIZE);
-        let mut voc_r = PhaseVocoder::new(WINDOW_SIZE);
+        let mut voc_l = PitchEngine::new(GRAIN_LEN);
+        let mut voc_r = PitchEngine::new(GRAIN_LEN);
         voc_l.set_pitch_factor(factor);
         voc_r.set_pitch_factor(factor);
         Self {

@@ -15,7 +15,7 @@
 | **Filter** | EQ, moldagem tonal | 73 | Three Band EQ, Guitar EQ, Guitar HPF/LPF, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah/CS Phaser, MOD HPF/LPF, Filta, Mud, Calf 12-Band/30-Band Equalizer/Vocoder, Guitarix SwitchlessWah, ArtyFX Kuiza, modEQ (LV2 — 68 modelos pós-#379) |
 | **Wah** | Wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + boutique (IR) |
-| **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — STFT phase vocoder Bernsee 2003); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
+| **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — time-domain granular, low-latency); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
 | **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, generic_nam |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
 
@@ -43,7 +43,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **Vibrato**: rate_hz (0.1–8), depth (0–100%), 100% wet
 - **Autotune Chromatic**: speed (0–100ms), mix, detune (±50 cents), sensitivity
 - **Autotune Scale**: + key (C–B), scale (Major, Minor, Pent Maj/Min, Harmonic Minor, Melodic Minor, Blues, Dorian)
-- **Pitch Shifter** (`native_pitch_shifter`): `shift_semitones` (-24/+24), `shift_cents` (-100/+100), `mix` (0–100%). STFT phase vocoder (Bernsee 2003), polifônico, latência ≈32 ms @ 48 kHz (window 2048, hop 512). Foundation reusada pelo autotune nativo (Wave 2 do #381).
+- **Pitch Shifter** (`native_pitch_shifter`): `shift_semitones` (-24/+24), `shift_cents` (-100/+100), `mix` (0–100%). **Pitch shifter time-domain granular** (dual-tap overlap-add, mesma família que DigiTech Whammy/Drop) — delay line lida por 2 taps defasados meio-grão, janelas Hann defasadas π que somam exatamente 1 (amplitude plana, sem warble). Sem FFT, sem detecção de pitch → aguenta acorde, CPU ínfima. Em #488 substituiu o phase vocoder (remap de bin `round(bin·pitch)` colapsava o lóbulo de cada parcial e fazia a nota "cortar/silenciar" em sinal multi-parcial; e tinha ~69 ms de latência, inutilizável ao vivo). Grão = 1024 amostras: latência ≈12 ms @ 48 kHz para −2 semitons, ≈5 ms oitava acima (comparável a pedal comercial; gigável). Grão maior = menos warble de grão, mais latência. Foundation reusada pelo autotune nativo (Wave 2 do #381).
 
 ## Backends de áudio
 
