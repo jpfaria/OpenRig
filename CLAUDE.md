@@ -52,6 +52,27 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - Documentação é parte da tarefa: mudou modelo/block/parâmetro/tela/comportamento de áudio → atualizar `docs/` no mesmo commit.
 - **TDD red-first OBRIGATÓRIO** — proibido implementar/alterar produção sem um teste que falhou ANTES. Bug = entrevistar → teste que reproduz → ver falhar → só então corrigir. Teste-depois (passa de primeira) é proibido. Spec: `docs/testing.md` + `.claude/skills/openrig-code-quality/SKILL.md`.
 
+### Leis de arquitetura (inegociáveis)
+
+- **Toda operação que muda estado nasce `Command`.** `crates/application/src/command.rs` é a única fonte de verdade do que o app faz. GUI dispara via `dispatcher.dispatch`; MCP/gRPC herdam a mesma variante (paridade). Funcionalidade que existe num frontend mas não é `Command` = gap do bus, fecha no mesmo PR. Nunca `borrow_mut()` direto num callback.
+- **Tela não tem regra de negócio.** Slint é dispatcher puro: callback → `Event` → função pura testável. Sem `AppWindow` em teste.
+- **Backend transport-agnostic.** Core (`State`/`Event`/`Command`/`SideEffect`) sem dependência de Slint. Vai virar gRPC + MCP + remoto.
+- **Conteúdo de repo sempre em inglês.** Todo `.md` (`docs/**`, `CLAUDE.md`, READMEs, specs/plans), comentários de código, commits, branches, PRs e comentários de issue no GitHub: inglês. Única exceção: `README.pt-BR.md` / `README.es-ES.md`.
+
+## Diretrizes de trabalho (agente)
+
+**Comunicação.** Chat e raciocínio em pt-BR (conteúdo de repo em inglês — ver lei acima). Default 1-3 frases, problema antes da solução; sem testamento, sem headers/tabelas salvo referência mecânica. Diagnóstico longo vai pra issue/skill, não pro chat.
+
+**Postura.** Nunca parar pra perguntar "devo continuar"; escopo claro = ir direto pro código. Só o que foi pedido — NUNCA criar crate/binário/exemplo/issue/PR/refactor não pedido. Bloqueio real → reportar e parar, não inventar caminho. Invocar a skill relevante ANTES de qualquer ação não-trivial. Mapear escopo + causa raiz + plano antes de tocar código (zero trial-and-error). Avaliar com certeza total antes de pedir tag/build/install ao usuário.
+
+**Mudanças.** Nunca reverter commit nem apagar arquivo que o agente criou/editou (refazer por cima sim); verificar git antes de restaurar; nunca reescrever do zero. Delete só o escopo literal pedido — nunca expandir. Proibido script regex/sed pra migrar conteúdo — análise caso a caso.
+
+**Git / gitflow** (detalhe em `docs/development/gitflow.md`). PR e merge só com pedido explícito — o trabalho termina no push. Branch `{tipo}/issue-N` (zero sufixo) a partir de develop atualizado + merge develop antes. `.solvers/issue-N/` é exclusivo do agente; pasta principal é exclusiva do usuário (agente nunca faz git lá). Stage paths explícitos — NUNCA `git add -A` no `.solvers`. Push direto após cada commit. **Quality gate compartilhado roda só na criação do PR (o CI roda no PR); NUNCA rodar o gate por push.** Após CADA push: `gh issue comment` (hash + arquivos + build/teste) e incluir o bloco `git checkout feature/issue-N && git pull` na resposta. Antes de fechar issue, atribuir milestone (close not-planned/duplicate/superseded NÃO leva milestone). Checar `docs/superpowers/specs/` + `gh issue list` antes de planejar. Não proliferar issues (cada uma vira branch+workspace de GBs). `@claude` no GitHub: seguir o template de premissas obrigatórias.
+
+**UI/Slint.** Nunca glifo como ícone (vira tofu no Orange Pi) — sempre SVG via `@image-url` + colorize. Bebas Neue é a fonte default por escolha — não propor trocar. Manter consistência visual cross-screen.
+
+**Docs.** README sempre nas 3 línguas juntas: `README.md` (en) + `README.pt-BR.md` + `README.es-ES.md`.
+
 ## Referências (ler quando precisar)
 
 | Doc | Quando |

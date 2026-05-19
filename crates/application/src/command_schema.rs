@@ -73,6 +73,25 @@ pub fn command_variant_schema(variant: &str) -> Value {
     serde_json::json!({ "type": "object", "properties": {}, "required": [] })
 }
 
+/// True if the variant carries no fields (serde externally-tagged unit
+/// variant — serialized as the bare string `"Variant"`, not `{"Variant":…}`).
+/// `schemars` emits these inside a string/`enum` entry, not as an object
+/// entry with `properties.<Variant>`.
+pub fn is_unit_variant(variant: &str) -> bool {
+    let root = command_root_schema();
+    for entry in variant_entries(&root) {
+        if let Some(en) = entry["enum"].as_array() {
+            if en.iter().filter_map(Value::as_str).any(|n| n == variant) {
+                return true;
+            }
+        }
+        if entry_variant_name(&entry).as_deref() == Some(variant) {
+            return entry["properties"].get(variant).is_none();
+        }
+    }
+    false
+}
+
 /// `SetBlockParameterNumber` -> `set_block_parameter_number`.
 pub fn tool_name(variant: &str) -> String {
     let mut s = String::with_capacity(variant.len() + 8);
@@ -119,3 +138,5 @@ mod tests {
         assert_eq!(tool_name("SaveProject"), "save_project");
     }
 }
+
+

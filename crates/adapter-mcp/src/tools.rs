@@ -39,7 +39,14 @@ pub fn tools() -> Vec<Tool> {
 pub fn build_command(tool: &str, args: Value) -> Result<Command> {
     let variant = variant_from_tool_name(tool)
         .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
-    let tagged = json!({ variant: args });
+    // serde externally-tagged: unit variant = bare string `"Variant"`;
+    // struct variant = `{ "Variant": <args> }`. MCP clients send `{}` for
+    // no-arg tools, which serde rejects for a unit variant.
+    let tagged = if application::command_schema::is_unit_variant(variant) {
+        Value::String(variant.to_string())
+    } else {
+        json!({ variant: args })
+    };
     serde_json::from_value(tagged)
         .map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
 }
@@ -63,18 +70,54 @@ mod tests {
     use super::*;
     use application::command_schema::command_variant_names;
 
+    /// `Command` has exactly this many variants. If you add/remove one,
+    /// update this AND ensure its payload types derive `JsonSchema`
+    /// (otherwise the variant silently drops from the schema → no tool).
+    const COMMAND_VARIANT_COUNT: usize = 34;
+
     #[test]
-    fn parity_guard_one_tool_per_command_variant() {
-        assert_eq!(tools().len(), command_variant_names().len());
-        // every tool name resolves back to a real variant
+    fn parity_guard_every_command_variant_is_a_tool() {
+        // Honest guard: the schema-derived tool set must cover ALL Command
+        // variants, not just the schemars-describable subset. Catches the
+        // #[schemars(skip)] regression (issue #489).
+        assert_eq!(
+            command_variant_names().len(),
+            COMMAND_VARIANT_COUNT,
+            "schema-derived variants != Command variants — a payload type \
+             is missing JsonSchema (see #489)"
+        );
+        assert_eq!(tools().len(), COMMAND_VARIANT_COUNT);
         for t in tools() {
             assert!(variant_from_tool_name(&t.name).is_some(), "{}", t.name);
+        }
+        // Spot-check variants that were #[schemars(skip)]'d before #489.
+        for v in [
+            "AddChain",
+            "ConfigureChain",
+            "SaveChain",
+            "LoadProject",
+            "CreateProject",
+            "SaveAudioSettings",
+        ] {
+            assert!(
+                command_variant_names().contains(&v),
+                "{v} missing from schema — JsonSchema not derived on its payload"
+            );
         }
     }
 
     #[test]
     fn build_command_maps_unit_variant() {
         let cmd = build_command("save_project", Value::Null).unwrap();
+        assert!(matches!(cmd, Command::SaveProject));
+    }
+
+    #[test]
+    fn build_command_unit_variant_with_empty_object_args() {
+        // MCP clients send `arguments: {}` for a no-arg tool; serde's
+        // externally-tagged unit variant rejects a map, so build_command
+        // must emit the bare string for unit variants.
+        let cmd = build_command("save_project", serde_json::json!({})).unwrap();
         assert!(matches!(cmd, Command::SaveProject));
     }
 

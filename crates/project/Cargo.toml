@@ -7,6 +7,7 @@ edition.workspace = true
 anyhow.workspace = true
 log.workspace = true
 serde.workspace = true
+schemars.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
 plugin-loader = { path = "../plugin-loader" }
