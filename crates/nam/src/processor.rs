@@ -141,7 +141,12 @@ pub struct NamPluginParams {
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
     output_level_db: 0.0,
-    noise_gate_threshold_db: -80.0,
+    // Issue #496: was -80 dB while the gate was unwired (a no-op). Now
+    // that the expander is applied, -50 dBFS sits above the amplified
+    // model noise floor (worst hot case ≈ -53 dBFS) yet ~45 dB below
+    // normal playing — it collapses the decay hiss without touching
+    // played notes. Overridable per-model via `noise_gate.threshold_db`.
+    noise_gate_threshold_db: -50.0,
     noise_gate_enabled: true,
     eq_enabled: true,
     audit_overrides_baked_output: false,
@@ -267,6 +272,28 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
 // `loudness_probe` module is kept around as the measurement engine
 // the tool uses; it does not drive gain at runtime.
 
+/// Memoryless output saturator (issue #496).
+///
+/// A loud loudness calibration must not be allowed to clip on the
+/// converter (harsh digital distortion) or amplify the model noise
+/// floor into a hard wall on the decay. This rounds only the peaks
+/// that would exceed full-scale: transparent below `THRESHOLD` (a
+/// normally-played, well-calibrated model never reaches it, so tone
+/// and loudness are untouched), then smoothly asymptotic to ±1.0 —
+/// musical saturation instead of a ±1.0 brickwall. Memoryless: zero
+/// latency, zero state, deterministic, safe on the audio thread.
+#[inline]
+fn soft_clip(x: f32) -> f32 {
+    const THRESHOLD: f32 = 0.8;
+    let a = x.abs();
+    if a <= THRESHOLD {
+        x
+    } else {
+        let over = a - THRESHOLD;
+        x.signum() * (THRESHOLD + (1.0 - THRESHOLD) * (over / ((1.0 - THRESHOLD) + over)))
+    }
+}
+
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
 // standard dylib link directive.
@@ -292,6 +319,18 @@ pub struct NamProcessor {
     output_gain: f32,
     scratch_input: Vec<f32>,
     scratch_output: Vec<f32>,
+    // Noise gate / downward expander (issue #496). The NAM params have
+    // always carried `noise_gate_*` but nothing applied them — so a hot
+    // `output_gain_db` amplified the model noise floor into an audible
+    // hiss on the decay. These wire it: memoryless math + a one-float
+    // envelope (zero latency, no alloc/lock on the audio thread).
+    gate_enabled: bool,
+    gate_thresh_lin: f32,
+    /// Expander exponent = ratio - 1 (0 ⇒ off, larger ⇒ steeper).
+    gate_expo: f32,
+    /// Per-sample release coefficient (slow ⇒ natural tail fade).
+    gate_release: f32,
+    gate_env: f32,
 }
 
 unsafe impl Send for NamProcessor {}
@@ -307,7 +346,12 @@ impl Drop for NamProcessor {
 }
 
 impl NamProcessor {
-    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
+    pub fn new(
+        model_path: &str,
+        _ir_path: Option<&str>,
+        params: NamPluginParams,
+        sample_rate: f32,
+    ) -> Result<Self> {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
         let model = {
@@ -359,13 +403,57 @@ impl NamProcessor {
             params.audit_overrides_baked_output,
         );
 
+        // Downward expander, 5:1, instant attack + ~50 ms one-pole
+        // release. Attack is instant so a played note opens the gate
+        // immediately (no missed transient); the release is slow enough
+        // that a decaying note's tail rings down naturally, but fast
+        // enough that once you stop the envelope converges to the
+        // (low) residual hiss within a few hundred ms and the expander
+        // collapses it. Continuous at the threshold (gain → 1 there) →
+        // no audible step when it engages.
+        let sr = if sample_rate > 0.0 {
+            sample_rate
+        } else {
+            48_000.0
+        };
+        let gate_release = (-1.0 / (0.050 * sr)).exp();
+
         Ok(Self {
             model,
             input_gain,
             output_gain,
             scratch_input: Vec::new(),
             scratch_output: Vec::new(),
+            gate_enabled: params.noise_gate_enabled,
+            gate_thresh_lin: db_to_lin(params.noise_gate_threshold_db),
+            gate_expo: 4.0,
+            gate_release,
+            gate_env: 0.0,
         })
+    }
+
+    /// Memoryless-math downward expander with a one-float peak
+    /// envelope (issue #496). Above threshold: unity (loud, undistorted
+    /// playing is untouched). Below: smooth expansion `(env/thr)^expo`
+    /// → continuous at the threshold, → 0 as the signal dies, so the
+    /// amplified noise floor collapses on the decay instead of hissing.
+    #[inline]
+    fn gate(&mut self, x: f32) -> f32 {
+        if !self.gate_enabled {
+            return x;
+        }
+        let a = x.abs();
+        // Instant attack, exponential release.
+        self.gate_env = if a > self.gate_env {
+            a
+        } else {
+            a + (self.gate_env - a) * self.gate_release
+        };
+        if self.gate_env >= self.gate_thresh_lin {
+            x
+        } else {
+            x * (self.gate_env / self.gate_thresh_lin).powf(self.gate_expo)
+        }
     }
 }
 
@@ -381,7 +469,8 @@ impl MonoProcessor for NamProcessor {
         unsafe {
             Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        output[0] * self.output_gain
+        let y = soft_clip(output[0] * self.output_gain);
+        self.gate(y)
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -408,8 +497,12 @@ impl MonoProcessor for NamProcessor {
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let elapsed = t0.elapsed();
         // Apply output gain
+        let output_gain = self.output_gain;
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
-            *dst = *src * self.output_gain;
+            *dst = soft_clip(*src * output_gain);
+        }
+        for s in buffer.iter_mut() {
+            *s = self.gate(*s);
         }
 
         // Periodic diagnostic logging on aarch64 to investigate NAM audio quality

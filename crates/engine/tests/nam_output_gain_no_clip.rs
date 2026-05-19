@@ -1,23 +1,18 @@
-//! NAM `output_gain_db` makeup must not clip a normal-level signal. Issue #496.
+//! NAM must be LOUD and NOT clip, even with a hot calibration. Issue #496.
 //!
-//! THE PROPERTY UNDER TEST: the engine applies a NAM model's manifest
-//! `output_gain_db` as a post-model linear trim (#491). When that value
-//! was an absolute hot loudness target (the #496 report documented
-//! +10.53 / +13.05 / +18.68 dB; the user heard the "CPM 22" preset clip
-//! at normal playing volume) the post-model gain had no headroom: a
-//! normal DI peaked ~3x past full-scale and the same gain amplified the
-//! model noise floor on the decay.
+//! Objective gate (numbers, not ears). One fixed realistic DI through
+//! the real bundled NAM model carrying the worst documented hot value
+//! (#496: the CPM 22 class shipped +18.68 dB). The output must satisfy
+//! ALL THREE simultaneously:
 //!
-//! Resolution (#496 part 2): `nam_loudness_audit` (OpenRig-plugins) now
-//! emits a BOUNDED RELATIVE correction instead of a hot target — the
-//! bundled `marshall_plexi` fixture mirrors its real re-audited source
-//! value (tone3000 #2717: +8.93 → -13.56 dB). With those values the
-//! unchanged post-model trim must keep a normally-played signal inside
-//! digital full-scale. This is the live regression guard: if a hot
-//! absolute value is ever re-introduced into a manifest, building it
-//! and running a normal DI clips here.
+//!   * finite              — no NaN/Inf
+//!   * peak ≤ 0 dBFS       — no digital clip / harsh distortion
+//!   * rms  ≥ -18 dBFS     — still loud (a quiet "fix" is not a fix)
 //!
-//! No `#[ignore]`: reuses the bundled `marshall_plexi` fixture.
+//! Before #496 the hot value pushed peak to +8.7 dBFS (clip). A blind
+//! ceiling killed loudness instead. The fix is a memoryless soft-clip
+//! on the NAM output: transparent for normal signal, smoothly bounded
+//! at the peaks that would clip — loud AND clean, zero latency.
 
 use std::path::PathBuf;
 
@@ -29,11 +24,9 @@ use plugin_loader::discover::LoadedPackage;
 
 const SR: f32 = 48_000.0;
 
-/// Re-audited `output_gain_db` in the bundled `marshall_plexi/manifest.yaml`,
-/// kept in sync with its OpenRig-plugins source (tone3000 #2717). Single
-/// source of truth — the fixture must carry the relative correction the
-/// audit emits, not a hot absolute target.
-const PLEXI_CAL_DB: f32 = -13.559_131_6;
+/// Worst real hot `output_gain_db` documented in issue #496 (CPM 22
+/// class). The gate must hold even here.
+const HOT_CAL_DB: f32 = 18.68;
 
 fn fixtures_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins")
@@ -42,17 +35,15 @@ fn fixtures_root() -> PathBuf {
 fn load(rel_dir: &str) -> LoadedPackage {
     let root = fixtures_root();
     let target = root.join(rel_dir);
-    let found = discover::discover(&root).expect("discover fixture root");
-    found
+    discover::discover(&root)
+        .expect("discover fixture root")
         .into_iter()
         .filter_map(Result::ok)
         .find(|p| p.root == target)
         .unwrap_or_else(|| panic!("fixture package not found: {rel_dir}"))
 }
 
-/// A normal-level DI: peak ≈ 0.3 (≈ -10 dBFS), representative of a
-/// guitar played at normal volume into the chain — NOT the artificially
-/// quiet 0.05 the #491 guard used to keep the amp "well-behaved".
+/// Realistic guitar DI: peak ≈ 0.3 (≈ -10 dBFS), normal playing level.
 fn di_sine(frames: usize) -> Vec<f32> {
     (0..frames)
         .map(|n| 0.3 * (2.0 * std::f32::consts::PI * 110.0 * n as f32 / SR).sin())
@@ -63,42 +54,42 @@ fn run_mono(proc: &mut BlockProcessor, input: &[f32]) -> Vec<f32> {
     let mut buf = input.to_vec();
     match proc {
         BlockProcessor::Mono(m) => m.process_block(&mut buf),
-        BlockProcessor::Stereo(_) => panic!("expected a mono processor for this fixture"),
+        BlockProcessor::Stereo(_) => panic!("expected mono"),
     }
     buf
 }
 
+fn db(x: f32) -> f32 {
+    20.0 * x.max(1e-9).log10()
+}
+
 #[test]
-fn nam_calibrated_output_does_not_clip_a_normal_level_di() {
+fn nam_is_loud_and_does_not_clip_even_with_a_hot_calibration() {
     nam::register_builder();
 
-    // Real bundled NAM amp with the audit's real re-audited value (the
-    // exact #491 path: manifest output_gain_db → post-model trim).
-    let plexi = load("nam/marshall_plexi");
-    assert_eq!(
-        plexi.manifest.output_gain_db,
-        Some(PLEXI_CAL_DB),
-        "fixture must mirror the OpenRig-plugins re-audited relative \
-         correction, not a hot absolute target (issue #496)"
-    );
+    let mut pkg = load("nam/marshall_plexi");
+    pkg.manifest.output_gain_db = Some(HOT_CAL_DB);
+    let mut params = ParameterSet::default();
+    params.insert("preset", ParameterValue::String("angus".into()));
+    let mut amp = pkg
+        .build_processor(&params, SR, AudioChannelLayout::Mono)
+        .expect("build NAM");
 
-    let mut amp_params = ParameterSet::default();
-    amp_params.insert("preset", ParameterValue::String("angus".into()));
-    let mut amp = plexi
-        .build_processor(&amp_params, SR, AudioChannelLayout::Mono)
-        .expect("NAM amp should build from the bundled fixture");
-
-    let di = di_sine(8_192);
-    let out = run_mono(&mut amp, &di);
+    let out = run_mono(&mut amp, &di_sine(8_192));
+    let tail = &out[out.len() / 2..];
+    let peak = tail.iter().fold(0.0f32, |a, &b| a.max(b.abs()));
+    let rms = (tail.iter().map(|v| v * v).sum::<f32>() / tail.len() as f32).sqrt();
+    let (peak_db, rms_db) = (db(peak), db(rms));
 
     assert!(out.iter().all(|s| s.is_finite()), "produced NaN/Inf");
-
-    let peak = out.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
     assert!(
         peak <= 1.0,
-        "NAM clips a normal-level DI: output_gain_db pushed the peak to \
-         {peak:.4} (> 1.0 full-scale). A hot absolute calibration was \
-         re-introduced — the manifest must carry the audit's bounded \
-         relative correction (issue #496)."
+        "CLIPS: peak {peak_db:.2} dBFS (> 0) with a {HOT_CAL_DB:.2} dB \
+         calibration — digital clip / harsh distortion (issue #496)"
+    );
+    assert!(
+        rms_db >= -18.0,
+        "TOO QUIET: rms {rms_db:.2} dBFS (< -18) — a quiet fix is not a \
+         fix; loudness must survive the clip safety (issue #496)"
     );
 }

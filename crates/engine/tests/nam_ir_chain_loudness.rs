@@ -34,12 +34,11 @@ use plugin_loader::discover::LoadedPackage;
 
 const SR: f32 = 48_000.0;
 /// `output_gain_db` in the bundled `marshall_plexi/manifest.yaml`.
-/// Re-audited under #496: the audit now emits a bounded RELATIVE
-/// correction (here an attenuation), not a hot absolute target. The
-/// differential property below is unchanged — `output_gain_db` is
-/// still a post-model trim, so the calibrated build differs from the
-/// cleared-field control by exactly this many dB (now negative).
-const PLEXI_CAL_DB: f32 = -13.559_131_6;
+/// A positive loudness-matching target (issue #491): a NAM amp must be
+/// much louder than the clean DI. The #496 detour that made this an
+/// attenuation ("tudo baixo") was reverted; clip safety is now a
+/// memoryless soft-clip in the NAM processor, not a quiet calibration.
+const PLEXI_CAL_DB: f32 = 8.931_892_4;
 
 fn fixtures_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins")
