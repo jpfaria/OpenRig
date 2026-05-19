@@ -25,7 +25,7 @@
 
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::bail;
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::{anyhow, Result};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SupportedStreamConfigRange;
@@ -35,7 +35,7 @@ use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::DeviceTrait;
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedInputDevice;
 use crate::resolved::ResolvedOutputDevice;
 
@@ -52,7 +52,7 @@ pub(crate) fn build_stream_config(
     }
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_input_sample_rate(resolved: &ResolvedInputDevice) -> u32 {
     resolved
         .settings
@@ -61,7 +61,7 @@ pub(crate) fn resolved_input_sample_rate(resolved: &ResolvedInputDevice) -> u32 
         .unwrap_or_else(|| resolved.supported.sample_rate())
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u32 {
     resolved
         .settings
@@ -70,7 +70,7 @@ pub(crate) fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u3
         .unwrap_or_else(|| resolved.supported.sample_rate())
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
     resolved
         .settings
@@ -87,7 +87,7 @@ pub(crate) fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice
         .unwrap_or(256)
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn required_channel_count(channels: &[usize]) -> usize {
     channels
         .iter()
@@ -130,7 +130,7 @@ pub(crate) fn select_supported_stream_config(
     })
 }
 
-#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[cfg(test)]
 pub(crate) fn resolve_chain_runtime_sample_rate(
     chain_id: &str,
     input: &SupportedStreamConfig,
@@ -148,7 +148,7 @@ pub(crate) fn resolve_chain_runtime_sample_rate(
     Ok(input.sample_rate() as f32)
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_multi_io_sample_rate(
     chain_id: &str,
     inputs: &[ResolvedInputDevice],

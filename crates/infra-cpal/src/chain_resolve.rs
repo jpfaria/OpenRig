@@ -307,7 +307,7 @@ pub(crate) fn resolve_chain_outputs(
 }
 
 /// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
         device_id: insert.return_.device_id.clone(),
@@ -317,7 +317,7 @@ pub(crate) fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 }
 
 /// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     use project::chain::ChainOutputMode;
     OutputEntry {
