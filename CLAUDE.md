@@ -59,6 +59,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Tela não tem regra de negócio.** Slint é dispatcher puro: callback → `Event` → função pura testável. Sem `AppWindow` em teste.
 - **Backend transport-agnostic.** Core (`State`/`Event`/`Command`/`SideEffect`) sem dependência de Slint. Vai virar gRPC + MCP + remoto.
 - **Conteúdo de repo sempre em inglês.** Todo `.md` (`docs/**`, `CLAUDE.md`, READMEs, specs/plans), comentários de código, commits, branches, PRs e comentários de issue no GitHub: inglês. Única exceção: `README.pt-BR.md` / `README.es-ES.md`.
+- **Config: sistema vs projeto (ADR 0003).** Setting nasce em `config.yaml` (sistema) ou dentro de `project.openrig` (projeto) por uma regra única: *"se eu mandar o `.openrig` pra outra máquina, esse valor tem que ir junto?"* Sim → projeto. Não → sistema. Precedência no load: projeto sobrescreve sistema. Spec: `docs/adr/0003-system-vs-project-config.md` + `docs/config-taxonomy.md`.
 
 ## Diretrizes de trabalho (agente)
 
