@@ -25,6 +25,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::AudioBlockKind;
 
@@ -162,6 +163,15 @@ pub(crate) fn wire(
             set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
             return;
         };
+        // #436: selection is dispatcher-owned now (MIDI/MCP can move the
+        // cursor). The GUI dispatches; the editor-window plumbing below
+        // is screen concern and stays for now (separate decrements).
+        let _ = session
+            .dispatcher
+            .dispatch(application::command::Command::SelectChainBlock {
+                chain: chain.id.clone(),
+                block_index: block_index as usize,
+            });
         // Handle I/O blocks — open I/O groups window with entries of THIS specific block
         match &block.kind {
             AudioBlockKind::Input(ib) => {

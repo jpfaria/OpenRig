@@ -6,6 +6,7 @@ use application::local_dispatcher::LocalDispatcher;
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use project::project::Project;
+use project::rig::RigProject;
 use serde::{Deserialize, Serialize};
 use slint::Timer;
 use std::path::PathBuf;
@@ -31,6 +32,10 @@ pub(crate) struct ProjectSession {
     pub(crate) project_path: Option<PathBuf>,
     pub(crate) config_path: Option<PathBuf>,
     pub(crate) presets_path: PathBuf,
+    /// The rig the synthetic `project` was projected from (#436). Kept so
+    /// the legacy chains screen can switch preset/scene per input. `None`
+    /// for sessions not loaded through the rig path (e.g. brand-new).
+    pub(crate) rig: Option<Rc<RefCell<RigProject>>>,
 }
 
 impl ProjectSession {
@@ -52,6 +57,7 @@ impl ProjectSession {
             project_path,
             config_path,
             presets_path,
+            rig: None,
         }
     }
 }

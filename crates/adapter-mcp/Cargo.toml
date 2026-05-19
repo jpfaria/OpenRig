@@ -1,0 +1,21 @@
+[package]
+name = "adapter-mcp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+application = { path = "../application" }
+project = { path = "../project" }
+infra-yaml = { path = "../infra-yaml" }
+infra-cpal = { path = "../infra-cpal" }
+serde_json.workspace = true
+futures.workspace = true
+rmcp = { workspace = true, features = ["server", "transport-streamable-http-server"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+# default-features=false drops axum's `tower-log` → `tower/log` → `tracing/log`
+# chain. That bridge would turn every winit/Slint internal `tracing` span
+# into an `env_logger` line and flood stdout (issue #165 follow-up). We only
+# need a plain HTTP/1 server to host the rmcp tower service.
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1"] }
+schemars.workspace = true

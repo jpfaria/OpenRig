@@ -5,6 +5,8 @@
 - `block-core` — `BlockProcessor`, `AudioChannelLayout`, `ParameterSet`, constantes de instrumento
 - `block-preamp` / `block-amp` — preamp / amp completo
 - `adapter-gui` — UI Slint (`ui/`)
+- `adapter-mcp` — servidor MCP (biblioteca, `rmcp` 1.7.0, Streamable HTTP); liga na instância viva via `application::bridge`. Ver `docs/mcp.md` e `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`
+- `application` — command bus: `Command`/`Event`, `LocalDispatcher`, `bridge` (ponte `Send`↔`!Send` p/ MCP/gRPC), `PublishingDispatcher` (fan-out de eventos), `command_schema` (schema de tool por variante)
 - `nam` — Neural Amp Modeler
 - `asset-runtime` — `EmbeddedAsset`, `materialize()`
 

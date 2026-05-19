@@ -6,7 +6,7 @@ use crate::chain::Chain;
 use crate::device::DeviceSettings;
 use crate::param::BlockParameterDescriptor;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Project {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

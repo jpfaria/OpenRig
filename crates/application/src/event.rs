@@ -4,6 +4,8 @@
 //!
 //! **Spec reference:** `docs/superpowers/specs/2026-04-23-command-dispatch-architecture-design.md`
 
+use std::path::PathBuf;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -90,6 +92,37 @@ pub enum Event {
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,
 
+    /// #436 F: the UI language preference was changed (`None` = system
+    /// default). The adapter performs the persistence + live i18n swap;
+    /// this records that the change went through the dispatcher.
+    LanguageChanged { language: Option<String> },
+
+    /// #436 G: the audio output mute state changed. The adapter applies
+    /// it to the runtime; this records it went through the dispatcher.
+    OutputMutedChanged { muted: bool },
+
+    /// #436 F: a recent-projects entry was removed (by list index). The
+    /// adapter performs the app-config persistence; this records the
+    /// change went through the dispatcher.
+    RecentProjectRemoved { index: usize },
+
+    /// #436 F: a chain preset file was saved. The adapter does the file
+    /// I/O; this records it went through the dispatcher.
+    ChainPresetSaved { name: String },
+
+    /// #436 F: a chain preset file was deleted. The adapter does the
+    /// file I/O; this records it went through the dispatcher.
+    ChainPresetDeleted { name: String },
+
+    /// #436 H: the Tuner analyzer was powered on/off. The adapter does
+    /// the build/teardown; this records it went through the dispatcher.
+    TunerEnabledChanged { enabled: bool },
+
+    /// #436 H: the Spectrum analyzer was powered on/off. The adapter
+    /// does the build/teardown; this records it went through the
+    /// dispatcher.
+    SpectrumEnabledChanged { enabled: bool },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
@@ -100,6 +133,97 @@ pub enum Event {
     /// A new project was created.
     ProjectCreated,
 
+    /// #436 E: the project was closed (back to launcher). The adapter
+    /// tears down runtime/session; this records it went through the
+    /// dispatcher.
+    ProjectClosed,
+
+    /// #436 (sweep): a recent-projects entry was registered/refreshed.
+    /// The adapter persists app-config; this records it went through
+    /// the dispatcher.
+    RecentProjectRegistered { path: PathBuf, name: String },
+
+    /// #436 (sweep): a recent-projects entry was marked invalid. The
+    /// adapter persists app-config; this records it went through the
+    /// dispatcher.
+    RecentProjectInvalidated { path: PathBuf, reason: String },
+
     /// An error occurred while processing a command.
     Error { message: String },
+
+    /// #22: the per-chain block-selection pair cursor moved; `left` is
+    /// the left block index of the pair. Drives the transient selection
+    /// border (shown on a footswitch stimulus, fades after a timeout).
+    BlockSelectionChanged { chain: ChainId, left: usize },
+}
+
+impl Event {
+    /// The chain this event affected, if any. Project-wide events
+    /// (`ProjectSaved`, `ProjectMutated`, …) return `None`. Used by the
+    /// MIDI/MCP drain to re-sync exactly the chains a footswitch touched.
+    pub fn chain(&self) -> Option<&ChainId> {
+        match self {
+            Event::ChainReloaded { chain }
+            | Event::BlockParameterChanged { chain, .. }
+            | Event::BlockEnabledChanged { chain, .. }
+            | Event::BlockReplaced { chain, .. }
+            | Event::BlockAdded { chain, .. }
+            | Event::BlockRemoved { chain, .. }
+            | Event::DeviceChanged { chain, .. }
+            | Event::ChainAdded { chain }
+            | Event::ChainRemoved { chain }
+            | Event::ChainEnabledChanged { chain, .. }
+            | Event::ChainMoved { chain, .. }
+            | Event::ChainConfigured { chain }
+            | Event::ChainSaved { chain }
+            | Event::ChainInputEndpointsSaved { chain }
+            | Event::ChainOutputEndpointsSaved { chain }
+            | Event::ChainIoSaved { chain }
+            | Event::InsertBlockSaved { chain, .. }
+            | Event::ChainPresetLoaded { chain }
+            | Event::ChainVolumeChanged { chain, .. }
+            | Event::BlockSelectionChanged { chain, .. } => Some(chain),
+            Event::ProjectMutated
+            | Event::AudioSettingsSaved
+            | Event::ProjectLoaded
+            | Event::ProjectSaved
+            | Event::ProjectCreated
+            // #436 F/G/H/E + sweep: app/project-wide events, no ChainId.
+            | Event::LanguageChanged { .. }
+            | Event::OutputMutedChanged { .. }
+            | Event::RecentProjectRemoved { .. }
+            | Event::RecentProjectRegistered { .. }
+            | Event::RecentProjectInvalidated { .. }
+            | Event::ChainPresetSaved { .. }
+            | Event::ChainPresetDeleted { .. }
+            | Event::TunerEnabledChanged { .. }
+            | Event::SpectrumEnabledChanged { .. }
+            | Event::ProjectClosed
+            | Event::Error { .. } => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chain_accessor_returns_the_affected_chain() {
+        // The MIDI/MCP refresh needs to know which chain each event
+        // touched so it can re-sync that chain's live runtime.
+        let c = ChainId("rig:guitar".into());
+        assert_eq!(Event::ChainReloaded { chain: c.clone() }.chain(), Some(&c));
+        assert_eq!(
+            Event::ChainVolumeChanged {
+                chain: c.clone(),
+                value: 80.0
+            }
+            .chain(),
+            Some(&c)
+        );
+        // Project-wide events carry no chain.
+        assert_eq!(Event::ProjectSaved.chain(), None);
+        assert_eq!(Event::ProjectMutated.chain(), None);
+    }
 }

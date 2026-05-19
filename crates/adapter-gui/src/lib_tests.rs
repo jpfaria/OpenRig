@@ -1142,3 +1142,42 @@ fn build_device_settings_input_takes_precedence_on_duplicate() {
     );
     assert_eq!(result[0].buffer_size_frames, 128);
 }
+
+// #436 #1: the app's load path runs the NEW rig engine (GUI unchanged).
+
+#[test]
+fn rig_project_for_routes_legacy_through_rig_engine() {
+    let dir = tempfile::tempdir().expect("tmp");
+    let path = dir.path().join("project.yaml");
+    std::fs::write(
+        &path,
+        "name: t\nchains:\n\
+         - description: Guitarra\n  instrument: electric_guitar\n  volume: 137.0\n  blocks:\n\
+         \x20 - type: input\n    enabled: true\n    model: standard\n    entries:\n\
+         \x20   - device_id: dev\n      mode: mono\n      channels: [0]\n\
+         \x20 - type: gain\n    enabled: true\n    model: volume\n    params: { volume: 80.0, mute: false }\n\
+         \x20 - type: output\n    enabled: true\n    model: standard\n    entries:\n\
+         \x20   - device_id: dev\n      mode: stereo\n      channels: [0, 1]\n",
+    )
+    .unwrap();
+
+    let (_rig, proj) = crate::project_ops::load_rig_and_project(&path).expect("rig load");
+
+    assert_eq!(proj.chains.len(), 1, "rig input shown as a chain");
+    assert_eq!(
+        proj.chains[0].id.0, "rig:input-1",
+        "GUI sees rig input as a chain"
+    );
+    assert!(
+        !proj.chains[0].enabled,
+        "nothing auto-starts — the user enables it"
+    );
+    assert_eq!(
+        proj.chains[0].volume, 137.0,
+        "preset volume preserved through the rig path (invariant #10)"
+    );
+    assert!(
+        path.with_extension("openrig").exists(),
+        "legacy .yaml transparently migrated to .openrig"
+    );
+}

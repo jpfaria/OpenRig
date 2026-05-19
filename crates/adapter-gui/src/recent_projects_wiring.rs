@@ -19,6 +19,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{AppConfig, FilesystemStorage};
 
@@ -120,6 +122,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    // #436 E: abrir recente é negócio → Command::LoadProject
+                    // no dispatcher da sessão (MCP/MIDI, observável via
+                    // Event::ProjectLoaded). Load+swap é adapter-side
+                    // (precedente SaveProject).
+                    {
+                        let project = session.project.borrow().clone();
+                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
+                            project,
+                            path: canonical_path.clone(),
+                        }) {
+                            log::warn!("[open-recent] Command::LoadProject falhou: {e}");
+                        }
+                    }
                     let title =
                         project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());
@@ -132,12 +147,20 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
+                    crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
                         &display_name,
                     );
+                    // #436 (sweep): registrar recente via Command.
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
+                            path: canonical_path.clone(),
+                            name: display_name.clone(),
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
@@ -168,11 +191,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
-                    mark_recent_project_invalid(
-                        &mut app_config.borrow_mut(),
-                        &path,
-                        &error.to_string(),
-                    );
+                    let reason = error.to_string();
+                    mark_recent_project_invalid(&mut app_config.borrow_mut(), &path, &reason);
+                    // #436 (sweep): invalidar recente via Command (quando
+                    // há sessão; open falhou, pode não haver). Persist
+                    // abaixo é adapter-side (precedente SaveProject).
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::MarkRecentProjectInvalid {
+                            path: path.clone(),
+                            reason,
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
@@ -191,12 +220,25 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let recent_projects = recent_projects.clone();
+        let project_session = project_session.clone();
         window.on_remove_recent_project(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut config = app_config.borrow_mut();
             if (index as usize) < config.recent_projects.len() {
+                // #436 F: remover recente é negócio → Command no
+                // dispatcher compartilhado (MCP/MIDI, observável via
+                // Event::RecentProjectRemoved) quando há sessão. A
+                // mutação/persistência do app-config + render abaixo é
+                // adapter-side (precedente SaveProject).
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) = session.dispatcher.dispatch(Command::RemoveRecentProject {
+                        index: index as usize,
+                    }) {
+                        log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
+                    }
+                }
                 config.recent_projects.remove(index as usize);
                 let _ = FilesystemStorage::save_app_config(&config);
                 recent_projects.set_vec(recent_project_items(

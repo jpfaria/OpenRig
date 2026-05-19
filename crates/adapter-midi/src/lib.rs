@@ -1,0 +1,19 @@
+//! Frontend-agnostic MIDI/BLE-MIDI controller adapter (issue #22).
+//!
+//! Owns no state. A controller (USB or BLE-MIDI footswitch, expression
+//! pedal — e.g. the M-Vave Chocolate) drives the **same** `Command`s the GUI
+//! uses: incoming MIDI is matched against `midi-map.yaml`, turned into a typed
+//! `application::command::Command`, and submitted over
+//! `application::bridge::CommandBridge` exactly as an MCP tool call is. The
+//! frontend drains and dispatches on its own thread — zero audio-thread
+//! impact, real-time invariants preserved by construction.
+
+mod daemon;
+mod mapping;
+mod message;
+mod translate;
+
+pub use daemon::run_blocking;
+pub use mapping::{Binding, MidiMap, Scale, Source};
+pub use message::MidiMessage;
+pub use translate::resolve;

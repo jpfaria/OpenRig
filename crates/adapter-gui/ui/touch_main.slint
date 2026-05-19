@@ -1,5 +1,6 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
@@ -22,6 +23,7 @@ export component TouchMain inherits Rectangle {
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectChainItem]> project-chains;
+    in property <[ChainRigNav]> chain-rig-nav;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
     in property <[string]> language-options;
@@ -104,6 +106,8 @@ export component TouchMain inherits Rectangle {
     callback close-spectrum();
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
+    callback switch-chain-preset(int, int);
+    callback switch-chain-scene(int, int);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
     callback move-chain-up(int);
@@ -257,6 +261,9 @@ export component TouchMain inherits Rectangle {
             fullscreen: root.fullscreen;
             skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
+            chain-rig-nav: root.chain-rig-nav;
+            switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
+            switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;
             block-type-options: root.block-type-options;

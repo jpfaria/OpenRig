@@ -1,0 +1,108 @@
+//! Per-chain rig navigation rows (#436 #1) — pure projection used to
+//! drive the preset/scene selectors on the legacy chains screen.
+//!
+//! The chains list is the synthetic legacy `Project` (one chain per rig
+//! input, id `rig:<input>`). For each chain we expose the input's bank
+//! (preset slots + names), the active preset's index, and the active
+//! scene, in the SAME order as `project.chains` so the Slint row at
+//! index `i` reads `rows[i]`. No Slint, no I/O — fully testable.
+
+use project::project::Project;
+use project::rig::RigProject;
+
+// #436 architectural fix: the synthetic→rig capture moved to the
+// `project` crate (the dispatcher runs it via Command now). Production
+// no longer calls it from the UI; the existing #436 tests still
+// reference `super::sync_synthetic_into_rig`, so keep the re-export
+// test-only (no unused-import warning in the lib build).
+#[cfg(test)]
+pub(crate) use project::rig_sync::sync_synthetic_into_rig;
+
+/// One chain's rig preset/scene navigation state. Empty `preset_labels`
+/// ⇒ not a rig chain (or input vanished) → the UI hides the selectors.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub(crate) struct RigNavRow {
+    /// Rig input name (chain id without the `rig:` prefix), or empty.
+    pub(crate) input: String,
+    /// Bank slot numbers, ascending (deterministic via `BTreeMap`).
+    pub(crate) preset_slots: Vec<usize>,
+    /// Preset display names, parallel to `preset_slots`.
+    pub(crate) preset_labels: Vec<String>,
+    /// Index into `preset_labels` of the active preset (0 if absent).
+    pub(crate) active_index: usize,
+    /// Active scene, `1..=8`.
+    pub(crate) scene: usize,
+    /// Scenes the active preset exposes (≥ 1; grows on demand).
+    pub(crate) scene_count: usize,
+}
+
+/// Translate a preset ComboBox **positional** index into the rig
+/// input's real bank **slot key**. The widget reports a position into
+/// `preset_labels`; `switch_and_project_input` wants the bank key. The
+/// two diverge whenever the bank is sparse/non-1-based (exactly what the
+/// "+" add-preset produces: key = max+1). Uses the SAME ascending
+/// `bank.keys()` ordering `rig_nav_rows` exposes, so position N here is
+/// the same row the user clicked. `None` ⇒ unknown input or out of range.
+///
+/// Production now routes this through `project::rig_command::RigCommand`
+/// (`SwitchPreset` does the same position→key map, unit-tested there);
+/// kept test-only as the focused regression check for that mapping.
+#[cfg(test)]
+pub(crate) fn preset_slot_at(rig: &RigProject, input: &str, position: usize) -> Option<usize> {
+    rig.inputs.get(input)?.bank.keys().nth(position).copied()
+}
+
+/// Build the nav rows aligned 1:1 with `project.chains`.
+pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow> {
+    project
+        .chains
+        .iter()
+        .map(|chain| {
+            let Some(name) = chain.id.0.strip_prefix("rig:") else {
+                return RigNavRow::default();
+            };
+            let Some(input) = rig.inputs.get(name) else {
+                return RigNavRow::default();
+            };
+            let preset_slots: Vec<usize> = input.bank.keys().copied().collect();
+            // #436: show the human `name`, not the pool key/slug id.
+            // Fall back to the key when a preset has no name yet.
+            let preset_labels: Vec<String> = input
+                .bank
+                .values()
+                .map(|key| {
+                    rig.presets
+                        .get(key)
+                        .and_then(|p| p.name.clone())
+                        .unwrap_or_else(|| project::rig::humanize_preset_label(key))
+                })
+                .collect();
+            let active_index = preset_slots
+                .iter()
+                .position(|&s| s == input.active_preset)
+                .unwrap_or(0);
+            let scene_count = input
+                .bank
+                .get(&input.active_preset)
+                .and_then(|n| rig.presets.get(n))
+                .map(|p| p.scene_count())
+                .unwrap_or(1);
+            RigNavRow {
+                input: name.to_string(),
+                preset_slots,
+                preset_labels,
+                active_index,
+                scene: input.active_scene,
+                scene_count,
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "chain_rig_nav_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "chain_rig_nav_repro_tests.rs"]
+mod repro_tests;

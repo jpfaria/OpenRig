@@ -1,6 +1,7 @@
 pub mod input_tap;
 pub mod native_registry;
 pub mod probe;
+pub mod rig_runtime;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;

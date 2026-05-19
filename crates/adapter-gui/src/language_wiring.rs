@@ -8,11 +8,17 @@
 //! does not reflow the UI in place — the user sees the new language on the
 //! next launch. Live re-rendering is left for a follow-up issue.
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_filesystem::FilesystemStorage;
 
 use crate::i18n::{display_name, font_family_for_locale, locale_for_runtime, SUPPORTED_LANGUAGES};
+use crate::state::ProjectSession;
 use crate::{AppWindow, Locale};
 
 /// `apply_font_to_all_windows` is invoked on every language change with the
@@ -21,7 +27,11 @@ use crate::{AppWindow, Locale};
 /// — necessary because each Window is its own Slint root with an isolated
 /// Locale global, so setting Locale on AppWindow alone leaves the rest
 /// rendering with the boot-time font.
-pub fn wire(window: &AppWindow, apply_font_to_all_windows: impl Fn(&str) + 'static) {
+pub fn wire(
+    window: &AppWindow,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    apply_font_to_all_windows: impl Fn(&str) + 'static,
+) {
     let initial_locale = locale_for_runtime(read_persisted_language().as_deref());
     set_language_options(window, &initial_locale);
     // Boot-time font: must match the locale the bundled translations were
@@ -44,6 +54,19 @@ pub fn wire(window: &AppWindow, apply_font_to_all_windows: impl Fn(&str) + 'stat
         };
         let lang = pick_language(idx);
         log::info!("language selector: persisting {:?}", lang);
+        // #436 F: trocar idioma é negócio → vai por Command::SetLanguage
+        // no dispatcher compartilhado (alcançável MCP/MIDI; observável
+        // via Event::LanguageChanged) quando há sessão. A persistência
+        // + live-swap abaixo é I/O de adapter (precedente SaveProject).
+        // No launcher (sem ProjectSession) não há dispatcher; ainda
+        // assim persiste — o Command cobre o caminho programático.
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session.dispatcher.dispatch(Command::SetLanguage {
+                language: lang.clone(),
+            }) {
+                log::warn!("[language] Command::SetLanguage falhou: {e}");
+            }
+        }
         if let Err(e) = FilesystemStorage::save_gui_language(lang.clone()) {
             log::warn!("failed to persist language preference: {e}");
             return;

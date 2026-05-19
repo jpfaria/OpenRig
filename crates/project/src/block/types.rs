@@ -23,7 +23,7 @@ pub(crate) fn default_io_model() -> String {
     "standard".to_string()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InsertEndpoint {
     pub device_id: DeviceId,
     #[serde(default)]
@@ -31,7 +31,7 @@ pub struct InsertEndpoint {
     pub channels: Vec<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InsertBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
@@ -40,7 +40,7 @@ pub struct InsertBlock {
     pub return_: InsertEndpoint,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AudioBlock {
     pub id: BlockId,
     #[serde(default = "default_enabled")]
@@ -48,7 +48,7 @@ pub struct AudioBlock {
     pub kind: AudioBlockKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BlockAudioDescriptor {
     pub block_id: BlockId,
     pub effect_type: String,
@@ -57,7 +57,7 @@ pub struct BlockAudioDescriptor {
     pub audio_mode: ModelAudioMode,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum AudioBlockKind {
     Nam(NamBlock),
     Core(CoreBlock),
@@ -83,7 +83,7 @@ impl AudioBlockKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InputEntry {
     pub device_id: DeviceId,
     #[serde(default)]
@@ -91,7 +91,7 @@ pub struct InputEntry {
     pub channels: Vec<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct OutputEntry {
     pub device_id: DeviceId,
     #[serde(default)]
@@ -99,34 +99,34 @@ pub struct OutputEntry {
     pub channels: Vec<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
     pub entries: Vec<InputEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct OutputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
     pub entries: Vec<OutputEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NamBlock {
     pub model: String,
     pub params: ParameterSet,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CoreBlock {
     pub effect_type: String,
     pub model: String,
     pub params: ParameterSet,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SelectBlock {
     pub selected_block_id: BlockId,
     pub options: Vec<AudioBlock>,

@@ -12,7 +12,7 @@ pub struct Hertz(pub f32);
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Milliseconds(pub f32);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ParameterValue {
     Null,

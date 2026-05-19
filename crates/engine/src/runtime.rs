@@ -62,7 +62,8 @@ pub(crate) use crate::runtime_endpoints::{
     effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
 };
 pub use crate::runtime_graph::{
-    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state, RuntimeGraph,
+    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state,
+    update_chain_runtime_state_spillover, RuntimeGraph,
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
@@ -223,6 +224,68 @@ pub fn process_input_f32(
     }
 }
 
+/// #454-T5 spillover tail: feed the retained previous pipeline SILENCE so
+/// only its delay/reverb tail emits, equal-power fade it out over the
+/// spillover window, and sum it into `frame_buffer` (the caller pushes once
+/// per route afterwards, so SPSC stays intact). `None` ⇒ pure no-op,
+/// byte-identical to pre-#454-T5. RT-safe: no alloc/lock (the `scratch`
+/// Vec is pre-grown and only `clear()`/`push()` up to its capacity).
+#[inline]
+fn mix_outgoing_tail(
+    outgoing: &mut Option<Box<crate::runtime_state::OutgoingTail>>,
+    frame_buffer: &mut [AudioFrame],
+    processing_layout: AudioChannelLayout,
+    error_queue: &ArrayQueue<BlockError>,
+) {
+    if let Some(tail) = outgoing.as_mut() {
+        let n = frame_buffer.len();
+        let silent = match processing_layout {
+            AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+            _ => AudioFrame::Mono(0.0),
+        };
+        tail.scratch.clear();
+        if n > tail.scratch.capacity() {
+            tail.scratch.reserve(n - tail.scratch.capacity());
+        }
+        for _ in 0..n {
+            tail.scratch.push(silent);
+        }
+        for block in tail.blocks.iter_mut() {
+            process_audio_block(block, tail.scratch.as_mut_slice(), error_queue);
+        }
+        let total = crate::runtime_state::SPILLOVER_FRAMES as f32;
+        for (i, fb) in frame_buffer.iter_mut().enumerate() {
+            if tail.frames_remaining == 0 {
+                break;
+            }
+            let progress = 1.0 - (tail.frames_remaining as f32 / total).min(1.0);
+            // wet→dry equal-power: 1.0 at switch, 0.0 at window end.
+            let g = 0.5 * (1.0 + (std::f32::consts::PI * progress).cos());
+            let t = tail.scratch[i];
+            match (fb, t) {
+                (AudioFrame::Stereo([l, r]), AudioFrame::Stereo([tl, tr])) => {
+                    *l += tl * g;
+                    *r += tr * g;
+                }
+                (AudioFrame::Mono(s), AudioFrame::Mono(ts)) => {
+                    *s += ts * g;
+                }
+                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(ts)) => {
+                    *l += ts * g;
+                    *r += ts * g;
+                }
+                (AudioFrame::Mono(s), AudioFrame::Stereo([tl, tr])) => {
+                    *s += (tl + tr) * 0.5 * g;
+                }
+            }
+            tail.frames_remaining -= 1;
+        }
+        if tail.frames_remaining == 0 {
+            *outgoing = None;
+        }
+    }
+}
+
 fn process_single_segment(
     input_states: &mut [InputProcessingState],
     scratch: &mut InputCallbackScratch,
@@ -247,6 +310,7 @@ fn process_single_segment(
         fade_in_remaining,
         output_route_indices,
         split_mono_sibling_count,
+        outgoing,
     } = input_state;
 
     frame_buffer.clear();
@@ -347,6 +411,14 @@ fn process_single_segment(
             AudioFrame::Stereo([l, r]) => AudioFrame::Stereo([l * split_scale, r * split_scale]),
         }
     };
+
+    // #454-T5 spillover: the previous pipeline keeps decaying in parallel,
+    // fed silence, equal-power faded, summed into THIS segment's
+    // frame_buffer *before* the single per-route push below (so there is
+    // still exactly one producer per output ring — SPSC intact). Extracted
+    // to keep this function's cognitive complexity in budget; `None` ⇒ it
+    // is a no-op and behaviour is byte-identical to pre-#454-T5.
+    mix_outgoing_tail(outgoing, frame_buffer, *processing_layout, error_queue);
 
     for &route_idx in output_route_indices.iter() {
         let buf = scratch.mixed_per_route.entry(route_idx).or_default();
@@ -662,12 +734,20 @@ mod stream_isolation;
 mod volume_invariants;
 
 #[cfg(test)]
+#[path = "rig_spillover_tests.rs"]
+mod rig_spillover;
+
+#[cfg(test)]
 #[path = "audio_deadline_tests.rs"]
 mod audio_deadline;
 
 #[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]
 mod audio_signal_integrity;
+
+#[cfg(test)]
+#[path = "stereo_image_tests.rs"]
+mod stereo_image;
 
 #[cfg(test)]
 #[path = "runtime_lock_recovery_tests.rs"]

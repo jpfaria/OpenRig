@@ -55,7 +55,7 @@ use crate::runtime_endpoints::{effective_inputs, effective_outputs};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
-    InputProcessingState, OutputRoutingState,
+    InputProcessingState, OutgoingTail, OutputRoutingState, SPILLOVER_FRAMES,
 };
 
 /// Bounded capacity for the per-chain SPSC error queue. Audio-thread
@@ -458,6 +458,7 @@ fn build_input_processing_state(
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
         split_mono_sibling_count,
+        outgoing: None,
     })
 }
 
@@ -480,12 +481,54 @@ pub(crate) fn build_output_routing_state(
     }
 }
 
+/// In-place lock-free rebuild (param/preset edit): old processors are reused
+/// and dropped. Audio is click-safe via the per-segment fade-in.
 pub fn update_chain_runtime_state(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
     sample_rate: f32,
     reset_output_queue: bool,
     elastic_targets: &[usize],
+) -> Result<()> {
+    update_chain_runtime_state_impl(
+        runtime,
+        chain,
+        sample_rate,
+        reset_output_queue,
+        elastic_targets,
+        false,
+    )
+}
+
+/// #454-T5: same lock-free swap, but the *previous* pipeline is retained as
+/// a decaying [`OutgoingTail`] on the new state so its delay/reverb tail
+/// rings out in parallel (spillover) instead of being cut. The new pipeline
+/// is built fresh (no processor reuse) so it fades in cleanly while the old
+/// one fades out.
+pub fn update_chain_runtime_state_spillover(
+    runtime: &Arc<ChainRuntimeState>,
+    chain: &Chain,
+    sample_rate: f32,
+    reset_output_queue: bool,
+    elastic_targets: &[usize],
+) -> Result<()> {
+    update_chain_runtime_state_impl(
+        runtime,
+        chain,
+        sample_rate,
+        reset_output_queue,
+        elastic_targets,
+        true,
+    )
+}
+
+fn update_chain_runtime_state_impl(
+    runtime: &Arc<ChainRuntimeState>,
+    chain: &Chain,
+    sample_rate: f32,
+    reset_output_queue: bool,
+    elastic_targets: &[usize],
+    spillover: bool,
 ) -> Result<()> {
     let (effective_ins, eff_input_cpal_indices, effective_split_positions) =
         effective_inputs(chain);
@@ -511,10 +554,20 @@ pub fn update_chain_runtime_state(
     // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
     let mut new_input_states = Vec::with_capacity(segments.len());
     for (i, segment) in segments.iter().enumerate() {
-        let existing = if i < existing_per_input.len() {
-            Some(std::mem::take(&mut existing_per_input[i]))
+        let old_blocks = if i < existing_per_input.len() {
+            std::mem::take(&mut existing_per_input[i])
         } else {
-            None
+            Vec::new()
+        };
+        // Spillover: build the new pipeline FRESH (no processor reuse) so it
+        // fades in cleanly; keep the old blocks to ring out in parallel.
+        // Non-spillover: reuse old processors in place (param-edit path).
+        let (existing, tail_blocks) = if spillover && !old_blocks.is_empty() {
+            (None, Some(old_blocks))
+        } else if old_blocks.is_empty() {
+            (None, None)
+        } else {
+            (Some(old_blocks), None)
         };
         let segment_output_channels: Vec<usize> = segment
             .output_route_indices
@@ -552,6 +605,14 @@ pub fn update_chain_runtime_state(
                 return Err(e);
             }
         };
+        let mut input_state = input_state;
+        if let Some(blocks) = tail_blocks {
+            input_state.outgoing = Some(Box::new(OutgoingTail {
+                blocks,
+                frames_remaining: SPILLOVER_FRAMES,
+                scratch: Vec::with_capacity(2048),
+            }));
+        }
         new_input_states.push(input_state);
     }
 
@@ -670,6 +731,41 @@ impl RuntimeGraph {
         reset_output_queue: bool,
         elastic_targets: &[usize],
     ) -> Result<Arc<ChainRuntimeState>> {
+        self.upsert_chain_impl(
+            chain,
+            sample_rate,
+            reset_output_queue,
+            elastic_targets,
+            false,
+        )
+    }
+
+    /// #454-T5: in-place swap that lets the previous preset/scene's tail
+    /// ring out in parallel (spillover). Same lock-free guarantees.
+    pub fn upsert_chain_spillover(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        reset_output_queue: bool,
+        elastic_targets: &[usize],
+    ) -> Result<Arc<ChainRuntimeState>> {
+        self.upsert_chain_impl(
+            chain,
+            sample_rate,
+            reset_output_queue,
+            elastic_targets,
+            true,
+        )
+    }
+
+    fn upsert_chain_impl(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        reset_output_queue: bool,
+        elastic_targets: &[usize],
+        spillover: bool,
+    ) -> Result<Arc<ChainRuntimeState>> {
         let existing_groups: Vec<usize> = self
             .chains
             .keys()
@@ -700,13 +796,23 @@ impl RuntimeGraph {
                 // runtime, preserving the Arcs the callbacks hold.
                 for group in &existing_sorted {
                     if let Some(runtime) = self.chains.get(&(chain.id.clone(), *group)) {
-                        update_chain_runtime_state(
-                            runtime,
-                            chain,
-                            sample_rate,
-                            reset_output_queue,
-                            elastic_targets,
-                        )?;
+                        if spillover {
+                            update_chain_runtime_state_spillover(
+                                runtime,
+                                chain,
+                                sample_rate,
+                                reset_output_queue,
+                                elastic_targets,
+                            )?;
+                        } else {
+                            update_chain_runtime_state(
+                                runtime,
+                                chain,
+                                sample_rate,
+                                reset_output_queue,
+                                elastic_targets,
+                            )?;
+                        }
                     }
                 }
                 let first_group = existing_sorted[0];

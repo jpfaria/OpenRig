@@ -52,7 +52,7 @@ fn coerce_legacy_value(value: &ParameterValue, spec: &ParameterSpec) -> Paramete
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, schemars::JsonSchema)]
 pub struct ParameterSet {
     pub values: BTreeMap<String, ParameterValue>,
 }

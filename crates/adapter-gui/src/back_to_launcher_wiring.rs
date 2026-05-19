@@ -16,6 +16,9 @@ use crate::helpers::clear_status;
 use crate::project_ops::set_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::stop_project_runtime;
 use crate::{
     AppWindow, BlockEditorWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow,
@@ -67,6 +70,16 @@ pub(crate) fn wire(
         }
         if let Some(editor_window) = block_editor_window.upgrade() {
             let _ = editor_window.hide();
+        }
+        // #436 E: fechar o projeto é negócio → Command::CloseProject no
+        // dispatcher compartilhado (MCP/MIDI, observável via
+        // Event::ProjectClosed) enquanto a sessão existe. O teardown de
+        // runtime + drop da sessão abaixo é adapter-side (precedente
+        // SaveProject). Fechar janelas acima é regra de tela.
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session.dispatcher.dispatch(Command::CloseProject) {
+                log::warn!("[back-to-launcher] Command::CloseProject falhou: {e}");
+            }
         }
         stop_project_runtime(&project_runtime);
         *project_session.borrow_mut() = None;

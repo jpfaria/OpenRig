@@ -13,20 +13,98 @@
 //! is silently ignored to leave room for future flags without breaking
 //! existing callers.
 
-use std::path::PathBuf;
+use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
+
+/// Parse the opt-in MCP server flag.
+///
+/// * `--mcp` → default `127.0.0.1:4123`
+/// * `--mcp=ADDR` → that socket address (invalid value → `None`, logged)
+/// * absent → `None` (server not started; zero overhead)
+pub fn parse_mcp_addr(args: &[&str]) -> Option<SocketAddr> {
+    for arg in args.iter().skip(1) {
+        if *arg == "--mcp" {
+            return Some("127.0.0.1:4123".parse().expect("valid default mcp addr"));
+        }
+        if let Some(rest) = arg.strip_prefix("--mcp=") {
+            return match rest.parse() {
+                Ok(addr) => Some(addr),
+                Err(_) => {
+                    eprintln!("openrig: invalid --mcp address: {rest}");
+                    None
+                }
+            };
+        }
+    }
+    None
+}
+
+/// How the opt-in `--midi` flag was given. Resolving `Default` to the
+/// per-OS `midi-map.yaml` path is the caller's job (keeps this parser pure).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MidiMapArg {
+    /// `--midi` → use the per-OS default `midi-map.yaml`.
+    Default,
+    /// `--midi=PATH` → use this explicit mapping file.
+    Path(PathBuf),
+}
+
+/// Parse the opt-in MIDI controller adapter flag (issue #22).
+///
+/// * `--midi` → [`MidiMapArg::Default`]
+/// * `--midi=PATH` → [`MidiMapArg::Path`]
+/// * absent → `None` (adapter not started; zero overhead)
+pub fn parse_midi_map(args: &[&str]) -> Option<MidiMapArg> {
+    for arg in args.iter().skip(1) {
+        if *arg == "--midi" {
+            return Some(MidiMapArg::Default);
+        }
+        if let Some(rest) = arg.strip_prefix("--midi=") {
+            return Some(MidiMapArg::Path(PathBuf::from(rest)));
+        }
+    }
+    None
+}
 
 pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
     let mut project_path: Option<PathBuf> = None;
     let mut auto_save = false;
     let mut fullscreen = false;
-    for arg in args.iter().skip(1) {
-        if *arg == "--auto-save" {
+    let mut i = 1;
+    while i < args.len() {
+        let arg = args[i];
+        if arg == "--auto-save" {
             auto_save = true;
-        } else if *arg == "--fullscreen" {
+        } else if arg == "--fullscreen" {
             fullscreen = true;
+        } else if arg == "--project" {
+            // Explicit form: `--project <PATH>` (the documented #436 form).
+            // A missing value is ignored so a stray flag never panics.
+            if let Some(value) = args.get(i + 1) {
+                project_path = Some(PathBuf::from(value));
+                i += 1;
+            }
         } else if !arg.starts_with('-') {
             project_path = Some(PathBuf::from(arg));
         }
+        i += 1;
     }
     (project_path, auto_save, fullscreen)
 }
+
+/// Validate a project path resolved from `--project` / positional / env,
+/// with a clear, path-naming error. `main.rs` uses this to fall back to the
+/// launcher (no crash) when the path is bad.
+pub fn validate_project_path(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Err(format!("project file not found: {}", path.display()));
+    }
+    if !path.is_file() {
+        return Err(format!("project path is not a file: {}", path.display()));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "cli_tests.rs"]
+mod tests;
