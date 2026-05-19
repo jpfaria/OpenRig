@@ -59,13 +59,39 @@ notes **60–67**. With only 4 switches, pick 4 actions. A common layout:
 All **Note**, **channel 1**. Want scenes or block-nav instead? Just pick
 the matching note from the table in `docs/midi.md`.
 
-## 4. Plus: per-message channel = more from one pedal
+## 4. Many pedals / many banks → one channel each
+
+OpenRig opens **every** matching MIDI port at once, so 4 — or 10 —
+Chocolates work simultaneously. They send the **same notes**, so to
+tell them apart you give **each pedal (or each bank) its own MIDI
+channel**, and add the matching map lines on that channel.
 
 On the **Chocolate Plus** the **Channel** field in *Edit MIDI Code* is
-per message. So you can switch banks (or use a second pedal) and send
-the same notes on **channel 2, 3, …** to reach a *different* set of
-actions, by adding map lines with that channel. (Plain Chocolate is
-fixed to one channel.)
+**per message**, so:
+
+- **Several pedals:** pedal 1 → all messages on **channel 1**, pedal 2
+  → **channel 2**, pedal 3 → **channel 3**, … (notes stay 60–67).
+- **One pedal, several banks:** bank A on **channel 1**, bank B on
+  **channel 2**, etc. — stepping a bank on the pedal changes which
+  channel its switches send on.
+
+Then in the map, the standard lines (channel 1) cover the first
+pedal/bank; for each extra channel **copy the lines and change only
+`channel`**. Example — second pedal/bank does scenes on channel 2:
+
+```yaml
+  - source: { kind: note_on, channel: 2, note: 60 }   # pedal/bank 2, sw A
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepScene: -1 } }
+  - source: { kind: note_on, channel: 2, note: 61 }   # pedal/bank 2, sw B
+    command: ApplyRigNav
+    args: { chain: "rig:guitar", kind: { StepScene: 1 } }
+```
+
+So: same notes everywhere, the **channel** is what routes a given
+pedal/bank to a given set of actions. (The plain Chocolate is fixed to
+one channel — only the Plus does per-message channel; with plain ones
+you instead give each pedal *different note numbers*.)
 
 ## 5. Run
 
