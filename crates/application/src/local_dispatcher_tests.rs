@@ -1255,9 +1255,6 @@ fn move_chain_down_non_existent_returns_err() {
 
 #[test]
 fn toggle_chain_enabled_enables_disabled_chain() {
-    let project = make_project_two_chains();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
     // chain_1 uses dev_a ch 0, and chain_0 also uses dev_a ch 0 (and is enabled).
     // But chain_1 shares the channel — expect conflict.
     // First test a clean enable: use a project with no conflict.
