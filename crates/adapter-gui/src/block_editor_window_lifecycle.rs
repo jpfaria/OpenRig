@@ -38,7 +38,6 @@ use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, build_params_from_items,
     persist_block_editor_draft, schedule_block_editor_persist_for_block_win,
 };
-use crate::block_editor_choose_model::apply_choose_block_model;
 use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
 use crate::helpers::show_child_window;
 use crate::plugin_info;
@@ -169,25 +168,12 @@ pub(crate) fn wire(
             );
             win.set_eq_total_curve(eq_total.into());
             drop(draft_borrow);
-            // #436 D-1: para bloco JÁ existente, a troca de modelo é
-            // negócio → vai por Command::ReplaceBlockModel no dispatcher
-            // compartilhado (GUI/MIDI/MCP), não por mutação de draft. O
-            // rebuild de widgets acima é render (fica). O persist abaixo
-            // (dirty/runtime) é o item D-5 separado.
-            let existing = win_draft
+            if win_draft
                 .borrow()
                 .as_ref()
-                .and_then(|d| d.block_index.map(|bi| (d.chain_index, bi)));
-            if let Some((chain_index, block_index)) = existing {
-                if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) =
-                        apply_choose_block_model(session, chain_index, block_index, index as usize)
-                    {
-                        log::error!("[block-window.choose-model] ReplaceBlockModel: {e}");
-                    }
-                }
-            }
-            if existing.is_some() {
+                .map(|d| d.block_index.is_some())
+                .unwrap_or(false)
+            {
                 schedule_block_editor_persist_for_block_win(
                     &win_timer,
                     weak_win.clone(),

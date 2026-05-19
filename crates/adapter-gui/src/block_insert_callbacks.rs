@@ -29,7 +29,6 @@ use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq
 use crate::helpers::{sync_block_editor_window, use_inline_block_editor};
 use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
-use crate::block_editor_choose_model::apply_choose_block_model;
 use crate::ui_index_to_real_block_index;
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
@@ -230,23 +229,7 @@ pub(crate) fn wire(
                     .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
-            // #436 D-2: bloco JÁ existente (drawer inline) → troca de
-            // modelo é negócio, vai por Command::ReplaceBlockModel no
-            // dispatcher compartilhado (mesma fn red-first do D-1). Fluxo
-            // insert (block_index None) é preview de draft = tela; o add
-            // real é Command::AddBlock no save. Persist abaixo = D-5.
-            let existing = draft.block_index.map(|bi| (draft.chain_index, bi));
-            drop(draft_borrow);
-            if let Some((chain_index, block_index)) = existing {
-                if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) =
-                        apply_choose_block_model(session, chain_index, block_index, index as usize)
-                    {
-                        log::error!("[block-drawer.choose-model] ReplaceBlockModel: {e}");
-                    }
-                }
-            }
-            if existing.is_some() {
+            if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
                     weak_window.clone(),
