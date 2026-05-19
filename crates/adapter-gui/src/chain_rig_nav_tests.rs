@@ -58,7 +58,8 @@ fn nav_row_exposes_bank_active_and_scene_aligned_to_chains() {
     let row = &rows[0];
     assert_eq!(row.input, "input-1");
     assert_eq!(row.preset_slots, vec![1, 2, 3]);
-    assert_eq!(row.preset_labels, vec!["clean", "drive", "lead"]);
+    // #436: presets without a name show the humanized pool key.
+    assert_eq!(row.preset_labels, vec!["Clean", "Drive", "Lead"]);
     assert_eq!(row.active_index, 1, "active_preset 2 → index 1");
     assert_eq!(row.scene, 4);
 }
@@ -124,7 +125,7 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
     switch_and_project_input(&mut r, "input-1", Some(key), None).expect("rebuilt");
     let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
     assert_eq!(rows[0].active_index, 3, "added preset is now active");
-    assert_eq!(rows[0].preset_labels[3], "added");
+    assert_eq!(rows[0].preset_labels[3], "Added");
 }
 
 // User repro (#436): clicking a scene gives NO save option. The dirty
@@ -506,5 +507,40 @@ fn chain_title_shows_active_preset_name_not_the_input_id() {
         proj.chains[0].description.as_deref(),
         Some("SILVERCHAIR FREAK - SCARLETT"),
         "title must be the active preset's name, not the input id"
+    );
+}
+
+// User repro (#436): "mesma merda" — fix só ajudou migração nova. Um
+// projeto JÁ SALVO tem RigPreset com name: None (serde default, salvo
+// antes do campo). Ao reabrir, select/título devem mostrar algo
+// legível, NÃO o slug cru "studio-clean-compressor".
+#[test]
+fn legacy_preset_without_name_shows_humanized_label_not_raw_slug() {
+    let mut r = rig();
+    let active = r.inputs["input-1"].active_preset;
+    let key = r.inputs["input-1"].bank[&active].clone(); // "drive"
+                                                         // Simula um preset de projeto antigo: id = slug, SEM name.
+    {
+        let p = r.presets.remove(&key).unwrap();
+        r.presets.insert(
+            "studio-clean-compressor".to_string(),
+            RigPreset {
+                id: "studio-clean-compressor".to_string(),
+                name: None,
+                ..p
+            },
+        );
+    }
+    r.inputs
+        .get_mut("input-1")
+        .unwrap()
+        .bank
+        .insert(active, "studio-clean-compressor".to_string());
+
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    let label = &rows[0].preset_labels[rows[0].active_index];
+    assert_eq!(
+        label, "Studio Clean Compressor",
+        "preset antigo sem name deve exibir o id humanizado, não o slug cru"
     );
 }

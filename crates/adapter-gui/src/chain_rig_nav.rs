@@ -74,7 +74,7 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                     rig.presets
                         .get(key)
                         .and_then(|p| p.name.clone())
-                        .unwrap_or_else(|| key.clone())
+                        .unwrap_or_else(|| project::rig::humanize_preset_label(key))
                 })
                 .collect();
             let active_index = preset_slots
