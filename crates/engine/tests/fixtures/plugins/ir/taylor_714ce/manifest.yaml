@@ -1,0 +1,15 @@
+manifest_version: 1
+id: ir_taylor_714ce
+display_name: 714ce
+brand: taylor
+type: body
+backend: ir
+parameters:
+- name: flavor
+  display_name: Flavor
+  values:
+  - standard
+captures:
+- values:
+    flavor: standard
+  file: ir/taylor_714ce_48000.wav

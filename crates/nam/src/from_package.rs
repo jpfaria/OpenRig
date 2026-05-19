@@ -66,18 +66,19 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Issue #440 (híbrido): plugin baseline via `manifest.output_gain_pct`
+    // Issue #491 (híbrido): plugin baseline via `manifest.output_gain_db`
     // + controle do usuário via `preset.volume` (aplicado no master output
-    // do engine). Em série: signal × manifest_pct × preset_volume / 100^2.
+    // do engine).
     //
-    // O manifest pct é o **baseline objetivo** calibrado pelo
-    // `nam_loudness_audit` (em OpenRig-plugins) — sem ele, plugins com
-    // recommended_output_db baked muito baixo (preamps quietos) ficam
-    // inviavelmente atenuados. O preset volume é **ajuste subjetivo** do
-    // usuário em cima desse baseline.
-    if let Some(pct) = package.manifest.output_gain_pct {
-        let ratio = (pct / 100.0).max(1e-6);
-        plugin_params.output_level_db += 20.0 * ratio.log10();
+    // O `output_gain_db` é o **baseline objetivo** calibrado pelo
+    // `nam_loudness_audit` (em OpenRig-plugins), já em dB — sem ele,
+    // plugins com recommended_output_db baked muito baixo (preamps
+    // quietos) ficam inviavelmente atenuados. Como `output_level_db`
+    // também é dB, o offset entra por **soma direta** (sem conversão
+    // percentual). O preset volume é **ajuste subjetivo** do usuário
+    // em cima desse baseline.
+    if let Some(db) = package.manifest.output_gain_db {
+        plugin_params.output_level_db += db;
     }
     plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
