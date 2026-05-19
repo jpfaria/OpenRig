@@ -267,7 +267,7 @@ pub fn run_desktop_app(
                 crate::Locale::get(w).set_font_family(f());
             }
         };
-        crate::language_wiring::wire(&window, apply_font_to_all);
+        crate::language_wiring::wire(&window, project_session.clone(), apply_font_to_all);
     }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
