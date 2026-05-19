@@ -97,15 +97,65 @@ The Chocolate (and Chocolate **Plus**) is a 4-switch BLE-MIDI footswitch.
 
 ---
 
-## Want different mappings?
+## All actions (every command)
 
-The map file is plain text: one block per binding, `source` (the MIDI
-message) → `command` (the OpenRig action) → `args`. Copy a block, change
-the `note`/`controller`/`channel`, done. Any OpenRig action can be
-bound — the standard map covers the live ones; the rest (block
-parameters from a knob, save project, etc.) follow the same shape. See
-the comments inside `examples/midi-map.default.yaml` for the full list
-and exact syntax.
+The standard map binds the 9 live actions above. But **every** OpenRig
+action can be mapped — you just add a line and pick a free Note/CC for
+it. A map line is always:
+
+```yaml
+- source: { kind: note_on, channel: 1, note: 70 }   # the MIDI message
+  command: ToggleChainEnabled                         # the action
+  args: { chain: "rig:guitar" }                       # what it acts on
+```
+
+`kind` is `note_on` (button), `cc` (knob — add `scale: { min, max }`),
+or `program_change`. Below is **the complete list** — `command` is the
+exact name, `args` is what goes in the line.
+
+### In the standard map (the table at the top)
+
+| Action | `command` | `args` |
+|---|---|---|
+| Previous / next preset | `ApplyRigNav` | `{ chain, kind: { StepPreset: -1 } }` / `{ StepPreset: 1 }` |
+| Previous / next scene | `ApplyRigNav` | `{ chain, kind: { StepScene: -1 } }` / `{ StepScene: 1 }` |
+| Move block selection back / forward | `SelectChainBlock` | `{ chain, delta: -2 }` / `{ delta: 2 }` |
+| Toggle left / right block of pair | `ToggleSelectedBlock` | `{ chain, side: Left }` / `{ side: Right }` |
+| Chain volume (knob) | `SetChainVolume` | `{ chain }` + `scale: { min: 0, max: 200 }` |
+
+### Other actions you can map (one free Note/CC each)
+
+| Action | `command` | `args` |
+|---|---|---|
+| Jump to a fixed preset position `n` | `ApplyRigNav` | `{ chain, kind: { Preset: n } }` |
+| Jump to a fixed scene `n` | `ApplyRigNav` | `{ chain, kind: { Scene: n } }` |
+| Fold pending edits back into the rig | `CaptureRigEdits` | *(none)* |
+| Toggle a whole chain on/off | `ToggleChainEnabled` | `{ chain }` |
+| Toggle one fixed block on/off | `ToggleBlockEnabled` | `{ chain, block }` |
+| Set chain volume to a fixed % (button) | `SetChainVolume` | `{ chain, value: 80 }` |
+| Set a numeric param (knob) | `SetBlockParameterNumber` | `{ chain, block, path }` + `scale` |
+| Set an on/off param | `SetBlockParameterBool` | `{ chain, block, path, value: true }` |
+| Set a text param | `SetBlockParameterText` | `{ chain, block, path, value: "x" }` |
+| Pick a list option | `SelectBlockParameterOption` | `{ chain, block, path, value, index }` |
+| Point a param at a file | `PickBlockParameterFile` | `{ chain, block, path, file }` |
+| Swap a block's model | `ReplaceBlockModel` | `{ chain, block, model_id }` |
+| Move a chain up / down | `MoveChainUp` / `MoveChainDown` | `{ chain }` |
+| Remove a chain | `RemoveChain` | `{ chain }` |
+| Rename the project | `UpdateProjectName` | `{ name: "My Rig" }` |
+| Save the project | `SaveProject` | *(none)* |
+
+### Editor-grade (mappable, but take whole objects — not hand-written)
+
+These exist and are bindable, but their `args` is a full structured
+object the editor produces, so you don't write them by hand in a map:
+`AddBlock`, `InsertPrebuiltBlock`, `OverwriteBlock`, `RemoveBlock`,
+`MoveBlock`, `SaveInsertBlock`, `AddChain`, `ConfigureChain`,
+`SaveChain`, `SaveChainInputEndpoints`, `SaveChainOutputEndpoints`,
+`SaveChainIo`, `LoadChainPreset`, `LoadProject`, `CreateProject`,
+`SaveAudioSettings`.
+
+That is **all 34 commands**. `chain`/`block` are the string ids on the
+Chains screen; for rig chains the id is `rig:<input>`.
 
 ---
 
