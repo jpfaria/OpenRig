@@ -130,7 +130,7 @@ pub(crate) fn select_supported_stream_config(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 pub(crate) fn resolve_chain_runtime_sample_rate(
     chain_id: &str,
     input: &SupportedStreamConfig,

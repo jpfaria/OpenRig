@@ -6,11 +6,11 @@
 //! `super::host::*`, etc. paths keep working without further change.
 
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
-use super::stream_config::{
-    max_supported_channels, required_channel_count, resolve_chain_runtime_sample_rate,
-};
+use super::stream_config::{max_supported_channels, required_channel_count};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use super::stream_config::{build_stream_config, select_supported_stream_config};
+use super::stream_config::{
+    build_stream_config, resolve_chain_runtime_sample_rate, select_supported_stream_config,
+};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use super::validation::validate_buffer_size;
 use super::{AudioDeviceDescriptor, ProjectRuntimeController};
