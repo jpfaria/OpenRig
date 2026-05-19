@@ -147,6 +147,10 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SaveChainPreset { .. } | Command::DeleteChainPreset { .. } => {
                 self.handle_chain_preset(cmd)
             }
+
+            Command::SetTunerEnabled { .. } | Command::SetSpectrumEnabled { .. } => {
+                self.handle_diagnostic_enabled(cmd)
+            }
         }
     }
 

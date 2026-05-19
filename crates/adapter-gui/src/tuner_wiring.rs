@@ -207,6 +207,19 @@ fn wire_power(
     let tuner_window_weak = tuner_window.as_weak();
 
     let on_toggle_enabled = move |enabled: bool| {
+        // #436 H: power do tuner é negócio → Command no dispatcher
+        // compartilhado (MCP/MIDI, observável via
+        // Event::TunerEnabledChanged) quando há sessão. O build/teardown
+        // da sessão + timer + mute abaixo é adapter-side (precedente
+        // SaveProject).
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetTunerEnabled { enabled })
+            {
+                log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
+            }
+        }
         if enabled {
             let new_session = build_session(&project_session, &project_runtime);
             let rows = new_session

@@ -371,6 +371,18 @@ pub enum Command {
     /// precedent: the adapter removes the file; the dispatcher records
     /// the intent and signals `Event::ChainPresetDeleted`.
     DeleteChainPreset { name: String },
+
+    /// #436 H: power the Tuner analyzer on/off. Was GUI-only (build/
+    /// teardown of the analysis session + timer + runtime in a wiring
+    /// closure). `SaveProject` precedent: the adapter does the build/
+    /// teardown; the dispatcher records the intent and signals
+    /// `Event::TunerEnabledChanged`.
+    SetTunerEnabled { enabled: bool },
+
+    /// #436 H: power the Spectrum analyzer on/off. Same shape as
+    /// `SetTunerEnabled`; adapter does the build/teardown, dispatcher
+    /// signals `Event::SpectrumEnabledChanged`.
+    SetSpectrumEnabled { enabled: bool },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

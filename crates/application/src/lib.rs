@@ -14,6 +14,7 @@ mod local_dispatcher_chain_crud;
 mod local_dispatcher_chain_io;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
+mod local_dispatcher_diagnostic;
 mod local_dispatcher_language;
 mod local_dispatcher_output;
 mod local_dispatcher_preset;

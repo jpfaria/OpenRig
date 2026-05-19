@@ -112,6 +112,15 @@ pub enum Event {
     /// file I/O; this records it went through the dispatcher.
     ChainPresetDeleted { name: String },
 
+    /// #436 H: the Tuner analyzer was powered on/off. The adapter does
+    /// the build/teardown; this records it went through the dispatcher.
+    TunerEnabledChanged { enabled: bool },
+
+    /// #436 H: the Spectrum analyzer was powered on/off. The adapter
+    /// does the build/teardown; this records it went through the
+    /// dispatcher.
+    SpectrumEnabledChanged { enabled: bool },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
