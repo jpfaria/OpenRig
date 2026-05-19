@@ -34,7 +34,12 @@ use plugin_loader::discover::LoadedPackage;
 
 const SR: f32 = 48_000.0;
 /// `output_gain_db` in the bundled `marshall_plexi/manifest.yaml`.
-const PLEXI_CAL_DB: f32 = 8.931_892_4;
+/// Re-audited under #496: the audit now emits a bounded RELATIVE
+/// correction (here an attenuation), not a hot absolute target. The
+/// differential property below is unchanged — `output_gain_db` is
+/// still a post-model trim, so the calibrated build differs from the
+/// cleared-field control by exactly this many dB (now negative).
+const PLEXI_CAL_DB: f32 = -13.559_131_6;
 
 fn fixtures_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins")
