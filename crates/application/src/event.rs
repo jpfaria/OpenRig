@@ -104,6 +104,14 @@ pub enum Event {
     /// change went through the dispatcher.
     RecentProjectRemoved { index: usize },
 
+    /// #436 F: a chain preset file was saved. The adapter does the file
+    /// I/O; this records it went through the dispatcher.
+    ChainPresetSaved { name: String },
+
+    /// #436 F: a chain preset file was deleted. The adapter does the
+    /// file I/O; this records it went through the dispatcher.
+    ChainPresetDeleted { name: String },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,

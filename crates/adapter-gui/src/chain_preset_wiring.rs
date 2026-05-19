@@ -113,6 +113,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match save_chain_blocks_to_preset(&chain_clone, &path) {
                 Ok(()) => {
+                    // #436 F: salvar preset é negócio → Command no
+                    // dispatcher compartilhado (MCP/MIDI, observável via
+                    // Event::ChainPresetSaved). O write do arquivo acima
+                    // é adapter-side (precedente SaveProject).
+                    if let Err(e) = session.dispatcher.dispatch(Command::SaveChainPreset {
+                        name: default_name.clone(),
+                    }) {
+                        log::warn!("[preset] Command::SaveChainPreset falhou: {e}");
+                    }
                     set_status_info(&window, &toast_timer, &rust_i18n::t!("status-preset-saved"))
                 }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
@@ -291,6 +300,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let weak_window = window.as_weak();
         let preset_file_list = preset_file_list.clone();
         let toast_timer = toast_timer.clone();
+        let project_session = project_session.clone();
         window.on_preset_picker_delete(move |preset_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -301,6 +311,23 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match std::fs::remove_file(&path) {
                 Ok(()) => {
+                    // #436 F: apagar preset é negócio → Command no
+                    // dispatcher compartilhado (MCP/MIDI, observável via
+                    // Event::ChainPresetDeleted). O remove_file acima é
+                    // adapter-side (precedente SaveProject).
+                    let name = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    if let Some(session) = project_session.borrow().as_ref() {
+                        if let Err(e) = session
+                            .dispatcher
+                            .dispatch(Command::DeleteChainPreset { name })
+                        {
+                            log::warn!("[preset] Command::DeleteChainPreset falhou: {e}");
+                        }
+                    }
                     files.remove(preset_index as usize);
                     let names: Vec<SharedString> = files
                         .iter()

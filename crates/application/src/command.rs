@@ -359,6 +359,18 @@ pub enum Command {
     /// the dispatcher records the intent and signals it via
     /// `Event::RecentProjectRemoved`.
     RemoveRecentProject { index: usize },
+
+    /// #436 F: save the active chain as a named preset file. Was
+    /// GUI-only (direct file write in a wiring closure). `SaveProject`
+    /// precedent: the adapter writes the file; the dispatcher records
+    /// the intent and signals `Event::ChainPresetSaved`.
+    SaveChainPreset { name: String },
+
+    /// #436 F: delete a named chain preset file. Was GUI-only
+    /// (`std::fs::remove_file` in a wiring closure). `SaveProject`
+    /// precedent: the adapter removes the file; the dispatcher records
+    /// the intent and signals `Event::ChainPresetDeleted`.
+    DeleteChainPreset { name: String },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

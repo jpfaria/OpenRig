@@ -143,6 +143,10 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetOutputMuted { .. } => self.handle_set_output_muted(cmd),
 
             Command::RemoveRecentProject { .. } => self.handle_remove_recent_project(cmd),
+
+            Command::SaveChainPreset { .. } | Command::DeleteChainPreset { .. } => {
+                self.handle_chain_preset(cmd)
+            }
         }
     }
 
