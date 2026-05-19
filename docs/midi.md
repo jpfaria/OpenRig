@@ -7,8 +7,9 @@ instance. It is the MIDI sibling of the MCP adapter (`docs/mcp.md`): an opt-in
 input that attaches to a live frontend through the command bridge. No
 audio-thread code is touched — real-time invariants hold by construction.
 
-> **Full command list:** see `docs/midi-commands.md` — every one of the
-> 33 commands OpenRig accepts, in plain language, with its map syntax.
+> **Every one of the 33 commands** OpenRig accepts is documented below
+> under [Command reference](#command-reference--every-command-33), with
+> its exact `args`.
 
 ## Enabling it
 
@@ -68,37 +69,108 @@ bindings:
   A `cc` binding without `scale` passes the raw 0..=127 as `value`.
 - First matching binding wins.
 
-## Footswitch commands (#22)
+## Command reference — every command (33)
 
-Any `Command` can be bound, but these are the ones built for live
-footswitch use. A footswitch press carries no value, so these are
-**relative / stepping** and the dispatcher owns the state — pressing a
-switch moves the screen **and** the live runtime exactly like a mouse
-click (same refresh path).
+**Every** `Command` is MIDI-mappable. `command:` is the exact PascalCase
+variant name; `args:` is its field object — validated against the same
+auto-derived schema the MCP tools use (one source of truth).
 
-| Action | `command` | `args` |
+Field types: `chain`/`block` are the project's **string ids**;
+`number` = JSON number; `int` = integer; `uint` = non-negative integer;
+`bool` = `true`/`false`; `text` = string; `path` = filesystem path
+string; `object` = a full structured object (Chain / AudioBlock /
+Project — produced by the editor, not hand-written in a map).
+
+### Live: presets, scenes, block selection (#22 — relative, footswitch)
+
+A footswitch press carries no value, so these **step** and wrap; the
+dispatcher owns the state, so a press moves the screen **and** the live
+runtime exactly like a mouse click.
+
+| Command | What it does | `args` |
 |---|---|---|
-| Next preset | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepPreset: 1 } }` |
-| Previous preset | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepPreset: -1 } }` |
-| Next scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepScene: 1 } }` |
-| Previous scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { StepScene: -1 } }` |
-| Go to a fixed preset / scene | `ApplyRigNav` | `{ chain: "rig:<input>", kind: { Preset: <pos> } }` (or `Scene`) |
-| Move block selection (pair) forward | `SelectChainBlock` | `{ chain: "rig:<input>", delta: 2 }` |
-| Move block selection back | `SelectChainBlock` | `{ chain: "rig:<input>", delta: -2 }` |
-| Toggle the **left** block of the pair | `ToggleSelectedBlock` | `{ chain: "rig:<input>", side: Left }` |
-| Toggle the **right** block of the pair | `ToggleSelectedBlock` | `{ chain: "rig:<input>", side: Right }` |
-| Toggle a whole chain on/off | `ToggleChainEnabled` | `{ chain: "<chain-id>" }` |
-| Toggle one fixed block on/off | `ToggleBlockEnabled` | `{ chain: "<chain-id>", block: "<block-id>" }` |
-| Save the project | `SaveProject` | *(none)* |
+| `ApplyRigNav` | Next preset (wraps) | `{ chain: "rig:<input>", kind: { StepPreset: 1 } }` |
+| `ApplyRigNav` | Previous preset | `{ chain: "rig:<input>", kind: { StepPreset: -1 } }` |
+| `ApplyRigNav` | Next scene (wraps) | `{ chain: "rig:<input>", kind: { StepScene: 1 } }` |
+| `ApplyRigNav` | Previous scene | `{ chain: "rig:<input>", kind: { StepScene: -1 } }` |
+| `ApplyRigNav` | Go to fixed preset position `n` | `{ chain: "rig:<input>", kind: { Preset: n } }` |
+| `ApplyRigNav` | Go to fixed scene `n` | `{ chain: "rig:<input>", kind: { Scene: n } }` |
+| `SelectChainBlock` | Move the block pair cursor by `delta` (wraps) | `{ chain: "rig:<input>", delta: 2 }` |
+| `ToggleSelectedBlock` | Toggle the left block of the pair | `{ chain: "rig:<input>", side: Left }` |
+| `ToggleSelectedBlock` | Toggle the right block of the pair | `{ chain: "rig:<input>", side: Right }` |
+
+`kind` (enum `RigNavKind`, externally tagged):
+`{ Preset: int }` · `{ Scene: int }` · `{ StepPreset: int }` ·
+`{ StepScene: int }`. `side` (enum `PairSide`): `Left` or `Right`.
+`rig:<input>` is the chain id of a rig input on the chains screen. The
+selection border appears on the footswitch press and fades shortly after
+(transient cue, not a persistent selection).
+
+### Enable / disable / volume
+
+| Command | What it does | `args` |
+|---|---|---|
+| `ToggleChainEnabled` | Toggle a whole chain on/off | `{ chain: id }` |
+| `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` |
+| `SetChainVolume` | Set a chain's volume (%, e.g. 100 = unity) | `{ chain: id, value: number }` |
+
+### Block parameters (ideal for knob/fader via `cc` + `scale`)
+
+| Command | What it does | `args` |
+|---|---|---|
+| `SetBlockParameterNumber` | Set a numeric param (gain, mix…) | `{ chain: id, block: id, path: text, value: number }` |
+| `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` |
+| `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` |
+| `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` |
+| `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` |
+| `ReplaceBlockModel` | Swap the block's model | `{ chain: id, block: id, model_id: text }` |
+
+For a knob, use a `cc` source with `scale` (below) to drive
+`SetBlockParameterNumber` live.
+
+### Block editing (mappable, but editor-grade — needs structured args)
+
+| Command | What it does | `args` |
+|---|---|---|
+| `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` |
+| `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` |
+| `OverwriteBlock` | Replace a block | `{ chain: id, block: id, replacement: object }` |
+| `RemoveBlock` | Remove a block | `{ chain: id, block: id }` |
+| `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` |
+| `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` |
+
+### Chains
+
+| Command | What it does | `args` |
+|---|---|---|
+| `AddChain` | Add a chain | `{ chain: object }` |
+| `ConfigureChain` | Reconfigure a chain | `{ chain: object }` |
+| `SaveChain` | Save a chain | `{ chain: object }` |
+| `RemoveChain` | Remove a chain | `{ chain: id }` |
+| `MoveChainUp` | Move chain up in the list | `{ chain: id }` |
+| `MoveChainDown` | Move chain down in the list | `{ chain: id }` |
+| `SaveChainInputEndpoints` | Replace a chain's inputs | `{ chain: id, input_blocks: [object] }` |
+| `SaveChainOutputEndpoints` | Replace a chain's outputs | `{ chain: id, output_blocks: [object] }` |
+| `SaveChainIo` | Save a chain's input+output | `{ chain: id, input_block: object, output_block: object }` |
+| `LoadChainPreset` | Load a preset into a chain | `{ chain: id, preset_blocks: [object] }` |
+
+### Project & audio
+
+| Command | What it does | `args` |
+|---|---|---|
+| `SaveProject` | Save the project | *(none)* |
+| `LoadProject` | Load a project | `{ project: object, path: path }` |
+| `CreateProject` | Create a new project | `{ project: object }` |
+| `UpdateProjectName` | Rename the project | `{ name: text }` |
+| `SaveAudioSettings` | Save audio device settings | `{ device_settings: [object] }` |
 
 Notes:
 
-- Preset/scene stepping **wraps** (after the last comes the first).
-- The block-selection pair is two adjacent blocks; `delta: 2` walks it
-  two-by-two. The on-screen border appears on the footswitch press and
-  fades out shortly after (it is a transient cue, not a persistent
-  selection).
-- `rig:<input>` is the chain id of a rig input on the chains screen.
+- Preset/scene/block-selection stepping **wraps** (after the last comes
+  the first).
+- Commands taking `object` (Chain / AudioBlock / Project) are produced
+  by the editor; they are technically bindable but not meant to be
+  hand-written in a map.
 - `Chocolate Plus` lets you set the MIDI **channel per message** in its
   editor, so one pedal switching banks (or several pedals) can target
   different actions by channel.

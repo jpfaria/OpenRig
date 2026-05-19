@@ -153,7 +153,7 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 - [Audio Config](docs/audio-config.md) — I/O as blocks, JACK lifecycle
 - [CLI & env vars](docs/cli.md) — `openrig` arguments and environment variables
 - [MCP server & plugin](docs/mcp.md) — control the rig from Claude/Cursor; install the OpenRig plugin
-- [MIDI controller](docs/midi.md) — footswitches, knobs, expression pedals; [every command](docs/midi-commands.md) is MIDI-mappable
+- [MIDI controller](docs/midi.md) — footswitches, knobs, expression pedals; [every command](docs/midi.md) is MIDI-mappable
 
 ### For Developers
 
@@ -198,7 +198,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](docs/user-guide/blocks-reference.md)
 - [x] **AI-assisted preset building** — the [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) Claude Code skill ships in the repo and writes full presets from a song or artist name
-- [x] **MIDI / BLE-MIDI controller adapter** — footswitches, knobs, expression pedal; **every command is MIDI-mappable** (presets/scenes, block selection, parameters) ([#22](https://github.com/jpfaria/OpenRig/issues/22), see [docs/midi-commands.md](docs/midi-commands.md))
+- [x] **MIDI / BLE-MIDI controller adapter** — footswitches, knobs, expression pedal; **every command is MIDI-mappable** (presets/scenes, block selection, parameters) ([#22](https://github.com/jpfaria/OpenRig/issues/22), see [docs/midi.md](docs/midi.md))
 
 ### Stage features
 
