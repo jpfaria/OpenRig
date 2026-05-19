@@ -37,7 +37,7 @@ pub use dsp::{
     EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
 };
 pub use traits::{
-    wrap_with_output_gain_pct, BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle,
+    wrap_with_output_gain_db, BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle,
     StereoProcessor,
 };
 pub use visual::{KnobLayoutEntry, ModelVisualData};

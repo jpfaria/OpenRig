@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{
-    wrap_with_output_gain_pct, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+    wrap_with_output_gain_db, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
 };
 use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2Port, Lv2PortRole};
 use plugin_loader::manifest::{Backend, Lv2Slot};
@@ -192,13 +192,15 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    // Issue #440: aplica `manifest.output_gain_pct` (baseline objetivo do
-    // audit) como wrapper linear pós-process. NAM faz isso via
+    // Issue #491: aplica `manifest.output_gain_db` (baseline objetivo do
+    // audit, em dB) como wrapper estático pós-process. NAM faz isso via
     // `plugin_params.output_level_db`; LV2 não tem level shift embutido,
-    // então um wrapper estático é o caminho mais simples.
-    Ok(wrap_with_output_gain_pct(
+    // então um wrapper estático é o caminho mais simples. Na prática os
+    // manifests LV2 não carregam o campo (calibração é só NAM), então é
+    // no-op — mantido por consistência de contrato.
+    Ok(wrap_with_output_gain_db(
         processor,
-        package.manifest.output_gain_pct,
+        package.manifest.output_gain_db,
     ))
 }
 
