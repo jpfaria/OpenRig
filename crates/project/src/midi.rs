@@ -74,3 +74,15 @@ pub struct Binding {
 fn value_is_null(v: &Value) -> bool {
     v.is_null()
 }
+
+/// Project-level MIDI configuration — the `midi:` block inside
+/// `project.openrig`. Holds only the bindings (project layer); the device
+/// profile (which controller to listen to) lives system-side per ADR 0003.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct RigProjectMidi {
+    /// Bindings active for this rig. When the project carries `midi:`, these
+    /// override the system-side fallback (`midi-bindings.yaml`) and the
+    /// shipped default map in one step — see the resolver in `adapter-midi`.
+    #[serde(default)]
+    pub bindings: Vec<Binding>,
+}
