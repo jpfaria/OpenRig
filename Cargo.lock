@@ -321,6 +321,7 @@ dependencies = [
  "block-delay",
  "block-reverb",
  "domain",
+ "engine",
  "futures",
  "project",
  "schemars 0.8.22",

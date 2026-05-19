@@ -1,3 +1,6 @@
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
 use crate::RecentProjectItem;
 use crate::{AppWindow, UNTITLED_PROJECT_NAME};
@@ -401,10 +404,9 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
     // steps below run either way.
     match &session.rig {
         Some(rig) => {
-            crate::chain_rig_nav::sync_synthetic_into_rig(
-                &mut rig.borrow_mut(),
-                &session.project.borrow(),
-            );
+            // #436: capturing synthetic edits is model mutation — it
+            // goes through the Command now, not by hand in the UI.
+            let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
             let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
                 project_path.clone()
             } else {

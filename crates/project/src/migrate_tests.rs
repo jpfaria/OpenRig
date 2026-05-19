@@ -293,3 +293,31 @@ fn migrate_preserves_multi_source() {
     let r = migrate_legacy_project(&p);
     assert_eq!(r.inputs.get("input-1").unwrap().sources.len(), 2);
 }
+
+// #436: the select showed the slug ("studio-clean-compressor") instead
+// of a description. A RigPreset must carry a human `name` (the original
+// chain description) AND an `id` (the stable pool key). Migration fills
+// both; the UI shows `name`.
+#[test]
+fn migrate_carries_chain_description_as_preset_name_and_id() {
+    let p = legacy(vec![chain(
+        "Studio Clean Compressor",
+        100.0,
+        vec![input_block("i", vec![("sc", vec![0])]), fx("a")],
+    )]);
+    let r = migrate_legacy_project(&p);
+
+    let input = r.inputs.get("input-1").expect("input");
+    let key = input.bank.values().next().expect("a banked preset").clone();
+    let preset = r.presets.get(&key).expect("preset in pool");
+
+    assert_eq!(
+        preset.name.as_deref(),
+        Some("Studio Clean Compressor"),
+        "name must be the human chain description, not the slug"
+    );
+    assert_eq!(
+        preset.id, key,
+        "id must equal the stable pool key the bank references"
+    );
+}

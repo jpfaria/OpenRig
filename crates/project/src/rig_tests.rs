@@ -62,6 +62,8 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                 (
                     p.to_string(),
                     RigPreset {
+                        id: String::new(),
+                        name: None,
                         blocks: vec![processing_block()],
                         scene_params: vec![],
                         scenes: BTreeMap::new(),
@@ -148,6 +150,8 @@ fn core_block(id: &str) -> AudioBlock {
 #[test]
 fn scene_or_default_empty_preset_returns_default_for_slot_1() {
     let p = RigPreset {
+        id: String::new(),
+        name: None,
         blocks: vec![],
         scene_params: vec![],
         scenes: BTreeMap::new(),
@@ -165,6 +169,8 @@ fn scene_or_default_returns_present_scene() {
         volume: None,
     };
     let p = RigPreset {
+        id: String::new(),
+        name: None,
         blocks: vec![core_block("od")],
         scene_params: vec![],
         scenes: BTreeMap::from([(2, scene.clone())]),
@@ -211,6 +217,8 @@ fn preset_with(
     scenes: Vec<(usize, RigScene)>,
 ) -> RigPreset {
     RigPreset {
+        id: String::new(),
+        name: None,
         blocks,
         scene_params: marked.iter().map(|s| s.to_string()).collect(),
         scenes: scenes.into_iter().collect(),

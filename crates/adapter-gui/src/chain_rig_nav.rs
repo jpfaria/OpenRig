@@ -11,8 +11,11 @@ use project::project::Project;
 use project::rig::RigProject;
 
 // #436 architectural fix: the synthetic→rig capture moved to the
-// `project` crate so the dispatcher can run it too. Re-exported here so
-// existing callers/tests (`super::sync_synthetic_into_rig`) don't move.
+// `project` crate (the dispatcher runs it via Command now). Production
+// no longer calls it from the UI; the existing #436 tests still
+// reference `super::sync_synthetic_into_rig`, so keep the re-export
+// test-only (no unused-import warning in the lib build).
+#[cfg(test)]
 pub(crate) use project::rig_sync::sync_synthetic_into_rig;
 
 /// One chain's rig preset/scene navigation state. Empty `preset_labels`
@@ -62,7 +65,18 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 return RigNavRow::default();
             };
             let preset_slots: Vec<usize> = input.bank.keys().copied().collect();
-            let preset_labels: Vec<String> = input.bank.values().cloned().collect();
+            // #436: show the human `name`, not the pool key/slug id.
+            // Fall back to the key when a preset has no name yet.
+            let preset_labels: Vec<String> = input
+                .bank
+                .values()
+                .map(|key| {
+                    rig.presets
+                        .get(key)
+                        .and_then(|p| p.name.clone())
+                        .unwrap_or_else(|| key.clone())
+                })
+                .collect();
             let active_index = preset_slots
                 .iter()
                 .position(|&s| s == input.active_preset)

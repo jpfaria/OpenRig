@@ -92,6 +92,8 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
         presets.insert(
             preset_name.clone(),
             RigPreset {
+                id: preset_name.clone(),
+                name: chain.description.clone(),
                 blocks,
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),

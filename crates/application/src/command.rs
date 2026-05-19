@@ -292,6 +292,12 @@ pub enum Command {
     /// (B = left block, C = right block). No-op if that side is past
     /// the end of the chain.
     ToggleSelectedBlock { chain: ChainId, side: PairSide },
+
+    /// #436: capture pending edits on the projected synthetic chains
+    /// back into the rig. The GUI save path used to call
+    /// `sync_synthetic_into_rig` by hand (model mutation in the UI);
+    /// it now dispatches this so the dispatcher owns the mutation.
+    CaptureRigEdits,
 }
 
 /// Which block of the selected pair [`Command::ToggleSelectedBlock`]

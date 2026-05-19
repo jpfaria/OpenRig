@@ -125,6 +125,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SelectChainBlock { .. } | Command::ToggleSelectedBlock { .. } => {
                 self.handle_block_selection(cmd)
             }
+
+            Command::CaptureRigEdits => self.handle_capture_rig_edits(),
         }
     }
 
@@ -424,11 +426,21 @@ impl LocalDispatcher {
                 ])
             }
             Command::RemoveChain { chain } => {
-                let mut proj = self.project.borrow_mut();
-                let pre_len = proj.chains.len();
-                proj.chains.retain(|c| c.id != chain);
-                if proj.chains.len() == pre_len {
-                    return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                {
+                    let mut proj = self.project.borrow_mut();
+                    let pre_len = proj.chains.len();
+                    proj.chains.retain(|c| c.id != chain);
+                    if proj.chains.len() == pre_len {
+                        return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                    }
+                }
+                // #436: a rig chain (`rig:<input>`) must also drop its
+                // RigInput, else any re-projection resurrects it. This
+                // used to be done by hand in the GUI — now it's here.
+                if let (Some(rig), Some(name)) =
+                    (self.rig.borrow().clone(), chain.0.strip_prefix("rig:"))
+                {
+                    rig.borrow_mut().remove_input(name);
                 }
                 Ok(vec![Event::ChainRemoved { chain }, Event::ProjectMutated])
             }
