@@ -1,7 +1,12 @@
-//! `midi-map.yaml` — the global controller mapping. Serde types + load +
-//! validation. Validation reuses `application::command_schema` (the single
-//! source of truth for what a `Command` needs) so a renamed field or unknown
-//! command fails the *load*, loudly, instead of silently dropping a binding.
+//! `midi-map.yaml` — the legacy single-file controller mapping (#22) + the
+//! resolved runtime view. The data types (`Source`, `Scale`, `Binding`) moved
+//! to `project::midi` when the file split into a system **device profile** and
+//! a project-owned **binding map** (ADR 0003 / #499). They are re-exported
+//! here so existing code calling `adapter_midi::Binding` keeps working.
+//!
+//! Validation reuses `application::command_schema` (the single source of truth
+//! for what a `Command` needs) so a renamed field or unknown command fails
+//! the *load*, loudly, instead of silently dropping a binding.
 
 use std::path::Path;
 
@@ -9,62 +14,12 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
 
-/// One controller event to bind against. Internally tagged on `kind` in
-/// YAML: `source: { kind: note_on, channel: 1, note: 60 }`. `channel` is
-/// 1..=16 (human numbering, not the 0..=15 wire value).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Source {
-    NoteOn { channel: u8, note: u8 },
-    NoteOff { channel: u8, note: u8 },
-    Cc { channel: u8, controller: u8 },
-    ProgramChange { program: u8 },
-}
+pub use project::midi::{Binding, Scale, Source};
 
-impl Source {
-    /// Continuous sources carry a 0..=127 value that gets scaled into a
-    /// `Command` argument; discrete sources fire a fixed command.
-    pub fn is_continuous(&self) -> bool {
-        matches!(self, Source::Cc { .. })
-    }
-}
-
-fn default_into() -> String {
-    "value".to_string()
-}
-
-/// Linear map of a continuous source's 0..=127 value into `[min, max]`,
-/// written into the command argument named `into` (default `value`).
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Scale {
-    pub min: f64,
-    pub max: f64,
-    #[serde(default = "default_into")]
-    pub into: String,
-}
-
-impl Scale {
-    /// Map a raw 0..=127 MIDI value linearly into `[min, max]`.
-    pub fn apply(&self, raw: u8) -> f64 {
-        let t = f64::from(raw) / 127.0;
-        self.min + t * (self.max - self.min)
-    }
-}
-
-/// One binding: a source, the `Command` variant name (PascalCase, as in the
-/// `Command` enum), its static JSON args, and an optional scale for
-/// continuous sources.
-#[derive(Debug, Clone, Deserialize)]
-pub struct Binding {
-    pub source: Source,
-    pub command: String,
-    #[serde(default)]
-    pub args: Value,
-    #[serde(default)]
-    pub scale: Option<Scale>,
-}
-
-/// The whole mapping file.
+/// The whole mapping file — the legacy `midi-map.yaml` shape. After the
+/// system-vs-project split (ADR 0003 / #499) this struct represents the
+/// **resolved** view at runtime: the device profile's `input` joined with
+/// the project's `bindings` (or a system / shipped fallback).
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct MidiMap {
     /// Input device, matched by case-insensitive substring. `None` → use the
