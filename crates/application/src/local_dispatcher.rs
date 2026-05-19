@@ -118,6 +118,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
 
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
+
+            Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
         }
     }
 

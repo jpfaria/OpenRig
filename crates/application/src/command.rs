@@ -322,6 +322,11 @@ pub enum Command {
     /// add, -2 remove) so no new behaviour is introduced.
     ApplyRigNav { chain: ChainId, kind: RigNavKind },
 
+    /// #436: rename the chain's ACTIVE rig preset (the human `name`
+    /// shown in the select). The UI just dispatches this; the
+    /// dispatcher (owning the rig) writes `RigPreset.name`.
+    RenameRigPreset { chain: ChainId, name: String },
+
     /// #436: capture pending edits on the projected synthetic chains
     /// back into the rig. The GUI save path used to call
     /// `sync_synthetic_into_rig` by hand (model mutation in the UI);

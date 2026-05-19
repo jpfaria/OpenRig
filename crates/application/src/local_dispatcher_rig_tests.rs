@@ -190,3 +190,33 @@ fn capture_rig_edits_writes_synthetic_chain_back_into_the_rig() {
         "CaptureRigEdits must fold the synthetic edit back into the rig"
     );
 }
+
+#[test]
+fn rename_rig_preset_changes_what_the_select_shows() {
+    // User repro: "troquei o nome para SILVERCHAIR FREAK - SCARLETT e
+    // continua mostrando outro nome no select". The select shows
+    // preset.name; nothing could change it after migration → there must
+    // be a Command that renames the active preset.
+    let rig = Rc::new(RefCell::new(rig())); // input "in", active preset key
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::RenameRigPreset {
+            chain: ChainId("rig:in".into()),
+            name: "SILVERCHAIR FREAK - SCARLETT".into(),
+        })
+        .expect("dispatch ok");
+
+    let active = rig.borrow().inputs["in"].active_preset;
+    let key = rig.borrow().inputs["in"].bank[&active].clone();
+    assert_eq!(
+        rig.borrow().presets[&key].name.as_deref(),
+        Some("SILVERCHAIR FREAK - SCARLETT"),
+        "rename must update the active preset's name (what the select shows)"
+    );
+}
