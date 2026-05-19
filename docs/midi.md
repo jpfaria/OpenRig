@@ -170,5 +170,8 @@ Chains screen; for rig chains the id is `rig:<input>`.
 - One opt-in input that attaches to the running OpenRig through the
   command bus — same path the GUI and MCP use. **No audio-thread code is
   touched**; real-time invariants hold by construction.
-- Multiple controllers on different MIDI channels can be used at once
-  (full multi-device support is tracked separately).
+- **Multiple controllers at once** — every input port whose name
+  matches `input:` is opened (or all ports if `input:` is omitted), all
+  feeding the same command bus. So 4 identical Chocolates, or a
+  footswitch + a knob box, work together; tell them apart by MIDI
+  channel (set per message on the Chocolate Plus).
