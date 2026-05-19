@@ -222,8 +222,8 @@ fn test_card(device_id: &str) -> super::usb_proc::UsbAudioCard {
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn empty_project() -> project::Project {
-    project::Project {
+fn empty_project() -> project::project::Project {
+    project::project::Project {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
