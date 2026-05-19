@@ -47,6 +47,11 @@ pub struct LocalDispatcher {
     /// `None` for non-rig sessions (legacy projects) — set via
     /// [`Self::attach_rig`] at project load.
     pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
+    /// #436: block selection used to be GUI-only state, so MIDI/MCP
+    /// could not "click a block". It now lives here, set by
+    /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
+    /// `rig:<input>` and real ids); absent ⇒ nothing selected.
+    pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
 }
 
 impl LocalDispatcher {
@@ -59,7 +64,14 @@ impl LocalDispatcher {
         Self {
             project,
             rig: RefCell::new(None),
+            selection: RefCell::new(std::collections::HashMap::new()),
         }
+    }
+
+    /// The block index currently selected on `chain` (dispatcher-owned;
+    /// the GUI renders this, MIDI/MCP can set it). `None` if unset.
+    pub fn selected_block(&self, chain: &ChainId) -> Option<usize> {
+        self.selection.borrow().get(chain).copied()
     }
 
     /// Share the session's `RigProject` handle so rig-nav commands can
@@ -120,6 +132,13 @@ impl CommandDispatcher for LocalDispatcher {
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
+
+            Command::SelectChainBlock { chain, block_index } => {
+                self.selection
+                    .borrow_mut()
+                    .insert(chain.clone(), block_index);
+                Ok(vec![Event::ProjectMutated])
+            }
         }
     }
 

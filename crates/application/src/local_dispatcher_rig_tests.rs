@@ -220,3 +220,29 @@ fn rename_rig_preset_changes_what_the_select_shows() {
         "rename must update the active preset's name (what the select shows)"
     );
 }
+
+// #436: "clicar num bloco" must be reachable by MIDI/MCP, so block
+// selection has to be Command-driven and owned by the dispatcher (not
+// GUI-only state). RED: Command::SelectChainBlock + a queryable
+// selection don't exist yet.
+#[test]
+fn select_chain_block_command_sets_dispatcher_owned_selection() {
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::SelectChainBlock {
+            chain: ChainId("rig:in".into()),
+            block_index: 2,
+        })
+        .expect("dispatch ok");
+
+    assert_eq!(
+        dispatcher.selected_block(&ChainId("rig:in".into())),
+        Some(2),
+        "the dispatcher must own the selection so MIDI/MCP can drive it"
+    );
+}
