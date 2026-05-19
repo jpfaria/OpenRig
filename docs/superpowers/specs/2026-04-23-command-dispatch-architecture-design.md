@@ -187,6 +187,9 @@ gRPC over BLE is **not** in scope. Bluetooth control happens via BLE-MIDI in Pha
 
 ## Phase 3 — MIDI/OSC + BLE-MIDI Adapter (Issue #22)
 
+> Detailed design + as-built notes: `2026-05-18-22-midi-osc-adapter-design.md`.
+> User docs: `docs/midi.md`.
+
 **Goal:** physical and wireless controllers (footswitches, expression pedals, iPads, BLE-MIDI devices, OSC apps) drive the same `Command`s the GUI uses.
 
 ### Steps

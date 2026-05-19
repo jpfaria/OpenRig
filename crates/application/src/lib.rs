@@ -9,6 +9,7 @@ pub mod event;
 pub mod local_dispatcher;
 mod local_dispatcher_rig;
 pub mod publishing_dispatcher;
+pub mod query;
 pub mod session;
 pub mod validate;
 

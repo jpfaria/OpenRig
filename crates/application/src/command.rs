@@ -298,11 +298,18 @@ pub enum Command {
     CaptureRigEdits,
 }
 
-/// What [`Command::ApplyRigNav`] does to the chain's rig input. The
-/// `i32` is the existing GUI sentinel: `>= 0` selects that
+/// What [`Command::ApplyRigNav`] does to the chain's rig input.
+///
+/// `Preset`/`Scene` carry the GUI sentinel `i32`: `>= 0` selects that
 /// preset-position / scene number, `-1` adds, `-2` removes.
+///
+/// `StepPreset`/`StepScene` carry a relative delta (`+1` next, `-1`
+/// previous) and wrap — a footswitch has no absolute position, it just
+/// advances. The dispatcher resolves the delta against the live rig.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum RigNavKind {
     Preset(i32),
     Scene(i32),
+    StepPreset(i32),
+    StepScene(i32),
 }

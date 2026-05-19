@@ -304,6 +304,31 @@ impl RigProject {
         }
     }
 
+    /// New preset position (0-based ordinal into the input's ascending
+    /// bank) after stepping the active preset by `delta`, wrapping.
+    /// `None` if the input is unknown or its bank is empty. The single
+    /// source of the footswitch next/previous wrap math.
+    pub fn step_preset(&self, input: &str, delta: i32) -> Option<usize> {
+        let ri = self.inputs.get(input)?;
+        let len = ri.bank.len();
+        if len == 0 {
+            return None;
+        }
+        let cur = ri.bank.keys().position(|k| *k == ri.active_preset)?;
+        Some((cur as i32 + delta).rem_euclid(len as i32) as usize)
+    }
+
+    /// New scene number (`1..=scene_count` of the active preset) after
+    /// stepping the active scene by `delta`, wrapping. `None` if the
+    /// input or its active preset is unknown.
+    pub fn step_scene(&self, input: &str, delta: i32) -> Option<usize> {
+        let ri = self.inputs.get(input)?;
+        let name = ri.bank.get(&ri.active_preset)?;
+        let count = self.presets.get(name)?.scene_count() as i32;
+        let cur = ri.active_scene as i32 - 1;
+        Some((cur + delta).rem_euclid(count) as usize + 1)
+    }
+
     /// Add a new preset to `input`'s bank: takes the next free slot
     /// (max key + 1, or 1 for an empty bank), clones the currently active
     /// preset as a starting point (an **independent** snapshot — no shared

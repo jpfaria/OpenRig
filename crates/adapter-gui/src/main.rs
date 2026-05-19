@@ -32,6 +32,7 @@ fn main() -> anyhow::Result<()> {
     let (arg_project_path, arg_auto_save, arg_fullscreen) =
         adapter_gui::parse_cli_args_from(&raw_refs);
     let mcp_addr = adapter_gui::parse_mcp_addr(&raw_refs);
+    let midi_map = adapter_gui::parse_midi_map(&raw_refs);
     let cli_project_path = arg_project_path
         .or_else(|| {
             std::env::var("OPENRIG_PROJECT_PATH")
@@ -65,5 +66,6 @@ fn main() -> anyhow::Result<()> {
         auto_save,
         fullscreen,
         mcp_addr,
+        midi_map,
     )
 }

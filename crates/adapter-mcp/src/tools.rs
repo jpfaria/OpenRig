@@ -13,7 +13,7 @@ use application::command_schema::{
 };
 use application::event::Event;
 use rmcp::model::Tool;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 
 /// Every variant as an MCP [`Tool`] with an auto-derived input schema.
 pub fn tools() -> Vec<Tool> {
@@ -34,8 +34,11 @@ pub fn tools() -> Vec<Tool> {
         .collect()
 }
 
-/// Pure mapping: a tool name + JSON args → a typed `Command`. Reconstructs
-/// the externally-tagged form serde expects (`{ "<Variant>": <args> }`).
+/// Pure mapping: a tool name + JSON args → a typed `Command`. Resolves the
+/// snake_case tool name to its `Command` variant, then delegates to the
+/// single source of truth for "(variant, args) → Command",
+/// `command_schema::command_from_variant` (the same builder `adapter-midi`
+/// uses) — no parallel reconstruction of the externally-tagged form.
 pub fn build_command(tool: &str, args: Value) -> Result<Command> {
     let variant = variant_from_tool_name(tool)
         .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
@@ -137,5 +140,31 @@ mod tests {
     #[test]
     fn build_command_rejects_unknown_tool() {
         assert!(build_command("nope", Value::Null).is_err());
+    }
+
+    #[test]
+    fn build_command_is_command_from_variant_single_source() {
+        // The MCP tool path and the shared `command_schema::command_from_variant`
+        // (also used by `adapter-midi`) MUST produce the identical `Command`
+        // for equivalent input — one source of truth, not two parallel
+        // reconstructions. Locks the dedup against future drift.
+        use application::command_schema::{command_from_variant, variant_from_tool_name};
+        for (tool, args) in [
+            ("save_project", serde_json::json!({})),
+            ("update_project_name", serde_json::json!({ "name": "X" })),
+            (
+                "toggle_block_enabled",
+                serde_json::json!({ "chain": "chain:a", "block": "block:b" }),
+            ),
+        ] {
+            let via_tool = build_command(tool, args.clone()).unwrap();
+            let variant = variant_from_tool_name(tool).unwrap();
+            let via_variant = command_from_variant(variant, args).unwrap();
+            assert_eq!(
+                serde_json::to_value(&via_tool).unwrap(),
+                serde_json::to_value(&via_variant).unwrap(),
+                "tool {tool}: MCP build_command diverged from the shared builder"
+            );
+        }
     }
 }
