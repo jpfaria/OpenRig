@@ -23,17 +23,17 @@ Open your controller's editor (for the M-Vave Chocolate that's the
 **CubeSuite** app) and set each footswitch / knob to send exactly this.
 Everything is on **MIDI channel 1**.
 
-| You want it to… | Set the control to send | Type | Number | Channel |
-|---|---|---|---|---|
-| Go to the **previous preset** | Note | **60** | 1 |
-| Go to the **next preset** | Note | **61** | 1 |
-| Go to the **previous scene** | Note | **62** | 1 |
-| Go to the **next scene** | Note | **63** | 1 |
-| Move block selection **back** | Note | **64** | 1 |
-| Move block selection **forward** | Note | **65** | 1 |
-| Toggle the **left** block of the selected pair | Note | **66** | 1 |
-| Toggle the **right** block of the selected pair | Note | **67** | 1 |
-| **Chain volume** (turn a knob) | Control Change (CC) | **7** | 1 |
+| You want it to… | Message type | Number | MIDI channel |
+|---|---|---|---|
+| Go to the **previous preset** | Note | 60 | 1 |
+| Go to the **next preset** | Note | 61 | 1 |
+| Go to the **previous scene** | Note | 62 | 1 |
+| Go to the **next scene** | Note | 63 | 1 |
+| Move block selection **back** | Note | 64 | 1 |
+| Move block selection **forward** | Note | 65 | 1 |
+| Toggle the **left** block of the selected pair | Note | 66 | 1 |
+| Toggle the **right** block of the selected pair | Note | 67 | 1 |
+| **Chain volume** (turn a knob) | Control Change (CC) | 7 | 1 |
 
 That's the whole hardware side. A footswitch sends its Note when you
 press it; a knob sends CC 7 continuously as you turn it (0 = silent,
