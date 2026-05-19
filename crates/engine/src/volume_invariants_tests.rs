@@ -320,9 +320,12 @@ fn b01_output_below_limiter_knee_is_transparent() {
 }
 
 #[test]
-fn b02_output_above_limiter_knee_applies_tanh() {
-    // Send a hot input (1.5) through a passthrough chain. Mono → broadcast
-    // Stereo([1.5, 1.5]) → write_output_frame applies tanh per channel.
+fn b02_output_above_limiter_knee_is_softly_saturated() {
+    // Issue #496: was `b02_..._applies_tanh` and pinned `peak ≈ tanh(1.5)`.
+    // The tanh form was discontinuous (-2.17 dB step at 0.95) and
+    // non-monotonic 0.95..1.83 — proven RED in runtime_dsp::tests. The
+    // invariant being protected is "above the knee saturates", not the
+    // specific math; pin the PROPERTIES instead of the function shape.
     let chain = chain_with_blocks(
         "b02",
         vec![
@@ -331,11 +334,9 @@ fn b02_output_above_limiter_knee_applies_tanh() {
         ],
     );
     let peak = measure_steady_peak(&chain, 1, &[1.5], 2, 4);
-    let expected = (1.5_f32).tanh();
-    assert!(
-        (peak - expected).abs() < 0.01,
-        "above knee must equal tanh(sample); expected ≈ {expected}, got {peak}"
-    );
+    assert!(peak <= 1.0, "above-knee must be bounded ≤ full scale; got {peak}");
+    assert!(peak < 1.5, "above-knee must be reduced from input 1.5; got {peak}");
+    assert!(peak > 0.9, "above-knee must stay loud (no quiet collapse); got {peak}");
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -702,7 +703,12 @@ fn g02_split_mono_dual_below_limiter_knee_sums() {
 }
 
 #[test]
-fn g03_split_mono_dual_above_knee_uses_tanh_limiter() {
+fn g03_split_mono_dual_above_knee_is_softly_saturated() {
+    // Issue #496: pin the PROPERTIES instead of `peak ≈ tanh(sum)`.
+    // The old tanh form was discontinuous + non-monotonic (RED in
+    // runtime_dsp::tests). What this invariant really guards is "when
+    // dual mono sums above the knee, the output stays bounded and
+    // loud — no DAC clip, no quiet collapse".
     let chain = chain_with_blocks(
         "g03",
         vec![
@@ -711,11 +717,9 @@ fn g03_split_mono_dual_above_knee_uses_tanh_limiter() {
         ],
     );
     let peak = measure_steady_peak(&chain, 2, &[0.8, 0.8], 2, 4);
-    let expected = (1.6_f32).tanh();
-    assert!(
-        (peak - expected).abs() < 0.01,
-        "split-mono dual above knee must equal tanh(sum); expected ≈ {expected}, got {peak}"
-    );
+    assert!(peak <= 1.0, "split-mono dual sum must be bounded ≤ 1.0; got {peak}");
+    assert!(peak < 1.6, "must be reduced from raw sum 1.6; got {peak}");
+    assert!(peak > 0.9, "must stay loud (no quiet collapse); got {peak}");
 }
 
 #[test]

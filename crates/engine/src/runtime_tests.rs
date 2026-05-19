@@ -1318,23 +1318,25 @@ fn output_limiter_transparent_below_threshold() {
 
 #[test]
 fn output_limiter_saturates_above_threshold() {
+    // Issue #496: the previous tanh form was discontinuous (-2.17 dB
+    // step at the threshold) and non-monotonic from ~0.95 to ~1.83
+    // (proven RED in runtime_dsp::tests). Pin the PROPERTY a soft
+    // limiter must have — bounded, sign-preserving, smaller than the
+    // input above the knee — not the specific tanh function.
     use super::output_limiter;
     let limited = output_limiter(2.0);
-    assert!(
-        limited < 2.0,
-        "limiter should reduce values above threshold"
-    );
-    assert!(limited > 0.0, "limiter should keep positive sign");
-    // tanh(2.0) ≈ 0.964
-    assert!((limited - 2.0f32.tanh()).abs() < 1e-6);
+    assert!(limited < 2.0 && limited > 0.0, "reduce + keep sign: {limited}");
+    assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
 }
 
 #[test]
 fn output_limiter_negative_saturates_symmetrically() {
+    // Issue #496: assert odd symmetry instead of pinning tanh()
+    // numerically. The new soft-clip is not tanh but is still odd,
+    // bounded, monotonic and continuous.
     use super::output_limiter;
-    let limited = output_limiter(-2.0);
-    assert!(limited > -2.0, "limiter should reduce negative values");
-    assert!((limited - (-2.0f32).tanh()).abs() < 1e-6);
+    assert!((output_limiter(-2.0) + output_limiter(2.0)).abs() < 1e-6);
+    assert!(output_limiter(-2.0) >= -1.0 && output_limiter(-2.0).is_finite());
 }
 
 // ── apply_mixdown tests ──────────────────────────────────────────────────

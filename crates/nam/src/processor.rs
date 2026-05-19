@@ -319,18 +319,26 @@ pub struct NamProcessor {
     output_gain: f32,
     scratch_input: Vec<f32>,
     scratch_output: Vec<f32>,
-    // Noise gate / downward expander (issue #496). The NAM params have
-    // always carried `noise_gate_*` but nothing applied them — so a hot
-    // `output_gain_db` amplified the model noise floor into an audible
-    // hiss on the decay. These wire it: memoryless math + a one-float
-    // envelope (zero latency, no alloc/lock on the audio thread).
-    gate_enabled: bool,
-    gate_thresh_lin: f32,
-    /// Expander exponent = ratio - 1 (0 ⇒ off, larger ⇒ steeper).
-    gate_expo: f32,
-    /// Per-sample release coefficient (slow ⇒ natural tail fade).
-    gate_release: f32,
-    gate_env: f32,
+    // Issue #496 chain audit: what the model itself recommends for
+    // capture-level staging. Kept so the per-stage audit can show
+    // whether the DI is actually fed at the level the capture was
+    // trained at (under/over-drive = wrong tone, no scalar fixes it).
+    recommended_input_db: f32,
+    recommended_output_db: f32,
+}
+
+/// Per-stage signal level (RMS dBFS) through the NAM chain — issue #496
+/// gain-staging audit. Pinpoints where loudness/weight is lost or where
+/// it clips, instead of guessing with the output scalar.
+#[derive(Debug, Clone, Copy)]
+pub struct StageLevels {
+    pub di_in: f32,
+    pub recommended_input_db: f32,
+    pub into_model: f32,
+    pub model_raw_out: f32,
+    pub recommended_output_db: f32,
+    pub after_output_gain: f32,
+    pub after_soft_clip: f32,
 }
 
 unsafe impl Send for NamProcessor {}
@@ -403,20 +411,7 @@ impl NamProcessor {
             params.audit_overrides_baked_output,
         );
 
-        // Downward expander, 5:1, instant attack + ~50 ms one-pole
-        // release. Attack is instant so a played note opens the gate
-        // immediately (no missed transient); the release is slow enough
-        // that a decaying note's tail rings down naturally, but fast
-        // enough that once you stop the envelope converges to the
-        // (low) residual hiss within a few hundred ms and the expander
-        // collapses it. Continuous at the threshold (gain → 1 there) →
-        // no audible step when it engages.
-        let sr = if sample_rate > 0.0 {
-            sample_rate
-        } else {
-            48_000.0
-        };
-        let gate_release = (-1.0 / (0.050 * sr)).exp();
+        let _ = sample_rate; // currently unused; staged for future per-SR DSP
 
         Ok(Self {
             model,
@@ -424,35 +419,36 @@ impl NamProcessor {
             output_gain,
             scratch_input: Vec::new(),
             scratch_output: Vec::new(),
-            gate_enabled: params.noise_gate_enabled,
-            gate_thresh_lin: db_to_lin(params.noise_gate_threshold_db),
-            gate_expo: 4.0,
-            gate_release,
-            gate_env: 0.0,
+            recommended_input_db,
+            recommended_output_db,
         })
     }
 
-    /// Memoryless-math downward expander with a one-float peak
-    /// envelope (issue #496). Above threshold: unity (loud, undistorted
-    /// playing is untouched). Below: smooth expansion `(env/thr)^expo`
-    /// → continuous at the threshold, → 0 as the signal dies, so the
-    /// amplified noise floor collapses on the decay instead of hissing.
-    #[inline]
-    fn gate(&mut self, x: f32) -> f32 {
-        if !self.gate_enabled {
-            return x;
-        }
-        let a = x.abs();
-        // Instant attack, exponential release.
-        self.gate_env = if a > self.gate_env {
-            a
-        } else {
-            a + (self.gate_env - a) * self.gate_release
+    /// Run a DI through the chain and report the RMS level (dBFS) at
+    /// every stage — issue #496 gain-staging audit. Use this to find
+    /// where level/weight is lost (e.g. `into_model` far below the
+    /// model's `recommended_input_db` ⇒ under-driven capture ⇒ thin
+    /// tone; no scalar after the model can recover that).
+    pub fn stage_levels(&mut self, di: &[f32]) -> StageLevels {
+        let rms = |s: &[f32]| {
+            20.0 * (s.iter().map(|v| v * v).sum::<f32>() / s.len().max(1) as f32)
+                .sqrt()
+                .max(1e-12)
+                .log10()
         };
-        if self.gate_env >= self.gate_thresh_lin {
-            x
-        } else {
-            x * (self.gate_env / self.gate_thresh_lin).powf(self.gate_expo)
+        let into: Vec<f32> = di.iter().map(|s| s * self.input_gain).collect();
+        let mut raw = vec![0.0f32; di.len()];
+        unsafe { Process(self.model, into.as_ptr(), raw.as_mut_ptr(), di.len()) };
+        let after_og: Vec<f32> = raw.iter().map(|s| s * self.output_gain).collect();
+        let after_sc: Vec<f32> = after_og.iter().map(|s| soft_clip(*s)).collect();
+        StageLevels {
+            di_in: rms(di),
+            recommended_input_db: self.recommended_input_db,
+            into_model: rms(&into),
+            model_raw_out: rms(&raw),
+            recommended_output_db: self.recommended_output_db,
+            after_output_gain: rms(&after_og),
+            after_soft_clip: rms(&after_sc),
         }
     }
 }
@@ -469,8 +465,7 @@ impl MonoProcessor for NamProcessor {
         unsafe {
             Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        let y = soft_clip(output[0] * self.output_gain);
-        self.gate(y)
+        soft_clip(output[0] * self.output_gain)
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -496,13 +491,15 @@ impl MonoProcessor for NamProcessor {
         }
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let elapsed = t0.elapsed();
-        // Apply output gain
+        // Apply output gain + memoryless clip safety. The noise gate
+        // experiment was reverted: a static expander cannot tell
+        // musical low-level content from amplified hiss, and on real
+        // guitar dynamics it strangles weight ("brinquedo"). Per #496
+        // measurements, sane calibration alone keeps decay < -60 dBFS
+        // — hiss is the audit's responsibility, not the engine's.
         let output_gain = self.output_gain;
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = soft_clip(*src * output_gain);
-        }
-        for s in buffer.iter_mut() {
-            *s = self.gate(*s);
         }
 
         // Periodic diagnostic logging on aarch64 to investigate NAM audio quality
