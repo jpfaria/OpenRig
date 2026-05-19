@@ -14,6 +14,7 @@ mod local_dispatcher_chain_crud;
 mod local_dispatcher_chain_io;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
+mod local_dispatcher_language;
 mod local_dispatcher_project;
 mod local_dispatcher_rig;
 pub mod publishing_dispatcher;

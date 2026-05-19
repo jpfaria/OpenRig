@@ -137,6 +137,8 @@ impl CommandDispatcher for LocalDispatcher {
                     .insert(chain.clone(), block_index);
                 Ok(vec![Event::ProjectMutated])
             }
+
+            Command::SetLanguage { .. } => self.handle_set_language(cmd),
         }
     }
 

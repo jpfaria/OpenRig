@@ -90,6 +90,11 @@ pub enum Event {
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,
 
+    /// #436 F: the UI language preference was changed (`None` = system
+    /// default). The adapter performs the persistence + live i18n swap;
+    /// this records that the change went through the dispatcher.
+    LanguageChanged { language: Option<String> },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,

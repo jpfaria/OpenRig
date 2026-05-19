@@ -336,6 +336,14 @@ pub enum Command {
     /// `sync_synthetic_into_rig` by hand (model mutation in the UI);
     /// it now dispatches this so the dispatcher owns the mutation.
     CaptureRigEdits,
+
+    /// #436 F: set the UI language preference. Was GUI-only
+    /// (`FilesystemStorage::save_gui_language` + live i18n swap in a
+    /// wiring closure). Now a Command so MIDI/MCP can request it too.
+    /// Follows the `SaveProject` precedent: the adapter performs the
+    /// persistence + live swap; the dispatcher records the intent and
+    /// signals it via `Event::LanguageChanged`. `None` = system default.
+    SetLanguage { language: Option<String> },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The
