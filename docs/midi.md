@@ -80,26 +80,78 @@ ids on the Chains screen (`rig:<input>` for rig chains).
 
 ## Turn it on
 
-1. Copy the standard map into OpenRig's config folder:
+Bindings can live in two places after #499 (see ADR 0003 for the rule):
+
+- **Inside your project** (`project.openrig`, under `midi.bindings`) —
+  travels with the rig: the same setlist behaves identically on every
+  machine. Edit via the in-app editor (#493) or by hand.
+- **System-wide fallback** (`midi-bindings.yaml`) — used when the open
+  project has no `midi:` field.
+
+The **controller** to listen to (`input:` in the legacy file) is a
+system-only setting and lives in `midi-profile.yaml`. It never travels
+with the project — that's your hardware.
+
+### First-time setup
+
+1. Copy the shipped default into your config folder **as the system
+   fallback**:
 
    | OS | Copy `examples/midi-map.default.yaml` to |
    |---|---|
-   | macOS | `~/Library/Application Support/OpenRig/midi-map.yaml` |
-   | Windows | `%APPDATA%\OpenRig\midi-map.yaml` |
-   | Linux | `~/.config/OpenRig/midi-map.yaml` |
+   | macOS | `~/Library/Application Support/OpenRig/midi-bindings.yaml` |
+   | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
+   | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
 
 2. In that file, change the one line `chain: "rig:guitar"` to your rig
    input's name (the input shown on the Chains screen) — once.
 
-3. Start OpenRig with MIDI on:
+3. Tell OpenRig which controller to listen to. Create
+   `midi-profile.yaml` next to the bindings file with one line:
+
+   ```yaml
+   input: Chocolate
+   ```
+
+   Use any case-insensitive substring of your controller's port name.
+   Omit the file to use the system default input port.
+
+4. Start OpenRig with MIDI on:
 
    ```
    openrig --midi
    ```
 
-   (or `openrig --midi=/path/to/your-map.yaml` to point at a specific
-   file). If the map is missing or a line is wrong, OpenRig refuses to
-   start and logs exactly why — it never silently ignores a binding.
+   (or `openrig --midi=/path/to/your-map.yaml` to load a single legacy-
+   format file directly — useful for testing without touching the system
+   files). If a binding is wrong, OpenRig refuses to start and logs why —
+   it never silently ignores a binding.
+
+### Upgrading from a pre-#499 `midi-map.yaml`
+
+If you already had `midi-map.yaml` in your config folder, **OpenRig
+migrates it on first launch**: the `input:` field moves to
+`midi-profile.yaml`, the `bindings:` block moves to
+`midi-bindings.yaml`, and the original `midi-map.yaml` is deleted. No
+user action — just launch with `--midi` once.
+
+### Per-project bindings
+
+To override the system fallback for a specific rig, add a `midi:` block
+to your `project.openrig`:
+
+```yaml
+midi:
+  bindings:
+    - source: { kind: note_on, channel: 1, note: 60 }
+      command: ApplyRigNav
+      args: { chain: "rig:guitar", kind: { StepPreset: -1 } }
+    # …more bindings
+```
+
+At resolve time the project bindings replace the system fallback in
+full (it's not a merge — see ADR 0003). The controller selection still
+comes from your `midi-profile.yaml`.
 
 ---
 

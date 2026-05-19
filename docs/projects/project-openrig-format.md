@@ -44,6 +44,12 @@ project:
       blocks: []
     drive:
       blocks: []
+
+  midi:                                  # optional, ADR 0003 / #499
+    bindings:                            # what each controller event does in THIS rig
+      - source: { kind: note_on, channel: 1, note: 60 }
+        command: ApplyRigNav
+        args: { chain: "rig:guitar", kind: { StepPreset: -1 } }
 ```
 
 ## Model
@@ -58,6 +64,7 @@ project:
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
+| `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003 / #499. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
 ## Validation
 
