@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, InsertBlock, OutputBlock};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ChainOutputMixdown {
     Sum,
@@ -13,7 +15,9 @@ pub enum ChainOutputMixdown {
     Right,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ChainInputMode {
     /// Single-channel input; upmixed to stereo for stereo outputs.
@@ -26,7 +30,9 @@ pub enum ChainInputMode {
     DualMono,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ChainOutputMode {
     Mono,

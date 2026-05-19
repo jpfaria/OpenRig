@@ -578,7 +578,11 @@ fn step_preset_wraps_both_directions() {
         &["a", "b", "c"],
     );
     assert_eq!(first.step_preset("in", -1), Some(2), "prev wraps to last");
-    assert_eq!(first.step_preset("missing", 1), None, "unknown input → None");
+    assert_eq!(
+        first.step_preset("missing", 1),
+        None,
+        "unknown input → None"
+    );
 }
 
 #[test]

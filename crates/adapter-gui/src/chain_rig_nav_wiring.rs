@@ -101,12 +101,10 @@ fn reproject(window: &AppWindow, ctx: &ChainRigNavCtx, chain_index: i32, kind: R
         };
 
         // All business logic lives behind the Command now.
-        match session
-            .dispatcher
-            .dispatch(Command::ApplyRigNav {
-                chain: chain_id,
-                kind,
-            }) {
+        match session.dispatcher.dispatch(Command::ApplyRigNav {
+            chain: chain_id,
+            kind,
+        }) {
             Ok(events) => events,
             Err(_) => {
                 set_status_error(

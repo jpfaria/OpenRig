@@ -213,10 +213,7 @@ mod tests {
         // The MIDI/MCP refresh needs to know which chain each event
         // touched so it can re-sync that chain's live runtime.
         let c = ChainId("rig:guitar".into());
-        assert_eq!(
-            Event::ChainReloaded { chain: c.clone() }.chain(),
-            Some(&c)
-        );
+        assert_eq!(Event::ChainReloaded { chain: c.clone() }.chain(), Some(&c));
         assert_eq!(
             Event::ChainVolumeChanged {
                 chain: c.clone(),

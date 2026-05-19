@@ -146,26 +146,20 @@ pub enum Command {
     /// before dispatching. Use `chain_factory::build_default_chain` as the
     /// starting point.
     ///
-    AddChain {
-        chain: Chain,
-    },
+    AddChain { chain: Chain },
 
     /// Replace an existing chain's metadata and I/O configuration.
     ///
     /// The caller supplies the fully-updated chain (preserving the original
     /// `chain.id` so the dispatcher can locate and replace it).
-    ConfigureChain {
-        chain: Chain,
-    },
+    ConfigureChain { chain: Chain },
 
     /// Validate and persist a chain draft (create or replace existing chain).
     ///
     /// The caller supplies the fully-constructed chain. The dispatcher uses
     /// `chain.id` to locate the existing entry and replace it in-place, or
     /// appends the chain when no existing entry with the same id is found.
-    SaveChain {
-        chain: Chain,
-    },
+    SaveChain { chain: Chain },
 
     /// Remove a chain from the project.
     RemoveChain { chain: ChainId },
@@ -247,9 +241,7 @@ pub enum Command {
     ///
     /// The adapter constructs the new empty `Project` before dispatching. The
     /// dispatcher replaces the shared project handle and emits `ProjectCreated`.
-    CreateProject {
-        project: project::project::Project,
-    },
+    CreateProject { project: project::project::Project },
 
     // ── Chain volume ──────────────────────────────────────────────────────────
     /// Set the output volume of a chain (issue #440).

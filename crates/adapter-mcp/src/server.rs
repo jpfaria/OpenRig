@@ -62,10 +62,7 @@ impl ServerHandler for OpenRigMcp {
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<CallToolResult, ErrorData>> + Send + '_ {
         async move {
-            let args = request
-                .arguments
-                .map(Value::Object)
-                .unwrap_or(Value::Null);
+            let args = request.arguments.map(Value::Object).unwrap_or(Value::Null);
             match tools::dispatch_tool(&self.bridge, &request.name, args).await {
                 Ok(events) => {
                     let json = serde_json::to_string(&events)

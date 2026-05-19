@@ -21,10 +21,7 @@ pub fn tools() -> Vec<Tool> {
         .iter()
         .map(|variant| {
             let schema = command_variant_schema(variant);
-            let obj: Map<String, Value> = schema
-                .as_object()
-                .cloned()
-                .unwrap_or_else(|| Map::new());
+            let obj: Map<String, Value> = schema.as_object().cloned().unwrap_or_else(|| Map::new());
             Tool::new(
                 tool_name(variant),
                 format!("OpenRig command: {variant}"),
@@ -40,8 +37,8 @@ pub fn tools() -> Vec<Tool> {
 /// `command_schema::command_from_variant` (the same builder `adapter-midi`
 /// uses) — no parallel reconstruction of the externally-tagged form.
 pub fn build_command(tool: &str, args: Value) -> Result<Command> {
-    let variant = variant_from_tool_name(tool)
-        .ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
+    let variant =
+        variant_from_tool_name(tool).ok_or_else(|| anyhow::anyhow!("unknown tool: {tool}"))?;
     // serde externally-tagged: unit variant = bare string `"Variant"`;
     // struct variant = `{ "Variant": <args> }`. MCP clients send `{}` for
     // no-arg tools, which serde rejects for a unit variant.
@@ -50,17 +47,12 @@ pub fn build_command(tool: &str, args: Value) -> Result<Command> {
     } else {
         json!({ variant: args })
     };
-    serde_json::from_value(tagged)
-        .map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
+    serde_json::from_value(tagged).map_err(|e| anyhow::anyhow!("invalid arguments for {tool}: {e}"))
 }
 
 /// Map an incoming tool call to a `Command`, submit it over the bridge, and
 /// await the resulting events.
-pub async fn dispatch_tool(
-    bridge: &CommandBridge,
-    tool: &str,
-    args: Value,
-) -> Result<Vec<Event>> {
+pub async fn dispatch_tool(bridge: &CommandBridge, tool: &str, args: Value) -> Result<Vec<Event>> {
     let cmd = build_command(tool, args)?;
     let rx = bridge.submit(cmd);
     rx.await
@@ -76,7 +68,7 @@ mod tests {
     /// `Command` has exactly this many variants. If you add/remove one,
     /// update this AND ensure its payload types derive `JsonSchema`
     /// (otherwise the variant silently drops from the schema → no tool).
-    const COMMAND_VARIANT_COUNT: usize = 34;
+    const COMMAND_VARIANT_COUNT: usize = 44;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
