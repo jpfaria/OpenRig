@@ -233,11 +233,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 // mutação/persistência do app-config + render abaixo é
                 // adapter-side (precedente SaveProject).
                 if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) = session.dispatcher.dispatch(
-                        Command::RemoveRecentProject {
-                            index: index as usize,
-                        },
-                    ) {
+                    if let Err(e) = session.dispatcher.dispatch(Command::RemoveRecentProject {
+                        index: index as usize,
+                    }) {
                         log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
                     }
                 }

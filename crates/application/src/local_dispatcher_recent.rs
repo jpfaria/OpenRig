@@ -19,9 +19,9 @@ impl LocalDispatcher {
             Command::RemoveRecentProject { index } => {
                 Ok(vec![Event::RecentProjectRemoved { index }])
             }
-            other => unreachable!(
-                "handle_remove_recent_project received non-recent command: {other:?}"
-            ),
+            other => {
+                unreachable!("handle_remove_recent_project received non-recent command: {other:?}")
+            }
         }
     }
 }

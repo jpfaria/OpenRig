@@ -23,9 +23,9 @@ impl LocalDispatcher {
             Command::SetSpectrumEnabled { enabled } => {
                 Ok(vec![Event::SpectrumEnabledChanged { enabled }])
             }
-            other => unreachable!(
-                "handle_diagnostic_enabled received non-diagnostic command: {other:?}"
-            ),
+            other => {
+                unreachable!("handle_diagnostic_enabled received non-diagnostic command: {other:?}")
+            }
         }
     }
 }
