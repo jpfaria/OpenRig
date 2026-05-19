@@ -344,6 +344,13 @@ pub enum Command {
     /// persistence + live swap; the dispatcher records the intent and
     /// signals it via `Event::LanguageChanged`. `None` = system default.
     SetLanguage { language: Option<String> },
+
+    /// #436 G: mute/unmute the audio output (tuner mute). Was GUI-only
+    /// (`rt.set_output_muted` in a wiring closure). Now a Command so
+    /// MIDI/MCP can request it too. `SaveProject` precedent: the adapter
+    /// applies it to the audio runtime; the dispatcher records the
+    /// intent and signals it via `Event::OutputMutedChanged`.
+    SetOutputMuted { muted: bool },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

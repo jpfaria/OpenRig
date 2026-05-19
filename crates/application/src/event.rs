@@ -95,6 +95,10 @@ pub enum Event {
     /// this records that the change went through the dispatcher.
     LanguageChanged { language: Option<String> },
 
+    /// #436 G: the audio output mute state changed. The adapter applies
+    /// it to the runtime; this records it went through the dispatcher.
+    OutputMutedChanged { muted: bool },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
