@@ -490,6 +490,18 @@ O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc p
 
 **Caso real (2026-05-18, #436):** (a) entreguei fixes com testes escritos DEPOIS (passavam de imediato) — usuário: "testes viciados", "vc só escreve teste que passa"; reverter produção pro baseline `dc7f3b73` provou o RED. (b) Num bug seguinte, anunciei a causa lendo o código ANTES de escrever o teste — usuário: "eu não quero que vc ache a causa olhando o código. escreve o teste e DEPOIS ache a causa". Lição: red-first não é opção, e investigar código antes do teste falhar também é proibido.
 
+## LEI — GUI sem regra de negócio. Estado → Command. SIMPLES.
+
+Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
+
+- **Abrir/fechar tela/janela = regra de TELA.** Pode ficar na GUI.
+- **TODA ação que ALTERA ESTADO** (modelo, rig, projeto, config, persistência, runtime) **= regra de NEGÓCIO = obrigatoriamente um `Command`** despachado pro dispatcher. A GUI só despacha e renderiza — zero lógica.
+- `Command` é **domínio-puro**: nunca importa tipo de UI/Slint/view. Pode expressar intenção por chave/enum de domínio.
+- Métrica objetiva, não-negociável: `scripts/gui-command-coupling.py` conta callbacks que alteram estado SEM `dispatch`. **Meta: 0.** Só pode cair. O usuário roda e verifica — não depende de "feito".
+- Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
+
+**Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
+
 ---
 
 ## Living Document

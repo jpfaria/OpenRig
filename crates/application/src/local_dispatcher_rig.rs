@@ -77,4 +77,32 @@ impl LocalDispatcher {
         sync_synthetic_into_rig(&mut rig.borrow_mut(), &self.project.borrow());
         Ok(vec![Event::ProjectMutated])
     }
+
+    /// #436: rename the chain's active preset (the `name` the select
+    /// shows). No-op for non-rig chains / no rig attached.
+    pub(crate) fn handle_rename_rig_preset(&self, cmd: Command) -> Result<Vec<Event>> {
+        let Command::RenameRigPreset { chain, name } = cmd else {
+            unreachable!("handle_rename_rig_preset got {cmd:?}");
+        };
+        let Some(input) = chain.0.strip_prefix("rig:") else {
+            return Ok(vec![]);
+        };
+        let Some(rig) = self.rig.borrow().clone() else {
+            return Ok(vec![]);
+        };
+        {
+            let mut rig = rig.borrow_mut();
+            let Some(key) = rig
+                .inputs
+                .get(input)
+                .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
+            else {
+                return Ok(vec![]);
+            };
+            if let Some(preset) = rig.presets.get_mut(&key) {
+                preset.name = Some(name);
+            }
+        }
+        Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
+    }
 }
