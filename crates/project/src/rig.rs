@@ -85,6 +85,26 @@ fn default_preset_volume() -> f32 {
     100.0
 }
 
+/// #436: a human label for a preset whose `name` is absent (legacy
+/// projects saved before the field). The original description was lost
+/// to the slug pool key on migration, so the slug is the only source:
+/// de-slug `-`/`_` to spaces and Title-Case each word
+/// (`studio-clean-compressor` → `Studio Clean Compressor`). Single
+/// source of truth — used by the select and the chain title alike.
+pub fn humanize_preset_label(id: &str) -> String {
+    id.split(['-', '_'])
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                Some(f) => f.to_uppercase().collect::<String>() + &c.as_str().to_lowercase(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Single source of truth for the on-disk format versions. Bumped only
 /// when the YAML schema changes in a way that needs a staged upgrade;
 /// the loader uses these to migrate older docs and to refuse newer ones.

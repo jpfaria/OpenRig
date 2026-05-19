@@ -29,19 +29,13 @@ bindings:
     command: ApplyRigNav
     args: { chain: "rig:guitar", kind: { StepScene: 1 } }
 
-  # ── Block selection (pair) ────────────────────────────────────────
-  - source: { kind: note_on, channel: 1, note: 64 }   # selection back
+  # ── Block selection (absolute index) ──────────────────────────────
+  - source: { kind: note_on, channel: 1, note: 64 }   # select block 0
     command: SelectChainBlock
-    args: { chain: "rig:guitar", delta: -2 }
-  - source: { kind: note_on, channel: 1, note: 65 }   # selection forward
+    args: { chain: "rig:guitar", block_index: 0 }
+  - source: { kind: note_on, channel: 1, note: 65 }   # select block 1
     command: SelectChainBlock
-    args: { chain: "rig:guitar", delta: 2 }
-  - source: { kind: note_on, channel: 1, note: 66 }   # toggle left of pair
-    command: ToggleSelectedBlock
-    args: { chain: "rig:guitar", side: Left }
-  - source: { kind: note_on, channel: 1, note: 67 }   # toggle right of pair
-    command: ToggleSelectedBlock
-    args: { chain: "rig:guitar", side: Right }
+    args: { chain: "rig:guitar", block_index: 1 }
 
   # ── Volume knob ───────────────────────────────────────────────────
   - source: { kind: cc, channel: 1, controller: 7 }   # chain volume 0..200%

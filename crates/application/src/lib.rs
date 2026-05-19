@@ -8,7 +8,6 @@ pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
 mod local_dispatcher_rig;
-mod local_dispatcher_selection;
 pub mod publishing_dispatcher;
 pub mod query;
 pub mod session;
@@ -21,7 +20,3 @@ mod local_dispatcher_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]
 mod local_dispatcher_rig_tests;
-
-#[cfg(test)]
-#[path = "local_dispatcher_selection_tests.rs"]
-mod local_dispatcher_selection_tests;

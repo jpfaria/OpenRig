@@ -16,7 +16,7 @@ single change.
 
 Block params (6), block lifecycle/edit (7), chain CRUD/order/save (10),
 chain I/O + preset (4), project/audio (5), rig nav + block selection +
-capture (4: `ApplyRigNav`, `SelectChainBlock`, `ToggleSelectedBlock`,
+capture (4: `ApplyRigNav`, `SelectChainBlock`, `RenameRigPreset`,
 `CaptureRigEdits`). Full list with args + the MIDI message to set:
 [`docs/midi.md`](midi.md).
 
@@ -62,7 +62,7 @@ called out block-click, compact view, latency test, opening configs):
 
 Each becomes a `Command` the dispatcher owns, the GUI just dispatches
 it, MIDI/MCP get it for free — exactly how `SelectChainBlock` /
-`ToggleSelectedBlock` / `ApplyRigNav` were done. TDD red-first per
+`RenameRigPreset` / `ApplyRigNav` were done. TDD red-first per
 command; doc (`docs/midi.md` table + this audit) updated in the same
 commit; `COMMAND_VARIANT_COUNT` bumped each time.
 

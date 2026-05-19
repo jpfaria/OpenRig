@@ -36,38 +36,36 @@ structured object the GUI/MCP produces (can't be a single control).
 | 2 | `ApplyRigNav` | Next preset (wraps) | `{ chain: id, kind: { StepPreset: 1 } }` | **Note 61** |
 | 3 | `ApplyRigNav` | Previous scene (wraps) | `{ chain: id, kind: { StepScene: -1 } }` | **Note 62** |
 | 4 | `ApplyRigNav` | Next scene (wraps) | `{ chain: id, kind: { StepScene: 1 } }` | **Note 63** |
-| 5 | `SelectChainBlock` | Block selection pair: back | `{ chain: id, delta: -2 }` | **Note 64** |
-| 6 | `SelectChainBlock` | Block selection pair: forward | `{ chain: id, delta: 2 }` | **Note 65** |
-| 7 | `ToggleSelectedBlock` | Toggle left block of the pair | `{ chain: id, side: Left }` | **Note 66** |
-| 8 | `ToggleSelectedBlock` | Toggle right block of the pair | `{ chain: id, side: Right }` | **Note 67** |
-| 9 | `ToggleChainEnabled` | Toggle a whole chain on/off | `{ chain: id }` | **Note 68** |
-| 10 | `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` | **Note 69** |
-| 11 | `SaveProject` | Save the project | *(none)* | **Note 70** |
-| 12 | `CaptureRigEdits` | Fold pending edits back into the rig | *(none)* | **Note 71** |
-| 13 | `MoveChainUp` | Move a chain up | `{ chain: id }` | **Note 72** |
-| 14 | `MoveChainDown` | Move a chain down | `{ chain: id }` | **Note 73** |
-| 15 | `RemoveChain` | Remove a chain | `{ chain: id }` | **Note 74** |
-| 16 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` | **Note 75** |
-| 17 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` | **Note 76** |
-| 18 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` | **Note 77** |
-| 19 | `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` | **Note 78** |
-| 20 | `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` | **Note 79** |
-| 21 | `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` | **Note 80** |
-| 22 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` | **Note 81** |
-| 23 | `UpdateProjectName` | Rename the project | `{ name: text }` | **Note 82** |
-| 24 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` | **Note 83** |
-| 25 | `SetChainVolume` | Chain volume (turn a knob) | `{ chain: id }` + `scale: { min: 0, max: 200 }` | **CC 7** |
-| 26 | `SetBlockParameterNumber` | A numeric param (turn a knob) | `{ chain: id, block: id, path: text }` + `scale` | **CC 8** |
-| 27 | `ApplyRigNav` | Jump to a fixed preset position | `{ chain: id, kind: { Preset: n } }` | one Note per `n`, or **Program Change** |
-| 28 | `ApplyRigNav` | Jump to a fixed scene | `{ chain: id, kind: { Scene: n } }` | one Note per `n`, or **Program Change** |
-| 29 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` | — GUI/MCP (structured object) |
-| 30 | `OverwriteBlock` | Replace a block wholesale | `{ chain: id, block: id, replacement: object }` | — GUI/MCP (structured object) |
-| 31 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` | — GUI/MCP (structured object) |
-| 32 | `AddChain` / `ConfigureChain` / `SaveChain` | Add / configure / save a chain | `{ chain: object }` | — GUI/MCP (structured object) |
-| 33 | `SaveChainInputEndpoints` / `SaveChainOutputEndpoints` / `SaveChainIo` | Replace a chain's I/O | `{ chain: id, …: object }` | — GUI/MCP (structured object) |
-| 34 | `LoadChainPreset` / `LoadProject` / `CreateProject` / `SaveAudioSettings` | Load preset/project, create, save audio | `{ …: object }` | — GUI/MCP (structured object) |
+| 5 | `SelectChainBlock` | Select a block by index | `{ chain: id, block_index: uint }` | **Note 64** |
+| 6 | `RenameRigPreset` | Rename the chain's active preset | `{ chain: id, name: text }` | **Note 65** |
+| 7 | `ToggleChainEnabled` | Toggle a whole chain on/off | `{ chain: id }` | **Note 68** |
+| 8 | `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` | **Note 69** |
+| 9 | `SaveProject` | Save the project | *(none)* | **Note 70** |
+| 10 | `CaptureRigEdits` | Fold pending edits back into the rig | *(none)* | **Note 71** |
+| 11 | `MoveChainUp` | Move a chain up | `{ chain: id }` | **Note 72** |
+| 12 | `MoveChainDown` | Move a chain down | `{ chain: id }` | **Note 73** |
+| 13 | `RemoveChain` | Remove a chain | `{ chain: id }` | **Note 74** |
+| 14 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` | **Note 75** |
+| 15 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` | **Note 76** |
+| 16 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` | **Note 77** |
+| 17 | `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` | **Note 78** |
+| 18 | `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` | **Note 79** |
+| 19 | `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` | **Note 80** |
+| 20 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` | **Note 81** |
+| 21 | `UpdateProjectName` | Rename the project | `{ name: text }` | **Note 82** |
+| 22 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` | **Note 83** |
+| 23 | `SetChainVolume` | Chain volume (turn a knob) | `{ chain: id }` + `scale: { min: 0, max: 200 }` | **CC 7** |
+| 24 | `SetBlockParameterNumber` | A numeric param (turn a knob) | `{ chain: id, block: id, path: text }` + `scale` | **CC 8** |
+| 25 | `ApplyRigNav` | Jump to a fixed preset position | `{ chain: id, kind: { Preset: n } }` | one Note per `n`, or **Program Change** |
+| 26 | `ApplyRigNav` | Jump to a fixed scene | `{ chain: id, kind: { Scene: n } }` | one Note per `n`, or **Program Change** |
+| 27 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` | — GUI/MCP (structured object) |
+| 28 | `OverwriteBlock` | Replace a block wholesale | `{ chain: id, block: id, replacement: object }` | — GUI/MCP (structured object) |
+| 29 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` | — GUI/MCP (structured object) |
+| 30 | `AddChain` / `ConfigureChain` / `SaveChain` | Add / configure / save a chain | `{ chain: object }` | — GUI/MCP (structured object) |
+| 31 | `SaveChainInputEndpoints` / `SaveChainOutputEndpoints` / `SaveChainIo` | Replace a chain's I/O | `{ chain: id, …: object }` | — GUI/MCP (structured object) |
+| 32 | `LoadChainPreset` / `LoadProject` / `CreateProject` / `SaveAudioSettings` | Load preset/project, create, save audio | `{ …: object }` | — GUI/MCP (structured object) |
 
-That is **all 34 commands** (rows 32–34 group the structured-object
+That is **all 34 commands** (rows 30–32 group the structured-object
 ones, which take a whole Chain/Project/AudioBlock the GUI or MCP
 produces — they work, but can't be a single footswitch/knob).
 
@@ -133,7 +131,7 @@ any of them.
 
 ## All actions (every command)
 
-The standard map binds the 9 live actions above. But **every** OpenRig
+The standard map binds the 7 live actions above. But **every** OpenRig
 action can be mapped — you just add a line and pick a free Note/CC for
 it. A map line is always:
 
@@ -187,8 +185,8 @@ below is bindable.
 | 29 | `UpdateProjectName` | Rename the project | `{ name: text }` |
 | 30 | `SaveAudioSettings` | Save audio device settings | `{ device_settings: [object] }` |
 | 31 ★ | `ApplyRigNav` | Preset/scene: step (footswitch) or jump (fixed) | `{ chain: id, kind: <see below> }` |
-| 32 ★ | `SelectChainBlock` | Move the block-selection pair cursor (wraps) | `{ chain: id, delta: int }` |
-| 33 ★ | `ToggleSelectedBlock` | Toggle one side of the selected pair | `{ chain: id, side: Left or Right }` |
+| 32 ★ | `SelectChainBlock` | Select a block by index (dispatcher-owned; MIDI/MCP/GUI) | `{ chain: id, block_index: uint }` |
+| 33 | `RenameRigPreset` | Rename the chain's active preset | `{ chain: id, name: text }` |
 | 34 | `CaptureRigEdits` | Fold pending synthetic-chain edits back into the rig | *(none)* |
 
 `ApplyRigNav`'s `kind` (one of):
@@ -197,10 +195,9 @@ below is bindable.
 `{ StepPreset: int }` (relative, e.g. `-1`/`1`, wraps) ·
 `{ StepScene: int }` (relative, wraps).
 
-That is **all 34 commands** (enum order). The 9 live actions in the
+That is **all 34 commands** (enum order). The 7 live actions in the
 standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
-★32 `SelectChainBlock` ±2, ★33 `ToggleSelectedBlock` Left/Right,
-★28 `SetChainVolume` on a knob.
+★32 `SelectChainBlock` (block 0/1), ★28 `SetChainVolume` on a knob.
 
 ---
 

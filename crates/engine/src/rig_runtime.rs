@@ -97,7 +97,17 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
 
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
-            description: input.label.clone().or_else(|| Some(name.clone())),
+            // #436: the title shows this. Prefer the active preset's
+            // human name; for legacy presets without one, humanize the
+            // pool key (de-slug) instead of showing the raw slug or the
+            // input id — same source the select uses.
+            description: Some(
+                preset
+                    .name
+                    .clone()
+                    .or_else(|| input.label.clone())
+                    .unwrap_or_else(|| project::rig::humanize_preset_label(preset_name)),
+            ),
             instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
             enabled: true,
             // Invariant #10: carry the preset's volume (legacy migration
