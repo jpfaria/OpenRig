@@ -489,3 +489,22 @@ fn sync_synthetic_into_rig_writes_edited_blocks_back_to_active_preset() {
     };
     assert_eq!(base, Some(80.0), "factory template untouched");
 }
+
+// User repro (#436): the chain TITLE (the big text in the title slot)
+// shows the slug/input id, same bug as the preset select. The title is
+// chains[i].description from rig_to_legacy_project. It must show the
+// active preset's human name, not the input id.
+#[test]
+fn chain_title_shows_active_preset_name_not_the_input_id() {
+    let mut r = rig(); // input-1, presets clean/drive/lead, active preset 2
+    let active = r.inputs["input-1"].active_preset;
+    let key = r.inputs["input-1"].bank[&active].clone();
+    r.presets.get_mut(&key).unwrap().name = Some("SILVERCHAIR FREAK - SCARLETT".into());
+
+    let proj = rig_to_legacy_project(&r, &BTreeSet::new());
+    assert_eq!(
+        proj.chains[0].description.as_deref(),
+        Some("SILVERCHAIR FREAK - SCARLETT"),
+        "title must be the active preset's name, not the input id"
+    );
+}

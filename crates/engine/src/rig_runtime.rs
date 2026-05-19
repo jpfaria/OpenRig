@@ -97,7 +97,13 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
 
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
-            description: input.label.clone().or_else(|| Some(name.clone())),
+            // #436: the title shows this. Prefer the active preset's
+            // human name, then the input label, then the input id.
+            description: preset
+                .name
+                .clone()
+                .or_else(|| input.label.clone())
+                .or_else(|| Some(name.clone())),
             instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
             enabled: true,
             // Invariant #10: carry the preset's volume (legacy migration
