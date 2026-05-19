@@ -351,6 +351,14 @@ pub enum Command {
     /// applies it to the audio runtime; the dispatcher records the
     /// intent and signals it via `Event::OutputMutedChanged`.
     SetOutputMuted { muted: bool },
+
+    /// #436 F: remove an entry from the recent-projects list (persisted
+    /// app-config preference). Was GUI-only (`save_app_config` in a
+    /// wiring closure). Now a Command so MIDI/MCP can request it too.
+    /// `SaveProject` precedent: the adapter performs the persistence;
+    /// the dispatcher records the intent and signals it via
+    /// `Event::RecentProjectRemoved`.
+    RemoveRecentProject { index: usize },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

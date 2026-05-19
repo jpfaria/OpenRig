@@ -19,6 +19,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{AppConfig, FilesystemStorage};
 
@@ -192,12 +194,27 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let recent_projects = recent_projects.clone();
+        let project_session = project_session.clone();
         window.on_remove_recent_project(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut config = app_config.borrow_mut();
             if (index as usize) < config.recent_projects.len() {
+                // #436 F: remover recente é negócio → Command no
+                // dispatcher compartilhado (MCP/MIDI, observável via
+                // Event::RecentProjectRemoved) quando há sessão. A
+                // mutação/persistência do app-config + render abaixo é
+                // adapter-side (precedente SaveProject).
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) = session.dispatcher.dispatch(
+                        Command::RemoveRecentProject {
+                            index: index as usize,
+                        },
+                    ) {
+                        log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
+                    }
+                }
                 config.recent_projects.remove(index as usize);
                 let _ = FilesystemStorage::save_app_config(&config);
                 recent_projects.set_vec(recent_project_items(

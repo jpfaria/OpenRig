@@ -141,6 +141,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetLanguage { .. } => self.handle_set_language(cmd),
 
             Command::SetOutputMuted { .. } => self.handle_set_output_muted(cmd),
+
+            Command::RemoveRecentProject { .. } => self.handle_remove_recent_project(cmd),
         }
     }
 

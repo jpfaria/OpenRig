@@ -17,6 +17,7 @@ mod local_dispatcher_chain_save;
 mod local_dispatcher_language;
 mod local_dispatcher_output;
 mod local_dispatcher_project;
+mod local_dispatcher_recent;
 mod local_dispatcher_rig;
 pub mod publishing_dispatcher;
 pub mod session;

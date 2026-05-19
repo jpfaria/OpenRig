@@ -99,6 +99,11 @@ pub enum Event {
     /// it to the runtime; this records it went through the dispatcher.
     OutputMutedChanged { muted: bool },
 
+    /// #436 F: a recent-projects entry was removed (by list index). The
+    /// adapter performs the app-config persistence; this records the
+    /// change went through the dispatcher.
+    RecentProjectRemoved { index: usize },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
