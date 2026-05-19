@@ -94,6 +94,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    // #436 E: abrir projeto é negócio → Command::LoadProject
+                    // no dispatcher da sessão (MCP/MIDI, observável via
+                    // Event::ProjectLoaded). O load de arquivo + swap de
+                    // sessão/runtime é adapter-side (precedente SaveProject).
+                    {
+                        let project = session.project.borrow().clone();
+                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
+                            project,
+                            path: canonical_path.clone(),
+                        }) {
+                            log::warn!("[open-project] Command::LoadProject falhou: {e}");
+                        }
+                    }
                     let title =
                         project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());
@@ -192,6 +205,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
+            // #436 E: criar projeto é negócio → Command::CreateProject no
+            // dispatcher da sessão (MCP/MIDI, observável via
+            // Event::ProjectCreated). O build da sessão é adapter-side
+            // (precedente SaveProject).
+            {
+                let project = session.project.borrow().clone();
+                if let Err(e) = session
+                    .dispatcher
+                    .dispatch(Command::CreateProject { project })
+                {
+                    log::warn!("[new-project] Command::CreateProject falhou: {e}");
+                }
+            }
             let _ = session
                 .dispatcher
                 .dispatch(Command::UpdateProjectName { name: name.clone() });

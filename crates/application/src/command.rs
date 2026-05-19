@@ -383,6 +383,13 @@ pub enum Command {
     /// `SetTunerEnabled`; adapter does the build/teardown, dispatcher
     /// signals `Event::SpectrumEnabledChanged`.
     SetSpectrumEnabled { enabled: bool },
+
+    /// #436 E: close the current project (back to launcher). Was
+    /// GUI-only (stop runtime + drop session in a wiring closure).
+    /// `SaveProject` precedent: the adapter tears down the runtime/
+    /// session; the dispatcher records the intent and signals
+    /// `Event::ProjectClosed`.
+    CloseProject,
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input. The

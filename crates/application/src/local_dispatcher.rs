@@ -151,6 +151,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetTunerEnabled { .. } | Command::SetSpectrumEnabled { .. } => {
                 self.handle_diagnostic_enabled(cmd)
             }
+
+            Command::CloseProject => self.handle_close_project(cmd),
         }
     }
 

@@ -122,6 +122,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    // #436 E: abrir recente é negócio → Command::LoadProject
+                    // no dispatcher da sessão (MCP/MIDI, observável via
+                    // Event::ProjectLoaded). Load+swap é adapter-side
+                    // (precedente SaveProject).
+                    {
+                        let project = session.project.borrow().clone();
+                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
+                            project,
+                            path: canonical_path.clone(),
+                        }) {
+                            log::warn!("[open-recent] Command::LoadProject falhou: {e}");
+                        }
+                    }
                     let title =
                         project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());

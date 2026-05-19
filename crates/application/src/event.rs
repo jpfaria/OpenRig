@@ -131,6 +131,11 @@ pub enum Event {
     /// A new project was created.
     ProjectCreated,
 
+    /// #436 E: the project was closed (back to launcher). The adapter
+    /// tears down runtime/session; this records it went through the
+    /// dispatcher.
+    ProjectClosed,
+
     /// An error occurred while processing a command.
     Error { message: String },
 }
