@@ -41,6 +41,7 @@ use crate::project_view::{
     replace_project_chains,
 };
 use crate::runtime_lifecycle::sync_live_chain_runtime;
+use crate::block_drawer_toggle_enabled::apply_toggle_block_drawer_enabled;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem,
@@ -219,7 +220,22 @@ pub(crate) fn wire(
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_drawer_enabled(draft.enabled);
             }
-            if draft.block_index.is_some() {
+            // #436 D-3: bloco JÁ existente → enabled é negócio, vai por
+            // Command::ToggleBlockEnabled no dispatcher compartilhado. O
+            // flip de draft + set_block_drawer_enabled acima é render do
+            // drawer (tela). Persist abaixo (dirty/runtime) = D-5.
+            let existing = draft.block_index.map(|bi| (draft.chain_index, bi));
+            drop(draft_borrow);
+            if let Some((chain_index, block_index)) = existing {
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) =
+                        apply_toggle_block_drawer_enabled(session, chain_index, block_index)
+                    {
+                        log::error!("[block-drawer.toggle-enabled] ToggleBlockEnabled: {e}");
+                    }
+                }
+            }
+            if existing.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
                     weak_window.clone(),

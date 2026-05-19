@@ -70,6 +70,7 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+mod block_drawer_toggle_enabled;
 mod block_editor;
 mod block_editor_choose_model;
 mod block_editor_param_items;
