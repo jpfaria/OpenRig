@@ -496,7 +496,7 @@ Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
 - **Abrir/fechar tela/janela = regra de TELA.** Pode ficar na GUI.
 - **TODA ação que ALTERA ESTADO** (modelo, rig, projeto, config, persistência, runtime) **= regra de NEGÓCIO = obrigatoriamente um `Command`** despachado pro dispatcher. A GUI só despacha e renderiza — zero lógica.
 - `Command` é **domínio-puro**: nunca importa tipo de UI/Slint/view. Pode expressar intenção por chave/enum de domínio.
-- Métrica objetiva, não-negociável: `scripts/gui-command-coupling.py` conta callbacks que alteram estado SEM `dispatch`. **Meta: 0.** Só pode cair. O usuário roda e verifica — não depende de "feito".
+- **PROIBIDO** auditar isso com script Python (heurística regex erra e mascara o trabalho — decidido 2026-05-18). Análise é **item a item**, callback por callback, **documentada na issue** (#436) como checklist a atacar. A verdade é a lista revisada na issue, não um número de script.
 - Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
 
 **Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.

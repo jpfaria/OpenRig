@@ -1,0 +1,95 @@
+//! Block-lifecycle handler (file-per-feature; #436 dispatcher split).
+//! Behaviour byte-identical to the original inline arm — pure move.
+
+use anyhow::Result;
+
+use domain::ids::BlockId;
+
+use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
+use crate::command::Command;
+use crate::event::Event;
+use crate::local_dispatcher::LocalDispatcher;
+
+impl LocalDispatcher {
+    /// Block-lifecycle commands: enable/model swap/add.
+    pub(crate) fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
+            Command::ToggleBlockEnabled { chain, block } => {
+                let new_state = self.with_block(&chain, &block, |b| {
+                    b.enabled = !b.enabled;
+                    Ok(b.enabled)
+                })?;
+                Ok(vec![Event::BlockEnabledChanged {
+                    chain,
+                    block,
+                    enabled: new_state,
+                }])
+            }
+            Command::ReplaceBlockModel {
+                chain,
+                block,
+                model_id,
+            } => {
+                // Resolve the effect_type for the given model_id by scanning the registry.
+                let effect_type = resolve_effect_type_for_model(&model_id)?;
+                // Build a fresh block with default params for the new model.
+                let new_block = build_default_block(
+                    BlockId(String::new()), // placeholder; we preserve the existing id below
+                    &effect_type,
+                    &model_id,
+                )?;
+                self.with_block(&chain, &block, |b| {
+                    // Preserve id and enabled; replace only the kind (defaults reset).
+                    b.kind = new_block.kind;
+                    Ok(())
+                })?;
+                Ok(vec![Event::BlockReplaced { chain, block }])
+            }
+            Command::AddBlock {
+                chain,
+                kind,
+                model_id,
+                position,
+            } => {
+                // Build the new block with default params before mutating the project.
+                // A unique id is generated from the chain id + current timestamp-ish counter.
+                let block_id = {
+                    let proj = self.project.borrow();
+                    let chain_ref = proj.chains.iter().find(|c| c.id == chain);
+                    let n = chain_ref.map(|c| c.blocks.len()).unwrap_or(0);
+                    BlockId(format!("{}:{}:{}", chain.0, kind, n))
+                };
+                let new_block = build_default_block(block_id, &kind, &model_id)?;
+                let new_block_id = new_block.id.clone();
+                self.with_chain(&chain, |c| {
+                    let insert_at = position.min(c.blocks.len());
+                    c.blocks.insert(insert_at, new_block);
+                    Ok(())
+                })?;
+                Ok(vec![Event::BlockAdded {
+                    chain,
+                    block: new_block_id,
+                }])
+            }
+            Command::InsertPrebuiltBlock {
+                chain,
+                block,
+                position,
+            } => {
+                let block_id = block.id.clone();
+                self.with_chain(&chain, |c| {
+                    let insert_at = position.min(c.blocks.len());
+                    c.blocks.insert(insert_at, block);
+                    Ok(())
+                })?;
+                Ok(vec![Event::BlockAdded {
+                    chain,
+                    block: block_id,
+                }])
+            }
+            other => {
+                unreachable!("handle_block_lifecycle received non-lifecycle command: {other:?}")
+            }
+        }
+    }
+}

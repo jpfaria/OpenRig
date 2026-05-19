@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills openrig-code-quality, rust-best-practices, slint-best-practices quando tocar c\u00f3digo Rust/Slint.\"}}'"
+            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills openrig-code-quality, rust-best-practices, slint-best-practices quando tocar código Rust/Slint.\"}}'"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/red-first-guard.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/red-first-guard.sh\""
           }
         ]
       }
