@@ -25,7 +25,7 @@
 
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::bail;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::{anyhow, Result};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SupportedStreamConfigRange;
