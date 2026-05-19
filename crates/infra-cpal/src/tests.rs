@@ -5,11 +5,12 @@
 //! existing `super::resolved::*`, `super::active_runtime::*`,
 //! `super::host::*`, etc. paths keep working without further change.
 
-use super::stream_config::{build_stream_config, resolve_chain_runtime_sample_rate};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use super::stream_config::{
-    max_supported_channels, required_channel_count, select_supported_stream_config,
+    build_stream_config, resolve_chain_runtime_sample_rate, select_supported_stream_config,
 };
+#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+use super::stream_config::{max_supported_channels, required_channel_count};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use super::validation::validate_buffer_size;
 use super::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -103,6 +104,7 @@ fn audio_device_descriptor_debug_format_contains_fields() {
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_accepts_non_default_sample_rate_when_device_supports_it() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![
@@ -120,6 +122,7 @@ fn select_supported_stream_config_accepts_non_default_sample_rate_when_device_su
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_no_requested_rate_uses_default() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![supported_range(2, 44_100, 96_000)];
@@ -133,6 +136,7 @@ fn select_supported_stream_config_no_requested_rate_uses_default() {
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_unsupported_rate_returns_error() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![supported_range(2, 44_100, 44_100)];
@@ -145,6 +149,7 @@ fn select_supported_stream_config_unsupported_rate_returns_error() {
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_insufficient_channels_returns_error() {
     let default_config = supported_range(1, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![supported_range(1, 44_100, 96_000)];
@@ -157,6 +162,7 @@ fn select_supported_stream_config_insufficient_channels_returns_error() {
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_picks_minimum_channels_matching() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![
@@ -318,6 +324,7 @@ fn validate_buffer_size_unknown_always_succeeds() {
 // ── build_stream_config ─────────────────────────────────────────
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_stream_config_sets_channels_and_rate() {
     let config = build_stream_config(2, 48_000, 256);
     assert_eq!(config.channels, 2);
@@ -326,6 +333,7 @@ fn build_stream_config_sets_channels_and_rate() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_stream_config_mono_128_buffer() {
     let config = build_stream_config(1, 44_100, 128);
     assert_eq!(config.channels, 1);
@@ -336,6 +344,7 @@ fn build_stream_config_mono_128_buffer() {
 // ── build_stream_config edge cases ──────────────────────────────────────
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_stream_config_high_sample_rate() {
     let config = build_stream_config(2, 96_000, 512);
     assert_eq!(config.channels, 2);
@@ -344,6 +353,7 @@ fn build_stream_config_high_sample_rate() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_stream_config_large_buffer() {
     let config = build_stream_config(8, 48_000, 1024);
     assert_eq!(config.channels, 8);
@@ -353,6 +363,7 @@ fn build_stream_config_large_buffer() {
 // ── validate_buffer_size edge cases ─────────────────────────────────────
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_buffer_size_exactly_one_element_range_succeeds() {
     let supported = SupportedBufferSize::Range { min: 256, max: 256 };
     let result = validate_buffer_size(256, &supported, "test");
@@ -360,6 +371,7 @@ fn validate_buffer_size_exactly_one_element_range_succeeds() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_buffer_size_exactly_one_element_range_rejects_other() {
     let supported = SupportedBufferSize::Range { min: 256, max: 256 };
     let result = validate_buffer_size(128, &supported, "test");
@@ -396,6 +408,7 @@ fn max_supported_channels_zero_default_with_some_supported() {
 // ── select_supported_stream_config additional tests ─────────────────────
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_empty_ranges_returns_error() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported: Vec<SupportedStreamConfigRange> = vec![];
@@ -407,6 +420,7 @@ fn select_supported_stream_config_empty_ranges_returns_error() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_zero_channels_required() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![supported_range(2, 44_100, 96_000)];
@@ -419,6 +433,7 @@ fn select_supported_stream_config_zero_channels_required() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config_prefers_exact_channel_match() {
     let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
     let supported = vec![
@@ -437,6 +452,7 @@ fn select_supported_stream_config_prefers_exact_channel_match() {
 // ── resolve_chain_runtime_sample_rate tests ─────────────────────────────
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_chain_runtime_sample_rate_high_rate_matching() {
     let input = supported_range(2, 96_000, 96_000).with_max_sample_rate();
     let output = supported_range(2, 96_000, 96_000).with_max_sample_rate();
@@ -445,6 +461,7 @@ fn resolve_chain_runtime_sample_rate_high_rate_matching() {
 }
 
 #[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_chain_runtime_sample_rate_low_rate_matching() {
     let input = supported_range(2, 44_100, 44_100).with_max_sample_rate();
     let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();

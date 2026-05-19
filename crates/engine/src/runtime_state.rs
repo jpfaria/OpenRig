@@ -69,6 +69,9 @@ pub(crate) struct InputProcessingState {
     /// `None` for stereo / single-channel mono / dual-mono / Insert
     /// returns — they contribute at unity gain. (Issue #350.)
     pub(crate) split_mono_sibling_count: Option<usize>,
+    /// #454-T5: previous pipeline decaying in parallel after a switch.
+    /// `None` in steady state ⇒ behaviour byte-identical to pre-#454-T5.
+    pub(crate) outgoing: Option<Box<OutgoingTail>>,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -206,6 +209,24 @@ impl SelectRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 /// Lives next to `FadeState` because it parameterises that state machine.
 pub(crate) const FADE_IN_FRAMES: usize = 128;
+
+/// #454-T5 spillover window: after a preset/scene switch the previous
+/// pipeline keeps processing **silence** (so its delay/reverb tail rings
+/// out) while being equal-power faded out over this many frames, then it is
+/// dropped. ~0.75 s @ 48 kHz — long enough for musical tails, bounded so the
+/// extra CPU is a transient, not a steady cost (hierarchy: CPU < sound).
+pub(crate) const SPILLOVER_FRAMES: usize = 36_000;
+
+/// The decaying previous pipeline kept alive in-segment during a switch.
+/// SPSC-safe: it is summed into the segment's own `frame_buffer` *before*
+/// the single per-route push, so there is still exactly one producer per
+/// output ring. Built entirely off the audio thread.
+pub(crate) struct OutgoingTail {
+    pub(crate) blocks: Vec<BlockRuntimeNode>,
+    pub(crate) frames_remaining: usize,
+    /// Pre-allocated silence/work buffer (no alloc on the audio thread).
+    pub(crate) scratch: Vec<AudioFrame>,
+}
 
 /// Root state for one chain runtime. Holds the per-callback state behind
 /// a `Mutex` (write contention only happens on chain rebuild), the per-route

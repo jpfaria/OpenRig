@@ -112,6 +112,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
+            // #436: the RigInput drop is done by the RemoveChain handler
+            // now (business logic belongs behind the Command, not here).
+            // The GUI only re-renders the rig-nav model.
+            if session.rig.is_some() {
+                crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
+            }
             // Kill the live audio runtime for the removed chain.
             remove_live_chain_runtime(&project_runtime, &chain_id);
             replace_project_chains(

@@ -8,6 +8,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
@@ -32,8 +34,8 @@ pub fn wire_tuner(
     wire_open(window, tuner_window);
     wire_close_inline(window, project_runtime, tuner_session, tuner_timer);
     wire_close_windowed(tuner_window, project_runtime, tuner_session, tuner_timer);
-    wire_mute_inline(window, project_runtime);
-    wire_mute_windowed(tuner_window, project_runtime);
+    wire_mute_inline(window, project_session, project_runtime);
+    wire_mute_windowed(tuner_window, project_session, project_runtime);
     wire_power(
         window,
         tuner_window,
@@ -117,8 +119,10 @@ fn wire_close_windowed(
 
 fn wire_mute_inline(
     window: &AppWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
+    let project_session = project_session.clone();
     let project_runtime = project_runtime.clone();
     let main_window_weak = window.as_weak();
     window.on_toggle_tuner_mute(move |muted| {
@@ -131,6 +135,19 @@ fn wire_mute_inline(
         if !mw.get_tuner_enabled() {
             return;
         }
+        // #436 G: mute é negócio → Command::SetOutputMuted no dispatcher
+        // compartilhado (alcançável MCP/MIDI, observável via
+        // Event::OutputMutedChanged). O efeito no runtime de áudio
+        // (rt.set_output_muted) continua adapter-side (precedente
+        // SaveProject). set_tuner_mute_active = render do sprite/LED.
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetOutputMuted { muted })
+            {
+                log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
+            }
+        }
         if let Some(rt) = project_runtime.borrow().as_ref() {
             rt.set_output_muted(muted);
         }
@@ -140,8 +157,10 @@ fn wire_mute_inline(
 
 fn wire_mute_windowed(
     tuner_window: &TunerWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
+    let project_session = project_session.clone();
     let project_runtime = project_runtime.clone();
     let tuner_window_weak = tuner_window.as_weak();
     tuner_window.on_toggle_mute(move |muted| {
@@ -153,6 +172,15 @@ fn wire_mute_windowed(
         };
         if !tw.get_tuner_enabled() {
             return;
+        }
+        // #436 G: mute via Command::SetOutputMuted (ver wire_mute_inline).
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetOutputMuted { muted })
+            {
+                log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
+            }
         }
         if let Some(rt) = project_runtime.borrow().as_ref() {
             rt.set_output_muted(muted);
@@ -179,6 +207,19 @@ fn wire_power(
     let tuner_window_weak = tuner_window.as_weak();
 
     let on_toggle_enabled = move |enabled: bool| {
+        // #436 H: power do tuner é negócio → Command no dispatcher
+        // compartilhado (MCP/MIDI, observável via
+        // Event::TunerEnabledChanged) quando há sessão. O build/teardown
+        // da sessão + timer + mute abaixo é adapter-side (precedente
+        // SaveProject).
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetTunerEnabled { enabled })
+            {
+                log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
+            }
+        }
         if enabled {
             let new_session = build_session(&project_session, &project_runtime);
             let rows = new_session

@@ -1,11 +1,13 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
+import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
@@ -45,6 +47,7 @@ export component AppWindow inherits Window {
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <[ProjectChainItem]> project-chains;
+    in-out property <[ChainRigNav]> chain-rig-nav;
     in-out property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
     in property <string> chain-editor-title;
@@ -142,6 +145,8 @@ export component AppWindow inherits Window {
     callback close-spectrum();
     callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
+    callback switch-chain-preset(int, int);
+    callback switch-chain-scene(int, int);
     callback toggle-chain-enabled(int);
     /// Slider de volume da chain mudou (issue #440). Args: chain-index na
     /// ordem de project-chains, volume no range 0-200 (100 = unity). Rust
@@ -272,6 +277,9 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-chains: root.project-chains;
+        chain-rig-nav: root.chain-rig-nav;
+        switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
+        switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;
@@ -468,6 +476,9 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-chains: root.project-chains;
+        chain-rig-nav: root.chain-rig-nav;
+        switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
+        switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;
@@ -669,5 +680,18 @@ export component AppWindow inherits Window {
         level: root.toast-level;
         container-width: root.width;
         container-height: root.height;
+    }
+
+    // Root-level modal: works in BOTH desktop and touch modes so the
+    // bundled presets are always reachable in-app (issue #479 — desktop
+    // previously had only a native FileDialog and no visible list).
+    PresetPickerOverlay {
+        width: root.width;
+        height: root.height;
+        visible-overlay: root.show-preset-picker;
+        items: root.preset-picker-items;
+        confirm(i) => { root.preset-picker-confirm(i); }
+        cancel() => { root.preset-picker-cancel(); }
+        delete(i) => { root.preset-picker-delete(i); }
     }
 }

@@ -92,6 +92,55 @@ cp target/release/adapter-gui              "$S/usr/bin/openrig"
 cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
 
+# Desktop integration — staged into $S so it ships in .deb/.rpm/.tar.gz
+# (and reused by the AppImage below). Without this the .deb installs no
+# launcher/icon and the app only starts from a terminal (issue #475).
+# Exec=openrig (bare name): /usr/bin is on PATH for the FHS install, and
+# the AppImage's AppRun resolves it too — one .desktop for all formats.
+mkdir -p "$S/usr/share/applications" \
+         "$S/usr/share/icons/hicolor/scalable/apps" \
+         "$S/usr/share/icons/hicolor/256x256/apps"
+cat > "$S/usr/share/applications/openrig.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=OpenRig
+Comment=Virtual guitar pedalboard
+Exec=openrig
+Icon=openrig
+Type=Application
+Categories=AudioVideo;Audio;Music;
+Terminal=false
+# GNOME/Wayland matches the running window to this .desktop by app_id
+# (Wayland) / WM_CLASS (X11). Slint's winit backend uses the binary
+# name ("openrig"); without this key the shell shows it as an unknown
+# app — no dock icon, can't pin (#479).
+StartupWMClass=openrig
+DESKTOP
+cp crates/adapter-gui/ui/assets/openrig-logomark.svg \
+   "$S/usr/share/icons/hicolor/scalable/apps/openrig.svg"
+rsvg-convert -w 256 -h 256 \
+    crates/adapter-gui/ui/assets/openrig-logomark.svg \
+    -o "$S/usr/share/icons/hicolor/256x256/apps/openrig.png"
+
+# The binary links libNeuralAudioCAPI.so with RUNPATH=$ORIGIN, but the lib
+# is staged under usr/lib/openrig/libs/nam/, NOT next to the binary — so
+# ld.so can't find it and the app dies at startup with "cannot open
+# shared object file" (issue #461; macOS solves the equivalent via
+# install_name_tool). Point RUNPATH at the staged lib, relative to the
+# binary. The path resolves identically once installed to /usr (.deb/
+# .rpm), unpacked (.tar.gz), or inside the AppImage's AppDir.
+patchelf --set-rpath "\$ORIGIN/../lib/openrig/libs/nam/linux-${ARCH}" \
+    "$S/usr/bin/openrig"
+
+# Gate: a package no one can open is worse than a failed build. Verify
+# the NAM lib actually resolves through the new RUNPATH before we wrap
+# it in a .deb/.AppImage (lesson from #459).
+if ldd "$S/usr/bin/openrig" 2>/dev/null \
+    | grep -q 'libNeuralAudioCAPI\.so .*not found'; then
+    echo "FATAL: libNeuralAudioCAPI.so still unresolved after RUNPATH patch" >&2
+    exit 1
+fi
+echo "    RUNPATH patched; libNeuralAudioCAPI.so resolves"
+
 # Bundled preset library: the 21 default presets under presets/*.yaml ship
 # next to plugins/ and assets/ so the app finds them via
 # infra_filesystem::detect_data_root().join("presets"). Without this copy,
@@ -174,6 +223,8 @@ if $BUILD_DEB; then
         --maintainer "Joao Paulo Faria" \
         --category sound \
         --depends libasound2 \
+        --depends libseat1 \
+        --depends alsa-utils \
         --deb-no-default-config-files \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig_${VERSION}_${DEB_ARCH}.deb" \
@@ -189,6 +240,8 @@ if $BUILD_RPM; then
         --url "https://github.com/jpfaria/OpenRig" \
         --maintainer "Joao Paulo Faria" \
         --category "Applications/Multimedia" \
+        --depends libseat \
+        --depends alsa-utils \
         -C "$OUTPUT_DIR/stage" \
         --package "$OUTPUT_DIR/openrig-${VERSION}-1.${RPM_ARCH}.rpm" \
         usr
@@ -197,38 +250,57 @@ fi
 
 if $BUILD_APPIMAGE; then
     APPIMAGE_ARCH="$ARCH"
-    curl -fsSL -o "$OUTPUT_DIR/appimagetool" \
-        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${APPIMAGE_ARCH}.AppImage"
-    chmod +x "$OUTPUT_DIR/appimagetool"
-
     APPDIR="$OUTPUT_DIR/AppDir"
     cp -r "$OUTPUT_DIR/stage" "$APPDIR"
+
+    # An AppImage must be self-contained. libseat.so.1 is NEEDED by the
+    # binary (Slint/winit backend) but is absent on minimal desktops
+    # (no compositor/seatd) — bundle it (issue #461). The build runner
+    # links against it, so it is present here to copy.
+    mkdir -p "$APPDIR/usr/lib/openrig/syslibs"
+    seat_lib="$(ldconfig -p | awk '/libseat\.so\.1/ {print $NF; exit}')"
+    if [ -z "$seat_lib" ] || [ ! -e "$seat_lib" ]; then
+        echo "FATAL: libseat.so.1 not found on build host — cannot bundle" >&2
+        exit 1
+    fi
+    cp -L "$seat_lib" "$APPDIR/usr/lib/openrig/syslibs/libseat.so.1"
 
     printf '%s\n' \
         '#!/bin/bash' \
         'HERE="$(dirname "$(readlink -f "${0}")")"' \
         'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
         'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+        'LD_LIBRARY_PATH="$HERE/usr/lib/openrig/syslibs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' \
+        'for d in "$HERE"/usr/lib/openrig/libs/nam/linux-*; do' \
+        '    [ -d "$d" ] && LD_LIBRARY_PATH="$d:$LD_LIBRARY_PATH"' \
+        'done' \
+        'export LD_LIBRARY_PATH' \
         'exec "$HERE/usr/bin/openrig" "$@"' \
         > "$APPDIR/AppRun"
     chmod +x "$APPDIR/AppRun"
 
-    printf '%s\n' \
-        '[Desktop Entry]' \
-        'Name=OpenRig' \
-        'Exec=openrig' \
-        'Icon=openrig' \
-        'Type=Application' \
-        'Categories=AudioVideo;Audio;Music;' \
-        > "$APPDIR/openrig.desktop"
+    # appimagetool wants the .desktop + icon at the AppDir root. Reuse
+    # the ones already staged under usr/share (AppDir is a copy of the
+    # stage tree) — single source, no divergence (issue #475).
+    cp "$APPDIR/usr/share/applications/openrig.desktop" "$APPDIR/openrig.desktop"
+    cp "$APPDIR/usr/share/icons/hicolor/256x256/apps/openrig.png" "$APPDIR/openrig.png"
 
-    rsvg-convert -w 256 -h 256 \
-        crates/adapter-gui/ui/assets/openrig-logomark.svg \
-        -o "$APPDIR/openrig.png"
-
-    APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$OUTPUT_DIR/appimagetool" "$APPDIR" \
-        "$OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
-    echo "  → $OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
+    # Assemble the AppImage manually: type2 runtime + appended squashfs.
+    # We do NOT exec appimagetool — its own AppImage runtime can't run
+    # under emulated Docker (x86_64 build on an Apple Silicon host →
+    # "Exec format error"), and `cat runtime sqfs > app` is exactly what
+    # appimagetool does internally. Nothing foreign is executed at build
+    # time, so this is emulation-proof (issue #470/#479).
+    out_appimage="$OUTPUT_DIR/OpenRig-${VERSION}-linux-${ARCH}.AppImage"
+    runtime="$OUTPUT_DIR/type2-runtime-${APPIMAGE_ARCH}"
+    curl -fsSL -o "$runtime" \
+        "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${APPIMAGE_ARCH}"
+    mksquashfs "$APPDIR" "$OUTPUT_DIR/appdir.sqfs" \
+        -root-owned -noappend -no-progress -quiet -comp zstd -mkfs-time 0
+    cat "$runtime" "$OUTPUT_DIR/appdir.sqfs" > "$out_appimage"
+    chmod +x "$out_appimage"
+    rm -f "$runtime" "$OUTPUT_DIR/appdir.sqfs"
+    echo "  → $out_appimage"
 fi
 
 echo ""

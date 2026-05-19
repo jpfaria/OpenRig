@@ -7,7 +7,9 @@
 | `scripts/build-orange-pi-image.sh` | Imagem SD para Orange Pi |
 | `scripts/flash-sd.sh` | Flasha SD card |
 | `scripts/coverage.sh` | Relatório HTML de cobertura |
-| `scripts/package-macos.sh` | Empacota macOS |
+| `scripts/package-linux.sh` | Empacota Linux .tar.gz/.deb/.rpm/.AppImage (patchelf RUNPATH p/ libNeuralAudioCAPI + libseat) |
+| `scripts/package-macos.sh` | Empacota macOS (assina ad-hoc inside-out + gate de verificação) |
+| `scripts/install-macos.sh` | Instalador one-liner via `curl` (baixa .dmg, copia pro /Applications, tira quarentena) |
 | `scripts/build-lib.sh` | Libs externas |
 
 ## Fluxo branch → .deb → Orange Pi

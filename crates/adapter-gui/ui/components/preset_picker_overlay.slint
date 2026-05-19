@@ -1,0 +1,107 @@
+// In-app preset picker overlay. Shared by TouchMain and DesktopMain so
+// the bundled presets are reachable in both modes (issue #479: on
+// desktop the old native FileDialog left users with no visible preset
+// list). Pure UI — the parent owns the data + load logic.
+
+import { VerticalBox, ScrollView } from "std-widgets.slint";
+
+export component PresetPickerOverlay {
+    in property <bool> visible-overlay;
+    in property <[string]> items;
+    callback confirm(int);
+    callback cancel();
+    callback delete(int);
+
+    if root.visible-overlay: Rectangle {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        background: #000000a0;
+        Rectangle {
+            x: root.width * 0.1;
+            y: root.height * 0.1;
+            width: root.width * 0.8;
+            height: root.height * 0.8;
+            background: #1e1f22;
+            border-radius: 10px;
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+                Text {
+                    text: @tr("btn-load-preset");
+                    font-size: 16px;
+                    color: #ffffff;
+                    font-weight: 700;
+                }
+                ScrollView {
+                    vertical-stretch: 1;
+                    VerticalBox {
+                        spacing: 4px;
+                        for item[i] in root.items: Rectangle {
+                            height: 44px;
+                            border-radius: 6px;
+                            background: item-area.has-hover ? #3c7ded : #2d2e32;
+                            item-area := TouchArea {
+                                mouse-cursor: pointer;
+                                width: parent.width - 52px;
+                                clicked => {
+                                    root.confirm(i);
+                                }
+                            }
+                            Text {
+                                x: 12px;
+                                width: parent.width - 64px;
+                                text: item;
+                                font-size: 14px;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            Rectangle {
+                                x: parent.width - 44px;
+                                y: 2px;
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 6px;
+                                background: del-area.has-hover ? #c0392b : transparent;
+                                del-area := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.delete(i);
+                                    }
+                                }
+                                Image {
+                                    x: (parent.width - 18px) / 2;
+                                    y: (parent.height - 18px) / 2;
+                                    width: 18px;
+                                    height: 18px;
+                                    source: @image-url("../modules/surrealism-ui/icons/delete.svg");
+                                    colorize: del-area.has-hover ? #ffffff : #cc4444;
+                                }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.cancel();
+                        }
+                    }
+                    Text {
+                        text: @tr("btn-cancel");
+                        font-size: 14px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

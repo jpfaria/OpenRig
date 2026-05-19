@@ -1,12 +1,13 @@
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+
 use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
 use crate::RecentProjectItem;
 use crate::{AppWindow, UNTITLED_PROJECT_NAME};
 use anyhow::{anyhow, Result};
 use domain::ids::DeviceId;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
-use infra_yaml::{
-    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
-};
+use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset};
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 use project::device::DeviceSettings;
@@ -257,6 +258,26 @@ pub(crate) fn build_device_settings_from_gui(
     result
 }
 
+/// #436 #1: load any project (new `project.openrig` or legacy `*.yaml`,
+/// migrated transparently) through the NEW rig engine, projecting the
+/// enabled inputs onto synthetic legacy chains so the existing GUI and
+/// the proven cpal/runtime path drive the rig with zero new audio code.
+/// Preset/scene switching has no UI yet (front deferred) — the rest
+/// behaves exactly as before.
+pub(crate) fn load_rig_and_project(
+    project_path: &Path,
+) -> Result<(project::rig::RigProject, Project)> {
+    // `load_project_any` returns a validated RigProject (legacy `*.yaml`
+    // migrated transparently). Every input is projected as a chain, all
+    // OFF: the user enables what they want at runtime via the existing
+    // per-chain toggle — nothing auto-starts. The RigProject is returned
+    // so the session can keep it for preset/scene switching.
+    let rig = infra_yaml::load_project_any(project_path)?;
+    let project =
+        engine::rig_runtime::rig_to_legacy_project(&rig, &std::collections::BTreeSet::new());
+    Ok((rig, project))
+}
+
 pub(crate) fn load_project_session(
     project_path: &Path,
     config_path: &Path,
@@ -271,10 +292,11 @@ pub(crate) fn load_project_session(
         .presets_path
         .clone()
         .unwrap_or_else(default_presets_path);
-    let mut project = YamlProjectRepository {
-        path: project_path.to_path_buf(),
-    }
-    .load_current_project()?;
+    // #436 #1: the app now runs the new rig engine. Legacy `*.yaml` is
+    // migrated transparently to `project.openrig` on first open. The
+    // `RigProject` is retained in the session so the chains screen can
+    // switch preset/scene per input.
+    let (rig, mut project) = load_rig_and_project(project_path)?;
 
     // Populate device_settings from per-machine config (gui-settings.yaml)
     // instead of the project YAML. Old projects may still have device_settings
@@ -286,7 +308,7 @@ pub(crate) fn load_project_session(
     project.device_settings =
         build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
-    Ok(ProjectSession::new(
+    let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),
         Some(config_path.to_path_buf()),
@@ -295,11 +317,38 @@ pub(crate) fn load_project_session(
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
-    ))
+    );
+    let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
+    // #436: the dispatcher owns the rig so rig-nav goes through Command
+    // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
+    session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
+    session.rig = Some(rig);
+    Ok(session)
+}
+
+/// The dirty-detection fingerprint. For a rig session the saved artifact
+/// is the `.openrig` (the `RigProject`), so the fingerprint MUST include
+/// it — switching preset/scene or editing sources often projects an
+/// identical legacy `Project` (e.g. a scene with no overrides), so a
+/// legacy-only snapshot would never flip dirty and Save would never be
+/// offered ("cliquei numa scene e não deu opção de salvar"). Pure.
+pub(crate) fn dirty_snapshot(
+    project: &project::project::Project,
+    rig: Option<&project::rig::RigProject>,
+) -> Result<String> {
+    let legacy = infra_yaml::serialize_project(project)?;
+    match rig {
+        Some(rig) => Ok(format!(
+            "{legacy}\n---openrig---\n{}",
+            infra_yaml::serialize_rig_project(rig)?
+        )),
+        None => Ok(legacy),
+    }
 }
 
 pub(crate) fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    infra_yaml::serialize_project(&*session.project.borrow())
+    let rig = session.rig.as_ref().map(|r| r.borrow());
+    dirty_snapshot(&session.project.borrow(), rig.as_deref())
 }
 
 pub(crate) fn set_project_dirty(
@@ -348,7 +397,27 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
-    fs::write(project_path, project_session_snapshot(session)?)?;
+    // #436 #1: rig session → the source of truth is the RigProject.
+    // Write the synthetic chains' edits back into it and save the
+    // `project.openrig` (load_project_any reloads it idempotently).
+    // Non-rig session keeps the legacy serialize. Config + presets-dir
+    // steps below run either way.
+    match &session.rig {
+        Some(rig) => {
+            // #436: capturing synthetic edits is model mutation — it
+            // goes through the Command now, not by hand in the UI.
+            let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
+            let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
+                project_path.clone()
+            } else {
+                project_path.with_extension("openrig")
+            };
+            infra_yaml::save_rig_project_file(&openrig, &rig.borrow())?;
+        }
+        None => {
+            fs::write(project_path, project_session_snapshot(session)?)?;
+        }
+    }
     let config_path = session
         .config_path
         .clone()

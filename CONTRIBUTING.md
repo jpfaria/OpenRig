@@ -195,17 +195,20 @@ See the [openrig-code-quality skill](/.claude/skills/openrig-code-quality) for t
 
 ## Quality Gate (mandatory before push)
 
-All PRs to `develop` — human or agent — must pass the same quality gate:
+All PRs to `develop` — human or agent — must pass the **shared** quality
+gate ([`github.com/xgodev/quality-gate`](https://github.com/xgodev/quality-gate)):
 
 ```bash
-./scripts/qa.sh
+git -C ~/.quality-gate pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+~/.quality-gate/qg --base origin/develop
 ```
 
-This runs `cargo fmt --check`, `cargo clippy` with complexity lints, `cargo build`, `cargo test`, and `cargo llvm-cov` against the workspace. The same script runs in CI (`.github/workflows/pr.yml`); if it fails on CI the PR is commented with a diagnostic and gets a formal `request-changes` review. See [`docs/development/quality-gate.md`](docs/development/quality-gate.md) for full details, env vars, and the agent auto-correction loop.
+It compares `fmt`, `lint`, `build`, `test`, `complexity`, `coverage` of the PR against `origin/develop` and fails ONLY if a metric regressed. The same dispatcher runs in CI (`.github/workflows/pr.yml`); if it fails on CI the PR is commented with a diagnostic and gets a formal `request-changes` review. Agents use the `claude-plugin:quality-gate` skill. See [`docs/development/quality-gate.md`](docs/development/quality-gate.md) for full details, env vars, and exit codes.
 
 **Hard rules:**
-- Never push code that fails `./scripts/qa.sh` locally.
-- Never bump `clippy.toml` thresholds, `#[ignore]` tests, or `#[allow]` lints to make the gate quiet — fix the root cause.
+- Never push code that fails `~/.quality-gate/qg --base origin/develop` locally.
+- The shared gate **ignores** the project's `clippy.toml`/`rustfmt.toml` (tamper-resistance); never set `QG_BYPASS_REASON`, `#[ignore]` tests, or `#[allow]` lints to make the gate quiet — fix the root cause.
 - Tests are part of the gate: every new or changed business logic needs a test that validates **behavior**, not just covers a line.
 
 ## Naming Conventions

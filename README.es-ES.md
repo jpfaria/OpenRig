@@ -54,7 +54,8 @@ La base que hace posible la visión más grande ya corre en todas las plataforma
 - **[560+ modelos registrados](docs/user-guide/blocks-reference.md#model-id-quick-reference)** repartidos en 16 tipos de bloque — preamps, amps, cabs, pedales de overdrive/distorsión/fuzz/boost, delays, reverbs, modulation, dynamics, filtros, wah, corrección de pitch y 114 IRs de cuerpo acústico para pastillas piezo y magnéticas. ([catálogo completo con IDs canónicos](docs/user-guide/blocks-reference.md))
 - **Cuatro backends de audio en el mismo grafo.** DSP nativo en Rust para utility, EQ, dynamics, modulation y reverb. NAM (Neural Amp Modeler) con capturas neuronales de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff y 540+ más. Convolución por IR para cabinets y cuerpos acústicos. 100+ plugins LV2 ya incluidos (Guitarix, MDA, TAP, ZAM, Dragonfly y otros). Cualquier bloque en una cadena puede venir de cualquier backend.
 - **Visualización en tiempo real integrada.** Un afinador cromático y un analizador de espectro en vivo entran en la cadena como cualquier otro bloque — ve lo que oyes.
-- **Formato de preset YAML abierto.** Los presets son texto plano — diffeables, compartibles por gist, scriptables. La skill [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) de Claude Code arma presets completos a partir del nombre de una canción, investigando la cadena de señal original en fuentes públicas y escribiendo el YAML.
+- **Controlable por IA (MCP).** Cualquier cliente MCP (Claude Desktop/Code, Cursor) maneja la rig *viva* mediante el servidor MCP integrado de OpenRig — arma timbres, ajusta la cadena, cambia preset por conversación, con la GUI abierta. Ver **[Servidor MCP y plugin](docs/mcp.md)**.
+- **Formato de preset YAML abierto.** Los presets son texto plano — diffeables, compartibles por gist, scriptables. La skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) de Claude Code arma presets completos a partir del nombre de una canción, investigando la cadena de señal original en fuentes públicas y escribiendo el YAML.
 
 > 📚 **¿Buscas un amp, pedal o cab concreto?** El catálogo completo — cada modelo, cada parámetro, cada variante de voicing, con strings canónicos de `MODEL_ID` para usar en preset YAML — está documentado en **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Empieza por el [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference), una búsqueda alfabética agrupada por tipo de bloque.
 
@@ -116,13 +117,17 @@ blocks:
   # ...EQ post-amp, reverb, limiter, master volume
 ```
 
-Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuarios de Claude Code, la skill [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) genera la cadena entera solo a partir de artista + canción.
+Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuarios de Claude Code, la skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) genera la cadena entera solo a partir de artista + canción.
 
 ## Instalación
 
 ### Descarga
 
-Releases para todas las plataformas soportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) se publican en la [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest).
+Los binarios para todas las plataformas soportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) están en la [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest). Cada SO tiene sus pasos en el Installation Guide:
+
+- **macOS** — [descarga, fix de cuarentena e instalador de una línea](docs/user-guide/installation.md#macos)
+- **Linux** — [AppImage / `.deb` / `.rpm` + setup de audio](docs/user-guide/installation.md#linux)
+- **Windows** — [instalador `.msi` / zip portátil](docs/user-guide/installation.md#windows)
 
 ### Compilar desde el código
 
@@ -143,13 +148,29 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Quick Start](docs/user-guide/quick-start.md) — primer proyecto y signal chain
 - [Blocks Reference](docs/user-guide/blocks-reference.md) — cada modelo con IDs canónicos y parámetros
 - [Presets](docs/user-guide/presets.md) — crear, guardar, compartir
+- [Blocks Catalog](docs/blocks-catalog.md) — tipos de bloque, modelos, parámetros, backends
+- [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
+- [Audio Config](docs/audio-config.md) — I/O como bloques, ciclo de vida de JACK
+- [CLI & env vars](docs/cli.md) — argumentos y variables de entorno de `openrig`
+- [Servidor MCP y plugin](docs/mcp.md) — controlar la rig desde Claude/Cursor; instalar el plugin OpenRig
 
 ### Para desarrolladores
 
-- [Architecture](docs/development/architecture.md) — mapa de crates, capas, design patterns
+- [Architecture](docs/architecture.md) · [Architecture (a fondo)](docs/development/architecture.md) — mapa de crates, capas, design patterns
 - [Building](docs/development/building.md) — guía de build completa, incluyendo el motor NAM y Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — cómo añadir nuevos modelos de audio
 - [Audio Backends](docs/development/audio-backends.md) — internos de Native, NAM, IR y LV2
+- [File Organization](docs/development/file-organization.md) — dónde vive cada cosa, límites de LOC
+- [Gitflow](docs/development/gitflow.md) — issues, branches, commits, workspace
+- [Quality Gate](docs/development/quality-gate.md) — el gate comparativo único de CI
+- [Testing](docs/testing.md) — cobertura, convenciones, comandos
+- [Scripts](docs/scripts.md) — build/deploy, flujo `.deb` → Orange Pi
+- [Formato del proyecto](docs/projects/project-openrig-format.md) — el modelo de proyecto `.openrig`
+- [Arquitectura de la GUI](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — internos de la ventana desktop ([diseño de ventana](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
+- [Contrato del backend](docs/backend/current-contract.md) · [Catálogo de modelos nativos](docs/backend/native-model-catalog.md) · [Referencia de efectos MK-300](docs/backend/mk-300-v69-effects-reference.md)
+- [Idiomas (i18n)](docs/i18n.md) — framework de traducción de la UI, añadir un locale
+- [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — build de la placa del pedalboard y deploy de la imagen
+- [ADRs](docs/adr/0001-project-model.md) — registros de decisión de arquitectura ([enrutamiento de device](docs/adr/0002-device-routing-and-validation.md))
 
 ## Contribuir
 
@@ -175,7 +196,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] **Bypass por bloque** — cualquier bloque puede activarse o desactivarse en vivo sin reconstruir la cadena
 - [x] **Loaders de IR y NAM del usuario** — coloca cualquier `.wav` de respuesta al impulso o captura `.nam` en la cadena en runtime
 - [x] **Formato de preset YAML abierto** — diffeable, compartible por gist, scriptable; registry canónico de `MODEL_ID` documentado en [Blocks Reference](docs/user-guide/blocks-reference.md)
-- [x] **Construcción de preset asistida por IA** — la skill [`openrig-tone-builder`](.claude/skills/openrig-tone-builder/SKILL.md) de Claude Code va con el repo y escribe presets completos a partir de una canción o un artista
+- [x] **Construcción de preset asistida por IA** — la skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) de Claude Code va con el repo y escribe presets completos a partir de una canción o un artista
 
 ### Features de escenario
 

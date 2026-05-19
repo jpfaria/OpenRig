@@ -103,10 +103,29 @@ pub(crate) fn refilter_compact_block(
             all.len(),
             filtered.len()
         );
-        let mut new_item = item;
-        new_item.filtered_models = ModelRc::from(Rc::new(VecModel::from(filtered)));
-        compact_blocks.set_row_data(i, new_item);
-        log::debug!("[search-compact] set_row_data done for row {}", i);
+        // Mutate the EXISTING filtered_models VecModel in place — same
+        // as the working normal-view path (`filtered.set_vec(...)`).
+        // Replacing the whole row struct via set_row_data does not
+        // refresh an open PopupWindow's `for model in filtered-models`
+        // (the popup keeps the old ModelRc handle); in-place mutation is
+        // observed live (#479).
+        if let Some(vm) = item
+            .filtered_models
+            .as_any()
+            .downcast_ref::<VecModel<BlockModelPickerItem>>()
+        {
+            vm.set_vec(filtered);
+            log::debug!("[search-compact] in-place set_vec done for row {}", i);
+        } else {
+            // Fallback: shouldn't happen (we build it as a VecModel in
+            // project_view), but never silently no-op the filter.
+            let mut new_item = item;
+            new_item.filtered_models = ModelRc::from(Rc::new(VecModel::from(filtered)));
+            compact_blocks.set_row_data(i, new_item);
+            log::warn!(
+                "[search-compact] filtered_models not a VecModel; fell back to set_row_data"
+            );
+        }
         return;
     }
     log::warn!(

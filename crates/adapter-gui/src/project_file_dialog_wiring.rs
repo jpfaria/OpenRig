@@ -94,6 +94,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    // #436 E: abrir projeto é negócio → Command::LoadProject
+                    // no dispatcher da sessão (MCP/MIDI, observável via
+                    // Event::ProjectLoaded). O load de arquivo + swap de
+                    // sessão/runtime é adapter-side (precedente SaveProject).
+                    {
+                        let project = session.project.borrow().clone();
+                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
+                            project,
+                            path: canonical_path.clone(),
+                        }) {
+                            log::warn!("[open-project] Command::LoadProject falhou: {e}");
+                        }
+                    }
                     let title =
                         project_title_for_path(Some(&canonical_path), &*session.project.borrow());
                     let display_name = project_display_name(&*session.project.borrow());
@@ -106,12 +119,22 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
+                    crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
                         &display_name,
                     );
+                    // #436 (sweep): registrar recente é negócio → Command
+                    // no dispatcher (MCP/MIDI, observável). save_app_config
+                    // abaixo é adapter-side (precedente SaveProject).
+                    if let Some(s) = project_session.borrow().as_ref() {
+                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
+                            path: canonical_path.clone(),
+                            name: display_name.clone(),
+                        });
+                    }
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
@@ -191,6 +214,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
+            // #436 E: criar projeto é negócio → Command::CreateProject no
+            // dispatcher da sessão (MCP/MIDI, observável via
+            // Event::ProjectCreated). O build da sessão é adapter-side
+            // (precedente SaveProject).
+            {
+                let project = session.project.borrow().clone();
+                if let Err(e) = session
+                    .dispatcher
+                    .dispatch(Command::CreateProject { project })
+                {
+                    log::warn!("[new-project] Command::CreateProject falhou: {e}");
+                }
+            }
             let _ = session
                 .dispatcher
                 .dispatch(Command::UpdateProjectName { name: name.clone() });
@@ -201,6 +237,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 &output_chain_devices.borrow(),
             );
             *project_session.borrow_mut() = Some(session);
+            crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
             *saved_project_snapshot.borrow_mut() = None;
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
@@ -274,11 +311,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     let _ = session.dispatcher.dispatch(Command::SaveProject);
                     let canonical_path =
                         canonical_project_path(&project_path).unwrap_or(project_path.clone());
+                    let recent_name = project_display_name(&*session.project.borrow());
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
-                        &project_display_name(&*session.project.borrow()),
+                        &recent_name,
                     );
+                    // #436 (sweep): registrar recente via Command.
+                    let _ = session.dispatcher.dispatch(Command::RegisterRecentProject {
+                        path: canonical_path.clone(),
+                        name: recent_name,
+                    });
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,

@@ -291,6 +291,8 @@ impl JackBackend for LiveJackBackend {
             Self::nuke_process_wide_jack_shm();
         }
 
+        super::alsa_mixer::set_mixer_unity(config.card_num);
+
         let stderr_log = Self::stderr_log_path(name);
         let stderr_file = std::fs::File::create(&stderr_log)
             .map(Stdio::from)

@@ -106,6 +106,12 @@ if [ "$NUKE" = "1" ]; then
     docker rmi -f "$DOCKER_IMAGE" 2>/dev/null || true
     DOCKER_BUILD_ARGS+=(--no-cache)
 fi
+# cortex-a53 is ONLY for the qemu-emulated aarch64 build (see
+# Dockerfile.linux-builder). x86_64 must leave RUSTFLAGS empty, else
+# rustc/LLVM aborts on the ARM target-cpu (issue #466).
+if [ "$ARCH" = "aarch64" ]; then
+    DOCKER_BUILD_ARGS+=(--build-arg "RUSTFLAGS_CPU=-C target-cpu=cortex-a53")
+fi
 docker build --platform "$DOCKER_PLATFORM" -t "$DOCKER_IMAGE" \
     "${DOCKER_BUILD_ARGS[@]+"${DOCKER_BUILD_ARGS[@]}"}" \
     -f "$DOCKERFILE" "$PROJECT_ROOT/docker"

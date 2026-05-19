@@ -31,11 +31,26 @@ fn main() -> anyhow::Result<()> {
     let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
     let (arg_project_path, arg_auto_save, arg_fullscreen) =
         adapter_gui::parse_cli_args_from(&raw_refs);
-    let cli_project_path = arg_project_path.or_else(|| {
-        std::env::var("OPENRIG_PROJECT_PATH")
-            .ok()
-            .map(std::path::PathBuf::from)
-    });
+    let mcp_addr = adapter_gui::parse_mcp_addr(&raw_refs);
+    let midi_map = adapter_gui::parse_midi_map(&raw_refs);
+    let cli_project_path = arg_project_path
+        .or_else(|| {
+            std::env::var("OPENRIG_PROJECT_PATH")
+                .ok()
+                .map(std::path::PathBuf::from)
+        })
+        .and_then(|path| {
+            // #452: validate the resolved path with a clear message and fall
+            // back to the launcher (no crash) when it is bad — per the
+            // cli-project-path-autosave spec.
+            match adapter_gui::validate_project_path(&path) {
+                Ok(()) => Some(path),
+                Err(e) => {
+                    eprintln!("openrig: {e}; opening launcher instead");
+                    None
+                }
+            }
+        });
     let auto_save = arg_auto_save
         || std::env::var("OPENRIG_AUTO_SAVE")
             .ok()
@@ -50,5 +65,7 @@ fn main() -> anyhow::Result<()> {
         cli_project_path,
         auto_save,
         fullscreen,
+        mcp_addr,
+        midi_map,
     )
 }

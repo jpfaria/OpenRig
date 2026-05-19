@@ -1,5 +1,5 @@
 import { ListView, ScrollView } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
+import { ProjectChainItem, ChainRigNav, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
 import { BlockPanelEditor } from "./block_panel_editor.slint";
 import { ChainRow } from "./chain_row.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
@@ -49,6 +49,9 @@ export component ProjectChainsPage inherits Rectangle {
     callback open-tuner-window();
     callback open-spectrum-window();
     callback remove-chain(int);
+    in property <[ChainRigNav]> chain-rig-nav;
+    callback switch-chain-preset(int, int);
+    callback switch-chain-scene(int, int);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
     callback move-chain-up(int);
@@ -219,6 +222,13 @@ export component ProjectChainsPage inherits Rectangle {
                 y: 0px;
                 width: parent.width;
                 chain: chain;
+                rig-nav: root.chain-rig-nav[index];
+                switch-chain-preset(slot) => {
+                    root.switch-chain-preset(index, slot);
+                }
+                switch-chain-scene(s) => {
+                    root.switch-chain-scene(index, s);
+                }
                 chain-index: index;
                 chain-count: root.project-chains.length;
                 fullscreen: root.fullscreen;

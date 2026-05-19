@@ -32,7 +32,10 @@ members = [
   "crates/infra-filesystem",
   "crates/infra-cpal",
   "crates/adapter-console",
+  "crates/adapter-console-rig",
   "crates/adapter-server",
+  "crates/adapter-mcp",
+  "crates/adapter-midi",
   "crates/adapter-gui",
   "crates/adapter-vst3",
   "crates/vst3",
@@ -53,6 +56,10 @@ dirs = "6"
 thiserror = "1"
 cpal = { version = "0.17.3", features = ["asio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+futures = "0.3"
+serde_json = "1"
+rmcp = { version = "1.7.0", features = ["server", "transport-streamable-http-server"] }
+midir = "0.11"
 tonic = "0.12"
 prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }

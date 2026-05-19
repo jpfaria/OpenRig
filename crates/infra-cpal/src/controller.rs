@@ -93,7 +93,15 @@ impl ProjectRuntimeController {
             .iter()
             .find(|s| s.device_id.0 == card.device_id);
         let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
-        let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
+        // Unconfigured-device fallback. 64 frames continuously xruns on a
+        // generic (non-RT) desktop kernel with USB audio — the stream
+        // smears into a dull "muffled / in a bag" sound (NOT clicks),
+        // which is exactly what users reported (#479). 256 is the safe
+        // USB minimum. Configured setups carry an explicit value so this
+        // is never hit (Orange Pi unaffected). THIS is the path that
+        // builds the live JackConfig — device_settings.rs has a twin
+        // fallback (kept in sync; both 256).
+        let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(256);
         let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
         let realtime = matched.map(|s| s.realtime).unwrap_or(true);
         let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
@@ -268,7 +276,7 @@ impl ProjectRuntimeController {
                 let resolved = resolved_chains.remove(&chain.id).ok_or_else(|| {
                     anyhow!("chain '{}' missing resolved audio config", chain.id.0)
                 })?;
-                self.upsert_chain_with_resolved(chain, resolved)?;
+                self.upsert_chain_with_resolved(chain, resolved, false)?;
             }
 
             Ok(())
@@ -304,13 +312,28 @@ impl ProjectRuntimeController {
                 continue;
             }
             let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
-            self.upsert_chain_with_resolved(chain, resolved)?;
+            self.upsert_chain_with_resolved(chain, resolved, false)?;
         }
 
         Ok(())
     }
 
     pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
+        self.upsert_chain_modal(project, chain, false)
+    }
+
+    /// #454-T5: upsert that lets the previous preset/scene tail ring out in
+    /// parallel (spillover) instead of being cut. Same lock-free path.
+    pub fn upsert_chain_spillover(&mut self, project: &Project, chain: &Chain) -> Result<()> {
+        self.upsert_chain_modal(project, chain, true)
+    }
+
+    fn upsert_chain_modal(
+        &mut self,
+        project: &Project,
+        chain: &Chain,
+        spillover: bool,
+    ) -> Result<()> {
         log::info!(
             "upserting chain '{}', enabled={}",
             chain.id.0,
@@ -328,7 +351,7 @@ impl ProjectRuntimeController {
             // ensure_server retry loop.
             self.ensure_jack_servers(project)?;
             let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
-            return self.upsert_chain_with_resolved(chain, resolved);
+            return self.upsert_chain_with_resolved(chain, resolved, spillover);
         }
 
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -336,7 +359,7 @@ impl ProjectRuntimeController {
             let host = get_host();
             validate_chain_channels_against_devices(host, chain)?;
             let resolved = resolve_chain_audio_config(host, project, chain)?;
-            self.upsert_chain_with_resolved(chain, resolved)
+            self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
     }
 
@@ -439,6 +462,7 @@ impl ProjectRuntimeController {
         &mut self,
         chain: &Chain,
         resolved: ResolvedChainAudioConfig,
+        spillover: bool,
     ) -> Result<()> {
         // Rebuild the JACK client + DSP worker only when the I/O layout
         // actually changed (input/output channels, mode, sample rate, etc).
@@ -498,12 +522,21 @@ impl ProjectRuntimeController {
         // from the graph so the cpal layer can wire each physical input
         // device to its own runtime and mix them at the shared output
         // (issue #350 phase 3).
-        self.runtime_graph.upsert_chain(
-            chain,
-            resolved.sample_rate,
-            needs_stream_rebuild,
-            &elastic_targets,
-        )?;
+        if spillover {
+            self.runtime_graph.upsert_chain_spillover(
+                chain,
+                resolved.sample_rate,
+                needs_stream_rebuild,
+                &elastic_targets,
+            )?;
+        } else {
+            self.runtime_graph.upsert_chain(
+                chain,
+                resolved.sample_rate,
+                needs_stream_rebuild,
+                &elastic_targets,
+            )?;
+        }
 
         if needs_stream_rebuild {
             let runtimes = self.runtime_graph.runtimes_with_groups_for(&chain.id);

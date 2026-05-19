@@ -9,21 +9,116 @@
 //!
 //! Issue: #287
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{
-    wrap_with_output_gain_pct, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
+    wrap_with_output_gain_db, AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor,
 };
-use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2PortRole};
+use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2Port, Lv2PortRole};
 use plugin_loader::manifest::{Backend, Lv2Slot};
 use plugin_loader::LoadedPackage;
 
-use crate::{
-    build_lv2_processor, build_lv2_processor_with_atoms, build_stereo_lv2_processor,
-    build_stereo_lv2_processor_with_atoms,
-};
+use crate::{build_lv2_processor_full, build_stereo_lv2_processor_full};
+
+/// Result of partitioning a plugin's scanned ports by role.
+///
+/// `extra_out` holds output **control** ports (gain-reduction meters,
+/// latency indicators, etc.). LV2 requires every port to be connected
+/// before `run()`; an unconnected output control port makes the plugin
+/// write to null/garbage memory → SIGSEGV (issue #457). They are routed
+/// to a scratch buffer just like surplus audio outputs.
+#[derive(Debug, Default, PartialEq)]
+struct PortPlan {
+    audio_in: Vec<usize>,
+    audio_out: Vec<usize>,
+    /// `(port_index, initial_value)` for input control ports.
+    control: Vec<(usize, f32)>,
+    /// Atom/MIDI ports (in and out, deduplicated and sorted).
+    atom: Vec<usize>,
+    /// Output control ports — connected to a dummy buffer, never read.
+    extra_out: Vec<usize>,
+}
+
+/// Partition scanned LV2 ports into the buckets the processor builders
+/// expect. Pure (no FFI/IO) so the role→bucket mapping is unit-tested.
+fn plan_ports(ports: &[Lv2Port], params: &ParameterSet) -> PortPlan {
+    let indices = |role: Lv2PortRole| -> Vec<usize> {
+        ports
+            .iter()
+            .filter(|p| p.role == role)
+            .map(|p| p.index)
+            .collect()
+    };
+
+    let control = ports
+        .iter()
+        .filter(|p| p.role == Lv2PortRole::ControlIn)
+        .map(|p| {
+            (
+                p.index,
+                lv2_control_value(&p.symbol, p.default_value, params),
+            )
+        })
+        .collect();
+
+    let mut atom: Vec<usize> = indices(Lv2PortRole::AtomIn)
+        .into_iter()
+        .chain(indices(Lv2PortRole::AtomOut))
+        .collect();
+    atom.sort_unstable();
+    atom.dedup();
+
+    PortPlan {
+        audio_in: indices(Lv2PortRole::AudioIn),
+        audio_out: indices(Lv2PortRole::AudioOut),
+        control,
+        atom,
+        extra_out: indices(Lv2PortRole::ControlOut),
+    }
+}
+
+/// Pre-flight safety net: every port the TTL scanner found MUST be in a
+/// connected bucket before the plugin runs. LV2 requires all ports
+/// connected before `run()`; an unconnected one makes the plugin write
+/// to null/garbage memory → SIGSEGV, which no `catch_unwind` can catch
+/// because it is a hardware fault inside foreign C code (issue #457).
+///
+/// Returning `Err` here converts that unrecoverable process crash into a
+/// graceful "block failed to load" — the app stays alive. This guards
+/// the #457 fix against future regressions (e.g. a new port role added
+/// to the scanner but not bucketed in [`plan_ports`]).
+///
+/// It does NOT see ports the TTL scanner skipped or could not classify
+/// (`scan_lv2_ports` drops `Other`): catching those needs the plugin's
+/// real port count from the host, which the bare-ABI loader doesn't
+/// expose — that is the out-of-process-sandbox boundary, out of scope.
+fn assert_all_ports_connected(ports: &[Lv2Port], plan: &PortPlan, plugin_id: &str) -> Result<()> {
+    let mut connected: BTreeSet<usize> = BTreeSet::new();
+    connected.extend(&plan.audio_in);
+    connected.extend(&plan.audio_out);
+    connected.extend(plan.control.iter().map(|(idx, _)| *idx));
+    connected.extend(&plan.atom);
+    connected.extend(&plan.extra_out);
+
+    let orphans: Vec<String> = ports
+        .iter()
+        .filter(|p| !connected.contains(&p.index))
+        .map(|p| format!("port {} `{}` ({:?})", p.index, p.symbol, p.role))
+        .collect();
+
+    if !orphans.is_empty() {
+        bail!(
+            "LV2 plugin `{plugin_id}` has {} unconnectable port(s) — refusing \
+             to load to avoid a SIGSEGV on run(): {}",
+            orphans.len(),
+            orphans.join(", ")
+        );
+    }
+    Ok(())
+}
 
 /// Build a [`BlockProcessor`] from a disk-backed LV2 package.
 pub fn build_from_package(
@@ -66,55 +161,20 @@ pub fn build_from_package(
     };
 
     let ports = scan_lv2_ports(&bundle_path, &plugin_uri)?;
-
-    let audio_in: Vec<usize> = ports
-        .iter()
-        .filter(|p| p.role == Lv2PortRole::AudioIn)
-        .map(|p| p.index)
-        .collect();
-    let audio_out: Vec<usize> = ports
-        .iter()
-        .filter(|p| p.role == Lv2PortRole::AudioOut)
-        .map(|p| p.index)
-        .collect();
-    let atom_in: Vec<usize> = ports
-        .iter()
-        .filter(|p| p.role == Lv2PortRole::AtomIn)
-        .map(|p| p.index)
-        .collect();
-    let atom_out: Vec<usize> = ports
-        .iter()
-        .filter(|p| p.role == Lv2PortRole::AtomOut)
-        .map(|p| p.index)
-        .collect();
-    let control_ports: Vec<(usize, f32)> = ports
-        .iter()
-        .filter(|p| p.role == Lv2PortRole::ControlIn)
-        .map(|p| {
-            (
-                p.index,
-                lv2_control_value(&p.symbol, p.default_value, params),
-            )
-        })
-        .collect();
-    let mut atom_ports: Vec<usize> = atom_in.iter().chain(atom_out.iter()).copied().collect();
-    atom_ports.sort_unstable();
-    atom_ports.dedup();
+    let plan = plan_ports(&ports, params);
+    assert_all_ports_connected(&ports, &plan, &package.manifest.id)?;
 
     let lib_str = path_str(&lib_path)?;
     let bundle_str = path_str(&bundle_path)?;
     let sr = sample_rate as f64;
 
-    let processor = match (audio_in.len(), audio_out.len()) {
+    let processor = match (plan.audio_in.len(), plan.audio_out.len()) {
         (1, 1) | (1, 2) => build_mono_input(
             &lib_str,
             &plugin_uri,
             sr,
             &bundle_str,
-            &audio_in,
-            &audio_out,
-            &control_ports,
-            &atom_ports,
+            &plan,
             layout,
             &package.manifest.id,
         )?,
@@ -123,10 +183,7 @@ pub fn build_from_package(
             &plugin_uri,
             sr,
             &bundle_str,
-            &audio_in,
-            &audio_out,
-            &control_ports,
-            &atom_ports,
+            &plan,
             layout,
             &package.manifest.id,
         )?,
@@ -135,56 +192,49 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    // Issue #440: aplica `manifest.output_gain_pct` (baseline objetivo do
-    // audit) como wrapper linear pós-process. NAM faz isso via
+    // Issue #491: aplica `manifest.output_gain_db` (baseline objetivo do
+    // audit, em dB) como wrapper estático pós-process. NAM faz isso via
     // `plugin_params.output_level_db`; LV2 não tem level shift embutido,
-    // então um wrapper estático é o caminho mais simples.
-    Ok(wrap_with_output_gain_pct(
+    // então um wrapper estático é o caminho mais simples. Na prática os
+    // manifests LV2 não carregam o campo (calibração é só NAM), então é
+    // no-op — mantido por consistência de contrato.
+    Ok(wrap_with_output_gain_db(
         processor,
-        package.manifest.output_gain_pct,
+        package.manifest.output_gain_db,
     ))
 }
 
+// FFI builder: threads plugin location (lib/uri/sr/bundle) + the full
+// port plan + chain layout into the processor. Bundling these into a
+// struct would not reduce real coupling — kept flat like the rest of
+// this file's builders.
 #[allow(clippy::too_many_arguments)]
 fn build_mono_input(
     lib_path: &str,
     uri: &str,
     sample_rate: f64,
     bundle_path: &str,
-    audio_in: &[usize],
-    audio_out: &[usize],
-    control_ports: &[(usize, f32)],
-    atom_ports: &[usize],
+    plan: &PortPlan,
     layout: AudioChannelLayout,
     plugin_id: &str,
 ) -> Result<BlockProcessor> {
     // Lv2Processor implements MonoProcessor (single sample in, single
     // sample out). Wrap into the requested layout — for stereo we
     // duplicate the processor across L/R (DualMono) so a 1-out plugin
-    // also satisfies stereo chains.
+    // also satisfies stereo chains. `build_lv2_processor_full` connects
+    // atom + output-control ports; empty slices reduce to the plain case.
     let make = || -> Result<crate::Lv2Processor> {
-        if atom_ports.is_empty() {
-            build_lv2_processor(
-                lib_path,
-                uri,
-                sample_rate,
-                bundle_path,
-                audio_in,
-                audio_out,
-                control_ports,
-            )
-        } else {
-            build_lv2_processor_with_atoms(
-                lib_path,
-                uri,
-                sample_rate,
-                bundle_path,
-                audio_in,
-                audio_out,
-                control_ports,
-                atom_ports,
-            )
-        }
+        build_lv2_processor_full(
+            lib_path,
+            uri,
+            sample_rate,
+            bundle_path,
+            &plan.audio_in,
+            &plan.audio_out,
+            &plan.control,
+            &plan.atom,
+            &plan.extra_out,
+        )
     };
     let _ = plugin_id;
     match layout {
@@ -200,42 +250,28 @@ fn build_mono_input(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // see build_mono_input
 fn build_stereo_input(
     lib_path: &str,
     uri: &str,
     sample_rate: f64,
     bundle_path: &str,
-    audio_in: &[usize],
-    audio_out: &[usize],
-    control_ports: &[(usize, f32)],
-    atom_ports: &[usize],
+    plan: &PortPlan,
     layout: AudioChannelLayout,
     plugin_id: &str,
 ) -> Result<BlockProcessor> {
     let make = || -> Result<crate::StereoLv2Processor> {
-        if atom_ports.is_empty() {
-            build_stereo_lv2_processor(
-                lib_path,
-                uri,
-                sample_rate,
-                bundle_path,
-                audio_in,
-                audio_out,
-                control_ports,
-            )
-        } else {
-            build_stereo_lv2_processor_with_atoms(
-                lib_path,
-                uri,
-                sample_rate,
-                bundle_path,
-                audio_in,
-                audio_out,
-                control_ports,
-                atom_ports,
-            )
-        }
+        build_stereo_lv2_processor_full(
+            lib_path,
+            uri,
+            sample_rate,
+            bundle_path,
+            &plan.audio_in,
+            &plan.audio_out,
+            &plan.control,
+            &plan.atom,
+            &plan.extra_out,
+        )
     };
     let _ = plugin_id;
     match layout {
@@ -324,3 +360,7 @@ pub fn register_builder() {
         build_from_package,
     );
 }
+
+#[cfg(test)]
+#[path = "from_package_tests.rs"]
+mod tests;

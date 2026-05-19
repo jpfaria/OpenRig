@@ -113,6 +113,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match save_chain_blocks_to_preset(&chain_clone, &path) {
                 Ok(()) => {
+                    // #436 F: salvar preset é negócio → Command no
+                    // dispatcher compartilhado (MCP/MIDI, observável via
+                    // Event::ChainPresetSaved). O write do arquivo acima
+                    // é adapter-side (precedente SaveProject).
+                    if let Err(e) = session.dispatcher.dispatch(Command::SaveChainPreset {
+                        name: default_name.clone(),
+                    }) {
+                        log::warn!("[preset] Command::SaveChainPreset falhou: {e}");
+                    }
                     set_status_info(&window, &toast_timer, &rust_i18n::t!("status-preset-saved"))
                 }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
@@ -122,12 +131,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         let preset_file_list = preset_file_list.clone();
         window.on_configure_chain_preset(move |index| {
@@ -143,126 +146,38 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 );
                 return;
             };
-            if window.get_touch_optimized() {
-                // Kiosk: scan presets dir and show in-app picker
-                let mut files: Vec<PathBuf> = Vec::new();
-                let mut names: Vec<SharedString> = Vec::new();
-                if let Ok(entries) = std::fs::read_dir(&session.presets_path) {
-                    let mut sorted: Vec<_> = entries
-                        .filter_map(|e| e.ok())
-                        .filter(|e| {
-                            e.path()
-                                .extension()
-                                .map(|x| x == "yaml" || x == "yml")
-                                .unwrap_or(false)
-                        })
-                        .collect();
-                    sorted.sort_by_key(|e| e.file_name());
-                    for entry in sorted {
-                        let path = entry.path();
-                        let name = path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("")
-                            .replace('_', " ");
-                        names.push(name.into());
-                        files.push(path);
-                    }
+            // Always show the in-app preset picker (desktop + touch) so
+            // the bundled presets are visible. Desktop previously used a
+            // native FileDialog with no list — selection now flows
+            // through on_preset_picker_confirm for both modes (#479).
+            let mut files: Vec<PathBuf> = Vec::new();
+            let mut names: Vec<SharedString> = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&session.presets_path) {
+                let mut sorted: Vec<_> = entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| {
+                        e.path()
+                            .extension()
+                            .map(|x| x == "yaml" || x == "yml")
+                            .unwrap_or(false)
+                    })
+                    .collect();
+                sorted.sort_by_key(|e| e.file_name());
+                for entry in sorted {
+                    let path = entry.path();
+                    let name = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .replace('_', " ");
+                    names.push(name.into());
+                    files.push(path);
                 }
-                *preset_file_list.borrow_mut() = files;
-                window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
-                window.set_preset_picker_chain_index(index);
-                window.set_show_preset_picker(true);
-                return;
             }
-            // Desktop: use file dialog
-            let Some(path) = FileDialog::new()
-                .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title(rust_i18n::t!("dialog-load-preset").as_ref())
-                .set_directory(&session.presets_path)
-                .pick_file()
-            else {
-                return;
-            };
-            match load_preset_file(&path) {
-                Ok(preset) => {
-                    // Build new block list: keep I/O blocks from current chain,
-                    // replace non-I/O with preset blocks. Assign new IDs.
-                    let dispatch_result = {
-                        let proj = session.project.borrow();
-                        if let Some(chain) = proj.chains.get(index as usize) {
-                            let chain_id = chain.id.clone();
-                            let first_input = chain
-                                .blocks
-                                .iter()
-                                .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
-                                .cloned();
-                            let last_output = chain
-                                .blocks
-                                .iter()
-                                .rev()
-                                .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
-                                .cloned();
-                            let mut new_blocks: Vec<AudioBlock> = Vec::new();
-                            if let Some(input) = first_input {
-                                new_blocks.push(input);
-                            }
-                            new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                                !matches!(
-                                    b.kind,
-                                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                                )
-                            }));
-                            if let Some(output) = last_output {
-                                new_blocks.push(output);
-                            }
-                            // Assign fresh IDs via a temporary chain struct.
-                            let mut tmp_chain = Chain {
-                                id: chain_id.clone(),
-                                description: None,
-                                instrument: String::new(),
-                                enabled: false,
-                                volume: 100.0,
-                                blocks: new_blocks,
-                            };
-                            assign_new_block_ids(&mut tmp_chain);
-                            Some((chain_id, tmp_chain.blocks))
-                        } else {
-                            None
-                        }
-                    };
-                    if let Some((chain_id, preset_blocks)) = dispatch_result {
-                        if let Err(error) = session.dispatcher.dispatch(Command::LoadChainPreset {
-                            chain: chain_id.clone(),
-                            preset_blocks,
-                        }) {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                        if let Err(error) =
-                            sync_live_chain_runtime(&project_runtime, session, &chain_id)
-                        {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                        replace_project_chains(
-                            &project_chains,
-                            &*session.project.borrow(),
-                            &input_chain_devices.borrow(),
-                            &output_chain_devices.borrow(),
-                        );
-                        sync_project_dirty(
-                            &window,
-                            session,
-                            &saved_project_snapshot,
-                            &project_dirty,
-                            auto_save,
-                        );
-                        clear_status(&window, &toast_timer);
-                    }
-                }
-                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
-            }
+            *preset_file_list.borrow_mut() = files;
+            window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
+            window.set_preset_picker_chain_index(index);
+            window.set_show_preset_picker(true);
         });
     }
     {
@@ -385,6 +300,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let weak_window = window.as_weak();
         let preset_file_list = preset_file_list.clone();
         let toast_timer = toast_timer.clone();
+        let project_session = project_session.clone();
         window.on_preset_picker_delete(move |preset_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -395,6 +311,23 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             match std::fs::remove_file(&path) {
                 Ok(()) => {
+                    // #436 F: apagar preset é negócio → Command no
+                    // dispatcher compartilhado (MCP/MIDI, observável via
+                    // Event::ChainPresetDeleted). O remove_file acima é
+                    // adapter-side (precedente SaveProject).
+                    let name = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    if let Some(session) = project_session.borrow().as_ref() {
+                        if let Err(e) = session
+                            .dispatcher
+                            .dispatch(Command::DeleteChainPreset { name })
+                        {
+                            log::warn!("[preset] Command::DeleteChainPreset falhou: {e}");
+                        }
+                    }
                     files.remove(preset_index as usize);
                     let names: Vec<SharedString> = files
                         .iter()

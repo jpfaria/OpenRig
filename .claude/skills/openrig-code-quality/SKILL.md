@@ -75,6 +75,52 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 ---
 
+## LEI — tela/string nova exige atualizar TODOS os catálogos de tradução
+
+**Toda string visível ao usuário passa por i18n. Adicionou/criou tela, componente, dialog, overlay, label, botão com `@tr("chave")` (Slint) ou `t!("chave")` (Rust)? No MESMO commit:**
+
+1. Adicionar a `chave` ao `crates/adapter-gui/translations/adapter-gui.pot`.
+2. Adicionar `msgid "chave"` + `msgstr "..."` traduzido em **TODOS** os locales: `crates/adapter-gui/translations/<locale>/LC_MESSAGES/adapter-gui.po` (de_DE, en_US, es_ES, fr_FR, hi_IN, ja_JP, ko_KR, pt_BR, zh_CN — confirmar a lista com `ls translations/`).
+3. Recompilar os `.mo` (o `build.rs` gera de `.po`; rodar o build/`validate.sh` confirma).
+4. **Nunca** deixar `msgstr ""` numa chave nova — `.mo` vazio = a UI mostra a **tag crua** (`btn-load-preset` em vez de "Carregar preset"). Foi exatamente o bug do overlay de presets (#479): chave nova sem catálogo → tela "só com as tags".
+
+**Por que:** sem isso a tela sai com as chaves cruas pra todo usuário não-inglês (ou todos). Não dá pra "traduzir depois" — vai pra produção quebrado. Validação: `grep -L 'msgid "chave"' translations/*/LC_MESSAGES/adapter-gui.po` deve ser vazio.
+
+**Anti-padrão:** `@tr("nova-chave")` num componente novo sem tocar nenhum `.po`. **Padrão:** mesmo commit = componente + `.pot` + todos os `.po` + `.mo` regenerados.
+
+---
+
+## LEI — toda funcionalidade nova é um `Command` (paridade GUI/MCP/gRPC)
+
+**Nenhuma operação que muda estado vive só num frontend.** O `Command` enum em `crates/application/src/command.rs` é a **única fonte de verdade** do "que o app sabe fazer". Toda funcionalidade nova que muta `Project`/sessão:
+
+1. **Nasce como variante de `Command`** + (se observável) variante de `Event`, com handler no `LocalDispatcher`. Nunca como `borrow_mut()` direto dentro de um callback de frontend.
+2. **GUI** dispara via `dispatcher.dispatch(cmd)` e reage aos `Event` — nunca muta `Project` direto.
+3. **MCP** (`adapter-mcp`) ganha a tool **automaticamente** (schema auto-derivado de `Command` via `application::command_schema`). Não há passo manual — mas o teste de paridade (`tool count == command_variant_names().len()`) **tem** que continuar verde.
+4. **gRPC** (`adapter-server`, quando existir): mesma variante, idem.
+
+Funcionalidade que existe num frontend mas **não** é `Command` = **gap do command bus**, não "feature do frontend". Fechar o gap adicionando a variante (ex.: `SetLanguage` foi exatamente isso — idioma era derivado de env, nunca settável; #165 fechou). Consistente com #295 ("um `Command` por operação de usuário") e com `[[feedback_backend_transport_agnostic]]`.
+
+**Why:** o core vai virar gRPC + MCP + remoto. Se a operação só existe na GUI, o agente (MCP) e o cliente remoto (gRPC) ficam cegos pra ela — a "mão do agente" não alcança o que a "mão do usuário" alcança. Paridade não é opcional; é o contrato da arquitetura de adapters.
+
+**How to apply:** antes de escrever qualquer fluxo que muda estado — "isso é um `Command`?". Não? Cria a variante primeiro (TDD: teste no `local_dispatcher_tests.rs`), depois liga o frontend. Auditoria de paridade ao adicionar feature: `command_variant_names()` cobre toda operação de usuário? Gap → variante nova, no mesmo PR.
+
+**Anti-padrão:**
+```
+❌ on_troca_idioma => { session.project.borrow_mut().language = tag; }
+   // WRONG: muta direto no callback. MCP/gRPC nunca verão "trocar idioma".
+
+❌ "essa feature é só da GUI, não precisa de Command"
+   // WRONG: toda operação de estado é Command. Sem exceção de frontend.
+```
+**Padrão:**
+```
+✅ Command::SetLanguage { tag } + Event::LanguageChanged + handler no LocalDispatcher
+   → GUI dispatch(cmd); MCP tool auto; gRPC variante idem.
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
@@ -115,23 +161,26 @@ Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabi
 Ordem obrigatória antes de abrir PR:
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
-2. **`cargo test --workspace --lib`** verde no solver.
-3. **`git push` da branch** (sem PR ainda).
-4. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
-5. **`./scripts/qa.sh`** rodar e ficar verde.
-6. **Só ENTÃO** `gh pr create`.
+2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
+3. **`cargo test --workspace --lib`** verde no solver (após o clean, se houve).
+4. **`git push` da branch** (sem PR ainda).
+5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
+6. **Quality gate compartilhado** rodar e ficar verde.
+7. **Só ENTÃO** `gh pr create`.
 
 Não inverter:
 - PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.
-- PR antes do qa.sh = CI falha e abre sticky comment no PR.
-- qa.sh antes do push = bloqueia o usuário de testar enquanto roda (qa.sh demora ~25min).
+- PR antes do gate = CI falha e abre sticky comment no PR.
+- Gate antes do push = bloqueia o usuário de testar enquanto roda (gate demora ~25min).
 
-## Quality Gate — comparativo único (issues #404 / #410)
+## Quality Gate — compartilhado `xgodev/quality-gate` (issue #482)
 
-`scripts/qa.sh` é o **único** gate, igual local e em CI. Roda no passo 5 acima:
+Gate **único**, mantido fora do repo, igual local e em CI. Roda no passo 5 acima (ou via skill `claude-plugin:quality-gate`):
 
 ```bash
-./scripts/qa.sh
+git -C ~/.quality-gate pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+~/.quality-gate/qg --base origin/develop
 ```
 
 Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma piorou:
@@ -139,13 +188,13 @@ Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma p
 | # | Métrica | Falha se |
 |---|---|---|
 | 1 | fmt errors | PR > base |
-| 2 | clippy errors (`-D warnings`) | PR > base |
+| 2 | lint errors (`-D warnings`) | PR > base |
 | 3 | build errors | PR > base |
 | 4 | test failures | PR > base |
 | 5 | complexity violations | PR > base |
-| 6 | coverage % | PR < base − `QA_COV_MARGIN` (1.0pp) |
+| 6 | coverage % | PR < base − `QG_COV_MARGIN` (1.0pp) |
 
-Local extrai baseline em `/tmp/qa-baseline` automaticamente; CI passa `QA_BASELINE_DIR=baseline`. Detalhes em `docs/development/quality-gate.md`.
+CI clona o gate no job e passa `--baseline-dir baseline/ --force-full`. O gate **ignora** o `clippy.toml` do projeto (tamper-resistance). Detalhes em `docs/development/quality-gate.md`.
 
 **Regra desta skill:** o gate cuida da regressão de métrica mecânica. Esta skill foca no que o gate não consegue medir — invariantes de áudio, decisões de arquitetura, qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns.
 
@@ -421,6 +470,37 @@ O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc p
 - Diagnóstico técnico longo → vai pra issue/skill, **não** pro chat.
 - No chat: **o problema em 1 frase**, **a decisão em 1 frase**. Tabelas/inventários só se o usuário pedir.
 - Se o caso do usuário NÃO depende do detalhe técnico, diga isso primeiro e siga — não despeje a análise inteira.
+
+## LEI — RED-FIRST OBRIGATÓRIO. Proibido implementar sem teste que falha antes
+
+**NUNCA** escrever/alterar código de produção sem um teste que **falhou primeiro**. Teste escrito depois da implementação (que passa de imediato) é **proibido** — não prova nada, "vicia" a suíte. Se você não viu o teste falhar, você não sabe se ele testa a coisa certa.
+
+**Fluxo de bug (único sancionado) — ORDEM ESTRITA:**
+1. **Entrevistar o usuário** — cenário exato, dados, passos, esperado vs obtido. Não adivinhar.
+2. **Escrever um teste que reproduz o bug** no caminho mais real possível (o que o app executa). **SEM ler o código procurando a causa antes disso.**
+3. **Rodar e VER FALHAR.** Mostrar a falha ao usuário (RED real). Se passa, não captura o bug — refazer até pegar, OU dizer honestamente que não é bug de lógica (ex.: render Slint não é unit-testável) e **parar**.
+4. **SÓ DEPOIS do RED**, investigar a causa — guiado pelo teste que falhou — e corrigir até GREEN.
+5. Suíte cheia + invariantes de áudio.
+
+**NÃO investigue o código pra achar a causa antes do teste existir e falhar.** Ler o código primeiro gera hipótese enviesada apresentada como "causa"; a causa só é válida quando o teste vermelho a demonstra. Hipótese de leitura ≠ causa. A investigação de código acontece **no passo 4**, dirigida pelo RED — nunca antes do passo 3.
+
+**Proibido:** investigar/ler código pra "achar a causa" antes do teste falhar; implementar e depois "cobrir com teste"; tentativa-e-erro usando o usuário como QA; teste que passa de primeira apresentado como prova; prosseguir pro fix antes do RED visível (com gate explícito do usuário, **parar e aguardar**).
+
+**Provar que um teste é real:** reverter SÓ a produção pro estado pré-fix (mantendo os testes), rodar → tem que dar RED. Restaurar depois (nada se perde, está commitado).
+
+**Caso real (2026-05-18, #436):** (a) entreguei fixes com testes escritos DEPOIS (passavam de imediato) — usuário: "testes viciados", "vc só escreve teste que passa"; reverter produção pro baseline `dc7f3b73` provou o RED. (b) Num bug seguinte, anunciei a causa lendo o código ANTES de escrever o teste — usuário: "eu não quero que vc ache a causa olhando o código. escreve o teste e DEPOIS ache a causa". Lição: red-first não é opção, e investigar código antes do teste falhar também é proibido.
+
+## LEI — GUI sem regra de negócio. Estado → Command. SIMPLES.
+
+Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
+
+- **Abrir/fechar tela/janela = regra de TELA.** Pode ficar na GUI.
+- **TODA ação que ALTERA ESTADO** (modelo, rig, projeto, config, persistência, runtime) **= regra de NEGÓCIO = obrigatoriamente um `Command`** despachado pro dispatcher. A GUI só despacha e renderiza — zero lógica.
+- `Command` é **domínio-puro**: nunca importa tipo de UI/Slint/view. Pode expressar intenção por chave/enum de domínio.
+- **PROIBIDO** auditar isso com script Python (heurística regex erra e mascara o trabalho — decidido 2026-05-18). Análise é **item a item**, callback por callback, **documentada na issue** (#436) como checklist a atacar. A verdade é a lista revisada na issue, não um número de script.
+- Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
+
+**Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
 
 ---
 

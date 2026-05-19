@@ -100,12 +100,8 @@ pub enum Command {
     /// Unlike `AddBlock`, the caller is responsible for building the block
     /// (including its kind and parameters). The block's `id` is preserved
     /// as-is — the caller must supply a unique id within the chain.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     InsertPrebuiltBlock {
         chain: ChainId,
-        #[schemars(skip)]
         block: AudioBlock,
         position: usize,
     },
@@ -115,13 +111,9 @@ pub enum Command {
     /// The dispatcher locates the block by `block_id` and replaces it with
     /// the provided `replacement`. The replacement's `id` field is ignored —
     /// the original `block_id` is preserved on the stored block.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
     OverwriteBlock {
         chain: ChainId,
         block: BlockId,
-        #[schemars(skip)]
         replacement: AudioBlock,
     },
 
@@ -140,13 +132,10 @@ pub enum Command {
     ///
     /// The caller supplies the fully-resolved `send` and `return_` endpoints.
     /// The dispatcher locates the block and replaces its `InsertBlock` data.
-    #[schemars(skip)]
     SaveInsertBlock {
         chain: ChainId,
         block: BlockId,
-        #[schemars(skip)]
         send: InsertEndpoint,
-        #[schemars(skip)]
         return_: InsertEndpoint,
     },
 
@@ -157,40 +146,20 @@ pub enum Command {
     /// before dispatching. Use `chain_factory::build_default_chain` as the
     /// starting point.
     ///
-    /// **Note:** `Chain` does not currently implement `JsonSchema` (it lacks
-    /// the `schemars` dependency in the `project` crate). The schema field is
-    /// skipped here; MCP/gRPC adapters that need the schema will need to add
-    /// `schemars` to `project` in a later task.
-    #[schemars(skip)]
-    AddChain {
-        #[schemars(skip)]
-        chain: Chain,
-    },
+    AddChain { chain: Chain },
 
     /// Replace an existing chain's metadata and I/O configuration.
     ///
     /// The caller supplies the fully-updated chain (preserving the original
     /// `chain.id` so the dispatcher can locate and replace it).
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
-    ConfigureChain {
-        #[schemars(skip)]
-        chain: Chain,
-    },
+    ConfigureChain { chain: Chain },
 
     /// Validate and persist a chain draft (create or replace existing chain).
     ///
     /// The caller supplies the fully-constructed chain. The dispatcher uses
     /// `chain.id` to locate the existing entry and replace it in-place, or
     /// appends the chain when no existing entry with the same id is found.
-    ///
-    /// **Note:** Same `schemars` caveat as `AddChain`.
-    #[schemars(skip)]
-    SaveChain {
-        #[schemars(skip)]
-        chain: Chain,
-    },
+    SaveChain { chain: Chain },
 
     /// Remove a chain from the project.
     RemoveChain { chain: ChainId },
@@ -214,10 +183,8 @@ pub enum Command {
     /// head of the chain (inputs-first convention), and emits
     /// `ChainInputEndpointsSaved`. An empty `input_blocks` vec clears all
     /// inputs.
-    #[schemars(skip)]
     SaveChainInputEndpoints {
         chain: ChainId,
-        #[schemars(skip)]
         input_blocks: Vec<AudioBlock>,
     },
 
@@ -226,10 +193,8 @@ pub enum Command {
     /// Same pattern as `SaveChainInputEndpoints` but for the output side.
     /// The dispatcher removes all existing `OutputBlock` entries and appends
     /// the provided blocks at the tail of the chain.
-    #[schemars(skip)]
     SaveChainOutputEndpoints {
         chain: ChainId,
-        #[schemars(skip)]
         output_blocks: Vec<AudioBlock>,
     },
 
@@ -237,12 +202,9 @@ pub enum Command {
     /// (used in fullscreen I/O editor flow).
     ///
     /// The caller supplies both the updated `InputBlock` and `OutputBlock`.
-    #[schemars(skip)]
     SaveChainIo {
         chain: ChainId,
-        #[schemars(skip)]
         input_block: AudioBlock,
-        #[schemars(skip)]
         output_block: AudioBlock,
     },
 
@@ -252,10 +214,8 @@ pub enum Command {
     /// File I/O (YAML parsing) is done in the adapter before dispatching. The
     /// adapter passes the fully-parsed, I/O-stripped list of blocks. The
     /// dispatcher replaces `chain.blocks` and emits `ChainPresetLoaded`.
-    #[schemars(skip)]
     LoadChainPreset {
         chain: ChainId,
-        #[schemars(skip)]
         preset_blocks: Vec<project::block::AudioBlock>,
     },
 
@@ -272,9 +232,7 @@ pub enum Command {
     /// dispatching. The dispatcher replaces the shared project handle contents
     /// with the provided project and emits `ProjectLoaded { path }`.
     /// `path` is carried only for the event payload (not for I/O).
-    #[schemars(skip)]
     LoadProject {
-        #[schemars(skip)]
         project: project::project::Project,
         path: PathBuf,
     },
@@ -283,11 +241,7 @@ pub enum Command {
     ///
     /// The adapter constructs the new empty `Project` before dispatching. The
     /// dispatcher replaces the shared project handle and emits `ProjectCreated`.
-    #[schemars(skip)]
-    CreateProject {
-        #[schemars(skip)]
-        project: project::project::Project,
-    },
+    CreateProject { project: project::project::Project },
 
     // ── Chain volume ──────────────────────────────────────────────────────────
     /// Set the output volume of a chain (issue #440).
@@ -308,9 +262,111 @@ pub enum Command {
     /// The adapter collects the selected device rows and resolves them to
     /// `DeviceSettings` before dispatching. The dispatcher replaces the
     /// project's `device_settings` with the provided list.
-    #[schemars(skip)]
     SaveAudioSettings {
-        #[schemars(skip)]
         device_settings: Vec<project::device::DeviceSettings>,
     },
+
+    /// #436: per-chain rig navigation (preset/scene switch/add/remove).
+    /// The GUI used to mutate `RigProject` by hand in a wiring closure —
+    /// business logic in the UI. Now it dispatches this and the
+    /// dispatcher (which owns the rig) re-projects the synthetic chain.
+    /// `kind` carries the GUI's existing sentinel int (≥0 select, -1
+    /// add, -2 remove) so no new behaviour is introduced.
+    ApplyRigNav { chain: ChainId, kind: RigNavKind },
+
+    /// #436: rename the chain's ACTIVE rig preset (the human `name`
+    /// shown in the select). The UI just dispatches this; the
+    /// dispatcher (owning the rig) writes `RigPreset.name`.
+    RenameRigPreset { chain: ChainId, name: String },
+
+    /// #436: select a block on a chain (the cursor MIDI/MCP can move).
+    /// Was GUI-only state; now dispatcher-owned so it is reachable.
+    SelectChainBlock { chain: ChainId, block_index: usize },
+
+    /// #436: capture pending edits on the projected synthetic chains
+    /// back into the rig. The GUI save path used to call
+    /// `sync_synthetic_into_rig` by hand (model mutation in the UI);
+    /// it now dispatches this so the dispatcher owns the mutation.
+    CaptureRigEdits,
+
+    /// #436 F: set the UI language preference. Was GUI-only
+    /// (`FilesystemStorage::save_gui_language` + live i18n swap in a
+    /// wiring closure). Now a Command so MIDI/MCP can request it too.
+    /// Follows the `SaveProject` precedent: the adapter performs the
+    /// persistence + live swap; the dispatcher records the intent and
+    /// signals it via `Event::LanguageChanged`. `None` = system default.
+    SetLanguage { language: Option<String> },
+
+    /// #436 G: mute/unmute the audio output (tuner mute). Was GUI-only
+    /// (`rt.set_output_muted` in a wiring closure). Now a Command so
+    /// MIDI/MCP can request it too. `SaveProject` precedent: the adapter
+    /// applies it to the audio runtime; the dispatcher records the
+    /// intent and signals it via `Event::OutputMutedChanged`.
+    SetOutputMuted { muted: bool },
+
+    /// #436 F: remove an entry from the recent-projects list (persisted
+    /// app-config preference). Was GUI-only (`save_app_config` in a
+    /// wiring closure). Now a Command so MIDI/MCP can request it too.
+    /// `SaveProject` precedent: the adapter performs the persistence;
+    /// the dispatcher records the intent and signals it via
+    /// `Event::RecentProjectRemoved`.
+    RemoveRecentProject { index: usize },
+
+    /// #436 F: save the active chain as a named preset file. Was
+    /// GUI-only (direct file write in a wiring closure). `SaveProject`
+    /// precedent: the adapter writes the file; the dispatcher records
+    /// the intent and signals `Event::ChainPresetSaved`.
+    SaveChainPreset { name: String },
+
+    /// #436 F: delete a named chain preset file. Was GUI-only
+    /// (`std::fs::remove_file` in a wiring closure). `SaveProject`
+    /// precedent: the adapter removes the file; the dispatcher records
+    /// the intent and signals `Event::ChainPresetDeleted`.
+    DeleteChainPreset { name: String },
+
+    /// #436 H: power the Tuner analyzer on/off. Was GUI-only (build/
+    /// teardown of the analysis session + timer + runtime in a wiring
+    /// closure). `SaveProject` precedent: the adapter does the build/
+    /// teardown; the dispatcher records the intent and signals
+    /// `Event::TunerEnabledChanged`.
+    SetTunerEnabled { enabled: bool },
+
+    /// #436 H: power the Spectrum analyzer on/off. Same shape as
+    /// `SetTunerEnabled`; adapter does the build/teardown, dispatcher
+    /// signals `Event::SpectrumEnabledChanged`.
+    SetSpectrumEnabled { enabled: bool },
+
+    /// #436 E: close the current project (back to launcher). Was
+    /// GUI-only (stop runtime + drop session in a wiring closure).
+    /// `SaveProject` precedent: the adapter tears down the runtime/
+    /// session; the dispatcher records the intent and signals
+    /// `Event::ProjectClosed`.
+    CloseProject,
+
+    /// #436 (sweep): register/refresh a recent-projects entry. Was
+    /// GUI-only (`register_recent_project` + `save_app_config` in
+    /// open/save closures). `SaveProject` precedent: the adapter
+    /// persists app-config; the dispatcher records the intent and
+    /// signals `Event::RecentProjectRegistered`.
+    RegisterRecentProject { path: PathBuf, name: String },
+
+    /// #436 (sweep): mark a recent-projects entry invalid (failed open).
+    /// Same precedent; signals `Event::RecentProjectInvalidated`.
+    MarkRecentProjectInvalid { path: PathBuf, reason: String },
+}
+
+/// What [`Command::ApplyRigNav`] does to the chain's rig input.
+///
+/// `Preset`/`Scene` carry the GUI sentinel `i32`: `>= 0` selects that
+/// preset-position / scene number, `-1` adds, `-2` removes.
+///
+/// `StepPreset`/`StepScene` carry a relative delta (`+1` next, `-1`
+/// previous) and wrap — a footswitch has no absolute position, it just
+/// advances. The dispatcher resolves the delta against the live rig.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum RigNavKind {
+    Preset(i32),
+    Scene(i32),
+    StepPreset(i32),
+    StepScene(i32),
 }

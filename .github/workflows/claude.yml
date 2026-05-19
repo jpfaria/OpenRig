@@ -47,7 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(cargo llvm-cov*),Bash(rustfmt*),Bash(./scripts/qa.sh*),Bash(bash scripts/qa.sh*),Bash(gh run watch*),Bash(gh run view*),Bash(gh pr view*),Bash(gh pr comment*),Bash(gh pr checks*)"
+          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(cargo llvm-cov*),Bash(rustfmt*),Bash(git clone*xgodev/quality-gate*),Bash(git -C*quality-gate*),Bash(~/.quality-gate/qg*),Bash(*/.quality-gate/qg*),Bash(./scripts/validate.sh*),Bash(gh run watch*),Bash(gh run view*),Bash(gh pr view*),Bash(gh pr comment*),Bash(gh pr checks*)"
           base_branch: "develop"
           claude_args: "--max-turns 200"
           additional_system_prompt: |
@@ -72,16 +72,24 @@ jobs:
             The feature branch work must adapt to develop, never the other way around.
 
             QUALITY GATE — MANDATORY BEFORE PUSH AND ON CI:
-            All PRs to `develop` must pass `scripts/qa.sh` — a single
-            comparative gate that runs identically locally and in CI
-            (.github/workflows/pr.yml). It compares 6 metrics (fmt, clippy,
+            All PRs to `develop` must pass the SHARED gate
+            `github.com/xgodev/quality-gate` — a single comparative gate
+            that runs identically locally and in CI
+            (.github/workflows/pr.yml). It compares 6 metrics (fmt, lint,
             build, test, complexity, coverage) of the PR against
             origin/develop and fails ONLY if some metric regressed.
-            Pre-existing debt never blocks the gate.
+            Pre-existing debt never blocks the gate. The gate IGNORES the
+            project's clippy.toml/rustfmt.toml (tamper-resistance) — you
+            cannot soften it by editing thresholds.
 
-            Before any `git push`:
-              ./scripts/qa.sh
-            If it fails, fix the issues and re-run until green. Do not push red code.
+            Before any `git push` (clone once, then keep it updated):
+              git -C ~/.quality-gate pull --ff-only \
+                || git clone --depth 1 \
+                     https://github.com/xgodev/quality-gate.git \
+                     ~/.quality-gate
+              ~/.quality-gate/qg --base origin/develop
+            If it fails, fix the ROOT CAUSE and re-run until green. Do not
+            push red code. NEVER set QG_BYPASS_REASON on your own.
 
             After every `git push`, monitor the PR Quality Gate workflow:
               gh pr checks <PR_NUMBER> --watch
@@ -91,9 +99,9 @@ jobs:
             If the gate fails on CI:
             1. Fetch the sticky failure comment (header `openrig-quality-gate`):
                  gh pr view <PR_NUMBER> --comments
-            2. Identify the failing step(s) from the comment + logs.
-            3. Fix the root cause (do NOT bump thresholds or skip steps).
-            4. Re-run `./scripts/qa.sh` locally until green.
+            2. Identify the regressed metric(s) from the comment + logs.
+            3. Fix the root cause (do NOT bypass or skip steps).
+            4. Re-run `~/.quality-gate/qg --base origin/develop` until green.
             5. Commit + push.
             6. Wait for CI again.
 

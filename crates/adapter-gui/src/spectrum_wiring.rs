@@ -8,6 +8,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
@@ -131,6 +133,19 @@ fn wire_power(
     let spectrum_window_weak = spectrum_window.as_weak();
 
     let on_toggle_enabled = move |enabled: bool| {
+        // #436 H: power do spectrum é negócio → Command no dispatcher
+        // compartilhado (MCP/MIDI, observável via
+        // Event::SpectrumEnabledChanged) quando há sessão. O build/
+        // teardown da sessão de análise + timer abaixo é adapter-side
+        // (precedente SaveProject).
+        if let Some(session) = project_session.borrow().as_ref() {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::SetSpectrumEnabled { enabled })
+            {
+                log::warn!("[spectrum] Command::SetSpectrumEnabled falhou: {e}");
+            }
+        }
         if enabled {
             let new_session = build_session(&project_session, &project_runtime);
             let rows = new_session

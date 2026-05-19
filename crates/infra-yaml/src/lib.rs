@@ -11,8 +11,13 @@ use std::path::{Path, PathBuf};
 
 mod block_yaml;
 mod chain_yaml;
+mod rig_yaml;
 use block_yaml::{load_audio_block_value, AudioBlockYaml};
 use chain_yaml::ChainYaml;
+pub use rig_yaml::{
+    load_project_any, load_rig_project_file, migrate_legacy_project_file, parse_rig_project,
+    save_rig_project_file, serialize_rig_project,
+};
 
 pub struct YamlProjectRepository {
     pub path: PathBuf,
@@ -34,7 +39,31 @@ pub fn load_chain_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
         .with_context(|| format!("failed to parse preset yaml {:?}", path))?;
+    if dto.version > project::rig::PRESET_FORMAT_VERSION {
+        anyhow::bail!(
+            "preset {:?} version {} is newer than this build supports (max {}); \
+             please upgrade OpenRig",
+            path,
+            dto.version,
+            project::rig::PRESET_FORMAT_VERSION
+        );
+    }
     dto.into_preset()
+}
+
+/// Load a legacy standalone preset file and convert it into a [`RigPreset`]
+/// (the missing "+ presets" half of #450). Returns the human name (falling
+/// back to the preset id) and the converted preset. Blocks and volume are
+/// preserved exact, so audio is identical to the legacy preset.
+pub fn load_legacy_preset_as_rig(path: &Path) -> Result<(String, project::rig::RigPreset)> {
+    let legacy = load_chain_preset_file(path)?;
+    let name = legacy
+        .name
+        .clone()
+        .filter(|n| !n.is_empty())
+        .unwrap_or_else(|| legacy.id.clone());
+    let rig = project::rig::RigPreset::from_legacy_blocks(legacy.blocks, legacy.volume);
+    Ok((name, rig))
 }
 
 pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result<()> {
@@ -124,6 +153,9 @@ impl ProjectYaml {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct PresetYaml {
+    /// Missing ⇒ a pre-version preset, whose shape *is* v1.
+    #[serde(default = "default_preset_doc_version")]
+    version: u32,
     id: String,
     #[serde(default)]
     name: Option<String>,
@@ -137,6 +169,10 @@ struct PresetYaml {
 
 fn default_preset_volume() -> f32 {
     100.0
+}
+
+fn default_preset_doc_version() -> u32 {
+    1
 }
 
 impl PresetYaml {
@@ -157,6 +193,7 @@ impl PresetYaml {
 
     fn from_chain_preset(preset: &ChainBlocksPreset) -> Result<Self> {
         Ok(Self {
+            version: project::rig::PRESET_FORMAT_VERSION,
             id: preset.id.clone(),
             name: preset.name.clone(),
             volume: preset.volume,
