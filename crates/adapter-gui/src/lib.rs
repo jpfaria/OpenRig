@@ -83,6 +83,7 @@ pub mod graph_view_model;
 mod helpers;
 mod io_groups;
 mod latency_probe;
+mod meter_wiring;
 mod midi_adapter_wiring;
 mod model_search;
 mod model_search_wiring;
