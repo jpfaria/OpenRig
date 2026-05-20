@@ -524,14 +524,20 @@ export component ChainRow inherits Rectangle {
                 x: 48px; y: 2px;
                 width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: #2a313a;
+                // Border turns bright red when clipping (> 0 dBFS) so the
+                // user spots overload at a glance, even if the bar itself
+                // is already maxed out.
+                border-color: root.chain.meter_in_dbfs > 0.0 ? #f87171 : #2a313a;
                 border-radius: 2px;
+                // Bar colours from low → loud (left → right):
+                // yellow (too quiet) → green (sweet spot) → red (clip).
                 background: @linear-gradient(90deg,
-                    #4ade8060 0%,
-                    #4ade80 6%,
-                    #4ade80 65%,
-                    #facc15 82%,
-                    #f87171 92%,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
                     #f87171 100%);
                 // Dark mask covers the RIGHT (un-lit) portion.
                 Rectangle {
@@ -552,11 +558,12 @@ export component ChainRow inherits Rectangle {
                     : Math.round(root.chain.meter_in_dbfs) + " dB";
                 font-size: 9px;
                 font-weight: 700;
+                // Numeric colour follows the bar zones: yellow (low) →
+                // green (sweet spot) → red (clip), grey when silent.
                 color: root.chain.meter_in_dbfs <= -119.0 ? #6b7280
-                     : root.chain.meter_in_dbfs > 0.0      ? #f87171
-                     : root.chain.meter_in_dbfs >= -6.0    ? #4ade80
-                     : root.chain.meter_in_dbfs >= -18.0   ? #facc15
-                     :                                       #fb923c;
+                     : root.chain.meter_in_dbfs > -3.0     ? #f87171
+                     : root.chain.meter_in_dbfs >= -30.0   ? #4ade80
+                     :                                       #facc15;
                 horizontal-alignment: left;
                 vertical-alignment: center;
             }
@@ -582,14 +589,20 @@ export component ChainRow inherits Rectangle {
                 x: 54px; y: 2px;
                 width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: #2a313a;
+                // Border turns bright red when clipping (> 0 dBFS) so the
+                // user spots overload at a glance, even if the bar itself
+                // is already maxed out.
+                border-color: root.chain.meter_out_dbfs > 0.0 ? #f87171 : #2a313a;
                 border-radius: 2px;
+                // Bar colours from low → loud (left → right):
+                // yellow (too quiet) → green (sweet spot) → red (clip).
                 background: @linear-gradient(90deg,
-                    #4ade8060 0%,
-                    #4ade80 6%,
-                    #4ade80 65%,
-                    #facc15 82%,
-                    #f87171 92%,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
                     #f87171 100%);
                 Rectangle {
                     x: parent.width * Math.max(0.0,
@@ -610,10 +623,9 @@ export component ChainRow inherits Rectangle {
                 font-size: 9px;
                 font-weight: 700;
                 color: root.chain.meter_out_dbfs <= -119.0 ? #6b7280
-                     : root.chain.meter_out_dbfs > 0.0      ? #f87171
-                     : root.chain.meter_out_dbfs >= -6.0    ? #4ade80
-                     : root.chain.meter_out_dbfs >= -18.0   ? #facc15
-                     :                                        #fb923c;
+                     : root.chain.meter_out_dbfs > -3.0     ? #f87171
+                     : root.chain.meter_out_dbfs >= -30.0   ? #4ade80
+                     :                                        #facc15;
                 horizontal-alignment: left;
                 vertical-alignment: center;
             }
