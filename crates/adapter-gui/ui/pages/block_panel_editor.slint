@@ -228,30 +228,43 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // ── All parameters (distributed like table columns, when no knob overlays) ──
-        // When stream data is active (tuner etc.), push params to right side
+        // ── All parameters (grid, wraps into rows when many params, when no knob overlays) ──
+        // LV2 plugins ship arbitrary control-port counts (ZaMultiComp = 27,
+        // ZamGEQ31 = 30) — the original single-row HorizontalLayout forced
+        // the host window past 1800px wide and squashed each knob to ~64px,
+        // so the user perceived "no parameters" (issue #500). We now wrap
+        // into a fixed-column grid: `max-cols` per row, vertically stacked.
+        // When stream data is active (tuner etc.), push the grid to the
+        // right side and keep the single-row look (stream blocks are
+        // never the dense LV2 case).
         property <bool> has-stream: root.block-stream-data.stream-kind != ""
             && root.block-stream-data.stream-kind != "spectrum";
-        HorizontalLayout {
-            visible: root.block-knob-overlays.length == 0
-                && root.curve-editor-points.length == 0
-                && root.multi-slider-points.length == 0;
-            alignment: stretch;
-            padding-left: parent.has-stream ? parent.width - 220px : 60px;
-            padding-right: 8px;
-            x: 0;
-            y: parent.height * 0.54;
-            width: parent.width;
-            height: 90px;
+        property <bool> params-visible:
+            root.block-knob-overlays.length == 0
+            && root.curve-editor-points.length == 0
+            && root.multi-slider-points.length == 0;
+        property <int> param-count: root.block-parameter-items.length;
+        // Must match `secondary_windows_block.slint`'s `max-cols` — they
+        // jointly drive the window width and the grid columns.
+        property <int> max-cols: 12;
+        property <int> grid-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
+        property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
+        property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
+        property <length> grid-cell-w: grid-cols > 0 ? grid-area-w / grid-cols : 64px;
+        property <length> grid-base-y: parent.height * 0.54;
 
-            for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
-                param: param;
-                panel-text: root.panel-text;
-                update-number(p, v) => { root.update-block-parameter-number(p, v); }
-                select-option(p, i) => { root.select-block-parameter-option(p, i); }
-                pick-file(p) => { root.pick-block-parameter-file(p); }
-                update-bool(p, v) => { root.update-block-parameter-bool(p, v); }
-            }
+        for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
+            visible: parent.params-visible;
+            x: parent.grid-area-x + mod(pi, parent.grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(pi / parent.grid-cols) * 90px;
+            width: parent.grid-cell-w;
+            height: 90px;
+            param: param;
+            panel-text: root.panel-text;
+            update-number(p, v) => { root.update-block-parameter-number(p, v); }
+            select-option(p, i) => { root.select-block-parameter-option(p, i); }
+            pick-file(p) => { root.pick-block-parameter-file(p); }
+            update-bool(p, v) => { root.update-block-parameter-bool(p, v); }
         }
     }
 
