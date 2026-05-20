@@ -55,7 +55,7 @@ A base que torna a visão maior possível já roda em todas as plataformas deskt
 - **Quatro backends de áudio no mesmo grafo.** DSP nativo em Rust para utility, EQ, dynamics, modulation e reverb. NAM (Neural Amp Modeler) com capturas neurais de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff e mais 540+. Convolução por IR para cabinets e bodies acústicos. 100+ plugins LV2 já embutidos (Guitarix, MDA, TAP, ZAM, Dragonfly e outros). Qualquer bloco em uma chain pode vir de qualquer backend.
 - **Visualização em tempo real embutida.** Um afinador cromático e um analisador de espectro ao vivo entram na chain como qualquer outro bloco — veja o que você ouve.
 - **Controlável por IA (MCP).** Qualquer cliente MCP (Claude Desktop/Code, Cursor) dirige a rig *viva* pelo servidor MCP embutido do OpenRig — monta timbres, ajusta a chain, troca preset por conversa, com a GUI aberta. Veja **[Servidor MCP & plugin](docs/mcp.md)**.
-- **Formato de preset YAML aberto.** Presets são texto puro — diffáveis, compartilháveis por gist, scriptáveis. A skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) do Claude Code monta presets completos a partir de uma música, pesquisando o signal chain original em fontes públicas e escrevendo o YAML.
+- **Formato de preset YAML aberto.** Presets são texto puro — diffáveis, compartilháveis por gist, scriptáveis. A skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) do Claude Code monta timbres completos a partir de uma música, pesquisando o signal chain original em fontes públicas e dirigindo a rig viva via MCP.
 
 > 📚 **Procurando um amp, pedal ou cab específico?** O catálogo completo — todo modelo, todo parâmetro, toda variante de voicing, com strings canônicas de `MODEL_ID` para usar no preset YAML — está documentado em **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Comece pelo [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference), uma busca alfabética agrupada por tipo de bloco.
 
@@ -117,7 +117,7 @@ blocks:
   # ...EQ pós-amp, reverb, limiter, master volume
 ```
 
-Todo `model:` ID está registrado no [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuários do Claude Code, a skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) gera a chain completa só a partir de artista + música.
+Todo `model:` ID está registrado no [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuários do Claude Code, a skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) (em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta a chain completa na rig viva só a partir de artista + música, via MCP.
 
 ## Instalação
 
@@ -152,7 +152,7 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
 - [Audio Config](docs/audio-config.md) — I/O como blocos, ciclo de vida do JACK
 - [CLI & env vars](docs/cli.md) — argumentos e variáveis de ambiente do `openrig`
-- [Servidor MCP & plugin](docs/mcp.md) — controlar a rig pelo Claude/Cursor; instalar o plugin OpenRig
+- [Servidor MCP & plugin](docs/mcp.md) — controlar a rig pelo Claude/Cursor; instalar o plugin de [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)
 
 ### Para desenvolvedores
 
@@ -171,6 +171,21 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Idiomas (i18n)](docs/i18n.md) — framework de tradução da UI, adicionar um locale
 - [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — build da placa do pedalboard & deploy da imagem
 - [ADRs](docs/adr/0001-project-model.md) — registros de decisão de arquitetura ([roteamento de device](docs/adr/0002-device-routing-and-validation.md))
+
+## Controle por IA / MCP
+
+O OpenRig expõe um servidor [MCP](docs/mcp.md) opcional para que qualquer cliente AI compatível com MCP (Claude Code, Claude Desktop, Cursor) pilote a rig **viva**: monta timbres, ajusta a chain, troca preset — por conversa, com a GUI aberta.
+
+O plugin Claude Code de usuário final (manifesto + `.mcp.json` + skill `openrig-tone-builder`) vive em um repo dedicado: **[jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)**.
+
+```
+/plugin marketplace add jpfaria/OpenRig-claude
+/plugin install openrig@openrig
+```
+
+Em seguida, suba o OpenRig com o servidor ligado: `openrig --mcp`. Veja [`docs/mcp.md`](docs/mcp.md) para a superfície completa (tools, resources, prompts) e configuração manual do cliente.
+
+> `.claude/` neste repo guarda apenas skills de **desenvolvedor** (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`). A implementação do servidor MCP mora em [`crates/adapter-mcp/`](crates/adapter-mcp).
 
 ## Contribuindo
 
@@ -196,7 +211,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] **Bypass por bloco** — todo bloco pode ser ligado ou desligado ao vivo sem reconstruir a chain
 - [x] **Loaders de IR e NAM do usuário** — solta qualquer arquivo `.wav` de impulso ou captura `.nam` na chain em runtime
 - [x] **Formato de preset YAML aberto** — diffável, compartilhável por gist, scriptável; registry canônico de `MODEL_ID` documentado em [Blocks Reference](docs/user-guide/blocks-reference.md)
-- [x] **Construção de preset assistida por IA** — a skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) do Claude Code vem no repo e escreve presets completos a partir de uma música ou artista
+- [x] **Construção de timbre assistida por IA** — a skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) do Claude Code (entregue em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta timbres completos na rig viva a partir de uma música ou artista, via MCP
 
 ### Features de palco
 

@@ -34,7 +34,10 @@ follow-up.
 
 ## Install the OpenRig plugin (recommended)
 
-The repository **is** the Claude plugin. Root layout:
+The end-user Claude Code plugin lives in a dedicated repository:
+**[jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)**.
+
+Layout there:
 
 ```
 .claude-plugin/plugin.json        # plugin manifest
@@ -49,7 +52,7 @@ the `openrig-tone-builder` skill — no manual client config.
 ### Claude Code
 
 ```
-/plugin marketplace add jpfaria/OpenRig
+/plugin marketplace add jpfaria/OpenRig-claude
 /plugin install openrig@openrig
 ```
 
@@ -66,9 +69,10 @@ Settings → **Connectors** → Add custom connector → URL
 (The classic `command`-based config entry is stdio-only, which v1 does not
 use.)
 
-> `.claude/skills/` in the repo holds **developer** skills only
+> `.claude/skills/` in this repo holds **developer** skills only
 > (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`).
-> End-user skills live in the plugin (`skills/`).
+> End-user skills live in the
+> [OpenRig-claude](https://github.com/jpfaria/OpenRig-claude) plugin.
 
 ## Configure a client manually (without the plugin)
 

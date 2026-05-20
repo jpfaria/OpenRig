@@ -55,7 +55,7 @@ La base que hace posible la visión más grande ya corre en todas las plataforma
 - **Cuatro backends de audio en el mismo grafo.** DSP nativo en Rust para utility, EQ, dynamics, modulation y reverb. NAM (Neural Amp Modeler) con capturas neuronales de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff y 540+ más. Convolución por IR para cabinets y cuerpos acústicos. 100+ plugins LV2 ya incluidos (Guitarix, MDA, TAP, ZAM, Dragonfly y otros). Cualquier bloque en una cadena puede venir de cualquier backend.
 - **Visualización en tiempo real integrada.** Un afinador cromático y un analizador de espectro en vivo entran en la cadena como cualquier otro bloque — ve lo que oyes.
 - **Controlable por IA (MCP).** Cualquier cliente MCP (Claude Desktop/Code, Cursor) maneja la rig *viva* mediante el servidor MCP integrado de OpenRig — arma timbres, ajusta la cadena, cambia preset por conversación, con la GUI abierta. Ver **[Servidor MCP y plugin](docs/mcp.md)**.
-- **Formato de preset YAML abierto.** Los presets son texto plano — diffeables, compartibles por gist, scriptables. La skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) de Claude Code arma presets completos a partir del nombre de una canción, investigando la cadena de señal original en fuentes públicas y escribiendo el YAML.
+- **Formato de preset YAML abierto.** Los presets son texto plano — diffeables, compartibles por gist, scriptables. La skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) de Claude Code arma timbres completos a partir del nombre de una canción, investigando la cadena de señal original en fuentes públicas y manejando la rig viva vía MCP.
 
 > 📚 **¿Buscas un amp, pedal o cab concreto?** El catálogo completo — cada modelo, cada parámetro, cada variante de voicing, con strings canónicos de `MODEL_ID` para usar en preset YAML — está documentado en **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Empieza por el [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference), una búsqueda alfabética agrupada por tipo de bloque.
 
@@ -117,7 +117,7 @@ blocks:
   # ...EQ post-amp, reverb, limiter, master volume
 ```
 
-Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuarios de Claude Code, la skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) genera la cadena entera solo a partir de artista + canción.
+Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). Para usuarios de Claude Code, la skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) (en [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) arma la cadena entera sobre la rig viva solo a partir de artista + canción, vía MCP.
 
 ## Instalación
 
@@ -152,7 +152,7 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
 - [Audio Config](docs/audio-config.md) — I/O como bloques, ciclo de vida de JACK
 - [CLI & env vars](docs/cli.md) — argumentos y variables de entorno de `openrig`
-- [Servidor MCP y plugin](docs/mcp.md) — controlar la rig desde Claude/Cursor; instalar el plugin OpenRig
+- [Servidor MCP y plugin](docs/mcp.md) — controlar la rig desde Claude/Cursor; instalar el plugin desde [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)
 
 ### Para desarrolladores
 
@@ -171,6 +171,21 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Idiomas (i18n)](docs/i18n.md) — framework de traducción de la UI, añadir un locale
 - [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — build de la placa del pedalboard y deploy de la imagen
 - [ADRs](docs/adr/0001-project-model.md) — registros de decisión de arquitectura ([enrutamiento de device](docs/adr/0002-device-routing-and-validation.md))
+
+## Control por IA / MCP
+
+OpenRig expone un servidor [MCP](docs/mcp.md) opcional para que cualquier cliente AI compatible con MCP (Claude Code, Claude Desktop, Cursor) maneje la rig **viva**: arma timbres, ajusta la cadena, cambia presets — por conversación, con la GUI abierta.
+
+El plugin Claude Code de usuario final (manifiesto + `.mcp.json` + skill `openrig-tone-builder`) vive en un repo dedicado: **[jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)**.
+
+```
+/plugin marketplace add jpfaria/OpenRig-claude
+/plugin install openrig@openrig
+```
+
+Después, arranca OpenRig con el servidor encendido: `openrig --mcp`. Ver [`docs/mcp.md`](docs/mcp.md) para la superficie completa (tools, resources, prompts) y la configuración manual del cliente.
+
+> `.claude/` en este repo guarda solo skills de **desarrollador** (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`). La implementación del servidor MCP vive en [`crates/adapter-mcp/`](crates/adapter-mcp).
 
 ## Contribuir
 
@@ -196,7 +211,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] **Bypass por bloque** — cualquier bloque puede activarse o desactivarse en vivo sin reconstruir la cadena
 - [x] **Loaders de IR y NAM del usuario** — coloca cualquier `.wav` de respuesta al impulso o captura `.nam` en la cadena en runtime
 - [x] **Formato de preset YAML abierto** — diffeable, compartible por gist, scriptable; registry canónico de `MODEL_ID` documentado en [Blocks Reference](docs/user-guide/blocks-reference.md)
-- [x] **Construcción de preset asistida por IA** — la skill [`openrig-tone-builder`](skills/openrig-tone-builder/SKILL.md) de Claude Code va con el repo y escribe presets completos a partir de una canción o un artista
+- [x] **Construcción de timbre asistida por IA** — la skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) de Claude Code (entregada en [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) arma timbres completos sobre la rig viva a partir de una canción o un artista, vía MCP
 
 ### Features de escenario
 
