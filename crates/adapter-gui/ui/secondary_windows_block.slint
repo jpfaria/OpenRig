@@ -88,14 +88,16 @@ export component BlockEditorWindow inherits Window {
     // controls once the size was applied explicitly (#479) — the Linux
     // WM used to over-size the window and hid the shortfall. 820px
     // fits the model picker + parameter grid + drawer with margin.
-    // Extra rows of parameters (beyond the first) each add 90px — the
-    // BlockPanelParameterItem row height. Without this, wrapped rows
-    // would render below the window's bottom edge and be invisible.
+    // Extra rows of parameters (beyond the first) each add `row-stride`.
+    // Must match `block_panel_editor.slint`'s `grid-row-stride` — they
+    // jointly position rows and size the outer window. Stride > item
+    // height (90px) leaves visible breathing room between wrapped rows.
     // EQ blocks render via a dedicated widget (CurveEditor / MultiSlider)
     // instead of the parameter grid — `param-rows` would otherwise inflate
     // the window for an empty grid that is never shown.
+    private property <length> row-stride: 100px;
     private property <length> param-rows-extra-height:
-        (has-eq-widget || param-rows <= 1) ? 0px : (param-rows - 1) * 90px;
+        (has-eq-widget || param-rows <= 1) ? 0px : (param-rows - 1) * row-stride;
     out property <length> panel-height:
         root.use-panel-editor ? (eq-extra-height + param-rows-extra-height) : 820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
