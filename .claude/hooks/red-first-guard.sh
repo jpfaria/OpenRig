@@ -23,6 +23,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # What path/command is this tool touching?
 case "$tool" in
   Read)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+    Edit)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+    Write) target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
   Grep|Glob)
          target="$(printf '%s' "$input" | jq -r '(.tool_input.path // "") + " " + (.tool_input.glob // "") + " " + (.tool_input.pattern // "")')" ;;
   Bash)  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
