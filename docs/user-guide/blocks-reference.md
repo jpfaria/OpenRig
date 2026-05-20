@@ -530,6 +530,15 @@ If you find a model in the codebase that is **not** listed here, that is a doc b
 - **IR Loader**: `generic_ir` (single model, user-supplied IR file via `path:` parameter).
 - **NAM Loader**: `generic_nam` (single model, user-supplied NAM capture via `path:` parameter).
 
+NAM models carry an audit-measured loudness calibration so presets match a
+common reference level. The NAM signal path protects that loudness: a
+memoryless soft-clip keeps even a hot calibration from clipping the
+converter, and a downward-expander noise gate (default threshold
+-50 dBFS, overridable via `noise_gate.threshold_db`) collapses the
+amplified model noise floor on the decay without cutting played notes.
+Both are zero-latency and never alter a normally-played, well-calibrated
+signal.
+
 ---
 
 

@@ -26,11 +26,7 @@
 
 # Open every connected input port whose name matches this substring.
 # Leave it as is for an M-Vave Chocolate; change to match your device.
-# Note: in `midi-bindings.yaml` (the system fallback) this `input:` key
-# is ignored — the controller comes from `midi-profile.yaml`. The key is
-# kept here only so this file remains usable with `--midi=PATH` (legacy
-# direct-load) for testing.
-input: Chocolate
+input: FootCtrlPlus
 
 bindings:
   # ── Presets ───────────────────────────────────────────────────────

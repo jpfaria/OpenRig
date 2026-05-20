@@ -4,12 +4,14 @@
 //! Reference: Fant, G. (1960). "Acoustic Theory of Speech Production."
 //! Standard adult-male formant centres for the cardinal vowels:
 //!
+//! ```text
 //!         F1     F2     F3
 //!   A    730   1090   2440
 //!   E    530   1840   2480
 //!   I    270   2290   3010
 //!   O    570    840   2410
 //!   U    300    870   2240
+//! ```
 //!
 //! The vowel knob slides continuously between A→E→I→O→U with linear
 //! interpolation of all three formants — gives the classic
