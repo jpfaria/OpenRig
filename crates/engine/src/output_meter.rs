@@ -22,14 +22,16 @@ use crate::spsc::SpscRing;
 /// dBFS value reported when the rings produce no audible sample.
 pub const SILENT_DBFS: f32 = -120.0;
 
-/// Drain all currently-queued samples from the two channel rings of a
-/// stream tap, and return the peak (max |sample|) of this window as
-/// dBFS. Returns [`SILENT_DBFS`] when both rings are empty.
+/// Drain all currently-queued samples across all channel rings of a
+/// tap, and return the peak (max |sample|) of this window as dBFS.
+/// Returns [`SILENT_DBFS`] when every ring is empty.
 ///
-/// The caller is expected to invoke this periodically from a GUI
-/// timer (e.g. 30 Hz). Each invocation reports the peak observed
+/// Works for both [`crate::stream_tap::StreamTap`] (always 2 rings,
+/// L+R post-FX) and [`crate::input_tap::InputTap`] (N channels of raw
+/// input). The caller is expected to invoke this periodically from a
+/// GUI timer (e.g. 30 Hz). Each invocation reports the peak observed
 /// since the previous call.
-pub fn pop_peak_dbfs(rings: &[Arc<SpscRing<f32>>; 2]) -> f32 {
+pub fn pop_peak_dbfs(rings: &[Arc<SpscRing<f32>>]) -> f32 {
     let mut peak: f32 = 0.0;
     let mut saw_any = false;
     for ring in rings {

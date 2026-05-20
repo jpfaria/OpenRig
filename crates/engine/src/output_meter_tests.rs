@@ -97,3 +97,40 @@ fn very_quiet_sample_reports_correctly() {
     let expected = 20.0 * 0.001_f32.log10();
     assert!((v - expected).abs() < 0.05, "got {v}");
 }
+
+// ── N-channel variant (issue #496: same helper used for input_tap) ──
+
+#[test]
+fn accepts_a_single_channel_slice() {
+    let one: Vec<Arc<SpscRing<f32>>> = vec![Arc::new(SpscRing::<f32>::new(8, 0.0))];
+    one[0].push(0.5);
+    let v = pop_peak_dbfs(&one);
+    assert!((v - (-6.02)).abs() < 0.05, "got {v}");
+}
+
+#[test]
+fn accepts_three_channel_slice() {
+    let three: Vec<Arc<SpscRing<f32>>> = (0..3).map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0))).collect();
+    three[2].push(0.8);
+    let v = pop_peak_dbfs(&three);
+    let expected = 20.0 * 0.8_f32.log10();
+    assert!((v - expected).abs() < 0.05, "got {v}");
+}
+
+#[test]
+fn accepts_zero_channel_slice_silent() {
+    let none: Vec<Arc<SpscRing<f32>>> = Vec::new();
+    assert_eq!(pop_peak_dbfs(&none), SILENT_DBFS);
+}
+
+#[test]
+fn n_channel_peak_compares_across_all_channels() {
+    let four: Vec<Arc<SpscRing<f32>>> = (0..4).map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0))).collect();
+    four[0].push(0.2);
+    four[1].push(0.3);
+    four[2].push(0.9); // loudest
+    four[3].push(0.1);
+    let v = pop_peak_dbfs(&four);
+    let expected = 20.0 * 0.9_f32.log10();
+    assert!((v - expected).abs() < 0.05, "got {v}");
+}
