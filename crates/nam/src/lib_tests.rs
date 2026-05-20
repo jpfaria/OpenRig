@@ -108,7 +108,11 @@ fn plugin_parameter_specs_with_defaults_uses_custom_defaults() {
 fn default_plugin_params_has_expected_values() {
     assert_eq!(DEFAULT_PLUGIN_PARAMS.input_level_db, 0.0);
     assert_eq!(DEFAULT_PLUGIN_PARAMS.output_level_db, 0.0);
-    assert_eq!(DEFAULT_PLUGIN_PARAMS.noise_gate_threshold_db, -80.0);
+    // Issue #496: was -80 dB while the noise gate was parsed but never
+    // applied (a no-op). The gate is now wired (downward expander); the
+    // default is -50 dBFS so it collapses the amplified model-noise
+    // hiss on the decay without touching played notes.
+    assert_eq!(DEFAULT_PLUGIN_PARAMS.noise_gate_threshold_db, -50.0);
     assert!(DEFAULT_PLUGIN_PARAMS.noise_gate_enabled);
     assert!(DEFAULT_PLUGIN_PARAMS.eq_enabled);
     assert_eq!(DEFAULT_PLUGIN_PARAMS.bass, 5.0);

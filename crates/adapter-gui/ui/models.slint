@@ -55,6 +55,16 @@ export struct ProjectChainItem {
     /// Output volume da chain em percentual (issue #440). 100 = unity.
     /// Slider expõe range 0-200. Bind ao `Chain.volume` no Rust.
     volume: int,
+    /// Issue #496 / #32 / #36: per-chain peak-meter readings (dBFS).
+    /// Refreshed by the GUI timer polling `engine::output_meter`.
+    /// Value -120.0 = silent (no signal). > 0 = clipping (red).
+    /// Mapped to colour in `chain_row.slint`:
+    ///   >  0     → red
+    ///   -6..0   → green (sweet spot)
+    ///   -18..-6 → yellow
+    ///   < -18   → grey/orange (low)
+    meter_in_dbfs: float,
+    meter_out_dbfs: float,
     blocks: [ChainBlockItem],
 }
 

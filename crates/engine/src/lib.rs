@@ -16,3 +16,4 @@ pub mod runtime_segments;
 pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;
+pub mod output_meter;

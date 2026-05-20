@@ -342,6 +342,15 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
+    // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
+    // ~30 Hz timer that subscribes new chains' input + stream taps
+    // and writes peak dBFS into the matching ProjectChainItem rows.
+    crate::meter_wiring::start_meter_polling(
+        project_runtime.clone(),
+        project_chains.clone(),
+        project_session.clone(),
+    );
+
     // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
     crate::block_editor_window_wiring::wire(
         &window,
@@ -823,27 +832,21 @@ pub fn run_desktop_app(
     // Same complementary-input pattern as MCP; wiring extracted to keep this
     // file within the size cap. Bound for the whole `window.run()`.
     let _midi_drain_timer = match midi_map {
-        Some(arg) => {
-            let map_path = match arg {
-                crate::cli::MidiMapArg::Default => FilesystemStorage::midi_map_path()?,
-                crate::cli::MidiMapArg::Path(p) => p,
-            };
-            Some(crate::midi_adapter_wiring::wire(
-                window.as_weak(),
-                crate::chain_rig_nav_wiring::ChainRigNavCtx {
-                    project_session: project_session.clone(),
-                    project_chains: project_chains.clone(),
-                    project_runtime: project_runtime.clone(),
-                    input_chain_devices: input_chain_devices.clone(),
-                    output_chain_devices: output_chain_devices.clone(),
-                    toast_timer: toast_timer.clone(),
-                    saved_project_snapshot: saved_project_snapshot.clone(),
-                    project_dirty: project_dirty.clone(),
-                    auto_save,
-                },
-                map_path,
-            )?)
-        }
+        Some(arg) => Some(crate::midi_adapter_wiring::wire(
+            window.as_weak(),
+            crate::chain_rig_nav_wiring::ChainRigNavCtx {
+                project_session: project_session.clone(),
+                project_chains: project_chains.clone(),
+                project_runtime: project_runtime.clone(),
+                input_chain_devices: input_chain_devices.clone(),
+                output_chain_devices: output_chain_devices.clone(),
+                toast_timer: toast_timer.clone(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+                auto_save,
+            },
+            arg,
+        )?),
         None => None,
     };
 

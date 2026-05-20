@@ -35,6 +35,32 @@ export component BlockPanelEditor inherits Rectangle {
     in property <[string]> eq-band-curves;
     in property <string> block-drawer-confirm-label: @tr("btn-add");
     in property <BlockStreamData> block-stream-data;
+    // Knob-grid dimensions — driven by Rust (`block_panel_dimensions`).
+    // See secondary_windows_block.slint for the source of truth. Defaults
+    // are a safety net: if Rust pushes before first render (the happy
+    // path), they are overwritten; if the first paint races ahead, the
+    // fallback below recomputes from the model lengths so we never
+    // divide by zero or render NaN positions.
+    in property <length> panel-knob-inner-height: 225px;
+    in property <int> panel-grid-cols: 0;
+    in property <int> panel-grid-rows: 0;
+
+    // Fallback constants — keep in sync with
+    // `block_panel_dimensions::MAX_COLS` / `ROW_STRIDE_PX`. The Rust
+    // policy is the source of truth (gated by unit tests); the Slint
+    // formula below only fires when the Rust value has not been
+    // pushed yet.
+    private property <int> grid-max-cols-fallback: 6;
+    private property <int> knob-count-fallback:
+        root.block-knob-overlays.length > 0
+            ? root.block-knob-overlays.length
+            : root.block-parameter-items.length;
+    private property <int> effective-grid-cols:
+        root.panel-grid-cols > 0
+            ? root.panel-grid-cols
+            : (self.knob-count-fallback > 0
+                ? Math.min(self.knob-count-fallback, self.grid-max-cols-fallback)
+                : 1);
 
     callback choose-block-model(int);
     callback choose-block-model-by-id(string);
@@ -112,7 +138,17 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> brand-strip-height: 0px;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
+    // Panel-height is driven by the Rust knob-grid policy
+    // (`block_panel_dimensions`): the inner Rectangle grows past the
+    // amp-head 4:1 aspect so wrapped rows (knob overlays OR param
+    // items, the count source does not matter) stay inside it instead
+    // of being clipped by the footer / drawer below.
+    // `grid-row-stride` is the vertical step between wrapped rows;
+    // must match `block_panel_dimensions::ROW_STRIDE_PX`.
+    private property <length> grid-row-stride: 100px;
+    private property <length> base-panel-height: root.width / 4;
+    private property <length> panel-height:
+        self.has-eq-widget ? 76px : root.panel-knob-inner-height;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -188,75 +224,60 @@ export component BlockPanelEditor inherits Rectangle {
             model-font: root.model-font;
         }
 
-        // ── Knob overlays (distributed like table columns) ──
-        HorizontalLayout {
-            visible: root.block-knob-overlays.length > 0;
-            alignment: stretch;
-            padding-left: 60px;
-            padding-right: 8px;
-            x: 0;
-            y: parent.height * 0.54;
-            width: parent.width;
+        // ── Knob grid (overlays OR params, never both) ──
+        // The wrap policy is universal: knob_overlays (curated NAM /
+        // native layouts) and block_parameter_items (LV2-synthesized
+        // ControlIn ports) feed into the same grid with the same
+        // `panel-grid-cols` / `panel-grid-rows` chosen by Rust.
+        // When a stream is active (tuner etc.) the grid is pushed to
+        // the right edge and rendered as a single dense row.
+        property <bool> has-stream: root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
+        property <bool> show-overlays: root.block-knob-overlays.length > 0;
+        property <bool> show-params:
+            !self.show-overlays
+            && root.curve-editor-points.length == 0
+            && root.multi-slider-points.length == 0;
+        property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
+        property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
+        property <length> grid-cell-w:
+            root.effective-grid-cols > 0 ? self.grid-area-w / root.effective-grid-cols : 64px;
+        property <length> grid-base-y: root.base-panel-height * 0.54;
+
+        for knob[ki] in root.block-knob-overlays : Rectangle {
+            visible: parent.show-overlays;
+            x: parent.grid-area-x + mod(ki, root.effective-grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(ki / root.effective-grid-cols) * root.grid-row-stride;
+            width: parent.grid-cell-w;
             height: 90px;
 
-            for knob[ki] in root.block-knob-overlays : Rectangle {
-                horizontal-stretch: 1;
-                height: 90px;
-
-                Text {
-                    x: 0; y: 0; width: parent.width; height: 14px;
-                    text: knob.label;
-                    color: root.panel-text;
-                    font-family: "Bebas Neue";
-                    font-size: 10px;
-                    letter-spacing: 1.5px;
-                    horizontal-alignment: center;
-                    overflow: elide;
-                }
-
-                PanelKnob {
-                    x: (parent.width - 36px) / 2; y: 28px;
-                    width: 36px;
-                    height: 56px;
-                    value: knob.value;
-                    min-val: knob.min_val;
-                    max-val: knob.max_val;
-                    step: knob.step;
-                    path: knob.path;
-                    changed(p, v) => { root.update-block-parameter-number(p, v); }
-                }
+            Text {
+                x: 0; y: 0; width: parent.width; height: 14px;
+                text: knob.label;
+                color: root.panel-text;
+                font-family: "Bebas Neue";
+                font-size: 10px;
+                letter-spacing: 1.5px;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            PanelKnob {
+                x: (parent.width - 36px) / 2; y: 28px;
+                width: 36px;
+                height: 56px;
+                value: knob.value;
+                min-val: knob.min_val;
+                max-val: knob.max_val;
+                step: knob.step;
+                path: knob.path;
+                changed(p, v) => { root.update-block-parameter-number(p, v); }
             }
         }
 
-        // ── All parameters (grid, wraps into rows when many params, when no knob overlays) ──
-        // LV2 plugins ship arbitrary control-port counts (ZaMultiComp = 27,
-        // ZamGEQ31 = 30) — the original single-row HorizontalLayout forced
-        // the host window past 1800px wide and squashed each knob to ~64px,
-        // so the user perceived "no parameters" (issue #500). We now wrap
-        // into a fixed-column grid: `max-cols` per row, vertically stacked.
-        // When stream data is active (tuner etc.), push the grid to the
-        // right side and keep the single-row look (stream blocks are
-        // never the dense LV2 case).
-        property <bool> has-stream: root.block-stream-data.stream-kind != ""
-            && root.block-stream-data.stream-kind != "spectrum";
-        property <bool> params-visible:
-            root.block-knob-overlays.length == 0
-            && root.curve-editor-points.length == 0
-            && root.multi-slider-points.length == 0;
-        property <int> param-count: root.block-parameter-items.length;
-        // Must match `secondary_windows_block.slint`'s `max-cols` — they
-        // jointly drive the window width and the grid columns.
-        property <int> max-cols: 12;
-        property <int> grid-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
-        property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
-        property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
-        property <length> grid-cell-w: grid-cols > 0 ? grid-area-w / grid-cols : 64px;
-        property <length> grid-base-y: parent.height * 0.54;
-
         for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
-            visible: parent.params-visible;
-            x: parent.grid-area-x + mod(pi, parent.grid-cols) * parent.grid-cell-w;
-            y: parent.grid-base-y + Math.floor(pi / parent.grid-cols) * 90px;
+            visible: parent.show-params;
+            x: parent.grid-area-x + mod(pi, root.effective-grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(pi / root.effective-grid-cols) * root.grid-row-stride;
             width: parent.grid-cell-w;
             height: 90px;
             param: param;

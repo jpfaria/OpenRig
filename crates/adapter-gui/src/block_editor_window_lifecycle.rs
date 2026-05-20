@@ -52,6 +52,63 @@ use crate::{
     MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
 
+/// Compute the knob-grid window dimensions in Rust and push them into
+/// the Slint `BlockEditorWindow` via its `in` properties. Must be
+/// called whenever the knob source changes (initial editor setup OR
+/// model switch inside the editor). The pure policy lives in
+/// `block_panel_dimensions` and is gated by unit tests — Slint never
+/// re-derives the wrap math. Issue #500.
+pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
+    use slint::Model;
+    let overlay_count = win.get_block_knob_overlays().row_count();
+    let param_count = win.get_block_parameter_items().row_count();
+    // Slint hides the param grid when overlays are present
+    // (`block-knob-overlays.length == 0` gates `params-visible`), so
+    // the count that drives layout is whichever source actually renders.
+    let knob_count = if overlay_count > 0 {
+        overlay_count
+    } else {
+        param_count
+    };
+    let has_eq_widget = win.get_multi_slider_points().row_count() > 0
+        || win.get_curve_editor_points().row_count() > 0;
+    let type_idx = win.get_block_drawer_selected_type_index();
+    let types = win.get_block_type_options();
+    let use_panel_editor = if type_idx >= 0 {
+        types
+            .row_data(type_idx as usize)
+            .map(|t| t.use_panel_editor)
+            .unwrap_or(false)
+    } else {
+        // No selection yet — default to the panel editor so the window
+        // sizes for the upcoming knob grid instead of the form-editor
+        // fallback (which would briefly flash a 520x820 window).
+        true
+    };
+
+    let dims = crate::block_panel_dimensions::compute(
+        crate::block_panel_dimensions::PanelInputs {
+            knob_count,
+            use_panel_editor,
+            has_eq_widget,
+        },
+    );
+    win.set_panel_knob_window_width(dims.window_width_px);
+    win.set_panel_knob_window_height(dims.window_height_px);
+    win.set_panel_knob_inner_height(dims.inner_panel_height_px);
+    win.set_panel_grid_cols(dims.grid_cols as i32);
+    win.set_panel_grid_rows(dims.grid_rows as i32);
+
+    // Resize the OS window so the new dimensions take effect immediately
+    // — Linux WMs ignore Slint min/max/preferred-* without this (#479).
+    let pw = win.get_panel_width();
+    let ph = win.get_panel_height();
+    if pw.is_finite() && ph.is_finite() && pw > 0.0 && ph > 0.0 {
+        win.window()
+            .set_size(slint::WindowSize::Logical(slint::LogicalSize::new(pw, ph)));
+    }
+}
+
 pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub win_param_items: Rc<VecModel<BlockParameterItem>>,
@@ -167,6 +224,9 @@ pub(crate) fn wire(
                     .collect::<Vec<_>>(),
             );
             win.set_eq_total_curve(eq_total.into());
+            // Re-size the window for the new knob count / EQ state
+            // (issue #500: model switch inside the editor must resize).
+            apply_panel_dimensions(&win);
             drop(draft_borrow);
             if win_draft
                 .borrow()

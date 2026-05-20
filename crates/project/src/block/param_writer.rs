@@ -26,14 +26,16 @@ use super::types::{AudioBlock, AudioBlockKind};
 ///   Select).
 /// - If the path does not exist in the block's current `ParameterSet`.
 pub fn set_parameter_number(block: &mut AudioBlock, path: &str, value: f64) -> Result<()> {
+    // Issue #496: removed the `contains_key` guard. A NAM block saved
+    // before #496 (when `output_db` was filtered out of the schema)
+    // has no `output_db` entry in its ParameterSet — the old guard
+    // rejected the first attempt to set it, so the GUI knob kept
+    // reverting to default. The Command/dispatch layer already only
+    // emits paths drawn from the active schema (see
+    // `block_parameter_items_for_model`), so accepting an insert here
+    // is safe; rejection just enforced "must have been written before"
+    // which prevents introducing newly-exposed parameters.
     let params = params_mut(block)?;
-    if !params.values.contains_key(path) {
-        return Err(anyhow!(
-            "parameter '{}' not found in block '{}'",
-            path,
-            block.id.0
-        ));
-    }
     params.insert(path, ParameterValue::Float(value as f32));
     Ok(())
 }
@@ -231,18 +233,19 @@ mod tests {
     }
 
     #[test]
-    fn missing_path_returns_err_mentioning_path() {
+    fn missing_path_inserts_new_parameter() {
+        // Issue #496: the old contract rejected unknown paths to guard
+        // against typos, but it also blocked newly-exposed schema knobs
+        // (output_db) from being settable on pre-existing blocks. The
+        // dispatch layer only emits paths from the active schema, so
+        // accepting the insert is safe and the right user behavior.
         let mut block = make_core_block("gain", 0.5);
-        let err = set_parameter_number(&mut block, "no_such_param", 0.8)
-            .expect_err("should fail for unknown path");
-        assert!(
-            err.to_string().contains("no_such_param"),
-            "error must mention path, got: {err}"
-        );
-        // Original value unchanged
+        set_parameter_number(&mut block, "newly_exposed_knob", 0.8)
+            .expect("should insert a previously-absent parameter");
         let AudioBlockKind::Core(ref core) = block.kind else {
             panic!("expected CoreBlock");
         };
+        assert_eq!(core.params.get_f32("newly_exposed_knob"), Some(0.8_f32));
         assert_eq!(core.params.get_f32("gain"), Some(0.5_f32));
     }
 

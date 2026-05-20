@@ -7,6 +7,7 @@ edition.workspace = true
 anyhow.workspace = true
 log.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 schemars.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
@@ -29,3 +30,6 @@ block-wah = { path = "../block-wah" }
 block-pitch = { path = "../block-pitch" }
 vst3-host = { path = "../vst3" }
 nam = { path = "../nam" }
+
+[dev-dependencies]
+serde_yaml.workspace = true

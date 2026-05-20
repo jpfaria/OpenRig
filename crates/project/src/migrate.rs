@@ -131,7 +131,7 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
         inputs,
         outputs,
         presets,
-        chain_order: Vec::new(),
+        midi: None,
     }
 }
 

@@ -144,12 +144,12 @@ binaries:
         amp_names.contains(&"volume"),
         "NAM schema missing 'volume', got: {amp_names:?}"
     );
-    // 2 grid axes (gain/volume) + 7 NAM-standard plugin params
-    // (input_db/noise_gate.{enabled,threshold_db}/eq.{enabled,bass,middle,treble})
-    // restored by the disk-package synthesizer post-#287 migration. The
-    // 8th NAM-standard knob (output_db) is intentionally dropped — issue
-    // #402 moved per-NAM loudness compensation into manifest.output_gain_db.
-    assert_eq!(amp_schema.parameters.len(), 9);
+    // 2 grid axes (gain/volume) + 8 NAM-standard plugin params:
+    //   input_db, output_db, noise_gate.{enabled,threshold_db},
+    //   eq.{enabled,bass,middle,treble}
+    // The Output knob was restored in #496 (had been dropped by #402);
+    // see `nam_synthesized_schema_exposes_output_db_knob`.
+    assert_eq!(amp_schema.parameters.len(), 10);
 
     // ── IR: one text axis → one enum parameter ──
     let cab_schema = project::block::schema_for_block_model("cab", "ir_test_cab_e2e")

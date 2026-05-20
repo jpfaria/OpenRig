@@ -34,6 +34,10 @@ use plugin_loader::discover::LoadedPackage;
 
 const SR: f32 = 48_000.0;
 /// `output_gain_db` in the bundled `marshall_plexi/manifest.yaml`.
+/// A positive loudness-matching target (issue #491): a NAM amp must be
+/// much louder than the clean DI. The #496 detour that made this an
+/// attenuation ("tudo baixo") was reverted; clip safety is now a
+/// memoryless soft-clip in the NAM processor, not a quiet calibration.
 const PLEXI_CAL_DB: f32 = 8.931_892_4;
 
 fn fixtures_root() -> PathBuf {

@@ -141,7 +141,12 @@ pub struct NamPluginParams {
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
     output_level_db: 0.0,
-    noise_gate_threshold_db: -80.0,
+    // Issue #496: was -80 dB while the gate was unwired (a no-op). Now
+    // that the expander is applied, -50 dBFS sits above the amplified
+    // model noise floor (worst hot case ≈ -53 dBFS) yet ~45 dB below
+    // normal playing — it collapses the decay hiss without touching
+    // played notes. Overridable per-model via `noise_gate.threshold_db`.
+    noise_gate_threshold_db: -50.0,
     noise_gate_enabled: true,
     eq_enabled: true,
     audit_overrides_baked_output: false,
@@ -267,6 +272,28 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
 // `loudness_probe` module is kept around as the measurement engine
 // the tool uses; it does not drive gain at runtime.
 
+/// Memoryless output saturator (issue #496).
+///
+/// A loud loudness calibration must not be allowed to clip on the
+/// converter (harsh digital distortion) or amplify the model noise
+/// floor into a hard wall on the decay. This rounds only the peaks
+/// that would exceed full-scale: transparent below `THRESHOLD` (a
+/// normally-played, well-calibrated model never reaches it, so tone
+/// and loudness are untouched), then smoothly asymptotic to ±1.0 —
+/// musical saturation instead of a ±1.0 brickwall. Memoryless: zero
+/// latency, zero state, deterministic, safe on the audio thread.
+#[inline]
+fn soft_clip(x: f32) -> f32 {
+    const THRESHOLD: f32 = 0.8;
+    let a = x.abs();
+    if a <= THRESHOLD {
+        x
+    } else {
+        let over = a - THRESHOLD;
+        x.signum() * (THRESHOLD + (1.0 - THRESHOLD) * (over / ((1.0 - THRESHOLD) + over)))
+    }
+}
+
 // On Windows use raw-dylib so no .lib import library is required — the DLL is
 // found by name at runtime.  On other platforms the build script emits the
 // standard dylib link directive.
@@ -292,6 +319,26 @@ pub struct NamProcessor {
     output_gain: f32,
     scratch_input: Vec<f32>,
     scratch_output: Vec<f32>,
+    // Issue #496 chain audit: what the model itself recommends for
+    // capture-level staging. Kept so the per-stage audit can show
+    // whether the DI is actually fed at the level the capture was
+    // trained at (under/over-drive = wrong tone, no scalar fixes it).
+    recommended_input_db: f32,
+    recommended_output_db: f32,
+}
+
+/// Per-stage signal level (RMS dBFS) through the NAM chain — issue #496
+/// gain-staging audit. Pinpoints where loudness/weight is lost or where
+/// it clips, instead of guessing with the output scalar.
+#[derive(Debug, Clone, Copy)]
+pub struct StageLevels {
+    pub di_in: f32,
+    pub recommended_input_db: f32,
+    pub into_model: f32,
+    pub model_raw_out: f32,
+    pub recommended_output_db: f32,
+    pub after_output_gain: f32,
+    pub after_soft_clip: f32,
 }
 
 unsafe impl Send for NamProcessor {}
@@ -307,7 +354,12 @@ impl Drop for NamProcessor {
 }
 
 impl NamProcessor {
-    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
+    pub fn new(
+        model_path: &str,
+        _ir_path: Option<&str>,
+        params: NamPluginParams,
+        sample_rate: f32,
+    ) -> Result<Self> {
         // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
         #[cfg(not(target_os = "windows"))]
         let model = {
@@ -359,13 +411,45 @@ impl NamProcessor {
             params.audit_overrides_baked_output,
         );
 
+        let _ = sample_rate; // currently unused; staged for future per-SR DSP
+
         Ok(Self {
             model,
             input_gain,
             output_gain,
             scratch_input: Vec::new(),
             scratch_output: Vec::new(),
+            recommended_input_db,
+            recommended_output_db,
         })
+    }
+
+    /// Run a DI through the chain and report the RMS level (dBFS) at
+    /// every stage — issue #496 gain-staging audit. Use this to find
+    /// where level/weight is lost (e.g. `into_model` far below the
+    /// model's `recommended_input_db` ⇒ under-driven capture ⇒ thin
+    /// tone; no scalar after the model can recover that).
+    pub fn stage_levels(&mut self, di: &[f32]) -> StageLevels {
+        let rms = |s: &[f32]| {
+            20.0 * (s.iter().map(|v| v * v).sum::<f32>() / s.len().max(1) as f32)
+                .sqrt()
+                .max(1e-12)
+                .log10()
+        };
+        let into: Vec<f32> = di.iter().map(|s| s * self.input_gain).collect();
+        let mut raw = vec![0.0f32; di.len()];
+        unsafe { Process(self.model, into.as_ptr(), raw.as_mut_ptr(), di.len()) };
+        let after_og: Vec<f32> = raw.iter().map(|s| s * self.output_gain).collect();
+        let after_sc: Vec<f32> = after_og.iter().map(|s| soft_clip(*s)).collect();
+        StageLevels {
+            di_in: rms(di),
+            recommended_input_db: self.recommended_input_db,
+            into_model: rms(&into),
+            model_raw_out: rms(&raw),
+            recommended_output_db: self.recommended_output_db,
+            after_output_gain: rms(&after_og),
+            after_soft_clip: rms(&after_sc),
+        }
     }
 }
 
@@ -381,7 +465,7 @@ impl MonoProcessor for NamProcessor {
         unsafe {
             Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        output[0] * self.output_gain
+        soft_clip(output[0] * self.output_gain)
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -407,9 +491,15 @@ impl MonoProcessor for NamProcessor {
         }
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let elapsed = t0.elapsed();
-        // Apply output gain
+        // Apply output gain + memoryless clip safety. The noise gate
+        // experiment was reverted: a static expander cannot tell
+        // musical low-level content from amplified hiss, and on real
+        // guitar dynamics it strangles weight ("brinquedo"). Per #496
+        // measurements, sane calibration alone keeps decay < -60 dBFS
+        // — hiss is the audit's responsibility, not the engine's.
+        let output_gain = self.output_gain;
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
-            *dst = *src * self.output_gain;
+            *dst = soft_clip(*src * output_gain);
         }
 
         // Periodic diagnostic logging on aarch64 to investigate NAM audio quality

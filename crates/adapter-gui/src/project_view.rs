@@ -473,6 +473,10 @@ pub(crate) fn replace_project_chains(
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
                 latency_ms,
                 volume: chain.volume.round() as i32,
+                // Issue #496: meters default to SILENT until the GUI
+                // timer subscribes & polls (engine::output_meter).
+                meter_in_dbfs: engine::output_meter::SILENT_DBFS,
+                meter_out_dbfs: engine::output_meter::SILENT_DBFS,
                 blocks: {
                     let first_input_idx = chain
                         .blocks
