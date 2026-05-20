@@ -218,39 +218,46 @@ export component ChainTitlePreset inherits Rectangle {
     callback preset-picked(int);
     callback scene-picked(int);
 
-    // ── Non-rig chain: the plain clickable title (unchanged behaviour).
-    if !root.nav.has-rig : Rectangle {
-        Text {
-            width: parent.width;
-            height: parent.height;
-            text: root.title;
-            color: title-ta.has-hover ? #ffffff : #f1f4f8;
-            font-size: 14px;
-            font-weight: 600;
-            vertical-alignment: center;
-        }
-        title-ta := TouchArea {
-            mouse-cursor: root.fullscreen ? default : pointer;
-            clicked => {
-                if !root.fullscreen {
-                    root.open-compact();
+    // Issue #496: preset select + scene bar + "+" buttons are shown
+    // ALWAYS (rig or not). Without a rig, the select is empty and the
+    // "+" creates the rig + first preset on click; same for scenes.
+    HorizontalLayout {
+        spacing: Theme.spaces.small;
+        alignment: start;
+
+        // Title — still clickable to open the compact view.
+        Rectangle {
+            width: 220px;
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.title;
+                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            title-ta := TouchArea {
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact();
+                    }
                 }
             }
         }
-    }
 
-    // ── Rig chain: preset select + add button + dynamic scene bar.
-    if root.nav.has-rig : HorizontalLayout {
-        spacing: Theme.spaces.small;
-        alignment: start;
+        // Preset select — empty placeholder when no rig yet.
         PresetSelect {
-            width: 280px;
+            width: 220px;
             labels: root.nav.preset-labels;
             active-index: root.nav.active-preset-index;
             picked(i) => {
                 root.preset-picked(i);
             }
         }
+        // Always-visible "+ Add Preset". On a chain with no rig
+        // yet, clicking it creates the rig + first preset.
         VerticalLayout {
             alignment: center;
             IconButton {
@@ -261,8 +268,8 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
-        // Remove the active preset. Hidden when only one exists — a
-        // bank must keep at least one preset.
+        // Remove the active preset — only when there is more than one
+        // (a bank must keep at least one).
         if root.nav.preset-labels.length > 1 : VerticalLayout {
             alignment: center;
             IconButton {
@@ -273,6 +280,9 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
+
+        // Scene bar — also always visible. Scene-count == 0 ⇒ shows
+        // only the "+ add scene" affordance the bar itself renders.
         VerticalLayout {
             alignment: center;
             SceneBar {
@@ -283,6 +293,7 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
+
         Rectangle {
             horizontal-stretch: 1;
         }

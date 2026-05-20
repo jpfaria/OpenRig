@@ -578,13 +578,16 @@ fn elastic_buffer_push_pop_basic() {
 }
 
 #[test]
-fn elastic_buffer_underrun_repeats_last_frame() {
+fn elastic_buffer_underrun_returns_silence_not_last_frame() {
+    // Issue #496: was `..._repeats_last_frame` and pinned the
+    // "brief sustain on underrun" form, which measurably injected
+    // broadband noise (swarm-of-bees artefact) into every chain.
+    // The new contract is silence on underrun — standard DAW.
     let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
     buf.push(AudioFrame::Mono(0.42));
-    let _ = buf.pop(); // drain the one frame
-                       // Now empty — should repeat last frame, NOT silence
-    let repeated = buf.pop();
-    assert!(matches!(repeated, AudioFrame::Mono(v) if (v - 0.42).abs() < 1e-6));
+    let _ = buf.pop();
+    let next = buf.pop();
+    assert!(matches!(next, AudioFrame::Mono(v) if v.abs() < 1e-6));
 }
 
 #[test]
@@ -1092,14 +1095,14 @@ fn elastic_buffer_stereo_push_pop_preserves_channels() {
 }
 
 #[test]
-fn elastic_buffer_multiple_pops_on_empty_repeat_last() {
+fn elastic_buffer_multiple_pops_on_empty_return_silence() {
+    // Issue #496: was `..._repeat_last`. Pinned the buggy form.
     let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
     buf.push(AudioFrame::Mono(0.99));
-    let _ = buf.pop(); // drain
-                       // Multiple pops should all return last frame
+    let _ = buf.pop();
     for _ in 0..5 {
         let f = buf.pop();
-        assert!(matches!(f, AudioFrame::Mono(v) if (v - 0.99).abs() < 1e-6));
+        assert!(matches!(f, AudioFrame::Mono(v) if v.abs() < 1e-6));
     }
 }
 
@@ -1318,23 +1321,25 @@ fn output_limiter_transparent_below_threshold() {
 
 #[test]
 fn output_limiter_saturates_above_threshold() {
+    // Issue #496: the previous tanh form was discontinuous (-2.17 dB
+    // step at the threshold) and non-monotonic from ~0.95 to ~1.83
+    // (proven RED in runtime_dsp::tests). Pin the PROPERTY a soft
+    // limiter must have — bounded, sign-preserving, smaller than the
+    // input above the knee — not the specific tanh function.
     use super::output_limiter;
     let limited = output_limiter(2.0);
-    assert!(
-        limited < 2.0,
-        "limiter should reduce values above threshold"
-    );
-    assert!(limited > 0.0, "limiter should keep positive sign");
-    // tanh(2.0) ≈ 0.964
-    assert!((limited - 2.0f32.tanh()).abs() < 1e-6);
+    assert!(limited < 2.0 && limited > 0.0, "reduce + keep sign: {limited}");
+    assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
 }
 
 #[test]
 fn output_limiter_negative_saturates_symmetrically() {
+    // Issue #496: assert odd symmetry instead of pinning tanh()
+    // numerically. The new soft-clip is not tanh but is still odd,
+    // bounded, monotonic and continuous.
     use super::output_limiter;
-    let limited = output_limiter(-2.0);
-    assert!(limited > -2.0, "limiter should reduce negative values");
-    assert!((limited - (-2.0f32).tanh()).abs() < 1e-6);
+    assert!((output_limiter(-2.0) + output_limiter(2.0)).abs() < 1e-6);
+    assert!(output_limiter(-2.0) >= -1.0 && output_limiter(-2.0).is_finite());
 }
 
 // ── apply_mixdown tests ──────────────────────────────────────────────────
@@ -1778,47 +1783,30 @@ fn process_output_fills_silence_for_invalid_output_index() {
 }
 
 #[test]
-fn process_output_underrun_repeats_last_frame() {
+fn process_output_underrun_returns_silence_not_last_frame() {
+    // Issue #496: was `..._repeats_last_frame` and pinned the
+    // "brief sustain on underrun" form, which produced broadband
+    // noise on every chain. Standard DAW behavior is silence on
+    // underrun (a tiny gap is musically inaudible, repeated samples
+    // are not).
     let chain = io_passthrough_chain("chain:underrun");
     let runtime = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime should build"),
     );
-
-    // Push enough frames to get past the fade-in, then push our test frames
     let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
     process_input_f32(&runtime, 0, &warmup, 1);
-    // Drain warmup frames
     let mut drain = vec![0.0f32; warmup.len()];
     process_output_f32(&runtime, 0, &mut drain, 1);
 
-    // Now push only 2 frames (no fade-in active)
     process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
-    // Request 4 frames — last 2 should repeat the last pushed frame
     let mut out = vec![0.0f32; 4];
     process_output_f32(&runtime, 0, &mut out, 1);
 
-    assert!(
-        (out[0] - 0.5).abs() < 1e-6,
-        "frame 0 should be 0.5, got {}",
-        out[0]
-    );
-    assert!(
-        (out[1] - 0.7).abs() < 1e-6,
-        "frame 1 should be 0.7, got {}",
-        out[1]
-    );
-    // Frames 2 and 3 should be the last frame (0.7) repeated
-    assert!(
-        (out[2] - 0.7).abs() < 1e-6,
-        "frame 2 should repeat last: 0.7, got {}",
-        out[2]
-    );
-    assert!(
-        (out[3] - 0.7).abs() < 1e-6,
-        "frame 3 should repeat last: 0.7, got {}",
-        out[3]
-    );
+    assert!((out[0] - 0.5).abs() < 1e-6, "frame 0 should be 0.5, got {}", out[0]);
+    assert!((out[1] - 0.7).abs() < 1e-6, "frame 1 should be 0.7, got {}", out[1]);
+    assert!(out[2].abs() < 1e-6, "frame 2 should be silence (underrun), got {}", out[2]);
+    assert!(out[3].abs() < 1e-6, "frame 3 should be silence (underrun), got {}", out[3]);
 }
 
 // ── ChainRuntimeState method tests ───────────────────────────────────────

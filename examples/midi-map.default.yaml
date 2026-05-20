@@ -10,7 +10,7 @@
 
 # Open every connected input port whose name matches this substring.
 # Leave it as is for an M-Vave Chocolate; change to match your device.
-input: Chocolate
+input: FootCtrlPlus
 
 bindings:
   # ── Presets ───────────────────────────────────────────────────────
