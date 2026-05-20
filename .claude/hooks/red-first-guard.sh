@@ -4,9 +4,9 @@
 # does not depend on the model remembering the rule.
 #
 # Allowed always: test files (*_tests.rs, **/tests/**, names with "test"),
-# .slint, docs, anything outside crates/**/src, and ALL writes/edits
-# (you must be able to write the test). Production source reads/greps
-# are DENIED until the unlock sentinel exists.
+# .slint, docs, anything outside crates/**/src. Production source
+# reads, greps, EDITS and WRITES are DENIED until the unlock sentinel
+# exists. Test files stay writable so the RED test can always be created.
 #
 # Unlock: after you have written the failing test AND run it AND seen it
 # go RED, create `.claude/.red-first-unlocked`. That act is visible in
@@ -19,10 +19,15 @@ tool="$(printf '%s' "$input" | jq -r '.tool_name // empty')"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 [ -f "$repo_root/.claude/.red-first-unlocked" ] && exit 0
+# Agent works in an isolated workspace copy (.solvers/issue-N/) and may
+# not write to the main repo root. Honor the sentinel created there too.
+ls "$repo_root"/.solvers/*/.claude/.red-first-unlocked >/dev/null 2>&1 && exit 0
 
 # What path/command is this tool touching?
 case "$tool" in
   Read)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+  Edit)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+  Write) target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
   Grep|Glob)
          target="$(printf '%s' "$input" | jq -r '(.tool_input.path // "") + " " + (.tool_input.glob // "") + " " + (.tool_input.pattern // "")')" ;;
   Bash)  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
