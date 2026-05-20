@@ -36,10 +36,31 @@ export component BlockPanelEditor inherits Rectangle {
     in property <string> block-drawer-confirm-label: @tr("btn-add");
     in property <BlockStreamData> block-stream-data;
     // Knob-grid dimensions — driven by Rust (`block_panel_dimensions`).
-    // See secondary_windows_block.slint for the source of truth.
+    // See secondary_windows_block.slint for the source of truth. Defaults
+    // are a safety net: if Rust pushes before first render (the happy
+    // path), they are overwritten; if the first paint races ahead, the
+    // fallback below recomputes from the model lengths so we never
+    // divide by zero or render NaN positions.
     in property <length> panel-knob-inner-height: 225px;
     in property <int> panel-grid-cols: 0;
     in property <int> panel-grid-rows: 0;
+
+    // Fallback constants — keep in sync with
+    // `block_panel_dimensions::MAX_COLS` / `ROW_STRIDE_PX`. The Rust
+    // policy is the source of truth (gated by unit tests); the Slint
+    // formula below only fires when the Rust value has not been
+    // pushed yet.
+    private property <int> grid-max-cols-fallback: 6;
+    private property <int> knob-count-fallback:
+        root.block-knob-overlays.length > 0
+            ? root.block-knob-overlays.length
+            : root.block-parameter-items.length;
+    private property <int> effective-grid-cols:
+        root.panel-grid-cols > 0
+            ? root.panel-grid-cols
+            : (self.knob-count-fallback > 0
+                ? Math.min(self.knob-count-fallback, self.grid-max-cols-fallback)
+                : 1);
 
     callback choose-block-model(int);
     callback choose-block-model-by-id(string);
@@ -220,13 +241,13 @@ export component BlockPanelEditor inherits Rectangle {
         property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
         property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
         property <length> grid-cell-w:
-            root.panel-grid-cols > 0 ? self.grid-area-w / root.panel-grid-cols : 64px;
+            root.effective-grid-cols > 0 ? self.grid-area-w / root.effective-grid-cols : 64px;
         property <length> grid-base-y: root.base-panel-height * 0.54;
 
         for knob[ki] in root.block-knob-overlays : Rectangle {
             visible: parent.show-overlays;
-            x: parent.grid-area-x + mod(ki, root.panel-grid-cols) * parent.grid-cell-w;
-            y: parent.grid-base-y + Math.floor(ki / root.panel-grid-cols) * root.grid-row-stride;
+            x: parent.grid-area-x + mod(ki, root.effective-grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(ki / root.effective-grid-cols) * root.grid-row-stride;
             width: parent.grid-cell-w;
             height: 90px;
 
@@ -255,8 +276,8 @@ export component BlockPanelEditor inherits Rectangle {
 
         for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
             visible: parent.show-params;
-            x: parent.grid-area-x + mod(pi, root.panel-grid-cols) * parent.grid-cell-w;
-            y: parent.grid-base-y + Math.floor(pi / root.panel-grid-cols) * root.grid-row-stride;
+            x: parent.grid-area-x + mod(pi, root.effective-grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(pi / root.effective-grid-cols) * root.grid-row-stride;
             width: parent.grid-cell-w;
             height: 90px;
             param: param;
