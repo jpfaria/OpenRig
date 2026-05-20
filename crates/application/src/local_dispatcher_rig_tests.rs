@@ -62,6 +62,7 @@ fn rig() -> RigProject {
         outputs: BTreeMap::new(),
         presets,
         midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -353,6 +354,7 @@ fn two_input_rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        midi: None,
         chain_order: Vec::new(),
     }
 }

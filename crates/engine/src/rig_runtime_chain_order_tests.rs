@@ -44,6 +44,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        midi: None,
         chain_order: Vec::new(),
     }
 }

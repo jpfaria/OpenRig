@@ -117,6 +117,7 @@ mod tests {
             inputs,
             outputs: BTreeMap::new(),
             presets,
+            midi: None,
             chain_order: Vec::new(),
         }
     }

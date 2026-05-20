@@ -15,6 +15,7 @@ fn empty_project() -> RigProject {
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
         midi: None,
+        chain_order: Vec::new(),
     }
 }
 

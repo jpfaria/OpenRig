@@ -35,6 +35,7 @@ fn rig() -> RigProject {
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
         midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -78,6 +79,7 @@ fn render_empty_project_is_empty() {
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
         midi: None,
+        chain_order: Vec::new(),
     });
     assert!(render(&state).is_empty());
 }

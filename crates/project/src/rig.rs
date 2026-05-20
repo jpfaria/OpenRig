@@ -35,6 +35,11 @@ pub struct RigProject {
     /// default at resolve time. Travels with the file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub midi: Option<crate::midi::RigProjectMidi>,
+    /// User-defined order of projected chains by input name (no `rig:`
+    /// prefix). Empty ⇒ alphabetical `inputs` iteration (default). Issue
+    /// #502 / regression of #246.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chain_order: Vec<String>,
 }
 
 /// One project input: a list of capture sources + a numbered preset bank.
