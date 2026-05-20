@@ -495,142 +495,6 @@ export component ChainRow inherits Rectangle {
             }
         }
 
-        // Issue #496 / #32 / #36: per-chain IN/OUT peak-meter BARS
-        // (vertical, gradient-backed, level mask overlay) + numeric
-        // value below in matching colour. Mapping:
-        //   fill = clamp((dbfs + 60) / 60, 0, 1)  (-60 dBFS → empty, 0 → full)
-        //   gradient backdrop: green ≈ bottom 65%, yellow ≈ next 20%,
-        //                      red ≈ top 8%.
-        //   > 0 dBFS ⇒ fully lit + red number (clip).
-        //   silent (-120) ⇒ empty + grey '—'.
-        // IN meter (horizontal, bottom-left of chain row)
-        Rectangle {
-            x: 60px;
-            y: root.height - 22px;
-            width: 220px;
-            height: 16px;
-
-            Text {
-                x: 0px; y: 0px;
-                width: 44px; height: parent.height;
-                text: "INPUT";
-                font-size: 8px;
-                font-weight: 700;
-                color: #9ca3af;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                x: 48px; y: 2px;
-                width: 130px; height: 12px;
-                border-width: 1px;
-                // Border turns bright red when clipping (> 0 dBFS) so the
-                // user spots overload at a glance, even if the bar itself
-                // is already maxed out.
-                border-color: root.chain.meter_in_dbfs > 0.0 ? #f87171 : #2a313a;
-                border-radius: 2px;
-                // Bar colours from low → loud (left → right):
-                // yellow (too quiet) → green (sweet spot) → red (clip).
-                background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
-                // Dark mask covers the RIGHT (un-lit) portion.
-                Rectangle {
-                    x: parent.width * Math.max(0.0,
-                        Math.min(1.0, (root.chain.meter_in_dbfs + 60.0) / 60.0));
-                    y: 0px;
-                    width: parent.width * (1.0 - Math.max(0.0,
-                        Math.min(1.0, (root.chain.meter_in_dbfs + 60.0) / 60.0)));
-                    height: parent.height;
-                    background: #0b0e13e8;
-                }
-            }
-            Text {
-                x: 182px; y: 0px;
-                width: 36px; height: parent.height;
-                text: root.chain.meter_in_dbfs <= -119.0
-                    ? "—"
-                    : Math.round(root.chain.meter_in_dbfs) + " dB";
-                font-size: 9px;
-                font-weight: 700;
-                // Numeric colour follows the bar zones: yellow (low) →
-                // green (sweet spot) → red (clip), grey when silent.
-                color: root.chain.meter_in_dbfs <= -119.0 ? #6b7280
-                     : root.chain.meter_in_dbfs > -3.0     ? #f87171
-                     : root.chain.meter_in_dbfs >= -30.0   ? #4ade80
-                     :                                       #facc15;
-                horizontal-alignment: left;
-                vertical-alignment: center;
-            }
-        }
-        // OUT meter (horizontal, bottom-right of chain row)
-        Rectangle {
-            x: root.width - 240px;
-            y: root.height - 22px;
-            width: 230px;
-            height: 16px;
-
-            Text {
-                x: 0px; y: 0px;
-                width: 50px; height: parent.height;
-                text: "OUTPUT";
-                font-size: 8px;
-                font-weight: 700;
-                color: #9ca3af;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                x: 54px; y: 2px;
-                width: 130px; height: 12px;
-                border-width: 1px;
-                // Border turns bright red when clipping (> 0 dBFS) so the
-                // user spots overload at a glance, even if the bar itself
-                // is already maxed out.
-                border-color: root.chain.meter_out_dbfs > 0.0 ? #f87171 : #2a313a;
-                border-radius: 2px;
-                // Bar colours from low → loud (left → right):
-                // yellow (too quiet) → green (sweet spot) → red (clip).
-                background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
-                Rectangle {
-                    x: parent.width * Math.max(0.0,
-                        Math.min(1.0, (root.chain.meter_out_dbfs + 60.0) / 60.0));
-                    y: 0px;
-                    width: parent.width * (1.0 - Math.max(0.0,
-                        Math.min(1.0, (root.chain.meter_out_dbfs + 60.0) / 60.0)));
-                    height: parent.height;
-                    background: #0b0e13e8;
-                }
-            }
-            Text {
-                x: 188px; y: 0px;
-                width: 40px; height: parent.height;
-                text: root.chain.meter_out_dbfs <= -119.0
-                    ? "—"
-                    : Math.round(root.chain.meter_out_dbfs) + " dB";
-                font-size: 9px;
-                font-weight: 700;
-                color: root.chain.meter_out_dbfs <= -119.0 ? #6b7280
-                     : root.chain.meter_out_dbfs > -3.0     ? #f87171
-                     : root.chain.meter_out_dbfs >= -30.0   ? #4ade80
-                     :                                        #facc15;
-                horizontal-alignment: left;
-                vertical-alignment: center;
-            }
-        }
-
         // In chip tooltip — aparece à direita do chip In
         if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
             x: 76px;
@@ -724,5 +588,124 @@ export component ChainRow inherits Rectangle {
         }
     }
 
+    // Issue #496 / #32 / #36: per-chain IN/OUT peak-meter bars,
+    // placed at the FOOTER of the chain card — outside the inner
+    // routing rectangle so `root.height` (ChainRow height) lands at
+    // the actual chain bottom (previously they were nested inside
+    // the routing Rect and got clipped off the visible card).
+    // Layout: INPUT [== bar ==] -X dB  on the left,
+    //         OUTPUT [== bar ==] -X dB on the right.
+    // Bar gradient: yellow (low) → green (sweet spot) → red (clip).
+    // Border flashes red when that channel's meter passes 0 dBFS.
+    Rectangle {
+        x: 60px;
+        y: root.height - 22px;
+        width: 220px;
+        height: 16px;
+        Text {
+            x: 0px; y: 0px;
+            width: 44px; height: parent.height;
+            text: "INPUT";
+            font-size: 8px;
+            font-weight: 700;
+            color: #9ca3af;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            x: 48px; y: 2px;
+            width: 130px; height: 12px;
+            border-width: 1px;
+            border-color: root.chain.meter_in_dbfs > 0.0 ? #f87171 : #2a313a;
+            border-radius: 2px;
+            background: @linear-gradient(90deg,
+                #facc1560 0%,
+                #facc15 6%,
+                #facc15 35%,
+                #4ade80 50%,
+                #4ade80 88%,
+                #f87171 95%,
+                #f87171 100%);
+            Rectangle {
+                x: parent.width * Math.max(0.0,
+                    Math.min(1.0, (root.chain.meter_in_dbfs + 60.0) / 60.0));
+                y: 0px;
+                width: parent.width * (1.0 - Math.max(0.0,
+                    Math.min(1.0, (root.chain.meter_in_dbfs + 60.0) / 60.0)));
+                height: parent.height;
+                background: #0b0e13e8;
+            }
+        }
+        Text {
+            x: 182px; y: 0px;
+            width: 36px; height: parent.height;
+            text: root.chain.meter_in_dbfs <= -119.0
+                ? "—"
+                : Math.round(root.chain.meter_in_dbfs) + " dB";
+            font-size: 9px;
+            font-weight: 700;
+            color: root.chain.meter_in_dbfs <= -119.0 ? #6b7280
+                 : root.chain.meter_in_dbfs > -3.0     ? #f87171
+                 : root.chain.meter_in_dbfs >= -30.0   ? #4ade80
+                 :                                       #facc15;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+        }
+    }
+    Rectangle {
+        x: root.width - 240px;
+        y: root.height - 22px;
+        width: 230px;
+        height: 16px;
+        Text {
+            x: 0px; y: 0px;
+            width: 50px; height: parent.height;
+            text: "OUTPUT";
+            font-size: 8px;
+            font-weight: 700;
+            color: #9ca3af;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            x: 54px; y: 2px;
+            width: 130px; height: 12px;
+            border-width: 1px;
+            border-color: root.chain.meter_out_dbfs > 0.0 ? #f87171 : #2a313a;
+            border-radius: 2px;
+            background: @linear-gradient(90deg,
+                #facc1560 0%,
+                #facc15 6%,
+                #facc15 35%,
+                #4ade80 50%,
+                #4ade80 88%,
+                #f87171 95%,
+                #f87171 100%);
+            Rectangle {
+                x: parent.width * Math.max(0.0,
+                    Math.min(1.0, (root.chain.meter_out_dbfs + 60.0) / 60.0));
+                y: 0px;
+                width: parent.width * (1.0 - Math.max(0.0,
+                    Math.min(1.0, (root.chain.meter_out_dbfs + 60.0) / 60.0)));
+                height: parent.height;
+                background: #0b0e13e8;
+            }
+        }
+        Text {
+            x: 188px; y: 0px;
+            width: 40px; height: parent.height;
+            text: root.chain.meter_out_dbfs <= -119.0
+                ? "—"
+                : Math.round(root.chain.meter_out_dbfs) + " dB";
+            font-size: 9px;
+            font-weight: 700;
+            color: root.chain.meter_out_dbfs <= -119.0 ? #6b7280
+                 : root.chain.meter_out_dbfs > -3.0     ? #f87171
+                 : root.chain.meter_out_dbfs >= -30.0   ? #4ade80
+                 :                                        #facc15;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+        }
+    }
 }
 
