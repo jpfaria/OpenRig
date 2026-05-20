@@ -35,6 +35,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
             .map(|(k, v)| (k.to_string(), v))
             .collect(),
         outputs: BTreeMap::new(),
+        chain_order: Vec::new(),
         presets: presets
             .iter()
             .map(|p| {
