@@ -2,6 +2,14 @@
 
 Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Windows, Linux.
 
+## LEI ZERO — RESPOSTA CURTA, SEMPRE
+
+**Default = 1–2 frases.** Sem tabelas, sem headers, sem bullets aninhados, sem recap do que o usuário disse, sem "resumo final", sem "next step", sem checklist no chat. Diagnóstico longo, inventário, série de commits → vai pra issue (`gh issue comment`), nunca pro chat.
+
+Só estende a resposta quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", "me dá o resumo"). Cobrou pra ser curto = curto pelo resto da sessão, sem precisar repetir.
+
+Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
+
 ## Invariantes que NUNCA podem piorar
 
 OpenRig é áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança que toca audio thread, DSP, roteamento, I/O ou cadeia de blocos precisa provar que não regride NADA abaixo:
