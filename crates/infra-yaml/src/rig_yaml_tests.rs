@@ -94,6 +94,40 @@ fn parse_rejects_invalid() {
 }
 
 #[test]
+fn chain_order_round_trips_via_yaml() {
+    // Issue #502: a user reorder must survive save+reload. The kebab-case
+    // `chain-order:` key keeps the convention used by `active-preset` etc.
+    let mut p = parse_rig_project(MINIMAL).unwrap();
+    p.chain_order = vec!["input-1".to_string()];
+
+    let yaml = serialize_rig_project(&p).expect("serialize ok");
+    assert!(
+        yaml.contains("chain-order:"),
+        "chain-order must appear in YAML when non-empty, got:\n{yaml}"
+    );
+
+    let reloaded = parse_rig_project(&yaml).expect("parse ok");
+    assert_eq!(
+        reloaded.chain_order,
+        vec!["input-1".to_string()],
+        "chain_order must survive the YAML round-trip"
+    );
+}
+
+#[test]
+fn empty_chain_order_is_omitted_from_yaml() {
+    // Back-compat: legacy `.openrig` files have no `chain-order:` key.
+    // We must keep the field out of fresh serialisations too so the
+    // wire shape doesn't grow without reason.
+    let p = parse_rig_project(MINIMAL).unwrap();
+    let yaml = serialize_rig_project(&p).unwrap();
+    assert!(
+        !yaml.contains("chain-order"),
+        "an empty chain_order must be skipped from YAML, got:\n{yaml}"
+    );
+}
+
+#[test]
 fn save_then_load_file_round_trips() {
     let p = parse_rig_project(MINIMAL).unwrap();
     let dir = tempfile::tempdir().unwrap();

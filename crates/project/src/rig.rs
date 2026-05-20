@@ -30,6 +30,15 @@ pub struct RigProject {
     /// Shared preset pool — processing only, no I/O.
     #[serde(default)]
     pub presets: BTreeMap<String, RigPreset>,
+    /// User-defined order of inputs as displayed in the Chains list
+    /// (issue #502, regression of #246). Empty ⇒ fall back to the
+    /// alphabetical `inputs` BTreeMap order. Entries are input names
+    /// (the same key as `inputs`); names absent from `inputs` are
+    /// ignored at projection time. Persisted in `project.openrig` so
+    /// reorder via `Command::MoveChainUp` / `MoveChainDown` survives
+    /// save+reload.
+    #[serde(rename = "chain-order", default, skip_serializing_if = "Vec::is_empty")]
+    pub chain_order: Vec<String>,
 }
 
 /// One project input: a list of capture sources + a numbered preset bank.

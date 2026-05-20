@@ -45,6 +45,7 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        chain_order: Vec::new(),
     }
 }
 

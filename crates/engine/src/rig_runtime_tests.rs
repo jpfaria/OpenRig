@@ -66,6 +66,7 @@ fn rig(
             .into_iter()
             .map(|(k, b)| (k.to_string(), RigPreset::from_legacy_blocks(b, 100.0)))
             .collect(),
+        chain_order: Vec::new(),
     }
 }
 

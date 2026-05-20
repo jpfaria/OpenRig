@@ -61,6 +61,7 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        chain_order: Vec::new(),
     }
 }
 
@@ -314,5 +315,109 @@ fn select_chain_block_command_sets_dispatcher_owned_selection() {
         dispatcher.selected_block(&ChainId("rig:in".into())),
         Some(2),
         "the dispatcher must own the selection so MIDI/MCP can drive it"
+    );
+}
+
+// ── Issue #502: chain reorder must persist for rig sessions ──────────────────
+
+fn two_input_rig() -> RigProject {
+    let mut presets = BTreeMap::new();
+    presets.insert(
+        "pa".to_string(),
+        RigPreset::from_legacy_blocks(vec![core("A")], 100.0),
+    );
+    presets.insert(
+        "pb".to_string(),
+        RigPreset::from_legacy_blocks(vec![core("B")], 100.0),
+    );
+    let mut inputs = BTreeMap::new();
+    for (name, preset) in &[("alpha", "pa"), ("beta", "pb")] {
+        inputs.insert(
+            (*name).to_string(),
+            RigInput {
+                label: None,
+                sources: vec![InputEntry {
+                    device_id: DeviceId("d".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                }],
+                bank: BTreeMap::from([(1, (*preset).to_string())]),
+                active_preset: 1,
+                active_scene: 1,
+                routing: vec![],
+            },
+        );
+    }
+    RigProject {
+        name: None,
+        inputs,
+        outputs: BTreeMap::new(),
+        presets,
+        chain_order: Vec::new(),
+    }
+}
+
+#[test]
+fn move_chain_up_then_capture_writes_chain_order_into_rig() {
+    // Two inputs alphabetical = ["alpha", "beta"]; project starts with
+    // synthetic chains in that order. User clicks ▲ on the "beta"
+    // chain → MoveChainUp swaps them. CaptureRigEdits must persist the
+    // new order to RigProject.chain_order so a later
+    // `save_rig_project_file` keeps it through reload.
+    let rig = Rc::new(RefCell::new(two_input_rig()));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::MoveChainUp {
+            chain: ChainId("rig:beta".into()),
+        })
+        .expect("MoveChainUp ok");
+    dispatcher
+        .dispatch(Command::CaptureRigEdits)
+        .expect("CaptureRigEdits ok");
+
+    assert_eq!(
+        rig.borrow().chain_order,
+        vec!["beta".to_string(), "alpha".to_string()],
+        "the rig must remember the user's chain order so reload preserves it"
+    );
+}
+
+#[test]
+fn rig_to_legacy_project_after_capture_reflects_persisted_chain_order() {
+    // Round-trip the persistence path: after the move + capture, a
+    // fresh projection (what `load_project_any` + projection does on
+    // reopen) must yield chains in the persisted order.
+    let rig = Rc::new(RefCell::new(two_input_rig()));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::MoveChainUp {
+            chain: ChainId("rig:beta".into()),
+        })
+        .expect("MoveChainUp ok");
+    dispatcher
+        .dispatch(Command::CaptureRigEdits)
+        .expect("CaptureRigEdits ok");
+
+    let reprojected = engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    );
+    let ids: Vec<String> = reprojected.chains.iter().map(|c| c.id.0.clone()).collect();
+    assert_eq!(
+        ids,
+        vec!["rig:beta".to_string(), "rig:alpha".to_string()],
+        "the rig→project projection must honour the persisted chain order"
     );
 }
