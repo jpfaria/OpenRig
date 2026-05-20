@@ -153,6 +153,23 @@ At resolve time the project bindings replace the system fallback in
 full (it's not a merge — see ADR 0003). The controller selection still
 comes from your `midi-profile.yaml`.
 
+### Known limitations (v1)
+
+- **Startup snapshot.** The resolver runs once when `--midi` spawns the
+  daemon; it reads `project.midi.bindings` at that moment. Switching to
+  a different project at runtime does **not** re-resolve — the daemon
+  keeps the bindings from whichever project was active at start (or
+  the system fallback if the launcher was open). To pick up new
+  project bindings, restart OpenRig with `--midi`. Re-resolution on
+  project switch is tracked as a follow-up.
+- **Shipped default path in packaged builds.** The shipped
+  `examples/midi-map.default.yaml` is found by `detect_data_root()`,
+  which works in development (the repo's CWD has `examples/`) and in
+  installed layouts that ship the same path. If neither the system
+  fallback (`midi-bindings.yaml`) nor the shipped default exists, the
+  daemon starts with **zero bindings** — it listens but does nothing
+  until you create one of the two files.
+
 ---
 
 ## Generic setup (any controller)
