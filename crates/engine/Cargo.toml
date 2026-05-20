@@ -41,4 +41,5 @@ block-core = { path = "../block-core" }
 # bare engine signal path can be compared against a reference instead
 # of judged by ear. Dev-only — not on the audio thread.
 ebur128 = "0.1"
+rustfft = { workspace = true }
 
