@@ -26,8 +26,8 @@ ls "$repo_root"/.solvers/*/.claude/.red-first-unlocked >/dev/null 2>&1 && exit 0
 # What path/command is this tool touching?
 case "$tool" in
   Read)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
-  Edit)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
-  Write) target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+    Edit)  target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+    Write) target="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
   Grep|Glob)
          target="$(printf '%s' "$input" | jq -r '(.tool_input.path // "") + " " + (.tool_input.glob // "") + " " + (.tool_input.pattern // "")')" ;;
   Bash)  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
