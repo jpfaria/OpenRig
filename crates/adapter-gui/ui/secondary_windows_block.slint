@@ -52,17 +52,19 @@ export component BlockEditorWindow inherits Window {
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
     // Parameter grid: knobs wrap into multiple rows when more than
-    // `max-cols` arrive (LV2 plugins like ZaMultiComp ship 27 control
-    // ports — without wrapping the window opened ~1800px wide and the
-    // knobs squashed to invisibility, issue #500).
-    // - cell width 64px (matches BlockPanelParameterItem layout)
-    // - margins: 60px (power button) + 8px (right padding) = 68px
-    // - max-cols 12 caps the row at 12*64 + 68 = 836px, well under the
-    //   900px minimum panel width below.
+    // `max-cols` arrive (issue #500 — LV2 plugins like ZaMultiComp = 27
+    // ports). Six columns per row is a deliberate UX choice: a 10-knob
+    // pedal renders as 5+5 / 6+4, not a single ultra-wide strip.
+    // - `max-cols` must match `block_panel_editor.slint`'s `grid-max-cols`.
+    // - `param-rows` uses int-safe ceil — Slint's `int / int` truncates,
+    //   so naive `Math.ceil(param-count / param-cols)` returned 2 for
+    //   27 params instead of 5, leaving rows 3-5 clipped (the bug behind
+    //   the all-empty ZaMultiComp window in the issue #500 follow-up).
     property <int> param-count: root.block-parameter-items.length;
-    property <int> max-cols: 12;
+    property <int> max-cols: 6;
     property <int> param-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
-    property <int> param-rows: param-cols > 0 ? Math.ceil(param-count / param-cols) : 0;
+    property <int> param-rows:
+        param-cols > 0 ? Math.floor((param-count - 1) / param-cols) + 1 : 0;
     property <length> needed-width: param-cols > 0 ? param-cols * 64px + 68px : 520px;
     private property <bool> has-eq-widget:
         root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
@@ -89,8 +91,11 @@ export component BlockEditorWindow inherits Window {
     // Extra rows of parameters (beyond the first) each add 90px — the
     // BlockPanelParameterItem row height. Without this, wrapped rows
     // would render below the window's bottom edge and be invisible.
+    // EQ blocks render via a dedicated widget (CurveEditor / MultiSlider)
+    // instead of the parameter grid — `param-rows` would otherwise inflate
+    // the window for an empty grid that is never shown.
     private property <length> param-rows-extra-height:
-        param-rows > 1 ? (param-rows - 1) * 90px : 0px;
+        (has-eq-widget || param-rows <= 1) ? 0px : (param-rows - 1) * 90px;
     out property <length> panel-height:
         root.use-panel-editor ? (eq-extra-height + param-rows-extra-height) : 820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.

@@ -112,7 +112,18 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> brand-strip-height: 0px;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
+    // Parameter grid drives panel growth (issue #500 follow-up): keep the
+    // amp-head 4:1 aspect for the first row of knobs (`base-panel-height`),
+    // then add 90px per extra wrapped row so rows 2+ stay INSIDE the panel
+    // rectangle instead of being clipped by the footer/drawer below it.
+    private property <int> grid-max-cols: 6;
+    private property <int> grid-count: root.block-parameter-items.length;
+    private property <int> grid-cols: self.grid-count > 0 ? Math.min(self.grid-count, self.grid-max-cols) : 0;
+    private property <int> grid-rows: self.grid-cols > 0 ? Math.floor((self.grid-count - 1) / self.grid-cols) + 1 : 0;
+    private property <length> base-panel-height: root.width / 4;
+    private property <length> panel-height:
+        self.has-eq-widget ? 76px
+            : self.base-panel-height + Math.max(0, self.grid-rows - 1) * 90px;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -230,33 +241,28 @@ export component BlockPanelEditor inherits Rectangle {
 
         // ── All parameters (grid, wraps into rows when many params, when no knob overlays) ──
         // LV2 plugins ship arbitrary control-port counts (ZaMultiComp = 27,
-        // ZamGEQ31 = 30) — the original single-row HorizontalLayout forced
-        // the host window past 1800px wide and squashed each knob to ~64px,
-        // so the user perceived "no parameters" (issue #500). We now wrap
-        // into a fixed-column grid: `max-cols` per row, vertically stacked.
-        // When stream data is active (tuner etc.), push the grid to the
-        // right side and keep the single-row look (stream blocks are
-        // never the dense LV2 case).
+        // ZamGEQ31 = 30). Wrap into a fixed-column grid (`grid-max-cols`
+        // per row, vertically stacked). Row 0 anchors at the original
+        // amp-head bottom (0.54 of `base-panel-height`); extra rows stack
+        // 90px below. The owning panel rectangle grew accordingly so
+        // rows 2+ are not clipped by the footer/drawer (issue #500 follow-up).
+        // When a stream is active (tuner etc.) the grid is pushed to the
+        // right edge and rendered as a single dense row.
         property <bool> has-stream: root.block-stream-data.stream-kind != ""
             && root.block-stream-data.stream-kind != "spectrum";
         property <bool> params-visible:
             root.block-knob-overlays.length == 0
             && root.curve-editor-points.length == 0
             && root.multi-slider-points.length == 0;
-        property <int> param-count: root.block-parameter-items.length;
-        // Must match `secondary_windows_block.slint`'s `max-cols` — they
-        // jointly drive the window width and the grid columns.
-        property <int> max-cols: 12;
-        property <int> grid-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
         property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
         property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
-        property <length> grid-cell-w: grid-cols > 0 ? grid-area-w / grid-cols : 64px;
-        property <length> grid-base-y: parent.height * 0.54;
+        property <length> grid-cell-w: root.grid-cols > 0 ? grid-area-w / root.grid-cols : 64px;
+        property <length> grid-base-y: root.base-panel-height * 0.54;
 
         for param[pi] in root.block-parameter-items : BlockPanelParameterItem {
             visible: parent.params-visible;
-            x: parent.grid-area-x + mod(pi, parent.grid-cols) * parent.grid-cell-w;
-            y: parent.grid-base-y + Math.floor(pi / parent.grid-cols) * 90px;
+            x: parent.grid-area-x + mod(pi, root.grid-cols) * parent.grid-cell-w;
+            y: parent.grid-base-y + Math.floor(pi / root.grid-cols) * 90px;
             width: parent.grid-cell-w;
             height: 90px;
             param: param;
