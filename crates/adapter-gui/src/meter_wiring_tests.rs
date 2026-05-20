@@ -52,3 +52,43 @@ fn above_full_scale_reports_positive_for_clip_indicator() {
     let (_, o) = compute_meter_for_chain(&[], &output);
     assert!(o > 0.0, "above 1.0 should be > 0 dBFS, got {o}");
 }
+
+// ── apply_chain_volume_db (issue #496: OUTPUT meter must respond
+// ── to the chain volume slider). Chain volume is applied in the
+// ── audio callback AFTER the stream_tap, so the GUI has to scale
+// ── the OUTPUT reading by `20·log10(volume_pct/100)` to reflect
+// ── what actually reaches the DAC.
+
+#[test]
+fn apply_chain_volume_at_unity_is_identity() {
+    assert!((apply_chain_volume_db(-12.0, 100.0) - (-12.0)).abs() < 1e-3);
+}
+
+#[test]
+fn apply_chain_volume_at_200pct_adds_6_db() {
+    let v = apply_chain_volume_db(-12.0, 200.0);
+    assert!((v - (-6.0)).abs() < 0.1, "got {v}");
+}
+
+#[test]
+fn apply_chain_volume_at_50pct_subtracts_6_db() {
+    let v = apply_chain_volume_db(-6.0, 50.0);
+    assert!((v - (-12.0)).abs() < 0.1, "got {v}");
+}
+
+#[test]
+fn apply_chain_volume_at_zero_is_silent() {
+    assert_eq!(apply_chain_volume_db(-12.0, 0.0), SILENT_DBFS);
+}
+
+#[test]
+fn apply_chain_volume_preserves_silent_reading() {
+    assert_eq!(apply_chain_volume_db(SILENT_DBFS, 200.0), SILENT_DBFS);
+    assert_eq!(apply_chain_volume_db(SILENT_DBFS, 50.0), SILENT_DBFS);
+}
+
+#[test]
+fn apply_chain_volume_at_125pct_adds_about_1_94_db() {
+    let v = apply_chain_volume_db(-20.0, 125.0);
+    assert!((v - (-18.06)).abs() < 0.1, "got {v}");
+}

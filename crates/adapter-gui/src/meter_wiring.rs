@@ -22,6 +22,22 @@ use std::sync::Arc;
 use engine::output_meter::{pop_peak_dbfs, SILENT_DBFS};
 use engine::spsc::SpscRing;
 
+/// Apply the chain's volume slider (in percent, 100 = unity) to a
+/// raw peak-dBFS reading. The stream_tap is captured BEFORE the
+/// audio callback scales by `volume_pct/100`, so the OUTPUT meter
+/// has to add `20·log10(volume_pct/100)` on the GUI side to reflect
+/// what actually reaches the DAC. `SILENT_DBFS` round-trips
+/// unchanged; a 0 % volume is treated as silence.
+pub fn apply_chain_volume_db(base_dbfs: f32, volume_pct: f32) -> f32 {
+    if base_dbfs <= SILENT_DBFS + 1.0 {
+        return SILENT_DBFS;
+    }
+    if volume_pct <= 0.0 {
+        return SILENT_DBFS;
+    }
+    base_dbfs + 20.0 * (volume_pct / 100.0).log10()
+}
+
 /// Drain the current windows of a chain's input and output taps and
 /// return `(input_peak_dbfs, output_peak_dbfs)`. Either side reports
 /// [`SILENT_DBFS`] when its rings are empty.
@@ -144,14 +160,19 @@ pub fn start_meter_polling(
         prune_dead(&store, &chain_ids);
         let readings = poll_all(&store);
         // Push readings into matching VecModel rows (rows are indexed
-        // 1:1 with `project.chains`).
-        for (cid, in_db, out_db) in readings {
+        // 1:1 with `project.chains`). The stream_tap reads the chain
+        // signal BEFORE the audio callback applies the chain volume
+        // slider — so the OUTPUT meter must compensate on the GUI
+        // side, otherwise moving the volume knob never changes the
+        // reading (user-reported in issue #496).
+        for (cid, in_db, out_db_raw) in readings {
             let Some(idx) = project.chains.iter().position(|c| c.id == cid) else {
                 continue;
             };
             let Some(mut row) = project_chains.row_data(idx) else {
                 continue;
             };
+            let out_db = apply_chain_volume_db(out_db_raw, project.chains[idx].volume);
             if (row.meter_in_dbfs - in_db).abs() > 0.05
                 || (row.meter_out_dbfs - out_db).abs() > 0.05
             {
