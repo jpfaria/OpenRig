@@ -342,6 +342,15 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
+    // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
+    // ~30 Hz timer that subscribes new chains' input + stream taps
+    // and writes peak dBFS into the matching ProjectChainItem rows.
+    crate::meter_wiring::start_meter_polling(
+        project_runtime.clone(),
+        project_chains.clone(),
+        project_session.clone(),
+    );
+
     // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
     crate::block_editor_window_wiring::wire(
         &window,

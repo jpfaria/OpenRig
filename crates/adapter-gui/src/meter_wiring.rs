@@ -45,6 +45,125 @@ pub fn compute_meter_for_chain(
     (i, o)
 }
 
+/// Per-chain ring handles held by the GUI so the meter timer can
+/// drain them without re-subscribing every tick.
+#[derive(Default)]
+pub struct ChainMeterRings {
+    pub input: Vec<Arc<SpscRing<f32>>>,
+    pub output: Vec<Arc<SpscRing<f32>>>,
+}
+
+/// Shared store of every subscribed chain's meter rings. Cheap
+/// `Rc<RefCell<HashMap>>` because both the timer and the chain-
+/// lifecycle code mutate it from the GUI thread.
+pub type MeterStore =
+    std::rc::Rc<std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterRings>>>;
+
+pub fn new_meter_store() -> MeterStore {
+    std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))
+}
+
+/// Make sure every chain currently in `chain_ids` has its meter taps
+/// subscribed. Dropped chains stay in the store until they are
+/// removed by [`prune_dead`].
+pub fn ensure_subscribed(
+    controller: &infra_cpal::ProjectRuntimeController,
+    store: &MeterStore,
+    chain_ids: &[domain::ids::ChainId],
+    capacity_per_channel: usize,
+) {
+    let mut store = store.borrow_mut();
+    for cid in chain_ids {
+        if store.contains_key(cid) {
+            continue;
+        }
+        let input = controller.subscribe_input_tap(cid, 0, 2, &[0, 1], capacity_per_channel);
+        let output = controller
+            .subscribe_stream_tap(cid, 0, capacity_per_channel)
+            .map(|[l, r]| vec![l, r])
+            .unwrap_or_default();
+        store.insert(
+            cid.clone(),
+            ChainMeterRings { input, output },
+        );
+    }
+}
+
+/// Drop entries for chains no longer in `chain_ids`. The underlying
+/// engine-side taps are pruned by their own dead-consumer sweep
+/// (`prune_dead_input_taps` / `prune_dead_stream_taps`) once the
+/// last Arc here is dropped.
+pub fn prune_dead(store: &MeterStore, chain_ids: &[domain::ids::ChainId]) {
+    let mut store = store.borrow_mut();
+    store.retain(|cid, _| chain_ids.contains(cid));
+}
+
+/// Pull the current peak dBFS for every subscribed chain. Returns
+/// a list of `(chain_id, in_dbfs, out_dbfs)` for the timer to fan
+/// out into the Slint VecModel.
+pub fn poll_all(store: &MeterStore) -> Vec<(domain::ids::ChainId, f32, f32)> {
+    let store = store.borrow();
+    store
+        .iter()
+        .map(|(cid, rings)| {
+            let (i, o) = compute_meter_for_chain(&rings.input, &rings.output);
+            (cid.clone(), i, o)
+        })
+        .collect()
+}
+
+/// Lifecycle wiring: starts a Slint Timer that, at ~30 Hz, picks up
+/// the current chain list from the project session, ensures every
+/// chain has its meter taps subscribed, polls them, and writes the
+/// per-chain peak dBFS into the matching `ProjectChainItem` rows of
+/// the `project_chains` VecModel. Timer is leaked (lives for the
+/// app's lifetime, like the other polling timers).
+pub fn start_meter_polling(
+    project_runtime: std::rc::Rc<std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
+    project_chains: std::rc::Rc<slint::VecModel<crate::ProjectChainItem>>,
+    project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
+) {
+    use slint::{Model, TimerMode};
+    const TICK: std::time::Duration = std::time::Duration::from_millis(33); // ~30 Hz
+    const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
+
+    let store = new_meter_store();
+    let timer = slint::Timer::default();
+    timer.start(TimerMode::Repeated, TICK, move || {
+        let rt_borrow = project_runtime.borrow();
+        let Some(controller) = rt_borrow.as_ref() else {
+            return;
+        };
+        let session_borrow = project_session.borrow();
+        let Some(session) = session_borrow.as_ref() else {
+            return;
+        };
+        let project = session.project.borrow();
+        let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
+        ensure_subscribed(controller, &store, &chain_ids, RING_CAPACITY);
+        prune_dead(&store, &chain_ids);
+        let readings = poll_all(&store);
+        // Push readings into matching VecModel rows (rows are indexed
+        // 1:1 with `project.chains`).
+        for (cid, in_db, out_db) in readings {
+            let Some(idx) = project.chains.iter().position(|c| c.id == cid) else {
+                continue;
+            };
+            let Some(mut row) = project_chains.row_data(idx) else {
+                continue;
+            };
+            if (row.meter_in_dbfs - in_db).abs() > 0.05
+                || (row.meter_out_dbfs - out_db).abs() > 0.05
+            {
+                row.meter_in_dbfs = in_db;
+                row.meter_out_dbfs = out_db;
+                project_chains.set_row_data(idx, row);
+            }
+        }
+    });
+    std::mem::forget(timer);
+}
+
 #[cfg(test)]
 #[path = "meter_wiring_tests.rs"]
 mod tests;
