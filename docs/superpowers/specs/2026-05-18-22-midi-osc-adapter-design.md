@@ -21,7 +21,14 @@ switching, bypass toggling and parameter rides while playing.
 ## Non-goals (v1)
 
 - Mapping editor UI inside OpenRig — hand-edited `midi-map.yaml` for v1.
-- Per-project mapping files — one global map for v1.
+  Editor UI tracked separately as #493.
+- ~~Per-project mapping files — one global map for v1.~~ **Superseded by #499
+  (ADR 0003).** Bindings now live in `project.openrig` under `midi.bindings`
+  (project layer). The legacy single `midi-map.yaml` is split into a system
+  device profile (`midi-profile.yaml`) and a system bindings fallback
+  (`midi-bindings.yaml`). The resolver (`adapter-midi::resolve_midi_map`)
+  picks project → system fallback → shipped default at runtime. The legacy
+  file is migrated automatically on first launch.
 - MIDI **output** (sending MIDI to other devices) — input only.
 - MIDI feedback to controller LEDs (events fan out over the bridge already; wiring LED
   feedback to a specific controller is a follow-up).

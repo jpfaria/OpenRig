@@ -196,7 +196,11 @@ gRPC over BLE is **not** in scope. Bluetooth control happens via BLE-MIDI in Pha
 
 1. Create `crates/adapter-midi` using a cross-platform MIDI crate (e.g. `midir`) that already abstracts USB-MIDI and BLE-MIDI behind one input interface.
 2. Optionally include OSC support behind a Cargo feature flag (e.g. `rosc`).
-3. Define a YAML mapping format at the per-OS config dir (`~/Library/Application Support/OpenRig/midi-map.yaml` on macOS, `%APPDATA%\OpenRig\midi-map.yaml` on Windows, `~/.config/OpenRig/midi-map.yaml` on Linux):
+3. Define a YAML mapping format (the historical single-file layout below;
+   after #499 / ADR 0003 the single file is split into a per-OS system device
+   profile + a per-OS system bindings fallback, and projects may carry their
+   own bindings under `project.openrig` → `midi.bindings` — see
+   `docs/midi.md` and `docs/adr/0003-system-vs-project-config.md`):
    ```yaml
    bindings:
      - source: { kind: midi, channel: 1, cc: 7 }

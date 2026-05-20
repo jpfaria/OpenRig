@@ -51,6 +51,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                 )
             })
             .collect(),
+        midi: None,
     }
 }
 

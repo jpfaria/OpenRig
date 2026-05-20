@@ -39,6 +39,7 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        midi: None,
     }
 }
 

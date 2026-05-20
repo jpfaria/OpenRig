@@ -131,6 +131,7 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
         inputs,
         outputs,
         presets,
+        midi: None,
     }
 }
 

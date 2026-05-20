@@ -110,6 +110,7 @@ dependencies = [
  "infra-filesystem",
  "log",
  "midir",
+ "project",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4952,6 +4953,8 @@ dependencies = [
  "plugin-loader",
  "schemars 0.8.22",
  "serde",
+ "serde_json",
+ "serde_yaml",
  "vst3-host",
 ]
 

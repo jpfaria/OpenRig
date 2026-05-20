@@ -1,12 +1,28 @@
-# OpenRig — standard MIDI map.
+# OpenRig — standard MIDI map (shipped default).
 #
-# Copy this file to OpenRig's config folder (see docs/midi.md) and run
-# OpenRig with `--midi`. Then set your MIDI controller to send the
-# messages listed in docs/midi.md. The only thing you may need to change
-# is the input name below ("guitar") to match your rig input.
+# After #499 (ADR 0003) the legacy single `midi-map.yaml` has been split
+# in two:
+#
+#   - `midi-profile.yaml` (system, per-OS config dir) — `input:` only.
+#     Which controller to listen to. This file is system-only and never
+#     travels with the project.
+#
+#   - `midi-bindings.yaml` (system fallback, per-OS config dir) — the
+#     `bindings:` block. Used when the open project has no `midi:` field.
+#     Projects may carry their own bindings in `project.openrig` under
+#     `midi.bindings` — those override this file (see docs/midi.md).
+#
+# This file (`examples/midi-map.default.yaml`) ships with OpenRig as the
+# **shipped default**: the resolver falls back to it when no project
+# bindings and no system fallback file exist.
+#
+# OpenRig migrates an existing `midi-map.yaml` (input + bindings) into
+# the two files on first launch and deletes the legacy file. No manual
+# action.
 #
 # Convention used here: everything on MIDI channel 1, footswitches as
-# Note On (notes 60..67), one knob as Control Change 7.
+# Note On (notes 60..67), one knob as Control Change 7. Set your
+# controller to send these — see docs/midi.md for the full table.
 
 # Open every connected input port whose name matches this substring.
 # Leave it as is for an M-Vave Chocolate; change to match your device.

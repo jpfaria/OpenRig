@@ -38,6 +38,7 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
     }
 }
 
@@ -176,6 +177,7 @@ fn no_project_state_has_no_inputs() {
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
     };
     let s = BankSceneState::from_project(&empty);
     assert!(s.inputs.is_empty());

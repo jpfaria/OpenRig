@@ -2,6 +2,14 @@
 
 Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Windows, Linux.
 
+## LEI ZERO — RESPOSTA CURTA, SEMPRE
+
+**Default = 1–2 frases.** Sem tabelas, sem headers, sem bullets aninhados, sem recap do que o usuário disse, sem "resumo final", sem "next step", sem checklist no chat. Diagnóstico longo, inventário, série de commits → vai pra issue (`gh issue comment`), nunca pro chat.
+
+Só estende a resposta quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", "me dá o resumo"). Cobrou pra ser curto = curto pelo resto da sessão, sem precisar repetir.
+
+Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
+
 ## Invariantes que NUNCA podem piorar
 
 OpenRig é áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança que toca audio thread, DSP, roteamento, I/O ou cadeia de blocos precisa provar que não regride NADA abaixo:
@@ -59,6 +67,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Tela não tem regra de negócio.** Slint é dispatcher puro: callback → `Event` → função pura testável. Sem `AppWindow` em teste.
 - **Backend transport-agnostic.** Core (`State`/`Event`/`Command`/`SideEffect`) sem dependência de Slint. Vai virar gRPC + MCP + remoto.
 - **Conteúdo de repo sempre em inglês.** Todo `.md` (`docs/**`, `CLAUDE.md`, READMEs, specs/plans), comentários de código, commits, branches, PRs e comentários de issue no GitHub: inglês. Única exceção: `README.pt-BR.md` / `README.es-ES.md`.
+- **Config: sistema vs projeto (ADR 0003).** Setting nasce em `config.yaml` (sistema) ou dentro de `project.openrig` (projeto) por uma regra única: *"se eu mandar o `.openrig` pra outra máquina, esse valor tem que ir junto?"* Sim → projeto. Não → sistema. Precedência no load: projeto sobrescreve sistema. Spec: `docs/adr/0003-system-vs-project-config.md` + `docs/config-taxonomy.md`.
 
 ## Diretrizes de trabalho (agente)
 
