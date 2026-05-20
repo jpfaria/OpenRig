@@ -51,55 +51,40 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
-    // Parameter grid: knobs wrap into multiple rows when more than
-    // `max-cols` arrive (issue #500 — LV2 plugins like ZaMultiComp = 27
-    // ports). Six columns per row is a deliberate UX choice: a 10-knob
-    // pedal renders as 5+5 / 6+4, not a single ultra-wide strip.
-    // - `max-cols` must match `block_panel_editor.slint`'s `grid-max-cols`.
-    // - `param-rows` uses int-safe ceil — Slint's `int / int` truncates,
-    //   so naive `Math.ceil(param-count / param-cols)` returned 2 for
-    //   27 params instead of 5, leaving rows 3-5 clipped (the bug behind
-    //   the all-empty ZaMultiComp window in the issue #500 follow-up).
-    property <int> param-count: root.block-parameter-items.length;
-    property <int> max-cols: 6;
-    property <int> param-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
-    property <int> param-rows:
-        param-cols > 0 ? Math.floor((param-count - 1) / param-cols) + 1 : 0;
-    property <length> needed-width: param-cols > 0 ? param-cols * 64px + 68px : 520px;
+    // Knob-grid dimensions come from Rust (`block_panel_dimensions::compute`).
+    // The wrap policy is universal: NAM, native, IR, LV2 — every block
+    // kind that uses the panel editor goes through the same Rust formula
+    // and reads back the result via these `in` properties. The math is
+    // covered by `block_panel_dimensions_tests`; do not re-derive it here.
+    in property <length> panel-knob-window-width: 900px;
+    in property <length> panel-knob-window-height: 275px;
+    in property <length> panel-knob-inner-height: 225px;
+    in property <int> panel-grid-cols: 0;
+    in property <int> panel-grid-rows: 0;
+
     private property <bool> has-eq-widget:
         root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
     // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
-    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
     private property <length> eq-panel-width:
         multi-slider-points.length > 0 ?
             Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
         curve-editor-points.length > 0 ?
             Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
             600px;
-    // `out` so the Rust side can read the computed size and call
-    // window().set_size() explicitly. Without an explicit set_size some
-    // Linux WMs ignore min/max/preferred-* and open the window huge
-    // (issue #479); the main AppWindow already sets its size in Rust.
+    // Outer-window dimensions. EQ branch keeps its dedicated widget
+    // formula; everything else reads the Rust-computed knob-grid sizes
+    // (single source of truth for #500). Rust calls `window().set_size()`
+    // with these values right after populating the param/overlay model
+    // — Linux WMs ignore min/max/preferred-* without that explicit call
+    // (#479).
     out property <length> panel-width:
         root.use-panel-editor ?
-            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+            (has-eq-widget ? eq-panel-width : panel-knob-window-width) :
             520px;
-    // Non-panel editor (form/knob blocks): 640px clipped the lower
-    // controls once the size was applied explicitly (#479) — the Linux
-    // WM used to over-size the window and hid the shortfall. 820px
-    // fits the model picker + parameter grid + drawer with margin.
-    // Extra rows of parameters (beyond the first) each add `row-stride`.
-    // Must match `block_panel_editor.slint`'s `grid-row-stride` — they
-    // jointly position rows and size the outer window. Stride > item
-    // height (90px) leaves visible breathing room between wrapped rows.
-    // EQ blocks render via a dedicated widget (CurveEditor / MultiSlider)
-    // instead of the parameter grid — `param-rows` would otherwise inflate
-    // the window for an empty grid that is never shown.
-    private property <length> row-stride: 100px;
-    private property <length> param-rows-extra-height:
-        (has-eq-widget || param-rows <= 1) ? 0px : (param-rows - 1) * row-stride;
     out property <length> panel-height:
-        root.use-panel-editor ? (eq-extra-height + param-rows-extra-height) : 820px;
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-extra-height : panel-knob-window-height) :
+            820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
@@ -148,6 +133,9 @@ export component BlockEditorWindow inherits Window {
         eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
+        panel-knob-inner-height: root.panel-knob-inner-height;
+        panel-grid-cols: root.panel-grid-cols;
+        panel-grid-rows: root.panel-grid-rows;
         choose-block-model(i) => { root.choose-block-model(i); }
         choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
         search-block-model(text) => { root.search-block-model(text); }
