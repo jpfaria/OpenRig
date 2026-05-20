@@ -122,16 +122,14 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // the standard set back in. Issue #401.
             let mut specs: Vec<block_core::param::ParameterSpec> =
                 parameters.iter().map(grid_parameter_to_spec).collect();
-            // Keep input_db / noise_gate.* / eq.* but drop output_db —
-            // issue #402 moved per-NAM loudness compensation into the
-            // manifest's `output_gain_db` field (applied automatically
-            // by the loader) so users no longer see / fight a level
-            // knob.
-            specs.extend(
-                nam::processor::plugin_parameter_specs()
-                    .into_iter()
-                    .filter(|s| s.path != "output_db"),
-            );
+            // Issue #496 reverses #402's "drop output_db". With the
+            // audit-side `output_gain_db` cleared in the manifests,
+            // there was no automatic compensation AND no user-facing
+            // knob — every NAM played at the raw (quiet) capture
+            // output. Re-expose the host's Output knob so the user
+            // can add makeup gain; the manifest `output_gain_db` is
+            // still summed on top when present.
+            specs.extend(nam::processor::plugin_parameter_specs());
             specs
         }
         Backend::Ir { parameters, .. } => parameters.iter().map(grid_parameter_to_spec).collect(),
@@ -535,18 +533,25 @@ mod tests {
     }
 
     #[test]
-    fn nam_synthesized_schema_does_not_expose_output_db_knob() {
-        // Issue #402: loudness compensation is per-package, baked into
-        // the manifest's `output_gain_db` by the audit tool. The user
-        // does NOT see a knob — every NAM is meant to ride at the same
-        // perceived level out of the box.
+    fn nam_synthesized_schema_exposes_output_db_knob() {
+        // Issue #496 reversed #402: when audit-side `output_gain_db`
+        // values are zeroed (or absent), the user has no way to add
+        // makeup gain on a quiet capture — the chain plays at the raw
+        // model output, which is typically far below realistic amp
+        // level. Exposing the Output knob gives the user manual control;
+        // when a hot `output_gain_db` IS present in the manifest, it is
+        // still applied automatically (the two coexist additively).
         let pkg = nam_package_with_axes();
         let specs = synthesize_parameters_from_manifest(&pkg);
         assert!(
-            specs.iter().all(|s| s.path != "output_db"),
-            "NAM schema must NOT include `output_db` (loudness lives in manifest); \
-             got params: {:?}",
+            specs.iter().any(|s| s.path == "output_db"),
+            "NAM schema must include `output_db` so the user can add \
+             makeup gain when the manifest is zero; got params: {:?}",
             specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+        assert!(
+            specs.iter().any(|s| s.path == "input_db"),
+            "NAM schema must include `input_db` (always was)"
         );
     }
 
