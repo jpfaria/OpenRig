@@ -51,9 +51,19 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
-    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
+    // Parameter grid: knobs wrap into multiple rows when more than
+    // `max-cols` arrive (LV2 plugins like ZaMultiComp ship 27 control
+    // ports — without wrapping the window opened ~1800px wide and the
+    // knobs squashed to invisibility, issue #500).
+    // - cell width 64px (matches BlockPanelParameterItem layout)
+    // - margins: 60px (power button) + 8px (right padding) = 68px
+    // - max-cols 12 caps the row at 12*64 + 68 = 836px, well under the
+    //   900px minimum panel width below.
     property <int> param-count: root.block-parameter-items.length;
-    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+    property <int> max-cols: 12;
+    property <int> param-cols: param-count > 0 ? Math.min(param-count, max-cols) : 0;
+    property <int> param-rows: param-cols > 0 ? Math.ceil(param-count / param-cols) : 0;
+    property <length> needed-width: param-cols > 0 ? param-cols * 64px + 68px : 520px;
     private property <bool> has-eq-widget:
         root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
     // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
@@ -76,8 +86,13 @@ export component BlockEditorWindow inherits Window {
     // controls once the size was applied explicitly (#479) — the Linux
     // WM used to over-size the window and hid the shortfall. 820px
     // fits the model picker + parameter grid + drawer with margin.
+    // Extra rows of parameters (beyond the first) each add 90px — the
+    // BlockPanelParameterItem row height. Without this, wrapped rows
+    // would render below the window's bottom edge and be invisible.
+    private property <length> param-rows-extra-height:
+        param-rows > 1 ? (param-rows - 1) * 90px : 0px;
     out property <length> panel-height:
-        root.use-panel-editor ? eq-extra-height : 820px;
+        root.use-panel-editor ? (eq-extra-height + param-rows-extra-height) : 820px;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
