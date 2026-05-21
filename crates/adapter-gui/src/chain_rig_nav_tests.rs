@@ -339,8 +339,12 @@ fn switching_preset_select_changes_projected_chain_blocks() {
 // Adding a preset must give an INDEPENDENT copy: editing the new
 // (active) preset and syncing back must not mutate the source preset —
 // otherwise saving "the new preset" would corrupt the old one.
+// A new preset is born FRESH (no blocks). When the user adds blocks
+// to it and edits them, the source preset must stay untouched — the
+// two presets must be fully independent snapshots even when both end
+// up holding similar content.
 #[test]
-fn add_preset_then_edit_keeps_source_preset_independent() {
+fn editing_new_preset_leaves_source_preset_untouched() {
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
@@ -362,7 +366,11 @@ fn add_preset_then_edit_keeps_source_preset_independent() {
     r.presets.get_mut("clean").unwrap().blocks = vec![src.clone()];
 
     let slot = r.add_preset_to_input("input-1").expect("added");
-    // Project the new preset, edit gain on the synthetic chain, sync back.
+    let new_name = r.inputs["input-1"].bank[&slot].clone();
+    // New preset is empty by design. Push a block manually so we can
+    // edit it via the synthetic chain.
+    r.presets.get_mut(&new_name).unwrap().blocks = vec![src.clone()];
+
     let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
     for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
         for b in c.blocks.iter_mut() {
@@ -373,7 +381,6 @@ fn add_preset_then_edit_keeps_source_preset_independent() {
     }
     super::sync_synthetic_into_rig(&mut r, &proj);
 
-    let new_name = r.inputs["input-1"].bank[&slot].clone();
     let read_gain = |p: &project::rig::RigPreset, scene: usize| match &p.apply_scene(scene)[0].kind
     {
         AudioBlockKind::Core(c) => c.params.get_f32("gain"),

@@ -122,25 +122,16 @@ impl RigProject {
     }
 
     /// Add a new preset to `input`'s bank: takes the next free slot
-    /// (max key + 1, or 1 for an empty bank), clones the currently active
-    /// preset as a starting point (an **independent** snapshot — no shared
-    /// state), gives it a unique name, and makes the new slot active.
+    /// (max key + 1, or 1 for an empty bank), gets a unique name, and
+    /// makes the new slot active. The new preset starts **fresh** —
+    /// no blocks, default volume, single Default scene. Cloning the
+    /// active preset was confusing: switching to the new slot looked
+    /// identical to the previous one, so the "+" button felt broken.
     /// Returns the new slot, or `None` if the input is unknown.
     pub fn add_preset_to_input(&mut self, input: &str) -> Option<usize> {
         let ri = self.inputs.get(input)?;
         let slot = ri.bank.keys().max().map(|m| m + 1).unwrap_or(1);
-        // A new preset starts FRESH: the sound (blocks + volume) is
-        // cloned from the active preset as a starting point, but it
-        // gets a single Default scene — scenes/scene-params are NOT
-        // inherited (a preset with 2 scenes must not spawn one with 2).
-        let source = ri
-            .bank
-            .get(&ri.active_preset)
-            .and_then(|n| self.presets.get(n));
-        let template = RigPreset::from_legacy_blocks(
-            source.map(|p| p.blocks.clone()).unwrap_or_default(),
-            source.map(|p| p.volume).unwrap_or(100.0),
-        );
+        let template = RigPreset::from_legacy_blocks(Vec::new(), 100.0);
         let name = self.unique_preset_name("New Preset");
         self.presets.insert(name.clone(), template);
         let ri = self.inputs.get_mut(input)?;

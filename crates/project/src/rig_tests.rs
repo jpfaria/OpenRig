@@ -452,11 +452,17 @@ fn editing_on_scene_2_does_not_change_scene_1() {
 }
 
 // #436 — "como adiciono um preset?" Adding a preset to an input's bank
-// must: take the next free slot, clone the currently active preset as a
-// starting point (independent snapshot), get a unique name, and make the
-// new slot active. No collision with existing preset names.
+// User-reported contract change: a brand-new preset must start
+// FRESH. Cloning the currently active preset's blocks / volume was
+// confusing — switching to the new slot looked identical to the
+// previous one, so the "+" button felt broken. New shape: empty
+// blocks, default volume (100.0), one default scene, becomes active.
 #[test]
-fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
+fn add_preset_to_input_creates_fresh_preset_with_no_blocks_or_volume_clone() {
+    use crate::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use crate::param::ParameterSet;
+    use domain::ids::BlockId;
+
     let mut p = project_with(
         vec![(
             "input-1",
@@ -464,8 +470,19 @@ fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
         )],
         &["clean", "drive", "lead"],
     );
-    // Make the active preset ("drive") distinguishable.
+    // Make the active preset ("drive") distinguishable: pump volume
+    // and add a Core block so we can prove neither leaks into the
+    // freshly-added preset.
     p.presets.get_mut("drive").unwrap().volume = 137.0;
+    p.presets.get_mut("drive").unwrap().blocks.push(AudioBlock {
+        id: BlockId("gain:1".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: ParameterSet::default(),
+        }),
+    });
     let presets_before = p.presets.len();
 
     let slot = p
@@ -481,9 +498,15 @@ fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
         "unique name, no collision: {name}"
     );
     assert_eq!(p.presets.len(), presets_before + 1, "one new preset");
+    let new_preset = &p.presets[name];
+    assert!(
+        new_preset.blocks.is_empty(),
+        "fresh preset: no blocks copied from the active source (got {} blocks)",
+        new_preset.blocks.len()
+    );
     assert_eq!(
-        p.presets[name].volume, 137.0,
-        "cloned from the previously active preset (drive)"
+        new_preset.volume, 100.0,
+        "fresh preset: default volume, not cloned from the source's 137"
     );
 }
 
