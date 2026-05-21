@@ -324,6 +324,21 @@ pub(crate) fn load_project_session(
     project.device_settings =
         build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
+    // Migration safety net (#511 / output-persistence fix follow-up):
+    // a rig-backed project saved before `SaveChainOutputEndpoints` started
+    // writing into `rig.outputs` reopens with no Output blocks on its
+    // chains. `validate_project` would then refuse to start the runtime
+    // and the user would have no sound AND no way to enable the chain.
+    // Synthesize a default Output routed to the first configured output
+    // device so old projects self-heal forward; the user can later
+    // customise via the I/O editor.
+    let default_output_device = gui_settings
+        .output_devices
+        .first()
+        .map(|d| domain::ids::DeviceId(d.device_id.clone()))
+        .unwrap_or_else(|| domain::ids::DeviceId(String::new()));
+    project::project_ensure_io::ensure_chains_have_output(&mut project, &default_output_device);
+
     let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),

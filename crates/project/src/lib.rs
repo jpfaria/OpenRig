@@ -6,6 +6,7 @@ pub mod midi;
 pub mod migrate;
 pub mod param;
 pub mod project;
+pub mod project_ensure_io;
 pub mod rig;
 pub mod rig_command;
 pub mod rig_methods;
