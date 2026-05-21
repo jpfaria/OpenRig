@@ -52,6 +52,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[ChainRigNav]> chain-rig-nav;
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
+    callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
     callback move-chain-up(int);
@@ -228,6 +229,9 @@ export component ProjectChainsPage inherits Rectangle {
                 }
                 switch-chain-scene(s) => {
                     root.switch-chain-scene(index, s);
+                }
+                rename-chain-preset(name) => {
+                    root.rename-chain-preset(index, name);
                 }
                 chain-index: index;
                 chain-count: root.project-chains.length;

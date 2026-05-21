@@ -147,6 +147,7 @@ export component AppWindow inherits Window {
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
+    callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     /// Slider de volume da chain mudou (issue #440). Args: chain-index na
     /// ordem de project-chains, volume no range 0-200 (100 = unity). Rust
@@ -280,6 +281,7 @@ export component AppWindow inherits Window {
         chain-rig-nav: root.chain-rig-nav;
         switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
         switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
+        rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;
@@ -479,6 +481,7 @@ export component AppWindow inherits Window {
         chain-rig-nav: root.chain-rig-nav;
         switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
         switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
+        rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;

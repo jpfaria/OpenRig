@@ -198,4 +198,56 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
             }
         });
     }
+    {
+        let weak = window.as_weak();
+        let ctx = ctx.clone();
+        window.on_rename_chain_preset(move |chain_index, new_name| {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            let session_borrow = ctx.project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            if let Err(e) = apply_rename_rig_preset(
+                session,
+                chain_index as usize,
+                new_name.to_string(),
+            ) {
+                log::warn!("rename_chain_preset dispatch failed: {e}");
+                return;
+            }
+            refresh_chain_rig_nav(&window, session);
+        });
+    }
+}
+
+/// Dispatches `Command::RenameRigPreset` for the chain at
+/// `chain_index`. Empty `new_name` is a no-op (the user pressed OK
+/// with no text). Surfaces an error only if the chain index is out
+/// of range; non-`rig:` chains silently succeed because the
+/// dispatcher treats them as no-ops by design.
+pub(crate) fn apply_rename_rig_preset(
+    session: &ProjectSession,
+    chain_index: usize,
+    new_name: String,
+) -> anyhow::Result<()> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    let chain_id = session
+        .project
+        .borrow()
+        .chains
+        .get(chain_index)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| anyhow::anyhow!("chain index {chain_index} out of range"))?;
+    session.dispatcher.dispatch(
+        application::command::Command::RenameRigPreset {
+            chain: chain_id,
+            name: trimmed.to_string(),
+        },
+    )?;
+    Ok(())
 }

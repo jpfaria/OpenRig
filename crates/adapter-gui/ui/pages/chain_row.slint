@@ -18,6 +18,7 @@ export component ChainRow inherits Rectangle {
     in property <ChainRigNav> rig-nav;
     callback switch-chain-preset(int);
     callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
     in property <int> chain-index;
     in property <int> chain-count;
     in property <int> selected-block-chain-index;
@@ -121,6 +122,9 @@ export component ChainRow inherits Rectangle {
             }
             scene-picked(s) => {
                 root.switch-chain-scene(s);
+            }
+            rename-preset(name) => {
+                root.rename-chain-preset(name);
             }
         }
 

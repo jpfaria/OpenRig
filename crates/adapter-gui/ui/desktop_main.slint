@@ -118,6 +118,7 @@ export component DesktopMain inherits Rectangle {
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
+    callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
     callback move-chain-up(int);
@@ -260,6 +261,7 @@ export component DesktopMain inherits Rectangle {
             chain-rig-nav: root.chain-rig-nav;
             switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
             switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
+            rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;
             block-type-options: root.block-type-options;
