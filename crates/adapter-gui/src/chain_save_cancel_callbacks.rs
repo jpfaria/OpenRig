@@ -172,6 +172,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
+            // The chains screen has its own preset/scene combobox model
+            // (chain_rig_nav) — replace_project_chains alone leaves it
+            // stale, so the new chain shows "Chain 1" with an empty
+            // preset selector until something else triggers a refresh.
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(
                 &window,
