@@ -397,26 +397,28 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
-    // #436 #1: rig session → the source of truth is the RigProject.
-    // Write the synthetic chains' edits back into it and save the
-    // `project.openrig` (load_project_any reloads it idempotently).
-    // Non-rig session keeps the legacy serialize. Config + presets-dir
-    // steps below run either way.
-    match &session.rig {
-        Some(rig) => {
-            // #436: capturing synthetic edits is model mutation — it
-            // goes through the Command now, not by hand in the UI.
-            let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
-            let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
-                project_path.clone()
-            } else {
-                project_path.with_extension("openrig")
-            };
-            infra_yaml::save_rig_project_file(&openrig, &rig.borrow())?;
-        }
-        None => {
-            fs::write(project_path, project_session_snapshot(session)?)?;
-        }
+    // #449/#450: the `RigProject` is the only source of truth that
+    // round-trips on reload (`load_project_any` is idempotent and
+    // prefers the existing `.openrig` over any legacy `.yaml`). So
+    // every save must produce a `.openrig` that reflects what the user
+    // currently sees in the chains screen — even when the in-memory
+    // session has no rig attached (brand-new project) and even when
+    // the user added or removed chains since the last reload.
+    let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
+        project_path.clone()
+    } else {
+        project_path.with_extension("openrig")
+    };
+    let rig_to_save = build_rig_for_save(session);
+    infra_yaml::save_rig_project_file(&openrig, &rig_to_save)?;
+    // Also write the legacy `.yaml` snapshot when the user-facing path
+    // points at one (the recents list, file dialogs, and CLI args all
+    // historically use `.yaml`). The `.openrig` is the canonical source
+    // of truth on reload — `load_project_any` finds it via the sibling
+    // and ignores the `.yaml` body — but keeping the `.yaml` on disk
+    // means an old shortcut/recent entry still resolves to a file.
+    if openrig != *project_path {
+        fs::write(project_path, project_session_snapshot(session)?)?;
     }
     let config_path = session
         .config_path
@@ -428,6 +430,125 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
     fs::write(config_path, serde_yaml::to_string(&config)?)?;
     fs::create_dir_all(parent_dir.join("presets"))?;
     Ok(())
+}
+
+/// Build the `RigProject` that should land on disk for this session.
+///
+/// Three sources of truth are reconciled:
+///
+/// 1. **The attached rig** (if any), which holds scenes, preset names,
+///    `active_preset`/`active_scene`, and any rig-level edits made via
+///    `Command::ApplyRigNav` / `RenameRigPreset`. We start from a clone
+///    of it so those are preserved verbatim.
+/// 2. **Edits to projected chains** (ids prefixed `rig:`): a
+///    `Command::CaptureRigEdits` dispatch copies the projected chain
+///    blocks back into the rig before we clone.
+/// 3. **Brand-new chains** in the legacy `Project` whose id does *not*
+///    start with `rig:` (e.g. created via `Command::AddChain` in a
+///    new-project session). These are migrated through
+///    [`migrate_legacy_project`] and merged into the rig.
+///
+/// Conversely, projected chains that no longer appear in
+/// `session.project.chains` (the user deleted them in the UI) are
+/// dropped from the rig so the next reload doesn't resurrect them.
+fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
+    use std::collections::BTreeSet;
+    if session.rig.is_some() {
+        let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
+    }
+    let mut rig_out = match &session.rig {
+        Some(rig) => rig.borrow().clone(),
+        None => project::rig::RigProject {
+            name: session.project.borrow().name.clone(),
+            inputs: std::collections::BTreeMap::new(),
+            outputs: std::collections::BTreeMap::new(),
+            presets: std::collections::BTreeMap::new(),
+            midi: None,
+            chain_order: Vec::new(),
+        },
+    };
+    // 1. New chains (not projected from the rig) → migrate + merge.
+    let new_chains: Vec<Chain> = session
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .filter(|c| !c.id.0.starts_with("rig:"))
+        .cloned()
+        .collect();
+    let mut newly_added_inputs: BTreeSet<String> = BTreeSet::new();
+    if !new_chains.is_empty() {
+        let temp = Project {
+            name: session.project.borrow().name.clone(),
+            device_settings: Vec::new(),
+            chains: new_chains,
+        };
+        let migrated = project::migrate::migrate_legacy_project(&temp);
+        // `migrate_legacy_project` always names inputs `input-1`, `input-2`,
+        // ... from 1. Those names are likely to collide with inputs the
+        // rig already has (from earlier saves), so we rename the migrated
+        // inputs to start *after* the highest `input-N` currently in the
+        // rig, keeping bank references in sync.
+        let next_base = rig_out
+            .inputs
+            .keys()
+            .filter_map(|k| {
+                k.strip_prefix("input-")
+                    .and_then(|n| n.parse::<usize>().ok())
+            })
+            .max()
+            .unwrap_or(0);
+        let migrated_names: Vec<String> = migrated.inputs.keys().cloned().collect();
+        let mut rename: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
+        for (i, old) in migrated_names.iter().enumerate() {
+            rename.insert(old.clone(), format!("input-{}", next_base + i + 1));
+        }
+        for (old_name, input) in migrated.inputs {
+            let new_name = rename.get(&old_name).cloned().unwrap_or(old_name);
+            newly_added_inputs.insert(new_name.clone());
+            rig_out.inputs.insert(new_name, input);
+        }
+        for (name, preset) in migrated.presets {
+            rig_out.presets.entry(name).or_insert(preset);
+        }
+        for (name, output) in migrated.outputs {
+            rig_out.outputs.entry(name).or_insert(output);
+        }
+    }
+    // 2. Projected chains the user removed → drop the matching inputs
+    //    so the reload doesn't resurrect them.
+    let surviving_projected: BTreeSet<String> = session
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .filter_map(|c| c.id.0.strip_prefix("rig:").map(String::from))
+        .collect();
+    rig_out.inputs.retain(|name, _| {
+        surviving_projected.contains(name) || newly_added_inputs.contains(name)
+    });
+    // Garbage-collect orphan presets / outputs no longer referenced.
+    let referenced_presets: BTreeSet<String> = rig_out
+        .inputs
+        .values()
+        .flat_map(|i| i.bank.values().cloned())
+        .collect();
+    rig_out
+        .presets
+        .retain(|name, _| referenced_presets.contains(name));
+    let referenced_outputs: BTreeSet<String> = rig_out
+        .inputs
+        .values()
+        .flat_map(|i| i.routing.iter().cloned())
+        .collect();
+    rig_out
+        .outputs
+        .retain(|name, _| referenced_outputs.contains(name));
+    // Carry the user-visible project name (`UpdateProjectName` writes
+    // to the legacy `Project`; the rig must mirror it on disk).
+    rig_out.name = session.project.borrow().name.clone();
+    rig_out
 }
 
 pub(crate) fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
@@ -478,3 +599,18 @@ pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &P
             }
         })
 }
+
+
+#[cfg(test)]
+#[path = "project_ops_persistence_tests.rs"]
+mod project_ops_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "project_admin_persistence_tests.rs"]
+mod project_admin_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "project_rig_persistence_tests.rs"]
+mod project_rig_persistence_tests;
