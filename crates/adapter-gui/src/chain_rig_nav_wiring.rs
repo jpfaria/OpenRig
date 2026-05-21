@@ -59,6 +59,22 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
         Some(rig) => rig_nav_rows(&rig.borrow(), &session.project.borrow()),
         None => Vec::new(),
     };
+    log::info!(
+        "refresh_chain_rig_nav: session.rig={}, project.chains={}, rows={}",
+        session.rig.is_some(),
+        session.project.borrow().chains.len(),
+        rows.len(),
+    );
+    for (i, r) in rows.iter().enumerate() {
+        log::info!(
+            "  row[{i}] input={:?} preset_labels={:?} active={} scene={}/{}",
+            r.input,
+            r.preset_labels,
+            r.active_index,
+            r.scene,
+            r.scene_count,
+        );
+    }
     let items: Vec<ChainRigNav> = rows
         .into_iter()
         .map(|r| ChainRigNav {

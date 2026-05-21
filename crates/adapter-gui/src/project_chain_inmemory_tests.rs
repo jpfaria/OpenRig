@@ -252,6 +252,47 @@ fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
 //    `RigNavRow::default()`.
 // ────────────────────────────────────────────────────────────────────
 
+// Reproduces the live bug: the chain-editor "save" callback cloned
+// `chain.id` *before* dispatching SaveChain, then passed that pre-
+// dispatch id to `sync_live_chain_runtime`. The dispatcher now
+// re-tags the id to `rig:<input>` during the dispatch, so the
+// callback's cached `chain_id` no longer exists in the project. The
+// runtime lookup fails, the callback returns early, and the
+// `refresh_chain_rig_nav` call that lights up the preset combobox
+// never runs.
+#[test]
+fn pre_dispatch_chain_id_is_invalid_after_save_chain() {
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let chain = chain_with(&session, "Chain 1", "dev-A");
+    let pre_dispatch_id = chain.id.clone();
+
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("SaveChain");
+
+    let still_present = session
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .any(|c| c.id == pre_dispatch_id);
+    assert!(
+        !still_present,
+        "pre-dispatch chain id must NOT be the one stored after dispatch \
+         (the dispatcher retags it to `rig:<input>`); callers must read \
+         the post-dispatch id from the project, not cache the original"
+    );
+    // The chain that *is* present uses the `rig:` shape.
+    let post = session.project.borrow().chains[0].id.clone();
+    assert!(
+        post.0.starts_with("rig:"),
+        "post-dispatch id must be `rig:<input>`; got {:?}",
+        post.0
+    );
+}
+
 #[test]
 fn save_chain_rewrites_chain_id_to_rig_prefix() {
     let tmp = TempDir::new().unwrap();
