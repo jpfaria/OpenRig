@@ -385,6 +385,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
+            // The chain-row model now reflects the new order, but the
+            // per-chain preset/scene model (`chain_rig_nav`) was still
+            // pointing at the OLD index→input mapping — so the row at
+            // the new slot kept showing the previous neighbour's
+            // preset/scene combobox until something else refreshed it.
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             let selected = window.get_selected_chain_block_chain_index();
             let updated = shift_selected_chain_index_after_swap(
                 selected,
@@ -437,6 +443,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             );
+            // Mirror of `on_move_chain_up`: the preset/scene combobox
+            // model is independent from `project_chains` and would
+            // otherwise keep the previous slot's labels.
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             let selected = window.get_selected_chain_block_chain_index();
             let updated = shift_selected_chain_index_after_swap(
                 selected,

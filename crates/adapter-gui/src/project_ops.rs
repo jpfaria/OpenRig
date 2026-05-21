@@ -682,3 +682,8 @@ mod chain_rename_persistence_tests;
 #[cfg(test)]
 #[path = "scene_param_persistence_tests.rs"]
 mod scene_param_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "chain_reorder_refresh_tests.rs"]
+mod chain_reorder_refresh_tests;
