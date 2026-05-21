@@ -73,7 +73,11 @@ export component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
-    height: 74px + (root.block-row-count * 108px);
+    // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
+    // which collided with the block grid (bottom at y = 62 + n*108).
+    // Add 32px of breathing room so the meters sit clearly below the
+    // last row of blocks.
+    height: 106px + (root.block-row-count * 108px);
 
     Rectangle {
         x: 0px;
@@ -109,7 +113,10 @@ export component ChainRow inherits Rectangle {
         ChainTitlePreset {
             x: 72px;
             y: 9px;
-            width: parent.width - 72px - 332px;
+            // Preset open/save moved into this component, so the
+            // chain-action cluster on the right needs ~80px less.
+            // Title area now reaches further across the row.
+            width: parent.width - 72px - 252px;
             height: 40px;
             title: root.chain.title;
             nav: root.rig-nav;
@@ -126,19 +133,25 @@ export component ChainRow inherits Rectangle {
             rename-preset(name) => {
                 root.rename-chain-preset(name);
             }
+            load-preset => {
+                root.configure-chain-preset(root.chain-index);
+            }
+            save-preset => {
+                root.save-chain-preset(root.chain-index);
+            }
         }
 
         // Volume da chain (#440) atrás de ícone (#436): clica no alto-
         // falante e o slider aparece; fica junto ao cluster de ações.
         ChainVolumeButton {
-            x: parent.width - 356px;
+            x: parent.width - 276px;
             y: 12px;
             volume: root.chain.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
         if !root.fullscreen : ChainActionIcon {
-            x: parent.width - 196px;
+            x: parent.width - 116px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
             tooltip: @tr("tooltip-expand-blocks");
@@ -146,7 +159,7 @@ export component ChainRow inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 236px;
+            x: parent.width - 156px;
             y: 14px;
             icon: @image-url("../assets/sonar.svg");
             tooltip: @tr("tooltip-measure-latency");
@@ -157,7 +170,7 @@ export component ChainRow inherits Rectangle {
         // boundary icon (first/last) renders dimmed and the wiring side
         // ignores no-op clicks. Issue #246.
         if root.chain-count > 1 : ChainActionIcon {
-            x: parent.width - 316px;
+            x: parent.width - 236px;
             y: 14px;
             opacity: root.chain-index == 0 ? 0.35 : 1.0;
             icon: @image-url("../assets/arrow-up.svg");
@@ -166,7 +179,7 @@ export component ChainRow inherits Rectangle {
         }
 
         if root.chain-count > 1 : ChainActionIcon {
-            x: parent.width - 276px;
+            x: parent.width - 196px;
             y: 14px;
             opacity: root.chain-index >= root.chain-count - 1 ? 0.35 : 1.0;
             icon: @image-url("../assets/arrow-down.svg");
@@ -175,27 +188,11 @@ export component ChainRow inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 156px;
+            x: parent.width - 76px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: @tr("tooltip-configure");
             clicked => { root.configure-chain(root.chain-index); }
-        }
-
-        ChainActionIcon {
-            x: parent.width - 116px;
-            y: 14px;
-            icon: @image-url("../assets/open-file.svg");
-            tooltip: @tr("tooltip-open-preset");
-            clicked => { root.configure-chain-preset(root.chain-index); }
-        }
-
-        ChainActionIcon {
-            x: parent.width - 76px;
-            y: 14px;
-            icon: @image-url("../assets/save.svg");
-            tooltip: @tr("tooltip-save-preset");
-            clicked => { root.save-chain-preset(root.chain-index); }
         }
 
         ChainActionIcon {

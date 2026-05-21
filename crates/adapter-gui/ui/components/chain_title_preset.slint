@@ -221,6 +221,12 @@ export component ChainTitlePreset inherits Rectangle {
     // name typed in the rename popup. Empty string ⇒ user pressed
     // OK with no text; the Rust wiring treats it as a no-op.
     callback rename-preset(string);
+    // Issue: open the load-preset file picker. Routed to the
+    // existing `configure-chain-preset` callback on chain_row.
+    callback load-preset();
+    // Issue: save the chain's processing chain as a preset file.
+    // Routed to the existing `save-chain-preset` callback.
+    callback save-preset();
 
     // Active-preset label, used to pre-fill the rename popup.
     property <string> active-preset-label:
@@ -260,17 +266,29 @@ export component ChainTitlePreset inherits Rectangle {
             }
         }
 
-        // Preset select — empty placeholder when no rig yet.
-        PresetSelect {
-            width: 220px;
-            labels: root.nav.preset-labels;
-            active-index: root.nav.active-preset-index;
-            picked(i) => {
-                root.preset-picked(i);
+        // Preset action cluster BEFORE the select — open, save, add,
+        // rename, delete. Grouping them with the combobox so it's
+        // unambiguous that they act on the *preset* (not the chain).
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/open-file.svg");
+                a11y: @tr("tooltip-open-preset");
+                clicked => {
+                    root.load-preset();
+                }
             }
         }
-        // Always-visible "+ Add Preset". On a chain with no rig
-        // yet, clicking it creates the rig + first preset.
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/save.svg");
+                a11y: @tr("tooltip-save-preset");
+                clicked => {
+                    root.save-preset();
+                }
+            }
+        }
         VerticalLayout {
             alignment: center;
             IconButton {
@@ -281,8 +299,6 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
-        // Rename the active preset. Only meaningful when a preset
-        // exists; hidden on an empty rig so it doesn't dangle.
         if root.nav.preset-labels.length > 0 : VerticalLayout {
             alignment: center;
             IconButton {
@@ -294,8 +310,6 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
-        // Remove the active preset — only when there is more than one
-        // (a bank must keep at least one).
         if root.nav.preset-labels.length > 1 : VerticalLayout {
             alignment: center;
             IconButton {
@@ -304,6 +318,16 @@ export component ChainTitlePreset inherits Rectangle {
                 clicked => {
                     root.preset-picked(-2);
                 }
+            }
+        }
+
+        // Preset select — empty placeholder when no rig yet.
+        PresetSelect {
+            width: 220px;
+            labels: root.nav.preset-labels;
+            active-index: root.nav.active-preset-index;
+            picked(i) => {
+                root.preset-picked(i);
             }
         }
 
