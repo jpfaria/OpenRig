@@ -40,6 +40,16 @@
         ]
       }
     ],
-    "PostToolUse": []
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/clear-red-first-after-commit.sh\""
+          }
+        ]
+      }
+    ]
   }
 }
