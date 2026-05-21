@@ -16,6 +16,7 @@ impl LocalDispatcher {
                 input_block,
                 output_block,
             } => {
+                let cloned_output = output_block.clone();
                 self.with_chain(&chain, |c| {
                     let in_pos = c
                         .blocks
@@ -41,6 +42,17 @@ impl LocalDispatcher {
                     c.blocks[out_idx] = output_block;
                     Ok(())
                 })?;
+                // Same rig-persistence sync as SaveChainOutputEndpoints --
+                // the edit must survive a rig→legacy re-projection.
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        crate::local_dispatcher_chain_save::propagate_outputs_to_rig(
+                            &mut rig.borrow_mut(),
+                            input_name,
+                            std::slice::from_ref(&cloned_output),
+                        );
+                    }
+                }
                 Ok(vec![
                     Event::ChainIoSaved {
                         chain: chain.clone(),

@@ -91,6 +91,7 @@ impl LocalDispatcher {
                 chain,
                 output_blocks,
             } => {
+                let cloned_outputs = output_blocks.clone();
                 self.with_chain(&chain, |c| {
                     // Remove all existing Output blocks, retaining non-output blocks.
                     c.blocks
@@ -99,6 +100,16 @@ impl LocalDispatcher {
                     c.blocks.extend(output_blocks);
                     Ok(())
                 })?;
+                // Persist the edit into the rig so the next rig→legacy
+                // projection (reload, scene/preset switch, runtime resync)
+                // sees the same output. Without this the user's edit lives
+                // only in the in-memory legacy chain and disappears on the
+                // next projection — "I fix the output and it never persists".
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        propagate_outputs_to_rig(&mut rig.borrow_mut(), input_name, &cloned_outputs);
+                    }
+                }
                 Ok(vec![
                     Event::ChainOutputEndpointsSaved {
                         chain: chain.clone(),
@@ -107,6 +118,44 @@ impl LocalDispatcher {
                 ])
             }
             other => unreachable!("handle_chain_save received non-save command: {other:?}"),
+        }
+    }
+}
+
+/// Write the chain's user-edited outputs into the rig under stable per-input
+/// keys, and point `input.routing` at them so `rig_to_chains` re-emits the
+/// same Output block on every projection. Replaces every previous output
+/// owned by this input (key prefix `<input_name>:`) — the user's latest
+/// `SaveChainOutputEndpoints` is the new truth. No-op if the rig has no
+/// such input.
+pub(crate) fn propagate_outputs_to_rig(
+    rig: &mut project::rig::RigProject,
+    input_name: &str,
+    output_blocks: &[project::block::AudioBlock],
+) {
+    let owned_prefix = format!("{input_name}:");
+    rig.outputs
+        .retain(|k, _| !k.starts_with(&owned_prefix));
+    let Some(input) = rig.inputs.get_mut(input_name) else {
+        return;
+    };
+    input.routing.clear();
+    let mut idx = 0usize;
+    for block in output_blocks {
+        let project::block::AudioBlockKind::Output(ob) = &block.kind else {
+            continue;
+        };
+        for entry in &ob.entries {
+            let key = format!("{input_name}:{idx}");
+            rig.outputs.insert(
+                key.clone(),
+                project::rig::RigOutput {
+                    label: None,
+                    entry: entry.clone(),
+                },
+            );
+            input.routing.push(key);
+            idx += 1;
         }
     }
 }
