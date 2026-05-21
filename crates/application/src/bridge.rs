@@ -53,6 +53,10 @@ pub enum QueryKind {
     /// Human-readable chain/block ID listing (for `midi-map.yaml` authors
     /// and the MCP `openrig://ids` resource). See [`crate::query::list_ids`].
     Ids,
+    /// Per-chain input/output peak meters (`(chain_id, in_dbfs, out_dbfs)`,
+    /// one record per line). Same numbers the GUI's IN/OUT bars read —
+    /// every transport gets the same view (`openrig-code-quality` lei).
+    ChainMeters,
 }
 
 struct QueryRequest {
@@ -232,6 +236,43 @@ mod tests {
         // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.
         assert_eq!(drain.drain(&dispatcher, 2).len(), 2);
         assert_eq!(drain.drain(&dispatcher, 10).len(), 3);
+    }
+
+    #[test]
+    fn query_chain_meters_variant_round_trips_through_bridge() {
+        // Pin the contract: a transport (MCP/gRPC/...) submits
+        // `QueryKind::ChainMeters` and the frontend resolver replies
+        // with a TSV-shaped payload. The resolver in the running app
+        // is what actually fills the values; the bridge's contract is
+        // just that the variant is plumbed through and the reply is
+        // delivered to the caller.
+        let (bridge, drain) = channel();
+        let mut rx = bridge.query(QueryKind::ChainMeters);
+        let served = drain.serve_queries(
+            |kind| match kind {
+                QueryKind::ChainMeters => {
+                    Ok("rig:input-1\t-12.3\t-9.8\nrig:input-2\t-30.0\t-25.5\n".to_string())
+                }
+                _ => Err("unexpected".into()),
+            },
+            8,
+        );
+        assert_eq!(served, 1, "the meters query was actually served");
+        let payload: String = rx
+            .try_recv()
+            .expect("channel alive")
+            .expect("reply delivered")
+            .expect("ok payload");
+        for line in payload.trim_end().split('\n') {
+            let cols: Vec<&str> = line.split('\t').collect();
+            assert_eq!(cols.len(), 3, "tsv shape: chain_id, in_dbfs, out_dbfs");
+            cols[1]
+                .parse::<f32>()
+                .expect("in_dbfs is a finite float");
+            cols[2]
+                .parse::<f32>()
+                .expect("out_dbfs is a finite float");
+        }
     }
 
     #[test]

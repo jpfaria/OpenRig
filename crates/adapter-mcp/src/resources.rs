@@ -9,6 +9,7 @@ use rmcp::model::{Annotated, RawResource, ReadResourceResult, Resource, Resource
 pub const URI_PROJECT: &str = "openrig://project";
 pub const URI_DEVICES: &str = "openrig://devices";
 pub const URI_IDS: &str = "openrig://ids";
+pub const URI_METERS: &str = "openrig://meters";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -25,6 +26,10 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(URI_IDS, "Chain/block IDs (for midi-map.yaml)"),
             None,
         ),
+        Annotated::new(
+            RawResource::new(URI_METERS, "Per-chain peak meters (dBFS)"),
+            None,
+        ),
     ]
 }
 
@@ -34,6 +39,7 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
         URI_PROJECT => QueryKind::ProjectYaml,
         URI_DEVICES => QueryKind::Devices,
         URI_IDS => QueryKind::Ids,
+        URI_METERS => QueryKind::ChainMeters,
         other => anyhow::bail!("unknown resource: {other}"),
     };
     let text = bridge

@@ -144,6 +144,17 @@ fn main() -> Result<()> {
                     .map(|d| d.join("\n"))
                     .map_err(|e| e.to_string()),
                 QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
+                QueryKind::ChainMeters => {
+                    // Console adapter has no live meter source — emit a
+                    // silent record per chain so the MCP resource shape
+                    // is stable regardless of which adapter is mounted.
+                    let proj = shared.borrow();
+                    let mut out = String::new();
+                    for chain in &proj.chains {
+                        out.push_str(&format!("{}\t-120.0\t-120.0\n", chain.id.0));
+                    }
+                    Ok(out)
+                }
             },
             64,
         );

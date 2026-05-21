@@ -784,6 +784,9 @@ pub fn run_desktop_app(
             auto_save,
         };
         let mcp_window = window.as_weak();
+        // Cloned for the meter resolver closure (the moves above
+        // consumed `project_chains` for the rig-nav ctx).
+        let chains_for_meters = mcp_ctx.project_chains.clone();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
@@ -809,6 +812,22 @@ pub fn run_desktop_app(
                                 .map_err(|e| e.to_string()),
                             application::bridge::QueryKind::Ids => {
                                 Ok(application::query::list_ids(&project.borrow()))
+                            }
+                            application::bridge::QueryKind::ChainMeters => {
+                                use slint::Model;
+                                let proj_borrow = project.borrow();
+                                let mut out = String::new();
+                                for (idx, chain) in proj_borrow.chains.iter().enumerate() {
+                                    let row = chains_for_meters.row_data(idx);
+                                    let (in_db, out_db) = row
+                                        .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
+                                        .unwrap_or((engine::output_meter::SILENT_DBFS, engine::output_meter::SILENT_DBFS));
+                                    out.push_str(&format!(
+                                        "{}\t{:.1}\t{:.1}\n",
+                                        chain.id.0, in_db, out_db
+                                    ));
+                                }
+                                Ok(out)
                             }
                         },
                         32,

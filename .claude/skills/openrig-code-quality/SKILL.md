@@ -121,6 +121,65 @@ Funcionalidade que existe num frontend mas **não** é `Command` = **gap do comm
 
 ---
 
+## LEI — toda leitura também tem paridade GUI/MCP/gRPC/MIDI
+
+**O par dual do `Command` é a `Query`.** Se a GUI lê algum estado, todo
+outro transporte tem que ler também. Não há "este número só a GUI
+precisa". Meters, level peaks, latency probes, device lists, project
+YAML, scene/preset state, tuner readings, spectrum frames — toda
+janela de observação que a GUI tem **tem que existir em
+`application::bridge::QueryKind`** (ou no equivalente da nova camada
+de query) e ser servida por **todo adapter**: MCP como resource ou
+tool, gRPC como method, MIDI como SysEx/CC reply onde fizer sentido,
+backplanes futuros idem.
+
+1. **Nasce como variante de `QueryKind`** + handler no GUI thread
+   drain (`bridge.serve_queries`) que serializa o estado e devolve.
+   Nunca direto da `RefCell<Project>` num resource ad-hoc.
+2. **MCP** ganha `openrig://<nome>` em `adapter-mcp::resources` (ou
+   uma tool `read_*` quando faz mais sentido como ação). Schema
+   coberto por teste de paridade (`QueryKind` variantes ↔ MCP
+   resources/tools).
+3. **gRPC** ganha o RPC com o mesmo response shape.
+4. **MIDI** (quando o estado é footswitch-relevante): expose por
+   reply CC/SysEx — opcional pra agora, mas o slot precisa existir
+   no `QueryKind` pra quando o adapter MIDI consumir.
+
+Funcionalidade de leitura que a GUI tem mas não está em `QueryKind`
+= **gap de query bus**. Fechar no mesmo PR.
+
+**Why:** o agente (MCP) e qualquer cliente remoto (gRPC) precisam
+**ver o que o usuário vê** pra tomar decisão informada. Sem paridade
+de leitura, o agente é cego: corrige timbre sem ver clipping,
+ajusta scene sem ver param atual, sugere chain sem ver meters. A
+paridade de Command sem paridade de Query é uma "mão" sem "olho".
+
+**How to apply:** antes de adicionar qualquer property `meter_*`,
+`latency_*`, `peak_*`, `*_dbfs` na UI — "isso é uma `Query`?". Não?
+Cria a variante primeiro (TDD: teste no `bridge_tests.rs` ou crate
+equivalente), depois liga a UI. Auditoria de paridade ao revisar
+PR: o número que o usuário vê na tela está em `QueryKind`? Sem
+exceção pra "é só visual".
+
+**Anti-padrão:**
+```
+❌ row.meter_in_dbfs lê direto do engine.pop_peak_dbfs no timer da GUI
+   // WRONG: MCP/gRPC nunca veem o meter. Agente fica cego.
+
+❌ "isso é runtime, não pertence ao Project, então não precisa expor"
+   // WRONG: runtime != só-GUI. Toda observação visível ao usuário
+   // é parte do contrato com os outros transportes também.
+```
+**Padrão:**
+```
+✅ QueryKind::ChainMeters → bridge.serve_queries serializa por chain id
+   → GUI lê via mesmo bridge (sem path paralelo)
+   → MCP `openrig://meters` retorna o resultado serializado
+   → gRPC `GetChainMeters` retorna o proto equivalente.
+```
+
+---
+
 ## LEI — TDD obrigatório, sempre teste primeiro
 
 **Antes de tocar QUALQUER linha de código de produção:**
