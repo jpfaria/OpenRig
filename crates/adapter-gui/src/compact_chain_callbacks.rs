@@ -203,6 +203,139 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             });
         }
 
+        // ── Preset / scene / chain admin callbacks ───────────────────
+        // Every action in the compact view's header simply re-invokes
+        // the matching callback on the main `AppWindow`. The main
+        // window already has the wiring for these (the chains screen),
+        // so the compact view stays a pure projection — no duplicate
+        // dispatch path to keep in sync.
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_switch_chain_preset(move |slot| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_switch_chain_preset(chain_index, slot);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_switch_chain_scene(move |s| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_switch_chain_scene(chain_index, s);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_rename_chain_preset(move |name| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_rename_chain_preset(chain_index, name);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_load_chain_preset(move || {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_configure_chain_preset(chain_index);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_save_chain_preset_as(move || {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_save_chain_preset(chain_index);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_configure_chain(move |ci| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_configure_chain(ci);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_probe_chain_latency(move |ci| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_probe_chain_latency(ci);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_chain_volume_changed(move |ci, v| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_chain_volume_changed(ci, v);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_move_chain_up(move |ci| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_move_chain_up(ci);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_move_chain_down(move |ci| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_move_chain_down(ci);
+                }
+            });
+        }
+        {
+            let weak_main = window.as_weak();
+            compact_win.on_remove_chain(move |ci| {
+                if let Some(m) = weak_main.upgrade() {
+                    m.invoke_remove_chain(ci);
+                }
+            });
+        }
+
+        // Header state polling — copies the current rig_nav row, meter
+        // values, volume, and chain count from the main window's
+        // models into the compact view so its header stays in sync
+        // with the chains screen (the source of truth).
+        {
+            let weak_compact = compact_win.as_weak();
+            let weak_main_for_poll = window.as_weak();
+            let header_timer = Timer::default();
+            header_timer.start(
+                slint::TimerMode::Repeated,
+                std::time::Duration::from_millis(80),
+                move || {
+                    let (Some(cw), Some(mw)) =
+                        (weak_compact.upgrade(), weak_main_for_poll.upgrade())
+                    else {
+                        return;
+                    };
+                    use slint::Model;
+                    let chains = mw.get_project_chains();
+                    let nav_model = mw.get_chain_rig_nav();
+                    cw.set_chain_count(chains.row_count() as i32);
+                    if let Some(row) = chains.row_data(ci) {
+                        cw.set_meter_in_dbfs(row.meter_in_dbfs);
+                        cw.set_meter_out_dbfs(row.meter_out_dbfs);
+                        cw.set_volume(row.volume);
+                        cw.set_chain_enabled(row.enabled);
+                        cw.set_chain_title(row.title.clone());
+                    }
+                    if let Some(nav) = nav_model.row_data(ci) {
+                        cw.set_rig_nav(nav);
+                    }
+                },
+            );
+            // Park the timer on the open_compact_window slot's
+            // lifetime so it stops when the window closes.
+            std::mem::forget(header_timer);
+        }
+
         // Wire choose-block-type — when user picks a type from the compact view picker
         {
             let weak_main = window.as_weak();

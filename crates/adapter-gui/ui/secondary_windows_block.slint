@@ -1,4 +1,4 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
@@ -211,9 +211,15 @@ export component CompactChainViewWindow inherits Window {
 
     in property <string> chain-title;
     in property <int> chain-index;
+    in property <int> chain-count: 1;
     in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
+    // Preset/scene model + meters + volume — parity with the main row.
+    in property <ChainRigNav> rig-nav;
+    in property <float> meter-in-dbfs: -120.0;
+    in property <float> meter-out-dbfs: -120.0;
+    in property <int> volume: 100;
 
     // I/O device configuration
     callback configure-input(int); // chain_index
@@ -234,14 +240,32 @@ export component CompactChainViewWindow inherits Window {
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
     callback open-plugin(string); // model-id, for VST3 blocks
+    // Preset / chain admin callbacks — same shape `chain_row` exposes
+    // so the same wiring on the Rust side serves both views.
+    callback switch-chain-preset(int);
+    callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
+    callback load-chain-preset();
+    callback save-chain-preset-as();
+    callback configure-chain(int);
+    callback probe-chain-latency(int);
+    callback chain-volume-changed(int, int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
+    callback remove-chain(int);
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
         chain-title: root.chain-title;
         chain-index: root.chain-index;
+        chain-count: root.chain-count;
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
+        rig-nav: root.rig-nav;
+        meter-in-dbfs: root.meter-in-dbfs;
+        meter-out-dbfs: root.meter-out-dbfs;
+        volume: root.volume;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
@@ -259,5 +283,16 @@ export component CompactChainViewWindow inherits Window {
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
         open-plugin(model-id) => { root.open-plugin(model-id); }
+        switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
+        switch-chain-scene(s) => { root.switch-chain-scene(s); }
+        rename-chain-preset(name) => { root.rename-chain-preset(name); }
+        load-chain-preset => { root.load-chain-preset(); }
+        save-chain-preset-as => { root.save-chain-preset-as(); }
+        configure-chain(ci) => { root.configure-chain(ci); }
+        probe-chain-latency(ci) => { root.probe-chain-latency(ci); }
+        chain-volume-changed(ci, v) => { root.chain-volume-changed(ci, v); }
+        move-chain-up(ci) => { root.move-chain-up(ci); }
+        move-chain-down(ci) => { root.move-chain-down(ci); }
+        remove-chain(ci) => { root.remove-chain(ci); }
     }
 }
