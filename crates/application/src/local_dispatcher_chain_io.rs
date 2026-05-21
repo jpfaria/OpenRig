@@ -54,8 +54,29 @@ impl LocalDispatcher {
                 chain,
                 preset_blocks,
             } => {
+                // Preset files are intentionally I/O-stripped (the adapter
+                // parses the file and drops the I/O blocks before
+                // dispatching, since I/O routing is per-machine). Preserve
+                // the chain's existing I/O endpoints across the swap so
+                // loading a preset doesn't leave the chain without an
+                // output sink (which would fail validation with
+                // "chain '...' has no output blocks").
                 self.with_chain(&chain, |c| {
-                    c.blocks = preset_blocks;
+                    let mut inputs: Vec<project::block::AudioBlock> = Vec::new();
+                    let mut outputs: Vec<project::block::AudioBlock> = Vec::new();
+                    for b in &c.blocks {
+                        match &b.kind {
+                            project::block::AudioBlockKind::Input(_) => inputs.push(b.clone()),
+                            project::block::AudioBlockKind::Output(_) => outputs.push(b.clone()),
+                            _ => {}
+                        }
+                    }
+                    let mut merged: Vec<project::block::AudioBlock> =
+                        Vec::with_capacity(inputs.len() + preset_blocks.len() + outputs.len());
+                    merged.extend(inputs);
+                    merged.extend(preset_blocks);
+                    merged.extend(outputs);
+                    c.blocks = merged;
                     Ok(())
                 })?;
                 Ok(vec![Event::ChainPresetLoaded { chain }])
