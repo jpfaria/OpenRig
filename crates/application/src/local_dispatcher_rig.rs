@@ -7,6 +7,7 @@
 
 use anyhow::{anyhow, Result};
 
+use project::block::{AudioBlock, AudioBlockKind};
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
@@ -77,11 +78,37 @@ impl LocalDispatcher {
         .ok_or_else(|| anyhow!("error-invalid-chain"))?;
 
         // 4. Swap the rebuilt chain in place (same id ⇒ index/alignment
-        //    kept; preserve the user's enabled flag).
+        //    kept; preserve the user's enabled flag and I/O endpoints).
+        //    Rig nav switches preset/scene -- it does NOT change audio
+        //    routing. The user's `save_chain_input_endpoints` /
+        //    `save_chain_output_endpoints` writes the I/O blocks to the
+        //    legacy chain only; rig.outputs is typically empty, so a naive
+        //    swap would wipe the user's output sink and freeze the meter
+        //    at -120 dBFS on every scene change.
         {
             let mut proj = self.project.borrow_mut();
             if let Some(slot) = proj.chains.iter_mut().find(|c| c.id == chain) {
                 let was_enabled = slot.enabled;
+                let preserved_inputs: Vec<AudioBlock> = slot
+                    .blocks
+                    .iter()
+                    .filter(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+                    .cloned()
+                    .collect();
+                let preserved_outputs: Vec<AudioBlock> = slot
+                    .blocks
+                    .iter()
+                    .filter(|b| matches!(b.kind, AudioBlockKind::Output(_)))
+                    .cloned()
+                    .collect();
+                let mut rebuilt = rebuilt;
+                rebuilt.blocks.retain(|b| {
+                    !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                });
+                let mut final_blocks = preserved_inputs;
+                final_blocks.extend(rebuilt.blocks.drain(..));
+                final_blocks.extend(preserved_outputs);
+                rebuilt.blocks = final_blocks;
                 *slot = rebuilt;
                 slot.enabled = was_enabled;
             }
