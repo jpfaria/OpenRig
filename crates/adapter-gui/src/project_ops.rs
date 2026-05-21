@@ -212,12 +212,28 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         device_settings: Vec::new(),
         chains: Vec::new(),
     };
-    ProjectSession::new(
+    let mut session = ProjectSession::new(
         project,
         None,
         None,
         config.presets_path.unwrap_or_else(default_presets_path),
-    )
+    );
+    // Attach an empty rig from the start so `Command::AddChain` can
+    // mirror new chains into it (input + "Preset 1" + scene 1) without
+    // waiting for a save/reload cycle. The GUI's preset combobox binds
+    // against `session.rig`, so missing this leaves the combobox empty
+    // until the project is saved and reopened.
+    let rig = std::rc::Rc::new(std::cell::RefCell::new(project::rig::RigProject {
+        name: None,
+        inputs: std::collections::BTreeMap::new(),
+        outputs: std::collections::BTreeMap::new(),
+        presets: std::collections::BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
+    }));
+    session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
+    session.rig = Some(rig);
+    session
 }
 
 pub(crate) fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
@@ -651,3 +667,8 @@ mod project_rig_persistence_tests;
 #[cfg(test)]
 #[path = "project_chain_defaults_persistence_tests.rs"]
 mod project_chain_defaults_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "project_chain_inmemory_tests.rs"]
+mod project_chain_inmemory_tests;
