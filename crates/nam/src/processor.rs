@@ -391,23 +391,28 @@ impl NamProcessor {
         // pelo MODELO do NAM faz o amp responder com sua própria
         // curva — sem clip digital, sem virar gain linear pós-amp.
         //
-        // Quando o audit setou o offset, o `recommended_output_db`
-        // baked do trainer é IGNORADO: o audit é a fonte de verdade
-        // pro nivelamento, e o baked típico (-7 a -8 dB) atenuaria
-        // tudo de novo (regressão "tudo baixo" do issue #413).
-        let baked_output_db = if params.audit_overrides_baked_output {
-            0.0
-        } else {
-            recommended_output_db
-        };
-        let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + baked_output_db);
+        // Single source of truth for stacking trainer recommendations
+        // on top of user knobs lives in `gain_offsets`. With
+        // `audit_overrides_baked_output == true` the trainer's
+        // `recommended_*_db` are ignored on both sides (so a UI knob
+        // of `0` actually plays back at unity instead of the silent
+        // post-amp loss the user used to see in the output meter).
+        let (resolved_input_db, resolved_output_db) =
+            crate::gain_offsets::resolve_gain_offsets(crate::gain_offsets::GainOffsetInputs {
+                input_level_db: params.input_level_db,
+                output_level_db: params.output_level_db,
+                recommended_input_db,
+                recommended_output_db,
+                audit_overrides_baked_output: params.audit_overrides_baked_output,
+            });
+        let input_gain = db_to_lin(resolved_input_db);
+        let output_gain = db_to_lin(resolved_output_db);
 
         log::info!(
             "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB (audit_override={})",
             model_path,
-            params.input_level_db + recommended_input_db,
-            baked_output_db,
+            resolved_input_db,
+            resolved_output_db,
             params.audit_overrides_baked_output,
         );
 
