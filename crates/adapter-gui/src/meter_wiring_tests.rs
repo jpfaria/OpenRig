@@ -1,8 +1,73 @@
 use super::*;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use engine::output_meter::SILENT_DBFS;
 use engine::spsc::SpscRing;
+
+// ── refresh_subscriptions (issue: meters freeze after preset switch / toggle) ──
+
+#[test]
+fn refresh_subscriptions_resubscribes_when_chain_already_in_store() {
+    // The fix's core property: even when a chain id is already in the
+    // store, `refresh_subscriptions` must re-invoke the subscribe
+    // closure so the latest runtime's rings replace the (possibly
+    // dead) ones from before.
+    let store = new_meter_store();
+    let call_count: Rc<Cell<usize>> = Rc::new(Cell::new(0));
+    let make_rings = {
+        let call_count = call_count.clone();
+        move |_: &domain::ids::ChainId| -> ChainMeterRings {
+            call_count.set(call_count.get() + 1);
+            ChainMeterRings {
+                input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+                output: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+            }
+        }
+    };
+    let ids = vec![
+        domain::ids::ChainId("rig:input-1".into()),
+        domain::ids::ChainId("rig:input-2".into()),
+    ];
+    refresh_subscriptions(&store, &ids, &make_rings);
+    assert_eq!(call_count.get(), 2);
+    // Repeat — must re-subscribe (pre-fix: skipped, leaving dead rings).
+    refresh_subscriptions(&store, &ids, &make_rings);
+    assert_eq!(
+        call_count.get(),
+        4,
+        "re-subscribe on every refresh so a runtime restart between \
+         ticks doesn't leave the meter stuck at SILENT_DBFS"
+    );
+}
+
+#[test]
+fn refresh_subscriptions_drops_entries_for_chains_no_longer_present() {
+    let store = new_meter_store();
+    let make_rings = |_: &domain::ids::ChainId| ChainMeterRings {
+        input: Vec::new(),
+        output: Vec::new(),
+    };
+    refresh_subscriptions(
+        &store,
+        &[
+            domain::ids::ChainId("rig:input-1".into()),
+            domain::ids::ChainId("rig:input-2".into()),
+        ],
+        &make_rings,
+    );
+    assert_eq!(store.borrow().len(), 2);
+    refresh_subscriptions(
+        &store,
+        &[domain::ids::ChainId("rig:input-1".into())],
+        &make_rings,
+    );
+    assert_eq!(store.borrow().len(), 1);
+    assert!(store
+        .borrow()
+        .contains_key(&domain::ids::ChainId("rig:input-1".into())));
+}
 
 fn ring_with(samples: &[f32]) -> Arc<SpscRing<f32>> {
     let r = Arc::new(SpscRing::<f32>::new(16, 0.0));

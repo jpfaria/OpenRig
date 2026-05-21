@@ -82,26 +82,51 @@ pub fn new_meter_store() -> MeterStore {
 /// Make sure every chain currently in `chain_ids` has its meter taps
 /// subscribed. Dropped chains stay in the store until they are
 /// removed by [`prune_dead`].
+///
+/// Wrapper around [`refresh_subscriptions`] that calls the real
+/// controller to materialise the rings. Kept for backward compatibility
+/// of any external caller; new code should prefer
+/// [`refresh_subscriptions`] which is closure-injected and testable.
 pub fn ensure_subscribed(
     controller: &infra_cpal::ProjectRuntimeController,
     store: &MeterStore,
     chain_ids: &[domain::ids::ChainId],
     capacity_per_channel: usize,
 ) {
-    let mut store = store.borrow_mut();
-    for cid in chain_ids {
-        if store.contains_key(cid) {
-            continue;
-        }
+    let make_rings = |cid: &domain::ids::ChainId| -> ChainMeterRings {
         let input = controller.subscribe_input_tap(cid, 0, 2, &[0, 1], capacity_per_channel);
         let output = controller
             .subscribe_stream_tap(cid, 0, capacity_per_channel)
             .map(|[l, r]| vec![l, r])
             .unwrap_or_default();
-        store.insert(
-            cid.clone(),
-            ChainMeterRings { input, output },
-        );
+        ChainMeterRings { input, output }
+    };
+    refresh_subscriptions(store, chain_ids, &make_rings);
+}
+
+/// Closure-injected core of the meter subscription lifecycle.
+///
+/// (1) Calls `make_rings(cid)` for **every** chain in `chain_ids` on
+///     every tick (replacing any previous entry). This is the fix for
+///     the user-reported regression where toggling a chain or switching
+///     preset froze the meter at -∞ dBFS: the runtime swap left the
+///     old SPSC rings dangling, and the old "skip if present" guard
+///     never replaced them.
+/// (2) Drops entries for chains no longer in `chain_ids`.
+///
+/// Pure over the closure; unit-testable without a real controller.
+pub fn refresh_subscriptions<F>(
+    store: &MeterStore,
+    chain_ids: &[domain::ids::ChainId],
+    make_rings: &F,
+) where
+    F: Fn(&domain::ids::ChainId) -> ChainMeterRings,
+{
+    let mut store = store.borrow_mut();
+    store.retain(|cid, _| chain_ids.contains(cid));
+    for cid in chain_ids {
+        let rings = make_rings(cid);
+        store.insert(cid.clone(), rings);
     }
 }
 
@@ -158,6 +183,13 @@ pub fn start_meter_polling(
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
         ensure_subscribed(controller, &store, &chain_ids, RING_CAPACITY);
         prune_dead(&store, &chain_ids);
+        // Re-subscribing every tick (see `refresh_subscriptions`) means
+        // each chain's previous SPSC ring Arcs are dropped on insert.
+        // Tell the runtime to sweep its tap registry so the now-orphan
+        // consumer slots are reclaimed; otherwise a long-running session
+        // would accumulate ~30 dead tap entries per chain per second.
+        controller.prune_dead_input_taps();
+        controller.prune_dead_stream_taps();
         let readings = poll_all(&store);
         // Push readings into matching VecModel rows (rows are indexed
         // 1:1 with `project.chains`). The stream_tap reads the chain
