@@ -35,6 +35,19 @@ impl LocalDispatcher {
                             chain.id = domain::ids::ChainId(format!("rig:{input_name}"));
                         }
                     }
+                } else if let Some(rig) = self.rig.borrow().clone() {
+                    // Upsert path: the chain already lives in the project
+                    // and in the rig. The legacy `Project` re-projection
+                    // takes its `description` from `RigInput.label`, so a
+                    // rename here that only touches `chain.description`
+                    // is wiped on the next `rig_to_chains` pass. Mirror
+                    // the renamed description into the rig too.
+                    if let Some(input_name) = chain.id.0.strip_prefix("rig:") {
+                        let mut rig_mut = rig.borrow_mut();
+                        if let Some(input) = rig_mut.inputs.get_mut(input_name) {
+                            input.label = chain.description.clone();
+                        }
+                    }
                 }
                 let chain_id = chain.id.clone();
                 let mut proj = self.project.borrow_mut();

@@ -672,3 +672,8 @@ mod project_chain_defaults_persistence_tests;
 #[cfg(test)]
 #[path = "project_chain_inmemory_tests.rs"]
 mod project_chain_inmemory_tests;
+
+
+#[cfg(test)]
+#[path = "chain_rename_persistence_tests.rs"]
+mod chain_rename_persistence_tests;
