@@ -677,3 +677,8 @@ mod project_chain_inmemory_tests;
 #[cfg(test)]
 #[path = "chain_rename_persistence_tests.rs"]
 mod chain_rename_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "scene_param_persistence_tests.rs"]
+mod scene_param_persistence_tests;

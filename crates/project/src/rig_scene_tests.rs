@@ -177,6 +177,137 @@ fn remove_scene_unknown_input_is_none() {
     assert_eq!(p.remove_last_scene_from_input("nope"), None);
 }
 
+/// Red-first regression: the user reports "não consigo salvar
+/// parâmetros na scene". The capture path
+/// (`write_back_processing_blocks`) must persist an edited float
+/// parameter into the **active** scene only, mark the path in
+/// `scene_params`, and leave every other scene untouched.
+#[test]
+fn write_back_processing_blocks_persists_edited_param_into_active_scene() {
+    use crate::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use crate::param::ParameterSet;
+    use domain::ids::BlockId;
+    use domain::value_objects::ParameterValue;
+
+    // Preset has one effect block with `drive=50.0`. Scenes don't
+    // exist yet (single implicit Default scene 1).
+    let block_id = "preamp:1".to_string();
+    let mut base_params = ParameterSet::default();
+    base_params.insert("drive", ParameterValue::Float(50.0));
+    let base_block = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: base_params,
+        }),
+    };
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![base_block.clone()];
+
+    // Add scene 2 (becomes active).
+    p.add_scene_to_input("input-1");
+
+    // The projection feeds back an edited block on scene 2 with
+    // `drive=80.0`. That's what the GUI/MCP would deliver to the
+    // capture path.
+    let mut edited_params = ParameterSet::default();
+    edited_params.insert("drive", ParameterValue::Float(80.0));
+    let edited = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: edited_params,
+        }),
+    };
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let preset = p.presets.get("p").expect("preset present");
+    let key = format!("{block_id}.drive");
+    assert_eq!(
+        preset.scenes.get(&2).and_then(|s| s.params.get(&key).copied()),
+        Some(80.0),
+        "scene 2 must carry the edited override (got scenes={:?})",
+        preset.scenes
+    );
+    assert!(
+        preset.scene_params.iter().any(|k| k == &key),
+        "the edited path must be marked as a scene-param (got {:?})",
+        preset.scene_params
+    );
+    assert!(
+        preset.scenes.get(&1).map(|s| s.params.is_empty()).unwrap_or(true),
+        "scene 1 must be untouched"
+    );
+}
+
+/// Red-first regression: editing the same param across two scenes
+/// must keep two distinct overrides; switching back to scene 1 and
+/// re-projecting must not bleed the scene-2 value over scene 1.
+#[test]
+fn scene_params_remain_independent_across_scenes() {
+    use crate::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use crate::param::ParameterSet;
+    use domain::ids::BlockId;
+    use domain::value_objects::ParameterValue;
+
+    let block_id = "preamp:1".to_string();
+    let mut base_params = ParameterSet::default();
+    base_params.insert("drive", ParameterValue::Float(50.0));
+    let base_block = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: base_params,
+        }),
+    };
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![base_block.clone()];
+
+    // Scene 1 edit: drive=70.
+    let mut params_s1 = ParameterSet::default();
+    params_s1.insert("drive", ParameterValue::Float(70.0));
+    let edit_s1 = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: params_s1,
+        }),
+    };
+    p.write_back_processing_blocks("input-1", vec![edit_s1]);
+
+    // Switch to scene 2 (after adding it).
+    p.add_scene_to_input("input-1"); // active_scene becomes 2
+
+    // Scene 2 edit: drive=95.
+    let mut params_s2 = ParameterSet::default();
+    params_s2.insert("drive", ParameterValue::Float(95.0));
+    let edit_s2 = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: params_s2,
+        }),
+    };
+    p.write_back_processing_blocks("input-1", vec![edit_s2]);
+
+    let preset = p.presets.get("p").expect("preset present");
+    let key = format!("{block_id}.drive");
+    let s1_val = preset.scenes.get(&1).and_then(|s| s.params.get(&key).copied());
+    let s2_val = preset.scenes.get(&2).and_then(|s| s.params.get(&key).copied());
+    assert_eq!(s1_val, Some(70.0), "scene 1 keeps its own override");
+    assert_eq!(s2_val, Some(95.0), "scene 2 keeps its own override");
+}
+
 #[test]
 fn write_back_chain_volume_is_per_active_scene_only() {
     let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
