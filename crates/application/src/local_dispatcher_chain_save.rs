@@ -12,24 +12,31 @@ impl LocalDispatcher {
     pub(crate) fn handle_chain_save(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Chain save (upsert) ───────────────────────────────────────────
-            Command::SaveChain { chain } => {
-                let chain_id = chain.id.clone();
-                // Detect upsert vs. create *before* mutating the project,
-                // so we know whether to mirror the chain into the rig.
+            Command::SaveChain { mut chain } => {
+                // Detect upsert vs. create *before* mutating the project.
                 let is_create = !self
                     .project
                     .borrow()
                     .chains
                     .iter()
-                    .any(|c| c.id == chain_id);
+                    .any(|c| c.id == chain.id);
                 if is_create {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        crate::local_dispatcher_chain_crud::add_chain_to_rig(
-                            &mut rig.borrow_mut(),
-                            &chain,
-                        );
+                        if let Some(input_name) =
+                            crate::local_dispatcher_chain_crud::add_chain_to_rig(
+                                &mut rig.borrow_mut(),
+                                &chain,
+                            )
+                        {
+                            // Re-tag the chain id so the chains-screen
+                            // preset/scene combobox can find this chain
+                            // in the rig — `rig_nav_rows` only recognises
+                            // chains whose id starts with `rig:`.
+                            chain.id = domain::ids::ChainId(format!("rig:{input_name}"));
+                        }
                     }
                 }
+                let chain_id = chain.id.clone();
                 let mut proj = self.project.borrow_mut();
                 if let Some(existing) = proj.chains.iter_mut().find(|c| c.id == chain_id) {
                     let keep_enabled = existing.enabled;

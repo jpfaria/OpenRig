@@ -218,17 +218,20 @@ fn save_chain_on_new_chain_creates_default_preset_and_scene() {
 fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
     let tmp = TempDir::new().unwrap();
     let session = new_session(&tmp);
-    let mut chain = chain_with(&session, "Chain 1", "dev-A");
-    session
-        .dispatcher
-        .dispatch(Command::SaveChain { chain: chain.clone() })
-        .expect("first save");
-    // Tweak description and save again with the SAME id (the upsert
-    // path the editor uses to rename a chain).
-    chain.description = Some("Renamed".into());
+    let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
         .dispatch(Command::SaveChain { chain })
+        .expect("first save");
+
+    // The first SaveChain re-tagged the chain id to `rig:<input>`.
+    // Editing in the GUI dispatches SaveChain again with that same id —
+    // the upsert branch must update in place and not duplicate the rig.
+    let mut existing = session.project.borrow().chains[0].clone();
+    existing.description = Some("Renamed".into());
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain: existing })
         .expect("second save");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -240,6 +243,57 @@ fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
          (got inputs={:?})",
         rig.inputs.keys().collect::<Vec<_>>()
     );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 6. The chain's id must use the `rig:<input>` shape so the chains
+//    screen's preset combobox (which only renders for `rig:` chains)
+//    actually shows "Preset 1" instead of falling back to the empty
+//    `RigNavRow::default()`.
+// ────────────────────────────────────────────────────────────────────
+
+#[test]
+fn save_chain_rewrites_chain_id_to_rig_prefix() {
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let chain = chain_with(&session, "Chain 1", "dev-A");
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("SaveChain");
+
+    let project = session.project.borrow();
+    assert_eq!(project.chains.len(), 1);
+    assert!(
+        project.chains[0].id.0.starts_with("rig:"),
+        "after SaveChain, chain.id must use the `rig:<input>` shape so \
+         rig_nav_rows can locate it; got id={:?}",
+        project.chains[0].id.0
+    );
+}
+
+#[test]
+fn rig_nav_rows_after_save_chain_carry_default_preset_label() {
+    use crate::chain_rig_nav::rig_nav_rows;
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let chain = chain_with(&session, "Chain 1", "dev-A");
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("SaveChain");
+
+    let rig = session.rig.as_ref().expect("rig attached");
+    let rows = rig_nav_rows(&rig.borrow(), &session.project.borrow());
+    assert_eq!(rows.len(), 1, "one row per chain");
+    let row = &rows[0];
+    assert_eq!(
+        row.preset_labels,
+        vec!["Preset 1".to_string()],
+        "combobox must show 'Preset 1' for a freshly-saved chain; got {row:?}"
+    );
+    assert_eq!(row.scene, 1, "default scene is 1");
+    assert!(row.scene_count >= 1, "at least one scene must exist");
 }
 
 #[test]

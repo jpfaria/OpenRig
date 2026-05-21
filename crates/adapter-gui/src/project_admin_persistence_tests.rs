@@ -106,12 +106,21 @@ fn gain_block(id: &str, drive: f32) -> AudioBlock {
 
 fn add_chain(session: &ProjectSession, desc: &str) -> ChainId {
     let chain = default_chain(session, desc);
-    let id = chain.id.clone();
     session
         .dispatcher
         .dispatch(Command::AddChain { chain })
         .expect("AddChain");
-    id
+    // The dispatcher re-tags new chains to `rig:<input>`; pick up
+    // the post-dispatch id from the project.
+    session
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .rev()
+        .find(|c| c.description.as_deref() == Some(desc))
+        .map(|c| c.id.clone())
+        .expect("chain present after dispatch")
 }
 
 fn chain_count(s: &ProjectSession) -> usize {

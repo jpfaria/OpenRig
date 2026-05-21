@@ -13,22 +13,25 @@ impl LocalDispatcher {
     pub(crate) fn handle_chain_crud(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
-            Command::AddChain { chain } => {
+            Command::AddChain { mut chain } => {
                 if chain.enabled {
                     let proj = self.project.borrow();
                     chain_validation::validate_no_channel_conflict(&proj, &chain, None)
                         .map_err(|e| anyhow::anyhow!("{}", e))?;
                 }
-                let chain_id = chain.id.clone();
-                // Mirror the new chain into the attached rig (if any) so
-                // the preset/scene combobox the GUI binds against has
-                // something to render *immediately*, before any save +
-                // reload cycle. Each chain becomes one rig input with a
-                // default "Preset 1" and an explicit scene 1 slot —
-                // matching what `build_rig_for_save` writes to disk.
+                // Mirror the new chain into the attached rig (if any),
+                // and re-tag the chain's id to `rig:<input>` so the
+                // chains-screen rig nav can locate it. Without the
+                // `rig:` prefix `rig_nav_rows` falls back to an empty
+                // `RigNavRow`, leaving the preset combobox blank.
                 if let Some(rig) = self.rig.borrow().clone() {
-                    add_chain_to_rig(&mut rig.borrow_mut(), &chain);
+                    if let Some(input_name) =
+                        add_chain_to_rig(&mut rig.borrow_mut(), &chain)
+                    {
+                        chain.id = domain::ids::ChainId(format!("rig:{input_name}"));
+                    }
                 }
+                let chain_id = chain.id.clone();
                 self.project.borrow_mut().chains.push(chain);
                 Ok(vec![
                     Event::ChainAdded { chain: chain_id },
@@ -90,7 +93,10 @@ impl LocalDispatcher {
 /// the visible default name `"Preset 1"` and an explicit scene 1 slot
 /// so the GUI's combobox is populated immediately after `AddChain`
 /// runs — no save/reload required.
-pub(crate) fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &project::chain::Chain) {
+pub(crate) fn add_chain_to_rig(
+    rig: &mut project::rig::RigProject,
+    chain: &project::chain::Chain,
+) -> Option<String> {
     let temp = project::project::Project {
         name: None,
         device_settings: Vec::new(),
@@ -98,14 +104,11 @@ pub(crate) fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &proje
     };
     let mut migrated = project::migrate::migrate_legacy_project(&temp);
 
-    let Some((_old_name, mut input)) = migrated
+    let (_old_name, mut input) = migrated
         .inputs
         .iter()
         .next()
-        .map(|(k, v)| (k.clone(), v.clone()))
-    else {
-        return;
-    };
+        .map(|(k, v)| (k.clone(), v.clone()))?;
 
     let next_n = rig
         .inputs
@@ -116,12 +119,8 @@ pub(crate) fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &proje
         + 1;
     let new_input_name = format!("input-{next_n}");
 
-    let Some(old_preset_key) = input.bank.get(&1).cloned() else {
-        return;
-    };
-    let Some(mut preset) = migrated.presets.remove(&old_preset_key) else {
-        return;
-    };
+    let old_preset_key = input.bank.get(&1).cloned()?;
+    let mut preset = migrated.presets.remove(&old_preset_key)?;
 
     // Ensure a unique preset key inside `rig.presets`.
     let mut final_preset_key = old_preset_key.clone();
@@ -140,10 +139,11 @@ pub(crate) fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &proje
         .entry(1)
         .or_insert_with(project::rig::RigScene::default);
 
-    rig.inputs.insert(new_input_name, input);
+    rig.inputs.insert(new_input_name.clone(), input);
     rig.presets.insert(final_preset_key, preset);
 
     for (name, output) in migrated.outputs {
         rig.outputs.entry(name).or_insert(output);
     }
+    Some(new_input_name)
 }
