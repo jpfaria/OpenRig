@@ -324,6 +324,7 @@ dependencies = [
  "domain",
  "engine",
  "futures",
+ "plugin-loader",
  "project",
  "schemars 0.8.22",
  "serde",

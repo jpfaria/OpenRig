@@ -62,9 +62,22 @@ pub fn build_default_block(
             e
         )
     })?;
-    let params = ParameterSet::default()
+    let mut params = ParameterSet::default()
         .normalized_against(&schema)
         .map_err(|e| anyhow!("param normalisation failed for '{}': {}", model_id, e))?;
+    // Seed `output_db` from the plugin manifest's audit baseline so
+    // the user-visible knob mirrors the engine's actual offset from
+    // day one. The previous design added the audit silently at load
+    // time (in `nam::from_package`) — that hid the offset under a
+    // UI knob that read 0 even though the signal was being attenuated.
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        if let Some(audit_db) = pkg.manifest.output_gain_db {
+            params.insert(
+                "output_db",
+                domain::value_objects::ParameterValue::Float(audit_db),
+            );
+        }
+    }
     let kind = build_audio_block_kind(effect_type, model_id, params)
         .map_err(|e| anyhow!("build_audio_block_kind failed for '{}': {}", model_id, e))?;
     Ok(AudioBlock {
