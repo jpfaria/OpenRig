@@ -84,6 +84,36 @@ fn manifest_min_picks_lowest_declared_value() {
     assert_eq!(manifest_min(&parameters, "level"), Some(0.0));
 }
 
+/// New contract: the audit's `manifest.output_gain_db` is NOT added
+/// silently to `params.output_level_db` at load time. Whoever creates
+/// or loads the block is expected to put the audit value directly
+/// into the user-visible param. The UI knob `output_db` then reads
+/// what the engine actually applies — no hidden offset.
+#[test]
+fn manifest_output_gain_db_does_not_stack_onto_user_param() {
+    // Mimic the previous behaviour: user set output_db = 0, manifest
+    // ships audit = -10 dB. Old code returned -10 (audit auto-stacks).
+    // New code returns 0 (audit lives in the preset, not in the
+    // loader).
+    let resolved = crate::from_package::resolve_user_output_level_db(0.0, Some(-10.0));
+    assert_eq!(
+        resolved, 0.0,
+        "audit must not be summed at load time; the preset carries it"
+    );
+}
+
+#[test]
+fn user_output_param_is_passed_through_when_no_audit_in_manifest() {
+    let resolved = crate::from_package::resolve_user_output_level_db(2.5, None);
+    assert_eq!(resolved, 2.5);
+}
+
+#[test]
+fn user_output_param_is_passed_through_even_when_audit_is_present() {
+    let resolved = crate::from_package::resolve_user_output_level_db(-3.0, Some(-10.0));
+    assert_eq!(resolved, -3.0);
+}
+
 #[test]
 fn passthrough_mono_returns_input_unchanged() {
     let mut p = MonoPassthrough;

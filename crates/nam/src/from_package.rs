@@ -66,20 +66,15 @@ pub fn build_from_package(
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
     let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
-    // Issue #491 (híbrido): plugin baseline via `manifest.output_gain_db`
-    // + controle do usuário via `preset.volume` (aplicado no master output
-    // do engine).
-    //
-    // O `output_gain_db` é o **baseline objetivo** calibrado pelo
-    // `nam_loudness_audit` (em OpenRig-plugins), já em dB — sem ele,
-    // plugins com recommended_output_db baked muito baixo (preamps
-    // quietos) ficam inviavelmente atenuados. Como `output_level_db`
-    // também é dB, o offset entra por **soma direta** (sem conversão
-    // percentual). O preset volume é **ajuste subjetivo** do usuário
-    // em cima desse baseline.
-    if let Some(db) = package.manifest.output_gain_db {
-        plugin_params.output_level_db += db;
-    }
+    // Audit baseline now lives in the preset's user-facing
+    // `output_db`, not stacked on top of it at load time. Whoever
+    // creates the block (factory) or migrates an existing preset
+    // copies `manifest.output_gain_db` into the param so the UI knob
+    // mirrors the engine's actual offset. See `resolve_user_output_level_db`.
+    plugin_params.output_level_db = resolve_user_output_level_db(
+        plugin_params.output_level_db,
+        package.manifest.output_gain_db,
+    );
     plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
 }
@@ -136,6 +131,19 @@ impl StereoProcessor for StereoPassthrough {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
         input
     }
+}
+
+/// Pure resolver for the runtime output-level offset. The audit
+/// (`manifest.output_gain_db`) is no longer stacked on top of the
+/// user param — it must already live in `params.output_db` (the
+/// block factory writes it there on creation, and the project
+/// migration backfills existing presets). This function exists so
+/// the contract is testable in isolation from a real model file.
+pub fn resolve_user_output_level_db(
+    user_param_db: f32,
+    _manifest_audit_db: Option<f32>,
+) -> f32 {
+    user_param_db
 }
 
 /// Register this crate's builder in the global package-builders table.
