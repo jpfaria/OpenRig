@@ -7,6 +7,7 @@ import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
 import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
@@ -245,6 +246,12 @@ export component AppWindow inherits Window {
     in property <string> confirm-delete-block-name: "";
     callback confirm-delete-block();
     callback cancel-delete-block();
+    // Chain-delete confirmation (issue #511 — replaces the native
+    // rfd::MessageDialog the previous chain_row_wiring used).
+    in property <bool> show-confirm-delete-chain: false;
+    in property <string> confirm-delete-chain-name: "";
+    callback confirm-delete-chain();
+    callback cancel-delete-chain();
     // Inline plugin info overlay — used in fullscreen / touch where the secondary
     // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
     in property <bool> plugin-info-visible: false;
@@ -672,6 +679,14 @@ export component AppWindow inherits Window {
         block-name: root.confirm-delete-block-name;
         cancel => { root.cancel-delete-block(); }
         confirm => { root.confirm-delete-block(); }
+    }
+
+    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        chain-name: root.confirm-delete-chain-name;
+        cancel => { root.cancel-delete-chain(); }
+        confirm => { root.confirm-delete-chain(); }
     }
 
     in-out property <string> toast-message;

@@ -718,6 +718,7 @@ pub fn run_desktop_app(
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
             auto_save,
+            pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
     );
     crate::chain_rig_nav_wiring::wire(

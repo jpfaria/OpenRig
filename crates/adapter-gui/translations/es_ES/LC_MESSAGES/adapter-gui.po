@@ -684,3 +684,12 @@ msgstr "Configurar Insert"
 msgctxt "TouchMain"
 msgid "⌨"
 msgstr "⌨"
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgctxt "ConfirmDeleteChainDialog"
+msgid "title-dialog-delete-chain"
+msgstr "Eliminar cadena"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgctxt "ConfirmDeleteChainDialog"
+msgid "Excluir a chain \"{}\"?"
+msgstr "¿Eliminar la cadena \"{}\"?"

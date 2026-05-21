@@ -681,3 +681,12 @@ msgstr "Insert 구성"
 msgctxt "TouchMain"
 msgid "⌨"
 msgstr "⌨"
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgctxt "ConfirmDeleteChainDialog"
+msgid "title-dialog-delete-chain"
+msgstr "체인 삭제"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgctxt "ConfirmDeleteChainDialog"
+msgid "Excluir a chain \"{}\"?"
+msgstr "체인 \"{}\"을(를) 삭제하시겠습니까?"

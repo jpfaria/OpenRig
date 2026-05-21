@@ -1,0 +1,32 @@
+//! Issue #511: replace all native OS dialogs with in-app Slint dialogs.
+//!
+//! `rfd` (the native dialog crate) is a recurring source of cross-platform
+//! bugs (macOS focus stealing, KDE Wayland glitches, Orange Pi touch sessions
+//! that don't fit the touchscreen). Acceptance criterion: no `rfd::` symbol
+//! left in `crates/adapter-gui/src/`.
+//!
+//! These source-presence tests are intentionally cheap and obvious: they
+//! flip GREEN the moment each migrated site drops its `rfd::` usage, and
+//! flip RED again on any regression that re-introduces a native dialog.
+//! UI rendering is hard to assert without an `AppWindow`; the dispatch
+//! contract is covered separately in each wiring's own callback tests.
+
+use std::path::PathBuf;
+
+fn read_src(relative: &str) -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join(relative);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
+#[test]
+fn chain_row_wiring_uses_no_native_dialog() {
+    let src = read_src("chain_row_wiring.rs");
+    assert!(
+        !src.contains("rfd::"),
+        "issue #511: chain_row_wiring.rs must not use `rfd::` (native \
+         dialog steals focus on macOS and does not fit Orange Pi touch \
+         sessions). Use the in-app `ConfirmDelete*Dialog` overlay pattern \
+         instead — see `confirm_delete_dialog.slint`."
+    );
+}

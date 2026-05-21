@@ -135,6 +135,12 @@ pub(crate) struct ChainRowCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
     pub auto_save: bool,
+    /// Issue #511: the chain whose delete confirmation is currently
+    /// showing in the in-app overlay. Captured at on_remove_chain time
+    /// (when the user clicks the trash icon) and consumed by
+    /// on_confirm_delete_chain (when the user accepts). Cleared on
+    /// cancel and after a successful dispatch.
+    pub pending_delete_chain_id: Rc<RefCell<Option<ChainId>>>,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
@@ -148,24 +154,21 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         output_chain_devices,
         toast_timer,
         auto_save,
+        pending_delete_chain_id,
     } = ctx;
 
-    // ── on_remove_chain ──────────────────────────────────────────────────────
+    // ── on_remove_chain (trash icon) ─────────────────────────────────────────
+    // Issue #511: just resolves the chain and opens the in-app overlay;
+    // the actual dispatch lives in on_confirm_delete_chain below.
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
+        let pending_delete_chain_id = pending_delete_chain_id.clone();
         window.on_remove_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            // Resolve chain id + name for the dialog (immutable borrow).
             let (chain_id, chain_name) = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
@@ -188,19 +191,32 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 });
                 (chain.id.clone(), name)
             };
-            // Confirmation dialog — UI concern, stays in the adapter.
-            let confirmed = rfd::MessageDialog::new()
-                .set_title(rust_i18n::t!("dialog-delete-chain").as_ref())
-                .set_description(
-                    rust_i18n::t!("dialog-confirm-delete-chain", name = chain_name).to_string(),
-                )
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .set_level(rfd::MessageLevel::Warning)
-                .show();
-            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+            *pending_delete_chain_id.borrow_mut() = Some(chain_id);
+            window.set_confirm_delete_chain_name(chain_name.into());
+            window.set_show_confirm_delete_chain(true);
+        });
+    }
+
+    // ── on_confirm_delete_chain (in-app overlay "Delete" button) ────────────
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        let pending_delete_chain_id = pending_delete_chain_id.clone();
+        window.on_confirm_delete_chain(move || {
+            let Some(window) = weak_window.upgrade() else {
                 return;
-            }
-            // Dispatch — the dispatcher mutates project via the shared Rc.
+            };
+            window.set_show_confirm_delete_chain(false);
+            let Some(chain_id) = pending_delete_chain_id.borrow_mut().take() else {
+                return;
+            };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 return;
@@ -217,7 +233,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             }
-            // Kill the live audio runtime for the removed chain.
             remove_live_chain_runtime(&project_runtime, &chain_id);
             replace_project_chains(
                 &project_chains,
@@ -233,6 +248,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 auto_save,
             );
             clear_status(&window, &toast_timer);
+        });
+    }
+
+    // ── on_cancel_delete_chain ───────────────────────────────────────────────
+    {
+        let weak_window = window.as_weak();
+        let pending_delete_chain_id = pending_delete_chain_id.clone();
+        window.on_cancel_delete_chain(move || {
+            *pending_delete_chain_id.borrow_mut() = None;
+            if let Some(window) = weak_window.upgrade() {
+                window.set_show_confirm_delete_chain(false);
+            }
         });
     }
 

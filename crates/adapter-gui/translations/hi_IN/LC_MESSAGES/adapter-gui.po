@@ -681,3 +681,12 @@ msgstr "Insert कॉन्फ़िगर करें"
 msgctxt "TouchMain"
 msgid "⌨"
 msgstr "⌨"
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgctxt "ConfirmDeleteChainDialog"
+msgid "title-dialog-delete-chain"
+msgstr "चेन हटाएं"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgctxt "ConfirmDeleteChainDialog"
+msgid "Excluir a chain \"{}\"?"
+msgstr "चेन \"{}\" हटाएं?"
