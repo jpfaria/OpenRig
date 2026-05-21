@@ -159,6 +159,89 @@ fn add_chain_active_preset_and_scene_default_to_1() {
 // 4. Two chains with the same source produce two independent rig inputs
 // ────────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────────
+// 5. The chain editor uses `Command::SaveChain` (upsert), not
+//    `Command::AddChain`. So SaveChain must also populate the rig
+//    when the chain is brand-new.
+// ────────────────────────────────────────────────────────────────────
+
+#[test]
+fn save_chain_on_new_chain_id_creates_a_rig_input() {
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let chain = chain_with(&session, "Chain 1", "dev-A");
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("SaveChain");
+
+    let rig = session.rig.as_ref().expect("rig attached");
+    let rig = rig.borrow();
+    assert_eq!(
+        rig.inputs.len(),
+        1,
+        "SaveChain on a brand-new chain id must mirror into the rig; \
+         got inputs={:?}",
+        rig.inputs.keys().collect::<Vec<_>>()
+    );
+    let (_, input) = rig.inputs.iter().next().unwrap();
+    assert_eq!(input.label.as_deref(), Some("Chain 1"));
+}
+
+#[test]
+fn save_chain_on_new_chain_creates_default_preset_and_scene() {
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let chain = chain_with(&session, "Chain 1", "dev-A");
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("SaveChain");
+
+    let rig = session.rig.as_ref().expect("rig attached");
+    let rig = rig.borrow();
+    let preset_names: Vec<Option<String>> =
+        rig.presets.values().map(|p| p.name.clone()).collect();
+    assert!(
+        preset_names.iter().any(|n| n.as_deref() == Some("Preset 1")),
+        "SaveChain must seed 'Preset 1'; got {preset_names:?}"
+    );
+    for (key, preset) in &rig.presets {
+        assert!(
+            preset.scenes.contains_key(&1),
+            "preset {key:?} should have scene 1"
+        );
+    }
+}
+
+#[test]
+fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
+    let tmp = TempDir::new().unwrap();
+    let session = new_session(&tmp);
+    let mut chain = chain_with(&session, "Chain 1", "dev-A");
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain: chain.clone() })
+        .expect("first save");
+    // Tweak description and save again with the SAME id (the upsert
+    // path the editor uses to rename a chain).
+    chain.description = Some("Renamed".into());
+    session
+        .dispatcher
+        .dispatch(Command::SaveChain { chain })
+        .expect("second save");
+
+    let rig = session.rig.as_ref().expect("rig attached");
+    let rig = rig.borrow();
+    assert_eq!(
+        rig.inputs.len(),
+        1,
+        "re-saving an existing chain must not duplicate the rig input \
+         (got inputs={:?})",
+        rig.inputs.keys().collect::<Vec<_>>()
+    );
+}
+
 #[test]
 fn two_add_chain_calls_with_same_source_produce_two_inputs() {
     let tmp = TempDir::new().unwrap();

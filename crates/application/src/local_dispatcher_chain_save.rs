@@ -14,14 +14,28 @@ impl LocalDispatcher {
             // ── Chain save (upsert) ───────────────────────────────────────────
             Command::SaveChain { chain } => {
                 let chain_id = chain.id.clone();
+                // Detect upsert vs. create *before* mutating the project,
+                // so we know whether to mirror the chain into the rig.
+                let is_create = !self
+                    .project
+                    .borrow()
+                    .chains
+                    .iter()
+                    .any(|c| c.id == chain_id);
+                if is_create {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        crate::local_dispatcher_chain_crud::add_chain_to_rig(
+                            &mut rig.borrow_mut(),
+                            &chain,
+                        );
+                    }
+                }
                 let mut proj = self.project.borrow_mut();
                 if let Some(existing) = proj.chains.iter_mut().find(|c| c.id == chain_id) {
-                    // Replace in-place, preserving the running enabled state.
                     let keep_enabled = existing.enabled;
                     *existing = chain;
                     existing.enabled = keep_enabled;
                 } else {
-                    // Append (create flow — chain_id not found in project yet).
                     proj.chains.push(chain);
                 }
                 Ok(vec![

@@ -90,7 +90,7 @@ impl LocalDispatcher {
 /// the visible default name `"Preset 1"` and an explicit scene 1 slot
 /// so the GUI's combobox is populated immediately after `AddChain`
 /// runs — no save/reload required.
-fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &project::chain::Chain) {
+pub(crate) fn add_chain_to_rig(rig: &mut project::rig::RigProject, chain: &project::chain::Chain) {
     let temp = project::project::Project {
         name: None,
         device_settings: Vec::new(),
