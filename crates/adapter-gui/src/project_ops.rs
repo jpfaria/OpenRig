@@ -467,7 +467,12 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
             chain_order: Vec::new(),
         },
     };
-    // 1. New chains (not projected from the rig) → migrate + merge.
+    // 1. New chains (not projected from the rig) → each becomes its
+    //    own input + preset bank. Migrating per-chain (rather than the
+    //    whole legacy project at once) avoids `migrate_legacy_project`'s
+    //    auto-grouping by capture source: two chains that happen to
+    //    share a device must remain two independent inputs because the
+    //    user explicitly created two chains.
     let new_chains: Vec<Chain> = session
         .project
         .borrow()
@@ -477,41 +482,68 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
         .cloned()
         .collect();
     let mut newly_added_inputs: BTreeSet<String> = BTreeSet::new();
-    if !new_chains.is_empty() {
+    for chain in new_chains {
         let temp = Project {
-            name: session.project.borrow().name.clone(),
+            name: None,
             device_settings: Vec::new(),
-            chains: new_chains,
+            chains: vec![chain],
         };
-        let migrated = project::migrate::migrate_legacy_project(&temp);
-        // `migrate_legacy_project` always names inputs `input-1`, `input-2`,
-        // ... from 1. Those names are likely to collide with inputs the
-        // rig already has (from earlier saves), so we rename the migrated
-        // inputs to start *after* the highest `input-N` currently in the
-        // rig, keeping bank references in sync.
-        let next_base = rig_out
+        let mut migrated = project::migrate::migrate_legacy_project(&temp);
+        // Single-chain migration ⇒ exactly one input ("input-1"). Pop
+        // it, retarget the bank entry to a unique preset key, set the
+        // visible "Preset 1" default, and ensure scene 1 exists.
+        let (_old_input_name, mut input) = migrated
+            .inputs
+            .iter()
+            .next()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .expect("single-chain migration produces exactly one input");
+        // Generate the next unique input slot in `rig_out`.
+        let next_n = rig_out
             .inputs
             .keys()
-            .filter_map(|k| {
-                k.strip_prefix("input-")
-                    .and_then(|n| n.parse::<usize>().ok())
-            })
+            .chain(newly_added_inputs.iter())
+            .filter_map(|k| k.strip_prefix("input-").and_then(|n| n.parse::<usize>().ok()))
             .max()
-            .unwrap_or(0);
-        let migrated_names: Vec<String> = migrated.inputs.keys().cloned().collect();
-        let mut rename: std::collections::BTreeMap<String, String> =
-            std::collections::BTreeMap::new();
-        for (i, old) in migrated_names.iter().enumerate() {
-            rename.insert(old.clone(), format!("input-{}", next_base + i + 1));
+            .unwrap_or(0)
+            + 1;
+        let new_input_name = format!("input-{next_n}");
+        // The migrated bank's slot 1 names a preset (slug of the chain
+        // description). Two chains can slug to the same key, so we
+        // ensure uniqueness in `rig_out.presets`.
+        let old_preset_key = input
+            .bank
+            .get(&1)
+            .cloned()
+            .expect("migrated input bank slot 1 exists");
+        let mut preset = migrated
+            .presets
+            .remove(&old_preset_key)
+            .expect("preset for bank slot 1 exists");
+        let mut final_preset_key = old_preset_key.clone();
+        let mut suffix = 2;
+        while rig_out.presets.contains_key(&final_preset_key) {
+            final_preset_key = format!("{old_preset_key}-{suffix}");
+            suffix += 1;
         }
-        for (old_name, input) in migrated.inputs {
-            let new_name = rename.get(&old_name).cloned().unwrap_or(old_name);
-            newly_added_inputs.insert(new_name.clone());
-            rig_out.inputs.insert(new_name, input);
+        if final_preset_key != old_preset_key {
+            input.bank.insert(1, final_preset_key.clone());
         }
-        for (name, preset) in migrated.presets {
-            rig_out.presets.entry(name).or_insert(preset);
-        }
+        preset.id = final_preset_key.clone();
+        // Distinct, user-facing preset label so the chain name and the
+        // preset name don't collide ("Chain 1" vs "Preset 1").
+        preset.name = Some("Preset 1".to_string());
+        // Make scene 1 an addressable slot so the user can edit it
+        // without a "create scene" step.
+        preset
+            .scenes
+            .entry(1)
+            .or_insert_with(project::rig::RigScene::default);
+
+        rig_out.inputs.insert(new_input_name.clone(), input);
+        rig_out.presets.insert(final_preset_key, preset);
+        newly_added_inputs.insert(new_input_name);
+
         for (name, output) in migrated.outputs {
             rig_out.outputs.entry(name).or_insert(output);
         }
@@ -614,3 +646,8 @@ mod project_admin_persistence_tests;
 #[cfg(test)]
 #[path = "project_rig_persistence_tests.rs"]
 mod project_rig_persistence_tests;
+
+
+#[cfg(test)]
+#[path = "project_chain_defaults_persistence_tests.rs"]
+mod project_chain_defaults_persistence_tests;

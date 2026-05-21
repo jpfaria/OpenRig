@@ -105,15 +105,15 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
 
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
-            // #436: the title shows this. Prefer the active preset's
-            // human name; for legacy presets without one, humanize the
-            // pool key (de-slug) instead of showing the raw slug or the
-            // input id — same source the select uses.
+            // The chain title is the *input* label (the chain's own
+            // name); the preset name lives next to the preset combobox
+            // and must not bleed into the chain title — otherwise
+            // switching preset visibly renames the chain.
             description: Some(
-                preset
-                    .name
+                input
+                    .label
                     .clone()
-                    .or_else(|| input.label.clone())
+                    .or_else(|| preset.name.clone())
                     .unwrap_or_else(|| project::rig::humanize_preset_label(preset_name)),
             ),
             instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
