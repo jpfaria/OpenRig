@@ -157,3 +157,72 @@ fn apply_chain_volume_at_125pct_adds_about_1_94_db() {
     let v = apply_chain_volume_db(-20.0, 125.0);
     assert!((v - (-18.06)).abs() < 0.1, "got {v}");
 }
+
+// ── per-stream meters (user ask: multi-input chains, 21 May 2026) ──
+
+#[test]
+fn refresh_subscriptions_per_stream_creates_one_entry_per_stream() {
+    let store = new_meter_store_per_stream();
+    let id = domain::ids::ChainId("rig:input-1".into());
+    let stream_count = 3usize;
+    let calls: Rc<Cell<usize>> = Rc::new(Cell::new(0));
+    let make_streams = {
+        let calls = calls.clone();
+        move |_: &domain::ids::ChainId| -> ChainMeterStreams {
+            calls.set(calls.get() + 1);
+            ChainMeterStreams {
+                streams: (0..stream_count)
+                    .map(|_| StreamMeterRings {
+                        input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+                        output: vec![
+                            Arc::new(SpscRing::<f32>::new(16, 0.0)),
+                            Arc::new(SpscRing::<f32>::new(16, 0.0)),
+                        ],
+                    })
+                    .collect(),
+            }
+        }
+    };
+    refresh_subscriptions_per_stream(&store, &[id.clone()], &make_streams);
+    {
+        let store_borrow = store.borrow();
+        let entry = store_borrow.get(&id).expect("entry inserted");
+        assert_eq!(entry.streams.len(), stream_count);
+    }
+    refresh_subscriptions_per_stream(&store, &[id], &make_streams);
+    assert_eq!(calls.get(), 2, "every-tick re-subscribe preserved");
+}
+
+#[test]
+fn poll_per_stream_returns_one_reading_per_stream() {
+    let store = new_meter_store_per_stream();
+    let id = domain::ids::ChainId("rig:input-1".into());
+    let make_streams = |_: &domain::ids::ChainId| ChainMeterStreams {
+        streams: vec![
+            StreamMeterRings {
+                input: vec![ring_with(&[0.5])],
+                output: vec![ring_with(&[0.9]), ring_with(&[])],
+            },
+            StreamMeterRings {
+                input: vec![ring_with(&[0.1])],
+                output: vec![ring_with(&[0.25]), ring_with(&[])],
+            },
+        ],
+    };
+    refresh_subscriptions_per_stream(&store, &[id.clone()], &make_streams);
+    let readings = poll_per_stream(&store);
+    assert_eq!(readings.len(), 1, "one chain");
+    let chain_readings = &readings[0];
+    assert_eq!(chain_readings.0, id);
+    assert_eq!(chain_readings.1.len(), 2, "two streams");
+    let s0 = &chain_readings.1[0];
+    let s1 = &chain_readings.1[1];
+    let want_s0_in = 20.0_f32 * 0.5_f32.log10();
+    let want_s0_out = 20.0_f32 * 0.9_f32.log10();
+    let want_s1_in = 20.0_f32 * 0.1_f32.log10();
+    let want_s1_out = 20.0_f32 * 0.25_f32.log10();
+    assert!((s0.in_dbfs - want_s0_in).abs() < 0.05);
+    assert!((s0.out_dbfs - want_s0_out).abs() < 0.05);
+    assert!((s1.in_dbfs - want_s1_in).abs() < 0.05);
+    assert!((s1.out_dbfs - want_s1_out).abs() < 0.05);
+}

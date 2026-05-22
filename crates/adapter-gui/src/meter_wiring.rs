@@ -63,10 +63,48 @@ pub fn compute_meter_for_chain(
 
 /// Per-chain ring handles held by the GUI so the meter timer can
 /// drain them without re-subscribing every tick.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ChainMeterRings {
     pub input: Vec<Arc<SpscRing<f32>>>,
     pub output: Vec<Arc<SpscRing<f32>>>,
+}
+
+/// One stream's worth of meter rings (input + output). A chain owns
+/// N streams (multi-input layouts); the per-stream meter layer keeps
+/// one entry per stream so each one is visible in the GUI instead of
+/// only the first.
+#[derive(Default, Clone)]
+pub struct StreamMeterRings {
+    pub input: Vec<Arc<SpscRing<f32>>>,
+    pub output: Vec<Arc<SpscRing<f32>>>,
+}
+
+/// All meter rings for one chain, indexed by stream order. The list
+/// length equals `controller.stream_count(chain_id)` at subscribe time.
+#[derive(Default, Clone)]
+pub struct ChainMeterStreams {
+    pub streams: Vec<StreamMeterRings>,
+}
+
+impl ChainMeterStreams {
+    /// Backwards-compat collapse to the legacy single-pair shape
+    /// (first stream's rings, or empty when the chain has no streams).
+    pub fn first_stream_or_default(&self) -> ChainMeterRings {
+        match self.streams.first() {
+            Some(s) => ChainMeterRings {
+                input: s.input.clone(),
+                output: s.output.clone(),
+            },
+            None => ChainMeterRings::default(),
+        }
+    }
+}
+
+/// Per-stream peak readings for one chain, returned by `poll_per_stream`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StreamMeterReading {
+    pub in_dbfs: f32,
+    pub out_dbfs: f32,
 }
 
 /// Shared store of every subscribed chain's meter rings. Cheap
@@ -77,6 +115,62 @@ pub type MeterStore =
 
 pub fn new_meter_store() -> MeterStore {
     std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))
+}
+
+/// Per-stream meter store: each chain id maps to a list of stream
+/// meter rings (one entry per stream the runtime exposes).
+pub type MeterStorePerStream = std::rc::Rc<
+    std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterStreams>>,
+>;
+
+pub fn new_meter_store_per_stream() -> MeterStorePerStream {
+    std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))
+}
+
+/// Per-stream variant of `refresh_subscriptions`: drops entries for
+/// chains no longer present and re-subscribes the rest on every call
+/// (so a runtime restart between ticks doesn't leave dead rings —
+/// same property the single-pair `refresh_subscriptions` pins). The
+/// caller supplies a closure that returns the full `ChainMeterStreams`
+/// for a chain (typically by looping `controller.stream_count(cid)`
+/// and subscribing each one).
+pub fn refresh_subscriptions_per_stream<F>(
+    store: &MeterStorePerStream,
+    chain_ids: &[domain::ids::ChainId],
+    make_streams: &F,
+) where
+    F: Fn(&domain::ids::ChainId) -> ChainMeterStreams,
+{
+    let mut store = store.borrow_mut();
+    store.retain(|cid, _| chain_ids.contains(cid));
+    for cid in chain_ids {
+        store.insert(cid.clone(), make_streams(cid));
+    }
+}
+
+/// Drain the per-stream rings and return one `StreamMeterReading`
+/// per stream for every chain in the store.
+pub fn poll_per_stream(
+    store: &MeterStorePerStream,
+) -> Vec<(domain::ids::ChainId, Vec<StreamMeterReading>)> {
+    let store = store.borrow();
+    store
+        .iter()
+        .map(|(cid, streams)| {
+            let readings = streams
+                .streams
+                .iter()
+                .map(|s| {
+                    let (i, o) = compute_meter_for_chain(&s.input, &s.output);
+                    StreamMeterReading {
+                        in_dbfs: i,
+                        out_dbfs: o,
+                    }
+                })
+                .collect();
+            (cid.clone(), readings)
+        })
+        .collect()
 }
 
 /// Make sure every chain currently in `chain_ids` has its meter taps
@@ -168,7 +262,7 @@ pub fn start_meter_polling(
     const TICK: std::time::Duration = std::time::Duration::from_millis(33); // ~30 Hz
     const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
 
-    let store = new_meter_store();
+    let store = new_meter_store_per_stream();
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
         let rt_borrow = project_runtime.borrow();
@@ -181,16 +275,52 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
-        ensure_subscribed(controller, &store, &chain_ids, RING_CAPACITY);
-        prune_dead(&store, &chain_ids);
-        // Re-subscribing every tick (see `refresh_subscriptions`) means
-        // each chain's previous SPSC ring Arcs are dropped on insert.
-        // Tell the runtime to sweep its tap registry so the now-orphan
-        // consumer slots are reclaimed; otherwise a long-running session
-        // would accumulate ~30 dead tap entries per chain per second.
+        // Per-stream subscription: a multi-input chain (N streams)
+        // gets one meter pair per stream instead of only the first.
+        // (Single-input chains keep behaving the same — one stream,
+        // one pair.) The single-stream `ensure_subscribed` helper is
+        // retained as a backwards-compat wrapper.
+        let make_streams = |cid: &domain::ids::ChainId| -> ChainMeterStreams {
+            let n = controller.stream_count(cid);
+            let streams = (0..n)
+                .map(|i| StreamMeterRings {
+                    input: controller.subscribe_input_tap(cid, i, 2, &[0, 1], RING_CAPACITY),
+                    output: controller
+                        .subscribe_stream_tap(cid, i, RING_CAPACITY)
+                        .map(|[l, r]| vec![l, r])
+                        .unwrap_or_default(),
+                })
+                .collect();
+            ChainMeterStreams { streams }
+        };
+        refresh_subscriptions_per_stream(&store, &chain_ids, &make_streams);
+        // Re-subscribing every tick means each chain's previous SPSC
+        // ring Arcs are dropped on insert. Tell the runtime to sweep
+        // its tap registry so the now-orphan consumer slots are
+        // reclaimed; otherwise a long-running session would accumulate
+        // ~30 dead tap entries per chain per second.
         controller.prune_dead_input_taps();
         controller.prune_dead_stream_taps();
-        let readings = poll_all(&store);
+        // Aggregate per-stream readings to a single (max in, max out)
+        // pair per chain so the existing single-bar UI keeps showing
+        // *something*. The per-stream values are also forwarded into
+        // `ProjectChainItem.stream_meters` for the multi-stream UI
+        // surface.
+        let per_stream = poll_per_stream(&store);
+        let readings: Vec<(domain::ids::ChainId, f32, f32)> = per_stream
+            .iter()
+            .map(|(cid, streams)| {
+                let max_in = streams
+                    .iter()
+                    .map(|s| s.in_dbfs)
+                    .fold(engine::output_meter::SILENT_DBFS, f32::max);
+                let max_out = streams
+                    .iter()
+                    .map(|s| s.out_dbfs)
+                    .fold(engine::output_meter::SILENT_DBFS, f32::max);
+                (cid.clone(), max_in, max_out)
+            })
+            .collect();
         // Push readings into matching VecModel rows (rows are indexed
         // 1:1 with `project.chains`). The stream_tap reads the chain
         // signal BEFORE the audio callback applies the chain volume
