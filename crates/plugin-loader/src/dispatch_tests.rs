@@ -9,6 +9,7 @@ fn cap(values: &[(&str, f64)], file: &str) -> GridCapture {
             .map(|(k, v)| ((*k).to_string(), ManifestParameterValue::Number(*v)))
             .collect(),
         file: file.into(),
+        output_gain_db: None,
     }
 }
 
