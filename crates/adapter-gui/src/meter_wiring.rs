@@ -180,6 +180,17 @@ pub fn stream_meter_rows_from_readings(readings: &[StreamMeterReading]) -> Vec<(
     readings.iter().map(|r| (r.in_dbfs, r.out_dbfs)).collect()
 }
 
+/// Split a flat list of per-channel input rings into one singleton
+/// slot per channel. Used by the meter timer when a chain has a
+/// multi-source InputBlock (e.g. 3 entradas): each source maps to a
+/// distinct internal channel, so a per-channel singleton ring → one
+/// meter bar per source.
+pub fn split_rings_per_entry(
+    rings: &[Arc<SpscRing<f32>>],
+) -> Vec<Vec<Arc<SpscRing<f32>>>> {
+    rings.iter().map(|r| vec![Arc::clone(r)]).collect()
+}
+
 /// Drain the per-stream rings and return one `StreamMeterReading`
 /// per stream for every chain in the store.
 pub fn poll_per_stream(
@@ -329,14 +340,43 @@ pub fn start_meter_polling(
             last.retain(|cid, _| chain_ids.contains(cid));
         }
         let make_streams = |cid: &domain::ids::ChainId| -> ChainMeterStreams {
-            let n = controller.stream_count(cid);
-            let streams = (0..n)
+            // One meter "entry" per InputBlock entry on this chain
+            // (the user's mental model: 3 sources configured ⇒ 3 bars).
+            // The engine reports per-channel pre-FX samples, so we
+            // subscribe to channels [0..entry_count] on the single
+            // input runtime and treat each returned ring as one
+            // entry's input. Output is the chain's mixed post-FX
+            // stereo tap (one per chain), broadcast to every entry
+            // slot so each row shows a real value.
+            let entry_count: usize = project
+                .chains
+                .iter()
+                .find(|c| &c.id == cid)
+                .map(|c| {
+                    c.blocks
+                        .iter()
+                        .filter_map(|b| match &b.kind {
+                            project::block::AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+                            _ => None,
+                        })
+                        .sum::<usize>()
+                        .max(1)
+                })
+                .unwrap_or(1);
+            let input_rings =
+                controller.subscribe_input_tap(cid, 0, entry_count, &(0..entry_count).collect::<Vec<usize>>(), RING_CAPACITY);
+            let per_entry_inputs = split_rings_per_entry(&input_rings);
+            let output_rings = controller
+                .subscribe_stream_tap(cid, 0, RING_CAPACITY)
+                .map(|[l, r]| vec![l, r])
+                .unwrap_or_default();
+            let streams = (0..entry_count)
                 .map(|i| StreamMeterRings {
-                    input: controller.subscribe_input_tap(cid, i, 2, &[0, 1], RING_CAPACITY),
-                    output: controller
-                        .subscribe_stream_tap(cid, i, RING_CAPACITY)
-                        .map(|[l, r]| vec![l, r])
+                    input: per_entry_inputs
+                        .get(i)
+                        .cloned()
                         .unwrap_or_default(),
+                    output: output_rings.clone(),
                 })
                 .collect();
             ChainMeterStreams { streams }

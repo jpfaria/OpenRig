@@ -319,3 +319,15 @@ fn stream_meter_rows_from_readings_match_stream_count() {
     let empty = stream_meter_rows_from_readings(&[]);
     assert!(empty.is_empty());
 }
+
+// ── per-channel input subscription (multi-source InputBlock) ──
+
+#[test]
+fn split_rings_per_entry_returns_one_singleton_per_index() {
+    let rings: Vec<Arc<SpscRing<f32>>> = (0..3).map(|_| ring_with(&[])).collect();
+    let split = split_rings_per_entry(&rings);
+    assert_eq!(split.len(), 3, "one slot per channel ring");
+    for (i, slot) in split.iter().enumerate() {
+        assert_eq!(slot.len(), 1, "each slot is a single ring (entry i={})", i);
+    }
+}
