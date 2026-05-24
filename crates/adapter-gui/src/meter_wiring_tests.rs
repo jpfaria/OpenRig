@@ -6,69 +6,6 @@ use std::sync::Arc;
 use engine::output_meter::SILENT_DBFS;
 use engine::spsc::SpscRing;
 
-// ── refresh_subscriptions (issue: meters freeze after preset switch / toggle) ──
-
-#[test]
-fn refresh_subscriptions_resubscribes_when_chain_already_in_store() {
-    // The fix's core property: even when a chain id is already in the
-    // store, `refresh_subscriptions` must re-invoke the subscribe
-    // closure so the latest runtime's rings replace the (possibly
-    // dead) ones from before.
-    let store = new_meter_store();
-    let call_count: Rc<Cell<usize>> = Rc::new(Cell::new(0));
-    let make_rings = {
-        let call_count = call_count.clone();
-        move |_: &domain::ids::ChainId| -> ChainMeterRings {
-            call_count.set(call_count.get() + 1);
-            ChainMeterRings {
-                input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
-                output: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
-            }
-        }
-    };
-    let ids = vec![
-        domain::ids::ChainId("rig:input-1".into()),
-        domain::ids::ChainId("rig:input-2".into()),
-    ];
-    refresh_subscriptions(&store, &ids, &make_rings);
-    assert_eq!(call_count.get(), 2);
-    // Repeat — must re-subscribe (pre-fix: skipped, leaving dead rings).
-    refresh_subscriptions(&store, &ids, &make_rings);
-    assert_eq!(
-        call_count.get(),
-        4,
-        "re-subscribe on every refresh so a runtime restart between \
-         ticks doesn't leave the meter stuck at SILENT_DBFS"
-    );
-}
-
-#[test]
-fn refresh_subscriptions_drops_entries_for_chains_no_longer_present() {
-    let store = new_meter_store();
-    let make_rings = |_: &domain::ids::ChainId| ChainMeterRings {
-        input: Vec::new(),
-        output: Vec::new(),
-    };
-    refresh_subscriptions(
-        &store,
-        &[
-            domain::ids::ChainId("rig:input-1".into()),
-            domain::ids::ChainId("rig:input-2".into()),
-        ],
-        &make_rings,
-    );
-    assert_eq!(store.borrow().len(), 2);
-    refresh_subscriptions(
-        &store,
-        &[domain::ids::ChainId("rig:input-1".into())],
-        &make_rings,
-    );
-    assert_eq!(store.borrow().len(), 1);
-    assert!(store
-        .borrow()
-        .contains_key(&domain::ids::ChainId("rig:input-1".into())));
-}
-
 fn ring_with(samples: &[f32]) -> Arc<SpscRing<f32>> {
     let r = Arc::new(SpscRing::<f32>::new(16, 0.0));
     for &s in samples {
@@ -161,39 +98,6 @@ fn apply_chain_volume_at_125pct_adds_about_1_94_db() {
 // ── per-stream meters (user ask: multi-input chains, 21 May 2026) ──
 
 #[test]
-fn refresh_subscriptions_per_stream_creates_one_entry_per_stream() {
-    let store = new_meter_store_per_stream();
-    let id = domain::ids::ChainId("rig:input-1".into());
-    let stream_count = 3usize;
-    let calls: Rc<Cell<usize>> = Rc::new(Cell::new(0));
-    let make_streams = {
-        let calls = calls.clone();
-        move |_: &domain::ids::ChainId| -> ChainMeterStreams {
-            calls.set(calls.get() + 1);
-            ChainMeterStreams {
-                streams: (0..stream_count)
-                    .map(|_| StreamMeterRings {
-                        input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
-                        output: vec![
-                            Arc::new(SpscRing::<f32>::new(16, 0.0)),
-                            Arc::new(SpscRing::<f32>::new(16, 0.0)),
-                        ],
-                    })
-                    .collect(),
-            }
-        }
-    };
-    refresh_subscriptions_per_stream(&store, &[id.clone()], &make_streams);
-    {
-        let store_borrow = store.borrow();
-        let entry = store_borrow.get(&id).expect("entry inserted");
-        assert_eq!(entry.streams.len(), stream_count);
-    }
-    refresh_subscriptions_per_stream(&store, &[id], &make_streams);
-    assert_eq!(calls.get(), 2, "every-tick re-subscribe preserved");
-}
-
-#[test]
 fn poll_per_stream_returns_one_reading_per_stream() {
     let store = new_meter_store_per_stream();
     let id = domain::ids::ChainId("rig:input-1".into());
@@ -209,7 +113,7 @@ fn poll_per_stream_returns_one_reading_per_stream() {
             },
         ],
     };
-    refresh_subscriptions_per_stream(&store, &[id.clone()], &make_streams);
+    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
     let readings = poll_per_stream(&store);
     assert_eq!(readings.len(), 1, "one chain");
     let chain_readings = &readings[0];
@@ -296,28 +200,6 @@ fn refresh_subscriptions_lazy_per_stream_drops_missing_chains() {
         &make_streams,
     );
     assert_eq!(store.borrow().len(), 1);
-}
-
-// ── UI plumbing: write per-stream readings into a ProjectChainItem row ──
-
-#[test]
-fn stream_meter_rows_from_readings_match_stream_count() {
-    // Pure helper: convert `[StreamMeterReading]` into the
-    // `[StreamMeter]` shape the Slint ProjectChainItem expects, one
-    // entry per stream. Empty input ⇒ empty output (single-stream
-    // legacy chains still render through `meter_in_dbfs` aggregate).
-    let readings = vec![
-        StreamMeterReading { in_dbfs: -12.0, out_dbfs: -3.0 },
-        StreamMeterReading { in_dbfs: -24.0, out_dbfs: -6.0 },
-        StreamMeterReading { in_dbfs: -120.0, out_dbfs: -120.0 },
-    ];
-    let rows = stream_meter_rows_from_readings(&readings);
-    assert_eq!(rows.len(), 3, "one StreamMeter row per stream");
-    assert!((rows[0].0 - (-12.0)).abs() < 1e-3);
-    assert!((rows[0].1 - (-3.0)).abs() < 1e-3);
-    assert!((rows[2].0 - (-120.0)).abs() < 1e-3);
-    let empty = stream_meter_rows_from_readings(&[]);
-    assert!(empty.is_empty());
 }
 
 // ── per-channel input subscription (multi-source InputBlock) ──
