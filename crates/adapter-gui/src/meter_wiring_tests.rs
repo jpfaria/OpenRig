@@ -226,3 +226,74 @@ fn poll_per_stream_returns_one_reading_per_stream() {
     assert!((s1.in_dbfs - want_s1_in).abs() < 0.05);
     assert!((s1.out_dbfs - want_s1_out).abs() < 0.05);
 }
+
+// ── lazy + invalidate (fix flicker: never re-subscribe mid-stream) ──
+
+#[test]
+fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
+    let store = new_meter_store_per_stream();
+    let id = domain::ids::ChainId("rig:input-1".into());
+    let calls: Rc<Cell<usize>> = Rc::new(Cell::new(0));
+    let make_streams = {
+        let calls = calls.clone();
+        move |_: &domain::ids::ChainId| {
+            calls.set(calls.get() + 1);
+            ChainMeterStreams {
+                streams: vec![StreamMeterRings {
+                    input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+                    output: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+                }],
+            }
+        }
+    };
+
+    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
+    assert_eq!(calls.get(), 1, "first call subscribes");
+
+    // Repeat with no invalidation: must skip — stale rings would
+    // otherwise flicker the meter every tick (~30 Hz).
+    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
+    assert_eq!(
+        calls.get(),
+        1,
+        "no invalidation ⇒ no re-subscribe (no flicker)"
+    );
+
+    // Caller invalidates explicitly (e.g. on chain toggle / rig-nav).
+    refresh_subscriptions_lazy_per_stream(
+        &store,
+        &[id.clone()],
+        &[id.clone()],
+        &make_streams,
+    );
+    assert_eq!(
+        calls.get(),
+        2,
+        "invalidated chain re-subscribes on the next tick"
+    );
+}
+
+#[test]
+fn refresh_subscriptions_lazy_per_stream_drops_missing_chains() {
+    let store = new_meter_store_per_stream();
+    let make_streams = |_: &domain::ids::ChainId| ChainMeterStreams {
+        streams: vec![StreamMeterRings::default()],
+    };
+    refresh_subscriptions_lazy_per_stream(
+        &store,
+        &[
+            domain::ids::ChainId("rig:input-1".into()),
+            domain::ids::ChainId("rig:input-2".into()),
+        ],
+        &[],
+        &make_streams,
+    );
+    assert_eq!(store.borrow().len(), 2);
+    refresh_subscriptions_lazy_per_stream(
+        &store,
+        &[domain::ids::ChainId("rig:input-1".into())],
+        &[],
+        &make_streams,
+    );
+    assert_eq!(store.borrow().len(), 1);
+}

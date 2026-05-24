@@ -128,12 +128,12 @@ pub fn new_meter_store_per_stream() -> MeterStorePerStream {
 }
 
 /// Per-stream variant of `refresh_subscriptions`: drops entries for
-/// chains no longer present and re-subscribes the rest on every call
-/// (so a runtime restart between ticks doesn't leave dead rings —
-/// same property the single-pair `refresh_subscriptions` pins). The
-/// caller supplies a closure that returns the full `ChainMeterStreams`
-/// for a chain (typically by looping `controller.stream_count(cid)`
-/// and subscribing each one).
+/// chains no longer present and re-subscribes the rest on every call.
+/// Eager subscribe path — used in tests that pin the every-tick
+/// re-subscribe property. Production timers should call the lazy
+/// variant `refresh_subscriptions_lazy_per_stream`, which keeps the
+/// rings stable across ticks (otherwise the meter visibly flickers
+/// at ~30 Hz as each fresh ring starts empty).
 pub fn refresh_subscriptions_per_stream<F>(
     store: &MeterStorePerStream,
     chain_ids: &[domain::ids::ChainId],
@@ -145,6 +145,31 @@ pub fn refresh_subscriptions_per_stream<F>(
     store.retain(|cid, _| chain_ids.contains(cid));
     for cid in chain_ids {
         store.insert(cid.clone(), make_streams(cid));
+    }
+}
+
+/// Production-friendly per-stream refresh: keep existing entries
+/// untouched (no flicker), drop entries for chains no longer present,
+/// re-subscribe only when explicitly invalidated by the caller
+/// (toggle enabled, rig-nav, runtime restart). Pass `invalidate=[]`
+/// for the steady-state tick.
+pub fn refresh_subscriptions_lazy_per_stream<F>(
+    store: &MeterStorePerStream,
+    chain_ids: &[domain::ids::ChainId],
+    invalidate: &[domain::ids::ChainId],
+    make_streams: &F,
+) where
+    F: Fn(&domain::ids::ChainId) -> ChainMeterStreams,
+{
+    let mut store = store.borrow_mut();
+    store.retain(|cid, _| chain_ids.contains(cid));
+    for cid in invalidate {
+        store.remove(cid);
+    }
+    for cid in chain_ids {
+        if !store.contains_key(cid) {
+            store.insert(cid.clone(), make_streams(cid));
+        }
     }
 }
 
@@ -263,6 +288,13 @@ pub fn start_meter_polling(
     const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
 
     let store = new_meter_store_per_stream();
+    // Per-chain enabled snapshot from the previous tick. A chain whose
+    // enabled flag flipped is invalidated so the meter re-subscribes
+    // to the freshly-started runtime; chains whose state didn't change
+    // keep their stable ring handles (no re-subscription ⇒ no flicker).
+    let last_enabled: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, bool>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
         let rt_borrow = project_runtime.borrow();
@@ -275,11 +307,20 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
-        // Per-stream subscription: a multi-input chain (N streams)
-        // gets one meter pair per stream instead of only the first.
-        // (Single-input chains keep behaving the same — one stream,
-        // one pair.) The single-stream `ensure_subscribed` helper is
-        // retained as a backwards-compat wrapper.
+        // Detect chains whose enabled flag flipped since the last tick.
+        // Those (and only those) need their meter rings refreshed.
+        let mut invalidate: Vec<domain::ids::ChainId> = Vec::new();
+        {
+            let mut last = last_enabled.borrow_mut();
+            for c in project.chains.iter() {
+                let prev = last.get(&c.id).copied();
+                if prev != Some(c.enabled) {
+                    invalidate.push(c.id.clone());
+                    last.insert(c.id.clone(), c.enabled);
+                }
+            }
+            last.retain(|cid, _| chain_ids.contains(cid));
+        }
         let make_streams = |cid: &domain::ids::ChainId| -> ChainMeterStreams {
             let n = controller.stream_count(cid);
             let streams = (0..n)
@@ -293,14 +334,14 @@ pub fn start_meter_polling(
                 .collect();
             ChainMeterStreams { streams }
         };
-        refresh_subscriptions_per_stream(&store, &chain_ids, &make_streams);
-        // Re-subscribing every tick means each chain's previous SPSC
-        // ring Arcs are dropped on insert. Tell the runtime to sweep
-        // its tap registry so the now-orphan consumer slots are
-        // reclaimed; otherwise a long-running session would accumulate
-        // ~30 dead tap entries per chain per second.
-        controller.prune_dead_input_taps();
-        controller.prune_dead_stream_taps();
+        refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
+        // Reclaim any orphan tap slots left behind after an invalidation
+        // (rings dropped from the store free their consumer side, the
+        // runtime sweeps).
+        if !invalidate.is_empty() {
+            controller.prune_dead_input_taps();
+            controller.prune_dead_stream_taps();
+        }
         // Aggregate per-stream readings to a single (max in, max out)
         // pair per chain so the existing single-bar UI keeps showing
         // *something*. The per-stream values are also forwarded into
