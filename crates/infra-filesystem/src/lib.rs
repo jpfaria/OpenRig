@@ -4,8 +4,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+pub mod midi_device;
 pub mod midi_migrate;
 pub mod midi_profile;
+pub use midi_device::{MidiDeviceSelection, MidiPortKey};
 
 #[cfg(test)]
 #[path = "midi_profile_tests.rs"]
