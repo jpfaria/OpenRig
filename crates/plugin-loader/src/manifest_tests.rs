@@ -192,6 +192,7 @@ fn round_trip_nam_preserves_data() {
             captures: vec![GridCapture {
                 values: BTreeMap::from([("gain".to_string(), ParameterValue::Number(10.0))]),
                 file: PathBuf::from("captures/g10.nam"),
+                output_gain_db: None,
             }],
         },
     };
@@ -276,5 +277,89 @@ captures:
             assert_eq!(captures.len(), 6);
         }
         other => panic!("expected NAM backend, got {other:?}"),
+    }
+}
+
+// Issue #514 — per-capture output_gain_db on IR captures.
+
+#[test]
+fn parses_ir_manifest_with_per_capture_output_gain_db() {
+    let yaml = r#"
+manifest_version: 1
+id: my_body
+display_name: My Body
+type: body
+backend: ir
+parameters:
+  - name: voicing
+    display_name: Voicing
+    values: [bright, dark]
+captures:
+  - values: { voicing: bright }
+    file: ir/bright.wav
+    output_gain_db: -3.5
+  - values: { voicing: dark }
+    file: ir/dark.wav
+    output_gain_db: 1.25
+"#;
+
+    let m = parse(yaml);
+
+    match m.backend {
+        Backend::Ir { captures, .. } => {
+            assert_eq!(captures.len(), 2);
+            assert_eq!(captures[0].output_gain_db, Some(-3.5));
+            assert_eq!(captures[1].output_gain_db, Some(1.25));
+        }
+        other => panic!("expected IR backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn ir_capture_without_output_gain_db_is_none() {
+    let yaml = r#"
+manifest_version: 1
+id: my_cab
+display_name: My Cab
+type: cab
+backend: ir
+captures:
+  - values: {}
+    file: ir/cab.wav
+"#;
+
+    let m = parse(yaml);
+
+    match m.backend {
+        Backend::Ir { captures, .. } => {
+            assert_eq!(captures.len(), 1);
+            assert_eq!(captures[0].output_gain_db, None);
+        }
+        other => panic!("expected IR backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn per_capture_output_gain_db_round_trips_through_serde() {
+    let yaml = r#"
+manifest_version: 1
+id: rt
+display_name: Round Trip
+type: body
+backend: ir
+captures:
+  - values: {}
+    file: ir/one.wav
+    output_gain_db: -7.875
+"#;
+    let m = parse(yaml);
+    let serialized = serde_yaml::to_string(&m).expect("manifest serializes");
+    let reparsed: PluginManifest = serde_yaml::from_str(&serialized).expect("re-parse");
+
+    match reparsed.backend {
+        Backend::Ir { captures, .. } => {
+            assert_eq!(captures[0].output_gain_db, Some(-7.875));
+        }
+        other => panic!("expected IR backend, got {other:?}"),
     }
 }

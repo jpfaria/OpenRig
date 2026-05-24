@@ -62,6 +62,7 @@ fn capture_with(values: &[(&str, f64)], file: &str) -> GridCapture {
             .iter()
             .map(|(name, value)| ((*name).to_string(), ParameterValue::Number(*value)))
             .collect(),
+        output_gain_db: None,
         file: PathBuf::from(file),
     }
 }
@@ -272,6 +273,7 @@ fn accepts_sparse_grid() {
                     ),
                 ]),
                 file: PathBuf::from("a.wav"),
+                output_gain_db: None,
             },
             GridCapture {
                 values: BTreeMap::from([
@@ -282,6 +284,7 @@ fn accepts_sparse_grid() {
                     ),
                 ]),
                 file: PathBuf::from("b.wav"),
+                output_gain_db: None,
             },
             GridCapture {
                 values: BTreeMap::from([
@@ -292,6 +295,7 @@ fn accepts_sparse_grid() {
                     ),
                 ]),
                 file: PathBuf::from("c.wav"),
+                output_gain_db: None,
             },
         ],
     );
