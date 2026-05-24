@@ -51,13 +51,13 @@ The foundation that makes the bigger vision possible already runs on every deskt
 
 - **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64).
 - **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel.
-- **[560+ registered models](docs/user-guide/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](docs/user-guide/blocks-reference.md))
+- **[560+ registered models](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md))
 - **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
 - **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full tones from a song name by researching the original signal chain in public sources and driving the running rig via MCP.
 
-> 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](docs/user-guide/blocks-reference.md)**. Start with the [Model ID Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
+> 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)**. Start with the [Model ID Quick Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
 
 ## Where it's going
 
@@ -117,7 +117,7 @@ blocks:
   # ...post-amp EQ, reverb, limiter, master volume
 ```
 
-Every `model:` ID is registered in the [Blocks Reference Quick Reference](docs/user-guide/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) skill (in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds the full chain on the running rig from just an artist + song name, via MCP.
+Every `model:` ID is registered in the [Blocks Reference Quick Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) skill (in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds the full chain on the running rig from just an artist + song name, via MCP.
 
 ## Installation
 
@@ -146,7 +146,7 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 
 - [Installation Guide](docs/user-guide/installation.md) — download, build, set up
 - [Quick Start](docs/user-guide/quick-start.md) — first project and signal chain
-- [Blocks Reference](docs/user-guide/blocks-reference.md) — every model with canonical IDs and parameters
+- [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md) — every model with canonical IDs and parameters
 - [Presets](docs/user-guide/presets.md) — create, save, share
 - [Blocks Catalog](docs/blocks-catalog.md) — block types, models, parameters, backends
 - [Screens](docs/screens.md) — Launcher, Chains, Tuner, Spectrum, Block Editor
@@ -201,7 +201,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 
 - [x] Standalone desktop app for **macOS** (Apple Silicon + Intel), **Linux** (x86_64 + aarch64), and **Windows** (x86_64) — five platform targets from a single codebase
 - [x] **Truly parallel chains** — each input is an isolated audio runtime, no shared buffers, no contended locks, no cross-stream CPU spikes
-- [x] **[560+ models](docs/user-guide/blocks-reference.md#model-id-quick-reference)** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
+- [x] **[560+ models](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference)** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
 - [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
 - [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
 - [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
@@ -210,7 +210,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Multiple I/O blocks per chain** with independent device and channel configuration per block
 - [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
-- [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](docs/user-guide/blocks-reference.md)
+- [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **AI-assisted tone building** — the [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) Claude Code skill (shipped in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds full tones on the running rig from a song or artist name, via MCP
 
 ### Stage features
