@@ -17,15 +17,18 @@ A single Settings screen in the desktop GUI with five sections:
 
 1. **System / Audio interface** — input/output devices, sample rate, buffer size.
 2. **System / Language** — UI language (existing).
-3. **System / MIDI devices** — enumerate connected MIDI inputs, enable/disable per device, assign role (`Controller`, `Footswitch`, `ClockSource`).
-4. **Project / Metadata** — project name (existing `UpdateProjectName`), recent project path indicator.
-5. **Project / MIDI mapping** — in-app editor for CC/PC/Note → `Command` bindings, with "MIDI Learn" capture; replaces hand-edited `midi-bindings.yaml`.
+3. **System / MIDI devices** — enumerate connected MIDI inputs, enable/disable per device, edit a user-facing alias per device. No device roles: what each control does is decided in the mapping editor, not on the device row.
+4. **Project / Metadata** — project name (existing `UpdateProjectName`) and the current project file path (read-only display; "Reveal in file manager" affordance optional).
+5. **Project / MIDI mapping** — in-app editor for CC/PC/Note → `Command` bindings, with single-shot "MIDI Learn" capture; replaces hand-edited `midi-bindings.yaml`.
 
 Sections 1, 2, 3 persist to `config.yaml` (per-machine). Sections 4, 5 persist
 to the active `.openrig` (per-project), per ADR 0003.
 
 All edits flow through `Command`s — no `borrow_mut()` in callbacks. The GUI
 stays a pure dispatcher.
+
+**Save model:** every section auto-saves on each user edit. There is no global
+"Save" button on the screen — closing the screen never loses an edit.
 
 ## Non-goals (v1)
 
@@ -106,18 +109,17 @@ pub struct GuiSystemSettings {
 }
 
 pub struct MidiDeviceSelection {
-    pub port_id: String,   // platform-stable id from midir
-    pub display_name: String,
+    /// Stable identity slot. See "MIDI device identification" below.
+    pub port_key: MidiPortKey,
+    /// User-facing label. Defaults to the OS-reported port name on first
+    /// detection; editable from the GUI.
+    pub alias: String,
     pub enabled: bool,
-    pub role: Option<MidiRole>,
-}
-
-pub enum MidiRole {
-    Controller,
-    Footswitch,
-    ClockSource,
 }
 ```
+
+No `MidiRole` enum: device rows are storage + identity only. Behaviour
+(what each CC/Note triggers) lives in the project's MIDI mapping.
 
 Project-side, the project schema already carries `midi.bindings` (per #499 /
 ADR 0003). The new editor reads/writes the same field — no schema change.
@@ -144,19 +146,62 @@ per the architecture law in CLAUDE.md.
 Add a pure function to `adapter-midi`:
 
 ```rust
-pub struct MidiPortInfo { pub id: String, pub name: String }
+pub struct MidiPortInfo {
+    pub key: MidiPortKey,
+    pub raw_name: String,    // exact OS-reported name
+}
 pub fn list_input_ports() -> anyhow::Result<Vec<MidiPortInfo>>;
 ```
 
-Uses `midir::MidiInput::new(...)?.ports()` and maps each port to a stable id
-via `MidiInput::port_name(&port)` (the only stable identifier midir gives us
-cross-platform). The daemon already constructs an enumerator client — extract
-that into the new function and have the daemon call it too.
+Uses `midir::MidiInput::new(...)?.ports()` and resolves each port to a
+`MidiPortKey` via the identification rule below. The daemon already
+constructs an enumerator client — that path is extracted into the new
+function and the daemon calls it too.
 
 The "Refresh" button in the section dispatches `EnumerateMidiDevices`; the
 side-effect runs `list_input_ports()` off-thread (already off-thread today —
 the daemon does enumeration in its dedicated thread). Result returns as
 `Event::MidiDevicesEnumerated`.
+
+### MIDI device identification (`MidiPortKey`)
+
+The user requirement is: two physically distinct devices, even with the
+same OS-reported name, must be addressable separately. midir does not
+expose a stable hardware id cross-platform, so the key is built in two
+layers and stored as a typed value:
+
+```rust
+pub struct MidiPortKey {
+    /// Raw OS-reported port name (always present).
+    pub name: String,
+    /// Disambiguator when several ports share the same `name`. Starts at
+    /// 1 and is assigned in enumeration order at first detection. Zero
+    /// (the default) means "only one port with this name on this machine".
+    pub instance: u32,
+}
+```
+
+Enumeration rule (in `list_input_ports`):
+
+1. Read raw port names from midir, preserving discovery order.
+2. Group by name. Within each group, assign `instance = 1, 2, 3, …` in
+   discovery order.
+3. Look up each `MidiPortKey` in the persisted `midi_devices` list:
+   - found → keep stored `alias` and `enabled`;
+   - not found → seed a row with `alias = name` (or `"{name} (#{instance})"` if `instance > 1`) and `enabled = false`.
+4. Persist the seeded rows back into `config.yaml` so the user can rename
+   them without re-detection.
+
+This guarantees: a single unique device always gets `instance = 0` and
+its row survives reboots / OS quirks via its name. Two identical devices
+keep stable per-machine keys as long as their detection order is
+consistent — and the user-edited alias makes the visual identity
+unambiguous regardless.
+
+Platform-native unique ids (CoreMIDI `uniqueID`, ALSA `client:port`,
+Windows MME device index) are **not** used in v1: midir does not surface
+them, and pulling them in requires per-platform crates. Tracked as a
+follow-up if the name+instance scheme proves insufficient in practice.
 
 ### MIDI mapping editor
 
@@ -205,7 +250,7 @@ they cover (per `docs/testing.md`).
 
 ### Wiring tests (`*_tests.rs` for each new wiring)
 
-- `midi_devices.rs`: enabling a device in the model dispatches `SaveMidiDevices` with the expected list. Refresh button dispatches `EnumerateMidiDevices`. Receiving `Event::MidiDevicesEnumerated` mutates the model exactly to the event payload.
+- `midi_devices.rs`: toggling `enabled` or editing `alias` dispatches `SaveMidiDevices` with the expected list. Refresh button dispatches `EnumerateMidiDevices`. Receiving `Event::MidiDevicesEnumerated` merges newly-seen ports without losing user-edited aliases for ports that disappeared and reappeared.
 - `midi_mapping.rs`: `+ Add binding` produces a draft row that does NOT dispatch until "Save". "Listen" + `Event::MidiLearnCaptured` fills the trigger field. "Save" dispatches `SaveMidiMapping` with the full list, including the new binding.
 - `project_meta.rs`: name edit dispatches `UpdateProjectName` (debounced — confirm against the existing project-name flow before locking the debounce in the test).
 
@@ -224,6 +269,7 @@ they cover (per `docs/testing.md`).
 ### Adapter-midi tests
 
 - `list_input_ports()` returns the same `Vec<MidiPortInfo>` shape on macOS, Windows, Linux given a mock midir backend (or feature-gated platform integration test).
+- Two ports with identical name produce `instance = 1` and `instance = 2` in discovery order; a single port produces `instance = 0`.
 - The single-shot learn capture path: feed one synthetic MIDI event into the daemon in learn mode, expect exactly one `Event::MidiLearnCaptured` and an automatic return to normal mode.
 
 ### Slint render tests
@@ -235,7 +281,7 @@ extracted sections inherit that coverage.
 
 - The Settings screen opens from the existing top-bar entry and shows five sections grouped under two scope headers ("System" / "Project").
 - The audio interface and language sections behave identically to today (no regression — existing tests must still pass without modification beyond rename).
-- The MIDI devices section lists connected input ports, lets the user toggle `enabled` per device, lets the user pick a role, and persists to `config.yaml`. Closing and reopening the app preserves the selection.
+- The MIDI devices section lists connected input ports, lets the user toggle `enabled` per device, lets the user edit an alias per device, and persists to `config.yaml`. Two physically distinct devices with the same OS-reported name appear as separate rows (`instance` 1 and 2) and can carry different aliases. Closing and reopening the app preserves selections and aliases.
 - The MIDI mapping section lets the user add a binding via MIDI Learn, edit it, delete it, and persists to `.openrig`. Moving the `.openrig` to another machine carries the mapping with it; the device selection does NOT carry over.
 - Every state change flows through a `Command`. No callback calls `borrow_mut` on the model or writes to disk directly.
 - `cargo build --workspace` is clean. No new warnings.
@@ -243,7 +289,7 @@ extracted sections inherit that coverage.
 
 ## Risks & mitigations
 
-- **midir port id stability** — midir does not give us a stable hardware id on all platforms. We store `display_name` as the id and accept that hot-plugging a different device with the same name is indistinguishable. Mitigation: on enumeration, prune `MidiDeviceSelection` entries whose `display_name` is no longer present, and tell the user via an inline warning. Restoring the device on next plug re-adds the row with the same role default if the user re-enables it.
+- **midir port id stability** — midir does not give us a stable hardware id on all platforms. Mitigation: `MidiPortKey { name, instance }` plus a user-editable `alias` (see "MIDI device identification"). Detection-order quirks (same two devices reported in swapped order across reboots) would scramble `instance`; mitigation is the alias the user sets — the user knows which one is which by name, and re-enabling on the swapped row is one click. Platform-native unique ids are a follow-up if this proves insufficient.
 - **Renaming `GuiAudioSettings` → `GuiSystemSettings`** — there are several call sites (see grep in Context). Mitigation: rename the struct, keep a `pub type GuiAudioSettings = GuiSystemSettings` alias for one cycle, deprecate, remove in a follow-up commit on the same branch before PR.
 - **PR size** — covers two issues. Mitigation: commit per section (audio rename → language move → midi devices → project meta → midi mapping → cleanup). Each commit compiles and passes its own tests so review can step through.
 
