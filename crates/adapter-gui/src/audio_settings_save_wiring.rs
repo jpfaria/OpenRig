@@ -134,6 +134,7 @@ pub(crate) fn wire(
                         input_devices,
                         output_devices,
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if !settings.is_complete() {
                         set_status_warning(
@@ -187,6 +188,7 @@ pub(crate) fn wire(
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
@@ -281,6 +283,7 @@ pub(crate) fn wire(
                         input_devices,
                         output_devices,
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if !settings.is_complete() {
                         settings_window.set_status_message(
@@ -303,6 +306,7 @@ pub(crate) fn wire(
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");

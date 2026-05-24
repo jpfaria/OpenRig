@@ -177,6 +177,10 @@ pub struct AppConfig {
     /// locale.
     #[serde(default)]
     pub language: Option<String>,
+    /// Per-machine MIDI device selection (#513). Empty list = none seen
+    /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -205,19 +209,24 @@ pub struct GuiAudioDeviceSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct GuiAudioSettings {
+pub struct GuiSystemSettings {
     #[serde(default)]
     pub input_devices: Vec<GuiAudioDeviceSettings>,
     #[serde(default)]
     pub output_devices: Vec<GuiAudioDeviceSettings>,
-    // The struct name is historical (originally audio-only); the file lives
-    // at gui-settings.yaml and now hosts every per-machine GUI preference.
-    // None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
+    // The struct was renamed GuiAudioSettings → GuiSystemSettings (#513)
+    // to reflect that it holds every per-machine GUI preference, not just
+    // audio. None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
-impl GuiAudioSettings {
+/// Deprecated alias for the one-cycle migration window. Remove in task 14.
+pub type GuiAudioSettings = GuiSystemSettings;
+
+impl GuiSystemSettings {
     pub fn is_complete(&self) -> bool {
         !self.input_devices.is_empty() && !self.output_devices.is_empty()
     }
@@ -306,6 +315,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
             input_devices,
             output_devices,
             language: None,
+            midi_devices: vec![],
         }
     }
 }
@@ -391,6 +401,7 @@ impl FilesystemStorage {
         if config.input_devices.is_empty()
             && config.output_devices.is_empty()
             && config.language.is_none()
+            && config.midi_devices.is_empty()
         {
             return Ok(None);
         }
@@ -398,6 +409,7 @@ impl FilesystemStorage {
             input_devices: config.input_devices,
             output_devices: config.output_devices,
             language: config.language,
+            midi_devices: config.midi_devices,
         }))
     }
 
@@ -408,6 +420,7 @@ impl FilesystemStorage {
         config.input_devices = settings.input_devices.clone();
         config.output_devices = settings.output_devices.clone();
         config.language = settings.language.clone();
+        config.midi_devices = settings.midi_devices.clone();
         Self::save_app_config(&config)
     }
 
