@@ -667,6 +667,14 @@ cargo build --workspace -q && cargo test -p application -q
 ```
 Expected: PASS, zero warnings.
 
+- [ ] **Step 7b: Verify MCP parity (every Command is a Command — including via MCP)**
+
+```bash
+cargo test -p adapter-mcp -q
+cargo run --bin openrig -- --mcp --print-tools 2>&1 | grep -E "save_midi_devices|save_midi_mapping|start_midi_learn|stop_midi_learn|publish_midi_event"
+```
+Expected: all five new tools listed (snake_case names derived from the variant names). If `--print-tools` doesn't exist, run `cargo run --bin openrig -- --mcp` briefly and confirm the tools appear in the JSON-RPC `tools/list` response. The MCP surface is derived from `command_schema`; if any variant is missing it means a derive or `JsonSchema` annotation got dropped — fix at the variant, not at the MCP layer.
+
 - [ ] **Step 8: Commit + push**
 
 ```bash
