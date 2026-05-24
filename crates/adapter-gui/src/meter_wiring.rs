@@ -173,6 +173,13 @@ pub fn refresh_subscriptions_lazy_per_stream<F>(
     }
 }
 
+/// Convert per-stream peak readings into the `(in_dbfs, out_dbfs)`
+/// pairs the Slint `ProjectChainItem.stream_meters` field consumes.
+/// Pure — pure-Rust glue so the UI plumbing is unit-testable.
+pub fn stream_meter_rows_from_readings(readings: &[StreamMeterReading]) -> Vec<(f32, f32)> {
+    readings.iter().map(|r| (r.in_dbfs, r.out_dbfs)).collect()
+}
+
 /// Drain the per-stream rings and return one `StreamMeterReading`
 /// per stream for every chain in the store.
 pub fn poll_per_stream(
@@ -375,12 +382,48 @@ pub fn start_meter_polling(
             let Some(mut row) = project_chains.row_data(idx) else {
                 continue;
             };
-            let out_db = apply_chain_volume_db(out_db_raw, project.chains[idx].volume);
-            if (row.meter_in_dbfs - in_db).abs() > 0.05
-                || (row.meter_out_dbfs - out_db).abs() > 0.05
-            {
+            let chain_volume = project.chains[idx].volume;
+            let out_db = apply_chain_volume_db(out_db_raw, chain_volume);
+            // Per-stream rows for the new multi-bar UI surface. Build
+            // them from the same `per_stream` data the max-aggregate
+            // came from above so they always agree.
+            let per_stream_rows: Vec<crate::StreamMeter> = per_stream
+                .iter()
+                .find(|(c, _)| c == &cid)
+                .map(|(_, streams)| {
+                    streams
+                        .iter()
+                        .map(|r| crate::StreamMeter {
+                            in_dbfs: r.in_dbfs,
+                            out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let stream_meters_changed = {
+                use slint::Model;
+                let current = row.stream_meters.iter().collect::<Vec<_>>();
+                current.len() != per_stream_rows.len()
+                    || current.iter().zip(&per_stream_rows).any(|(a, b)| {
+                        (a.in_dbfs - b.in_dbfs).abs() > 0.05
+                            || (a.out_dbfs - b.out_dbfs).abs() > 0.05
+                    })
+            };
+            let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
+                || (row.meter_out_dbfs - out_db).abs() > 0.05;
+            if aggregate_changed || stream_meters_changed {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
+                if stream_meters_changed {
+                    let model = std::rc::Rc::new(slint::VecModel::default());
+                    for r in &per_stream_rows {
+                        model.push(crate::StreamMeter {
+                            in_dbfs: r.in_dbfs,
+                            out_dbfs: r.out_dbfs,
+                        });
+                    }
+                    row.stream_meters = slint::ModelRc::from(model);
+                }
                 project_chains.set_row_data(idx, row);
             }
         }

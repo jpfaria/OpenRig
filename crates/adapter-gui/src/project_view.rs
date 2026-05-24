@@ -477,6 +477,30 @@ pub(crate) fn replace_project_chains(
                 // timer subscribes & polls (engine::output_meter).
                 meter_in_dbfs: engine::output_meter::SILENT_DBFS,
                 meter_out_dbfs: engine::output_meter::SILENT_DBFS,
+                // Per-stream meter slots. Length matches the number of
+                // input entries on the chain (one stream per input runtime
+                // in the engine, per invariant #4). Timer fills the live
+                // values; defaults to SILENT here so the UI renders the
+                // right number of (silent) bars on first paint.
+                stream_meters: {
+                    let stream_count: usize = chain
+                        .blocks
+                        .iter()
+                        .filter_map(|b| match &b.kind {
+                            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+                            _ => None,
+                        })
+                        .sum::<usize>()
+                        .max(1);
+                    let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
+                    for _ in 0..stream_count {
+                        model.push(crate::StreamMeter {
+                            in_dbfs: engine::output_meter::SILENT_DBFS,
+                            out_dbfs: engine::output_meter::SILENT_DBFS,
+                        });
+                    }
+                    ModelRc::from(model)
+                },
                 blocks: {
                     let first_input_idx = chain
                         .blocks

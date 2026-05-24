@@ -297,3 +297,25 @@ fn refresh_subscriptions_lazy_per_stream_drops_missing_chains() {
     );
     assert_eq!(store.borrow().len(), 1);
 }
+
+// ── UI plumbing: write per-stream readings into a ProjectChainItem row ──
+
+#[test]
+fn stream_meter_rows_from_readings_match_stream_count() {
+    // Pure helper: convert `[StreamMeterReading]` into the
+    // `[StreamMeter]` shape the Slint ProjectChainItem expects, one
+    // entry per stream. Empty input ⇒ empty output (single-stream
+    // legacy chains still render through `meter_in_dbfs` aggregate).
+    let readings = vec![
+        StreamMeterReading { in_dbfs: -12.0, out_dbfs: -3.0 },
+        StreamMeterReading { in_dbfs: -24.0, out_dbfs: -6.0 },
+        StreamMeterReading { in_dbfs: -120.0, out_dbfs: -120.0 },
+    ];
+    let rows = stream_meter_rows_from_readings(&readings);
+    assert_eq!(rows.len(), 3, "one StreamMeter row per stream");
+    assert!((rows[0].0 - (-12.0)).abs() < 1e-3);
+    assert!((rows[0].1 - (-3.0)).abs() < 1e-3);
+    assert!((rows[2].0 - (-120.0)).abs() < 1e-3);
+    let empty = stream_meter_rows_from_readings(&[]);
+    assert!(empty.is_empty());
+}
