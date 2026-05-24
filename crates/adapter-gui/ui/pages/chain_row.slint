@@ -597,20 +597,20 @@ export component ChainRow inherits Rectangle {
     // Layout: INPUT [== bar ==] -X dB  on the left,
     //         OUTPUT [== bar ==] -X dB on the right.
     // Bar gradient: yellow (low) → green (sweet spot) → red (clip).
-    // Border flashes red when that channel's meter passes 0 dBFS.
-    // Per-stream: one mini-bar per stream the chain runs (multi-input
-    // chains show N bars side-by-side instead of a single aggregate).
+    // Per-stream: one mini-bar per stream the chain runs, stacked
+    // VERTICALLY (one below the other — user feedback: "eu nao quero
+    // um do lado do outro.. eu quero um embaixo do outro"). Border
+    // flashes red when any stream's meter passes 0 dBFS.
     Rectangle {
         x: 60px;
         y: root.height - 22px;
         width: 220px;
         height: 16px;
         property <int> stream-count: root.chain.stream_meters.length;
-        property <length> bar-area-width: 130px;
-        property <length> bar-gap: 2px;
-        property <length> per-bar-width: self.stream-count <= 1
-            ? self.bar-area-width
-            : (self.bar-area-width - (self.stream-count - 1) * self.bar-gap) / self.stream-count;
+        property <length> bar-gap: 1px;
+        property <length> per-bar-height: self.stream-count <= 1
+            ? 12px
+            : (parent.height - 4px - (self.stream-count - 1) * self.bar-gap) / self.stream-count;
         Text {
             x: 0px; y: 0px;
             width: 44px; height: parent.height;
@@ -622,9 +622,10 @@ export component ChainRow inherits Rectangle {
             vertical-alignment: center;
         }
         for stream[i] in root.chain.stream_meters: Rectangle {
-            x: 48px + i * (parent.per-bar-width + parent.bar-gap);
-            y: 2px;
-            width: parent.per-bar-width; height: 12px;
+            x: 48px;
+            y: 2px + i * (parent.per-bar-height + parent.bar-gap);
+            width: 130px;
+            height: parent.per-bar-height;
             border-width: 1px;
             border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
             border-radius: 2px;
@@ -668,11 +669,10 @@ export component ChainRow inherits Rectangle {
         width: 230px;
         height: 16px;
         property <int> stream-count: root.chain.stream_meters.length;
-        property <length> bar-area-width: 130px;
-        property <length> bar-gap: 2px;
-        property <length> per-bar-width: self.stream-count <= 1
-            ? self.bar-area-width
-            : (self.bar-area-width - (self.stream-count - 1) * self.bar-gap) / self.stream-count;
+        property <length> bar-gap: 1px;
+        property <length> per-bar-height: self.stream-count <= 1
+            ? 12px
+            : (parent.height - 4px - (self.stream-count - 1) * self.bar-gap) / self.stream-count;
         Text {
             x: 0px; y: 0px;
             width: 50px; height: parent.height;
@@ -684,9 +684,10 @@ export component ChainRow inherits Rectangle {
             vertical-alignment: center;
         }
         for stream[i] in root.chain.stream_meters: Rectangle {
-            x: 54px + i * (parent.per-bar-width + parent.bar-gap);
-            y: 2px;
-            width: parent.per-bar-width; height: 12px;
+            x: 54px;
+            y: 2px + i * (parent.per-bar-height + parent.bar-gap);
+            width: 130px;
+            height: parent.per-bar-height;
             border-width: 1px;
             border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
             border-radius: 2px;
