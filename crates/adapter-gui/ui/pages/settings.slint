@@ -309,9 +309,16 @@ export component SettingsPage inherits Rectangle {
                     }
                 }
 
-                // Close button bottom-right of the content area.
+                // Footer: action buttons bottom-right. Aplicar only
+                // appears on the Audio section (it's the one that needs
+                // an explicit save — runtime restart).
                 HorizontalLayout {
                     alignment: end;
+                    spacing: 8px;
+                    if root.selected-section == 0 : Button {
+                        text: @tr("btn-save-audio-settings");
+                        clicked => { root.save-audio-settings(); }
+                    }
                     Button {
                         text: @tr("btn-close");
                         clicked => { root.close-settings(); }

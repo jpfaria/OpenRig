@@ -183,12 +183,11 @@ export component SectionSystemAudio inherits Rectangle {
     VerticalLayout {
         spacing: 8px;
 
-        // Header row: refresh icon + Aplicar button, right-aligned.
-        // Aplicar lives here (top-right) so it does NOT overlap with
-        // the global FECHAR button at the bottom-right of the page.
+        // Header row: refresh icon only. Aplicar lives in the page
+        // footer next to FECHAR so action buttons are grouped where
+        // users expect them (bottom-right).
         HorizontalLayout {
             alignment: end;
-            spacing: 8px;
 
             Rectangle {
                 width: 28px;
@@ -212,12 +211,6 @@ export component SectionSystemAudio inherits Rectangle {
                     mouse-cursor: pointer;
                     clicked => { root.refresh-devices(); }
                 }
-            }
-
-            Button {
-                text: @tr("btn-save-audio-settings");
-                height: 28px;
-                clicked => { root.save-audio-settings(); }
             }
         }
 
