@@ -9,6 +9,46 @@ Methodology rules for ANY code in this project. Apply BEFORE writing, not after.
 
 ---
 
+## LEI — todo push entrega um bloco de handoff explícito
+
+**Após `git push` numa branch do agente, a resposta no chat para o usuário DEVE conter — no mesmo turno, sem ser pedido — dois blocos:**
+
+1. **Comandos git literais** que o usuário copia/cola na pasta principal pra puxar a branch. Sempre os três: `git fetch && git checkout <branch> && git pull`. Mesmo que já tenha sido dito em push anterior — o usuário trabalha com vários agents em paralelo e não consegue lembrar qual branch é qual.
+2. **Checklist do que validar**, numerado, em pt-BR, ação por ação (UI flow, comando CLI, cenário de áudio). Inclui:
+   - Golden path (o caminho feliz que a feature implementa).
+   - Edge case que motivou a issue (o bug reproduzível ou o comportamento antigo a ser comparado).
+   - Regressões a vigiar (telas/fluxos adjacentes que poderiam ter quebrado).
+   - O esperado em cada passo, **um por linha**, sem prosa.
+
+**Why:** o usuário tem N agents abrindo branches simultaneamente. "Cheque a branch" não é instrução — ele precisa do comando exato e da lista do que abrir/clicar/digitar pra ver a mudança. Sem isso, ou ele esquece de testar ou testa só superficialmente e marca como "OK" sem ter exercido o golden path.
+
+**Anti-padrão:**
+```
+❌ "Push em feature/issue-N. Quer que eu continue?"
+   // WRONG: sem comando, sem checklist. Usuário não sabe o que testar.
+
+❌ "Push 68ea1bcf. Mudei chain_preset_wiring.rs."
+   // WRONG: descreve arquivo, não validação. Usuário não tem app aberto na cabeça dele.
+```
+
+**Padrão correto:**
+```
+✅ Push <hash> em <branch>.
+
+   Atualizar:
+   git fetch && git checkout feature/issue-N && git pull
+
+   Validar:
+   1. Abrir tela Chains, clicar [load preset] → picker mostra a lista
+   2. Digitar "lead" no campo de busca → só presets com "lead" no nome aparecem
+   3. Selecionar um → após carregar, o combobox de preset mostra o nome do arquivo
+   4. Voltar pra Launcher → nada quebrou; presets na tela inicial ainda listam normal
+```
+
+Vale para CADA push da sessão, inclusive incrementais (commit 2/3, commit 3/3). A repetição é o ponto — o usuário não memoriza branch, ele lê o bloco e segue.
+
+---
+
 ## LEI — fechar issue exige milestone
 
 **ANTES de chamar `gh issue close N`:** rodar `gh issue view N --json milestone` e confirmar que tem milestone atribuído. Se não tiver:
