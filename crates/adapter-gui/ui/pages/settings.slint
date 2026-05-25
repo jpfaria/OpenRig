@@ -90,7 +90,10 @@ export component SettingsPage inherits Rectangle {
     in property <[MidiDeviceRow]> midi-devices;
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
-    in property <string> project-name;
+    // Default-bind to project-name-draft so SettingsPage shows the
+    // current project name inside the secondary ProjectSettingsWindow
+    // (which only forwards project-name-draft).
+    in property <string> project-name: root.project-name-draft;
     in property <string> project-path-display;
     callback edit-project-name(string);
     // Retained for callsite compatibility (old top-of-page FieldBox).
