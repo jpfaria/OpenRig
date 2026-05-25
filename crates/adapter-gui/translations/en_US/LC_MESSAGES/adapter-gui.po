@@ -782,7 +782,7 @@ msgstr "MIDI devices"
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgctxt "SectionProjectMeta"
 msgid "title-section-project-meta"
-msgstr "Project"
+msgstr "Metadata"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgctxt "SectionProjectMeta"
@@ -793,6 +793,11 @@ msgstr "Name"
 msgctxt "SectionProjectMeta"
 msgid "label-file"
 msgstr "File"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgctxt "SectionProjectMeta"
+msgid "placeholder-project-unsaved"
+msgstr "(unsaved)"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgctxt "SectionProjectMidiMapping"

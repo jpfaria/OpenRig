@@ -1,13 +1,23 @@
-// Visual frame shared by every Settings section. Holds the scope badge
-// ("System" or "Project") so the user can see at a glance whether the
-// values travel with the .openrig file or stay on this machine
-// (ADR 0003). Body content is injected via a Slint child slot.
+// Visual frame shared by every Settings section. After feedback (#513)
+// the scope badge (System / Project) was removed — the parent
+// TabWidget's tab header already names the scope, so a per-section
+// badge was pure noise. The section title row doubles as an accordion
+// toggle: clicking it collapses / expands the body. Collapsed sections
+// only render the title row, so a tab with many sections fits in a
+// smaller window without scrolling.
 
 export enum SettingsScope { system, project }
 
 export component SettingsSection inherits Rectangle {
+    // `scope` is still in the API surface so existing call sites
+    // (`scope: SettingsScope.system`) keep compiling; it is just no
+    // longer visualised.
     in property <SettingsScope> scope: SettingsScope.system;
     in property <string> title;
+
+    // Accordion state. Defaults to expanded so the first paint shows
+    // the section's content; clicking the title row toggles it.
+    in-out property <bool> expanded: true;
 
     background: #1a1d22;
     border-width: 1px;
@@ -16,42 +26,56 @@ export component SettingsSection inherits Rectangle {
 
     VerticalLayout {
         padding: 16px;
-        spacing: 12px;
+        spacing: root.expanded ? 12px : 0px;
 
-        HorizontalLayout {
-            spacing: 10px;
-            alignment: start;
+        // Title row doubles as the accordion toggle.
+        TouchArea {
+            height: 24px;
+            mouse-cursor: pointer;
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: space-between;
 
-            Rectangle {
-                background: root.scope == SettingsScope.system ? #2b3a55 : #2f4a30;
-                border-radius: 3px;
-                width: badge-label.preferred-width + 12px;
-                height: 20px;
-
-                badge-label := Text {
-                    text: root.scope == SettingsScope.system ? @tr("badge-system") : @tr("badge-project");
-                    color: #cfe1ff;
-                    font-size: 11px;
+                Text {
+                    text: root.title;
+                    color: #f3f6fb;
+                    font-size: 14px;
                     font-weight: 700;
-                    horizontal-alignment: center;
                     vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                // Caret indicating expanded / collapsed state. Rendered
+                // as SVG (CLAUDE.md rule: never use glyph fonts — they
+                // turn into tofu on the Orange Pi build).
+                Image {
+                    width: 12px;
+                    height: 12px;
+                    source: root.expanded
+                        ? @image-url("../assets/arrow-down.svg")
+                        : @image-url("../assets/arrow-right.svg");
+                    colorize: #8a92a3;
                 }
             }
-
-            Text {
-                text: root.title;
-                color: #f3f6fb;
-                font-size: 14px;
-                font-weight: 700;
-                vertical-alignment: center;
-            }
+            clicked => { root.expanded = !root.expanded; }
         }
 
+        // Separator + body live in a non-conditional sub-layout that
+        // collapses to zero height when the section is closed. Slint
+        // forbids `@children` inside an `if`, so we hide the body via
+        // height/visible toggles instead.
         Rectangle {
             background: #2a2f38;
-            height: 1px;
+            height: root.expanded ? 1px : 0px;
         }
 
-        @children
+        body := VerticalLayout {
+            spacing: 8px;
+            visible: root.expanded;
+            // When collapsed, drop the layout's preferred-height to 0
+            // so it does not reserve space in the parent VerticalLayout.
+            height: root.expanded ? self.preferred-height : 0px;
+            @children
+        }
     }
 }

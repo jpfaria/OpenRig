@@ -1,3 +1,11 @@
+// Project / Metadata section (#513). Holds the project's display name
+// and shows the on-disk file path. Both rows align on a fixed-width
+// label column so the inputs line up.
+//
+// The Name LineEdit is clamped to 28px tall — without an explicit
+// height it expanded to consume all vertical stretch from the parent
+// VerticalLayout and rendered as a huge multi-line box.
+
 import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
 import { LineEdit } from "std-widgets.slint";
 
@@ -11,22 +19,42 @@ export component SectionProjectMeta inherits SettingsSection {
 
     VerticalLayout {
         spacing: 8px;
+
         HorizontalLayout {
             spacing: 8px;
-            Text { text: @tr("label-name"); color: #cfd5e0; vertical-alignment: center; }
+            alignment: start;
+            Text {
+                text: @tr("label-name");
+                color: #cfd5e0;
+                width: 80px;
+                vertical-alignment: center;
+            }
             LineEdit {
                 text: root.project-name;
+                height: 28px;
+                horizontal-stretch: 1;
                 edited(t) => { root.edit-project-name(t); }
             }
         }
+
         HorizontalLayout {
             spacing: 8px;
-            Text { text: @tr("label-file"); color: #cfd5e0; vertical-alignment: center; }
+            alignment: start;
             Text {
-                text: root.project-path-display;
+                text: @tr("label-file");
+                color: #cfd5e0;
+                width: 80px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.project-path-display == ""
+                    ? @tr("placeholder-project-unsaved")
+                    : root.project-path-display;
                 color: #8a92a3;
                 font-size: 11px;
+                horizontal-stretch: 1;
                 vertical-alignment: center;
+                wrap: word-wrap;
             }
         }
     }

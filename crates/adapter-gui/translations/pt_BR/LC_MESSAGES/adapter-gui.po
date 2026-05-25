@@ -790,7 +790,12 @@ msgstr "Dispositivos MIDI"
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgctxt "SectionProjectMeta"
 msgid "title-section-project-meta"
-msgstr "Projeto"
+msgstr "Metadados"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgctxt "SectionProjectMeta"
+msgid "placeholder-project-unsaved"
+msgstr "(não salvo)"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgctxt "SectionProjectMeta"

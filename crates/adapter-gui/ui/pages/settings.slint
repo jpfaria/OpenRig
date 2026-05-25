@@ -1,4 +1,4 @@
-import { TabWidget, Button } from "std-widgets.slint";
+import { TabWidget, Button, ScrollView } from "std-widgets.slint";
 import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
@@ -65,42 +65,53 @@ export component SettingsPage inherits Rectangle {
 
         TabWidget {
             // "System" tab — values that live in config.yaml and stay
-            // on this machine when the .openrig project is shared.
+            // on this machine when the .openrig project is shared. The
+            // whole tab is wrapped in a ScrollView so the layout still
+            // works when every section is expanded and the total
+            // content exceeds the window height.
             Tab {
                 title: @tr("tab-system");
-                VerticalLayout {
-                    padding: 8px;
-                    spacing: 16px;
+                ScrollView {
+                    VerticalLayout {
+                        padding: 8px;
+                        spacing: 16px;
 
-                    SectionSystemAudio {
-                        project-devices: root.project-devices;
-                        sample-rate-options: root.sample-rate-options;
-                        buffer-size-options: root.buffer-size-options;
-                        bit-depth-options: root.bit-depth-options;
-                        refresh-devices => { root.refresh-devices(); }
-                        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-                        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-                        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-                        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+                        // Audio is the most-used section — open by default.
+                        SectionSystemAudio {
+                            project-devices: root.project-devices;
+                            sample-rate-options: root.sample-rate-options;
+                            buffer-size-options: root.buffer-size-options;
+                            bit-depth-options: root.bit-depth-options;
+                            refresh-devices => { root.refresh-devices(); }
+                            toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+                            update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+                            update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+                            update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+                        }
+
+                        // Language + MIDI devices collapsed by default
+                        // so the user reaches them without resizing the
+                        // window after the audio device list scrolls.
+                        SectionSystemLanguage {
+                            expanded: false;
+                            language-options: root.language-options;
+                            language-codes: root.language-codes;
+                            selected-language-index: root.selected-language-index;
+                            language-selected(i) => { root.language-selected(i); }
+                        }
+
+                        SectionSystemMidiDevices {
+                            expanded: false;
+                            devices: root.midi-devices;
+                            refresh-midi-devices => { root.refresh-midi-devices(); }
+                            toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+                            edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+                        }
+
+                        // Stretch spacer so sections hug the top of the
+                        // tab instead of expanding to fill its height.
+                        Rectangle { vertical-stretch: 1; }
                     }
-
-                    SectionSystemLanguage {
-                        language-options: root.language-options;
-                        language-codes: root.language-codes;
-                        selected-language-index: root.selected-language-index;
-                        language-selected(i) => { root.language-selected(i); }
-                    }
-
-                    SectionSystemMidiDevices {
-                        devices: root.midi-devices;
-                        refresh-midi-devices => { root.refresh-midi-devices(); }
-                        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-                        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-                    }
-
-                    // Stretch spacer so sections hug the top of the tab
-                    // instead of expanding to fill the whole tab height.
-                    Rectangle { vertical-stretch: 1; }
                 }
             }
 
@@ -108,26 +119,28 @@ export component SettingsPage inherits Rectangle {
             // and that travel with the project to other machines.
             Tab {
                 title: @tr("tab-project");
-                VerticalLayout {
-                    padding: 8px;
-                    spacing: 16px;
+                ScrollView {
+                    VerticalLayout {
+                        padding: 8px;
+                        spacing: 16px;
 
-                    SectionProjectMeta {
-                        project-name: root.project-name;
-                        project-path-display: root.project-path-display;
-                        edit-project-name(t) => { root.edit-project-name(t); }
+                        SectionProjectMeta {
+                            project-name: root.project-name;
+                            project-path-display: root.project-path-display;
+                            edit-project-name(t) => { root.edit-project-name(t); }
+                        }
+
+                        SectionProjectMidiMapping {
+                            bindings: root.midi-bindings;
+                            available-commands: root.available-commands;
+                            add-midi-binding => { root.add-midi-binding(); }
+                            delete-midi-binding(i) => { root.delete-midi-binding(i); }
+                            pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+                            cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+                        }
+
+                        Rectangle { vertical-stretch: 1; }
                     }
-
-                    SectionProjectMidiMapping {
-                        bindings: root.midi-bindings;
-                        available-commands: root.available-commands;
-                        add-midi-binding => { root.add-midi-binding(); }
-                        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-                        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-                        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-                    }
-
-                    Rectangle { vertical-stretch: 1; }
                 }
             }
         }
