@@ -113,6 +113,18 @@ pub(crate) fn wire(
                     .unwrap_or_default()
                     .into(),
             );
+            // Push the current project path onto the secondary window
+            // (#513). The Project Metadata section reads this property
+            // directly — it does not follow the main window's
+            // project-path-label binding chain, so without this the
+            // path stays as whatever was seeded at boot.
+            let path_display: slint::SharedString = session
+                .project_path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "(unsaved)".into())
+                .into();
+            settings_window.set_project_path_display(path_display);
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             if fullscreen {

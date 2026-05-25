@@ -268,7 +268,12 @@ pub fn run_desktop_app(
                 crate::Locale::get(w).set_font_family(f());
             }
         };
-        crate::settings::language::wire(&window, project_session.clone(), apply_font_to_all);
+        crate::settings::language::wire(
+            &window,
+            &project_settings_window,
+            project_session.clone(),
+            apply_font_to_all,
+        );
     }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
@@ -484,7 +489,14 @@ pub fn run_desktop_app(
         midi_device_rows.clone(),
         midi_device_model.clone(),
     );
+    crate::settings::midi_devices::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
     window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    project_settings_window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
     // --- Project / MIDI mapping section (#513, #493) ---
     // Seed bindings from the current project's `midi.bindings` (if any),
     // share with chain_rig_nav_wiring so MidiEventReceived fills the
@@ -512,7 +524,15 @@ pub fn run_desktop_app(
         midi_drafts_state.clone(),
         midi_binding_model.clone(),
     );
+    crate::settings::midi_mapping::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        midi_bindings_state.clone(),
+        midi_drafts_state.clone(),
+        midi_binding_model.clone(),
+    );
     window.set_midi_bindings(ModelRc::from(midi_binding_model.clone()));
+    project_settings_window.set_midi_bindings(ModelRc::from(midi_binding_model.clone()));
     // Available commands for the dropdown — sourced from the static
     // schema and sorted for stable UI ordering. No filtering: the user
     // may want to bind ANY Command to a MIDI trigger.
@@ -523,11 +543,17 @@ pub fn run_desktop_app(
         .into_iter()
         .map(slint::SharedString::from)
         .collect();
-    window.set_available_commands(ModelRc::new(VecModel::from(commands_model)));
+    window.set_available_commands(ModelRc::new(VecModel::from(commands_model.clone())));
+    project_settings_window.set_available_commands(ModelRc::new(VecModel::from(commands_model)));
     // --- Project / Metadata section (#513) ---
     let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
     crate::settings::project_meta::install(
         &window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    crate::settings::project_meta::install_secondary(
+        &project_settings_window,
         project_session.clone(),
         last_dispatched_name.clone(),
     );
@@ -544,8 +570,13 @@ pub fn run_desktop_app(
             .and_then(|s| s.project_path.as_ref().map(|p| p.display().to_string()))
             .unwrap_or_else(|| "(unsaved)".into())
             .into();
-        window.set_project_name(name);
-        window.set_project_path_display(path);
+        window.set_project_name(name.clone());
+        window.set_project_path_display(path.clone());
+        // Mirror onto the standalone settings window (#513): SettingsPage
+        // reads project-name from project-name-draft, but the path is a
+        // separate property that must be pushed independently.
+        project_settings_window.set_project_name_draft(name);
+        project_settings_window.set_project_path_display(path);
     }
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(

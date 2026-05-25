@@ -21,7 +21,7 @@ use application::dispatcher::CommandDispatcher;
 use project::midi::{Binding, Source};
 
 use crate::state::ProjectSession;
-use crate::{AppWindow, MidiBindingRow};
+use crate::{AppWindow, MidiBindingRow, ProjectSettingsWindow};
 
 #[cfg(test)]
 #[path = "midi_mapping_tests.rs"]
@@ -206,6 +206,137 @@ pub fn install(
     // binding, replace it inline and re-dispatch. If it points to a
     // draft and the draft now has both source + command, finalize and
     // dispatch SaveMidiMapping.
+    let bindings_for_pick = bindings;
+    let drafts_for_pick = drafts;
+    let model_for_pick = model;
+    let project_session_for_pick = project_session;
+    win.on_pick_midi_binding_command(move |row_index, command_name| {
+        let total_bindings = bindings_for_pick.borrow().len();
+        let row = row_index as usize;
+        if row < total_bindings {
+            let mut b = bindings_for_pick.borrow_mut();
+            b[row].command = command_name.to_string();
+            let bindings_copy: Vec<Binding> = b.clone();
+            let d = drafts_for_pick.borrow();
+            repaint(&model_for_pick, &b, &d);
+            drop(b);
+            drop(d);
+            if let Some(session) = project_session_for_pick.borrow().as_ref() {
+                if let Err(e) = session.dispatcher.dispatch(Command::SaveMidiMapping {
+                    bindings: bindings_copy,
+                }) {
+                    log::warn!("[midi_mapping] Command::SaveMidiMapping failed: {e}");
+                }
+            }
+            return;
+        }
+        let draft_idx = row - total_bindings;
+        let mut d = drafts_for_pick.borrow_mut();
+        if draft_idx >= d.len() {
+            return;
+        }
+        d[draft_idx].command = Some(command_name.to_string());
+        if d[draft_idx].source.is_some() {
+            let draft = d.remove(draft_idx);
+            let mut b = bindings_for_pick.borrow_mut();
+            finalize_draft(&mut b, draft);
+            let bindings_copy: Vec<Binding> = b.clone();
+            repaint(&model_for_pick, &b, &d);
+            drop(b);
+            drop(d);
+            if let Some(session) = project_session_for_pick.borrow().as_ref() {
+                if let Err(e) = session.dispatcher.dispatch(Command::SaveMidiMapping {
+                    bindings: bindings_copy,
+                }) {
+                    log::warn!("[midi_mapping] Command::SaveMidiMapping failed: {e}");
+                }
+            }
+        } else {
+            let b = bindings_for_pick.borrow();
+            repaint(&model_for_pick, &b, &d);
+        }
+    });
+}
+
+/// Mirror of `install` for the standalone `ProjectSettingsWindow`
+/// (issue #513). Shares the same `bindings`/`drafts`/`model` Rc state
+/// as the main window so edits made in the secondary surface stay in
+/// sync. The closure bodies duplicate `install` rather than going
+/// through a free function because each `on_*` API is monomorphic over
+/// the window type and the borrow patterns are identical.
+pub fn install_secondary(
+    win: &ProjectSettingsWindow,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    bindings: Rc<RefCell<Vec<Binding>>>,
+    drafts: Rc<RefCell<Vec<Draft>>>,
+    model: Rc<VecModel<MidiBindingRow>>,
+) {
+    let bindings_for_add = bindings.clone();
+    let drafts_for_add = drafts.clone();
+    let model_for_add = model.clone();
+    let project_session_for_add = project_session.clone();
+    win.on_add_midi_binding(move || {
+        let mut b = bindings_for_add.borrow_mut();
+        let mut d = drafts_for_add.borrow_mut();
+        add_draft(&mut b, &mut d);
+        repaint(&model_for_add, &b, &d);
+        if let Some(session) = project_session_for_add.borrow().as_ref() {
+            if let Err(e) = session.dispatcher.dispatch(Command::StartMidiLearn) {
+                log::warn!("[midi_mapping] Command::StartMidiLearn failed: {e}");
+            }
+        }
+    });
+
+    let bindings_for_cancel = bindings.clone();
+    let drafts_for_cancel = drafts.clone();
+    let model_for_cancel = model.clone();
+    let project_session_for_cancel = project_session.clone();
+    win.on_cancel_midi_binding_draft(move |row_index| {
+        let total = bindings_for_cancel.borrow().len();
+        let row = row_index as usize;
+        let Some(draft_idx) = row.checked_sub(total) else {
+            return;
+        };
+        let mut d = drafts_for_cancel.borrow_mut();
+        if draft_idx < d.len() {
+            let was_learning = d[draft_idx].learning;
+            d.remove(draft_idx);
+            if was_learning {
+                if let Some(session) = project_session_for_cancel.borrow().as_ref() {
+                    if let Err(e) = session.dispatcher.dispatch(Command::StopMidiLearn) {
+                        log::warn!("[midi_mapping] Command::StopMidiLearn failed: {e}");
+                    }
+                }
+            }
+        }
+        let b = bindings_for_cancel.borrow();
+        repaint(&model_for_cancel, &b, &d);
+    });
+
+    let bindings_for_delete = bindings.clone();
+    let drafts_for_delete = drafts.clone();
+    let model_for_delete = model.clone();
+    let project_session_for_delete = project_session.clone();
+    win.on_delete_midi_binding(move |binding_index| {
+        let mut b = bindings_for_delete.borrow_mut();
+        let idx = binding_index as usize;
+        if idx < b.len() {
+            b.remove(idx);
+        }
+        let bindings_copy: Vec<Binding> = b.clone();
+        let d = drafts_for_delete.borrow();
+        repaint(&model_for_delete, &b, &d);
+        drop(b);
+        drop(d);
+        if let Some(session) = project_session_for_delete.borrow().as_ref() {
+            if let Err(e) = session.dispatcher.dispatch(Command::SaveMidiMapping {
+                bindings: bindings_copy,
+            }) {
+                log::warn!("[midi_mapping] Command::SaveMidiMapping failed: {e}");
+            }
+        }
+    });
+
     let bindings_for_pick = bindings;
     let drafts_for_pick = drafts;
     let model_for_pick = model;

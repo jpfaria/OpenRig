@@ -15,7 +15,7 @@ use application::command::Command;
 use infra_filesystem::{FilesystemStorage, MidiDeviceSelection, MidiPortKey};
 
 use crate::state::ProjectSession;
-use crate::{AppWindow, MidiDeviceRow};
+use crate::{AppWindow, MidiDeviceRow, ProjectSettingsWindow};
 
 #[cfg(test)]
 #[path = "midi_devices_tests.rs"]
@@ -90,6 +90,70 @@ pub(crate) fn devices_for_save(rows: &[MidiDeviceSelection]) -> Vec<MidiDeviceSe
 /// path (no session, no dispatcher) still saves correctly.
 pub fn install(
     win: &AppWindow,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    rows: Rc<RefCell<Vec<MidiDeviceSelection>>>,
+    model: Rc<VecModel<MidiDeviceRow>>,
+) {
+    let session_for_refresh = project_session.clone();
+    let rows_for_refresh = rows.clone();
+    let model_for_refresh = model.clone();
+    win.on_refresh_midi_devices(move || {
+        let infos = match adapter_midi::list_input_ports() {
+            Ok(v) => v,
+            Err(err) => {
+                log::warn!("MIDI enumeration failed: {err}");
+                return;
+            }
+        };
+        let enumerated: Vec<(String, u32)> = infos
+            .into_iter()
+            .map(|i| (i.key.name, i.key.instance))
+            .collect();
+        let merged = merge_enumeration(rows_for_refresh.borrow().clone(), enumerated);
+        *rows_for_refresh.borrow_mut() = merged.clone();
+        replace_model(&model_for_refresh, &merged);
+        dispatch_and_persist(&session_for_refresh, &merged);
+    });
+
+    let session_for_toggle = project_session.clone();
+    let rows_for_toggle = rows.clone();
+    let model_for_toggle = model.clone();
+    win.on_toggle_midi_device(move |row_index, enabled| {
+        let mut current = rows_for_toggle.borrow().clone();
+        let key = match current.get(row_index as usize) {
+            Some(r) => r.port_key.clone(),
+            None => return,
+        };
+        toggle_row(&mut current, &key, enabled);
+        *rows_for_toggle.borrow_mut() = current.clone();
+        replace_model(&model_for_toggle, &current);
+        dispatch_and_persist(&session_for_toggle, &current);
+    });
+
+    let session_for_alias = project_session;
+    let rows_for_alias = rows;
+    let model_for_alias = model;
+    win.on_edit_midi_device_alias(move |row_index, alias| {
+        let mut current = rows_for_alias.borrow().clone();
+        let key = match current.get(row_index as usize) {
+            Some(r) => r.port_key.clone(),
+            None => return,
+        };
+        edit_alias(&mut current, &key, alias.as_str());
+        *rows_for_alias.borrow_mut() = current.clone();
+        replace_model(&model_for_alias, &current);
+        dispatch_and_persist(&session_for_alias, &current);
+    });
+}
+
+/// Mirror of `install` for the standalone `ProjectSettingsWindow`
+/// (issue #513). The master-detail SettingsPage lives inside this
+/// secondary Window too — without re-registering the callbacks on this
+/// window the MIDI Devices section silently no-ops when Settings opens
+/// in the standalone surface. Same Rc state as the main window so both
+/// surfaces stay in sync.
+pub fn install_secondary(
+    win: &ProjectSettingsWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
     rows: Rc<RefCell<Vec<MidiDeviceSelection>>>,
     model: Rc<VecModel<MidiDeviceRow>>,
