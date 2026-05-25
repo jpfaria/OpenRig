@@ -286,6 +286,57 @@ pub fn build_streams_from_taps<T: MeterTapApi>(
     ChainMeterStreams { streams }
 }
 
+/// Build the per-chain `stream_meters` row payload the GUI must show.
+///
+/// Issue #532: the row length is owned by the project state — one
+/// slot per input entry in the chain (with a min of 1 mirroring
+/// `replace_project_chains`'s `.max(1)` clamp) — NOT by the engine's
+/// transient per-tick stream count. If the engine reports more streams
+/// than the project owns (transient mid-rebuild after a preset switch),
+/// the extra readings are dropped. If it reports fewer (sibling chain
+/// re-spawning after a toggle), the missing slots stay [`SILENT_DBFS`].
+/// Both symptoms reported in #532 collapse to the same fix.
+///
+/// The OUTPUT reading is scaled by `apply_chain_volume_db` because the
+/// stream_tap reads the signal BEFORE the audio callback applies the
+/// chain volume slider (#496). INPUT is untouched.
+pub fn rebuild_stream_meters_row(
+    engine_readings: &[StreamMeterReading],
+    project_input_count: usize,
+    chain_volume: f32,
+) -> Vec<crate::StreamMeter> {
+    let len = project_input_count.max(1);
+    (0..len)
+        .map(|i| match engine_readings.get(i) {
+            Some(r) => crate::StreamMeter {
+                in_dbfs: r.in_dbfs,
+                out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
+            },
+            None => crate::StreamMeter {
+                in_dbfs: SILENT_DBFS,
+                out_dbfs: SILENT_DBFS,
+            },
+        })
+        .collect()
+}
+
+/// Sum of `InputBlock.entries.len()` across a chain's blocks — the
+/// number of independent per-input runtimes the engine owns for the
+/// chain (issue #350). This is the GUI's source of truth for how many
+/// meter rows to render. Mirrors the count `replace_project_chains`
+/// uses when it first builds the row model.
+pub fn project_input_count(chain: &project::chain::Chain) -> usize {
+    use project::block::AudioBlockKind;
+    chain
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+            _ => None,
+        })
+        .sum()
+}
+
 /// Drain the per-stream rings and return one `StreamMeterReading`
 /// per stream for every chain in the store.
 pub fn poll_per_stream(
@@ -411,22 +462,20 @@ pub fn start_meter_polling(
             };
             let chain_volume = project.chains[idx].volume;
             let out_db = apply_chain_volume_db(out_db_raw, chain_volume);
-            // Per-stream rows for the new multi-bar UI surface. Build
-            // them from the same `per_stream` data the max-aggregate
-            // came from above so they always agree.
-            let per_stream_rows: Vec<crate::StreamMeter> = per_stream
+            // Per-stream rows. Issue #532: the row length follows the
+            // project's input-entry count, NOT the engine's transient
+            // stream readings. Engine readings fill the project-owned
+            // slots; missing entries stay SILENT. Without this clamp
+            // a preset switch leaked extra rows into the footer and a
+            // sibling toggle collapsed the rest to zero rows.
+            let engine_streams: Vec<StreamMeterReading> = per_stream
                 .iter()
                 .find(|(c, _)| c == &cid)
-                .map(|(_, streams)| {
-                    streams
-                        .iter()
-                        .map(|r| crate::StreamMeter {
-                            in_dbfs: r.in_dbfs,
-                            out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
-                        })
-                        .collect()
-                })
+                .map(|(_, streams)| streams.clone())
                 .unwrap_or_default();
+            let project_streams = project_input_count(&project.chains[idx]);
+            let per_stream_rows: Vec<crate::StreamMeter> =
+                rebuild_stream_meters_row(&engine_streams, project_streams, chain_volume);
             let stream_meters_changed = {
                 use slint::Model;
                 let current = row.stream_meters.iter().collect::<Vec<_>>();
