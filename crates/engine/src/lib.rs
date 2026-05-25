@@ -1,11 +1,13 @@
 pub mod input_tap;
 pub mod native_registry;
+pub mod output_meter;
 pub mod probe;
 pub mod rig_runtime;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;
 pub mod runtime_block_core;
+pub mod runtime_block_toggle;
 pub mod runtime_dsp;
 pub mod runtime_endpoints;
 pub mod runtime_graph;
@@ -16,4 +18,3 @@ pub mod runtime_segments;
 pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;
-pub mod output_meter;

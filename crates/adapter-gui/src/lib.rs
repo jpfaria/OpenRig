@@ -9,11 +9,11 @@ mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
 mod block_editor_window_lifecycle;
 mod block_editor_window_params;
-mod block_panel_dimensions;
 mod block_editor_window_setup;
 mod block_editor_window_wiring;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
+mod block_panel_dimensions;
 mod block_parameter_wiring;
 mod block_picker_wiring;
 mod chain_block_crud_wiring;
@@ -65,8 +65,8 @@ pub use cli::{
     parse_cli_args_from, parse_mcp_addr, parse_midi_map, validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
-    sync_project_runtime, system_language, ui_index_to_real_block_index,
+    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
+    sync_live_chain_runtime, sync_project_runtime, system_language, ui_index_to_real_block_index,
 };
 
 mod defaults;

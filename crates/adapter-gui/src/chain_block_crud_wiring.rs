@@ -24,8 +24,8 @@ use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{replace_project_chains, set_selected_block};
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
-use crate::sync_live_chain_runtime;
 use crate::ui_index_to_real_block_index;
+use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
     MultiSliderPoint, ProjectChainItem,
@@ -166,7 +166,7 @@ pub(crate) fn wire(
             };
             if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                 chain: chain_id.clone(),
-                block: block_id,
+                block: block_id.clone(),
             }) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
@@ -189,7 +189,9 @@ pub(crate) fn wire(
             }
             // Keep inline drawer UI in sync
             window.set_block_drawer_enabled(new_enabled);
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) =
+                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
+            {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

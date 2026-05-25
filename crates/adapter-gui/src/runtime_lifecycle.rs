@@ -99,6 +99,35 @@ pub(crate) fn remove_live_chain_runtime(
     }
 }
 
+/// Issue #522: fast path for `Command::ToggleBlockEnabled`. Flips the
+/// block's fade state in place on the live chain runtime — no CPAL
+/// re-resolve, no chain rebuild. Falls back to `sync_live_chain_runtime`
+/// only when the fast path can't take the change (chain not yet running,
+/// or the block is a `Bypass` that needs a real processor rebuild).
+pub(crate) fn sync_block_toggle(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+    chain_id: &ChainId,
+    block_id: &BlockId,
+    enabled: bool,
+) -> Result<()> {
+    let fast_path = {
+        let borrow = project_runtime.borrow();
+        match borrow.as_ref() {
+            Some(runtime) => runtime.set_block_enabled(chain_id, block_id, enabled),
+            None => Err(anyhow::anyhow!("runtime not started")),
+        }
+    };
+    if fast_path.is_ok() {
+        return Ok(());
+    }
+    log::debug!(
+        "sync_block_toggle: fast path declined ({:?}) — falling back to upsert",
+        fast_path.err()
+    );
+    sync_live_chain_runtime(project_runtime, session, chain_id)
+}
+
 pub(crate) fn assign_new_block_ids(chain: &mut Chain) {
     for block in &mut chain.blocks {
         assign_new_block_ids_recursive(block, &chain.id);

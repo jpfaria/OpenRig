@@ -23,7 +23,7 @@ use crate::chain_editor::insert_mode_from_index;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::{InsertDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
+use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{AppWindow, ChainInsertWindow, ChannelOptionItem, ProjectChainItem};
 
 /// State borrowed by the Insert window callbacks. Each `Rc` is cloned per
@@ -215,7 +215,7 @@ pub(crate) fn wire(
             };
             match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                 chain: chain_id.clone(),
-                block: block_id,
+                block: block_id.clone(),
             }) {
                 Ok(_) => {}
                 Err(e) => {
@@ -233,7 +233,13 @@ pub(crate) fn wire(
                 .map(|b| b.enabled)
                 .unwrap_or(false);
             iw.set_block_enabled(block_enabled);
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = sync_block_toggle(
+                &project_runtime,
+                session,
+                &chain_id,
+                &block_id,
+                block_enabled,
+            ) {
                 log::error!("toggle insert block enabled runtime sync: {e}");
             }
             replace_project_chains(

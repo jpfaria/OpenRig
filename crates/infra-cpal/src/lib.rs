@@ -43,6 +43,7 @@ mod jack_direct;
 
 mod controller;
 pub use controller::ProjectRuntimeController;
+mod controller_block_toggle;
 mod controller_taps;
 mod device_enum;
 #[cfg(all(target_os = "linux", feature = "jack"))]
