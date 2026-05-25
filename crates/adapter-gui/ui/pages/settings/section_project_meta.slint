@@ -13,11 +13,13 @@ export component SectionProjectMeta inherits Rectangle {
     background: transparent;
 
     VerticalLayout {
-        spacing: 8px;
+        spacing: 12px;
+        alignment: start;
 
         HorizontalLayout {
             spacing: 8px;
             alignment: start;
+            height: 32px;
             Text {
                 text: @tr("label-name");
                 color: #cfd5e0;
@@ -46,6 +48,7 @@ export component SectionProjectMeta inherits Rectangle {
         HorizontalLayout {
             spacing: 8px;
             alignment: start;
+            height: 28px;
             Text {
                 text: @tr("label-file");
                 color: #cfd5e0;
