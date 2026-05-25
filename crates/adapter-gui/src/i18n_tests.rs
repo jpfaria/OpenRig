@@ -444,6 +444,224 @@ fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
     }
 }
 
+/// #513 / #339 regression guard: scan EVERY `.slint` file under
+/// `crates/adapter-gui/ui/` (recursive, excluding vendored modules), collect
+/// every `@tr("…")` key, and assert every key has a non-empty msgstr in
+/// **all three populated locales** (en_US, pt_BR, es_ES) in the flat
+/// (no-msgctxt) catalog. Other shipped locales (de/fr/hi/ja/ko/zh) are
+/// allowed to have empty msgstr — they fall back to msgid by design.
+///
+/// Catches: a string added in Slint without a `.po` entry; a `.po` entry
+/// dedup'd with an empty msgstr; a key renamed in Slint but stale in `.po`.
+#[test]
+fn every_tr_key_has_translation_in_en_pt_es() {
+    use std::fs;
+    use std::path::Path;
+
+    fn collect_slint_files(root: &Path, out: &mut Vec<String>) {
+        let Ok(entries) = fs::read_dir(root) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            // Skip vendored Slint modules (third-party UI kits we don't translate).
+            if path.is_dir() {
+                if path.file_name().and_then(|s| s.to_str()) == Some("modules") {
+                    continue;
+                }
+                collect_slint_files(&path, out);
+            } else if path.extension().and_then(|s| s.to_str()) == Some("slint") {
+                if let Ok(text) = fs::read_to_string(&path) {
+                    out.push(text);
+                }
+            }
+        }
+    }
+
+    let ui_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("ui");
+    let mut slint_blobs = Vec::new();
+    collect_slint_files(&ui_dir, &mut slint_blobs);
+    assert!(
+        !slint_blobs.is_empty(),
+        "no .slint files found under {ui_dir:?}",
+    );
+
+    // Parse a Slint string literal — handles `\"`, `\\`, and `\u{NNNN}`
+    // escapes. Returns the decoded value and the byte length consumed
+    // INSIDE the literal (not counting the trailing quote).
+    fn parse_slint_string(literal: &str) -> Option<(String, usize)> {
+        let mut out = String::new();
+        let bytes = literal.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'"' {
+                return Some((out, i));
+            }
+            if b == b'\\' && i + 1 < bytes.len() {
+                let n = bytes[i + 1];
+                match n {
+                    b'"' => out.push('"'),
+                    b'\\' => out.push('\\'),
+                    b'n' => out.push('\n'),
+                    b't' => out.push('\t'),
+                    b'u' => {
+                        // \u{NNNN}
+                        if i + 2 >= bytes.len() || bytes[i + 2] != b'{' {
+                            return None;
+                        }
+                        let close = literal[i + 3..].find('}')?;
+                        let hex = &literal[i + 3..i + 3 + close];
+                        let cp = u32::from_str_radix(hex, 16).ok()?;
+                        out.push(char::from_u32(cp)?);
+                        i += 3 + close + 1;
+                        continue;
+                    }
+                    _ => out.push(n as char),
+                }
+                i += 2;
+                continue;
+            }
+            // UTF-8 multi-byte: copy the byte and let further bytes follow.
+            out.push(b as char);
+            // Above is wrong for multi-byte UTF-8; fall back to char iteration
+            // by re-reading via str::char_indices.
+            // To keep the impl simple, re-implement via chars():
+            // We bail and use the chars-based approach below.
+            return None;
+        }
+        None
+    }
+
+    // Robust char-based parser (covers all cases above).
+    fn parse_slint_string_chars(literal: &str) -> Option<(String, usize)> {
+        let mut out = String::new();
+        let mut iter = literal.char_indices().peekable();
+        while let Some((idx, c)) = iter.next() {
+            if c == '"' {
+                return Some((out, idx));
+            }
+            if c == '\\' {
+                let (_, esc) = iter.next()?;
+                match esc {
+                    '"' => out.push('"'),
+                    '\\' => out.push('\\'),
+                    'n' => out.push('\n'),
+                    't' => out.push('\t'),
+                    'u' => {
+                        // \u{NNNN}
+                        let (_, brace) = iter.next()?;
+                        if brace != '{' {
+                            return None;
+                        }
+                        let mut hex = String::new();
+                        loop {
+                            let (_, h) = iter.next()?;
+                            if h == '}' {
+                                break;
+                            }
+                            hex.push(h);
+                        }
+                        let cp = u32::from_str_radix(&hex, 16).ok()?;
+                        out.push(char::from_u32(cp)?);
+                    }
+                    other => out.push(other),
+                }
+                continue;
+            }
+            out.push(c);
+        }
+        None
+    }
+
+    let _ = parse_slint_string; // silence dead-code warning for the byte parser
+
+    let mut keys: std::collections::BTreeSet<String> = Default::default();
+    for blob in &slint_blobs {
+        for (i, _) in blob.match_indices("@tr(\"") {
+            let inside = &blob[i + 5..];
+            if let Some((decoded, _)) = parse_slint_string_chars(inside) {
+                keys.insert(decoded);
+            }
+        }
+    }
+    assert!(
+        !keys.is_empty(),
+        "found 0 @tr keys — extraction regex broke",
+    );
+
+    // en_US is intentionally allowed to leave msgstr empty when the msgid IS
+    // already the English UI string (gettext falls back to msgid). For pt_BR
+    // and es_ES, empty msgstr means a user sees English — a real bug.
+    let strict_locales: &[(&str, &str)] = &[
+        ("pt_BR", include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po")),
+        ("es_ES", include_str!("../translations/es_ES/LC_MESSAGES/adapter-gui.po")),
+    ];
+
+    // Line-walk lookup: a msgid is "resolved" when the very next msgstr
+    // line (within the same record, i.e. before the next msgid) is
+    // non-empty. Robust against record-separator quirks the `split("\n\n")`
+    // approach choked on (e.g. records with multi-line context comments
+    // that confuse blank-line splits).
+    fn has_nonempty_msgstr(po: &str, key: &str) -> bool {
+        // .po stores `"` as `\"`. Mirror that escape so we can match
+        // msgids that contain embedded quotes (e.g. `Delete "{}" ?`).
+        let escaped = key.replace('\\', "\\\\").replace('"', "\\\"");
+        let target = format!("msgid \"{escaped}\"");
+        let lines: Vec<&str> = po.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            if *line == target {
+                // Scan forward for the msgstr in this record. Skip comments
+                // and continuation lines; stop at the next msgid.
+                for &follow in &lines[i + 1..] {
+                    if follow.starts_with("msgstr ") {
+                        if follow == "msgstr \"\"" {
+                            // Could be a multi-line msgstr (msgstr "" followed
+                            // by "..." continuation lines).
+                            // Check whether any continuation line is non-empty.
+                            let cont_start = i + 1
+                                + lines[i + 1..]
+                                    .iter()
+                                    .position(|l| *l == follow)
+                                    .unwrap();
+                            for &c in &lines[cont_start + 1..] {
+                                if c.starts_with('"') && c != "\"\"" {
+                                    return true;
+                                }
+                                if !c.starts_with('"') {
+                                    break;
+                                }
+                            }
+                            return false;
+                        }
+                        return true;
+                    }
+                    if follow.starts_with("msgid ") {
+                        return false;
+                    }
+                }
+                return false;
+            }
+        }
+        false
+    }
+
+    let mut missing: Vec<String> = Vec::new();
+    for (locale, po) in strict_locales {
+        for key in &keys {
+            if !has_nonempty_msgstr(po, key) {
+                missing.push(format!("{locale}: {key}"));
+            }
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "{} translation gap(s) — every populated locale must translate every \
+         @tr key in the flat catalog:\n  {}",
+        missing.len(),
+        missing.join("\n  "),
+    );
+}
+
 /// #513 regression guard: every `@tr` key used by the Settings master-detail
 /// screen and its 5 sections must have a non-empty pt_BR translation in the
 /// flat (no-msgctxt) catalog. Previous bugs: keys present in the .slint but

@@ -42,27 +42,27 @@ msgstr "+"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:87
 msgid "Preset selector"
-msgstr ""
+msgstr "Seletor de preset"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:170
 msgid "Scene {}"
-msgstr ""
+msgstr "Cena {}"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:192
 msgid "Add scene"
-msgstr ""
+msgstr "Adicionar cena"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:201
 msgid "Remove last scene"
-msgstr ""
+msgstr "Remover última cena"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:258
 msgid "Add preset"
-msgstr ""
+msgstr "Adicionar preset"
 
 #: crates/adapter-gui/ui/components/chain_volume_button.slint:37
 msgid "Volume"
-msgstr ""
+msgstr "Volume"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
 msgid "title-dialog-delete-block"
@@ -395,7 +395,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
+msgstr "Ative uma chain com entrada configurada para ver os afinadores aqui."
 "Habilite uma chain com entrada configurada para ver os afinadores "
 "aqui.Habilite uma chain com entrada configurada para ver os afinadores aqui."
 
@@ -548,3 +548,15 @@ msgstr "SISTEMA"
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
 msgstr "PROJETO"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Remove preset"
+msgstr "Remover preset"
+
+msgid "Rename preset"
+msgstr "Renomear preset"
