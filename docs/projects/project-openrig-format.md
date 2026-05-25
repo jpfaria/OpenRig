@@ -127,7 +127,10 @@ the audio-thread contract:
   chain. Same I/O signature ⇒ the proven in-place lock-free update path: the
   `Arc<ChainRuntimeState>` is preserved, the new pipeline is built off the
   brief swap lock, and the existing per-segment cosine fade-in keeps the
-  switch click-free. Other inputs are untouched.
+  switch click-free. Other inputs are untouched. Switching presets also
+  resets `active_scene` to `1` — scenes are per-preset, so carrying the
+  previous preset's scene index over would leak a phantom scene into the
+  new preset on the next `write_back_processing_blocks` call (#535).
 
 Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
 `RuntimeGraph` to its backend.
