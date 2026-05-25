@@ -553,6 +553,29 @@ msgstr "Eliminar preset"
 msgid "Rename preset"
 msgstr "Renombrar preset"
 
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
+msgid "preset-search-placeholder"
+msgstr "Buscar presets…"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
+msgid "title-dialog-save-preset"
+msgstr "Guardar preset"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
+msgid "btn-save"
+msgstr "Guardar"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
+msgid "title-dialog-overwrite-preset"
+msgstr "¿Sobrescribir preset?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
+msgid "msg-overwrite-preset"
+msgstr "Ya existe un preset llamado \"{}\". ¿Sobrescribir?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
+msgid "btn-overwrite"
+msgstr "Sobrescribir"
 #: crates/adapter-gui/ui/pages/settings.slint
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "title-section-paths"

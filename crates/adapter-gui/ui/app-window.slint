@@ -10,6 +10,7 @@ import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
 import { ConfirmDeleteRecentProjectDialog } from "components/confirm_delete_recent_project_dialog.slint";
 import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
+import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
@@ -278,6 +279,17 @@ export component AppWindow inherits Window {
     callback preset-picker-confirm(int);
     callback preset-picker-delete(int);
     callback preset-picker-cancel();
+    in-out property <string> preset-picker-search-query;
+    callback preset-picker-query-changed(string);
+    in property <bool> show-preset-save: false;
+    in property <string> preset-save-default-name: "";
+    in-out property <string> preset-save-name-input: "";
+    in property <bool> show-preset-save-overwrite: false;
+    in property <string> preset-save-overwrite-name: "";
+    callback preset-save-request(string);
+    callback preset-save-cancel();
+    callback preset-save-overwrite-confirm();
+    callback preset-save-overwrite-cancel();
     in property <bool> show-confirm-delete-block: false;
     in property <string> confirm-delete-block-name: "";
     callback confirm-delete-block();
@@ -796,8 +808,29 @@ export component AppWindow inherits Window {
         height: root.height;
         visible-overlay: root.show-preset-picker;
         items: root.preset-picker-items;
+        search-query <=> root.preset-picker-search-query;
         confirm(i) => { root.preset-picker-confirm(i); }
         cancel() => { root.preset-picker-cancel(); }
         delete(i) => { root.preset-picker-delete(i); }
+        query-changed(t) => { root.preset-picker-query-changed(t); }
+    }
+
+    PresetSaveOverlay {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        visible-overlay: root.show-preset-save;
+        default-name: root.preset-save-default-name;
+        name-input <=> root.preset-save-name-input;
+        request-save(n) => { root.preset-save-request(n); }
+        cancel() => { root.preset-save-cancel(); }
+    }
+
+    PresetOverwriteOverlay {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        visible-overlay: root.show-preset-save-overwrite;
+        preset-name: root.preset-save-overwrite-name;
+        confirm() => { root.preset-save-overwrite-confirm(); }
+        cancel() => { root.preset-save-overwrite-cancel(); }
     }
 }

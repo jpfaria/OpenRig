@@ -540,6 +540,29 @@ msgstr "SYSTEM"
 msgid "nav-group-project"
 msgstr "PROJECT"
 
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
+msgid "preset-search-placeholder"
+msgstr "Search presets…"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
+msgid "title-dialog-save-preset"
+msgstr "Save preset"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
+msgid "btn-save"
+msgstr "Save"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
+msgid "title-dialog-overwrite-preset"
+msgstr "Overwrite preset?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
+msgid "msg-overwrite-preset"
+msgstr "A preset called \"{}\" already exists. Overwrite it?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
+msgid "btn-overwrite"
+msgstr "Overwrite"
 #: crates/adapter-gui/ui/pages/settings.slint
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "title-section-paths"
