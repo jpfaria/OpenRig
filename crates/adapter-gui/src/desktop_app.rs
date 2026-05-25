@@ -212,7 +212,7 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
 
-    // language_wiring needs to know how to push the new font to every Window
+    // settings::language needs to know how to push the new font to every Window
     // (each Slint Window is a separate root with its own Locale global, so a
     // single set on AppWindow doesn't reach the secondary windows).
     {
@@ -268,7 +268,12 @@ pub fn run_desktop_app(
                 crate::Locale::get(w).set_font_family(f());
             }
         };
-        crate::language_wiring::wire(&window, project_session.clone(), apply_font_to_all);
+        crate::settings::language::wire(
+            &window,
+            &project_settings_window,
+            project_session.clone(),
+            apply_font_to_all,
+        );
     }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
@@ -443,11 +448,11 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    // --- Audio settings save callbacks (extracted to audio_settings_save_wiring) ---
-    crate::audio_settings_save_wiring::wire(
+    // --- Audio settings save callbacks (extracted to settings::audio) ---
+    crate::settings::audio::wire(
         &window,
         &project_settings_window,
-        crate::audio_settings_save_wiring::AudioSettingsSaveCtx {
+        crate::settings::audio::AudioSettingsSaveCtx {
             input_devices: input_devices.clone(),
             output_devices: output_devices.clone(),
             project_devices: project_devices.clone(),
@@ -463,6 +468,116 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
+    // --- System / MIDI devices section (#513) ---
+    // Seed the in-memory row list from the persisted AppConfig and bind
+    // it to the Slint model the section reads from. Each user edit
+    // dispatches `SaveMidiDevices` (when a session is loaded) and
+    // persists into config.yaml in the same callback — see
+    // `crate::settings::midi_devices` for the rationale.
+    let midi_device_rows: Rc<RefCell<Vec<infra_filesystem::MidiDeviceSelection>>> =
+        Rc::new(RefCell::new(
+            infra_filesystem::FilesystemStorage::load_app_config()
+                .ok()
+                .map(|c| c.midi_devices)
+                .unwrap_or_default(),
+        ));
+    let midi_device_model: Rc<VecModel<crate::MidiDeviceRow>> = Rc::new(VecModel::default());
+    crate::settings::midi_devices::replace_model(&midi_device_model, &midi_device_rows.borrow());
+    crate::settings::midi_devices::install(
+        &window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
+    crate::settings::midi_devices::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
+    window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    project_settings_window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    // --- Project / MIDI mapping section (#513, #493) ---
+    // Seed bindings from the current project's `midi.bindings` (if any),
+    // share with chain_rig_nav_wiring so MidiEventReceived fills the
+    // active draft. Drafts is GUI-only state — never persisted.
+    let midi_bindings_state: Rc<RefCell<Vec<project::midi::Binding>>> = Rc::new(RefCell::new(
+        project_session
+            .borrow()
+            .as_ref()
+            .and_then(|s| s.project.borrow().midi.clone())
+            .map(|m| m.bindings)
+            .unwrap_or_default(),
+    ));
+    let midi_drafts_state: Rc<RefCell<Vec<crate::settings::midi_mapping::Draft>>> =
+        Rc::new(RefCell::new(Vec::new()));
+    let midi_binding_model: Rc<VecModel<crate::MidiBindingRow>> = Rc::new(VecModel::default());
+    crate::settings::midi_mapping::repaint(
+        &midi_binding_model,
+        &midi_bindings_state.borrow(),
+        &midi_drafts_state.borrow(),
+    );
+    crate::settings::midi_mapping::install(
+        &window,
+        project_session.clone(),
+        midi_bindings_state.clone(),
+        midi_drafts_state.clone(),
+        midi_binding_model.clone(),
+    );
+    crate::settings::midi_mapping::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        midi_bindings_state.clone(),
+        midi_drafts_state.clone(),
+        midi_binding_model.clone(),
+    );
+    window.set_midi_bindings(ModelRc::from(midi_binding_model.clone()));
+    project_settings_window.set_midi_bindings(ModelRc::from(midi_binding_model.clone()));
+    // Available commands for the dropdown — sourced from the static
+    // schema and sorted for stable UI ordering. No filtering: the user
+    // may want to bind ANY Command to a MIDI trigger.
+    let mut commands: Vec<&'static str> =
+        application::command_schema::command_variant_names().to_vec();
+    commands.sort();
+    let commands_model: Vec<slint::SharedString> = commands
+        .into_iter()
+        .map(slint::SharedString::from)
+        .collect();
+    window.set_available_commands(ModelRc::new(VecModel::from(commands_model.clone())));
+    project_settings_window.set_available_commands(ModelRc::new(VecModel::from(commands_model)));
+    // --- Project / Metadata section (#513) ---
+    let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    crate::settings::project_meta::install(
+        &window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    crate::settings::project_meta::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    // Seed the initial project-name and project-path-display from the session.
+    {
+        let sess = project_session.borrow();
+        let name: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project.borrow().name.clone())
+            .unwrap_or_default()
+            .into();
+        let path: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project_path.as_ref().map(|p| p.display().to_string()))
+            .unwrap_or_else(|| "(unsaved)".into())
+            .into();
+        window.set_project_name(name.clone());
+        window.set_project_path_display(path.clone());
+        // Mirror onto the standalone settings window (#513): SettingsPage
+        // reads project-name from project-name-draft, but the path is a
+        // separate property that must be pushed independently.
+        project_settings_window.set_project_name_draft(name);
+        project_settings_window.set_project_path_display(path);
+    }
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(
         &window,
@@ -733,6 +848,11 @@ pub fn run_desktop_app(
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             auto_save,
+            midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                bindings: midi_bindings_state.clone(),
+                drafts: midi_drafts_state.clone(),
+                model: midi_binding_model.clone(),
+            }),
         },
     );
     crate::plugin_info_inline_wiring::wire(&window);
@@ -783,6 +903,11 @@ pub fn run_desktop_app(
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             auto_save,
+            midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                bindings: midi_bindings_state.clone(),
+                drafts: midi_drafts_state.clone(),
+                model: midi_binding_model.clone(),
+            }),
         };
         let mcp_window = window.as_weak();
         // Cloned for the meter resolver closure (the moves above
@@ -822,7 +947,10 @@ pub fn run_desktop_app(
                                     let row = chains_for_meters.row_data(idx);
                                     let (in_db, out_db) = row
                                         .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
-                                        .unwrap_or((engine::output_meter::SILENT_DBFS, engine::output_meter::SILENT_DBFS));
+                                        .unwrap_or((
+                                            engine::output_meter::SILENT_DBFS,
+                                            engine::output_meter::SILENT_DBFS,
+                                        ));
                                     out.push_str(&format!(
                                         "{}\t{:.1}\t{:.1}\n",
                                         chain.id.0, in_db, out_db
@@ -864,6 +992,11 @@ pub fn run_desktop_app(
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 auto_save,
+                midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                    bindings: midi_bindings_state.clone(),
+                    drafts: midi_drafts_state.clone(),
+                    model: midi_binding_model.clone(),
+                }),
             },
             arg,
         )?),

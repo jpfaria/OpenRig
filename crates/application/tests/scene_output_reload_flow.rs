@@ -78,8 +78,14 @@ fn core(id: &str) -> AudioBlock {
 
 fn fresh_rig() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
-    presets.insert("p2".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
+    presets.insert(
+        "p2".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     bank.insert(2, "p2".into());
@@ -116,8 +122,9 @@ fn fresh_state() -> (RigProject, Project) {
     for c in project.chains.iter_mut() {
         if c.id.0 == CHAIN_ID {
             c.enabled = true;
-            c.blocks
-                .retain(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+            c.blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+            });
             c.blocks.insert(0, user_input());
             c.blocks.push(core("amp:1"));
             c.blocks.push(user_output());
@@ -195,8 +202,9 @@ fn full_simulated_save_then_reload_after_rig_nav_drops_output_today() {
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == CHAIN_ID {
             c.enabled = true;
-            c.blocks
-                .retain(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+            c.blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+            });
             c.blocks.insert(0, user_input());
             c.blocks.push(core("amp:1"));
             c.blocks.push(user_output());

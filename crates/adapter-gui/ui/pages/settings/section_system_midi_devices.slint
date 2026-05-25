@@ -1,0 +1,134 @@
+// Master-detail content for System / MIDI devices (issue #513). The
+// SettingsPage shell renders the section title — here we just place
+// the refresh button + device list inside a VerticalLayout.
+
+import { MidiDeviceRow } from "../../models.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component SectionSystemMidiDevices inherits Rectangle {
+    in property <[MidiDeviceRow]> devices;
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 8px;
+
+        // Header row: refresh button aligned to the right (mirrors the
+        // audio devices section so the user sees the same affordance).
+        HorizontalLayout {
+            alignment: end;
+
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+                border-width: 1px;
+                border-color: #3d4450;
+                animate background { duration: 200ms; }
+
+                Image {
+                    x: 6px;
+                    y: 6px;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
+                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+                }
+
+                refresh-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.refresh-midi-devices(); }
+                }
+            }
+        }
+
+        ScrollView {
+            horizontal-stretch: 1;
+            height: Math.max(48px, root.devices.length * 48px);
+            viewport-height: root.devices.length * 48px;
+
+            for d[i] in root.devices : Rectangle {
+            x: 0px;
+            y: i * 48px;
+            width: parent.width - 8px;
+            height: 44px;
+            background: #1d2025;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: d.enabled ? #2f4a6a : #2a2f38;
+            animate border-color { duration: 200ms; }
+
+            // Custom toggle indicator (same visual as the audio device row)
+            Rectangle {
+                x: 12px;
+                y: 12px;
+                width: 20px;
+                height: 20px;
+                background: d.enabled ? #188cff : #1e2229;
+                border-width: 1px;
+                border-color: d.enabled ? #45a7ff : #3d4450;
+                border-radius: 8px;
+
+                if d.enabled : Image {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../../assets/check.svg");
+                    colorize: #ffffff;
+                }
+
+                toggle-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle-midi-device(i, !d.enabled); }
+                }
+            }
+
+            // Alias input — 2px bright border on focus (HIGH severity per skill)
+            Rectangle {
+                x: 44px;
+                y: 8px;
+                width: parent.width - 44px - 220px;
+                height: 28px;
+                background: #14171c;
+                border-width: alias-input.has-focus ? 2px : 1px;
+                border-color: alias-input.has-focus ? #45a7ff : #2a2f38;
+                border-radius: 8px;
+                animate border-color, border-width { duration: 150ms; }
+
+                alias-input := TextInput {
+                    x: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    text: d.alias;
+                    color: #f3f6fb;
+                    single-line: true;
+                    vertical-alignment: center;
+                    font-size: 13px;
+                    edited => {
+                        root.edit-midi-device-alias(i, self.text);
+                    }
+                }
+            }
+
+            // Raw port name + instance hint (read-only)
+            Text {
+                x: parent.width - 212px;
+                y: 0px;
+                width: 200px;
+                height: parent.height;
+                text: d.instance == 0 ? d.name : "\{d.name} (#\{d.instance})";
+                color: #8a92a3;
+                vertical-alignment: center;
+                horizontal-alignment: right;
+                font-size: 11px;
+                overflow: elide;
+            }
+        }
+    }
+    }
+}

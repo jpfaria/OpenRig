@@ -39,6 +39,7 @@ fn project_from_chain(chain: Chain) -> Project {
         name: None,
         device_settings: Vec::<DeviceSettings>::new(),
         chains: vec![chain],
+        midi: None,
     }
 }
 

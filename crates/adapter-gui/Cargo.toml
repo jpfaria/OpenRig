@@ -19,6 +19,7 @@ plugin-loader = { path = "../plugin-loader" }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
 # Workspace dep disables default features so we don't pull `gettext`

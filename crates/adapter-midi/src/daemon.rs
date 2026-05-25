@@ -5,14 +5,17 @@
 //! the audio thread.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use application::bridge::CommandBridge;
+use application::command::Command;
 use midir::MidiInput;
 
+use crate::learn::LearnState;
 use crate::mapping::MidiMap;
 use crate::message::MidiMessage;
-use crate::translate::resolve;
+use crate::translate::{resolve, source_from_bytes};
 
 const CLIENT_NAME: &str = "OpenRig";
 const PORT_NAME: &str = "openrig-midi-in";
@@ -40,9 +43,9 @@ fn select_ports(available: &[String], wanted: Option<&str>) -> Vec<usize> {
 /// Load the legacy single-file map at `map_path`, validate it, and run the
 /// daemon. Thin wrapper around [`run_blocking_with_map`] preserved for the
 /// `--midi=PATH` (explicit legacy file) flow.
-pub fn run_blocking(bridge: CommandBridge, map_path: &Path) -> Result<()> {
+pub fn run_blocking(bridge: CommandBridge, map_path: &Path, learn: Arc<LearnState>) -> Result<()> {
     let map = MidiMap::load(map_path)?;
-    run_blocking_with_map(bridge, map)
+    run_blocking_with_map(bridge, map, learn)
 }
 
 /// Open **every** matching MIDI input for the pre-resolved [`MidiMap`] and
@@ -51,17 +54,23 @@ pub fn run_blocking(bridge: CommandBridge, map_path: &Path) -> Result<()> {
 /// all callbacks submit to the **same** command bridge (clone is cheap +
 /// `Send`). Submitting is fire-and-forget: a footswitch does not block on
 /// the dispatch result.
-pub fn run_blocking_with_map(bridge: CommandBridge, map: MidiMap) -> Result<()> {
+///
+/// `learn` is the process-wide single-shot learn-mode flag (#513 / #493).
+/// While `learn.is_active()`, each parseable incoming event is submitted as
+/// `Command::PublishMidiEvent { source }` and the flag auto-clears via
+/// `learn.on_event_captured()`. The binding-resolution path is **skipped**
+/// while learning so the user does not accidentally fire whatever the
+/// pedal is already mapped to. When the flag is off, behaviour is
+/// unchanged: every event resolves through the binding map.
+pub fn run_blocking_with_map(
+    bridge: CommandBridge,
+    map: MidiMap,
+    learn: Arc<LearnState>,
+) -> Result<()> {
     let map = std::sync::Arc::new(map);
 
-    // One throwaway client just to enumerate ports + names.
-    let enumerator = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
-    let names: Vec<String> = enumerator
-        .ports()
-        .iter()
-        .map(|p| enumerator.port_name(p).unwrap_or_default())
-        .collect();
-    drop(enumerator);
+    let infos = crate::enumerate::list_input_ports()?;
+    let names: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
 
     let selected = select_ports(&names, map.input.as_deref());
     if selected.is_empty() {
@@ -86,11 +95,28 @@ pub fn run_blocking_with_map(bridge: CommandBridge, map: MidiMap) -> Result<()> 
         let name = names[idx].clone();
         let map = std::sync::Arc::clone(&map);
         let bridge = bridge.clone();
+        let learn = Arc::clone(&learn);
         let conn = client
             .connect(
                 port,
                 PORT_NAME,
                 move |_stamp, bytes, _| {
+                    // #513 / #493: learn-mode short-circuits the binding
+                    // path. Lock-free atomic — same hot-path invariants
+                    // as the rest of the callback (no mutex, no alloc,
+                    // no syscall). When the flag is off the load is a
+                    // single relaxed-ish read with no side effects.
+                    if learn.is_active() {
+                        if let Some(source) = source_from_bytes(bytes) {
+                            drop(bridge.submit(Command::PublishMidiEvent { source }));
+                            learn.on_event_captured();
+                            return;
+                        }
+                        // Unparseable bytes (system real-time, truncated,
+                        // unsupported voice messages) do NOT auto-disarm
+                        // the flag — the user is still waiting for the
+                        // pedal press they actually meant to learn.
+                    }
                     if let Some(msg) = MidiMessage::parse(bytes) {
                         if let Some(cmd) = resolve(&map, &msg) {
                             // Fire-and-forget (footswitch does not await).

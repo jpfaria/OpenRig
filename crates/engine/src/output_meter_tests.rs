@@ -110,7 +110,9 @@ fn accepts_a_single_channel_slice() {
 
 #[test]
 fn accepts_three_channel_slice() {
-    let three: Vec<Arc<SpscRing<f32>>> = (0..3).map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0))).collect();
+    let three: Vec<Arc<SpscRing<f32>>> = (0..3)
+        .map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0)))
+        .collect();
     three[2].push(0.8);
     let v = pop_peak_dbfs(&three);
     let expected = 20.0 * 0.8_f32.log10();
@@ -125,7 +127,9 @@ fn accepts_zero_channel_slice_silent() {
 
 #[test]
 fn n_channel_peak_compares_across_all_channels() {
-    let four: Vec<Arc<SpscRing<f32>>> = (0..4).map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0))).collect();
+    let four: Vec<Arc<SpscRing<f32>>> = (0..4)
+        .map(|_| Arc::new(SpscRing::<f32>::new(8, 0.0)))
+        .collect();
     four[0].push(0.2);
     four[1].push(0.3);
     four[2].push(0.9); // loudest

@@ -63,6 +63,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                 },
             ],
         }],
+        midi: None,
     };
 
     repository
@@ -617,6 +618,7 @@ fn serialize_empty_project_roundtrips() {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     };
     let yaml_str = super::serialize_project(&project).expect("serialize should succeed");
     let dto: super::ProjectYaml = serde_yaml::from_str(&yaml_str).expect("should parse back");
@@ -669,6 +671,7 @@ fn chain_with_only_io_blocks_roundtrips() {
                 },
             ],
         }],
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     let loaded = repo.load_current_project().expect("load");
@@ -980,6 +983,7 @@ fn serialize_project_produces_valid_yaml_string() {
                 },
             ],
         }],
+        midi: None,
     };
     let yaml_str = super::serialize_project(&project).expect("serialize");
     assert!(yaml_str.contains("name: Direct Serialize"));
@@ -1176,6 +1180,7 @@ fn device_settings_not_persisted_in_yaml() {
             nperiods: 3,
         }],
         chains: Vec::new(),
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     // device_settings are no longer written to YAML (per-machine config)
@@ -1416,6 +1421,7 @@ fn project_with_multiple_chains_roundtrips() {
                 ],
             },
         ],
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     let loaded = repo.load_current_project().expect("load");
@@ -1602,6 +1608,7 @@ fn chain_volume_150_roundtrips_through_yaml() {
             volume: 150.0,
             blocks: Vec::new(),
         }],
+        midi: None,
     };
     repo.save_project(&project).expect("save should succeed");
     let loaded = repo.load_current_project().expect("load should succeed");

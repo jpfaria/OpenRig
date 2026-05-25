@@ -1,0 +1,108 @@
+// Project / MIDI mapping editor (#513, #493). Master-detail content
+// pane — the SettingsPage shell renders the title. Replaces the
+// hand-edited `midi-map.yaml`. Each row shows the trigger label, a
+// dropdown of available `Command` names, and a Delete/Cancel button.
+// Drafts (rows in Learn mode) read "(listening...)" on the trigger
+// column and turn the action button into "Cancel".
+//
+// Empty state follows ux-ui-mastery:desktop-app-design — explanation
+// plus a single CTA centred in a card, no illustration. The + Add
+// button has an explicit height so the surrounding ScrollView cannot
+// stretch it to the full content area.
+
+import { MidiBindingRow } from "../../models.slint";
+import { Button, ComboBox } from "std-widgets.slint";
+
+export component SectionProjectMidiMapping inherits Rectangle {
+    in property <[MidiBindingRow]> bindings;
+    in property <[string]> available-commands;
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 12px;
+        alignment: start;
+
+        // Empty state when no bindings yet.
+        if root.bindings.length == 0 : Rectangle {
+            height: 120px;
+            background: #1a1d22;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #25292f;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 12px;
+                padding: 24px;
+
+                Text {
+                    text: @tr("empty-midi-mapping-explain");
+                    color: #8a92a3;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        text: @tr("btn-add-midi-binding");
+                        height: 32px;
+                        clicked => { root.add-midi-binding(); }
+                    }
+                }
+            }
+        }
+
+        // With bindings — top-right + Add header.
+        if root.bindings.length > 0 : HorizontalLayout {
+            alignment: end;
+            height: 32px;
+            Button {
+                text: @tr("btn-add-midi-binding");
+                height: 32px;
+                clicked => { root.add-midi-binding(); }
+            }
+        }
+
+        if root.bindings.length > 0 : VerticalLayout {
+            spacing: 4px;
+            for b[i] in root.bindings : Rectangle {
+                background: #1d2025;
+                border-radius: 8px;
+                height: 40px;
+                HorizontalLayout {
+                    padding: 8px;
+                    spacing: 10px;
+                    alignment: stretch;
+                    Text {
+                        text: b.learning ? @tr("placeholder-midi-listen") : b.trigger-label;
+                        color: b.learning ? #ffd166 : #f3f6fb;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    ComboBox {
+                        model: root.available-commands;
+                        current-value: b.command-label;
+                        selected(c) => { root.pick-midi-binding-command(i, c); }
+                    }
+                    Button {
+                        text: b.learning ? @tr("btn-cancel") : @tr("btn-delete");
+                        clicked => {
+                            if (b.learning) {
+                                root.cancel-midi-binding-draft(i);
+                            } else {
+                                root.delete-midi-binding(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -266,6 +266,38 @@ pub enum Command {
         device_settings: Vec<project::device::DeviceSettings>,
     },
 
+    /// #513: persist the per-machine MIDI device selection (config.yaml).
+    /// The dispatcher emits `MidiDevicesSaved` only; persistence happens
+    /// in the adapter wiring, identical to `SaveAudioSettings`'s system-
+    /// side counterpart (no project mutation here — MIDI devices are a
+    /// system-level concept per ADR 0003).
+    SaveMidiDevices {
+        devices: Vec<infra_filesystem::MidiDeviceSelection>,
+    },
+
+    /// #513 / #493: replace the project's MIDI binding list. Writes
+    /// `project.midi.bindings`. The adapter persists the project file
+    /// after `Event::MidiMappingSaved` fans out.
+    SaveMidiMapping {
+        bindings: Vec<project::midi::Binding>,
+    },
+
+    /// #513 / #493: put the MIDI daemon into single-shot learn mode. The
+    /// next received MIDI event is published as `MidiEventReceived` and
+    /// the daemon returns to normal mode automatically.
+    StartMidiLearn,
+
+    /// #513 / #493: cancel an outstanding learn request (the user closed
+    /// the editor or pressed Cancel before any event arrived).
+    StopMidiLearn,
+
+    /// #513 / #493: emitted by the MIDI daemon while learn-mode is active.
+    /// The daemon submits this through the existing command bridge (#165
+    /// / #22) instead of routing the event itself, so the event still
+    /// reaches the GUI through `PublishingDispatcher`'s fan-out — one
+    /// transport, one ordering invariant. The handler is a pure passthrough.
+    PublishMidiEvent { source: project::midi::Source },
+
     /// #436: per-chain rig navigation (preset/scene switch/add/remove).
     /// The GUI used to mutate `RigProject` by hand in a wiring closure —
     /// business logic in the UI. Now it dispatches this and the

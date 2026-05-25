@@ -85,6 +85,7 @@ fn dispatcher_with_chain_having_io() -> (LocalDispatcher, Rc<RefCell<Project>>) 
         name: Some("test".into()),
         device_settings: Vec::new(),
         chains: vec![chain],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     (dispatcher, project)

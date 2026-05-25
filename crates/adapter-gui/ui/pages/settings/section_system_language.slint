@@ -1,0 +1,26 @@
+// Language section — embeds the existing LanguageSelector component
+// (used elsewhere in the app) so the dropdown shows flag + native
+// language name. std-widgets ComboBox didn't render the model when
+// used here; LanguageSelector is the proven path.
+
+import { LanguageSelector } from "../../components/language_selector.slint";
+
+export component SectionSystemLanguage inherits Rectangle {
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback language-selected(int);
+
+    background: transparent;
+
+    HorizontalLayout {
+        alignment: start;
+        LanguageSelector {
+            compact: false;
+            language-options: root.language-options;
+            language-codes: root.language-codes;
+            selected-language-index: root.selected-language-index;
+            language-selected(i) => { root.language-selected(i); }
+        }
+    }
+}

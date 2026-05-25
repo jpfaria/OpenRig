@@ -57,66 +57,14 @@ msgctxt "SceneBar"
 msgid "Remove last scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:276
-msgctxt "ChainTitlePreset"
-msgid "tooltip-open-preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:286
-msgctxt "ChainTitlePreset"
-msgid "tooltip-save-preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:296
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:258
 msgctxt "ChainTitlePreset"
 msgid "Add preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:306
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:306
-msgctxt "ChainTitlePreset"
-msgid "Rename preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:317
-msgctxt "ChainTitlePreset"
-msgid "Remove preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:409
-msgctxt "ChainTitlePreset"
-msgid "Cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:430
-msgctxt "ChainTitlePreset"
-msgid "OK"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/chain_volume_button.slint:37
 msgctxt "ChainVolumeButton"
 msgid "Volume"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:29
-msgctxt "ConfirmDeleteChainDialog"
-msgid "title-dialog-delete-chain"
-msgstr ""
-
-#. text directly.
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:39
-msgctxt "ConfirmDeleteChainDialog"
-msgid "Excluir a chain \"{}\"?"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-delete"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
@@ -140,27 +88,6 @@ msgctxt "ConfirmDeleteBlockDialog"
 msgid "btn-delete"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:30
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "title-dialog-delete-recent-project"
-msgstr ""
-
-#. Literal pt-BR source string with `{}` placeholder.
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:38
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "Remover o projeto \"{}\" dos recentes?"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:57
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:74
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-remove"
-msgstr ""
-
 #: crates/adapter-gui/ui/components/language_selector.slint:56
 msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
@@ -181,54 +108,14 @@ msgctxt "ModelSelectWithSearch"
 msgid "status-no-models-found"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:34
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:32
 msgctxt "PresetPickerOverlay"
 msgid "btn-load-preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
-msgctxt "PresetPickerOverlay"
-msgid "preset-search-placeholder"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:106
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:97
 msgctxt "PresetPickerOverlay"
 msgid "btn-cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
-msgctxt "PresetSaveOverlay"
-msgid "title-dialog-save-preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:63
-msgctxt "PresetSaveOverlay"
-msgid "btn-cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
-msgctxt "PresetSaveOverlay"
-msgid "btn-save"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:123
-msgctxt "PresetOverwriteOverlay"
-msgid "title-dialog-overwrite-preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:130
-msgctxt "PresetOverwriteOverlay"
-msgid "msg-overwrite-preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:149
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:166
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-overwrite"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
@@ -246,7 +133,7 @@ msgctxt "BlockPanelEditor"
 msgid "btn-add"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:335
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:301
 msgctxt "BlockPanelEditor"
 msgid "–"
 msgstr ""
@@ -425,37 +312,47 @@ msgctxt "ChainIoGroupsPage"
 msgid "btn-ok"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:163
+#: crates/adapter-gui/ui/pages/chain_row.slint:140
 msgctxt "ChainRow"
 msgid "tooltip-expand-blocks"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:171
+#: crates/adapter-gui/ui/pages/chain_row.slint:148
 msgctxt "ChainRow"
 msgid "tooltip-measure-latency"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:200
+#: crates/adapter-gui/ui/pages/chain_row.slint:177
 msgctxt "ChainRow"
 msgid "tooltip-configure"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:208
+#: crates/adapter-gui/ui/pages/chain_row.slint:185
+msgctxt "ChainRow"
+msgid "tooltip-open-preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:193
+msgctxt "ChainRow"
+msgid "tooltip-save-preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:201
 msgctxt "ChainRow"
 msgid "tooltip-delete"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:479
+#: crates/adapter-gui/ui/pages/chain_row.slint:472
 msgctxt "ChainRow"
 msgid "label-lat"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:528
+#: crates/adapter-gui/ui/pages/chain_row.slint:521
 msgctxt "ChainRow"
 msgid "label-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:574
+#: crates/adapter-gui/ui/pages/chain_row.slint:567
 msgctxt "ChainRow"
 msgid "label-output"
 msgstr ""
@@ -470,33 +367,18 @@ msgctxt "CompactBlockRow"
 msgid "btn-open-plugin"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:126
-msgctxt "CompactChainViewPage"
-msgid "tooltip-measure-latency"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:152
-msgctxt "CompactChainViewPage"
-msgid "tooltip-configure"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:166
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
 msgctxt "CompactChainViewPage"
 msgid "label-in"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:187
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
 msgctxt "CompactChainViewPage"
 msgid "label-out"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:203
-msgctxt "CompactChainViewPage"
-msgid "tooltip-delete"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:243
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:243
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:162
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:162
 msgctxt "CompactChainViewPage"
 msgid "+"
 msgstr ""
@@ -526,32 +408,32 @@ msgctxt "PluginInfoPanel"
 msgid "btn-open-homepage"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:137
+#: crates/adapter-gui/ui/pages/project_chains.slint:136
 msgctxt "ProjectChainsPage"
 msgid "tooltip-back"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:145
+#: crates/adapter-gui/ui/pages/project_chains.slint:144
 msgctxt "ProjectChainsPage"
 msgid "tooltip-spectrum"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:153
+#: crates/adapter-gui/ui/pages/project_chains.slint:152
 msgctxt "ProjectChainsPage"
 msgid "tooltip-tuner"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:161
+#: crates/adapter-gui/ui/pages/project_chains.slint:160
 msgctxt "ProjectChainsPage"
 msgid "tooltip-project-settings"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:170
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
 msgctxt "ProjectChainsPage"
 msgid "tooltip-save"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:178
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgctxt "ProjectChainsPage"
 msgid "tooltip-new-chain"
 msgstr ""
@@ -711,12 +593,12 @@ msgctxt "TunerWindow"
 msgid "title-window-tuner"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:30
+#: crates/adapter-gui/ui/secondary_windows_block.slint:28
 msgctxt "BlockEditorWindow"
 msgid "title-window-block-editor"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:225
+#: crates/adapter-gui/ui/secondary_windows_block.slint:195
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr ""
@@ -801,7 +683,47 @@ msgctxt "ChainInsertWindow"
 msgid "title-section-configure-insert"
 msgstr ""
 
-#: crates/adapter-gui/ui/touch_main.slint:588
+#: crates/adapter-gui/ui/touch_main.slint:586
 msgctxt "TouchMain"
 msgid "⌨"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgctxt "ConfirmDeleteChainDialog"
+msgid "title-dialog-delete-chain"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgctxt "ConfirmDeleteChainDialog"
+msgid "Excluir a chain \"{}\"?"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
+msgctxt "ConfirmDeleteChainDialog"
+msgid "btn-cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
+msgctxt "ConfirmDeleteChainDialog"
+msgid "btn-delete"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "title-dialog-delete-recent-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "Remover o projeto \"{}\" dos recentes?"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:58
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "btn-cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "btn-remove"
 msgstr ""

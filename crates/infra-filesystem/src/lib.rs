@@ -4,8 +4,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+pub mod midi_device;
 pub mod midi_migrate;
 pub mod midi_profile;
+pub use midi_device::{MidiDeviceSelection, MidiPortKey};
 
 #[cfg(test)]
 #[path = "midi_profile_tests.rs"]
@@ -175,6 +177,10 @@ pub struct AppConfig {
     /// locale.
     #[serde(default)]
     pub language: Option<String>,
+    /// Per-machine MIDI device selection (#513). Empty list = none seen
+    /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -203,19 +209,21 @@ pub struct GuiAudioDeviceSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct GuiAudioSettings {
+pub struct GuiSystemSettings {
     #[serde(default)]
     pub input_devices: Vec<GuiAudioDeviceSettings>,
     #[serde(default)]
     pub output_devices: Vec<GuiAudioDeviceSettings>,
-    // The struct name is historical (originally audio-only); the file lives
-    // at gui-settings.yaml and now hosts every per-machine GUI preference.
+    // Renamed from GuiAudioSettings (#513) to reflect that it holds every
+    // per-machine GUI preference, not just audio.
     // None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
-impl GuiAudioSettings {
+impl GuiSystemSettings {
     pub fn is_complete(&self) -> bool {
         !self.input_devices.is_empty() && !self.output_devices.is_empty()
     }
@@ -264,7 +272,7 @@ struct LegacyGuiAudioSettings {
     buffer_size_frames: u32,
 }
 
-impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
+impl From<LegacyGuiAudioSettings> for GuiSystemSettings {
     fn from(value: LegacyGuiAudioSettings) -> Self {
         let input_devices = value
             .input_device_names
@@ -304,6 +312,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
             input_devices,
             output_devices,
             language: None,
+            midi_devices: vec![],
         }
     }
 }
@@ -384,28 +393,31 @@ impl FilesystemStorage {
     /// Read GUI audio settings (input/output devices + language) from
     /// the unified `config.yaml`. Issue #287: previously these lived in
     /// a separate `gui-settings.yaml`, now folded into `AppConfig`.
-    pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
+    pub fn load_gui_audio_settings() -> Result<Option<GuiSystemSettings>> {
         let config = Self::load_app_config()?;
         if config.input_devices.is_empty()
             && config.output_devices.is_empty()
             && config.language.is_none()
+            && config.midi_devices.is_empty()
         {
             return Ok(None);
         }
-        Ok(Some(GuiAudioSettings {
+        Ok(Some(GuiSystemSettings {
             input_devices: config.input_devices,
             output_devices: config.output_devices,
             language: config.language,
+            midi_devices: config.midi_devices,
         }))
     }
 
     /// Persist GUI audio settings into `config.yaml`, preserving the
     /// other AppConfig fields (recent_projects, paths).
-    pub fn save_gui_audio_settings(settings: &GuiAudioSettings) -> Result<()> {
+    pub fn save_gui_audio_settings(settings: &GuiSystemSettings) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.input_devices = settings.input_devices.clone();
         config.output_devices = settings.output_devices.clone();
         config.language = settings.language.clone();
+        config.midi_devices = settings.midi_devices.clone();
         Self::save_app_config(&config)
     }
 
@@ -458,7 +470,7 @@ impl FilesystemStorage {
                 return Ok(());
             }
         };
-        let legacy: GuiAudioSettings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
+        let legacy: GuiSystemSettings = match serde_yaml::from_str::<GuiSystemSettings>(&raw) {
             Ok(value) => value,
             Err(_) => match serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw) {
                 Ok(legacy) => legacy.into(),

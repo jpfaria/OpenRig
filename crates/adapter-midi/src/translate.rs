@@ -16,6 +16,40 @@ pub fn resolve(map: &MidiMap, msg: &MidiMessage) -> Option<Command> {
     application::command_schema::command_from_variant(&binding.command, args).ok()
 }
 
+/// Project a parsed [`MidiMessage`] onto a [`Source`] descriptor — i.e. drop
+/// the live `velocity` / `value` / channel-on-PC fields so the result is the
+/// same shape `Binding::source` carries. Used by the learn-mode path in
+/// [`crate::daemon`] (#513 / #493): while learn-mode is active, every
+/// incoming event is published as `Command::PublishMidiEvent { source }`
+/// regardless of whether the binding map already has a row for it.
+pub fn message_to_source(msg: &MidiMessage) -> Source {
+    match *msg {
+        MidiMessage::NoteOn { channel, note, .. } => Source::NoteOn { channel, note },
+        MidiMessage::NoteOff { channel, note } => Source::NoteOff { channel, note },
+        MidiMessage::ControlChange {
+            channel,
+            controller,
+            ..
+        } => Source::Cc {
+            channel,
+            controller,
+        },
+        // Program Change bindings ignore channel (see `matches` above), so
+        // the projected source mirrors that — the editor learns "PC #5", not
+        // "PC #5 on channel 4".
+        MidiMessage::ProgramChange { program, .. } => Source::ProgramChange { program },
+    }
+}
+
+/// Parse raw `midir` bytes into a [`Source`] in one step. Returns `None` for
+/// system / real-time / truncated / unsupported messages (same set
+/// [`MidiMessage::parse`] rejects). Shared by the daemon's learn-mode path
+/// so both the publish and the auto-disarm decisions agree on what counts
+/// as a bindable event.
+pub fn source_from_bytes(bytes: &[u8]) -> Option<Source> {
+    MidiMessage::parse(bytes).map(|m| message_to_source(&m))
+}
+
 /// Does this source select this message? Program Change ignores channel
 /// (footswitch banks rarely pin a channel); the rest match channel + key.
 fn matches(source: &Source, msg: &MidiMessage) -> bool {
@@ -222,5 +256,62 @@ bindings:
             into: "value".into(),
         };
         assert!((s.apply(127) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn source_from_bytes_projects_note_on() {
+        assert_eq!(
+            source_from_bytes(&[0x90, 60, 100]),
+            Some(Source::NoteOn {
+                channel: 1,
+                note: 60
+            })
+        );
+    }
+
+    #[test]
+    fn source_from_bytes_projects_cc_dropping_value() {
+        // Two CCs on the same controller produce the SAME Source — the
+        // learn editor binds the controller, not the live value.
+        let a = source_from_bytes(&[0xB0, 7, 0]).unwrap();
+        let b = source_from_bytes(&[0xB0, 7, 127]).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(
+            a,
+            Source::Cc {
+                channel: 1,
+                controller: 7
+            }
+        );
+    }
+
+    #[test]
+    fn source_from_bytes_program_change_ignores_channel() {
+        // PC bindings ignore channel (see `matches`), so the projected
+        // source mirrors that — same `Source` for the same program no
+        // matter which channel sent it.
+        let a = source_from_bytes(&[0xC0, 5]).unwrap();
+        let b = source_from_bytes(&[0xC9, 5]).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a, Source::ProgramChange { program: 5 });
+    }
+
+    #[test]
+    fn source_from_bytes_rejects_unbindable() {
+        assert!(source_from_bytes(&[]).is_none());
+        assert!(source_from_bytes(&[0xF8]).is_none()); // system real-time
+        assert!(source_from_bytes(&[0x90, 60]).is_none()); // truncated
+    }
+
+    #[test]
+    fn source_from_bytes_note_on_velocity_zero_becomes_note_off() {
+        // Matches MidiMessage::parse's running-status convention.
+        assert_eq!(
+            source_from_bytes(&[0x90, 60, 0]),
+            Some(Source::NoteOff {
+                channel: 1,
+                note: 60
+            })
+        );
     }
 }

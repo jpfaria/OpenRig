@@ -40,6 +40,7 @@ fn empty_project() -> Project {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }
 }
 

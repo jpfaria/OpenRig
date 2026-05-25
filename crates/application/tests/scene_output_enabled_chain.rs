@@ -73,8 +73,14 @@ fn core_block(id: &str) -> AudioBlock {
 
 fn rig_with_two_presets_two_scenes() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
-    presets.insert("p2".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
+    presets.insert(
+        "p2".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     bank.insert(2, "p2".into());
@@ -118,8 +124,9 @@ fn dispatcher_with_enabled_chain() -> (
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == CHAIN_ID {
             c.enabled = true; // <-- the bit that triggers the live bug
-            c.blocks
-                .retain(|b| !matches!(b.kind, AudioBlockKind::Output(_) | AudioBlockKind::Input(_)));
+            c.blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Output(_) | AudioBlockKind::Input(_))
+            });
             c.blocks.insert(0, user_input_block());
             c.blocks.push(core_block("eq:1"));
             c.blocks.push(core_block("amp:2"));

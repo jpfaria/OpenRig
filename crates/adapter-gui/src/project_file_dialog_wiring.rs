@@ -163,7 +163,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     window.set_show_project_setup(false);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                 }
                 Err(error) => {
                     set_status_error(&window, &toast_timer, &error.to_string());
@@ -184,7 +184,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             window.set_show_project_setup(true);
             window.set_show_project_chains(false);
             window.set_show_chain_editor(false);
-            window.set_show_project_settings(false);
+            window.set_show_settings(false);
         });
     }
     {
@@ -248,7 +248,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             window.set_show_project_launcher(false);
             window.set_show_project_chains(true);
             window.set_show_chain_editor(false);
-            window.set_show_project_settings(false);
+            window.set_show_settings(false);
         });
     }
     {

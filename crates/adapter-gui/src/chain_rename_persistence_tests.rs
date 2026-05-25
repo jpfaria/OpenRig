@@ -57,11 +57,7 @@ fn save_chain_rename_propagates_to_rig_input_label() {
 
     let rig = session.rig.as_ref().expect("rig attached");
     let rig = rig.borrow();
-    let label = rig
-        .inputs
-        .values()
-        .next()
-        .and_then(|i| i.label.clone());
+    let label = rig.inputs.values().next().and_then(|i| i.label.clone());
     assert_eq!(
         label.as_deref(),
         Some("Lead Tone"),

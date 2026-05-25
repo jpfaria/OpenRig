@@ -1,8 +1,8 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component TouchMain inherits Rectangle {
@@ -10,7 +10,7 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
-    in property <bool> show-project-settings;
+    in property <bool> show-settings;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
     in property <bool> fullscreen: false;
@@ -69,6 +69,14 @@ export component TouchMain inherits Rectangle {
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
     in property <[DeviceSelectionItem]> project-devices;
+    in property <[MidiDeviceRow]> midi-devices;
+    // Project / MIDI mapping editor (#513, #493)
+    in property <[MidiBindingRow]> midi-bindings;
+    in property <[string]> available-commands;
+    // Project / Metadata section (#513)
+    in property <string> project-name;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -79,7 +87,7 @@ export component TouchMain inherits Rectangle {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -156,6 +164,15 @@ export component TouchMain inherits Rectangle {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
+    // System / MIDI devices section callbacks (#513)
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+    // Project / MIDI mapping editor callbacks (#513, #493)
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
     callback virtual-key-pressed(string);
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
@@ -360,23 +377,36 @@ export component TouchMain inherits Rectangle {
         toggle-enabled(e) => { root.toggle-spectrum-enabled(e); }
     }
 
-    if root.show-project-settings : ProjectSettingsPage {
+    if root.show-settings : SettingsPage {
         width: parent.width;
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
         status-message <=> root.status-message;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
+        midi-bindings: root.midi-bindings;
+        available-commands: root.available-commands;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        add-midi-binding => { root.add-midi-binding(); }
+        delete-midi-binding(i) => { root.delete-midi-binding(i); }
+        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

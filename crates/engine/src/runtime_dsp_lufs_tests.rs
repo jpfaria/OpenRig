@@ -39,9 +39,7 @@ fn music_reference() -> Vec<f32> {
             let acc: f32 = partials
                 .iter()
                 .enumerate()
-                .map(|(k, &f)| {
-                    (2.0 * std::f32::consts::PI * f * t).sin() / (k as f32 + 1.0)
-                })
+                .map(|(k, &f)| (2.0 * std::f32::consts::PI * f * t).sin() / (k as f32 + 1.0))
                 .sum();
             0.30 * env * acc / 2.45
         })
@@ -229,7 +227,8 @@ fn bare_path_spectral_response_is_flat_per_octave_at_unity() {
     assert!(
         worst.1.abs() < 2.0,
         "bare path coloured the spectrum at {} Hz by {:+.2} dB",
-        worst.0, worst.1
+        worst.0,
+        worst.1
     );
 }
 
@@ -256,7 +255,9 @@ fn bare_path_thd_n_is_low_for_a_pure_sine_at_unity() {
     fft.process(&mut buf);
     let bin_hz = SR as f32 / nfft as f32;
     let fb = (1_000.0 / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
     eprintln!("\n=== bare path THD+N @ 1 kHz, level 0.5 ===\n  THD+N = {thd_n_db:.2} dB");
