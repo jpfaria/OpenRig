@@ -97,4 +97,6 @@ mod tests;
 #[cfg(test)]
 mod tests_regression;
 #[cfg(test)]
+mod controller_pause_chain_tests;
+#[cfg(test)]
 mod tests_signatures;
