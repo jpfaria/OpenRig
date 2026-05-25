@@ -1,0 +1,57 @@
+// Visual frame shared by every Settings section. Holds the scope badge
+// ("System" or "Project") so the user can see at a glance whether the
+// values travel with the .openrig file or stay on this machine
+// (ADR 0003). Body content is injected via a Slint child slot.
+
+export enum SettingsScope { system, project }
+
+export component SettingsSection inherits Rectangle {
+    in property <SettingsScope> scope: SettingsScope.system;
+    in property <string> title;
+
+    background: #1a1d22;
+    border-width: 1px;
+    border-color: #2a2f38;
+    border-radius: 6px;
+    padding: 16px;
+
+    VerticalLayout {
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+
+            Rectangle {
+                background: root.scope == SettingsScope.system ? #2b3a55 : #2f4a30;
+                border-radius: 3px;
+                width: badge-label.preferred-width + 12px;
+                height: 20px;
+
+                badge-label := Text {
+                    text: root.scope == SettingsScope.system ? "System" : "Project";
+                    color: #cfe1ff;
+                    font-size: 11px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: root.title;
+                color: #f3f6fb;
+                font-size: 14px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            background: #2a2f38;
+            height: 1px;
+        }
+
+        @children
+    }
+}
