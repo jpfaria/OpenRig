@@ -60,6 +60,14 @@ Hardware → InputBlock { device_id, mode, channels }
     Right   →  R
 ```
 
+> **Device opens at its NATIVE channel count** (issue #516). When `mode = mono`
+> with `channels = [a]` selects a single physical output on a hardware-stereo
+> interface (Scarlett 2i2 etc.), the CPAL stream is still opened at the
+> device's `default_output_config().channels()`. Opening such a device as
+> 1-channel mono silences it on macOS / CoreAudio — the routing is the
+> engine's job (`write_output_frame` writes the mixdown into `ch_a` of the
+> interleaved buffer; other channels stay at zero).
+
 ### Exemplos
 
 **1. Mono in + bloco MonoOnly + stereo out**
