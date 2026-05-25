@@ -45,7 +45,7 @@ use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_picker_items, load_screenshot_image, replace_project_chains, set_selected_block,
 };
-use crate::runtime_lifecycle::{sync_live_chain_runtime, system_language};
+use crate::runtime_lifecycle::{sync_block_toggle, sync_live_chain_runtime, system_language};
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
@@ -86,13 +86,11 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         true
     };
 
-    let dims = crate::block_panel_dimensions::compute(
-        crate::block_panel_dimensions::PanelInputs {
-            knob_count,
-            use_panel_editor,
-            has_eq_widget,
-        },
-    );
+    let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
+        knob_count,
+        use_panel_editor,
+        has_eq_widget,
+    });
     win.set_panel_knob_window_width(dims.window_width_px);
     win.set_panel_knob_window_height(dims.window_height_px);
     win.set_panel_knob_inner_height(dims.inner_panel_height_px);
@@ -306,7 +304,7 @@ pub(crate) fn wire(
                 };
                 match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                     chain: chain_id.clone(),
-                    block: block_id,
+                    block: block_id.clone(),
                 }) {
                     Ok(events) => events.into_iter().find_map(|e| {
                         if let Event::BlockEnabledChanged { enabled, .. } = e {
@@ -337,7 +335,9 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) =
+                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
+            {
                 log::error!("[adapter-gui] block-window.toggle-enabled runtime sync: {e}");
                 main.set_block_drawer_status_message(e.to_string().into());
                 return;

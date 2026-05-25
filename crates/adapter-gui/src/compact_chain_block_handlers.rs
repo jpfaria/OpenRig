@@ -24,7 +24,7 @@ use crate::helpers::set_status_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{block_model_picker_items, build_compact_blocks, replace_project_chains};
 use crate::state::{BlockEditorDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
+use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
 pub(crate) struct CompactChainBlockHandlersCtx {
@@ -97,7 +97,7 @@ pub(crate) fn wire(
             };
             if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                 chain: chain_id.clone(),
-                block: block_id,
+                block: block_id.clone(),
             }) {
                 log::error!("[compact] toggle-block-enabled dispatch error: {error}");
                 return;
@@ -116,8 +116,9 @@ pub(crate) fn wire(
                     draft.enabled = new_enabled;
                 }
             }
-            let chain_id = chain_id;
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) =
+                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
+            {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }

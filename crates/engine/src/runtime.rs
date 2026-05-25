@@ -57,6 +57,7 @@ pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_
 pub(crate) use crate::runtime_block_builders::{
     bypass_runtime_node, next_block_instance_serial, processor_scratch,
 };
+pub use crate::runtime_block_toggle::set_block_enabled;
 #[cfg(test)]
 pub(crate) use crate::runtime_endpoints::{
     effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
@@ -752,3 +753,7 @@ mod stereo_image;
 #[cfg(test)]
 #[path = "runtime_lock_recovery_tests.rs"]
 mod runtime_lock_recovery;
+
+#[cfg(test)]
+#[path = "block_enabled_fast_path_tests.rs"]
+mod block_enabled_fast_path;
