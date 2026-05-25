@@ -95,6 +95,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             volume: 100.0,
             blocks: vec![block],
         }],
+        midi: None,
     }))
 }
 
@@ -661,6 +662,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_1", true),
             ],
         }],
+        midi: None,
     }))
 }
 
@@ -752,6 +754,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_2", true),
             ],
         }],
+        midi: None,
     }))
 }
 
@@ -1064,6 +1067,7 @@ fn make_project_two_chains() -> Rc<RefCell<Project>> {
             make_chain_with_input("chain_0", "dev_a", 0, true),
             make_chain_with_input("chain_1", "dev_a", 0, false),
         ],
+        midi: None,
     }))
 }
 
@@ -1077,6 +1081,7 @@ fn make_project_three_chains() -> Rc<RefCell<Project>> {
             make_empty_chain("chain_b", false),
             make_empty_chain("chain_c", false),
         ],
+        midi: None,
     }))
 }
 
@@ -1265,6 +1270,7 @@ fn toggle_chain_enabled_enables_disabled_chain() {
             make_chain_with_input("chain_0", "dev_a", 0, true),
             make_chain_with_input("chain_1", "dev_b", 0, false), // different device
         ],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_no_conflict));
 
@@ -1581,6 +1587,7 @@ fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
         name: None,
         device_settings: vec![],
         chains: vec![chain],
+        midi: None,
     }));
     (project, chain_id)
 }
@@ -1672,6 +1679,7 @@ fn save_chain_input_endpoints_multi_block_replaces_all_and_emits_event() {
                 make_core_block("blk_mid", true),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1766,6 +1774,7 @@ fn save_chain_input_endpoints_preserves_non_input_block_order() {
                 make_output_block("dev_out", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1805,6 +1814,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             volume: 100.0,
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
+        midi: None,
     }));
     (project, chain_id)
 }
@@ -1868,6 +1878,7 @@ fn save_chain_output_endpoints_multi_block_replaces_all_and_emits_event() {
                 make_output_block("dev_out_old", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1963,6 +1974,7 @@ fn save_chain_output_endpoints_preserves_non_output_block_order() {
                 make_output_block("dev_out_old", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2193,6 +2205,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             volume: 100.0,
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2242,6 +2255,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             volume: 100.0,
             blocks: vec![insert],
         }],
+        midi: None,
     }));
     (project, chain_id, block_id)
 }
@@ -2347,6 +2361,7 @@ fn make_named_project(name: &str) -> Rc<RefCell<Project>> {
         name: Some(name.to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }))
 }
 
@@ -2430,6 +2445,7 @@ fn save_audio_settings_writes_device_settings_and_emits_event() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2459,6 +2475,7 @@ fn save_audio_settings_replaces_previous_settings() {
         name: None,
         device_settings: vec![make_device_settings("old_dev")],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2478,6 +2495,7 @@ fn save_audio_settings_empty_clears_settings() {
         name: None,
         device_settings: vec![make_device_settings("dev_a")],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2499,6 +2517,7 @@ fn save_project_emits_project_saved_event() {
         name: Some("my project".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2520,6 +2539,7 @@ fn save_project_does_not_mutate_project() {
         name: Some("stable".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2538,6 +2558,7 @@ fn save_project_is_ok_with_empty_project() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let result = dispatcher.dispatch(Command::SaveProject);
@@ -2552,6 +2573,7 @@ fn load_project_replaces_project_and_emits_event() {
         name: Some("old".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2559,6 +2581,7 @@ fn load_project_replaces_project_and_emits_event() {
         name: Some("loaded".to_string()),
         device_settings: vec![],
         chains: vec![make_empty_chain("chain_loaded", false)],
+        midi: None,
     };
 
     let result = dispatcher.dispatch(Command::LoadProject {
@@ -2586,6 +2609,7 @@ fn load_project_replaces_all_state() {
         name: Some("old".to_string()),
         device_settings: vec![make_device_settings("old_dev")],
         chains: vec![make_empty_chain("old_chain", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2593,6 +2617,7 @@ fn load_project_replaces_all_state() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
 
     let _ = dispatcher.dispatch(Command::LoadProject {
@@ -2612,6 +2637,7 @@ fn load_project_emits_project_mutated() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2620,6 +2646,7 @@ fn load_project_emits_project_mutated() {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
         path: std::path::PathBuf::from("/p.yaml"),
     });
@@ -2642,6 +2669,7 @@ fn create_project_replaces_project_and_emits_event() {
         name: Some("old".to_string()),
         device_settings: vec![],
         chains: vec![make_empty_chain("old_chain", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2649,6 +2677,7 @@ fn create_project_replaces_project_and_emits_event() {
         name: Some("brand new".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
 
     let result = dispatcher.dispatch(Command::CreateProject { project: new_proj });
@@ -2671,6 +2700,7 @@ fn create_project_emits_project_mutated() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2679,6 +2709,7 @@ fn create_project_emits_project_mutated() {
             name: Some("new".to_string()),
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
     });
 
@@ -2698,6 +2729,7 @@ fn create_project_replaces_all_prior_state() {
         name: Some("old".to_string()),
         device_settings: vec![make_device_settings("dev_old")],
         chains: vec![make_empty_chain("c", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2706,6 +2738,7 @@ fn create_project_replaces_all_prior_state() {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
     });
 
@@ -2824,6 +2857,7 @@ fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let project_rc = Rc::new(RefCell::new(project));
     let dispatcher = LocalDispatcher::new(project_rc.clone());
@@ -2834,6 +2868,7 @@ fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
         name: Some("loaded".into()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         dispatcher.dispatch(Command::LoadProject {
@@ -2855,6 +2890,7 @@ fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let project_rc = Rc::new(RefCell::new(project));
     let dispatcher = LocalDispatcher::new(project_rc.clone());
@@ -2867,6 +2903,7 @@ fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
         name: Some("loaded".into()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let result = dispatcher.dispatch(Command::LoadProject {
         project: new_project,
@@ -2898,6 +2935,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             volume,
             blocks: vec![],
         }],
+        midi: None,
     }))
 }
 
@@ -2981,4 +3019,164 @@ fn set_chain_volume_passes_extreme_values_verbatim() {
         (project.borrow().chains[0].volume - 250.0).abs() < f32::EPSILON,
         "volume=250.0 should be stored verbatim"
     );
+}
+
+// ── #513 / #493: MIDI device + mapping + learn commands ──────────────────────
+
+fn empty_project_rc() -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }))
+}
+
+#[test]
+fn save_midi_devices_emits_event_without_mutating_project() {
+    let project = empty_project_rc();
+    let before = project.borrow().clone();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SaveMidiDevices { devices: vec![] })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::MidiDevicesSaved]);
+    assert_eq!(
+        project.borrow().chains.len(),
+        before.chains.len(),
+        "system command must not touch project chains"
+    );
+    assert_eq!(
+        project.borrow().device_settings.len(),
+        before.device_settings.len(),
+        "system command must not touch project device_settings"
+    );
+    assert_eq!(
+        project.borrow().name,
+        before.name,
+        "system command must not touch project name"
+    );
+}
+
+#[test]
+fn save_midi_mapping_writes_bindings_into_project_midi() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let bindings = vec![project::midi::Binding {
+        source: project::midi::Source::ProgramChange { program: 7 },
+        command: "SaveProject".to_string(),
+        args: serde_json::Value::Null,
+        scale: None,
+    }];
+
+    let events = dispatcher
+        .dispatch(Command::SaveMidiMapping {
+            bindings: bindings.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::MidiMappingSaved, Event::ProjectMutated]);
+    let stored = project
+        .borrow()
+        .midi
+        .clone()
+        .unwrap_or_default()
+        .bindings
+        .clone();
+    assert_eq!(stored, bindings);
+}
+
+#[test]
+fn start_and_stop_midi_learn_emit_events() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    assert_eq!(
+        dispatcher.dispatch(Command::StartMidiLearn).unwrap(),
+        vec![Event::MidiLearnStarted]
+    );
+    assert_eq!(
+        dispatcher.dispatch(Command::StopMidiLearn).unwrap(),
+        vec![Event::MidiLearnStopped]
+    );
+}
+
+#[test]
+fn publish_midi_event_passthrough_emits_midi_event_received() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let source = project::midi::Source::Cc {
+        channel: 1,
+        controller: 7,
+    };
+    let events = dispatcher
+        .dispatch(Command::PublishMidiEvent {
+            source: source.clone(),
+        })
+        .unwrap();
+    assert_eq!(events, vec![Event::MidiEventReceived { source }]);
+}
+
+// ── #513: System / Paths (presets + plugins) ─────────────────────────────────
+//
+// RED-FIRST tests: SetPresetsPath and SetPluginsPath are user-visible Settings
+// commands that update the system-level AssetPaths snapshot. They emit
+// PathsSaved so the adapter can persist config.yaml.
+
+#[test]
+fn set_presets_path_emits_paths_saved() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let path = std::path::PathBuf::from("/tmp/openrig-test-presets");
+
+    let events = dispatcher
+        .dispatch(Command::SetPresetsPath {
+            path: Some(path.clone()),
+        })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::PathsSaved]);
+    // System command must not touch the project itself.
+    assert!(project.borrow().chains.is_empty());
+    assert!(project.borrow().midi.is_none());
+}
+
+#[test]
+fn set_plugins_path_emits_paths_saved() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let path = std::path::PathBuf::from("/tmp/openrig-test-plugins");
+
+    let events = dispatcher
+        .dispatch(Command::SetPluginsPath {
+            path: Some(path.clone()),
+        })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::PathsSaved]);
+    assert!(project.borrow().chains.is_empty());
+    assert!(project.borrow().midi.is_none());
+}
+
+#[test]
+fn set_presets_path_none_resets_to_default_and_still_emits() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SetPresetsPath { path: None })
+        .unwrap();
+    assert_eq!(events, vec![Event::PathsSaved]);
+}
+
+#[test]
+fn set_plugins_path_none_resets_to_default_and_still_emits() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SetPluginsPath { path: None })
+        .unwrap();
+    assert_eq!(events, vec![Event::PathsSaved]);
 }

@@ -7,6 +7,27 @@ export struct DeviceSelectionItem {
     bit_depth_text: string,
 }
 
+// Per-row payload for the System / MIDI devices section (#513). The
+// pair (name, instance) is the stable key so the Rust side can pair
+// edits back with the persisted `MidiDeviceSelection`.
+export struct MidiDeviceRow {
+    name: string,
+    instance: int,
+    alias: string,
+    enabled: bool,
+}
+
+// Per-row payload for the Project / MIDI mapping editor (#513, #493).
+// `learning = true` marks a draft row whose trigger is being captured
+// in MIDI Learn mode; the trigger label then reads "(listening...)"
+// until the daemon emits `Event::MidiEventReceived`. `command-label`
+// is empty for drafts that haven't picked a Command yet.
+export struct MidiBindingRow {
+    trigger-label: string,
+    command-label: string,
+    learning: bool,
+}
+
 export struct BlockParamSummaryEntry {
     label: string,    // parameter name in uppercase (e.g. "GAIN")
     value: string,    // formatted current value (e.g. "65")

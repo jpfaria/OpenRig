@@ -69,6 +69,7 @@ fn legacy(chains: Vec<Chain>) -> Project {
         name: Some("Studio".into()),
         device_settings: vec![],
         chains,
+        midi: None,
     }
 }
 

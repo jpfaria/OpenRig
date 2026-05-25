@@ -14,9 +14,10 @@
 use std::path::PathBuf;
 
 fn read_src(relative: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join(relative);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join(relative);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
 #[test]

@@ -66,6 +66,8 @@ fn asset_paths_serde_roundtrip_preserves_values() {
         thumbnails: "custom/thumbs".into(),
         screenshots: "custom/screens".into(),
         metadata: "custom/meta".into(),
+        presets_path: None,
+        plugins_path: None,
     };
     let yaml = serde_yaml::to_string(&paths).unwrap();
     let restored: AssetPaths = serde_yaml::from_str(&yaml).unwrap();
@@ -85,6 +87,8 @@ fn resolve_asset_paths_absolute_left_unchanged() {
         thumbnails: "/absolute/thumbs".into(),
         screenshots: "/absolute/screens".into(),
         metadata: "/absolute/meta".into(),
+        presets_path: None,
+        plugins_path: None,
     };
     let resolved = resolve_asset_paths(paths.clone());
     assert_eq!(resolved.thumbnails, "/absolute/thumbs");
@@ -246,60 +250,64 @@ fn app_config_save_and_load_filesystem_roundtrip() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-// ── GuiAudioSettings ────────────────────────────────────────────────
+// ── GuiSystemSettings ────────────────────────────────────────────────
 
 #[test]
 fn gui_audio_settings_default_empty() {
-    let settings = GuiAudioSettings::default();
+    let settings = GuiSystemSettings::default();
     assert!(settings.input_devices.is_empty());
     assert!(settings.output_devices.is_empty());
 }
 
 #[test]
 fn gui_audio_settings_is_complete_both_populated() {
-    let settings = GuiAudioSettings {
+    let settings = GuiSystemSettings {
         input_devices: vec![make_device("in1", "Input 1")],
         output_devices: vec![make_device("out1", "Output 1")],
         language: None,
+        midi_devices: vec![],
     };
     assert!(settings.is_complete());
 }
 
 #[test]
 fn gui_audio_settings_is_complete_missing_input() {
-    let settings = GuiAudioSettings {
+    let settings = GuiSystemSettings {
         input_devices: vec![],
         output_devices: vec![make_device("out1", "Output 1")],
         language: None,
+        midi_devices: vec![],
     };
     assert!(!settings.is_complete());
 }
 
 #[test]
 fn gui_audio_settings_is_complete_missing_output() {
-    let settings = GuiAudioSettings {
+    let settings = GuiSystemSettings {
         input_devices: vec![make_device("in1", "Input 1")],
         output_devices: vec![],
         language: None,
+        midi_devices: vec![],
     };
     assert!(!settings.is_complete());
 }
 
 #[test]
 fn gui_audio_settings_is_complete_both_empty() {
-    let settings = GuiAudioSettings::default();
+    let settings = GuiSystemSettings::default();
     assert!(!settings.is_complete());
 }
 
 #[test]
 fn gui_audio_settings_serde_roundtrip() {
-    let settings = GuiAudioSettings {
+    let settings = GuiSystemSettings {
         input_devices: vec![make_device("in1", "Mic"), make_device("in2", "Line In")],
         output_devices: vec![make_device("out1", "Speakers")],
         language: None,
+        midi_devices: vec![],
     };
     let yaml = serde_yaml::to_string(&settings).unwrap();
-    let restored: GuiAudioSettings = serde_yaml::from_str(&yaml).unwrap();
+    let restored: GuiSystemSettings = serde_yaml::from_str(&yaml).unwrap();
     assert_eq!(settings, restored);
 }
 
@@ -308,17 +316,18 @@ fn gui_audio_settings_save_and_load_filesystem_roundtrip() {
     let dir = tmp_dir("gui_audio_roundtrip");
     let path = dir.join("gui-settings.yaml");
 
-    let settings = GuiAudioSettings {
+    let settings = GuiSystemSettings {
         input_devices: vec![make_device("coreaudio:in", "Built-in Mic")],
         output_devices: vec![make_device("coreaudio:out", "Built-in Output")],
         language: None,
+        midi_devices: vec![],
     };
 
     let yaml = serde_yaml::to_string(&settings).unwrap();
     fs::write(&path, &yaml).unwrap();
 
     let raw = fs::read_to_string(&path).unwrap();
-    let loaded: GuiAudioSettings = serde_yaml::from_str(&raw).unwrap();
+    let loaded: GuiSystemSettings = serde_yaml::from_str(&raw).unwrap();
     assert_eq!(settings, loaded);
 
     let _ = fs::remove_dir_all(&dir);
@@ -426,7 +435,7 @@ sample_rate: 44100
 buffer_size_frames: 128
 "#;
     let legacy: LegacyGuiAudioSettings = serde_yaml::from_str(yaml).unwrap();
-    let modern: GuiAudioSettings = legacy.into();
+    let modern: GuiSystemSettings = legacy.into();
 
     assert_eq!(modern.input_devices.len(), 1);
     assert_eq!(modern.input_devices[0].name, "Built-in Mic");
@@ -442,7 +451,7 @@ buffer_size_frames: 128
 #[test]
 fn legacy_settings_migration_empty_lists() {
     let legacy = LegacyGuiAudioSettings::default();
-    let modern: GuiAudioSettings = legacy.into();
+    let modern: GuiSystemSettings = legacy.into();
     assert!(modern.input_devices.is_empty());
     assert!(modern.output_devices.is_empty());
 }
@@ -455,7 +464,7 @@ fn legacy_settings_migration_multiple_devices() {
         sample_rate: 96_000,
         buffer_size_frames: 64,
     };
-    let modern: GuiAudioSettings = legacy.into();
+    let modern: GuiSystemSettings = legacy.into();
     assert_eq!(modern.input_devices.len(), 2);
     assert_eq!(modern.output_devices.len(), 3);
     // All devices share the same sample_rate from legacy
@@ -463,6 +472,36 @@ fn legacy_settings_migration_multiple_devices() {
         assert_eq!(dev.sample_rate, 96_000);
         assert_eq!(dev.buffer_size_frames, 64);
     }
+}
+
+#[test]
+fn app_config_round_trips_midi_devices() {
+    let config = AppConfig {
+        recent_projects: vec![],
+        paths: AssetPaths::default(),
+        input_devices: vec![],
+        output_devices: vec![],
+        language: None,
+        midi_devices: vec![MidiDeviceSelection {
+            port_key: MidiPortKey {
+                name: "Foo".into(),
+                instance: 0,
+            },
+            alias: "Foo".into(),
+            enabled: true,
+        }],
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.midi_devices.len(), 1);
+    assert_eq!(back.midi_devices[0].alias, "Foo");
+}
+
+#[test]
+fn legacy_app_config_without_midi_devices_loads_with_empty_list() {
+    let yaml = "recent_projects: []\npaths: {}\ninput_devices: []\noutput_devices: []\n";
+    let config: AppConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(config.midi_devices.is_empty());
 }
 
 // ── detect_data_root ────────────────────────────────────────────────
@@ -516,6 +555,7 @@ fn app_config_serdes_unified_audio_and_language_fields() {
         input_devices: vec![make_device("in1", "Mic 1")],
         output_devices: vec![make_device("out1", "Speakers")],
         language: Some("pt-BR".into()),
+        midi_devices: vec![],
     };
     let yaml = serde_yaml::to_string(&cfg).unwrap();
     assert!(yaml.contains("input_devices"));

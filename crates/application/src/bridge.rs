@@ -183,6 +183,7 @@ mod tests {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         }))
     }
 
@@ -266,12 +267,8 @@ mod tests {
         for line in payload.trim_end().split('\n') {
             let cols: Vec<&str> = line.split('\t').collect();
             assert_eq!(cols.len(), 3, "tsv shape: chain_id, in_dbfs, out_dbfs");
-            cols[1]
-                .parse::<f32>()
-                .expect("in_dbfs is a finite float");
-            cols[2]
-                .parse::<f32>()
-                .expect("out_dbfs is a finite float");
+            cols[1].parse::<f32>().expect("in_dbfs is a finite float");
+            cols[2].parse::<f32>().expect("out_dbfs is a finite float");
         }
     }
 

@@ -78,6 +78,7 @@ fn build_dual_input_graph() -> RuntimeGraph {
         name: Some("stream_isolation_test".into()),
         chains: vec![chain.clone()],
         device_settings: Vec::new(),
+        midi: None,
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48000.0_f32);
@@ -264,6 +265,7 @@ fn every_effective_input_index_has_at_least_one_segment() {
         name: Some("regression".into()),
         chains: vec![chain.clone()],
         device_settings: Vec::new(),
+        midi: None,
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
@@ -338,6 +340,7 @@ fn no_segment_is_orphaned_from_input_dispatch() {
         name: Some("regression".into()),
         chains: vec![chain.clone()],
         device_settings: Vec::new(),
+        midi: None,
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
@@ -390,6 +393,7 @@ fn every_output_route_has_at_least_one_producer_segment() {
         name: Some("regression".into()),
         chains: vec![chain.clone()],
         device_settings: Vec::new(),
+        midi: None,
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);

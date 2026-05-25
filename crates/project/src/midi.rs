@@ -13,13 +13,17 @@
 //! and the shipped `examples/midi-map.default.yaml` — keep parsing
 //! unchanged.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// One controller event to bind against. Internally tagged on `kind` in
 /// YAML: `source: { kind: note_on, channel: 1, note: 60 }`. `channel` is
 /// 1..=16 (human numbering, not the 0..=15 wire value).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// `JsonSchema` is derived so this type can appear inside `Command` /
+/// `Event` variants used by the MCP/gRPC schema surface (#513).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Source {
     NoteOn { channel: u8, note: u8 },
@@ -42,7 +46,7 @@ fn default_into() -> String {
 
 /// Linear map of a continuous source's 0..=127 value into `[min, max]`,
 /// written into the command argument named `into` (default `value`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Scale {
     pub min: f64,
     pub max: f64,
@@ -61,7 +65,7 @@ impl Scale {
 /// One binding: a source, the `Command` variant name (PascalCase, as in the
 /// `Command` enum), its static JSON args, and an optional scale for
 /// continuous sources.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Binding {
     pub source: Source,
     pub command: String,
@@ -78,7 +82,7 @@ fn value_is_null(v: &Value) -> bool {
 /// Project-level MIDI configuration — the `midi:` block inside
 /// `project.openrig`. Holds only the bindings (project layer); the device
 /// profile (which controller to listen to) lives system-side per ADR 0003.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 pub struct RigProjectMidi {
     /// Bindings active for this rig. When the project carries `midi:`, these
     /// override the system-side fallback (`midi-bindings.yaml`) and the

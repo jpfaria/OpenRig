@@ -13,10 +13,20 @@ fn main() {
     // i18n::init_translations once we resolve the user's preference.
     let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let translations = manifest.join("translations");
+    // DefaultTranslationContext::None — disable Slint's default emission of
+    // the enclosing component name as msgctxt. Our .po files are flat (no
+    // msgctxt); without this opt-out every @tr() lookup at runtime would be
+    // keyed by "<ComponentName>" + msgid and miss the bare msgid entries we
+    // ship, falling back to the raw key in the UI (e.g. "BTN-CLOSE"
+    // showing up as Bebas Neue all-caps). See slint_build docs for
+    // with_default_translation_context.
+    let base = slint_build::CompilerConfiguration::new().with_default_translation_context(
+        slint_build::DefaultTranslationContext::None,
+    );
     let config = if translations.exists() {
-        slint_build::CompilerConfiguration::new().with_bundled_translations(translations)
+        base.with_bundled_translations(translations)
     } else {
-        slint_build::CompilerConfiguration::new()
+        base
     };
     slint_build::compile_with_config("ui/app-window.slint", config)
         .expect("failed to compile Slint UI");

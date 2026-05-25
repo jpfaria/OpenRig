@@ -25,9 +25,7 @@ impl LocalDispatcher {
                 // `rig:` prefix `rig_nav_rows` falls back to an empty
                 // `RigNavRow`, leaving the preset combobox blank.
                 if let Some(rig) = self.rig.borrow().clone() {
-                    if let Some(input_name) =
-                        add_chain_to_rig(&mut rig.borrow_mut(), &chain)
-                    {
+                    if let Some(input_name) = add_chain_to_rig(&mut rig.borrow_mut(), &chain) {
                         chain.id = domain::ids::ChainId(format!("rig:{input_name}"));
                     }
                 }
@@ -101,6 +99,7 @@ pub(crate) fn add_chain_to_rig(
         name: None,
         device_settings: Vec::new(),
         chains: vec![chain.clone()],
+        midi: None,
     };
     let mut migrated = project::migrate::migrate_legacy_project(&temp);
 
@@ -113,7 +112,10 @@ pub(crate) fn add_chain_to_rig(
     let next_n = rig
         .inputs
         .keys()
-        .filter_map(|k| k.strip_prefix("input-").and_then(|n| n.parse::<usize>().ok()))
+        .filter_map(|k| {
+            k.strip_prefix("input-")
+                .and_then(|n| n.parse::<usize>().ok())
+        })
         .max()
         .unwrap_or(0)
         + 1;

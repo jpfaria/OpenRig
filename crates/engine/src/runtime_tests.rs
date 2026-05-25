@@ -57,6 +57,7 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
                 }),
             }],
         }],
+        midi: None,
     };
 
     let runtime = build_runtime_graph(
@@ -92,6 +93,7 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
                 }),
             }],
         }],
+        midi: None,
     };
 
     let error = match build_runtime_graph(
@@ -1328,7 +1330,10 @@ fn output_limiter_saturates_above_threshold() {
     // input above the knee — not the specific tanh function.
     use super::output_limiter;
     let limited = output_limiter(2.0);
-    assert!(limited < 2.0 && limited > 0.0, "reduce + keep sign: {limited}");
+    assert!(
+        limited < 2.0 && limited > 0.0,
+        "reduce + keep sign: {limited}"
+    );
     assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
 }
 
@@ -1544,6 +1549,7 @@ fn build_runtime_graph_skips_disabled_chains() {
             volume: 100.0,
             blocks: vec![],
         }],
+        midi: None,
     };
 
     let runtime = build_runtime_graph(&project, &HashMap::new(), &HashMap::new())
@@ -1567,6 +1573,7 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
             volume: 100.0,
             blocks: vec![],
         }],
+        midi: None,
     };
 
     let result = build_runtime_graph(&project, &HashMap::new(), &HashMap::new());
@@ -1587,6 +1594,7 @@ fn runtime_graph_remove_chain_removes_entry() {
         name: None,
         device_settings: Vec::new(),
         chains: vec![chain],
+        midi: None,
     };
     let mut graph = build_runtime_graph(&project, &rates, &HashMap::new()).unwrap();
     assert_eq!(graph.chains.len(), 1);
@@ -1803,10 +1811,26 @@ fn process_output_underrun_returns_silence_not_last_frame() {
     let mut out = vec![0.0f32; 4];
     process_output_f32(&runtime, 0, &mut out, 1);
 
-    assert!((out[0] - 0.5).abs() < 1e-6, "frame 0 should be 0.5, got {}", out[0]);
-    assert!((out[1] - 0.7).abs() < 1e-6, "frame 1 should be 0.7, got {}", out[1]);
-    assert!(out[2].abs() < 1e-6, "frame 2 should be silence (underrun), got {}", out[2]);
-    assert!(out[3].abs() < 1e-6, "frame 3 should be silence (underrun), got {}", out[3]);
+    assert!(
+        (out[0] - 0.5).abs() < 1e-6,
+        "frame 0 should be 0.5, got {}",
+        out[0]
+    );
+    assert!(
+        (out[1] - 0.7).abs() < 1e-6,
+        "frame 1 should be 0.7, got {}",
+        out[1]
+    );
+    assert!(
+        out[2].abs() < 1e-6,
+        "frame 2 should be silence (underrun), got {}",
+        out[2]
+    );
+    assert!(
+        out[3].abs() < 1e-6,
+        "frame 3 should be silence (underrun), got {}",
+        out[3]
+    );
 }
 
 // ── ChainRuntimeState method tests ───────────────────────────────────────
@@ -2384,6 +2408,7 @@ fn build_runtime_graph_with_multiple_enabled_chains() {
             tuner_track("chain:0", Vec::new()),
             tuner_track("chain:1", vec![tuner_block("b:0", 440.0)]),
         ],
+        midi: None,
     };
     let mut rates = HashMap::new();
     rates.insert(ChainId("chain:0".into()), 48_000.0);
@@ -2410,6 +2435,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
         ],
+        midi: None,
     };
     let mut rates = HashMap::new();
     rates.insert(ChainId("enabled".into()), 48_000.0);

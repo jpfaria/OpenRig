@@ -269,7 +269,7 @@ component TunerCard inherits Rectangle {
 // ── TunerPanel — reusable content (used in both Window and inline modes) ──
 // In windowed mode, TunerWindow wraps this in a separate native Window.
 // In fullscreen / touch mode, DesktopMain and TouchMain render this inline
-// over the chain page (same pattern as ProjectSettingsPage).
+// over the chain page (same pattern as SettingsPage).
 export component TunerPanel inherits Rectangle {
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;

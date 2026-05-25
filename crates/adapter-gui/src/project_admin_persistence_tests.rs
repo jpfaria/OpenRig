@@ -10,9 +10,7 @@
 //! `project_ops_persistence_tests`; the matrix here proves the rest of
 //! the admin surface is no quieter about the same regression.
 
-use crate::project_ops::{
-    create_new_project_session, load_project_session, save_project_session,
-};
+use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::Command;
@@ -162,7 +160,10 @@ fn update_project_name_persists_across_reload() {
     s.save(&session);
 
     let reloaded = s.reload();
-    assert_eq!(reloaded.project.borrow().name.as_deref(), Some("MY PROJECT"));
+    assert_eq!(
+        reloaded.project.borrow().name.as_deref(),
+        Some("MY PROJECT")
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -759,7 +760,11 @@ fn full_admin_sequence_round_trips() {
     assert!(
         guitar.blocks.iter().any(|b| b.id.0 == "g1"),
         "block g1 persisted on GUITAR (got {:?})",
-        guitar.blocks.iter().map(|b| b.id.0.clone()).collect::<Vec<_>>(),
+        guitar
+            .blocks
+            .iter()
+            .map(|b| b.id.0.clone())
+            .collect::<Vec<_>>(),
     );
 }
 

@@ -103,20 +103,29 @@ fn main() -> Result<()> {
                     map.input,
                     map.bindings.len()
                 );
+                // #513 / #493: console has no learn UI but the daemon still
+                // needs the flag handle (off by default — same observable
+                // behaviour as before).
+                let learn = adapter_midi::learn_state();
                 thread::Builder::new()
                     .name("openrig-midi".into())
                     .spawn(move || {
-                        if let Err(e) = adapter_midi::run_blocking_with_map(bridge_for_midi, map) {
+                        if let Err(e) =
+                            adapter_midi::run_blocking_with_map(bridge_for_midi, map, learn)
+                        {
                             eprintln!("MIDI adapter stopped: {e}");
                         }
                     })?;
             }
             MidiMapArg::Path(map_path) => {
                 println!("=== MIDI === legacy map {}", map_path.display());
+                let learn = adapter_midi::learn_state();
                 thread::Builder::new()
                     .name("openrig-midi".into())
                     .spawn(move || {
-                        if let Err(e) = adapter_midi::run_blocking(bridge_for_midi, &map_path) {
+                        if let Err(e) =
+                            adapter_midi::run_blocking(bridge_for_midi, &map_path, learn)
+                        {
                             eprintln!("MIDI adapter stopped: {e}");
                         }
                     })?;

@@ -76,9 +76,18 @@ fn core_block(id: &str) -> AudioBlock {
 /// Rig with one input, three presets, two scenes per preset.
 fn rig_with_presets_and_scenes() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
-    presets.insert("p2".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
-    presets.insert("p3".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
+    presets.insert(
+        "p2".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
+    presets.insert(
+        "p3".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     bank.insert(2, "p2".into());
@@ -121,8 +130,9 @@ fn dispatcher_with_user_io() -> (
     )));
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == CHAIN_ID {
-            c.blocks
-                .retain(|b| !matches!(b.kind, AudioBlockKind::Output(_) | AudioBlockKind::Input(_)));
+            c.blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Output(_) | AudioBlockKind::Input(_))
+            });
             // Inputs at head, a few effect blocks, output at tail
             c.blocks.insert(0, user_input_block());
             c.blocks.push(core_block("filter:1"));
@@ -149,7 +159,9 @@ where
 }
 
 fn outputs_count(project: &Rc<RefCell<Project>>, chain_id: &str) -> usize {
-    count_blocks_of_kind(project, chain_id, |k| matches!(k, AudioBlockKind::Output(_)))
+    count_blocks_of_kind(project, chain_id, |k| {
+        matches!(k, AudioBlockKind::Output(_))
+    })
 }
 
 fn inputs_count(project: &Rc<RefCell<Project>>, chain_id: &str) -> usize {

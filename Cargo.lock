@@ -75,6 +75,7 @@ dependencies = [
  "rfd",
  "rust-i18n",
  "serde",
+ "serde_json",
  "serde_yaml",
  "slint",
  "slint-build",
@@ -324,6 +325,7 @@ dependencies = [
  "domain",
  "engine",
  "futures",
+ "infra-filesystem",
  "plugin-loader",
  "project",
  "schemars 0.8.22",
@@ -3228,6 +3230,7 @@ dependencies = [
  "anyhow",
  "dirs",
  "log",
+ "schemars 0.8.22",
  "serde",
  "serde_yaml",
 ]

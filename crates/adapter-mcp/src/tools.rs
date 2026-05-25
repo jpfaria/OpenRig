@@ -68,7 +68,12 @@ mod tests {
     /// `Command` has exactly this many variants. If you add/remove one,
     /// update this AND ensure its payload types derive `JsonSchema`
     /// (otherwise the variant silently drops from the schema → no tool).
-    const COMMAND_VARIANT_COUNT: usize = 44;
+    ///
+    /// #513 / #493 bumped this from 44 → 49 with `SaveMidiDevices`,
+    /// `SaveMidiMapping`, `StartMidiLearn`, `StopMidiLearn`, and
+    /// `PublishMidiEvent`. Each adds one MCP tool automatically via
+    /// `command_schema` (single source of truth — the `Command` enum).
+    const COMMAND_VARIANT_COUNT: usize = 49;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

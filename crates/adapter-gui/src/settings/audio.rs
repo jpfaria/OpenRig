@@ -15,7 +15,7 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::ids::DeviceId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
+use infra_filesystem::{FilesystemStorage, GuiSystemSettings};
 use project::device::DeviceSettings;
 
 use application::command::Command;
@@ -130,10 +130,11 @@ pub(crate) fn wire(
                             return;
                         }
                     };
-                    let settings = GuiAudioSettings {
+                    let settings = GuiSystemSettings {
                         input_devices,
                         output_devices,
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if !settings.is_complete() {
                         set_status_warning(
@@ -183,10 +184,11 @@ pub(crate) fn wire(
                             }
                         };
                     // Persist device settings to per-machine config
-                    let gui_settings = GuiAudioSettings {
+                    let gui_settings = GuiSystemSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
@@ -238,7 +240,7 @@ pub(crate) fn wire(
                     clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                 }
             }
         });
@@ -277,10 +279,11 @@ pub(crate) fn wire(
                             return;
                         }
                     };
-                    let settings = GuiAudioSettings {
+                    let settings = GuiSystemSettings {
                         input_devices,
                         output_devices,
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if !settings.is_complete() {
                         settings_window.set_status_message(
@@ -290,19 +293,20 @@ pub(crate) fn wire(
                     }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
+                            // #513: Apply restarts the audio runtime but keeps
+                            // the Settings window open. User dismisses via FECHAR.
                             settings_window.set_status_message("".into());
                             clear_status(&window, &toast_timer);
-                            window.set_show_audio_settings(false);
-                            let _ = settings_window.hide();
                         }
                         Err(error) => settings_window.set_status_message(error.to_string().into()),
                     }
                 }
                 AudioSettingsMode::Project => {
-                    let gui_settings = GuiAudioSettings {
+                    let gui_settings = GuiSystemSettings {
                         input_devices: project_device_settings.clone(),
                         output_devices: project_device_settings.clone(),
                         language: current_language(),
+                        midi_devices: vec![],
                     };
                     if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
                         log::warn!("failed to persist gui audio settings: {e}");
@@ -349,10 +353,9 @@ pub(crate) fn wire(
                         &project_dirty,
                         auto_save,
                     );
+                    // #513: keep window open on Apply.
                     settings_window.set_status_message("".into());
                     clear_status(&window, &toast_timer);
-                    window.set_show_project_settings(false);
-                    let _ = settings_window.hide();
                 }
             }
         });

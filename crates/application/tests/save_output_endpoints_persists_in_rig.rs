@@ -70,7 +70,10 @@ fn user_output() -> AudioBlock {
 
 fn rig_with_input() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     let mut inputs = BTreeMap::new();
@@ -124,7 +127,11 @@ fn save_chain_output_endpoints_persists_through_rig_reload() {
         chain: ChainId(CHAIN_ID.into()),
         output_blocks: vec![user_output()],
     });
-    assert!(res.is_ok(), "SaveChainOutputEndpoints dispatch failed: {:?}", res.err());
+    assert!(
+        res.is_ok(),
+        "SaveChainOutputEndpoints dispatch failed: {:?}",
+        res.err()
+    );
 
     let in_memory = project
         .borrow()
@@ -133,7 +140,10 @@ fn save_chain_output_endpoints_persists_through_rig_reload() {
         .find(|c| c.id.0 == CHAIN_ID)
         .map(outputs_count_on)
         .unwrap_or(0);
-    assert_eq!(in_memory, 1, "precondition: in-memory chain gained the output");
+    assert_eq!(
+        in_memory, 1,
+        "precondition: in-memory chain gained the output"
+    );
 
     // 2) Simulate reload: rebuild the synthetic chain from the rig.
     //    This is what `load_rig_and_project` and every rig-driven
