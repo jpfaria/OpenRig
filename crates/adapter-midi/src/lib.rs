@@ -9,6 +9,7 @@
 //! impact, real-time invariants preserved by construction.
 
 mod daemon;
+pub mod enumerate;
 mod mapping;
 mod message;
 pub mod resolve;
@@ -19,6 +20,7 @@ mod translate;
 mod resolve_tests;
 
 pub use daemon::{run_blocking, run_blocking_with_map};
+pub use enumerate::{list_input_ports, MidiPortInfo, MidiPortKey};
 pub use mapping::{Binding, MidiMap, Scale, Source};
 pub use message::MidiMessage;
 pub use resolve::resolve_midi_map;

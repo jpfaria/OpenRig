@@ -54,14 +54,8 @@ pub fn run_blocking(bridge: CommandBridge, map_path: &Path) -> Result<()> {
 pub fn run_blocking_with_map(bridge: CommandBridge, map: MidiMap) -> Result<()> {
     let map = std::sync::Arc::new(map);
 
-    // One throwaway client just to enumerate ports + names.
-    let enumerator = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
-    let names: Vec<String> = enumerator
-        .ports()
-        .iter()
-        .map(|p| enumerator.port_name(p).unwrap_or_default())
-        .collect();
-    drop(enumerator);
+    let infos = crate::enumerate::list_input_ports()?;
+    let names: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
 
     let selected = select_ports(&names, map.input.as_deref());
     if selected.is_empty() {
