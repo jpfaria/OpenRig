@@ -76,8 +76,14 @@ export component ChainRow inherits Rectangle {
     // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
     // which collided with the block grid (bottom at y = 62 + n*108).
     // Add 32px of breathing room so the meters sit clearly below the
-    // last row of blocks.
-    height: 106px + (root.block-row-count * 108px);
+    // last row of blocks. Per-stream meter rows (one per stream) stack
+    // downward from the base meter `y`: every extra stream beyond the
+    // first adds 22 px so the card grows and the rows don't bleed into
+    // the next chain card (user feedback: "tem que dar espaço").
+    height: 106px + (root.block-row-count * 108px)
+        + (root.chain.stream_meters.length > 1
+            ? (root.chain.stream_meters.length - 1) * 22px
+            : 0px);
 
     Rectangle {
         x: 0px;
