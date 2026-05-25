@@ -271,6 +271,7 @@ export component SettingsPage inherits Rectangle {
                         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
                         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
                         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+                        save-audio-settings => { root.save-audio-settings(); }
                     }
                     if root.selected-section == 1 : SectionSystemLanguage {
                         language-options: root.language-options;

@@ -595,3 +595,6 @@ msgstr "Language"
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "btn-save-project"
 msgstr "Save project"
+
+msgid "btn-save-audio-settings"
+msgstr "Apply"

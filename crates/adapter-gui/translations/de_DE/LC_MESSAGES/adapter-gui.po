@@ -561,3 +561,6 @@ msgstr "Ein Preset namens \"{}\" existiert bereits. Überschreiben?"
 #: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
 msgid "btn-overwrite"
 msgstr "Überschreiben"
+
+msgid "btn-save-audio-settings"
+msgstr ""

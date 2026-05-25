@@ -3,7 +3,7 @@
 // section title and divider; this component only renders the body.
 
 import { DeviceSelectionItem } from "../../models.slint";
-import { ComboBox, ScrollView } from "std-widgets.slint";
+import { Button, ComboBox, ScrollView } from "std-widgets.slint";
 
 // Inline helper — not promoted to components/ because it is only used here.
 component AudioDeviceRow inherits Rectangle {
@@ -176,6 +176,7 @@ export component SectionSystemAudio inherits Rectangle {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback save-audio-settings();
 
     background: transparent;
 
@@ -229,6 +230,20 @@ export component SectionSystemAudio inherits Rectangle {
                 sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
                 buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
                 bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
+            }
+        }
+
+        // Save / Apply — restarts the audio runtime with the chosen
+        // device(s). Audio settings need an explicit save because the
+        // runtime restart is heavy (would be wrong to fire it per click).
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8px;
+            height: 36px;
+            Button {
+                text: @tr("btn-save-audio-settings");
+                height: 32px;
+                clicked => { root.save-audio-settings(); }
             }
         }
     }

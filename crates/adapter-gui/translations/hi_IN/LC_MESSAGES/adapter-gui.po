@@ -555,3 +555,6 @@ msgstr "\"{}\" नाम का प्रीसेट पहले से मौ
 #: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
 msgid "btn-overwrite"
 msgstr "अधिलेखित करें"
+
+msgid "btn-save-audio-settings"
+msgstr ""

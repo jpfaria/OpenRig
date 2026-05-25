@@ -32,25 +32,15 @@ export component SectionSystemPaths inherits Rectangle {
                 width: 140px;
                 vertical-alignment: center;
             }
-            Rectangle {
+            Text {
+                text: root.presets-path == ""
+                    ? @tr("placeholder-default-path")
+                    : root.presets-path;
+                color: root.presets-path == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
                 horizontal-stretch: 1;
-                height: 28px;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #2a2f38;
-                Text {
-                    text: root.presets-path == ""
-                        ? @tr("placeholder-default-path")
-                        : root.presets-path;
-                    color: root.presets-path == "" ? #6b7786 : #dde3ec;
-                    font-size: 16px;
-                    x: 10px;
-                    y: 0px;
-                    width: parent.width - 20px;
-                    height: parent.height;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+                vertical-alignment: center;
+                overflow: elide;
             }
             Button {
                 text: @tr("btn-choose-path");
@@ -74,25 +64,15 @@ export component SectionSystemPaths inherits Rectangle {
                 width: 140px;
                 vertical-alignment: center;
             }
-            Rectangle {
+            Text {
+                text: root.plugins-path == ""
+                    ? @tr("placeholder-default-path")
+                    : root.plugins-path;
+                color: root.plugins-path == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
                 horizontal-stretch: 1;
-                height: 28px;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #2a2f38;
-                Text {
-                    text: root.plugins-path == ""
-                        ? @tr("placeholder-default-path")
-                        : root.plugins-path;
-                    color: root.plugins-path == "" ? #6b7786 : #dde3ec;
-                    font-size: 16px;
-                    x: 10px;
-                    y: 0px;
-                    width: parent.width - 20px;
-                    height: parent.height;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+                vertical-alignment: center;
+                overflow: elide;
             }
             Button {
                 text: @tr("btn-choose-path");
