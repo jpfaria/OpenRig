@@ -488,6 +488,43 @@ pub fn run_desktop_app(
         midi_device_model.clone(),
     );
     window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    // --- Project / MIDI mapping section (#513, #493) ---
+    // Seed bindings from the current project's `midi.bindings` (if any),
+    // share with chain_rig_nav_wiring so MidiEventReceived fills the
+    // active draft. Drafts is GUI-only state — never persisted.
+    let midi_bindings_state: Rc<RefCell<Vec<project::midi::Binding>>> = Rc::new(RefCell::new(
+        project_session
+            .borrow()
+            .as_ref()
+            .and_then(|s| s.project.borrow().midi.clone())
+            .map(|m| m.bindings)
+            .unwrap_or_default(),
+    ));
+    let midi_drafts_state: Rc<RefCell<Vec<crate::settings::midi_mapping::Draft>>> =
+        Rc::new(RefCell::new(Vec::new()));
+    let midi_binding_model: Rc<VecModel<crate::MidiBindingRow>> = Rc::new(VecModel::default());
+    crate::settings::midi_mapping::repaint(
+        &midi_binding_model,
+        &midi_bindings_state.borrow(),
+        &midi_drafts_state.borrow(),
+    );
+    crate::settings::midi_mapping::install(
+        &window,
+        project_session.clone(),
+        midi_bindings_state.clone(),
+        midi_drafts_state.clone(),
+        midi_binding_model.clone(),
+    );
+    window.set_midi_bindings(ModelRc::from(midi_binding_model.clone()));
+    // Available commands for the dropdown — sourced from the static
+    // schema and sorted for stable UI ordering. No filtering: the user
+    // may want to bind ANY Command to a MIDI trigger.
+    let mut commands: Vec<&'static str> =
+        application::command_schema::command_variant_names().to_vec();
+    commands.sort();
+    let commands_model: Vec<slint::SharedString> =
+        commands.into_iter().map(slint::SharedString::from).collect();
+    window.set_available_commands(ModelRc::new(VecModel::from(commands_model)));
     // --- Project / Metadata section (#513) ---
     let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
     crate::settings::project_meta::install(
@@ -781,6 +818,11 @@ pub fn run_desktop_app(
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             auto_save,
+            midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                bindings: midi_bindings_state.clone(),
+                drafts: midi_drafts_state.clone(),
+                model: midi_binding_model.clone(),
+            }),
         },
     );
     crate::plugin_info_inline_wiring::wire(&window);
@@ -831,6 +873,11 @@ pub fn run_desktop_app(
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             auto_save,
+            midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                bindings: midi_bindings_state.clone(),
+                drafts: midi_drafts_state.clone(),
+                model: midi_binding_model.clone(),
+            }),
         };
         let mcp_window = window.as_weak();
         // Cloned for the meter resolver closure (the moves above
@@ -912,6 +959,11 @@ pub fn run_desktop_app(
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 auto_save,
+                midi_mapping: Some(crate::chain_rig_nav_wiring::MidiMappingCtx {
+                    bindings: midi_bindings_state.clone(),
+                    drafts: midi_drafts_state.clone(),
+                    model: midi_binding_model.clone(),
+                }),
             },
             arg,
         )?),

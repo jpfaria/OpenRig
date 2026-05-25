@@ -17,6 +17,17 @@ export struct MidiDeviceRow {
     enabled: bool,
 }
 
+// Per-row payload for the Project / MIDI mapping editor (#513, #493).
+// `learning = true` marks a draft row whose trigger is being captured
+// in MIDI Learn mode; the trigger label then reads "(listening...)"
+// until the daemon emits `Event::MidiEventReceived`. `command-label`
+// is empty for drafts that haven't picked a Command yet.
+export struct MidiBindingRow {
+    trigger-label: string,
+    command-label: string,
+    learning: bool,
+}
+
 export struct BlockParamSummaryEntry {
     label: string,    // parameter name in uppercase (e.g. "GAIN")
     value: string,    // formatted current value (e.g. "65")

@@ -1,8 +1,9 @@
-import { DeviceSelectionItem, MidiDeviceRow } from "../models.slint";
+import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
+import { SectionProjectMidiMapping } from "settings/section_project_midi_mapping.slint";
 
 component FooterButton inherits Rectangle {
     in property <string> label;
@@ -70,6 +71,8 @@ export component SettingsPage inherits Rectangle {
     in property <[string]> language-codes;
     in property <int> selected-language-index;
     in property <[MidiDeviceRow]> midi-devices;
+    in property <[MidiBindingRow]> midi-bindings;
+    in property <[string]> available-commands;
     in property <string> project-name;
     in property <string> project-path-display;
     callback edit-project-name(string);
@@ -85,6 +88,10 @@ export component SettingsPage inherits Rectangle {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
 
     background: #171a1f;
 
@@ -119,7 +126,7 @@ export component SettingsPage inherits Rectangle {
         x: 32px;
         y: 114px;
         width: parent.width - 64px;
-        height: parent.height - 402px;
+        height: parent.height - 590px;
         project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
@@ -133,13 +140,26 @@ export component SettingsPage inherits Rectangle {
 
     SectionSystemMidiDevices {
         x: 32px;
-        y: parent.height - 280px;
+        y: parent.height - 468px;
         width: parent.width - 64px;
-        height: 164px;
+        height: 132px;
         devices: root.midi-devices;
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+    }
+
+    SectionProjectMidiMapping {
+        x: 32px;
+        y: parent.height - 328px;
+        width: parent.width - 64px;
+        height: 156px;
+        bindings: root.midi-bindings;
+        available-commands: root.available-commands;
+        add-midi-binding => { root.add-midi-binding(); }
+        delete-midi-binding(i) => { root.delete-midi-binding(i); }
+        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
     }
 
     SectionSystemLanguage {
