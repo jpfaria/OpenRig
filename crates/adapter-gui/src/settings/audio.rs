@@ -293,10 +293,10 @@ pub(crate) fn wire(
                     }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
+                            // #513: Apply restarts the audio runtime but keeps
+                            // the Settings window open. User dismisses via FECHAR.
                             settings_window.set_status_message("".into());
                             clear_status(&window, &toast_timer);
-                            window.set_show_audio_settings(false);
-                            let _ = settings_window.hide();
                         }
                         Err(error) => settings_window.set_status_message(error.to_string().into()),
                     }
@@ -353,10 +353,9 @@ pub(crate) fn wire(
                         &project_dirty,
                         auto_save,
                     );
+                    // #513: keep window open on Apply.
                     settings_window.set_status_message("".into());
                     clear_status(&window, &toast_timer);
-                    window.set_show_settings(false);
-                    let _ = settings_window.hide();
                 }
             }
         });

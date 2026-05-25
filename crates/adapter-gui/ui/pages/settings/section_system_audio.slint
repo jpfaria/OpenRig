@@ -183,9 +183,12 @@ export component SectionSystemAudio inherits Rectangle {
     VerticalLayout {
         spacing: 8px;
 
-        // Header row: refresh button aligned to the right
+        // Header row: refresh icon + Aplicar button, right-aligned.
+        // Aplicar lives here (top-right) so it does NOT overlap with
+        // the global FECHAR button at the bottom-right of the page.
         HorizontalLayout {
             alignment: end;
+            spacing: 8px;
 
             Rectangle {
                 width: 28px;
@@ -210,6 +213,12 @@ export component SectionSystemAudio inherits Rectangle {
                     clicked => { root.refresh-devices(); }
                 }
             }
+
+            Button {
+                text: @tr("btn-save-audio-settings");
+                height: 28px;
+                clicked => { root.save-audio-settings(); }
+            }
         }
 
         // Device list — height tracks the row count.
@@ -233,18 +242,5 @@ export component SectionSystemAudio inherits Rectangle {
             }
         }
 
-        // Save / Apply — restarts the audio runtime with the chosen
-        // device(s). Audio settings need an explicit save because the
-        // runtime restart is heavy (would be wrong to fire it per click).
-        HorizontalLayout {
-            alignment: end;
-            spacing: 8px;
-            height: 36px;
-            Button {
-                text: @tr("btn-save-audio-settings");
-                height: 32px;
-                clicked => { root.save-audio-settings(); }
-            }
-        }
     }
 }
