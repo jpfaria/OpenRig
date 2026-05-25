@@ -19,6 +19,7 @@ use slint::{ComponentHandle, Timer};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
+use domain::ids::ChainId;
 use project::chain::Chain;
 
 use crate::chain_preset_wiring::{
@@ -34,6 +35,7 @@ use crate::AppWindow;
 /// commits. The chain clone is captured at open time so a later
 /// project mutation can't slip into the saved file. Issue #510.
 struct PendingSave {
+    chain_id: ChainId,
     chain_clone: Chain,
     default_name: String,
 }
@@ -91,19 +93,24 @@ pub(crate) fn wire(
             if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog.
                 let _ = std::fs::create_dir_all(&session.presets_path);
-                perform_preset_save(&window, session, &chain_clone, &default_name, &toast_timer);
+                perform_preset_save(
+                    &window,
+                    session,
+                    &chain_id,
+                    &chain_clone,
+                    &default_name,
+                    &toast_timer,
+                );
             } else {
                 // Issue #510 desktop: open the in-window save overlay
                 // (replaces the native FileDialog). Stash the chain
-                // clone + default name; final write happens when the
-                // user confirms via `preset-save-request`.
-                // Issue #510 user feedback: pre-fill the text field
-                // with the default name (the placeholder alone left
-                // users unable to edit existing characters — they had
-                // to clear and re-type). The default also stays in
-                // `preset_save_default_name` so an empty submission
-                // still falls back to it.
+                // id + clone + default name; final write happens when
+                // the user confirms via `preset-save-request`. The
+                // chain id is what `Command::RenameRigPreset` keys on
+                // so the active preset's display name follows the
+                // typed name end-to-end.
                 *pending_save.borrow_mut() = Some(PendingSave {
+                    chain_id,
                     chain_clone,
                     default_name: default_name.clone(),
                 });
@@ -131,12 +138,17 @@ pub(crate) fn wire(
             };
             // Peek without taking so the pending state survives if we
             // need to bounce to the overwrite-confirm overlay.
-            let (chain_clone, default_name) = {
+            let (chain_id, chain_clone, default_name) = {
                 let pending = pending_save.borrow();
                 let Some(pending) = pending.as_ref() else {
+                    log::warn!("[preset-save] dropped: no pending save state");
                     return;
                 };
-                (pending.chain_clone.clone(), pending.default_name.clone())
+                (
+                    pending.chain_id.clone(),
+                    pending.chain_clone.clone(),
+                    pending.default_name.clone(),
+                )
             };
             let chosen = if name.trim().is_empty() {
                 default_name
@@ -149,7 +161,14 @@ pub(crate) fn wire(
                 window.set_show_preset_save_overwrite(true);
                 return;
             }
-            perform_preset_save(&window, session, &chain_clone, &chosen, &toast_timer);
+            perform_preset_save(
+                &window,
+                session,
+                &chain_id,
+                &chain_clone,
+                &chosen,
+                &toast_timer,
+            );
             *pending_save.borrow_mut() = None;
             window.set_show_preset_save(false);
         });
@@ -174,6 +193,7 @@ pub(crate) fn wire(
             perform_preset_save(
                 &window,
                 session,
+                &pending.chain_id,
                 &pending.chain_clone,
                 &chosen,
                 &toast_timer,
@@ -204,12 +224,16 @@ pub(crate) fn wire(
 }
 
 /// Commit a preset save: write the YAML file under the configured
-/// presets directory, then dispatch `Command::SaveChainPreset` so
-/// MCP/MIDI/gRPC observers see the same event. Centralizes the touch
-/// kiosk and desktop overlay paths to one place. Issue #510.
+/// presets directory, dispatch `Command::SaveChainPreset` so
+/// MCP/MIDI/gRPC observers see the same event, then dispatch
+/// `Command::RenameRigPreset` so the active preset's display name
+/// follows the name the user just typed. Without the rename the
+/// chain title combobox stays on the old label and the user sees
+/// "nothing happened". Issue #510.
 fn perform_preset_save(
     window: &AppWindow,
     session: &mut ProjectSession,
+    chain_id: &ChainId,
     chain_clone: &Chain,
     name: &str,
     toast_timer: &Rc<Timer>,
@@ -221,8 +245,19 @@ fn perform_preset_save(
             if let Err(e) = session.dispatcher.dispatch(Command::SaveChainPreset {
                 name: name.to_string(),
             }) {
-                log::warn!("[preset] Command::SaveChainPreset falhou: {e}");
+                log::warn!("[preset-save] Command::SaveChainPreset failed: {e}");
             }
+            // Mirror the load flow: rename the active preset to the
+            // chosen name and refresh the chain-rig-nav so the
+            // combobox in the chain title reflects the new label
+            // immediately.
+            if let Err(e) = session.dispatcher.dispatch(Command::RenameRigPreset {
+                chain: chain_id.clone(),
+                name: name.to_string(),
+            }) {
+                log::warn!("[preset-save] Command::RenameRigPreset failed: {e}");
+            }
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(window, session);
             set_status_info(window, toast_timer, &rust_i18n::t!("status-preset-saved"));
         }
         Err(error) => set_status_error(window, toast_timer, &error.to_string()),
