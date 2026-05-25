@@ -425,7 +425,62 @@ pub(crate) fn wire(
         });
     }
 
-    // Wire remove-block
+    // Wire remove-block — issue #360: open the in-window overlay; the
+    // real dispatch lives in confirm-delete-block below. Closures keep
+    // the heap state on `pending_compact_delete_block` so the confirm
+    // handler can consume the chain+block ids the user is acting on.
+    let pending_compact_delete_block: Rc<RefCell<Option<(usize, usize)>>> =
+        Rc::new(RefCell::new(None));
+    {
+        let project_session = project_session.clone();
+        let weak_compact = compact_win.as_weak();
+        let pending = pending_compact_delete_block.clone();
+        compact_win.on_remove_block(move |ci, bi| {
+            log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
+            let Some(cw) = weak_compact.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            let chain_idx = ci as usize;
+            let block_idx = bi as usize;
+            // Resolve a human label for the dialog body and ensure the
+            // indices are valid before opening the overlay.
+            let model_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_idx) else {
+                    return;
+                };
+                let Some(block) = chain.blocks.get(block_idx) else {
+                    return;
+                };
+                match block.model_ref() {
+                    Some(m) => {
+                        project::catalog::model_display_name(m.effect_type, m.model).to_string()
+                    }
+                    None => String::new(),
+                }
+            };
+            *pending.borrow_mut() = Some((chain_idx, block_idx));
+            cw.set_confirm_delete_block_name(model_id.into());
+            cw.set_show_confirm_delete_block(true);
+        });
+    }
+    // Wire cancel-delete-block — just hide the overlay and forget the
+    // captured ids.
+    {
+        let weak_compact = compact_win.as_weak();
+        let pending = pending_compact_delete_block.clone();
+        compact_win.on_cancel_delete_block(move || {
+            *pending.borrow_mut() = None;
+            if let Some(cw) = weak_compact.upgrade() {
+                cw.set_show_confirm_delete_block(false);
+            }
+        });
+    }
+    // Wire confirm-delete-block — run the dispatch the overlay gated.
     {
         let project_session = project_session.clone();
         let weak_main = main_window.as_weak();
@@ -436,21 +491,22 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let _toast_timer = toast_timer.clone();
-        compact_win.on_remove_block(move |ci, bi| {
-            log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
-            let Some(main_win) = weak_main.upgrade() else {
+        let pending = pending_compact_delete_block.clone();
+        compact_win.on_confirm_delete_block(move || {
+            let Some(cw) = weak_compact.upgrade() else {
                 return;
             };
-            let Some(cw) = weak_compact.upgrade() else {
+            cw.set_show_confirm_delete_block(false);
+            let Some((chain_idx, block_idx)) = pending.borrow_mut().take() else {
+                return;
+            };
+            let Some(main_win) = weak_main.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_idx = ci as usize;
-            let block_idx = bi as usize;
             // Resolve IDs (read-only) before dispatching.
             let (chain_id, block_id) = {
                 let proj = session.project.borrow();
@@ -469,7 +525,6 @@ pub(crate) fn wire(
                 log::error!("[compact] remove-block dispatch: {e}");
                 return;
             }
-            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("[compact] remove-block runtime sync: {}", e);
             }

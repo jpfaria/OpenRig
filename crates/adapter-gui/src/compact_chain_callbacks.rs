@@ -22,6 +22,8 @@ use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 use domain::ids::BlockId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
+use application::dispatcher::CommandDispatcher;
+
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
@@ -289,12 +291,103 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 }
             });
         }
+        // Issue #360: chain delete renders its overlay INSIDE the
+        // compact view (not the main window). Keeps the modal where the
+        // user clicked. Pending state is per-window so cancel/confirm
+        // resolve to this view's captured chain id.
+        let pending_compact_delete_chain: Rc<RefCell<Option<domain::ids::ChainId>>> =
+            Rc::new(RefCell::new(None));
+        {
+            let weak_compact = compact_win.as_weak();
+            let project_session = project_session.clone();
+            let pending = pending_compact_delete_chain.clone();
+            compact_win.on_remove_chain(move |ci| {
+                let Some(cw) = weak_compact.upgrade() else {
+                    return;
+                };
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                let (chain_id, chain_name) = {
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(ci as usize) else {
+                        return;
+                    };
+                    (
+                        chain.id.clone(),
+                        chain.description.clone().unwrap_or_else(|| chain.id.0.clone()),
+                    )
+                };
+                *pending.borrow_mut() = Some(chain_id);
+                cw.set_confirm_delete_chain_name(chain_name.into());
+                cw.set_show_confirm_delete_chain(true);
+            });
+        }
+        {
+            let weak_compact = compact_win.as_weak();
+            let pending = pending_compact_delete_chain.clone();
+            compact_win.on_cancel_delete_chain(move || {
+                *pending.borrow_mut() = None;
+                if let Some(cw) = weak_compact.upgrade() {
+                    cw.set_show_confirm_delete_chain(false);
+                }
+            });
+        }
         {
             let weak_main = window.as_weak();
-            compact_win.on_remove_chain(move |ci| {
-                if let Some(m) = weak_main.upgrade() {
-                    m.invoke_remove_chain(ci);
+            let weak_compact = compact_win.as_weak();
+            let project_session = project_session.clone();
+            let project_chains = project_chains.clone();
+            let project_runtime = project_runtime.clone();
+            let saved_project_snapshot = saved_project_snapshot.clone();
+            let project_dirty = project_dirty.clone();
+            let input_chain_devices = input_chain_devices.clone();
+            let output_chain_devices = output_chain_devices.clone();
+            let toast_timer = toast_timer.clone();
+            let pending = pending_compact_delete_chain.clone();
+            compact_win.on_confirm_delete_chain(move || {
+                let Some(cw) = weak_compact.upgrade() else {
+                    return;
+                };
+                cw.set_show_confirm_delete_chain(false);
+                let Some(chain_id) = pending.borrow_mut().take() else {
+                    return;
+                };
+                let Some(main_win) = weak_main.upgrade() else {
+                    return;
+                };
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
+                if let Err(err) = session.dispatcher.dispatch(
+                    application::command::Command::RemoveChain { chain: chain_id.clone() },
+                ) {
+                    set_status_error(&main_win, &toast_timer, &err.to_string());
+                    return;
                 }
+                if session.rig.is_some() {
+                    crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&main_win, session);
+                }
+                crate::runtime_lifecycle::remove_live_chain_runtime(
+                    &project_runtime,
+                    &chain_id,
+                );
+                crate::project_view::replace_project_chains(
+                    &project_chains,
+                    &*session.project.borrow(),
+                    &input_chain_devices.borrow(),
+                    &output_chain_devices.borrow(),
+                );
+                crate::project_ops::sync_project_dirty(
+                    &main_win,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
+                let _ = cw.hide();
             });
         }
 

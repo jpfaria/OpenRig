@@ -8,6 +8,7 @@ import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIns
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
+import { ConfirmDeleteRecentProjectDialog } from "components/confirm_delete_recent_project_dialog.slint";
 import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
@@ -252,6 +253,12 @@ export component AppWindow inherits Window {
     in property <string> confirm-delete-chain-name: "";
     callback confirm-delete-chain();
     callback cancel-delete-chain();
+    // Recent-project removal confirmation (issue #360 — the launcher
+    // used to drop entries with no confirmation at all).
+    in property <bool> show-confirm-delete-recent-project: false;
+    in property <string> confirm-delete-recent-project-name: "";
+    callback confirm-delete-recent-project();
+    callback cancel-delete-recent-project();
     // Inline plugin info overlay — used in fullscreen / touch where the secondary
     // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
     in property <bool> plugin-info-visible: false;
@@ -687,6 +694,14 @@ export component AppWindow inherits Window {
         chain-name: root.confirm-delete-chain-name;
         cancel => { root.cancel-delete-chain(); }
         confirm => { root.confirm-delete-chain(); }
+    }
+
+    if root.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        project-name: root.confirm-delete-recent-project-name;
+        cancel => { root.cancel-delete-recent-project(); }
+        confirm => { root.confirm-delete-recent-project(); }
     }
 
     in-out property <string> toast-message;
