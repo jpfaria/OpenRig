@@ -107,25 +107,36 @@ pub(crate) fn select_supported_stream_config(
 ) -> Result<SupportedStreamConfig> {
     let target_sample_rate = requested_sample_rate.unwrap_or_else(|| default_config.sample_rate());
     let default_format = default_config.sample_format();
+    let default_channels = default_config.channels() as usize;
+    // Issue #516: the user may pick `OutputBlock.mode = Mono` with a single
+    // channel and that yields `required_channels = 1`, but opening a
+    // hardware-stereo USB interface (Scarlett 2i2 etc.) at 1 channel on
+    // macOS / CoreAudio silently routes audio nowhere. Never downsize the
+    // device below its default config — channel routing inside the
+    // interleaved buffer is `write_output_frame`'s job.
+    let effective_required = required_channels.max(default_channels);
 
     let best = supported_ranges
         .iter()
-        .filter(|range| range.channels() as usize >= required_channels)
+        .filter(|range| range.channels() as usize >= effective_required)
         .filter_map(|range| range.try_with_sample_rate(target_sample_rate))
         .min_by_key(|config| {
             (
-                (config.channels() as usize != required_channels) as u8,
+                (config.channels() as usize != effective_required) as u8,
                 (config.sample_format() != default_format) as u8,
-                (config.channels() as usize).saturating_sub(required_channels),
+                (config.channels() as usize).saturating_sub(effective_required),
             )
         });
 
     best.ok_or_else(|| {
         anyhow!(
-            "{} invalid: no supported config for sample_rate={} with at least {} channels",
+            "{} invalid: no supported config for sample_rate={} with at least {} channels \
+             (required from output block: {}, device default: {})",
             context,
             target_sample_rate,
-            required_channels
+            effective_required,
+            required_channels,
+            default_channels
         )
     })
 }
