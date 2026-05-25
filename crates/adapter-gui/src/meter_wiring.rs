@@ -120,6 +120,40 @@ pub fn refresh_subscriptions_lazy_per_stream<F>(
     }
 }
 
+/// Walk the project's chains, compute each one's current
+/// `timer_chain_signature`, compare against the cached value, and
+/// return the list of chains whose signature changed (must be
+/// re-subscribed).
+///
+/// `api == None` means the controller is offline. The whole cache is
+/// wiped so the next online tick treats every chain as a fresh
+/// subscription — without this, toggling off the last enabled chain
+/// drops the controller, and the subsequent toggle-on (which spins up
+/// a NEW controller with the same project state) would produce the
+/// same cached signature, skip invalidation, and leave the meter
+/// store handing out rings allocated against the dropped controller.
+pub fn detect_invalidations<T: MeterTapApi>(
+    chains: &[project::chain::Chain],
+    api: Option<&T>,
+    last_signature: &mut std::collections::HashMap<domain::ids::ChainId, u64>,
+) -> Vec<domain::ids::ChainId> {
+    let chain_ids: Vec<_> = chains.iter().map(|c| c.id.clone()).collect();
+    let Some(api) = api else {
+        last_signature.clear();
+        return Vec::new();
+    };
+    let mut invalidate = Vec::new();
+    for c in chains.iter() {
+        let sig = timer_chain_signature(c, api.stream_count(&c.id));
+        if last_signature.get(&c.id).copied() != Some(sig) {
+            invalidate.push(c.id.clone());
+            last_signature.insert(c.id.clone(), sig);
+        }
+    }
+    last_signature.retain(|cid, _| chain_ids.contains(cid));
+    invalidate
+}
+
 /// Full per-tick "did anything that requires a re-subscribe change?"
 /// signature: project-side bits AND the engine's current stream
 /// count for this chain. Stream count is the SUM across this chain's
@@ -303,35 +337,33 @@ pub fn start_meter_polling(
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
-        let rt_borrow = project_runtime.borrow();
-        let Some(controller) = rt_borrow.as_ref() else {
-            return;
-        };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
             return;
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
+        let rt_borrow = project_runtime.borrow();
         // Detect chains whose runtime-layout signature changed since
-        // the last tick. The signature mixes the project-side bits
-        // (enabled, per-block id+enabled) with the engine-side stream
-        // count: if the engine tears down + rebuilds the per-input
-        // runtimes (chain toggle off→on, rig-nav preset switch) the
-        // count flips 0 ↔ N and the meter store re-subscribes against
-        // the fresh runtime instead of holding dead ring handles.
-        let mut invalidate: Vec<domain::ids::ChainId> = Vec::new();
-        {
-            let mut last = last_signature.borrow_mut();
-            for c in project.chains.iter() {
-                let sig = timer_chain_signature(c, controller.stream_count(&c.id));
-                if last.get(&c.id).copied() != Some(sig) {
-                    invalidate.push(c.id.clone());
-                    last.insert(c.id.clone(), sig);
-                }
-            }
-            last.retain(|cid, _| chain_ids.contains(cid));
-        }
+        // the last tick. Signature mixes project bits (enabled, per
+        // block id+enabled) with the engine's current stream count;
+        // when the engine rebuilds the per-input runtimes (toggle
+        // off→on, rig-nav preset switch) the count or enabled flag
+        // flips and the store re-subscribes against the fresh rings.
+        // Controller=None ⇒ the whole controller was dropped (last
+        // chain toggled off); `detect_invalidations` wipes the cache
+        // so the next online tick treats every chain as fresh — and
+        // we also drop the store so we don't keep handing out rings
+        // pointed at the dropped controller.
+        let invalidate = detect_invalidations(
+            &project.chains,
+            rt_borrow.as_ref(),
+            &mut last_signature.borrow_mut(),
+        );
+        let Some(controller) = rt_borrow.as_ref() else {
+            store.borrow_mut().clear();
+            return;
+        };
         let make_streams =
             |cid: &domain::ids::ChainId| -> ChainMeterStreams {
                 build_streams_from_taps(controller, cid, RING_CAPACITY)

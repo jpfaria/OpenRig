@@ -343,6 +343,78 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
 }
 
 #[test]
+fn controller_offline_then_back_invalidates_every_chain() {
+    // User-reported: toggle off the last enabled chain → meter dies
+    // and never recovers on toggle on. Root cause: when the whole
+    // chain set goes empty, `sync_live_chain_runtime` drops the
+    // `ProjectRuntimeController`. The timer's early return on the
+    // None controller leaves the per-chain signature cache intact,
+    // so when the next toggle-on call instantiates a FRESH
+    // controller, the same project state yields the same cached
+    // signature → no invalidation fires → the store keeps handing
+    // out rings allocated against the dropped controller (nothing
+    // pushes to them). The fix is to wipe the cache whenever the
+    // controller is offline so the next online tick treats every
+    // chain as a fresh subscription.
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let chain = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+    };
+    let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
+        std::collections::HashMap::new();
+    let api_on = RecordingTapApi { stream_count: 3, ..Default::default() };
+    // Tick 1: controller online with 3-stream chain.
+    let inv1 = crate::meter_wiring::detect_invalidations(
+        std::slice::from_ref(&chain),
+        Some(&api_on),
+        &mut last_sig,
+    );
+    assert_eq!(inv1.len(), 1, "first online tick subscribes the chain");
+    assert!(last_sig.contains_key(&chain.id), "signature cached");
+    // Tick 2: controller offline (last chain toggled off).
+    let _ = crate::meter_wiring::detect_invalidations::<RecordingTapApi>(
+        std::slice::from_ref(&chain),
+        None,
+        &mut last_sig,
+    );
+    assert!(
+        last_sig.is_empty(),
+        "offline tick must wipe the cache; otherwise a fresh \
+         controller with identical project state would compare \
+         equal against the stale entry and skip the re-subscribe"
+    );
+    // Tick 3: fresh controller comes back (different api instance,
+    // same project state).
+    let api_on2 = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let inv3 = crate::meter_wiring::detect_invalidations(
+        std::slice::from_ref(&chain),
+        Some(&api_on2),
+        &mut last_sig,
+    );
+    assert_eq!(
+        inv3.len(),
+        1,
+        "fresh controller must invalidate every chain so dead rings \
+         get re-subscribed against the new per-input runtimes"
+    );
+}
+
+#[test]
 fn timer_signature_stays_constant_across_steady_state_ticks() {
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
     use project::chain::Chain;
