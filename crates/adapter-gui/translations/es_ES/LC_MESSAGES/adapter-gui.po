@@ -811,6 +811,11 @@ msgstr "+ Añadir"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgctxt "SectionProjectMidiMapping"
+msgid "empty-midi-mapping-explain"
+msgstr "Aún no hay asignaciones MIDI. Añade una para vincular un controlador a un comando de OpenRig."
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
 msgid "placeholder-midi-listen"
 msgstr "Pulsa un control MIDI…"
 

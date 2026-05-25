@@ -4,7 +4,6 @@ import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
-import { LanguageSelector } from "components/language_selector.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -554,18 +553,8 @@ export component DesktopMain inherits Rectangle {
     // open/create-project buttons). Compact mode aligns with the
     // HeaderIconAction row used in project_chains.slint (24x24 flat at y=14
     // inside an x=24/width=parent.width-48 header strip).
-    // Hide the global LanguageSelector while the Settings screen is open
-    // — Settings has its own Language section, so two pickers in one view
-    // is just clutter.
-    if !root.show-project-launcher && !root.show-settings : LanguageSelector {
-        x: parent.width - 32px;
-        y: 32px;
-        z: 200;
-        compact: true;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        language-selected(i) => { root.change-language(i); }
-    }
+    // Global LanguageSelector removed (#513): Settings → Language now owns
+    // language selection. The floating top-corner picker only created
+    // duplicated UI surface.
 }
 

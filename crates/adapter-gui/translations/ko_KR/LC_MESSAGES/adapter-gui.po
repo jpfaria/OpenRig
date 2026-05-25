@@ -803,6 +803,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgctxt "SectionProjectMidiMapping"
+msgid "empty-midi-mapping-explain"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
 msgid "placeholder-midi-listen"
 msgstr ""
 
