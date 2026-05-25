@@ -552,3 +552,28 @@ msgstr "Eliminar preset"
 
 msgid "Rename preset"
 msgstr "Renombrar preset"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "title-section-paths"
+msgstr "Carpetas"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-presets-path"
+msgstr "Carpeta de presets"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-plugins-path"
+msgstr "Carpeta de plugins"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-choose-path"
+msgstr "Elegir…"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-reset-path"
+msgstr "Restablecer"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "placeholder-default-path"
+msgstr "(predeterminado)"

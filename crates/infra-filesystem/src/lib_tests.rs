@@ -66,6 +66,8 @@ fn asset_paths_serde_roundtrip_preserves_values() {
         thumbnails: "custom/thumbs".into(),
         screenshots: "custom/screens".into(),
         metadata: "custom/meta".into(),
+        presets_path: None,
+        plugins_path: None,
     };
     let yaml = serde_yaml::to_string(&paths).unwrap();
     let restored: AssetPaths = serde_yaml::from_str(&yaml).unwrap();
@@ -85,6 +87,8 @@ fn resolve_asset_paths_absolute_left_unchanged() {
         thumbnails: "/absolute/thumbs".into(),
         screenshots: "/absolute/screens".into(),
         metadata: "/absolute/meta".into(),
+        presets_path: None,
+        plugins_path: None,
     };
     let resolved = resolve_asset_paths(paths.clone());
     assert_eq!(resolved.thumbnails, "/absolute/thumbs");

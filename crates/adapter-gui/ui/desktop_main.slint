@@ -82,6 +82,13 @@ export component DesktopMain inherits Rectangle {
     in property <string> project-name: root.project-name-draft;
     in property <string> project-path-display: root.project-path-label;
     callback edit-project-name(string);
+    // System / Paths section (#513). Empty = OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -381,6 +388,12 @@ export component DesktopMain inherits Rectangle {
             delete-midi-binding(i) => { root.delete-midi-binding(i); }
             pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
             cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+            presets-path: root.presets-path;
+            plugins-path: root.plugins-path;
+            pick-presets-path => { root.pick-presets-path(); }
+            reset-presets-path => { root.reset-presets-path(); }
+            pick-plugins-path => { root.pick-plugins-path(); }
+            reset-plugins-path => { root.reset-plugins-path(); }
         }
 
         // Fullscreen inline tuner overlay (windowed mode uses TunerWindow instead)
@@ -547,6 +560,12 @@ export component DesktopMain inherits Rectangle {
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
         cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+        presets-path: root.presets-path;
+        plugins-path: root.plugins-path;
+        pick-presets-path => { root.pick-presets-path(); }
+        reset-presets-path => { root.reset-presets-path(); }
+        pick-plugins-path => { root.pick-plugins-path(); }
+        reset-plugins-path => { root.reset-plugins-path(); }
     }
 
     // Floating language selector — top-right of every screen EXCEPT the

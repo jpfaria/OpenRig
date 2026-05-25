@@ -40,6 +40,17 @@ pub struct AssetPaths {
     /// Root directory for plugin metadata YAML files (per-language).
     #[serde(default = "default_metadata")]
     pub metadata: String,
+    /// #513: user-chosen directory holding project preset libraries. `None`
+    /// keeps the historical OS default (the launcher resolves it). When set,
+    /// this override wins for preset discovery / save dialogs.
+    #[serde(default)]
+    pub presets_path: Option<PathBuf>,
+    /// #513: user-chosen directory holding plugin packs (NAM/IR/LV2). `None`
+    /// keeps the historical OS default resolved by
+    /// `plugin_loader::config::plugins_root_from_config`. When set, this
+    /// override wins for plugin scanning.
+    #[serde(default)]
+    pub plugins_path: Option<PathBuf>,
 }
 
 impl Default for AssetPaths {
@@ -48,6 +59,8 @@ impl Default for AssetPaths {
             thumbnails: default_thumbnails(),
             screenshots: default_screenshots(),
             metadata: default_metadata(),
+            presets_path: None,
+            plugins_path: None,
         }
     }
 }
@@ -126,6 +139,11 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         thumbnails: resolve(&root, paths.thumbnails),
         screenshots: resolve(&root, paths.screenshots),
         metadata: resolve(&root, paths.metadata),
+        // #513: user overrides are stored absolute (file picker resolves them).
+        // No data-root rebase — `None` means "use the OS default" and is the
+        // signal the resolvers look for.
+        presets_path: paths.presets_path,
+        plugins_path: paths.plugins_path,
     }
 }
 
@@ -427,6 +445,24 @@ impl FilesystemStorage {
     pub fn save_gui_language(language: Option<String>) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.language = language;
+        Self::save_app_config(&config)
+    }
+
+    /// #513: update only the user's preset directory override (under
+    /// `AppConfig.paths.presets_path`), preserving every other config
+    /// field. `None` resets the override so the OS default wins again.
+    pub fn save_presets_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.presets_path = path;
+        Self::save_app_config(&config)
+    }
+
+    /// #513: update only the user's plugin directory override (under
+    /// `AppConfig.paths.plugins_path`), preserving every other config
+    /// field. `None` resets the override so the OS default wins again.
+    pub fn save_plugins_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.plugins_path = path;
         Self::save_app_config(&config)
     }
 
