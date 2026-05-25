@@ -212,7 +212,7 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
 
-    // language_wiring needs to know how to push the new font to every Window
+    // settings::language needs to know how to push the new font to every Window
     // (each Slint Window is a separate root with its own Locale global, so a
     // single set on AppWindow doesn't reach the secondary windows).
     {
@@ -268,7 +268,7 @@ pub fn run_desktop_app(
                 crate::Locale::get(w).set_font_family(f());
             }
         };
-        crate::language_wiring::wire(&window, project_session.clone(), apply_font_to_all);
+        crate::settings::language::wire(&window, project_session.clone(), apply_font_to_all);
     }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
@@ -443,11 +443,11 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    // --- Audio settings save callbacks (extracted to audio_settings_save_wiring) ---
-    crate::audio_settings_save_wiring::wire(
+    // --- Audio settings save callbacks (extracted to settings::audio) ---
+    crate::settings::audio::wire(
         &window,
         &project_settings_window,
-        crate::audio_settings_save_wiring::AudioSettingsSaveCtx {
+        crate::settings::audio::AudioSettingsSaveCtx {
             input_devices: input_devices.clone(),
             output_devices: output_devices.clone(),
             project_devices: project_devices.clone(),

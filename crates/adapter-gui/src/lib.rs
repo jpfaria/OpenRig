@@ -1,4 +1,4 @@
-mod audio_settings_save_wiring;
+pub(crate) mod settings;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
@@ -108,7 +108,7 @@ mod desktop_app_cli_open;
 mod desktop_app_init;
 mod desktop_app_polling;
 mod i18n;
-mod language_wiring;
+
 pub use desktop_app::run_desktop_app;
 pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
 

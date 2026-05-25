@@ -190,5 +190,5 @@ fn pick_language(idx: i32) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "language_wiring_tests.rs"]
+#[path = "../language_wiring_tests.rs"]
 mod tests;
