@@ -107,7 +107,11 @@ impl LocalDispatcher {
                 // next projection — "I fix the output and it never persists".
                 if let Some(input_name) = chain.0.strip_prefix("rig:") {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        propagate_outputs_to_rig(&mut rig.borrow_mut(), input_name, &cloned_outputs);
+                        propagate_outputs_to_rig(
+                            &mut rig.borrow_mut(),
+                            input_name,
+                            &cloned_outputs,
+                        );
                     }
                 }
                 Ok(vec![
@@ -134,8 +138,7 @@ pub(crate) fn propagate_outputs_to_rig(
     output_blocks: &[project::block::AudioBlock],
 ) {
     let owned_prefix = format!("{input_name}:");
-    rig.outputs
-        .retain(|k, _| !k.starts_with(&owned_prefix));
+    rig.outputs.retain(|k, _| !k.starts_with(&owned_prefix));
     let Some(input) = rig.inputs.get_mut(input_name) else {
         return;
     };

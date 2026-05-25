@@ -106,15 +106,17 @@ pub fn repaint(model: &VecModel<MidiBindingRow>, bindings: &[Binding], drafts: &
             learning: false,
         })
         .collect();
-    rows.extend(drafts.iter().map(|d| MidiBindingRow {
-        trigger_label: d
-            .source
-            .as_ref()
-            .map(format_trigger)
-            .unwrap_or_else(|| String::from("(listening...)"))
-            .into(),
-        command_label: d.command.clone().unwrap_or_default().into(),
-        learning: d.learning,
+    rows.extend(drafts.iter().map(|d| {
+        MidiBindingRow {
+            trigger_label: d
+                .source
+                .as_ref()
+                .map(format_trigger)
+                .unwrap_or_else(|| String::from("(listening...)"))
+                .into(),
+            command_label: d.command.clone().unwrap_or_default().into(),
+            learning: d.learning,
+        }
     }));
     model.set_vec(rows);
 }

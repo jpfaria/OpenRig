@@ -98,7 +98,5 @@ fn float_spec_with_integer_step_tolerates_off_grid_value() {
         1.0,
         ParameterUnit::Percent,
     );
-    assert!(spec
-        .validate_value(&ParameterValue::Float(50.5))
-        .is_ok());
+    assert!(spec.validate_value(&ParameterValue::Float(50.5)).is_ok());
 }

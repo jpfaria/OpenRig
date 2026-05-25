@@ -185,4 +185,3 @@ pub fn persist(rows: &[MidiDeviceSelection]) -> anyhow::Result<()> {
     config.midi_devices = rows.to_vec();
     FilesystemStorage::save_app_config(&config)
 }
-

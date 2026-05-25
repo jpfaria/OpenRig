@@ -296,9 +296,7 @@ pub enum Command {
     /// / #22) instead of routing the event itself, so the event still
     /// reaches the GUI through `PublishingDispatcher`'s fan-out — one
     /// transport, one ordering invariant. The handler is a pure passthrough.
-    PublishMidiEvent {
-        source: project::midi::Source,
-    },
+    PublishMidiEvent { source: project::midi::Source },
 
     /// #436: per-chain rig navigation (preset/scene switch/add/remove).
     /// The GUI used to mutate `RigProject` by hand in a wiring closure —

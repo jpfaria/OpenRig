@@ -1,4 +1,4 @@
-use super::{should_dispatch_rename, sanitize_name};
+use super::{sanitize_name, should_dispatch_rename};
 
 #[test]
 fn empty_name_is_normalized_to_none() {

@@ -1330,7 +1330,10 @@ fn output_limiter_saturates_above_threshold() {
     // input above the knee — not the specific tanh function.
     use super::output_limiter;
     let limited = output_limiter(2.0);
-    assert!(limited < 2.0 && limited > 0.0, "reduce + keep sign: {limited}");
+    assert!(
+        limited < 2.0 && limited > 0.0,
+        "reduce + keep sign: {limited}"
+    );
     assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
 }
 
@@ -1808,10 +1811,26 @@ fn process_output_underrun_returns_silence_not_last_frame() {
     let mut out = vec![0.0f32; 4];
     process_output_f32(&runtime, 0, &mut out, 1);
 
-    assert!((out[0] - 0.5).abs() < 1e-6, "frame 0 should be 0.5, got {}", out[0]);
-    assert!((out[1] - 0.7).abs() < 1e-6, "frame 1 should be 0.7, got {}", out[1]);
-    assert!(out[2].abs() < 1e-6, "frame 2 should be silence (underrun), got {}", out[2]);
-    assert!(out[3].abs() < 1e-6, "frame 3 should be silence (underrun), got {}", out[3]);
+    assert!(
+        (out[0] - 0.5).abs() < 1e-6,
+        "frame 0 should be 0.5, got {}",
+        out[0]
+    );
+    assert!(
+        (out[1] - 0.7).abs() < 1e-6,
+        "frame 1 should be 0.7, got {}",
+        out[1]
+    );
+    assert!(
+        out[2].abs() < 1e-6,
+        "frame 2 should be silence (underrun), got {}",
+        out[2]
+    );
+    assert!(
+        out[3].abs() < 1e-6,
+        "frame 3 should be silence (underrun), got {}",
+        out[3]
+    );
 }
 
 // ── ChainRuntimeState method tests ───────────────────────────────────────

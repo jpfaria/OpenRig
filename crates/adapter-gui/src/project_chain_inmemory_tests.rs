@@ -97,10 +97,11 @@ fn add_chain_command_creates_a_preset_named_preset_1() {
 
     let rig = session.rig.as_ref().expect("rig attached");
     let rig = rig.borrow();
-    let preset_names: Vec<Option<String>> =
-        rig.presets.values().map(|p| p.name.clone()).collect();
+    let preset_names: Vec<Option<String>> = rig.presets.values().map(|p| p.name.clone()).collect();
     assert!(
-        preset_names.iter().any(|n| n.as_deref() == Some("Preset 1")),
+        preset_names
+            .iter()
+            .any(|n| n.as_deref() == Some("Preset 1")),
         "AddChain must create a default 'Preset 1' in the rig; got {preset_names:?}"
     );
     assert!(
@@ -200,10 +201,11 @@ fn save_chain_on_new_chain_creates_default_preset_and_scene() {
 
     let rig = session.rig.as_ref().expect("rig attached");
     let rig = rig.borrow();
-    let preset_names: Vec<Option<String>> =
-        rig.presets.values().map(|p| p.name.clone()).collect();
+    let preset_names: Vec<Option<String>> = rig.presets.values().map(|p| p.name.clone()).collect();
     assert!(
-        preset_names.iter().any(|n| n.as_deref() == Some("Preset 1")),
+        preset_names
+            .iter()
+            .any(|n| n.as_deref() == Some("Preset 1")),
         "SaveChain must seed 'Preset 1'; got {preset_names:?}"
     );
     for (key, preset) in &rig.presets {
@@ -361,8 +363,7 @@ fn two_add_chain_calls_with_same_source_produce_two_inputs() {
          inputs (got {:?})",
         rig.inputs.keys().collect::<Vec<_>>()
     );
-    let labels: Vec<Option<String>> =
-        rig.inputs.values().map(|i| i.label.clone()).collect();
+    let labels: Vec<Option<String>> = rig.inputs.values().map(|i| i.label.clone()).collect();
     assert!(
         labels.contains(&Some("Chain 1".to_string()))
             && labels.contains(&Some("Chain 2".to_string())),

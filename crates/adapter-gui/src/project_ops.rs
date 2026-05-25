@@ -536,7 +536,10 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
             .inputs
             .keys()
             .chain(newly_added_inputs.iter())
-            .filter_map(|k| k.strip_prefix("input-").and_then(|n| n.parse::<usize>().ok()))
+            .filter_map(|k| {
+                k.strip_prefix("input-")
+                    .and_then(|n| n.parse::<usize>().ok())
+            })
             .max()
             .unwrap_or(0)
             + 1;
@@ -590,9 +593,9 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
         .iter()
         .filter_map(|c| c.id.0.strip_prefix("rig:").map(String::from))
         .collect();
-    rig_out.inputs.retain(|name, _| {
-        surviving_projected.contains(name) || newly_added_inputs.contains(name)
-    });
+    rig_out
+        .inputs
+        .retain(|name, _| surviving_projected.contains(name) || newly_added_inputs.contains(name));
     // Garbage-collect orphan presets / outputs no longer referenced.
     let referenced_presets: BTreeSet<String> = rig_out
         .inputs
@@ -665,41 +668,33 @@ pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &P
         })
 }
 
-
 #[cfg(test)]
 #[path = "project_ops_persistence_tests.rs"]
 mod project_ops_persistence_tests;
-
 
 #[cfg(test)]
 #[path = "project_admin_persistence_tests.rs"]
 mod project_admin_persistence_tests;
 
-
 #[cfg(test)]
 #[path = "project_rig_persistence_tests.rs"]
 mod project_rig_persistence_tests;
-
 
 #[cfg(test)]
 #[path = "project_chain_defaults_persistence_tests.rs"]
 mod project_chain_defaults_persistence_tests;
 
-
 #[cfg(test)]
 #[path = "project_chain_inmemory_tests.rs"]
 mod project_chain_inmemory_tests;
-
 
 #[cfg(test)]
 #[path = "chain_rename_persistence_tests.rs"]
 mod chain_rename_persistence_tests;
 
-
 #[cfg(test)]
 #[path = "scene_param_persistence_tests.rs"]
 mod scene_param_persistence_tests;
-
 
 #[cfg(test)]
 #[path = "chain_reorder_refresh_tests.rs"]

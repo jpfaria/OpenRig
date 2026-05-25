@@ -72,8 +72,9 @@ pub struct ChainMeterRings {
 /// Shared store of every subscribed chain's meter rings. Cheap
 /// `Rc<RefCell<HashMap>>` because both the timer and the chain-
 /// lifecycle code mutate it from the GUI thread.
-pub type MeterStore =
-    std::rc::Rc<std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterRings>>>;
+pub type MeterStore = std::rc::Rc<
+    std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterRings>>,
+>;
 
 pub fn new_meter_store() -> MeterStore {
     std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))
@@ -98,10 +99,7 @@ pub fn ensure_subscribed(
             .subscribe_stream_tap(cid, 0, capacity_per_channel)
             .map(|[l, r]| vec![l, r])
             .unwrap_or_default();
-        store.insert(
-            cid.clone(),
-            ChainMeterRings { input, output },
-        );
+        store.insert(cid.clone(), ChainMeterRings { input, output });
     }
 }
 

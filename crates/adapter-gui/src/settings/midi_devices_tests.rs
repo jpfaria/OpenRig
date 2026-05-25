@@ -17,10 +17,7 @@ fn merge_seeds_new_rows_with_alias_equal_to_name() {
 
 #[test]
 fn merge_seeds_duplicate_names_with_hash_suffix() {
-    let merged = merge_enumeration(
-        vec![],
-        vec![("USB MIDI".into(), 1), ("USB MIDI".into(), 2)],
-    );
+    let merged = merge_enumeration(vec![], vec![("USB MIDI".into(), 1), ("USB MIDI".into(), 2)]);
     assert_eq!(merged[0].alias, "USB MIDI (#1)");
     assert_eq!(merged[1].alias, "USB MIDI (#2)");
 }

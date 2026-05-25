@@ -57,7 +57,10 @@ pub(crate) fn assign_instances(raw_names: Vec<String>) -> Vec<MidiPortInfo> {
                 *n
             };
             MidiPortInfo {
-                key: MidiPortKey { name: raw_name.clone(), instance },
+                key: MidiPortKey {
+                    name: raw_name.clone(),
+                    instance,
+                },
                 raw_name,
             }
         })

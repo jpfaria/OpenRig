@@ -477,10 +477,7 @@ pub fn run_desktop_app(
                 .unwrap_or_default(),
         ));
     let midi_device_model: Rc<VecModel<crate::MidiDeviceRow>> = Rc::new(VecModel::default());
-    crate::settings::midi_devices::replace_model(
-        &midi_device_model,
-        &midi_device_rows.borrow(),
-    );
+    crate::settings::midi_devices::replace_model(&midi_device_model, &midi_device_rows.borrow());
     crate::settings::midi_devices::install(
         &window,
         project_session.clone(),
@@ -522,8 +519,10 @@ pub fn run_desktop_app(
     let mut commands: Vec<&'static str> =
         application::command_schema::command_variant_names().to_vec();
     commands.sort();
-    let commands_model: Vec<slint::SharedString> =
-        commands.into_iter().map(slint::SharedString::from).collect();
+    let commands_model: Vec<slint::SharedString> = commands
+        .into_iter()
+        .map(slint::SharedString::from)
+        .collect();
     window.set_available_commands(ModelRc::new(VecModel::from(commands_model)));
     // --- Project / Metadata section (#513) ---
     let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
@@ -917,7 +916,10 @@ pub fn run_desktop_app(
                                     let row = chains_for_meters.row_data(idx);
                                     let (in_db, out_db) = row
                                         .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
-                                        .unwrap_or((engine::output_meter::SILENT_DBFS, engine::output_meter::SILENT_DBFS));
+                                        .unwrap_or((
+                                            engine::output_meter::SILENT_DBFS,
+                                            engine::output_meter::SILENT_DBFS,
+                                        ));
                                     out.push_str(&format!(
                                         "{}\t{:.1}\t{:.1}\n",
                                         chain.id.0, in_db, out_db

@@ -86,13 +86,11 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         true
     };
 
-    let dims = crate::block_panel_dimensions::compute(
-        crate::block_panel_dimensions::PanelInputs {
-            knob_count,
-            use_panel_editor,
-            has_eq_widget,
-        },
-    );
+    let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
+        knob_count,
+        use_panel_editor,
+        has_eq_widget,
+    });
     win.set_panel_knob_window_width(dims.window_width_px);
     win.set_panel_knob_window_height(dims.window_height_px);
     win.set_panel_knob_inner_height(dims.inner_panel_height_px);

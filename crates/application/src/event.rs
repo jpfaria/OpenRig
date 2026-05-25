@@ -19,7 +19,9 @@ pub enum Event {
     ProjectMutated,
 
     /// The entire chain was rebuilt (e.g. blocks reordered, preset loaded).
-    ChainReloaded { chain: ChainId },
+    ChainReloaded {
+        chain: ChainId,
+    },
 
     /// A single block parameter was changed.
     BlockParameterChanged {
@@ -36,57 +38,97 @@ pub enum Event {
     },
 
     /// A block's model was replaced.
-    BlockReplaced { chain: ChainId, block: BlockId },
+    BlockReplaced {
+        chain: ChainId,
+        block: BlockId,
+    },
 
     /// A new block was added.
-    BlockAdded { chain: ChainId, block: BlockId },
+    BlockAdded {
+        chain: ChainId,
+        block: BlockId,
+    },
 
     /// A block was removed.
-    BlockRemoved { chain: ChainId, block: BlockId },
+    BlockRemoved {
+        chain: ChainId,
+        block: BlockId,
+    },
 
     /// An audio device changed (input or output selection mutated).
-    DeviceChanged { chain: ChainId, block: BlockId },
+    DeviceChanged {
+        chain: ChainId,
+        block: BlockId,
+    },
 
     // ── Chain-level events ────────────────────────────────────────────────────
     /// A new chain was added to the project.
-    ChainAdded { chain: ChainId },
+    ChainAdded {
+        chain: ChainId,
+    },
 
     /// A chain was removed from the project.
-    ChainRemoved { chain: ChainId },
+    ChainRemoved {
+        chain: ChainId,
+    },
 
     /// A chain's enabled state was changed.
-    ChainEnabledChanged { chain: ChainId, enabled: bool },
+    ChainEnabledChanged {
+        chain: ChainId,
+        enabled: bool,
+    },
 
     /// A chain was moved to a new position in the list.
-    ChainMoved { chain: ChainId, new_position: usize },
+    ChainMoved {
+        chain: ChainId,
+        new_position: usize,
+    },
 
     /// A chain's metadata (name, instrument, I/O) was updated.
-    ChainConfigured { chain: ChainId },
+    ChainConfigured {
+        chain: ChainId,
+    },
 
     // ── Chain save events ─────────────────────────────────────────────────────
     /// A chain was saved (created or replaced) via the chain editor.
-    ChainSaved { chain: ChainId },
+    ChainSaved {
+        chain: ChainId,
+    },
 
     /// A chain's input endpoints were saved.
-    ChainInputEndpointsSaved { chain: ChainId },
+    ChainInputEndpointsSaved {
+        chain: ChainId,
+    },
 
     /// A chain's output endpoints were saved.
-    ChainOutputEndpointsSaved { chain: ChainId },
+    ChainOutputEndpointsSaved {
+        chain: ChainId,
+    },
 
     /// A chain's combined I/O configuration was saved.
-    ChainIoSaved { chain: ChainId },
+    ChainIoSaved {
+        chain: ChainId,
+    },
 
     // ── Insert block events ───────────────────────────────────────────────────
     /// An insert block's send/return endpoints were saved.
-    InsertBlockSaved { chain: ChainId, block: BlockId },
+    InsertBlockSaved {
+        chain: ChainId,
+        block: BlockId,
+    },
 
     // ── Chain preset events ───────────────────────────────────────────────────
     /// A preset was loaded into a chain (non-I/O blocks replaced).
-    ChainPresetLoaded { chain: ChainId },
+    ChainPresetLoaded {
+        chain: ChainId,
+    },
 
     // ── Chain volume events ───────────────────────────────────────────────────
     /// A chain's output volume was changed via the slider (issue #440).
-    ChainVolumeChanged { chain: ChainId, value: f32 },
+    ChainVolumeChanged {
+        chain: ChainId,
+        value: f32,
+    },
 
     // ── Audio settings events ─────────────────────────────────────────────────
     /// Audio device settings were persisted into the project.
@@ -117,33 +159,47 @@ pub enum Event {
     /// #436 F: the UI language preference was changed (`None` = system
     /// default). The adapter performs the persistence + live i18n swap;
     /// this records that the change went through the dispatcher.
-    LanguageChanged { language: Option<String> },
+    LanguageChanged {
+        language: Option<String>,
+    },
 
     /// #436 G: the audio output mute state changed. The adapter applies
     /// it to the runtime; this records it went through the dispatcher.
-    OutputMutedChanged { muted: bool },
+    OutputMutedChanged {
+        muted: bool,
+    },
 
     /// #436 F: a recent-projects entry was removed (by list index). The
     /// adapter performs the app-config persistence; this records the
     /// change went through the dispatcher.
-    RecentProjectRemoved { index: usize },
+    RecentProjectRemoved {
+        index: usize,
+    },
 
     /// #436 F: a chain preset file was saved. The adapter does the file
     /// I/O; this records it went through the dispatcher.
-    ChainPresetSaved { name: String },
+    ChainPresetSaved {
+        name: String,
+    },
 
     /// #436 F: a chain preset file was deleted. The adapter does the
     /// file I/O; this records it went through the dispatcher.
-    ChainPresetDeleted { name: String },
+    ChainPresetDeleted {
+        name: String,
+    },
 
     /// #436 H: the Tuner analyzer was powered on/off. The adapter does
     /// the build/teardown; this records it went through the dispatcher.
-    TunerEnabledChanged { enabled: bool },
+    TunerEnabledChanged {
+        enabled: bool,
+    },
 
     /// #436 H: the Spectrum analyzer was powered on/off. The adapter
     /// does the build/teardown; this records it went through the
     /// dispatcher.
-    SpectrumEnabledChanged { enabled: bool },
+    SpectrumEnabledChanged {
+        enabled: bool,
+    },
 
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
@@ -163,20 +219,31 @@ pub enum Event {
     /// #436 (sweep): a recent-projects entry was registered/refreshed.
     /// The adapter persists app-config; this records it went through
     /// the dispatcher.
-    RecentProjectRegistered { path: PathBuf, name: String },
+    RecentProjectRegistered {
+        path: PathBuf,
+        name: String,
+    },
 
     /// #436 (sweep): a recent-projects entry was marked invalid. The
     /// adapter persists app-config; this records it went through the
     /// dispatcher.
-    RecentProjectInvalidated { path: PathBuf, reason: String },
+    RecentProjectInvalidated {
+        path: PathBuf,
+        reason: String,
+    },
 
     /// An error occurred while processing a command.
-    Error { message: String },
+    Error {
+        message: String,
+    },
 
     /// #22: the per-chain block-selection pair cursor moved; `left` is
     /// the left block index of the pair. Drives the transient selection
     /// border (shown on a footswitch stimulus, fades after a timeout).
-    BlockSelectionChanged { chain: ChainId, left: usize },
+    BlockSelectionChanged {
+        chain: ChainId,
+        left: usize,
+    },
 }
 
 impl Event {

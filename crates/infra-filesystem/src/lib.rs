@@ -214,17 +214,14 @@ pub struct GuiSystemSettings {
     pub input_devices: Vec<GuiAudioDeviceSettings>,
     #[serde(default)]
     pub output_devices: Vec<GuiAudioDeviceSettings>,
-    // The struct was renamed GuiAudioSettings → GuiSystemSettings (#513)
-    // to reflect that it holds every per-machine GUI preference, not just
-    // audio. None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
+    // Renamed from GuiAudioSettings (#513) to reflect that it holds every
+    // per-machine GUI preference, not just audio.
+    // None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
     #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
     pub midi_devices: Vec<MidiDeviceSelection>,
 }
-
-/// Deprecated alias for the one-cycle migration window. Remove in task 14.
-pub type GuiAudioSettings = GuiSystemSettings;
 
 impl GuiSystemSettings {
     pub fn is_complete(&self) -> bool {
@@ -275,7 +272,7 @@ struct LegacyGuiAudioSettings {
     buffer_size_frames: u32,
 }
 
-impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
+impl From<LegacyGuiAudioSettings> for GuiSystemSettings {
     fn from(value: LegacyGuiAudioSettings) -> Self {
         let input_devices = value
             .input_device_names
@@ -396,7 +393,7 @@ impl FilesystemStorage {
     /// Read GUI audio settings (input/output devices + language) from
     /// the unified `config.yaml`. Issue #287: previously these lived in
     /// a separate `gui-settings.yaml`, now folded into `AppConfig`.
-    pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
+    pub fn load_gui_audio_settings() -> Result<Option<GuiSystemSettings>> {
         let config = Self::load_app_config()?;
         if config.input_devices.is_empty()
             && config.output_devices.is_empty()
@@ -405,7 +402,7 @@ impl FilesystemStorage {
         {
             return Ok(None);
         }
-        Ok(Some(GuiAudioSettings {
+        Ok(Some(GuiSystemSettings {
             input_devices: config.input_devices,
             output_devices: config.output_devices,
             language: config.language,
@@ -415,7 +412,7 @@ impl FilesystemStorage {
 
     /// Persist GUI audio settings into `config.yaml`, preserving the
     /// other AppConfig fields (recent_projects, paths).
-    pub fn save_gui_audio_settings(settings: &GuiAudioSettings) -> Result<()> {
+    pub fn save_gui_audio_settings(settings: &GuiSystemSettings) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.input_devices = settings.input_devices.clone();
         config.output_devices = settings.output_devices.clone();
@@ -473,7 +470,7 @@ impl FilesystemStorage {
                 return Ok(());
             }
         };
-        let legacy: GuiAudioSettings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
+        let legacy: GuiSystemSettings = match serde_yaml::from_str::<GuiSystemSettings>(&raw) {
             Ok(value) => value,
             Err(_) => match serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw) {
                 Ok(legacy) => legacy.into(),

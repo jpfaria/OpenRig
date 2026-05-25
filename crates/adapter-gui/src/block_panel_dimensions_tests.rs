@@ -79,8 +79,7 @@ fn req_window_width_bounded_regardless_of_count() {
     // The window must never grow past a sane upper bound. We pick the
     // theoretical max from the formula constants — anything wider
     // means the wrap policy regressed.
-    let single_row_max =
-        (MAX_COLS as f32) * CELL_WIDTH_PX + HORIZONTAL_MARGIN_PX;
+    let single_row_max = (MAX_COLS as f32) * CELL_WIDTH_PX + HORIZONTAL_MARGIN_PX;
     let cap = MIN_PANEL_WIDTH_PX.max(single_row_max);
     for n in 0..=1_000 {
         let w = dims(n).window_width_px;
@@ -113,7 +112,8 @@ fn req_width_is_invariant_across_panel_counts() {
     let any_width = dims(1).window_width_px;
     for n in 2..=300 {
         assert_eq!(
-            dims(n).window_width_px, any_width,
+            dims(n).window_width_px,
+            any_width,
             "n={n} changed width to {} (expected constant)",
             dims(n).window_width_px
         );
@@ -162,7 +162,8 @@ fn req_grid_has_capacity_for_every_knob() {
         assert!(
             d.grid_cols * d.grid_rows >= n,
             "n={n}: {}×{} grid cannot hold all knobs",
-            d.grid_cols, d.grid_rows
+            d.grid_cols,
+            d.grid_rows
         );
     }
 }
@@ -175,7 +176,8 @@ fn req_grid_has_no_empty_trailing_row() {
             assert!(
                 d.grid_cols * (d.grid_rows - 1) < n,
                 "n={n}: {}×{} grid has an empty trailing row",
-                d.grid_cols, d.grid_rows
+                d.grid_cols,
+                d.grid_rows
             );
         }
     }
@@ -223,13 +225,13 @@ fn req_inner_panel_holds_last_row_with_clip_safe_margin() {
         }
         let base_inner = d.window_width_px / 4.0;
         let row0_y = base_inner * 0.54;
-        let last_row_bottom = row0_y
-            + (d.grid_rows.saturating_sub(1)) as f32 * ROW_STRIDE_PX
-            + ITEM_HEIGHT_PX;
+        let last_row_bottom =
+            row0_y + (d.grid_rows.saturating_sub(1)) as f32 * ROW_STRIDE_PX + ITEM_HEIGHT_PX;
         assert!(
             d.inner_panel_height_px >= last_row_bottom,
             "n={n}: inner panel {} clips last row at {}",
-            d.inner_panel_height_px, last_row_bottom
+            d.inner_panel_height_px,
+            last_row_bottom
         );
     }
 }
@@ -262,7 +264,8 @@ fn req_zero_knobs_panel_still_has_baseline_dimensions() {
 fn req_single_row_uses_baseline_height() {
     for n in 1..=MAX_COLS {
         assert_eq!(
-            dims(n).window_height_px, BASE_PANEL_HEIGHT_PX,
+            dims(n).window_height_px,
+            BASE_PANEL_HEIGHT_PX,
             "n={n}: single-row case inflated the baseline"
         );
     }

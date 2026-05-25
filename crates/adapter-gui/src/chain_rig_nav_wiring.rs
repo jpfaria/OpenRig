@@ -248,11 +248,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            if let Err(e) = apply_rename_rig_preset(
-                session,
-                chain_index as usize,
-                new_name.to_string(),
-            ) {
+            if let Err(e) =
+                apply_rename_rig_preset(session, chain_index as usize, new_name.to_string())
+            {
                 log::warn!("rename_chain_preset dispatch failed: {e}");
                 return;
             }
@@ -282,11 +280,11 @@ pub(crate) fn apply_rename_rig_preset(
         .get(chain_index)
         .map(|c| c.id.clone())
         .ok_or_else(|| anyhow::anyhow!("chain index {chain_index} out of range"))?;
-    session.dispatcher.dispatch(
-        application::command::Command::RenameRigPreset {
+    session
+        .dispatcher
+        .dispatch(application::command::Command::RenameRigPreset {
             chain: chain_id,
             name: trimmed.to_string(),
-        },
-    )?;
+        })?;
     Ok(())
 }

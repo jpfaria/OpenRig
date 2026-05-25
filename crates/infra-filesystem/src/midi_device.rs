@@ -33,7 +33,10 @@ mod tests {
     #[test]
     fn round_trip_through_yaml_preserves_all_fields() {
         let original = MidiDeviceSelection {
-            port_key: MidiPortKey { name: "USB MIDI".into(), instance: 2 },
+            port_key: MidiPortKey {
+                name: "USB MIDI".into(),
+                instance: 2,
+            },
             alias: "Studio rack".into(),
             enabled: true,
         };

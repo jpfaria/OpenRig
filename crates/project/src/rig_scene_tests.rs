@@ -228,7 +228,10 @@ fn write_back_processing_blocks_persists_edited_param_into_active_scene() {
     let preset = p.presets.get("p").expect("preset present");
     let key = format!("{block_id}.drive");
     assert_eq!(
-        preset.scenes.get(&2).and_then(|s| s.params.get(&key).copied()),
+        preset
+            .scenes
+            .get(&2)
+            .and_then(|s| s.params.get(&key).copied()),
         Some(80.0),
         "scene 2 must carry the edited override (got scenes={:?})",
         preset.scenes
@@ -239,7 +242,11 @@ fn write_back_processing_blocks_persists_edited_param_into_active_scene() {
         preset.scene_params
     );
     assert!(
-        preset.scenes.get(&1).map(|s| s.params.is_empty()).unwrap_or(true),
+        preset
+            .scenes
+            .get(&1)
+            .map(|s| s.params.is_empty())
+            .unwrap_or(true),
         "scene 1 must be untouched"
     );
 }
@@ -302,8 +309,14 @@ fn scene_params_remain_independent_across_scenes() {
 
     let preset = p.presets.get("p").expect("preset present");
     let key = format!("{block_id}.drive");
-    let s1_val = preset.scenes.get(&1).and_then(|s| s.params.get(&key).copied());
-    let s2_val = preset.scenes.get(&2).and_then(|s| s.params.get(&key).copied());
+    let s1_val = preset
+        .scenes
+        .get(&1)
+        .and_then(|s| s.params.get(&key).copied());
+    let s2_val = preset
+        .scenes
+        .get(&2)
+        .and_then(|s| s.params.get(&key).copied());
     assert_eq!(s1_val, Some(70.0), "scene 1 keeps its own override");
     assert_eq!(s2_val, Some(95.0), "scene 2 keeps its own override");
 }

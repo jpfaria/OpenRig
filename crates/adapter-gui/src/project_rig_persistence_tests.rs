@@ -6,9 +6,7 @@
 //! live session, `save_project_session`, `load_project_session` from a
 //! fresh state, and assert the rig-level mutation survives.
 
-use crate::project_ops::{
-    create_new_project_session, load_project_session, save_project_session,
-};
+use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::{Command, RigNavKind};
@@ -79,24 +77,21 @@ fn add_chain(session: &ProjectSession, desc: &str) -> ChainId {
 }
 
 fn active_scene(session: &ProjectSession, chain_desc: &str) -> Option<usize> {
-    session
-        .rig
-        .as_ref()
-        .and_then(|rig| {
-            let rig = rig.borrow();
-            // The rig stores per-input state, and the projected chain
-            // description usually matches the input key — `rig:<input>`.
-            // We don't depend on the exact projection; we just take the
-            // first input on the rig if there is exactly one.
-            if rig.inputs.len() == 1 {
-                rig.inputs.values().next().map(|i| i.active_scene)
-            } else {
-                rig.inputs
-                    .iter()
-                    .find(|(_, _i)| chain_desc == chain_desc)
-                    .map(|(_, i)| i.active_scene)
-            }
-        })
+    session.rig.as_ref().and_then(|rig| {
+        let rig = rig.borrow();
+        // The rig stores per-input state, and the projected chain
+        // description usually matches the input key — `rig:<input>`.
+        // We don't depend on the exact projection; we just take the
+        // first input on the rig if there is exactly one.
+        if rig.inputs.len() == 1 {
+            rig.inputs.values().next().map(|i| i.active_scene)
+        } else {
+            rig.inputs
+                .iter()
+                .find(|(_, _i)| chain_desc == chain_desc)
+                .map(|(_, i)| i.active_scene)
+        }
+    })
 }
 
 fn active_preset(session: &ProjectSession) -> Option<usize> {
