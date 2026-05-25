@@ -662,6 +662,191 @@ fn every_tr_key_has_translation_in_en_pt_es() {
     );
 }
 
+/// #513 regression guard: no `text:` property may bind to a raw string
+/// literal — every user-visible string must go through `@tr("…")`. Catches
+/// regressions where someone hardcodes a label or button caption in Slint
+/// instead of routing it through gettext.
+///
+/// **Scope: the Settings screen only** (`ui/pages/settings.slint` plus
+/// every `.slint` under `ui/pages/settings/`). Out-of-scope `.slint` files
+/// have pre-existing raw-text usages tracked separately; this test guards
+/// what #513 owns.
+///
+/// Inspects `text:` and `text :` property bindings and the `placeholder-text:`
+/// variant. Allowed values:
+///   - `text: @tr("…")` (or `@tr` inside a ternary / expression)
+///   - `text: <identifier>` / property paths (`root.name`, `b.label`)
+///   - `text: ""` (empty placeholder)
+///   - Slint string interpolations using `\{…}` (template-only strings;
+///     the interpolation IS the content).
+/// Banned: `text: "Hello"`, `text: "INPUT"`, `text: "✓"` (use `@tr("✓")`).
+#[test]
+fn no_raw_text_literals_in_settings_slint() {
+    use std::fs;
+    use std::path::Path;
+
+    fn collect_slint_paths(root: &Path, out: &mut Vec<std::path::PathBuf>) {
+        let Ok(entries) = fs::read_dir(root) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().and_then(|s| s.to_str()) == Some("modules") {
+                    continue;
+                }
+                collect_slint_paths(&path, out);
+            } else if path.extension().and_then(|s| s.to_str()) == Some("slint") {
+                out.push(path);
+            }
+        }
+    }
+
+    let ui_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("ui");
+    let mut all_paths = Vec::new();
+    collect_slint_paths(&ui_dir, &mut all_paths);
+
+    // Narrow to Settings scope only — this test owns the #513 surface.
+    let settings_root = ui_dir.join("pages").join("settings");
+    let settings_page = ui_dir.join("pages").join("settings.slint");
+    let paths: Vec<_> = all_paths
+        .into_iter()
+        .filter(|p| p == &settings_page || p.starts_with(&settings_root))
+        .collect();
+    assert!(
+        !paths.is_empty(),
+        "no Settings .slint files matched the scope filter",
+    );
+
+    // A `text` binding contains a raw literal when, after stripping every
+    // `@tr("…")` call from the value, any remaining `"…"` substring has
+    // non-whitespace content. We strip `@tr` calls naively (regex-free).
+    fn strip_tr_calls(s: &str) -> String {
+        let mut out = String::new();
+        let bytes = s.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i..].starts_with(b"@tr(") {
+                // Scan to the matching ) — accounting for nested () and
+                // string literals.
+                let mut depth = 1;
+                i += 4;
+                let mut in_str = false;
+                while i < bytes.len() && depth > 0 {
+                    let b = bytes[i];
+                    if in_str {
+                        if b == b'\\' && i + 1 < bytes.len() {
+                            i += 2;
+                            continue;
+                        }
+                        if b == b'"' {
+                            in_str = false;
+                        }
+                    } else {
+                        match b {
+                            b'"' => in_str = true,
+                            b'(' => depth += 1,
+                            b')' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+        out
+    }
+
+    fn extract_text_value(line: &str) -> Option<&str> {
+        let l = line.trim_start();
+        for prop in ["text:", "text :", "placeholder-text:", "placeholder-text :"] {
+            if let Some(rest) = l.strip_prefix(prop) {
+                // Trim trailing `;` and inline comments.
+                let mut v = rest.trim();
+                if let Some(c) = v.find("//") {
+                    v = v[..c].trim();
+                }
+                v = v.trim_end_matches(';').trim();
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn has_nonempty_literal(value_without_tr: &str) -> bool {
+        let bytes = value_without_tr.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'"' {
+                // Read literal until closing quote, handling escapes.
+                let mut inner = String::new();
+                i += 1;
+                while i < bytes.len() {
+                    let c = bytes[i];
+                    if c == b'\\' && i + 1 < bytes.len() {
+                        inner.push(bytes[i + 1] as char);
+                        i += 2;
+                        continue;
+                    }
+                    if c == b'"' {
+                        break;
+                    }
+                    inner.push(c as char);
+                    i += 1;
+                }
+                if !inner.trim().is_empty() {
+                    return true;
+                }
+                i += 1;
+                continue;
+            }
+            i += 1;
+        }
+        false
+    }
+
+    let mut violations: Vec<String> = Vec::new();
+    for path in &paths {
+        let Ok(content) = fs::read_to_string(path) else {
+            continue;
+        };
+        let rel = path
+            .strip_prefix(env!("CARGO_MANIFEST_DIR"))
+            .unwrap_or(path)
+            .display()
+            .to_string();
+        for (n, line) in content.lines().enumerate() {
+            let Some(value) = extract_text_value(line) else {
+                continue;
+            };
+            // Skip property declarations like `in property <string> text: "x";`
+            // and computed/derived bindings without literals.
+            if !value.contains('"') {
+                continue;
+            }
+            // Skip Slint string interpolations — `\{name}` IS the content;
+            // the surrounding punctuation isn't a user-visible message.
+            if value.contains("\\{") {
+                continue;
+            }
+            let stripped = strip_tr_calls(value);
+            if has_nonempty_literal(&stripped) {
+                violations.push(format!("{}:{}: {}", rel, n + 1, line.trim()));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} raw text literal(s) outside @tr() — every user-visible string \
+         must go through the gettext catalog:\n  {}",
+        violations.len(),
+        violations.join("\n  "),
+    );
+}
+
 /// #513 regression guard: every `@tr` key used by the Settings master-detail
 /// screen and its 5 sections must have a non-empty pt_BR translation in the
 /// flat (no-msgctxt) catalog. Previous bugs: keys present in the .slint but

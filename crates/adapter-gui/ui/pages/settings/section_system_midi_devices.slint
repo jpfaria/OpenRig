@@ -73,15 +73,13 @@ export component SectionSystemMidiDevices inherits Rectangle {
                 border-color: d.enabled ? #45a7ff : #3d4450;
                 border-radius: 8px;
 
-                if d.enabled : Text {
-                    width: parent.width;
-                    height: parent.height;
-                    text: "✓";
-                    color: #ffffff;
-                    font-size: 12px;
-                    font-weight: 700;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                if d.enabled : Image {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../../assets/check.svg");
+                    colorize: #ffffff;
                 }
 
                 toggle-ta := TouchArea {
