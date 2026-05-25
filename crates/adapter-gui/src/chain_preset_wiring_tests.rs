@@ -8,7 +8,10 @@
 //!
 //! Both helpers are pure and live in `chain_preset_wiring.rs`.
 
-use super::{default_preset_filename_slug, strip_io_blocks};
+use super::{
+    default_preset_filename_slug, preset_filename, preset_rename_target_from_path,
+    preset_save_path, strip_io_blocks,
+};
 
 use std::collections::BTreeMap;
 
@@ -175,5 +178,53 @@ fn default_filename_returns_none_when_input_missing_from_rig() {
     assert_eq!(
         default_preset_filename_slug(&ChainId("rig:input-999".to_string()), &rig),
         None,
+    );
+}
+
+// ── preset_rename_target_from_path (issue #510) ─────────────────
+
+#[test]
+fn rename_target_humanizes_underscore_slug_stem() {
+    use std::path::PathBuf;
+    let path = PathBuf::from("/presets/silverchair_freak.yaml");
+    assert_eq!(
+        preset_rename_target_from_path(&path).as_deref(),
+        Some("Silverchair Freak"),
+    );
+}
+
+#[test]
+fn rename_target_handles_single_word_stem() {
+    use std::path::PathBuf;
+    let path = PathBuf::from("/presets/clean.yaml");
+    assert_eq!(
+        preset_rename_target_from_path(&path).as_deref(),
+        Some("Clean"),
+    );
+}
+
+#[test]
+fn rename_target_returns_none_for_empty_path() {
+    use std::path::PathBuf;
+    assert_eq!(preset_rename_target_from_path(&PathBuf::from("")), None);
+}
+
+// ── preset_filename / preset_save_path (issue #510) ─────────────
+
+#[test]
+fn preset_filename_slugs_name_and_appends_yaml() {
+    assert_eq!(
+        preset_filename("Silverchair Freak"),
+        "silverchair_freak.yaml"
+    );
+}
+
+#[test]
+fn save_path_joins_configured_dir_with_filename() {
+    use std::path::PathBuf;
+    let dir = PathBuf::from("/data/openrig/presets");
+    assert_eq!(
+        preset_save_path(&dir, "Lead Boost"),
+        PathBuf::from("/data/openrig/presets/lead_boost.yaml"),
     );
 }

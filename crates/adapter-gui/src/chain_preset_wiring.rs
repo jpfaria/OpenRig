@@ -104,19 +104,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 .rig
                 .as_ref()
                 .and_then(|r| default_preset_filename_slug(&chain_id, &r.borrow()));
-            let default_name = preset_slug
-                .unwrap_or_else(|| chain_desc.replace(' ', "_").to_lowercase());
+            let default_name =
+                preset_slug.unwrap_or_else(|| chain_desc.replace(' ', "_").to_lowercase());
             let path = if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog
                 let _ = std::fs::create_dir_all(&session.presets_path);
-                session.presets_path.join(format!("{default_name}.yaml"))
+                preset_save_path(&session.presets_path, &default_name)
             } else {
                 // Desktop: use file dialog
                 let Some(p) = FileDialog::new()
                     .add_filter("OpenRig Preset", &["yaml", "yml"])
                     .set_title(rust_i18n::t!("dialog-save-preset").as_ref())
                     .set_directory(&session.presets_path)
-                    .set_file_name(format!("{default_name}.yaml"))
+                    .set_file_name(preset_filename(&default_name))
                     .save_file()
                 else {
                     return;
@@ -253,6 +253,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }
+                        // Issue #510: round-trip contract — the active
+                        // preset's display name follows the loaded file's
+                        // stem (humanized) so the combobox immediately
+                        // reflects what the user picked.
+                        if let Some(name) = preset_rename_target_from_path(&path) {
+                            if let Err(e) = session.dispatcher.dispatch(Command::RenameRigPreset {
+                                chain: chain_id.clone(),
+                                name,
+                            }) {
+                                log::warn!("[preset] Command::RenameRigPreset falhou: {e}");
+                            }
+                        }
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
@@ -363,10 +375,7 @@ pub(crate) fn strip_io_blocks(blocks: Vec<AudioBlock>) -> Vec<AudioBlock> {
 /// Returns `None` for chains that are not projected from a rig input
 /// (i.e. no `rig:` prefix, or the input/preset is missing) — the
 /// caller decides the fallback (typically the chain's own slug).
-pub(crate) fn default_preset_filename_slug(
-    chain_id: &ChainId,
-    rig: &RigProject,
-) -> Option<String> {
+pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject) -> Option<String> {
     let input_name = chain_id.0.strip_prefix("rig:")?;
     let input = rig.inputs.get(input_name)?;
     let preset_key = input.bank.get(&input.active_preset)?;
@@ -376,6 +385,38 @@ pub(crate) fn default_preset_filename_slug(
         .clone()
         .unwrap_or_else(|| humanize_preset_label(preset_key));
     Some(display.replace(' ', "_").to_lowercase())
+}
+
+/// Suffix used for preset files on disk. Issue #510 centralizes this
+/// so `preset_filename`, `preset_save_path` and the load filter stay
+/// in sync. The picker still accepts `.yml` for legacy bundles.
+const PRESET_EXTENSION: &str = "yaml";
+
+/// Slug a preset name into the on-disk filename (without the directory).
+/// Issue #510: the save dialog only asks for a name; the adapter alone
+/// decides the file's extension and lowercasing convention.
+pub(crate) fn preset_filename(name: &str) -> String {
+    let slug = name.trim().replace(' ', "_").to_lowercase();
+    format!("{slug}.{PRESET_EXTENSION}")
+}
+
+/// Resolve the absolute save path for a preset under the configured
+/// presets directory. Issue #510.
+pub(crate) fn preset_save_path(presets_dir: &std::path::Path, name: &str) -> PathBuf {
+    presets_dir.join(preset_filename(name))
+}
+
+/// Derive the preset display name from a loaded file path so the
+/// adapter can dispatch `Command::RenameRigPreset` after a successful
+/// `Command::LoadChainPreset`. The file's stem is the slug convention
+/// (`silverchair_freak`); the display name is the humanized form
+/// (`Silverchair Freak`). Issue #510 round-trip contract.
+pub(crate) fn preset_rename_target_from_path(path: &std::path::Path) -> Option<String> {
+    let stem = path.file_stem().and_then(|s| s.to_str())?;
+    if stem.is_empty() {
+        return None;
+    }
+    Some(humanize_preset_label(&stem.replace('_', "-")))
 }
 
 #[cfg(test)]
