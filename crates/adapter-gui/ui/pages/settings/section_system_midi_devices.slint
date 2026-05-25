@@ -19,10 +19,11 @@ export component SectionSystemMidiDevices inherits SettingsSection {
         Rectangle {
             width: 28px;
             height: 28px;
-            border-radius: 6px;
+            border-radius: 8px;
             background: refresh-ta.has-hover ? #2a3340 : #1e2229;
             border-width: 1px;
             border-color: #3d4450;
+            animate background { duration: 200ms; }
 
             Image {
                 x: 6px;
@@ -54,9 +55,10 @@ export component SectionSystemMidiDevices inherits SettingsSection {
             width: parent.width - 8px;
             height: 44px;
             background: #1d2025;
-            border-radius: 4px;
+            border-radius: 8px;
             border-width: 1px;
             border-color: d.enabled ? #2f4a6a : #2a2f38;
+            animate border-color { duration: 200ms; }
 
             // Custom toggle indicator (same visual as the audio device row)
             Rectangle {
@@ -67,7 +69,7 @@ export component SectionSystemMidiDevices inherits SettingsSection {
                 background: d.enabled ? #188cff : #1e2229;
                 border-width: 1px;
                 border-color: d.enabled ? #45a7ff : #3d4450;
-                border-radius: 4px;
+                border-radius: 8px;
 
                 if d.enabled : Text {
                     width: parent.width;
@@ -86,16 +88,17 @@ export component SectionSystemMidiDevices inherits SettingsSection {
                 }
             }
 
-            // Alias input
+            // Alias input — 2px bright border on focus (HIGH severity per skill)
             Rectangle {
                 x: 44px;
                 y: 8px;
                 width: parent.width - 44px - 220px;
                 height: 28px;
                 background: #14171c;
-                border-width: 1px;
+                border-width: alias-input.has-focus ? 2px : 1px;
                 border-color: alias-input.has-focus ? #45a7ff : #2a2f38;
-                border-radius: 4px;
+                border-radius: 8px;
+                animate border-color, border-width { duration: 150ms; }
 
                 alias-input := TextInput {
                     x: 8px;

@@ -20,9 +20,12 @@ export component SettingsSection inherits Rectangle {
 
         // Header row: uppercase tracked label + chevron, full-width
         // hit target. macOS-style settings header — quiet but legible.
-        TouchArea {
+        // The wrapping Rectangle provides the animated hover background.
+        Rectangle {
             height: 32px;
-            mouse-cursor: pointer;
+            border-radius: 8px;
+            background: header-ta.has-hover ? #1e2229 : transparent;
+            animate background { duration: 200ms; }
 
             HorizontalLayout {
                 padding-left: 4px;
@@ -51,7 +54,10 @@ export component SettingsSection inherits Rectangle {
                 }
             }
 
-            clicked => { root.expanded = !root.expanded; }
+            header-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.expanded = !root.expanded; }
+            }
         }
 
         // Hairline separator under the header.

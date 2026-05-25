@@ -59,7 +59,7 @@ component AudioDeviceRow inherits Rectangle {
         background: root.device.selected ? #188cff : #1e2229;
         border-width: 1px;
         border-color: root.device.selected ? #45a7ff : #3d4450;
-        border-radius: 4px;
+        border-radius: 8px;
 
         if root.device.selected : Text {
             width: parent.width;
@@ -186,10 +186,11 @@ export component SectionSystemAudio inherits SettingsSection {
         Rectangle {
             width: 28px;
             height: 28px;
-            border-radius: 6px;
+            border-radius: 8px;
             background: refresh-ta.has-hover ? #2a3340 : #1e2229;
             border-width: 1px;
             border-color: #3d4450;
+            animate background { duration: 200ms; }
 
             Image {
                 x: 6px;

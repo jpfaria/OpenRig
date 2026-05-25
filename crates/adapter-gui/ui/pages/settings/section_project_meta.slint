@@ -29,11 +29,22 @@ export component SectionProjectMeta inherits SettingsSection {
                 width: 80px;
                 vertical-alignment: center;
             }
-            LineEdit {
-                text: root.project-name;
-                height: 28px;
+            // Focus-ring wrapper: provides visible 2px bright-blue border on
+            // focus per ui-ux-pro-max HIGH-severity focus ring rule.
+            Rectangle {
                 horizontal-stretch: 1;
-                edited(t) => { root.edit-project-name(t); }
+                height: 28px;
+                border-radius: 8px;
+                border-width: name-edit.has-focus ? 2px : 1px;
+                border-color: name-edit.has-focus ? #45a7ff : #2a2f38;
+                animate border-color, border-width { duration: 150ms; }
+
+                name-edit := LineEdit {
+                    text: root.project-name;
+                    height: parent.height;
+                    width: parent.width;
+                    edited(t) => { root.edit-project-name(t); }
+                }
             }
         }
 
