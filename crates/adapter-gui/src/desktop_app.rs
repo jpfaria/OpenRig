@@ -463,6 +463,31 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
+    // --- System / MIDI devices section (#513) ---
+    // Seed the in-memory row list from the persisted AppConfig and bind
+    // it to the Slint model the section reads from. Each user edit
+    // dispatches `SaveMidiDevices` (when a session is loaded) and
+    // persists into config.yaml in the same callback — see
+    // `crate::settings::midi_devices` for the rationale.
+    let midi_device_rows: Rc<RefCell<Vec<infra_filesystem::MidiDeviceSelection>>> =
+        Rc::new(RefCell::new(
+            infra_filesystem::FilesystemStorage::load_app_config()
+                .ok()
+                .map(|c| c.midi_devices)
+                .unwrap_or_default(),
+        ));
+    let midi_device_model: Rc<VecModel<crate::MidiDeviceRow>> = Rc::new(VecModel::default());
+    crate::settings::midi_devices::replace_model(
+        &midi_device_model,
+        &midi_device_rows.borrow(),
+    );
+    crate::settings::midi_devices::install(
+        &window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
+    window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(
         &window,

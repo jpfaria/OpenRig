@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, MidiDeviceRow } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 import { LanguageSelector } from "components/language_selector.slint";
@@ -74,6 +74,7 @@ export component DesktopMain inherits Rectangle {
     in property <[string]> bit-depth-options;
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
+    in property <[MidiDeviceRow]> midi-devices;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -167,6 +168,10 @@ export component DesktopMain inherits Rectangle {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
+    // System / MIDI devices section callbacks (#513)
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -335,9 +340,13 @@ export component DesktopMain inherits Rectangle {
             height: parent.height;
             project-name-draft <=> root.project-name-draft;
             project-devices: root.project-devices;
+            midi-devices: root.midi-devices;
             sample-rate-options: root.sample-rate-options;
             buffer-size-options: root.buffer-size-options;
             bit-depth-options: root.bit-depth-options;
+            language-options: root.language-options;
+            language-codes: root.language-codes;
+            selected-language-index: root.selected-language-index;
             status-message: root.status-message;
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
@@ -347,6 +356,10 @@ export component DesktopMain inherits Rectangle {
             update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
             update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
             refresh-devices => { root.refresh-devices(); }
+            language-selected(i) => { root.change-language(i); }
+            refresh-midi-devices => { root.refresh-midi-devices(); }
+            toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+            edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         }
 
         // Fullscreen inline tuner overlay (windowed mode uses TunerWindow instead)
@@ -485,9 +498,13 @@ export component DesktopMain inherits Rectangle {
         project-name-draft <=> root.project-name-draft;
         status-message <=> root.status-message;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }
@@ -496,6 +513,10 @@ export component DesktopMain inherits Rectangle {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        language-selected(i) => { root.change-language(i); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
     }
 
     // Floating language selector — top-right of every screen EXCEPT the

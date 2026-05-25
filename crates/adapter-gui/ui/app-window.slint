@@ -1,7 +1,7 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
@@ -93,6 +93,9 @@ export component AppWindow inherits Window {
     in property <[string]> bit-depth-options: ["16", "24", "32"];
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
+    // System / MIDI devices section rows (#513). Built by Rust by merging
+    // `adapter_midi::list_input_ports()` with the persisted selection.
+    in property <[MidiDeviceRow]> midi-devices;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -201,6 +204,10 @@ export component AppWindow inherits Window {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
+    // System / MIDI devices section callbacks (#513)
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -336,6 +343,7 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
         chain-editor-input-groups: root.chain-editor-input-groups;
         chain-editor-output-groups: root.chain-editor-output-groups;
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
@@ -452,6 +460,9 @@ export component AppWindow inherits Window {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         edit-chain-input(index) => { root.edit-chain-input(index); }
         remove-chain-input(index) => { root.remove-chain-input(index); }
         add-chain-input => { root.add-chain-input(); }
@@ -534,6 +545,7 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -618,6 +630,9 @@ export component AppWindow inherits Window {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
         preset-picker-items: root.preset-picker-items;

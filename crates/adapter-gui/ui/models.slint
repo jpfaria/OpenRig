@@ -7,6 +7,16 @@ export struct DeviceSelectionItem {
     bit_depth_text: string,
 }
 
+// Per-row payload for the System / MIDI devices section (#513). The
+// pair (name, instance) is the stable key so the Rust side can pair
+// edits back with the persisted `MidiDeviceSelection`.
+export struct MidiDeviceRow {
+    name: string,
+    instance: int,
+    alias: string,
+    enabled: bool,
+}
+
 export struct BlockParamSummaryEntry {
     label: string,    // parameter name in uppercase (e.g. "GAIN")
     value: string,    // formatted current value (e.g. "65")

@@ -7,4 +7,5 @@
 
 pub mod audio;
 pub mod language;
-// added in later tasks: midi_devices, project_meta, midi_mapping
+pub mod midi_devices;
+// added in later tasks: project_meta, midi_mapping
