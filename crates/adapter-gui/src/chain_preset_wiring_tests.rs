@@ -146,19 +146,20 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
 fn default_filename_uses_active_preset_name_not_chain_label() {
     // chain label = "Scarlett Left" (which the GUI uses as the chain
     // title), preset name = "Silverchair Freak". The save dialog must
-    // propose `silverchair_freak`, not `scarlett_left`.
+    // propose the preset name VERBATIM (issue #510 user feedback: no
+    // slug transformation; the file mirrors what the user sees).
     let rig = rig_with(Some("Scarlett Left"), Some("Silverchair Freak"));
-    let slug = default_preset_filename_slug(&ChainId("rig:input-1".to_string()), &rig);
-    assert_eq!(slug.as_deref(), Some("silverchair_freak"));
+    let name = default_preset_filename_slug(&ChainId("rig:input-1".to_string()), &rig);
+    assert_eq!(name.as_deref(), Some("Silverchair Freak"));
 }
 
 #[test]
 fn default_filename_falls_back_to_humanized_preset_key_when_name_missing() {
-    // Legacy preset with no `name` field — slug from the bank key.
+    // Legacy preset with no `name` field — fall back to humanized key.
     let rig = rig_with(Some("Scarlett Left"), None);
-    let slug = default_preset_filename_slug(&ChainId("rig:input-1".to_string()), &rig);
+    let name = default_preset_filename_slug(&ChainId("rig:input-1".to_string()), &rig);
     // humanize_preset_label("silverchair-freak") = "Silverchair Freak"
-    assert_eq!(slug.as_deref(), Some("silverchair_freak"));
+    assert_eq!(name.as_deref(), Some("Silverchair Freak"));
 }
 
 #[test]
@@ -225,11 +226,27 @@ fn rename_target_returns_none_for_empty_path() {
 // ── preset_filename / preset_save_path (issue #510) ─────────────
 
 #[test]
-fn preset_filename_slugs_name_and_appends_yaml() {
+fn preset_filename_preserves_name_verbatim() {
+    // Issue #510 (user feedback): the on-disk filename must mirror
+    // the user-visible name 1:1. Earlier we lowercased + replaced
+    // spaces — the file then renamed itself to a slug on save and
+    // on reload the combobox showed the slug, surprising the user.
     assert_eq!(
         preset_filename("Silverchair Freak"),
-        "silverchair_freak.yaml"
+        "Silverchair Freak.yaml",
     );
+}
+
+#[test]
+fn preset_filename_trims_outer_whitespace_only() {
+    assert_eq!(preset_filename("  Lead Boost  "), "Lead Boost.yaml");
+}
+
+#[test]
+fn preset_filename_replaces_filesystem_illegal_chars_with_underscore() {
+    // `/ \ : * ? " < > |` are forbidden on at least one supported OS.
+    // Other characters (spaces, dashes, dots, accents) survive.
+    assert_eq!(preset_filename("rig/cool?"), "rig_cool_.yaml");
 }
 
 #[test]
@@ -238,7 +255,7 @@ fn save_path_joins_configured_dir_with_filename() {
     let dir = PathBuf::from("/data/openrig/presets");
     assert_eq!(
         preset_save_path(&dir, "Lead Boost"),
-        PathBuf::from("/data/openrig/presets/lead_boost.yaml"),
+        PathBuf::from("/data/openrig/presets/Lead Boost.yaml"),
     );
 }
 

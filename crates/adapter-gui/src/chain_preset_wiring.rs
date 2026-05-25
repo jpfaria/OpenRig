@@ -345,11 +345,15 @@ pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject)
     let input = rig.inputs.get(input_name)?;
     let preset_key = input.bank.get(&input.active_preset)?;
     let preset = rig.presets.get(preset_key)?;
-    let display = preset
-        .name
-        .clone()
-        .unwrap_or_else(|| humanize_preset_label(preset_key));
-    Some(display.replace(' ', "_").to_lowercase())
+    // Issue #510 user feedback: return the preset display name
+    // verbatim. The function name is kept for git history; semantics
+    // changed from "slug form" to "user-visible name as-is".
+    Some(
+        preset
+            .name
+            .clone()
+            .unwrap_or_else(|| humanize_preset_label(preset_key)),
+    )
 }
 
 /// Suffix used for preset files on disk. Issue #510 centralizes this
@@ -357,12 +361,26 @@ pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject)
 /// in sync. The picker still accepts `.yml` for legacy bundles.
 const PRESET_EXTENSION: &str = "yaml";
 
-/// Slug a preset name into the on-disk filename (without the directory).
-/// Issue #510: the save dialog only asks for a name; the adapter alone
-/// decides the file's extension and lowercasing convention.
+/// Characters that are illegal in filenames on at least one supported
+/// platform (Windows is the strictest). Everything else — spaces,
+/// dashes, dots, accents, mixed case — survives so the on-disk
+/// filename mirrors the user-visible name 1:1.
+fn sanitize_for_filename(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '\0' => '_',
+            _ => c,
+        })
+        .collect()
+}
+
+/// Build the on-disk filename from a preset name. Issue #510 user
+/// feedback: the file must keep the exact characters the user sees —
+/// no lowercasing, no space-to-underscore substitution. Only
+/// filesystem-illegal characters are replaced with `_`.
 pub(crate) fn preset_filename(name: &str) -> String {
-    let slug = name.trim().replace(' ', "_").to_lowercase();
-    format!("{slug}.{PRESET_EXTENSION}")
+    let cleaned = sanitize_for_filename(name.trim());
+    format!("{cleaned}.{PRESET_EXTENSION}")
 }
 
 /// Resolve the absolute save path for a preset under the configured

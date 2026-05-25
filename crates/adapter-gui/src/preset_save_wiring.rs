@@ -79,14 +79,14 @@ pub(crate) fn wire(
                     chain.id.clone(),
                 )
             };
-            // Issue #518: filename = active preset's name (slug), not
+            // Issue #518: name source = the active preset's name, not
             // the chain's title (which is `input.label` after #436).
-            let preset_slug = session
+            // Issue #510: pass the name through verbatim — no slug.
+            let preset_name = session
                 .rig
                 .as_ref()
                 .and_then(|r| default_preset_filename_slug(&chain_id, &r.borrow()));
-            let default_name =
-                preset_slug.unwrap_or_else(|| chain_desc.replace(' ', "_").to_lowercase());
+            let default_name = preset_name.unwrap_or_else(|| chain_desc.clone());
 
             if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog.
