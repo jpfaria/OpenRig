@@ -47,24 +47,33 @@ jobs:
           restore-keys: bundle-plugins-cargo-
 
       # Issue #525: pack_plugins shells out to qa_audit (loudness-audit) to
-      # verify per-capture loudness budgets. Build the binary first so the
-      # following Validate step finds it under target/release/.
+      # verify per-capture loudness budgets. qa_audit links against `nam`
+      # from the OpenRig git dep, which ships NeuralAudioCAPI as a Git LFS
+      # asset. Cargo's git checkout (even with CARGO_NET_GIT_FETCH_WITH_CLI)
+      # does not run LFS smudge on the working tree it writes to
+      # ~/.cargo/git/checkouts/, so the linker sees a 1-line LFS pointer
+      # and exits with `unknown directive: version` on libNeuralAudioCAPI.so.
       #
-      # qa_audit links against `nam` from the OpenRig git dep, which carries
-      # the NeuralAudioCAPI dylib as a Git LFS file. Cargo's default git
-      # backend (libgit2) does NOT run LFS smudge, so the cached checkout
-      # would receive a 1-line LFS pointer and the linker would fail with
-      # `unknown directive: version` on `libNeuralAudioCAPI.so`. Configure
-      # git-lfs filters system-wide and force cargo to fetch git deps via
-      # the git CLI so LFS smudge runs on the cargo checkout too.
-      - name: Configure git-lfs for cargo fetches
+      # Workaround: drop any stale OpenRig cargo-git checkout, run
+      # `cargo fetch` to materialise a fresh one (forced via git CLI), then
+      # run `git lfs pull` inside that checkout BEFORE invoking the build —
+      # by the time the linker reads the dylib, it is the real binary.
+      - name: Configure git-lfs system filters
         run: git lfs install --system --skip-repo
       - name: Drop stale OpenRig cargo-git checkout (LFS pointers in cache)
-        # The cargo cache restored above may carry an OpenRig checkout that
-        # was fetched WITHOUT LFS smudge — those `libNeuralAudioCAPI.so`
-        # pointer files survive cache restore and re-poison the linker.
-        # Force a fresh, LFS-aware fetch on every run.
         run: rm -rf ~/.cargo/git/checkouts/openrig-* ~/.cargo/git/db/openrig-*
+      - name: Fetch cargo deps (materialise OpenRig checkout)
+        working-directory: openrig-plugins
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo fetch
+      - name: Pull LFS files inside the OpenRig cargo checkout
+        run: |
+          for dir in ~/.cargo/git/checkouts/openrig-*/*/; do
+            echo "Pulling LFS in $dir"
+            git -C "$dir" lfs install --local
+            git -C "$dir" lfs pull
+          done
       - name: Build qa_audit (required by pack_plugins)
         working-directory: openrig-plugins
         env:
