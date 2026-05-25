@@ -90,6 +90,7 @@ pub(crate) fn wire(
                 name: None,
                 device_settings: Vec::new(),
                 chains: Vec::new(),
+                midi: None,
             },
             &input_chain_devices.borrow(),
             &output_chain_devices.borrow(),

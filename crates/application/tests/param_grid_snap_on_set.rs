@@ -86,6 +86,7 @@ fn project_with_amp_chain() -> Rc<RefCell<Project>> {
             volume: 100.0,
             blocks: vec![user_input(), nam_vox_ac30_block(), user_output()],
         }],
+        midi: None,
     }))
 }
 

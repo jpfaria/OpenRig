@@ -211,6 +211,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     };
     let mut session = ProjectSession::new(
         project,
@@ -518,6 +519,7 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
             name: None,
             device_settings: Vec::new(),
             chains: vec![chain],
+            midi: None,
         };
         let mut migrated = project::migrate::migrate_legacy_project(&temp);
         // Single-chain migration ⇒ exactly one input ("input-1"). Pop

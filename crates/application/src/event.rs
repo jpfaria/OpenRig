@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::command::{BlockId, ChainId};
 
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum Event {
     /// The project has been mutated in some way (coarse-grained notification).
     /// Subscribers that need to fully re-render can react to this.
@@ -91,6 +91,28 @@ pub enum Event {
     // ── Audio settings events ─────────────────────────────────────────────────
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,
+
+    // ── MIDI device / mapping / learn events (#513 / #493) ───────────────────
+    /// #513: emitted after `SaveMidiDevices` updated the in-memory
+    /// `GuiSystemSettings.midi_devices` snapshot. The adapter persists
+    /// config.yaml on receipt.
+    MidiDevicesSaved,
+
+    /// #513 / #493: emitted after `SaveMidiMapping` mutated the project.
+    MidiMappingSaved,
+
+    /// #513 / #493: emitted after `StartMidiLearn`/`StopMidiLearn`. The
+    /// adapter forwards the flag to the daemon's control channel.
+    MidiLearnStarted,
+    MidiLearnStopped,
+
+    /// #513 / #493: published by the daemon while learn-mode is active
+    /// for every received MIDI event (one event = one publish). The
+    /// mapping editor wiring listens for this event and fills the
+    /// "trigger" field of the binding being learned.
+    MidiEventReceived {
+        source: project::midi::Source,
+    },
 
     /// #436 F: the UI language preference was changed (`None` = system
     /// default). The adapter performs the persistence + live i18n swap;
@@ -199,6 +221,13 @@ impl Event {
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
             | Event::ProjectClosed
+            // #513 / #493: MIDI device / mapping / learn events live at the
+            // system or project root, not a single chain.
+            | Event::MidiDevicesSaved
+            | Event::MidiMappingSaved
+            | Event::MidiLearnStarted
+            | Event::MidiLearnStopped
+            | Event::MidiEventReceived { .. }
             | Event::Error { .. } => None,
         }
     }

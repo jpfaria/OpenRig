@@ -33,6 +33,7 @@ fn project_with_chains(rows: &[(&str, &str)]) -> Rc<RefCell<Project>> {
         name: Some("issue-502".into()),
         device_settings: Vec::new(),
         chains: rows.iter().map(|(id, desc)| make_chain(id, desc)).collect(),
+        midi: None,
     }))
 }
 

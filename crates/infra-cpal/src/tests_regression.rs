@@ -227,6 +227,7 @@ fn empty_project() -> project::project::Project {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     }
 }
 
@@ -346,6 +347,7 @@ fn two_device_inputs_each_wire_their_own_runtime() {
         name: Some("two_dev_test".into()),
         chains: vec![chain.clone()],
         device_settings: Vec::new(),
+        midi: None,
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);

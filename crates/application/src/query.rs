@@ -72,6 +72,7 @@ mod tests {
             name: Some("My Rig".to_string()),
             device_settings: vec![],
             chains,
+            midi: None,
         }
     }
 
@@ -81,6 +82,7 @@ mod tests {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         });
         assert!(out.contains("project: (unnamed)"), "{out}");
         assert!(out.contains("(no chains)"), "{out}");

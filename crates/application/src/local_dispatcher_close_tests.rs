@@ -18,6 +18,7 @@ fn close_project_emits_project_closed_event() {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     })));
     let events = disp
         .dispatch(Command::CloseProject)

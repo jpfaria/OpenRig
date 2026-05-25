@@ -526,6 +526,7 @@ mod tests {
             name: None,
             device_settings: Vec::new(),
             chains: rows.iter().map(|(id, desc)| make_chain(id, desc)).collect(),
+            midi: None,
         }));
         let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
         ProjectSession {

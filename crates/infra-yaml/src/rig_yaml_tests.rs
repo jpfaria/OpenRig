@@ -258,6 +258,7 @@ fn write_legacy(dir: &std::path::Path, chains: Vec<Chain>) -> std::path::PathBuf
         name: Some("Studio".into()),
         device_settings: vec![],
         chains,
+        midi: None,
     };
     let path = dir.join("project.yaml");
     std::fs::write(&path, crate::serialize_project(&project).unwrap()).unwrap();

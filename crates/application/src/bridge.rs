@@ -183,6 +183,7 @@ mod tests {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         }))
     }
 

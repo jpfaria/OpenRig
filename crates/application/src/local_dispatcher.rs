@@ -125,6 +125,17 @@ impl CommandDispatcher for LocalDispatcher {
             | Command::UpdateProjectName { .. }
             | Command::SaveAudioSettings { .. } => self.handle_project(cmd),
 
+            // #513 / #493: system-side MIDI commands — no project mutation.
+            // The adapter persists `config.yaml` / forwards to the daemon on
+            // each event; the dispatcher just records the intent.
+            Command::SaveMidiDevices { .. }
+            | Command::StartMidiLearn
+            | Command::StopMidiLearn
+            | Command::PublishMidiEvent { .. } => self.handle_midi_system(cmd),
+
+            // #513 / #493: project-side MIDI mapping — writes `project.midi`.
+            Command::SaveMidiMapping { .. } => self.handle_project(cmd),
+
             Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
 
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
@@ -226,3 +237,25 @@ impl LocalDispatcher {
 //   local_dispatcher_rig             · handle_rig_nav / capture / rename
 // Each adds an `impl LocalDispatcher` block; behaviour is byte-identical to
 // the previous single-file form (arm bodies moved verbatim).
+
+impl LocalDispatcher {
+    /// #513 / #493: system-side MIDI commands. None of these touch the
+    /// project (MIDI device selection is per-machine / ADR 0003; learn-mode
+    /// is daemon state; PublishMidiEvent is a passthrough of a raw event the
+    /// daemon submits through the existing command bridge so the publishing
+    /// dispatcher's fan-out remains the single transport). Each arm only
+    /// records the intent via an `Event` — the adapter does the actual work
+    /// (persist config.yaml, toggle learn-mode flag, route the event into
+    /// the mapping editor).
+    pub(crate) fn handle_midi_system(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
+            Command::SaveMidiDevices { .. } => Ok(vec![Event::MidiDevicesSaved]),
+            Command::StartMidiLearn => Ok(vec![Event::MidiLearnStarted]),
+            Command::StopMidiLearn => Ok(vec![Event::MidiLearnStopped]),
+            Command::PublishMidiEvent { source } => Ok(vec![Event::MidiEventReceived { source }]),
+            other => {
+                unreachable!("handle_midi_system received non-midi-system command: {other:?}")
+            }
+        }
+    }
+}

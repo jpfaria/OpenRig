@@ -324,6 +324,7 @@ dependencies = [
  "domain",
  "engine",
  "futures",
+ "infra-filesystem",
  "plugin-loader",
  "project",
  "schemars 0.8.22",
@@ -3228,6 +3229,7 @@ dependencies = [
  "anyhow",
  "dirs",
  "log",
+ "schemars 0.8.22",
  "serde",
  "serde_yaml",
 ]

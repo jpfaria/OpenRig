@@ -57,6 +57,7 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
                 }),
             }],
         }],
+        midi: None,
     };
 
     let runtime = build_runtime_graph(
@@ -92,6 +93,7 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
                 }),
             }],
         }],
+        midi: None,
     };
 
     let error = match build_runtime_graph(
@@ -1544,6 +1546,7 @@ fn build_runtime_graph_skips_disabled_chains() {
             volume: 100.0,
             blocks: vec![],
         }],
+        midi: None,
     };
 
     let runtime = build_runtime_graph(&project, &HashMap::new(), &HashMap::new())
@@ -1567,6 +1570,7 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
             volume: 100.0,
             blocks: vec![],
         }],
+        midi: None,
     };
 
     let result = build_runtime_graph(&project, &HashMap::new(), &HashMap::new());
@@ -1587,6 +1591,7 @@ fn runtime_graph_remove_chain_removes_entry() {
         name: None,
         device_settings: Vec::new(),
         chains: vec![chain],
+        midi: None,
     };
     let mut graph = build_runtime_graph(&project, &rates, &HashMap::new()).unwrap();
     assert_eq!(graph.chains.len(), 1);
@@ -2384,6 +2389,7 @@ fn build_runtime_graph_with_multiple_enabled_chains() {
             tuner_track("chain:0", Vec::new()),
             tuner_track("chain:1", vec![tuner_block("b:0", 440.0)]),
         ],
+        midi: None,
     };
     let mut rates = HashMap::new();
     rates.insert(ChainId("chain:0".into()), 48_000.0);
@@ -2410,6 +2416,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
         ],
+        midi: None,
     };
     let mut rates = HashMap::new();
     rates.insert(ChainId("enabled".into()), 48_000.0);

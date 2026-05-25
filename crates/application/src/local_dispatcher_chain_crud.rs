@@ -101,6 +101,7 @@ pub(crate) fn add_chain_to_rig(
         name: None,
         device_settings: Vec::new(),
         chains: vec![chain.clone()],
+        midi: None,
     };
     let mut migrated = project::migrate::migrate_legacy_project(&temp);
 

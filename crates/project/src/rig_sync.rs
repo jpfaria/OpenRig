@@ -137,6 +137,7 @@ mod tests {
                     blocks: Vec::new(),
                 })
                 .collect(),
+            midi: None,
         }
     }
 
