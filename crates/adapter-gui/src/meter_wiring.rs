@@ -120,6 +120,26 @@ pub fn refresh_subscriptions_lazy_per_stream<F>(
     }
 }
 
+/// Full per-tick "did anything that requires a re-subscribe change?"
+/// signature: project-side bits AND the engine's current stream
+/// count for this chain. Stream count is the SUM across this chain's
+/// per-input runtimes (issue #350) and drops to 0 when the engine
+/// tears them down (chain toggle off, rig-nav rebuild, device
+/// reopen). Folding it into the signature is what makes the timer
+/// invalidate the dead ring handles a teardown leaves behind —
+/// `chain.enabled` alone is not enough because the project state and
+/// the engine state can disagree during the rebuild window. Hashes
+/// `(chain_meter_signature, stream_count)` together so neither
+/// dimension can mask a change in the other.
+pub fn timer_chain_signature(chain: &project::chain::Chain, stream_count: usize) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    chain_meter_signature(chain).hash(&mut h);
+    stream_count.hash(&mut h);
+    h.finish()
+}
+
 /// Compact "did the runtime layout change?" signature for a chain.
 /// Includes the chain's enabled flag and every block's `(id, enabled)`
 /// — the bits that flip when the runtime is torn down and rebuilt
@@ -304,8 +324,7 @@ pub fn start_meter_polling(
         {
             let mut last = last_signature.borrow_mut();
             for c in project.chains.iter() {
-                let sig = chain_meter_signature(c)
-                    ^ (controller.stream_count(&c.id) as u64).wrapping_mul(0x9E3779B97F4A7C15);
+                let sig = timer_chain_signature(c, controller.stream_count(&c.id));
                 if last.get(&c.id).copied() != Some(sig) {
                     invalidate.push(c.id.clone());
                     last.insert(c.id.clone(), sig);

@@ -296,6 +296,81 @@ fn chain_signature_stable_when_only_param_value_changes() {
          must keep the signature stable");
 }
 
+// ── timer-shape signature: tracks engine runtime layout, not just
+//     project-side bits. User-reported bug: toggle off → on, meters
+//     never recover. Project state alone (`chain.enabled`) flips
+//     correctly, but the timer's invalidation must ALSO catch the
+//     engine tearing down + rebuilding the per-input runtimes —
+//     otherwise the cached rings point at producers that no longer
+//     push (the old runtime instance got dropped by remove_chain).
+
+#[test]
+fn timer_signature_flips_on_toggle_off_then_on_cycle() {
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let mut c = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+    };
+    // Initial: enabled, runtime up with 3 streams.
+    let s_initial = crate::meter_wiring::timer_chain_signature(&c, 3);
+    // Toggle off: enabled flips to false, engine tears down → stream_count=0.
+    c.enabled = false;
+    let s_off = crate::meter_wiring::timer_chain_signature(&c, 0);
+    assert_ne!(s_initial, s_off,
+        "toggle off must flip the signature so the timer invalidates \
+         the dead ring handles left by the torn-down runtime");
+    // Toggle on: enabled flips back to true, fresh runtime → stream_count=3.
+    c.enabled = true;
+    let s_on = crate::meter_wiring::timer_chain_signature(&c, 3);
+    assert_ne!(s_off, s_on,
+        "toggle on must flip the signature again so the timer drops \
+         the empty cache entry and re-subscribes against the freshly \
+         rebuilt per-input runtimes");
+}
+
+#[test]
+fn timer_signature_stays_constant_across_steady_state_ticks() {
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let c = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+    };
+    // Two consecutive steady-state ticks: same enabled, same blocks,
+    // same stream_count → signature stable, no re-subscribe (flicker
+    // regression guard).
+    let a = crate::meter_wiring::timer_chain_signature(&c, 3);
+    let b = crate::meter_wiring::timer_chain_signature(&c, 3);
+    assert_eq!(a, b, "steady-state ticks must NOT re-subscribe");
+}
+
 // ── build_streams_from_taps: per-entry meter routing.
 // Bug from the user's 3-source screenshot: input shows in slot 3,
 // output only in slot 1. Two causes:
