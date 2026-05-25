@@ -415,10 +415,43 @@ pub(crate) fn wire(
         });
     }
 
-    // on_delete_block_drawer
+    // on_delete_block_drawer (trash icon) — opens the in-window overlay.
+    // Issue #360: the actual delete moved to on_confirm_delete_block below;
+    // the previous native-dialog path is gone (native popup did not suit
+    // Orange Pi touch sessions and stole focus on macOS).
     {
         let win_draft = win_draft.clone();
         let win_timer = win_timer.clone();
+        let weak_win = win.as_weak();
+        win.on_delete_block_drawer(move || {
+            let Some(win) = weak_win.upgrade() else {
+                return;
+            };
+            win_timer.stop();
+            let Some(draft) = win_draft.borrow().clone() else {
+                return;
+            };
+            if draft.block_index.is_none() {
+                return;
+            }
+            win.set_confirm_delete_block_name(draft.model_id.into());
+            win.set_show_confirm_delete_block(true);
+        });
+    }
+
+    // on_cancel_delete_block — just hide the overlay.
+    {
+        let weak_win = win.as_weak();
+        win.on_cancel_delete_block(move || {
+            if let Some(win) = weak_win.upgrade() {
+                win.set_show_confirm_delete_block(false);
+            }
+        });
+    }
+
+    // on_confirm_delete_block — execute the deletion the overlay just gated.
+    {
+        let win_draft = win_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -430,31 +463,22 @@ pub(crate) fn wire(
         let open_block_windows_delete = open_block_windows.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_delete_block_drawer(move || {
+        win.on_confirm_delete_block(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
+            // Hide overlay first so any error toast renders on the
+            // window, not behind the modal backdrop.
+            win.set_show_confirm_delete_block(false);
             let Some(main) = weak_main.upgrade() else {
                 return;
             };
-            win_timer.stop();
             let Some(draft) = win_draft.borrow().clone() else {
                 return;
             };
             let Some(block_index) = draft.block_index else {
                 return;
             };
-            let confirmed = rfd::MessageDialog::new()
-                .set_title(rust_i18n::t!("dialog-delete-block").as_ref())
-                .set_description(
-                    rust_i18n::t!("dialog-confirm-delete-block", name = draft.model_id).to_string(),
-                )
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .set_level(rfd::MessageLevel::Warning)
-                .show();
-            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
-                return;
-            }
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;

@@ -2,6 +2,7 @@ import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePicke
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
+import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -32,6 +33,14 @@ export component BlockEditorWindow inherits Window {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    // Issue #360: in-window delete confirmation (no `rfd::MessageDialog`).
+    // The Rust side flips `show-confirm-delete-block` from
+    // `delete-block-drawer` and dispatches the actual removal only on
+    // `confirm-delete-block`. `cancel-delete-block` just hides it.
+    in property <bool> show-confirm-delete-block: false;
+    in property <string> confirm-delete-block-name;
+    callback confirm-delete-block();
+    callback cancel-delete-block();
     callback show-plugin-info(string, string);
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
@@ -195,6 +204,16 @@ export component BlockEditorWindow inherits Window {
         level: root.toast-level;
         container-width: root.width;
         container-height: root.height;
+    }
+
+    // Issue #360: in-window delete confirmation overlay (replaces the
+    // native `rfd::MessageDialog` that used to gate `delete-block-drawer`).
+    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+        width: root.width;
+        height: root.height;
+        block-name: root.confirm-delete-block-name;
+        confirm => { root.confirm-delete-block(); }
+        cancel => { root.cancel-delete-block(); }
     }
 }
 

@@ -30,3 +30,15 @@ fn chain_row_wiring_uses_no_native_dialog() {
          instead — see `confirm_delete_dialog.slint`."
     );
 }
+
+#[test]
+fn block_editor_window_lifecycle_uses_no_native_dialog() {
+    let src = read_src("block_editor_window_lifecycle.rs");
+    assert!(
+        !src.contains("rfd::"),
+        "issue #360: block_editor_window_lifecycle.rs must not use `rfd::` \
+         (delete-block confirmation is the last native MessageDialog in this \
+         crate). Use an in-window overlay on `BlockEditorWindow` mirroring \
+         the `ConfirmDeleteBlockDialog` pattern already in use on AppWindow."
+    );
+}
