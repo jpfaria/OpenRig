@@ -120,7 +120,11 @@ fn row_min_length_is_one_when_project_input_count_is_zero() {
     // that's mid-construction. Mirrors the `.max(1)` clamp in
     // `replace_project_chains`.
     let row: Vec<StreamMeter> = rebuild_stream_meters_row(&[], 0, 100.0);
-    assert_eq!(row.len(), 1, "min 1 silent slot mirrors replace_project_chains clamp");
+    assert_eq!(
+        row.len(),
+        1,
+        "min 1 silent slot mirrors replace_project_chains clamp"
+    );
     assert_eq!(row[0].in_dbfs, SILENT_DBFS);
     assert_eq!(row[0].out_dbfs, SILENT_DBFS);
 }
@@ -134,7 +138,10 @@ fn row_applies_chain_volume_to_output_only() {
     // — must be preserved here.
     let readings = vec![reading(-6.0, -12.0)];
     let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 1, 200.0);
-    assert!((row[0].in_dbfs - (-6.0)).abs() < 0.05, "input is not scaled");
+    assert!(
+        (row[0].in_dbfs - (-6.0)).abs() < 0.05,
+        "input is not scaled"
+    );
     // -12 dBFS + 20·log10(2.0) = -12 + 6 = -6 dBFS
     assert!(
         (row[0].out_dbfs - (-6.0)).abs() < 0.1,
