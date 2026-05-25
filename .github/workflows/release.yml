@@ -49,8 +49,26 @@ jobs:
       # Issue #525: pack_plugins shells out to qa_audit (loudness-audit) to
       # verify per-capture loudness budgets. Build the binary first so the
       # following Validate step finds it under target/release/.
+      #
+      # qa_audit links against `nam` from the OpenRig git dep, which carries
+      # the NeuralAudioCAPI dylib as a Git LFS file. Cargo's default git
+      # backend (libgit2) does NOT run LFS smudge, so the cached checkout
+      # would receive a 1-line LFS pointer and the linker would fail with
+      # `unknown directive: version` on `libNeuralAudioCAPI.so`. Configure
+      # git-lfs filters system-wide and force cargo to fetch git deps via
+      # the git CLI so LFS smudge runs on the cargo checkout too.
+      - name: Configure git-lfs for cargo fetches
+        run: git lfs install --system --skip-repo
+      - name: Drop stale OpenRig cargo-git checkout (LFS pointers in cache)
+        # The cargo cache restored above may carry an OpenRig checkout that
+        # was fetched WITHOUT LFS smudge — those `libNeuralAudioCAPI.so`
+        # pointer files survive cache restore and re-poison the linker.
+        # Force a fresh, LFS-aware fetch on every run.
+        run: rm -rf ~/.cargo/git/checkouts/openrig-* ~/.cargo/git/db/openrig-*
       - name: Build qa_audit (required by pack_plugins)
         working-directory: openrig-plugins
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
         run: cargo build --release -p loudness-audit --bin qa_audit
 
       - name: Validate plugins
