@@ -3,6 +3,7 @@ import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -273,6 +274,18 @@ export component CompactChainViewWindow inherits Window {
     callback move-chain-down(int);
     callback remove-chain(int);
 
+    // Issue #360: in-window delete confirmations (replaces the previous
+    // implicit delegation to AppWindow's overlay, which used to surface
+    // the modal on the wrong window).
+    in property <bool> show-confirm-delete-block: false;
+    in property <string> confirm-delete-block-name;
+    callback confirm-delete-block();
+    callback cancel-delete-block();
+    in property <bool> show-confirm-delete-chain: false;
+    in property <string> confirm-delete-chain-name;
+    callback confirm-delete-chain();
+    callback cancel-delete-chain();
+
     CompactChainViewPage {
         width: parent.width; height: parent.height;
         chain-title: root.chain-title;
@@ -313,5 +326,24 @@ export component CompactChainViewWindow inherits Window {
         move-chain-up(ci) => { root.move-chain-up(ci); }
         move-chain-down(ci) => { root.move-chain-down(ci); }
         remove-chain(ci) => { root.remove-chain(ci); }
+    }
+
+    // Issue #360: in-window delete-block + delete-chain confirmation
+    // overlays. The Rust side flips show-confirm-delete-* from the
+    // remove handlers and dispatches the actual removal only on
+    // confirm-delete-*. cancel-delete-* hides without side effect.
+    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+        width: root.width;
+        height: root.height;
+        block-name: root.confirm-delete-block-name;
+        confirm => { root.confirm-delete-block(); }
+        cancel => { root.cancel-delete-block(); }
+    }
+    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+        width: root.width;
+        height: root.height;
+        chain-name: root.confirm-delete-chain-name;
+        confirm => { root.confirm-delete-chain(); }
+        cancel => { root.cancel-delete-chain(); }
     }
 }
