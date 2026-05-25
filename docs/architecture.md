@@ -7,6 +7,8 @@
 - `adapter-gui` — UI Slint (`ui/`)
 - `adapter-mcp` — servidor MCP (biblioteca, `rmcp` 1.7.0, Streamable HTTP); liga na instância viva via `application::bridge`. Ver `docs/mcp.md` e `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`
 - `application` — command bus: `Command`/`Event`, `LocalDispatcher`, `bridge` (ponte `Send`↔`!Send` p/ MCP/gRPC), `PublishingDispatcher` (fan-out de eventos), `command_schema` (schema de tool por variante)
+- `engine` — `ChainRuntimeState`, `process_input_f32` / `process_output_f32`, lock-free graph rebuild via `update_chain_runtime_state`. Fast path: `set_block_enabled` (issue #522) flips `FadeState` on the live `BlockRuntimeNode` so a per-block toggle never rebuilds the chain. Public surface is re-exported through `engine::runtime::*`.
+- `infra-cpal` — `ProjectRuntimeController` owns the per-chain CPAL streams. `upsert_chain` is the full rebuild path; `pause_chain` + the fast-path resume branch inside `upsert_chain_modal` (issue #522) keep the runtime + streams alive across chain toggles via `set_draining()` so re-enable is O(1). `set_block_enabled` forwards into the engine for the matching block-level fast path.
 - `nam` — Neural Amp Modeler
 - `asset-runtime` — `EmbeddedAsset`, `materialize()`
 

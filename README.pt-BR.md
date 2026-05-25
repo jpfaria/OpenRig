@@ -20,6 +20,10 @@
 </p>
 
 <p align="center">
+  Última: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.23</a> · <a href="CHANGELOG.md">CHANGELOG</a>
+</p>
+
+<p align="center">
   <img src="docs/assets/sc1.png" alt="OpenRig — vista do projeto com várias chains paralelas, blocos de amp, pedais e cab" width="900">
 </p>
 
