@@ -603,10 +603,14 @@ export component ChainRow inherits Rectangle {
     // right for OUTPUT), stacked vertically. User ask 24 May 2026:
     // "eh so ter uma linha dessa para cada guitarra porra". Single-
     // stream chains render one row at the original position; N-stream
-    // chains stack downward from there.
+    // chains stack UPWARD from there — the LAST stream lands at the
+    // original meter slot (y = root.height - 22px), earlier streams
+    // above it. Combined with the `(N-1)*22px` height bump above,
+    // every row stays inside the card and the rows don't bleed into
+    // the next chain card.
     for stream[i] in root.chain.stream_meters: Rectangle {
         x: 0px;
-        y: root.height - 22px + i * 22px;
+        y: root.height - 22px - (root.chain.stream_meters.length - 1 - i) * 22px;
         width: root.width;
         height: 16px;
 
