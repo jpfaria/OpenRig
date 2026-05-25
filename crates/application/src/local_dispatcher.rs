@@ -168,6 +168,13 @@ impl CommandDispatcher for LocalDispatcher {
             Command::RegisterRecentProject { .. } | Command::MarkRecentProjectInvalid { .. } => {
                 self.handle_recent_register(cmd)
             }
+
+            // #513: system-level paths overrides. No project mutation —
+            // the adapter persists `config.yaml` on `Event::PathsSaved`,
+            // mirroring `SaveMidiDevices` (ADR 0003).
+            Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
+                self.handle_paths_system(cmd)
+            }
         }
     }
 
@@ -255,6 +262,20 @@ impl LocalDispatcher {
             Command::PublishMidiEvent { source } => Ok(vec![Event::MidiEventReceived { source }]),
             other => {
                 unreachable!("handle_midi_system received non-midi-system command: {other:?}")
+            }
+        }
+    }
+
+    /// #513: system-level paths overrides (presets, plugins). Mirrors
+    /// `handle_midi_system`: no project mutation, just signal the intent.
+    /// The adapter persists `config.yaml` on `Event::PathsSaved` (ADR 0003).
+    pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
+        match cmd {
+            Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
+                Ok(vec![Event::PathsSaved])
+            }
+            other => {
+                unreachable!("handle_paths_system received non-paths command: {other:?}")
             }
         }
     }

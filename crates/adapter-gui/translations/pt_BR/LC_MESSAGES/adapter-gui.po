@@ -584,3 +584,27 @@ msgstr "Já existe um preset com nome \"{}\". Sobrescrever?"
 #: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
 msgid "btn-overwrite"
 msgstr "Sobrescrever"
+#: crates/adapter-gui/ui/pages/settings.slint
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "title-section-paths"
+msgstr "Caminhos"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-presets-path"
+msgstr "Pasta de presets"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-plugins-path"
+msgstr "Pasta de plugins"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-choose-path"
+msgstr "Escolher…"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-reset-path"
+msgstr "Restaurar"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "placeholder-default-path"
+msgstr "(padrão)"

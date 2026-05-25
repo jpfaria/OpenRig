@@ -9,4 +9,5 @@ pub mod audio;
 pub mod language;
 pub mod midi_devices;
 pub mod midi_mapping;
+pub mod paths;
 pub mod project_meta;

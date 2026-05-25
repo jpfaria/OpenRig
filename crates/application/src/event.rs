@@ -232,6 +232,11 @@ pub enum Event {
         reason: String,
     },
 
+    /// #513: emitted after `SetPresetsPath` or `SetPluginsPath` updated
+    /// the in-memory `AppConfig.paths` snapshot. The adapter persists
+    /// `config.yaml` on receipt. System-level event per ADR 0003.
+    PathsSaved,
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -295,6 +300,8 @@ impl Event {
             | Event::MidiLearnStarted
             | Event::MidiLearnStopped
             | Event::MidiEventReceived { .. }
+            // #513: system-level paths event, never tied to a chain.
+            | Event::PathsSaved
             | Event::Error { .. } => None,
         }
     }

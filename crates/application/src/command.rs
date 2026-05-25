@@ -385,6 +385,18 @@ pub enum Command {
     /// #436 (sweep): mark a recent-projects entry invalid (failed open).
     /// Same precedent; signals `Event::RecentProjectInvalidated`.
     MarkRecentProjectInvalid { path: PathBuf, reason: String },
+
+    /// #513: persist the user's preferred directory for project preset
+    /// libraries. `None` resets to the OS default (the existing resolver
+    /// wins again). System-level setting per ADR 0003 — the adapter
+    /// writes it into `config.yaml` on `Event::PathsSaved`.
+    SetPresetsPath { path: Option<PathBuf> },
+
+    /// #513: persist the user's preferred directory for plugin scanning
+    /// (NAM/IR/LV2 packs). `None` resets to the OS default. System-level
+    /// setting per ADR 0003 — the adapter writes it into `config.yaml`
+    /// on `Event::PathsSaved`.
+    SetPluginsPath { path: Option<PathBuf> },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

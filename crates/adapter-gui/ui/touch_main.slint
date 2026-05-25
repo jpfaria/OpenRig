@@ -77,6 +77,13 @@ export component TouchMain inherits Rectangle {
     in property <string> project-name;
     in property <string> project-path-display;
     callback edit-project-name(string);
+    // System / Paths section (#513). Empty = OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -407,6 +414,12 @@ export component TouchMain inherits Rectangle {
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
         cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+        presets-path: root.presets-path;
+        plugins-path: root.plugins-path;
+        pick-presets-path => { root.pick-presets-path(); }
+        reset-presets-path => { root.reset-presets-path(); }
+        pick-plugins-path => { root.pick-plugins-path(); }
+        reset-plugins-path => { root.reset-plugins-path(); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

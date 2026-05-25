@@ -19,6 +19,7 @@ import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.sl
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
+import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
 import { SectionProjectMidiMapping } from "settings/section_project_midi_mapping.slint";
 
@@ -90,6 +91,9 @@ export component SettingsPage inherits Rectangle {
     in property <[MidiDeviceRow]> midi-devices;
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
+    // System / Paths section (#513). Empty string = use OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
     // Default-bind to project-name-draft so SettingsPage shows the
     // current project name inside the secondary ProjectSettingsWindow
     // (which only forwards project-name-draft).
@@ -113,6 +117,11 @@ export component SettingsPage inherits Rectangle {
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
     callback cancel-midi-binding-draft(int);
+    // System / Paths section callbacks (#513)
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
 
     // Active section index (sidebar selection). 0 = Audio, default.
     in-out property <int> selected-section: 0;
@@ -165,6 +174,11 @@ export component SettingsPage inherits Rectangle {
                     selected: root.selected-section == 2;
                     clicked => { root.selected-section = 2; }
                 }
+                NavRow {
+                    label: @tr("title-section-paths");
+                    selected: root.selected-section == 3;
+                    clicked => { root.selected-section = 3; }
+                }
 
                 // Visual gap between groups (24px between unrelated
                 // groups per the spacing tokens).
@@ -188,13 +202,13 @@ export component SettingsPage inherits Rectangle {
 
                 NavRow {
                     label: @tr("title-section-project-meta");
-                    selected: root.selected-section == 3;
-                    clicked => { root.selected-section = 3; }
+                    selected: root.selected-section == 4;
+                    clicked => { root.selected-section = 4; }
                 }
                 NavRow {
                     label: @tr("title-section-midi-mapping");
-                    selected: root.selected-section == 4;
-                    clicked => { root.selected-section = 4; }
+                    selected: root.selected-section == 5;
+                    clicked => { root.selected-section = 5; }
                 }
 
                 // Vertical stretch so the nav rows hug the top.
@@ -223,7 +237,8 @@ export component SettingsPage inherits Rectangle {
                         root.selected-section == 0 ? @tr("title-section-audio-interface")
                         : root.selected-section == 1 ? @tr("title-section-language")
                         : root.selected-section == 2 ? @tr("title-section-midi-devices")
-                        : root.selected-section == 3 ? @tr("title-section-project-meta")
+                        : root.selected-section == 3 ? @tr("title-section-paths")
+                        : root.selected-section == 4 ? @tr("title-section-project-meta")
                         : @tr("title-section-midi-mapping");
                     color: #dde3ec;
                     font-size: 16px;
@@ -265,12 +280,20 @@ export component SettingsPage inherits Rectangle {
                         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
                         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
                     }
-                    if root.selected-section == 3 : SectionProjectMeta {
+                    if root.selected-section == 3 : SectionSystemPaths {
+                        presets-path: root.presets-path;
+                        plugins-path: root.plugins-path;
+                        pick-presets-path => { root.pick-presets-path(); }
+                        reset-presets-path => { root.reset-presets-path(); }
+                        pick-plugins-path => { root.pick-plugins-path(); }
+                        reset-plugins-path => { root.reset-plugins-path(); }
+                    }
+                    if root.selected-section == 4 : SectionProjectMeta {
                         project-name: root.project-name;
                         project-path-display: root.project-path-display;
                         edit-project-name(t) => { root.edit-project-name(t); }
                     }
-                    if root.selected-section == 4 : SectionProjectMidiMapping {
+                    if root.selected-section == 5 : SectionProjectMidiMapping {
                         bindings: root.midi-bindings;
                         available-commands: root.available-commands;
                         add-midi-binding => { root.add-midi-binding(); }

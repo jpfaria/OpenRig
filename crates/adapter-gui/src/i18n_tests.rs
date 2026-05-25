@@ -869,6 +869,10 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
             include_str!("../ui/pages/settings/section_system_midi_devices.slint"),
         ),
         (
+            "section_system_paths.slint",
+            include_str!("../ui/pages/settings/section_system_paths.slint"),
+        ),
+        (
             "section_project_meta.slint",
             include_str!("../ui/pages/settings/section_project_meta.slint"),
         ),

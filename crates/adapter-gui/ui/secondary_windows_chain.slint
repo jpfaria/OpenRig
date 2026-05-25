@@ -41,6 +41,13 @@ export component ProjectSettingsWindow inherits Window {
     callback pick-midi-binding-command(int, string);
     callback cancel-midi-binding-draft(int);
     callback edit-project-name(string);
+    // System / Paths section (#513). Empty = OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
     title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
@@ -81,6 +88,12 @@ export component ProjectSettingsWindow inherits Window {
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
         cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
         edit-project-name(t) => { root.edit-project-name(t); }
+        presets-path: root.presets-path;
+        plugins-path: root.plugins-path;
+        pick-presets-path => { root.pick-presets-path(); }
+        reset-presets-path => { root.reset-presets-path(); }
+        pick-plugins-path => { root.pick-plugins-path(); }
+        reset-plugins-path => { root.reset-plugins-path(); }
     }
 }
 

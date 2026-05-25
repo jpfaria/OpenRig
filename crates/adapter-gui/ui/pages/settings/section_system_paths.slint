@@ -1,0 +1,106 @@
+// System / Paths section (#513). Two rows — presets directory and
+// plugins directory — each a label + read-only path text + Choose…
+// + Reset buttons. Empty path means "use OS default" (the existing
+// resolver picks it up). Pattern mirrors section_project_meta:
+// label column width is fixed so both rows align.
+
+import { Button } from "std-widgets.slint";
+
+export component SectionSystemPaths inherits Rectangle {
+    in property <string> presets-path;
+    in property <string> plugins-path;
+
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 16px;
+        alignment: start;
+
+        // ── Presets directory row ─────────────────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-presets-path");
+                color: #cfd5e0;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 28px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #2a2f38;
+                Text {
+                    text: root.presets-path == ""
+                        ? @tr("placeholder-default-path")
+                        : root.presets-path;
+                    color: root.presets-path == "" ? #6b7786 : #dde3ec;
+                    font-size: 12px;
+                    x: 10px;
+                    y: 0px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+            Button {
+                text: @tr("btn-choose-path");
+                clicked => { root.pick-presets-path(); }
+            }
+            Button {
+                text: @tr("btn-reset-path");
+                clicked => { root.reset-presets-path(); }
+            }
+        }
+
+        // ── Plugins directory row ─────────────────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-plugins-path");
+                color: #cfd5e0;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 28px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #2a2f38;
+                Text {
+                    text: root.plugins-path == ""
+                        ? @tr("placeholder-default-path")
+                        : root.plugins-path;
+                    color: root.plugins-path == "" ? #6b7786 : #dde3ec;
+                    font-size: 12px;
+                    x: 10px;
+                    y: 0px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+            Button {
+                text: @tr("btn-choose-path");
+                clicked => { root.pick-plugins-path(); }
+            }
+            Button {
+                text: @tr("btn-reset-path");
+                clicked => { root.reset-plugins-path(); }
+            }
+        }
+    }
+}
