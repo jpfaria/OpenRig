@@ -554,7 +554,10 @@ export component DesktopMain inherits Rectangle {
     // open/create-project buttons). Compact mode aligns with the
     // HeaderIconAction row used in project_chains.slint (24x24 flat at y=14
     // inside an x=24/width=parent.width-48 header strip).
-    if !root.show-project-launcher : LanguageSelector {
+    // Hide the global LanguageSelector while the Settings screen is open
+    // — Settings has its own Language section, so two pickers in one view
+    // is just clutter.
+    if !root.show-project-launcher && !root.show-settings : LanguageSelector {
         x: parent.width - 32px;
         y: 32px;
         z: 200;
