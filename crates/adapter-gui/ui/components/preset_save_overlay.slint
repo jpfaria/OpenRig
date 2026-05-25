@@ -50,45 +50,41 @@ export component PresetSaveOverlay inherits Rectangle {
             }
             HorizontalLayout {
                 spacing: 8px;
-                cancel-area := TouchArea {
-                    mouse-cursor: pointer;
+                Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
-                    clicked => { root.cancel(); }
-                    Rectangle {
-                        width: parent.width;
-                        height: parent.height;
-                        border-radius: 6px;
-                        background: cancel-area.has-hover ? #444 : #2d2e32;
-                        Text {
-                            text: @tr("btn-cancel");
-                            font-size: 13px;
-                            color: #aaaaaa;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: @tr("btn-cancel");
+                        font-size: 13px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
                 }
-                confirm-area := TouchArea {
-                    mouse-cursor: pointer;
+                Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
-                    clicked => {
-                        root.request-save(root.name-input == "" ? root.default-name : root.name-input);
-                    }
-                    Rectangle {
-                        width: parent.width;
-                        height: parent.height;
-                        border-radius: 6px;
-                        background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
-                        Text {
-                            text: @tr("btn-save");
-                            font-size: 13px;
-                            color: #ffffff;
-                            font-weight: 700;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    border-radius: 6px;
+                    background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
+                    confirm-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.request-save(root.name-input == "" ? root.default-name : root.name-input);
                         }
+                    }
+                    Text {
+                        text: @tr("btn-save");
+                        font-size: 13px;
+                        color: #ffffff;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
                 }
             }
@@ -136,43 +132,39 @@ export component PresetOverwriteOverlay inherits Rectangle {
             }
             HorizontalLayout {
                 spacing: 8px;
-                cancel-area := TouchArea {
-                    mouse-cursor: pointer;
+                Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
-                    clicked => { root.cancel(); }
-                    Rectangle {
-                        width: parent.width;
-                        height: parent.height;
-                        border-radius: 6px;
-                        background: cancel-area.has-hover ? #444 : #2d2e32;
-                        Text {
-                            text: @tr("btn-cancel");
-                            font-size: 13px;
-                            color: #aaaaaa;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: @tr("btn-cancel");
+                        font-size: 13px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
                 }
-                confirm-area := TouchArea {
-                    mouse-cursor: pointer;
+                Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
-                    clicked => { root.confirm(); }
-                    Rectangle {
-                        width: parent.width;
-                        height: parent.height;
-                        border-radius: 6px;
-                        background: confirm-area.has-hover ? #c0392b : #e74c3c;
-                        Text {
-                            text: @tr("btn-overwrite");
-                            font-size: 13px;
-                            color: #ffffff;
-                            font-weight: 700;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    border-radius: 6px;
+                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
+                    confirm-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.confirm(); }
+                    }
+                    Text {
+                        text: @tr("btn-overwrite");
+                        font-size: 13px;
+                        color: #ffffff;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
                 }
             }
