@@ -250,6 +250,16 @@ fn preset_filename_replaces_filesystem_illegal_chars_with_underscore() {
 }
 
 #[test]
+fn preset_filename_preserves_dash_with_spaces_around_it() {
+    // User feedback: "FOO FIGHTERS HEROS" -> "FOO FIGHTERS - HEROS"
+    // must persist to disk with the dash and the spaces intact.
+    assert_eq!(
+        preset_filename("FOO FIGHTERS - HEROS"),
+        "FOO FIGHTERS - HEROS.yaml",
+    );
+}
+
+#[test]
 fn save_path_joins_configured_dir_with_filename() {
     use std::path::PathBuf;
     let dir = PathBuf::from("/data/openrig/presets");

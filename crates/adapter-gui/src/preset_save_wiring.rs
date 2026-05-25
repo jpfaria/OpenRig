@@ -120,11 +120,13 @@ pub(crate) fn wire(
         let toast_timer = toast_timer.clone();
         let pending_save = pending_save.clone();
         window.on_preset_save_request(move |name| {
+            log::info!("[preset-save] request received name={name:?}");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
+                log::warn!("[preset-save] dropped: no session loaded");
                 return;
             };
             // Peek without taking so the pending state survives if we
