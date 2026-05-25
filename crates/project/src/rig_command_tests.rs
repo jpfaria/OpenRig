@@ -58,6 +58,29 @@ fn switch_preset_command_activates_the_selected_combobox_position() {
     assert_eq!(r.inputs["in"].active_preset, 2, "position 1 → bank key 2");
 }
 
+// #535: scenes are per-preset; switching preset must NOT carry the
+// previous preset's active_scene over (a stale index leaks into the
+// next preset on the very next write_back_processing_blocks call and
+// materializes a phantom scene there).
+#[test]
+fn switch_preset_command_resets_active_scene_to_one() {
+    let mut r = rig();
+    r.add_scene_to_input("in").expect("scene 2 in clean");
+    assert_eq!(r.inputs["in"].active_scene, 2, "we leave clean on scene 2");
+
+    RigCommand::SwitchPreset {
+        input: "in".into(),
+        position: 1, // → "drive"
+    }
+    .apply(&mut r)
+    .expect("valid");
+
+    assert_eq!(
+        r.inputs["in"].active_scene, 1,
+        "switching presets must reset active_scene so the new preset starts on its own scene 1"
+    );
+}
+
 #[test]
 fn add_preset_command_appends_and_activates() {
     let mut r = rig();

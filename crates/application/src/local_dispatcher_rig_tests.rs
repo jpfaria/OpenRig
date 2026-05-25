@@ -423,3 +423,116 @@ fn rig_to_legacy_project_after_capture_reflects_persisted_chain_order() {
         "the rig→project projection must honour the persisted chain order"
     );
 }
+
+// ── Issue #535: AddScene on the active preset must not bleed into siblings ──
+
+#[test]
+fn apply_rig_nav_add_scene_only_grows_active_preset_not_other_bank_presets() {
+    // User repro (#535): chain "in" has presets A (slot 1) and B (slot 2);
+    // A is active. Adding a 2nd scene must grow ONLY preset A — preset B
+    // sits idle in the same bank and must keep its single scene.
+    let rig = Rc::new(RefCell::new(rig())); // bank {1: "p1", 2: "p2"}, active=1
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    assert_eq!(rig.borrow().presets["p1"].scene_count(), 1, "A starts at 1");
+    assert_eq!(rig.borrow().presets["p2"].scene_count(), 1, "B starts at 1");
+
+    // GUI's "+" on the scene bar dispatches this exact sentinel.
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Scene(-1),
+        })
+        .expect("dispatch ok");
+
+    assert_eq!(
+        rig.borrow().presets["p1"].scene_count(),
+        2,
+        "active preset A must grow to 2 scenes"
+    );
+    assert_eq!(
+        rig.borrow().presets["p2"].scene_count(),
+        1,
+        "sibling preset B must NOT receive a scene — it is not the active preset"
+    );
+}
+
+#[test]
+fn add_scene_on_a_then_switch_to_b_keeps_b_at_one_scene_in_the_pool() {
+    // User repro (#535) on the full flow: from the Chains screen, add a
+    // 2nd scene to preset A, then switch the combobox to preset B. The
+    // preset pool entry for B must keep its single scene (no sibling
+    // contamination from the AddScene call, no re-projection side effect).
+    let rig = Rc::new(RefCell::new(rig())); // bank {1: "p1", 2: "p2"}, active=1
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Scene(-1),
+        })
+        .expect("add scene ok");
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Preset(1),
+        })
+        .expect("switch ok");
+
+    assert_eq!(
+        rig.borrow().presets["p2"].scene_count(),
+        1,
+        "preset B must still expose a single scene after the round-trip"
+    );
+}
+
+#[test]
+fn add_scene_on_a_switch_to_b_then_save_keeps_b_at_one_scene() {
+    // User repro (#535): the leak surfaces only after a save round-trip
+    // ("entro e saio do projeto ele aparece"). The save path dispatches
+    // CaptureRigEdits → sync_synthetic_into_rig, which calls
+    // write_back_processing_blocks on the new active preset using the
+    // STALE active_scene carried over from the previous preset (A's
+    // scene 2). That call's `preset.scenes.entry(scene_idx).or_default()`
+    // materializes a spurious scene 2 in B.
+    let rig = Rc::new(RefCell::new(rig())); // bank {1: "p1", 2: "p2"}, active=1
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Scene(-1),
+        })
+        .expect("add scene ok");
+    dispatcher
+        .dispatch(Command::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Preset(1),
+        })
+        .expect("switch ok");
+    // The save path runs CaptureRigEdits before serializing.
+    dispatcher
+        .dispatch(Command::CaptureRigEdits)
+        .expect("capture ok");
+
+    assert_eq!(
+        rig.borrow().presets["p2"].scene_count(),
+        1,
+        "after add-scene-on-A → switch-to-B → save, preset B must still have a single scene"
+    );
+}

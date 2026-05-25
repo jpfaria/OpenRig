@@ -37,7 +37,15 @@ impl RigCommand {
                 let key = rig.inputs.get(input)?.bank.keys().nth(*position).copied()?;
                 let name = rig.inputs.get(input)?.bank.get(&key)?.clone();
                 rig.presets.get(&name)?; // reject a dangling bank entry
-                rig.inputs.get_mut(input)?.active_preset = key;
+                let ri = rig.inputs.get_mut(input)?;
+                ri.active_preset = key;
+                // #535: scenes belong to the preset. Carrying the previous
+                // preset's active_scene leaks into the new preset on the
+                // next write_back_processing_blocks call (the save path
+                // runs CaptureRigEdits, which materializes a phantom scene
+                // via `scenes.entry(idx).or_default()`). Reset to 1 — same
+                // contract `add_preset_to_input` already enforces.
+                ri.active_scene = 1;
                 Some(())
             }
             RigCommand::AddPreset { input } => rig.add_preset_to_input(input).map(|_| ()),

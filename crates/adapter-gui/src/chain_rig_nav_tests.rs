@@ -437,6 +437,33 @@ fn switching_scene_projects_that_scenes_volume() {
     );
 }
 
+// Issue #535: the SceneBar reads `scene_count` per chain row from the
+// ACTIVE preset only. Adding a scene to A must not change the count the
+// row exposes once the user switches the combobox to a sibling preset B.
+#[test]
+fn nav_row_scene_count_follows_active_preset_after_a_sibling_grew() {
+    // Bank {1:clean, 2:drive, 3:lead}; start active=clean (slot 1), scene 1.
+    let mut r = rig();
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1;
+    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
+
+    // 1. + scene on "clean" (active). Row must now read 2.
+    r.add_scene_to_input("input-1").expect("scene added on clean");
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].scene_count, 2, "active preset 'clean' has 2 scenes");
+
+    // 2. Combobox switch to "drive" (slot 2 — never touched).
+    switch_and_project_input(&mut r, "input-1", Some(2), None).expect("switched");
+
+    // 3. Row's scene_count MUST reflect drive's pool entry (= 1), NOT a
+    //    stale 2 from clean nor a leaked sibling.
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(
+        rows[0].scene_count, 1,
+        "after switching to a sibling preset that never had a scene added, the row must show 1 scene"
+    );
+}
+
 #[test]
 fn non_rig_chain_yields_empty_row() {
     let r = rig();

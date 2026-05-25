@@ -357,3 +357,73 @@ fn load_project_any_rejects_future_version() {
     let err = load_project_any(&path).unwrap_err().to_string();
     assert!(err.contains("999"), "got: {err}");
 }
+
+// Issue #535 — save + reopen of a 2-preset bank must keep scenes per preset.
+// Repro: chain has presets A (slot 1, 2 scenes) and B (slot 2, 1 scene).
+// Round-tripping through serialize_rig_project + parse_rig_project must
+// leave B with exactly its own 1 scene — no leak from A.
+#[test]
+fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
+    use project::rig::{RigInput, RigPreset, RigProject, RigScene};
+    use std::collections::BTreeMap;
+
+    let mut preset_a = RigPreset {
+        id: "a".into(),
+        name: Some("A".into()),
+        blocks: Vec::new(),
+        scene_params: Vec::new(),
+        scenes: BTreeMap::from([
+            (1, RigScene::default()),
+            (2, RigScene::default()),
+        ]),
+        volume: 100.0,
+    };
+    preset_a.scenes.entry(1).or_insert_with(RigScene::default);
+    let preset_b = RigPreset {
+        id: "b".into(),
+        name: Some("B".into()),
+        blocks: Vec::new(),
+        scene_params: Vec::new(),
+        scenes: BTreeMap::from([(1, RigScene::default())]),
+        volume: 100.0,
+    };
+
+    let mut presets = BTreeMap::new();
+    presets.insert("a".into(), preset_a);
+    presets.insert("b".into(), preset_b);
+
+    let mut inputs = BTreeMap::new();
+    inputs.insert(
+        "input-1".into(),
+        RigInput {
+            label: None,
+            sources: Vec::new(),
+            bank: BTreeMap::from([(1, "a".into()), (2, "b".into())]),
+            active_preset: 1,
+            active_scene: 1,
+            routing: Vec::new(),
+        },
+    );
+    let rig = RigProject {
+        name: None,
+        inputs,
+        outputs: BTreeMap::new(),
+        presets,
+        midi: None,
+        chain_order: Vec::new(),
+    };
+
+    let yaml = serialize_rig_project(&rig).expect("serialize");
+    let restored = parse_rig_project(&yaml).expect("parse");
+
+    assert_eq!(
+        restored.presets["a"].scene_count(),
+        2,
+        "preset A round-trips with 2 scenes",
+    );
+    assert_eq!(
+        restored.presets["b"].scene_count(),
+        1,
+        "preset B must round-trip with exactly 1 scene — no leak from A",
+    );
+}
