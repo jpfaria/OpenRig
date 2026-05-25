@@ -64,7 +64,7 @@ component DeviceRow inherits Rectangle {
         if root.device.selected : Text {
             width: parent.width;
             height: parent.height;
-            text: @tr("✓");
+            text: "✓";
             color: #ffffff;
             font-size: 12px;
             font-weight: 700;
@@ -91,7 +91,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: @tr("label-hz");
+        text: "Hz";
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -114,7 +114,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 32px;
         height: parent.height;
-        text: @tr("label-buffer");
+        text: "Buffer";
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -137,7 +137,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: @tr("label-bits");
+        text: "Bits";
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -167,7 +167,11 @@ component DeviceRow inherits Rectangle {
 
 export component SectionSystemAudio inherits SettingsSection {
     scope: SettingsScope.system;
-    title: @tr("title-section-audio-devices");
+    // Hardcoded English — the `title-section-audio-devices` key in the
+    // .po file is wrapped under the old `ProjectSettingsPage` msgctxt
+    // and does not resolve from this component. Re-localizing the new
+    // Settings sections will follow in a separate i18n pass.
+    title: "Audio interface";
 
     in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
@@ -207,8 +211,13 @@ export component SectionSystemAudio inherits SettingsSection {
         }
     }
 
+    // Device list — height tracks the row count and the SettingsSection
+    // wrapping VerticalLayout already provides horizontal padding, so the
+    // ScrollView simply stretches across the available width. Reading
+    // `parent.width` here used to create a layout binding loop with the
+    // outer TabWidget / SettingsPage.
     ScrollView {
-        width: parent.width - 32px;
+        horizontal-stretch: 1;
         height: root.project-devices.length * 48px;
         viewport-height: root.project-devices.length * 48px;
 

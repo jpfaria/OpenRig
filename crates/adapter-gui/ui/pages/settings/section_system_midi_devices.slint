@@ -42,8 +42,11 @@ export component SectionSystemMidiDevices inherits SettingsSection {
         }
     }
 
+    // SettingsSection already pads horizontally; stretch via the layout
+    // instead of reading `parent.width` (which would loop with the outer
+    // TabWidget's content-width).
     ScrollView {
-        width: parent.width - 32px;
+        horizontal-stretch: 1;
         height: Math.max(48px, root.devices.length * 48px);
         viewport-height: root.devices.length * 48px;
 

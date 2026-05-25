@@ -3,7 +3,10 @@ import { LanguageSelector } from "../../components/language_selector.slint";
 
 export component SectionSystemLanguage inherits SettingsSection {
     scope: SettingsScope.system;
-    title: @tr("title-section-language");
+    // Hardcoded English — the `title-section-language` key resolves
+    // only under the old `ProjectSettingsPage` msgctxt. i18n will be
+    // re-wired for the new Settings layout in a follow-up.
+    title: "Language";
 
     in property <[string]> language-options;
     in property <[string]> language-codes;
