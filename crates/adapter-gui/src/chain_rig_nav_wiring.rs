@@ -146,6 +146,21 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     if events.is_empty() {
         return;
     }
+
+    // #513 / #493: forward learn-mode toggles to the MIDI daemon's
+    // process-wide flag. Safe whether or not the daemon thread is
+    // running — the `Arc<LearnState>` exists per-process and the daemon
+    // only consults it on incoming events. `MidiEventReceived` is
+    // intentionally NOT handled here; Task 12 will wire it into the
+    // mapping editor.
+    for ev in events {
+        match ev {
+            Event::MidiLearnStarted => adapter_midi::learn_state().start(),
+            Event::MidiLearnStopped => adapter_midi::learn_state().stop(),
+            _ => {}
+        }
+    }
+
     let session_borrow = ctx.project_session.borrow();
     let Some(session) = session_borrow.as_ref() else {
         return;

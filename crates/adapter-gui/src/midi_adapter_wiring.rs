@@ -67,10 +67,15 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
                 map.bindings.len()
             );
 
+            // #513 / #493: hand the daemon the process-wide learn flag.
+            // The drain loop below flips it from Event::MidiLearnStarted /
+            // MidiLearnStopped, which the dispatcher fans out after the
+            // GUI dispatches Command::Start/StopMidiLearn.
+            let learn = adapter_midi::learn_state();
             std::thread::Builder::new()
                 .name("openrig-midi".into())
                 .spawn(move || {
-                    if let Err(e) = adapter_midi::run_blocking_with_map(bridge, map) {
+                    if let Err(e) = adapter_midi::run_blocking_with_map(bridge, map, learn) {
                         log::error!("MIDI adapter stopped: {e}");
                     }
                 })?;
@@ -82,10 +87,11 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
                 map_path.display()
             );
             let map_for_thread = map_path.clone();
+            let learn = adapter_midi::learn_state();
             std::thread::Builder::new()
                 .name("openrig-midi".into())
                 .spawn(move || {
-                    if let Err(e) = adapter_midi::run_blocking(bridge, &map_for_thread) {
+                    if let Err(e) = adapter_midi::run_blocking(bridge, &map_for_thread, learn) {
                         log::error!("MIDI adapter stopped: {e}");
                     }
                 })?;
