@@ -184,22 +184,35 @@ fn default_filename_returns_none_when_input_missing_from_rig() {
 // ── preset_rename_target_from_path (issue #510) ─────────────────
 
 #[test]
-fn rename_target_humanizes_underscore_slug_stem() {
+fn rename_target_returns_raw_file_stem_preserving_dashes() {
+    // Issue #510 (user feedback): the active preset's name must
+    // match the file's stem VERBATIM. Earlier humanization replaced
+    // '-' with ' ' which silently rewrote the user's filename.
     use std::path::PathBuf;
-    let path = PathBuf::from("/presets/silverchair_freak.yaml");
+    let path = PathBuf::from("/presets/lead-boost.yaml");
     assert_eq!(
         preset_rename_target_from_path(&path).as_deref(),
-        Some("Silverchair Freak"),
+        Some("lead-boost"),
     );
 }
 
 #[test]
-fn rename_target_handles_single_word_stem() {
+fn rename_target_preserves_underscores_and_case() {
     use std::path::PathBuf;
-    let path = PathBuf::from("/presets/clean.yaml");
+    let path = PathBuf::from("/presets/silverchair_freak.yaml");
     assert_eq!(
         preset_rename_target_from_path(&path).as_deref(),
-        Some("Clean"),
+        Some("silverchair_freak"),
+    );
+}
+
+#[test]
+fn rename_target_preserves_spaces_in_filename() {
+    use std::path::PathBuf;
+    let path = PathBuf::from("/presets/Lead Boost.yaml");
+    assert_eq!(
+        preset_rename_target_from_path(&path).as_deref(),
+        Some("Lead Boost"),
     );
 }
 

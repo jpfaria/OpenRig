@@ -211,8 +211,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                         // Issue #510: round-trip contract — the active
                         // preset's display name follows the loaded file's
-                        // stem (humanized) so the combobox immediately
-                        // reflects what the user picked.
+                        // stem verbatim so the combobox reflects exactly
+                        // what the user picked.
                         if let Some(name) = preset_rename_target_from_path(&path) {
                             if let Err(e) = session.dispatcher.dispatch(Command::RenameRigPreset {
                                 chain: chain_id.clone(),
@@ -233,6 +233,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
                         );
+                        // Issue #510 bug fix: the chain preset combobox
+                        // is fed by `chain-rig-nav`, not by `project_chains`.
+                        // Without this refresh, `Command::RenameRigPreset`
+                        // updates the rig in memory but the visible combo
+                        // keeps the old label.
+                        crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
                         sync_project_dirty(
                             &window,
                             session,
@@ -367,15 +373,17 @@ pub(crate) fn preset_save_path(presets_dir: &std::path::Path, name: &str) -> Pat
 
 /// Derive the preset display name from a loaded file path so the
 /// adapter can dispatch `Command::RenameRigPreset` after a successful
-/// `Command::LoadChainPreset`. The file's stem is the slug convention
-/// (`silverchair_freak`); the display name is the humanized form
-/// (`Silverchair Freak`). Issue #510 round-trip contract.
+/// `Command::LoadChainPreset`. The name is the file's stem verbatim
+/// — no humanization. Earlier versions ran `humanize_preset_label`
+/// here and silently rewrote dashes/underscores, surprising users who
+/// chose those characters deliberately. Issue #510 round-trip
+/// contract: the preset's name follows the file the user picked.
 pub(crate) fn preset_rename_target_from_path(path: &std::path::Path) -> Option<String> {
     let stem = path.file_stem().and_then(|s| s.to_str())?;
     if stem.is_empty() {
         return None;
     }
-    Some(humanize_preset_label(&stem.replace('_', "-")))
+    Some(stem.to_string())
 }
 
 /// Case-insensitive substring filter for the load picker's search
