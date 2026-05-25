@@ -525,7 +525,7 @@ msgstr "+ Add"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "empty-midi-mapping-explain"
-msgstr ""
+msgstr "No MIDI bindings yet. Add one to map a controller to an OpenRig command."
 "No MIDI bindings yet. Add one to map a controller to an OpenRig command."
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint

@@ -443,3 +443,58 @@ fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
         );
     }
 }
+
+/// #513 regression guard: every `@tr` key used by the Settings master-detail
+/// screen and its 5 sections must have a non-empty pt_BR translation in the
+/// flat (no-msgctxt) catalog. Previous bugs: keys present in the .slint but
+/// missing/empty in the .po → UI rendered the raw key in Bebas Neue uppercase
+/// (e.g. "TITLE-SECTION-AUDIO-INTERFACE").
+#[test]
+fn settings_screen_tr_keys_are_translated_in_pt_br() {
+    let sources: &[(&str, &str)] = &[
+        ("settings.slint", include_str!("../ui/pages/settings.slint")),
+        (
+            "section_system_audio.slint",
+            include_str!("../ui/pages/settings/section_system_audio.slint"),
+        ),
+        (
+            "section_system_language.slint",
+            include_str!("../ui/pages/settings/section_system_language.slint"),
+        ),
+        (
+            "section_system_midi_devices.slint",
+            include_str!("../ui/pages/settings/section_system_midi_devices.slint"),
+        ),
+        (
+            "section_project_meta.slint",
+            include_str!("../ui/pages/settings/section_project_meta.slint"),
+        ),
+        (
+            "section_project_midi_mapping.slint",
+            include_str!("../ui/pages/settings/section_project_midi_mapping.slint"),
+        ),
+    ];
+    let po = include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po");
+
+    for (name, slint) in sources {
+        let keys: Vec<&str> = slint
+            .match_indices("@tr(\"")
+            .map(|(i, _)| {
+                let rest = &slint[i + 5..];
+                &rest[..rest.find('"').expect("closing quote")]
+            })
+            .collect();
+        for key in keys {
+            let resolved = po.split("\n\n").any(|rec| {
+                !rec.contains("msgctxt ")
+                    && rec.contains(&format!("msgid \"{key}\""))
+                    && !rec.contains("msgstr \"\"")
+            });
+            assert!(
+                resolved,
+                "{name}: no non-empty pt_BR translation for @tr(\"{key}\") \
+                 in the flat (context-free) catalog — UI shows raw key",
+            );
+        }
+    }
+}

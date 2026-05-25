@@ -533,7 +533,7 @@ msgstr "+ Adicionar"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "empty-midi-mapping-explain"
-msgstr ""
+msgstr "Sem mapeamentos MIDI. Adicione um para vincular um controlador a um comando do OpenRig."
 "Sem mapeamentos MIDI. Adicione um para vincular um controlador a um comando "
 "do OpenRig."
 
