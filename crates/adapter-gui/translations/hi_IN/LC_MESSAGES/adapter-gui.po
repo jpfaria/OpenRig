@@ -720,3 +720,98 @@ msgstr "रद्द करें"
 msgctxt "ConfirmDeleteRecentProjectDialog"
 msgid "btn-remove"
 msgstr "हटाएं"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "tab-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "tab-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "btn-close"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgctxt "SettingsSection"
+msgid "badge-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgctxt "SettingsSection"
+msgid "badge-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgctxt "SectionSystemAudio"
+msgid "title-section-audio-interface"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgctxt "DeviceRow"
+msgid "label-hz"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgctxt "DeviceRow"
+msgid "label-buffer"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgctxt "DeviceRow"
+msgid "label-bits"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_language.slint
+msgctxt "SectionSystemLanguage"
+msgid "title-section-language"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
+msgctxt "SectionSystemMidiDevices"
+msgid "title-section-midi-devices"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgctxt "SectionProjectMeta"
+msgid "title-section-project-meta"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgctxt "SectionProjectMeta"
+msgid "label-name"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgctxt "SectionProjectMeta"
+msgid "label-file"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
+msgid "title-section-midi-mapping"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
+msgid "btn-add-midi-binding"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
+msgid "placeholder-midi-listen"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
+msgid "btn-cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgctxt "SectionProjectMidiMapping"
+msgid "btn-delete"
+msgstr ""

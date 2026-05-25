@@ -67,7 +67,7 @@ export component SettingsPage inherits Rectangle {
             // "System" tab — values that live in config.yaml and stay
             // on this machine when the .openrig project is shared.
             Tab {
-                title: "System";
+                title: @tr("tab-system");
                 VerticalLayout {
                     padding: 8px;
                     spacing: 16px;
@@ -107,7 +107,7 @@ export component SettingsPage inherits Rectangle {
             // "Project" tab — values persisted inside the .openrig file
             // and that travel with the project to other machines.
             Tab {
-                title: "Project";
+                title: @tr("tab-project");
                 VerticalLayout {
                     padding: 8px;
                     spacing: 16px;
@@ -139,7 +139,7 @@ export component SettingsPage inherits Rectangle {
             alignment: end;
             spacing: 8px;
             Button {
-                text: "Close";
+                text: @tr("btn-close");
                 clicked => { root.close-settings(); }
             }
         }

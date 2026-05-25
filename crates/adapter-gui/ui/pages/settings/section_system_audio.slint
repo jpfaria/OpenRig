@@ -91,7 +91,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: "Hz";
+        text: @tr("label-hz");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -114,7 +114,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 32px;
         height: parent.height;
-        text: "Buffer";
+        text: @tr("label-buffer");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -137,7 +137,7 @@ component DeviceRow inherits Rectangle {
         y: 0px;
         width: 26px;
         height: parent.height;
-        text: "Bits";
+        text: @tr("label-bits");
         color: #6b7786;
         font-size: 11px;
         font-weight: 600;
@@ -167,11 +167,7 @@ component DeviceRow inherits Rectangle {
 
 export component SectionSystemAudio inherits SettingsSection {
     scope: SettingsScope.system;
-    // Hardcoded English — the `title-section-audio-devices` key in the
-    // .po file is wrapped under the old `ProjectSettingsPage` msgctxt
-    // and does not resolve from this component. Re-localizing the new
-    // Settings sections will follow in a separate i18n pass.
-    title: "Audio interface";
+    title: @tr("title-section-audio-interface");
 
     in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;

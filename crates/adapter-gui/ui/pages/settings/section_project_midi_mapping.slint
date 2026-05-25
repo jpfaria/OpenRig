@@ -10,7 +10,7 @@ import { Button, ComboBox, ScrollView } from "std-widgets.slint";
 
 export component SectionProjectMidiMapping inherits SettingsSection {
     scope: SettingsScope.project;
-    title: "MIDI mapping";
+    title: @tr("title-section-midi-mapping");
 
     in property <[MidiBindingRow]> bindings;
     in property <[string]> available-commands;
@@ -24,7 +24,7 @@ export component SectionProjectMidiMapping inherits SettingsSection {
         HorizontalLayout {
             alignment: end;
             Button {
-                text: "+ Add";
+                text: @tr("btn-add-midi-binding");
                 clicked => { root.add-midi-binding(); }
             }
         }
@@ -38,7 +38,7 @@ export component SectionProjectMidiMapping inherits SettingsSection {
                         padding: 8px;
                         spacing: 10px;
                         Text {
-                            text: b.learning ? "(listening...)" : b.trigger-label;
+                            text: b.learning ? @tr("placeholder-midi-listen") : b.trigger-label;
                             color: b.learning ? #ffd166 : #f3f6fb;
                             vertical-alignment: center;
                         }
@@ -48,7 +48,7 @@ export component SectionProjectMidiMapping inherits SettingsSection {
                             selected(c) => { root.pick-midi-binding-command(i, c); }
                         }
                         Button {
-                            text: b.learning ? "Cancel" : "Delete";
+                            text: b.learning ? @tr("btn-cancel") : @tr("btn-delete");
                             clicked => {
                                 if (b.learning) {
                                     root.cancel-midi-binding-draft(i);

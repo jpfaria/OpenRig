@@ -4,9 +4,7 @@ import { ScrollView } from "std-widgets.slint";
 
 export component SectionSystemMidiDevices inherits SettingsSection {
     scope: SettingsScope.system;
-    // Translation key added in task 13 (docs+strings). Hardcoded for now
-    // so the section ships in English and gets localized in the docs pass.
-    title: "MIDI devices";
+    title: @tr("title-section-midi-devices");
 
     in property <[MidiDeviceRow]> devices;
     callback refresh-midi-devices();
