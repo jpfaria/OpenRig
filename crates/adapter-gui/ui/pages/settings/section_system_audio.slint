@@ -3,7 +3,7 @@ import { DeviceSelectionItem } from "../../models.slint";
 import { ComboBox, ScrollView } from "std-widgets.slint";
 
 // Inline helper — not promoted to components/ because it is only used here.
-component DeviceRow inherits Rectangle {
+component AudioDeviceRow inherits Rectangle {
     in property <DeviceSelectionItem> device;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -217,7 +217,7 @@ export component SectionSystemAudio inherits SettingsSection {
         height: root.project-devices.length * 48px;
         viewport-height: root.project-devices.length * 48px;
 
-        for device[index] in root.project-devices : DeviceRow {
+        for device[index] in root.project-devices : AudioDeviceRow {
             x: 0px;
             y: index * 48px;
             width: parent.width - 8px;

@@ -763,17 +763,17 @@ msgid "title-section-audio-interface"
 msgstr "Interface de áudio"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
-msgctxt "DeviceRow"
+msgctxt "AudioDeviceRow"
 msgid "label-hz"
 msgstr "Hz"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
-msgctxt "DeviceRow"
+msgctxt "AudioDeviceRow"
 msgid "label-buffer"
 msgstr "Buffer"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
-msgctxt "DeviceRow"
+msgctxt "AudioDeviceRow"
 msgid "label-bits"
 msgstr "Bits"
 
