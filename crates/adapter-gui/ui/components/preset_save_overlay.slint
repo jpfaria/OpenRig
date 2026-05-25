@@ -16,10 +16,6 @@ export component PresetSaveOverlay inherits Rectangle {
     visible: root.visible-overlay;
     background: #000000b0;
 
-    if root.visible-overlay: TouchArea {
-        clicked => { /* swallow background clicks */ }
-    }
-
     if root.visible-overlay: Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
@@ -30,6 +26,10 @@ export component PresetSaveOverlay inherits Rectangle {
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
         drop-shadow-color: #000000c0;
+        // Issue #510 bug fix: focus the name field when the overlay
+        // appears so the user can type immediately. Without this the
+        // LineEdit waits for an extra click before accepting keys.
+        init => { name-edit.focus(); }
 
         VerticalLayout {
             padding: 20px;
@@ -100,10 +100,6 @@ export component PresetOverwriteOverlay inherits Rectangle {
 
     visible: root.visible-overlay;
     background: #000000b0;
-
-    if root.visible-overlay: TouchArea {
-        clicked => { /* swallow background clicks */ }
-    }
 
     if root.visible-overlay: Rectangle {
         x: (root.width - self.width) / 2;
