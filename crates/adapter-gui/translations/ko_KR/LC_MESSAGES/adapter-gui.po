@@ -815,3 +815,13 @@ msgstr ""
 msgctxt "SectionProjectMidiMapping"
 msgid "btn-delete"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "nav-group-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "nav-group-project"
+msgstr ""

@@ -1,55 +1,57 @@
-import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
+// Master-detail content for System / MIDI devices (issue #513). The
+// SettingsPage shell renders the section title — here we just place
+// the refresh button + device list inside a VerticalLayout.
+
 import { MidiDeviceRow } from "../../models.slint";
 import { ScrollView } from "std-widgets.slint";
 
-export component SectionSystemMidiDevices inherits SettingsSection {
-    scope: SettingsScope.system;
-    title: @tr("title-section-midi-devices");
-
+export component SectionSystemMidiDevices inherits Rectangle {
     in property <[MidiDeviceRow]> devices;
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
 
-    // Header row: refresh button aligned to the right (mirrors the
-    // audio devices section so the user sees the same affordance).
-    HorizontalLayout {
-        alignment: end;
+    background: transparent;
 
-        Rectangle {
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            background: refresh-ta.has-hover ? #2a3340 : #1e2229;
-            border-width: 1px;
-            border-color: #3d4450;
-            animate background { duration: 200ms; }
+    VerticalLayout {
+        spacing: 8px;
 
-            Image {
-                x: 6px;
-                y: 6px;
-                width: 16px;
-                height: 16px;
-                source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
-                colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
-            }
+        // Header row: refresh button aligned to the right (mirrors the
+        // audio devices section so the user sees the same affordance).
+        HorizontalLayout {
+            alignment: end;
 
-            refresh-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.refresh-midi-devices(); }
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+                border-width: 1px;
+                border-color: #3d4450;
+                animate background { duration: 200ms; }
+
+                Image {
+                    x: 6px;
+                    y: 6px;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
+                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+                }
+
+                refresh-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.refresh-midi-devices(); }
+                }
             }
         }
-    }
 
-    // SettingsSection already pads horizontally; stretch via the layout
-    // instead of reading `parent.width` (which would loop with the outer
-    // TabWidget's content-width).
-    ScrollView {
-        horizontal-stretch: 1;
-        height: Math.max(48px, root.devices.length * 48px);
-        viewport-height: root.devices.length * 48px;
+        ScrollView {
+            horizontal-stretch: 1;
+            height: Math.max(48px, root.devices.length * 48px);
+            viewport-height: root.devices.length * 48px;
 
-        for d[i] in root.devices : Rectangle {
+            for d[i] in root.devices : Rectangle {
             x: 0px;
             y: i * 48px;
             width: parent.width - 8px;
@@ -129,5 +131,6 @@ export component SectionSystemMidiDevices inherits SettingsSection {
                 overflow: elide;
             }
         }
+    }
     }
 }

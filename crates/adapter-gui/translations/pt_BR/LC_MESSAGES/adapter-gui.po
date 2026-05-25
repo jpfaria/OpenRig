@@ -831,3 +831,13 @@ msgstr "Cancelar"
 msgctxt "SectionProjectMidiMapping"
 msgid "btn-delete"
 msgstr "Excluir"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "nav-group-system"
+msgstr "SISTEMA"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgctxt "SettingsPage"
+msgid "nav-group-project"
+msgstr "PROJETO"

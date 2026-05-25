@@ -1,27 +1,26 @@
-// Project / MIDI mapping editor (#513, #493). Replaces hand-edited
-// `midi-map.yaml`. Each row shows the trigger label, a dropdown of
-// available `Command` names, and a Delete/Cancel button. Drafts (rows
-// in Learn mode) read "(listening...)" on the trigger column and turn
-// the action button into "Cancel".
+// Project / MIDI mapping editor (#513, #493). Master-detail content
+// pane — the SettingsPage shell renders the title. Replaces the
+// hand-edited `midi-map.yaml`. Each row shows the trigger label, a
+// dropdown of available `Command` names, and a Delete/Cancel button.
+// Drafts (rows in Learn mode) read "(listening...)" on the trigger
+// column and turn the action button into "Cancel".
 //
-// The section renders at its natural height — there is no internal
-// ScrollView (the outer SettingsPage tab wraps its content in a
-// ScrollView, so an over-tall section scrolls as part of the tab).
+// The section renders at its natural height — the outer SettingsPage
+// content area wraps it in a ScrollView, so an over-tall list scrolls
+// as part of the panel.
 
-import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
 import { MidiBindingRow } from "../../models.slint";
 import { Button, ComboBox } from "std-widgets.slint";
 
-export component SectionProjectMidiMapping inherits SettingsSection {
-    scope: SettingsScope.project;
-    title: @tr("title-section-midi-mapping");
-
+export component SectionProjectMidiMapping inherits Rectangle {
     in property <[MidiBindingRow]> bindings;
     in property <[string]> available-commands;
     callback add-midi-binding();
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
     callback cancel-midi-binding-draft(int);
+
+    background: transparent;
 
     VerticalLayout {
         spacing: 8px;

@@ -1,4 +1,7 @@
-import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
+// Master-detail right pane content for System / Audio (issue #513).
+// Wrapped in a plain Rectangle — the SettingsPage shell renders the
+// section title and divider; this component only renders the body.
+
 import { DeviceSelectionItem } from "../../models.slint";
 import { ComboBox, ScrollView } from "std-widgets.slint";
 
@@ -165,10 +168,7 @@ component AudioDeviceRow inherits Rectangle {
     }
 }
 
-export component SectionSystemAudio inherits SettingsSection {
-    scope: SettingsScope.system;
-    title: @tr("title-section-audio-interface");
-
+export component SectionSystemAudio inherits Rectangle {
     in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -179,57 +179,59 @@ export component SectionSystemAudio inherits SettingsSection {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
 
-    // Header row: refresh button aligned to the right
-    HorizontalLayout {
-        alignment: end;
+    background: transparent;
 
-        Rectangle {
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            background: refresh-ta.has-hover ? #2a3340 : #1e2229;
-            border-width: 1px;
-            border-color: #3d4450;
-            animate background { duration: 200ms; }
+    VerticalLayout {
+        spacing: 8px;
 
-            Image {
-                x: 6px;
-                y: 6px;
-                width: 16px;
-                height: 16px;
-                source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
-                colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
-            }
+        // Header row: refresh button aligned to the right
+        HorizontalLayout {
+            alignment: end;
 
-            refresh-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.refresh-devices(); }
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+                border-width: 1px;
+                border-color: #3d4450;
+                animate background { duration: 200ms; }
+
+                Image {
+                    x: 6px;
+                    y: 6px;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
+                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+                }
+
+                refresh-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.refresh-devices(); }
+                }
             }
         }
-    }
 
-    // Device list — height tracks the row count and the SettingsSection
-    // wrapping VerticalLayout already provides horizontal padding, so the
-    // ScrollView simply stretches across the available width. Reading
-    // `parent.width` here used to create a layout binding loop with the
-    // outer TabWidget / SettingsPage.
-    ScrollView {
-        horizontal-stretch: 1;
-        height: root.project-devices.length * 48px;
-        viewport-height: root.project-devices.length * 48px;
+        // Device list — height tracks the row count.
+        ScrollView {
+            horizontal-stretch: 1;
+            height: root.project-devices.length * 48px;
+            viewport-height: root.project-devices.length * 48px;
 
-        for device[index] in root.project-devices : AudioDeviceRow {
-            x: 0px;
-            y: index * 48px;
-            width: parent.width - 8px;
-            device: device;
-            sample-rate-options: root.sample-rate-options;
-            buffer-size-options: root.buffer-size-options;
-            bit-depth-options: root.bit-depth-options;
-            toggled(selected) => { root.toggle-project-device(index, selected); }
-            sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
-            buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
-            bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
+            for device[index] in root.project-devices : AudioDeviceRow {
+                x: 0px;
+                y: index * 48px;
+                width: parent.width - 8px;
+                device: device;
+                sample-rate-options: root.sample-rate-options;
+                buffer-size-options: root.buffer-size-options;
+                bit-depth-options: root.bit-depth-options;
+                toggled(selected) => { root.toggle-project-device(index, selected); }
+                sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
+                buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
+                bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
+            }
         }
     }
 }
