@@ -122,3 +122,6 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod compact_block_search_wiring_tests;

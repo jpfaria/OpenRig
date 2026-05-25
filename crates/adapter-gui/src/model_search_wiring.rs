@@ -103,12 +103,20 @@ pub(crate) fn refilter_compact_block(
             all.len(),
             filtered.len()
         );
-        // Mutate the EXISTING filtered_models VecModel in place — same
-        // as the working normal-view path (`filtered.set_vec(...)`).
-        // Replacing the whole row struct via set_row_data does not
-        // refresh an open PopupWindow's `for model in filtered-models`
-        // (the popup keeps the old ModelRc handle); in-place mutation is
-        // observed live (#479).
+        // Mutate the EXISTING filtered_models VecModel in place so the
+        // open popup (which holds a `ModelRc` to that exact VecModel)
+        // sees the new data without losing its binding. Then nudge the
+        // outer `compact_blocks` model via `set_row_data` carrying the
+        // SAME `item` (same `filtered_models` Rc), because the Slint
+        // binding chain is
+        //   `for block-item in compact-blocks
+        //      → CompactBlockRow.block-data
+        //      → ModelSelectWithSearch.filtered-models
+        //         = block-data.filtered-models`
+        // and the `for` loop does not re-evaluate the inner ModelRc
+        // when only the underlying `VecModel` mutates — only when the
+        // parent row is notified (#537). The Rc is unchanged, so the
+        // popup keeps observing the same VecModel (now filtered).
         if let Some(vm) = item
             .filtered_models
             .as_any()
@@ -116,6 +124,7 @@ pub(crate) fn refilter_compact_block(
         {
             vm.set_vec(filtered);
             log::debug!("[search-compact] in-place set_vec done for row {}", i);
+            compact_blocks.set_row_data(i, item);
         } else {
             // Fallback: shouldn't happen (we build it as a VecModel in
             // project_view), but never silently no-op the filter.
