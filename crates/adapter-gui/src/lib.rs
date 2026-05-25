@@ -85,6 +85,8 @@ mod helpers;
 mod io_groups;
 mod latency_probe;
 mod meter_wiring;
+#[cfg(test)]
+mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 mod model_search;
 mod model_search_wiring;
