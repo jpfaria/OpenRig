@@ -86,7 +86,17 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 **Por que:** sem isso a tela sai com as chaves cruas pra todo usuário não-inglês (ou todos). Não dá pra "traduzir depois" — vai pra produção quebrado. Validação: `grep -L 'msgid "chave"' translations/*/LC_MESSAGES/adapter-gui.po` deve ser vazio.
 
-**Anti-padrão:** `@tr("nova-chave")` num componente novo sem tocar nenhum `.po`. **Padrão:** mesmo commit = componente + `.pot` + todos os `.po` + `.mo` regenerados.
+**Anti-padrão 1:** `text: "Texto cru"` direto no `.slint` (sem `@tr()`). Texto visível ao usuário **NUNCA** é literal — sempre `@tr("chave")`. Símbolos visuais (`✓`, `▼`, etc.) viram SVG via `@image-url`, não `Text`.
+
+**Anti-padrão 2:** `@tr("nova-chave")` num componente novo sem tocar nenhum `.po`. **Padrão:** mesmo commit = componente + `.pot` + todos os `.po` + `.mo` regenerados.
+
+**Validação automatizada (i18n_tests.rs):**
+
+1. `every_tr_key_has_translation_in_en_pt_es` — varre todo `.slint` em `crates/adapter-gui/ui/`, extrai cada `@tr("…")` (decodificando `\u{NNNN}` e `\"`), e exige `msgstr` não-vazio em pt_BR + es_ES. RED automático se alguém adiciona `@tr` sem traduzir.
+2. `no_raw_text_literals_in_settings_slint` — varre o escopo da tela de Settings, falha se `text:` aponta pra string literal não-`@tr()`. Expandir o escopo desse teste antes de adicionar `text: "x"` em qualquer .slint.
+3. `settings_screen_tr_keys_are_translated_in_pt_br` — guarda específico da tela #513.
+
+Os testes rodam em `cargo test -p adapter-gui --lib`. CI bloqueia regressão.
 
 ---
 
