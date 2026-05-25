@@ -46,6 +46,13 @@ jobs:
           key: bundle-plugins-cargo-${{ hashFiles('openrig-plugins/Cargo.lock') }}
           restore-keys: bundle-plugins-cargo-
 
+      # Issue #525: pack_plugins shells out to qa_audit (loudness-audit) to
+      # verify per-capture loudness budgets. Build the binary first so the
+      # following Validate step finds it under target/release/.
+      - name: Build qa_audit (required by pack_plugins)
+        working-directory: openrig-plugins
+        run: cargo build --release -p loudness-audit --bin qa_audit
+
       - name: Validate plugins
         working-directory: openrig-plugins
         # pack_plugins iterates plugins/source/, validates every package's
