@@ -140,15 +140,96 @@ pub fn chain_meter_signature(chain: &project::chain::Chain) -> u64 {
     h.finish()
 }
 
-/// Split a flat list of per-channel input rings into one singleton
-/// slot per channel. Used by the meter timer when a chain has a
-/// multi-source InputBlock (e.g. 3 entradas): each source maps to a
-/// distinct internal channel, so a per-channel singleton ring → one
-/// meter bar per source.
-pub fn split_rings_per_entry(
-    rings: &[Arc<SpscRing<f32>>],
-) -> Vec<Vec<Arc<SpscRing<f32>>>> {
-    rings.iter().map(|r| vec![Arc::clone(r)]).collect()
+/// Minimal projection of the engine controller's meter-relevant
+/// surface, narrowed so the per-stream subscription logic can be unit
+/// tested with a recording fake. Production wires this to
+/// `infra_cpal::ProjectRuntimeController` via the blanket impl below.
+pub trait MeterTapApi {
+    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize;
+    fn subscribe_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>>;
+    fn subscribe_stream_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]>;
+}
+
+impl MeterTapApi for infra_cpal::ProjectRuntimeController {
+    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize {
+        infra_cpal::ProjectRuntimeController::stream_count(self, chain_id)
+    }
+    fn subscribe_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>> {
+        infra_cpal::ProjectRuntimeController::subscribe_input_tap(
+            self,
+            chain_id,
+            input_index,
+            total_channels,
+            subscribed_channels,
+            capacity_per_channel,
+        )
+    }
+    fn subscribe_stream_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
+        infra_cpal::ProjectRuntimeController::subscribe_stream_tap(
+            self,
+            chain_id,
+            stream_index,
+            capacity_per_channel,
+        )
+    }
+}
+
+/// Build the per-stream meter rings for a chain by asking the runtime
+/// how many streams it actually owns and subscribing each one
+/// independently. Replaces the older "subscribe channels 0..N of
+/// runtime 0 once, broadcast the same output ring across rows" path,
+/// which was wrong on two counts:
+///
+/// - The engine (issue #350) keeps one per-input runtime per
+///   `InputBlock` entry, keyed `(chain_id, input_index)`. Subscribing
+///   channels 1..N of runtime 0 pulls silence from a runtime that
+///   doesn't own those sources. Each row must instead subscribe
+///   `subscribe_input_tap(cid, i, 1, &[0], cap)`.
+/// - `SpscRing` is single-consumer. Subscribing once and cloning the
+///   `Arc` into every row means row 0 drains the post-FX ring and
+///   rows 1..N see an empty ring forever. Each row subscribes its own
+///   `subscribe_stream_tap(cid, i, cap)`.
+pub fn build_streams_from_taps<T: MeterTapApi>(
+    api: &T,
+    chain_id: &domain::ids::ChainId,
+    capacity_per_channel: usize,
+) -> ChainMeterStreams {
+    let stream_count = api.stream_count(chain_id);
+    let streams = (0..stream_count)
+        .map(|i| {
+            let input = api.subscribe_input_tap(chain_id, i, 1, &[0], capacity_per_channel);
+            let output = api
+                .subscribe_stream_tap(chain_id, i, capacity_per_channel)
+                .map(|[l, r]| vec![l, r])
+                .unwrap_or_default();
+            StreamMeterRings { input, output }
+        })
+        .collect();
+    ChainMeterStreams { streams }
 }
 
 /// Drain the per-stream rings and return one `StreamMeterReading`
@@ -213,12 +294,18 @@ pub fn start_meter_polling(
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
         // Detect chains whose runtime-layout signature changed since
-        // the last tick. Those (and only those) need re-subscription.
+        // the last tick. The signature mixes the project-side bits
+        // (enabled, per-block id+enabled) with the engine-side stream
+        // count: if the engine tears down + rebuilds the per-input
+        // runtimes (chain toggle off→on, rig-nav preset switch) the
+        // count flips 0 ↔ N and the meter store re-subscribes against
+        // the fresh runtime instead of holding dead ring handles.
         let mut invalidate: Vec<domain::ids::ChainId> = Vec::new();
         {
             let mut last = last_signature.borrow_mut();
             for c in project.chains.iter() {
-                let sig = chain_meter_signature(c);
+                let sig = chain_meter_signature(c)
+                    ^ (controller.stream_count(&c.id) as u64).wrapping_mul(0x9E3779B97F4A7C15);
                 if last.get(&c.id).copied() != Some(sig) {
                     invalidate.push(c.id.clone());
                     last.insert(c.id.clone(), sig);
@@ -226,48 +313,10 @@ pub fn start_meter_polling(
             }
             last.retain(|cid, _| chain_ids.contains(cid));
         }
-        let make_streams = |cid: &domain::ids::ChainId| -> ChainMeterStreams {
-            // One meter "entry" per InputBlock entry on this chain
-            // (the user's mental model: 3 sources configured ⇒ 3 bars).
-            // The engine reports per-channel pre-FX samples, so we
-            // subscribe to channels [0..entry_count] on the single
-            // input runtime and treat each returned ring as one
-            // entry's input. Output is the chain's mixed post-FX
-            // stereo tap (one per chain), broadcast to every entry
-            // slot so each row shows a real value.
-            let entry_count: usize = project
-                .chains
-                .iter()
-                .find(|c| &c.id == cid)
-                .map(|c| {
-                    c.blocks
-                        .iter()
-                        .filter_map(|b| match &b.kind {
-                            project::block::AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-                            _ => None,
-                        })
-                        .sum::<usize>()
-                        .max(1)
-                })
-                .unwrap_or(1);
-            let input_rings =
-                controller.subscribe_input_tap(cid, 0, entry_count, &(0..entry_count).collect::<Vec<usize>>(), RING_CAPACITY);
-            let per_entry_inputs = split_rings_per_entry(&input_rings);
-            let output_rings = controller
-                .subscribe_stream_tap(cid, 0, RING_CAPACITY)
-                .map(|[l, r]| vec![l, r])
-                .unwrap_or_default();
-            let streams = (0..entry_count)
-                .map(|i| StreamMeterRings {
-                    input: per_entry_inputs
-                        .get(i)
-                        .cloned()
-                        .unwrap_or_default(),
-                    output: output_rings.clone(),
-                })
-                .collect();
-            ChainMeterStreams { streams }
-        };
+        let make_streams =
+            |cid: &domain::ids::ChainId| -> ChainMeterStreams {
+                build_streams_from_taps(controller, cid, RING_CAPACITY)
+            };
         refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
         // Reclaim any orphan tap slots left behind after an invalidation
         // (rings dropped from the store free their consumer side, the
