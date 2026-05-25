@@ -1,8 +1,7 @@
 // System / Paths section (#513). Two rows — presets directory and
-// plugins directory — each a label + read-only path text + Choose…
-// + Reset buttons. Empty path means "use OS default" (the existing
-// resolver picks it up). Pattern mirrors section_project_meta:
-// label column width is fixed so both rows align.
+// plugins directory — each a label + current path + Choose…/Reset.
+// Empty path means "use OS default" (the resolver handles it). Both
+// rows share a fixed-width label column so they line up vertically.
 
 import { Button } from "std-widgets.slint";
 
@@ -29,6 +28,7 @@ export component SectionSystemPaths inherits Rectangle {
             Text {
                 text: @tr("label-presets-path");
                 color: #cfd5e0;
+                font-size: 16px;
                 width: 140px;
                 vertical-alignment: center;
             }
@@ -43,7 +43,7 @@ export component SectionSystemPaths inherits Rectangle {
                         ? @tr("placeholder-default-path")
                         : root.presets-path;
                     color: root.presets-path == "" ? #6b7786 : #dde3ec;
-                    font-size: 12px;
+                    font-size: 16px;
                     x: 10px;
                     y: 0px;
                     width: parent.width - 20px;
@@ -70,6 +70,7 @@ export component SectionSystemPaths inherits Rectangle {
             Text {
                 text: @tr("label-plugins-path");
                 color: #cfd5e0;
+                font-size: 16px;
                 width: 140px;
                 vertical-alignment: center;
             }
@@ -84,7 +85,7 @@ export component SectionSystemPaths inherits Rectangle {
                         ? @tr("placeholder-default-path")
                         : root.plugins-path;
                     color: root.plugins-path == "" ? #6b7786 : #dde3ec;
-                    font-size: 12px;
+                    font-size: 16px;
                     x: 10px;
                     y: 0px;
                     width: parent.width - 20px;

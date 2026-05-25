@@ -608,3 +608,11 @@ msgstr "Restaurar"
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "placeholder-default-path"
 msgstr "(padrão)"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_language.slint
+msgid "label-language"
+msgstr "Idioma"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgid "btn-save-project"
+msgstr "Salvar projeto"

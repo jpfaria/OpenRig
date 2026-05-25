@@ -1,9 +1,12 @@
-// Language section — embeds the existing LanguageSelector component
-// (used elsewhere in the app) so the dropdown shows flag + native
-// language name. std-widgets ComboBox didn't render the model when
-// used here; LanguageSelector is the proven path.
+// Language section — inline ComboBox mirroring the Audio Interface
+// section's pattern (Hz/Buffer/Bits dropdowns). The previous
+// LanguageSelector popover hid the current value behind a globe icon
+// and felt out of place next to the rest of the settings rows.
+// Property forwarding through ProjectSettingsWindow → SettingsPage was
+// fixed in 371857e2, so std-widgets ComboBox now renders the model
+// correctly inside the secondary window.
 
-import { LanguageSelector } from "../../components/language_selector.slint";
+import { ComboBox } from "std-widgets.slint";
 
 export component SectionSystemLanguage inherits Rectangle {
     in property <[string]> language-options;
@@ -14,13 +17,24 @@ export component SectionSystemLanguage inherits Rectangle {
     background: transparent;
 
     HorizontalLayout {
+        spacing: 12px;
         alignment: start;
-        LanguageSelector {
-            compact: false;
-            language-options: root.language-options;
-            language-codes: root.language-codes;
-            selected-language-index: root.selected-language-index;
-            language-selected(i) => { root.language-selected(i); }
+        height: 32px;
+
+        Text {
+            text: @tr("label-language");
+            color: #cfd5e0;
+            font-size: 16px;
+            width: 120px;
+            vertical-alignment: center;
+        }
+
+        combo := ComboBox {
+            model: root.language-options;
+            current-index: root.selected-language-index;
+            height: 28px;
+            width: 280px;
+            selected(_) => { root.language-selected(combo.current-index); }
         }
     }
 }

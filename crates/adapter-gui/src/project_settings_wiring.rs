@@ -216,4 +216,17 @@ pub(crate) fn wire(
             let _ = settings_window.hide();
         });
     }
+    // #513 — Save project button inside the secondary settings window.
+    // Forwards to the main window's save-project callback (the only
+    // surface where the full save flow — file dialog, recent list,
+    // dispatcher — is installed). Routing through invoke_save_project
+    // keeps a single source of truth.
+    {
+        let weak_window = window.as_weak();
+        project_settings_window.on_save_project(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_save_project();
+            }
+        });
+    }
 }

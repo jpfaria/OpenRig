@@ -53,7 +53,7 @@ component NavRow inherits Rectangle {
         height: parent.height;
         text: root.label;
         color: root.selected ? #dde3ec : #8a92a3;
-        font-size: 13px;
+        font-size: 16px;
         font-weight: root.selected ? 600 : 400;
         vertical-alignment: center;
         overflow: elide;
@@ -103,6 +103,10 @@ export component SettingsPage inherits Rectangle {
     // Retained for callsite compatibility (old top-of-page FieldBox).
     callback update-project-name(string);
     callback save-audio-settings();
+    // Project / Metadata "Save project" button (#513). Forwards to the
+    // app-level save-project callback so Settings can trigger the same
+    // Command::SaveProject path the toolbar Save button uses.
+    callback save-project();
     callback close-settings();
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
@@ -151,7 +155,7 @@ export component SettingsPage inherits Rectangle {
                         Text {
                             text: @tr("nav-group-system");
                             color: #6b7786;
-                            font-size: 10px;
+                            font-size: 14px;
                             font-weight: 700;
                             letter-spacing: 0.8px;
                             vertical-alignment: center;
@@ -192,7 +196,7 @@ export component SettingsPage inherits Rectangle {
                         Text {
                             text: @tr("nav-group-project");
                             color: #6b7786;
-                            font-size: 10px;
+                            font-size: 14px;
                             font-weight: 700;
                             letter-spacing: 0.8px;
                             vertical-alignment: center;
@@ -241,7 +245,7 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 4 ? @tr("title-section-project-meta")
                         : @tr("title-section-midi-mapping");
                     color: #dde3ec;
-                    font-size: 16px;
+                    font-size: 18px;
                     font-weight: 700;
                 }
 
@@ -292,6 +296,7 @@ export component SettingsPage inherits Rectangle {
                         project-name: root.project-name;
                         project-path-display: root.project-path-display;
                         edit-project-name(t) => { root.edit-project-name(t); }
+                        save-project => { root.save-project(); }
                     }
                     if root.selected-section == 5 : SectionProjectMidiMapping {
                         bindings: root.midi-bindings;

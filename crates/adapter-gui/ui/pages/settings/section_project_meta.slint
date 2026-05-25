@@ -1,14 +1,17 @@
 // Project / Metadata section (#513). Master-detail content pane —
 // the SettingsPage shell renders the title. Holds the project's
-// display name and shows the on-disk file path. Both rows align on
-// a fixed-width label column so the inputs line up.
+// display name, shows the on-disk file path, and exposes an explicit
+// "Save project" button. Name edits auto-dispatch UpdateProjectName,
+// but the user expects a Save affordance — the button forwards to
+// AppWindow.save-project (Command::SaveProject).
 
-import { LineEdit } from "std-widgets.slint";
+import { Button, LineEdit } from "std-widgets.slint";
 
 export component SectionProjectMeta inherits Rectangle {
     in property <string> project-name;
     in property <string> project-path-display;
     callback edit-project-name(string);
+    callback save-project();
 
     background: transparent;
 
@@ -23,6 +26,7 @@ export component SectionProjectMeta inherits Rectangle {
             Text {
                 text: @tr("label-name");
                 color: #cfd5e0;
+                font-size: 16px;
                 width: 80px;
                 vertical-alignment: center;
             }
@@ -40,6 +44,7 @@ export component SectionProjectMeta inherits Rectangle {
                     text: root.project-name;
                     height: parent.height;
                     width: parent.width;
+                    font-size: 16px;
                     edited(t) => { root.edit-project-name(t); }
                 }
             }
@@ -52,6 +57,7 @@ export component SectionProjectMeta inherits Rectangle {
             Text {
                 text: @tr("label-file");
                 color: #cfd5e0;
+                font-size: 16px;
                 width: 80px;
                 vertical-alignment: center;
             }
@@ -60,10 +66,23 @@ export component SectionProjectMeta inherits Rectangle {
                     ? @tr("placeholder-project-unsaved")
                     : root.project-path-display;
                 color: #8a92a3;
-                font-size: 11px;
+                font-size: 14px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
                 wrap: word-wrap;
+            }
+        }
+
+        // Save affordance — even though name edits auto-dispatch
+        // UpdateProjectName, users expect an explicit Save button.
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8px;
+            height: 36px;
+            Button {
+                text: @tr("btn-save-project");
+                height: 32px;
+                clicked => { root.save-project(); }
             }
         }
     }

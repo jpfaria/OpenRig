@@ -26,6 +26,10 @@ export component ProjectSettingsWindow inherits Window {
     in property <string> project-path-display;
     callback update-project-name(string);
     callback save-audio-settings();
+    // Project / Metadata "Save project" button (#513). Mirror of the
+    // main AppWindow callback so the secondary settings window can
+    // dispatch Command::SaveProject through the same Rust handler.
+    callback save-project();
     callback close-settings();
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
@@ -73,6 +77,7 @@ export component ProjectSettingsWindow inherits Window {
         project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
+        save-project => { root.save-project(); }
         close-settings => { root.close-settings(); }
         toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
