@@ -202,18 +202,6 @@ fn refresh_subscriptions_lazy_per_stream_drops_missing_chains() {
     assert_eq!(store.borrow().len(), 1);
 }
 
-// ── per-channel input subscription (multi-source InputBlock) ──
-
-#[test]
-fn split_rings_per_entry_returns_one_singleton_per_index() {
-    let rings: Vec<Arc<SpscRing<f32>>> = (0..3).map(|_| ring_with(&[])).collect();
-    let split = split_rings_per_entry(&rings);
-    assert_eq!(split.len(), 3, "one slot per channel ring");
-    for (i, slot) in split.iter().enumerate() {
-        assert_eq!(slot.len(), 1, "each slot is a single ring (entry i={})", i);
-    }
-}
-
 // ── chain signature tracking (re-subscribe on ANY change) ──
 
 #[test]
@@ -306,4 +294,132 @@ fn chain_signature_stable_when_only_param_value_changes() {
     let s2 = chain_meter_signature(&c);
     assert_eq!(s1, s2, "param value change without runtime restart \
          must keep the signature stable");
+}
+
+// ── build_streams_from_taps: per-entry meter routing.
+// Bug from the user's 3-source screenshot: input shows in slot 3,
+// output only in slot 1. Two causes:
+//   (a) input was subscribed as channels [0..N] of runtime[0] instead
+//       of one ring per per-input runtime (issue #350 layout: each
+//       entry owns its own runtime keyed by (chain_id, input_index));
+//   (b) the chain stream_tap was subscribed ONCE (stream_index=0) and
+//       its Arc cloned into every row — SPSC ring has a single
+//       consumer, so row 0 drains it and rows 1..N see empty.
+// The new helper takes a `MeterTapApi` and must:
+//   - call subscribe_input_tap once per stream_index, channel [0]
+//   - call subscribe_stream_tap once per stream_index 0..N
+//   - place each subscription in its own row (no Arc broadcasting).
+
+#[derive(Default)]
+struct RecordingTapApi {
+    stream_count: usize,
+    input_calls: std::cell::RefCell<Vec<(usize, Vec<usize>)>>, // (input_index, channels)
+    stream_calls: std::cell::RefCell<Vec<usize>>,              // stream_index
+}
+
+impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
+    fn stream_count(&self, _cid: &domain::ids::ChainId) -> usize {
+        self.stream_count
+    }
+    fn subscribe_input_tap(
+        &self,
+        _cid: &domain::ids::ChainId,
+        input_index: usize,
+        _total_channels: usize,
+        subscribed_channels: &[usize],
+        _capacity: usize,
+    ) -> Vec<Arc<SpscRing<f32>>> {
+        self.input_calls
+            .borrow_mut()
+            .push((input_index, subscribed_channels.to_vec()));
+        // One fresh ring per call so callers can prove rings are distinct.
+        vec![Arc::new(SpscRing::<f32>::new(16, 0.0))]
+    }
+    fn subscribe_stream_tap(
+        &self,
+        _cid: &domain::ids::ChainId,
+        stream_index: usize,
+        _capacity: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
+        self.stream_calls.borrow_mut().push(stream_index);
+        Some([
+            Arc::new(SpscRing::<f32>::new(16, 0.0)),
+            Arc::new(SpscRing::<f32>::new(16, 0.0)),
+        ])
+    }
+}
+
+#[test]
+fn build_streams_subscribes_one_input_runtime_per_stream_not_channels_of_zero() {
+    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let cid = domain::ids::ChainId("c1".into());
+    let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
+    let calls = api.input_calls.borrow();
+    let indexes: Vec<usize> = calls.iter().map(|(i, _)| *i).collect();
+    let channels: Vec<Vec<usize>> = calls.iter().map(|(_, c)| c.clone()).collect();
+    assert_eq!(
+        indexes,
+        vec![0, 1, 2],
+        "must call subscribe_input_tap once per per-input runtime \
+         (input_index 0..stream_count), not once with all channels of \
+         runtime 0 — that's why secondary entries showed silence"
+    );
+    for ch in &channels {
+        assert_eq!(
+            ch,
+            &vec![0_usize],
+            "each per-input runtime exposes its source on channel 0; \
+             subscribing extra channels of runtime 0 pulls silence from \
+             a device the runtime doesn't even own"
+        );
+    }
+}
+
+#[test]
+fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
+    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let cid = domain::ids::ChainId("c1".into());
+    let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
+    assert_eq!(
+        *api.stream_calls.borrow(),
+        vec![0_usize, 1, 2],
+        "stream_tap must be subscribed once per GLOBAL stream index so \
+         each row gets its own ring; sharing one ring across rows means \
+         the first row drains the SPSC and rows 1..N stay silent"
+    );
+}
+
+#[test]
+fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
+    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let cid = domain::ids::ChainId("c1".into());
+    let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
+    assert_eq!(chain.streams.len(), 3, "one row per stream");
+    // Every row must hold rings allocated by its OWN subscribe call —
+    // not Arc::clone of the previous row's rings.
+    let out_ptrs: Vec<*const SpscRing<f32>> = chain
+        .streams
+        .iter()
+        .flat_map(|s| s.output.iter().map(|r| Arc::as_ptr(r)))
+        .collect();
+    let unique: std::collections::HashSet<_> = out_ptrs.iter().collect();
+    assert_eq!(
+        unique.len(),
+        out_ptrs.len(),
+        "output rings must be distinct across rows; sharing was the \
+         bug — first row drained the SPSC, others saw silence"
+    );
+}
+
+#[test]
+fn build_streams_returns_empty_when_chain_has_no_runtime() {
+    let api = RecordingTapApi { stream_count: 0, ..Default::default() };
+    let cid = domain::ids::ChainId("c1".into());
+    let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
+    assert!(
+        chain.streams.is_empty(),
+        "no runtime ⇒ no meter rows; UI shows the empty list and the \
+         row count converges back the next tick when the runtime is \
+         rebuilt"
+    );
 }
