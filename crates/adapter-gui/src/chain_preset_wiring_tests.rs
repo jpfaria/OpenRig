@@ -9,8 +9,8 @@
 //! Both helpers are pure and live in `chain_preset_wiring.rs`.
 
 use super::{
-    default_preset_filename_slug, preset_filename, preset_rename_target_from_path,
-    preset_save_path, strip_io_blocks,
+    default_preset_filename_slug, filter_preset_names, preset_filename, preset_overwrite_required,
+    preset_rename_target_from_path, preset_save_path, strip_io_blocks,
 };
 
 use std::collections::BTreeMap;
@@ -227,4 +227,39 @@ fn save_path_joins_configured_dir_with_filename() {
         preset_save_path(&dir, "Lead Boost"),
         PathBuf::from("/data/openrig/presets/lead_boost.yaml"),
     );
+}
+
+// ── filter_preset_names (issue #510 load search) ────────────────
+
+#[test]
+fn filter_empty_query_returns_all_names() {
+    let names = vec!["A".to_string(), "B".to_string()];
+    let r = filter_preset_names(&names, "");
+    assert_eq!(r.len(), 2);
+}
+
+#[test]
+fn filter_is_case_insensitive_substring_match() {
+    let names = vec![
+        "Silverchair Freak".to_string(),
+        "Clean".to_string(),
+        "Lead Boost".to_string(),
+    ];
+    let r = filter_preset_names(&names, "FREAK");
+    assert_eq!(r, vec![&"Silverchair Freak".to_string()]);
+}
+
+#[test]
+fn filter_no_match_returns_empty() {
+    let names = vec!["a".to_string(), "b".to_string()];
+    assert!(filter_preset_names(&names, "xyz").is_empty());
+}
+
+// ── preset_overwrite_required (issue #510 save overwrite modal) ─
+
+#[test]
+fn overwrite_false_when_target_does_not_exist() {
+    use std::path::PathBuf;
+    let dir = PathBuf::from("/this/path/should/not/exist/in/any/sane/repo");
+    assert!(!preset_overwrite_required(&dir, "definitely_missing"));
 }

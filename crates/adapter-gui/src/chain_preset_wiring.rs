@@ -17,7 +17,6 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rfd::FileDialog;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::Command;
@@ -30,7 +29,7 @@ use project::rig::{humanize_preset_label, RigProject};
 
 use crate::assign_new_block_ids;
 use crate::helpers::{clear_status, set_status_error, set_status_info};
-use crate::project_ops::{load_preset_file, save_chain_blocks_to_preset, sync_project_dirty};
+use crate::project_ops::{load_preset_file, sync_project_dirty};
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
@@ -63,88 +62,24 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         auto_save,
     } = ctx;
 
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_save_chain_preset(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                set_status_error(
-                    &window,
-                    &toast_timer,
-                    &rust_i18n::t!("error-no-project-loaded"),
-                );
-                return;
-            };
-            let (chain_desc, chain_clone, chain_id) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    drop(proj);
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                    return;
-                };
-                (
-                    chain
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| format!("chain_{}", index + 1)),
-                    chain.clone(),
-                    chain.id.clone(),
-                )
-            };
-            // Issue #518: filename = active preset's name (slug), not
-            // the chain's title (which is `input.label` after #436).
-            // Fall back to the chain's own slug for non-rig chains or
-            // when the rig is unavailable.
-            let preset_slug = session
-                .rig
-                .as_ref()
-                .and_then(|r| default_preset_filename_slug(&chain_id, &r.borrow()));
-            let default_name =
-                preset_slug.unwrap_or_else(|| chain_desc.replace(' ', "_").to_lowercase());
-            let path = if window.get_touch_optimized() {
-                // Kiosk: auto-save to presets dir, no dialog
-                let _ = std::fs::create_dir_all(&session.presets_path);
-                preset_save_path(&session.presets_path, &default_name)
-            } else {
-                // Desktop: use file dialog
-                let Some(p) = FileDialog::new()
-                    .add_filter("OpenRig Preset", &["yaml", "yml"])
-                    .set_title(rust_i18n::t!("dialog-save-preset").as_ref())
-                    .set_directory(&session.presets_path)
-                    .set_file_name(preset_filename(&default_name))
-                    .save_file()
-                else {
-                    return;
-                };
-                p
-            };
-            match save_chain_blocks_to_preset(&chain_clone, &path) {
-                Ok(()) => {
-                    // #436 F: salvar preset é negócio → Command no
-                    // dispatcher compartilhado (MCP/MIDI, observável via
-                    // Event::ChainPresetSaved). O write do arquivo acima
-                    // é adapter-side (precedente SaveProject).
-                    if let Err(e) = session.dispatcher.dispatch(Command::SaveChainPreset {
-                        name: default_name.clone(),
-                    }) {
-                        log::warn!("[preset] Command::SaveChainPreset falhou: {e}");
-                    }
-                    set_status_info(&window, &toast_timer, &rust_i18n::t!("status-preset-saved"))
-                }
-                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
-            }
-        });
-    }
+    // Issue #510: the in-window save overlay (single name + overwrite
+    // confirm) is wired in a sibling module so this file stays under
+    // the 600-line cap. Touch kiosk's direct auto-save still flows
+    // through `on_save_chain_preset` registered there.
+    crate::preset_save_wiring::wire(window, project_session.clone(), toast_timer.clone());
+
+    // Issue #510: unfiltered (display_name, path) pairs backing the
+    // load picker so the search field can re-filter without touching
+    // disk on every keystroke. The visible `preset_file_list` and
+    // `preset_picker_items` are always a filtered view of this.
+    let preset_full_list: Rc<RefCell<Vec<(String, PathBuf)>>> = Rc::new(RefCell::new(Vec::new()));
+
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let toast_timer = toast_timer.clone();
         let preset_file_list = preset_file_list.clone();
+        let preset_full_list = preset_full_list.clone();
         window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -162,8 +97,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // the bundled presets are visible. Desktop previously used a
             // native FileDialog with no list — selection now flows
             // through on_preset_picker_confirm for both modes (#479).
-            let mut files: Vec<PathBuf> = Vec::new();
-            let mut names: Vec<SharedString> = Vec::new();
+            let mut full: Vec<(String, PathBuf)> = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&session.presets_path) {
                 let mut sorted: Vec<_> = entries
                     .filter_map(|e| e.ok())
@@ -182,14 +116,36 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         .and_then(|s| s.to_str())
                         .unwrap_or("")
                         .replace('_', " ");
-                    names.push(name.into());
-                    files.push(path);
+                    full.push((name, path));
                 }
             }
-            *preset_file_list.borrow_mut() = files;
-            window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
+            *preset_full_list.borrow_mut() = full;
+            // Issue #510: reset the search field every time the picker
+            // opens so a stale query from a previous open doesn't hide
+            // half the presets.
+            window.set_preset_picker_search_query(SharedString::new());
+            apply_preset_filter(&window, &preset_full_list, &preset_file_list, "");
             window.set_preset_picker_chain_index(index);
             window.set_show_preset_picker(true);
+        });
+    }
+    {
+        // Issue #510: re-filter the visible list every time the user
+        // types in the search field. The full list stays on the
+        // adapter side; we never re-read the directory mid-search.
+        let weak_window = window.as_weak();
+        let preset_full_list = preset_full_list.clone();
+        let preset_file_list = preset_file_list.clone();
+        window.on_preset_picker_query_changed(move |query| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            apply_preset_filter(
+                &window,
+                &preset_full_list,
+                &preset_file_list,
+                query.as_str(),
+            );
         });
     }
     {
@@ -302,14 +258,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
     {
         let weak_window = window.as_weak();
         let preset_file_list = preset_file_list.clone();
+        let preset_full_list = preset_full_list.clone();
         let toast_timer = toast_timer.clone();
         let project_session = project_session.clone();
         window.on_preset_picker_delete(move |preset_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut files = preset_file_list.borrow_mut();
-            let Some(path) = files.get(preset_index as usize).cloned() else {
+            let Some(path) = preset_file_list
+                .borrow()
+                .get(preset_index as usize)
+                .cloned()
+            else {
                 return;
             };
             match std::fs::remove_file(&path) {
@@ -331,18 +291,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             log::warn!("[preset] Command::DeleteChainPreset falhou: {e}");
                         }
                     }
-                    files.remove(preset_index as usize);
-                    let names: Vec<SharedString> = files
-                        .iter()
-                        .map(|p| {
-                            p.file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or("")
-                                .replace('_', " ")
-                                .into()
-                        })
-                        .collect();
-                    window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(names))));
+                    // Issue #510: keep the full list (search source) in
+                    // sync with disk; then re-apply the active query so
+                    // the visible model stays consistent.
+                    preset_full_list.borrow_mut().retain(|(_, p)| p != &path);
+                    let query = window.get_preset_picker_search_query();
+                    apply_preset_filter(
+                        &window,
+                        &preset_full_list,
+                        &preset_file_list,
+                        query.as_str(),
+                    );
                     set_status_info(
                         &window,
                         &toast_timer,
@@ -417,6 +376,52 @@ pub(crate) fn preset_rename_target_from_path(path: &std::path::Path) -> Option<S
         return None;
     }
     Some(humanize_preset_label(&stem.replace('_', "-")))
+}
+
+/// Case-insensitive substring filter for the load picker's search
+/// field. Empty query passes everything through. Issue #510.
+pub(crate) fn filter_preset_names<'a>(names: &'a [String], query: &str) -> Vec<&'a String> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return names.iter().collect();
+    }
+    names
+        .iter()
+        .filter(|n| n.to_lowercase().contains(&q))
+        .collect()
+}
+
+/// Returns `true` when saving a preset under `name` would overwrite an
+/// existing file in `presets_dir`. Issue #510 — drives the in-window
+/// overwrite confirmation modal.
+pub(crate) fn preset_overwrite_required(presets_dir: &std::path::Path, name: &str) -> bool {
+    preset_save_path(presets_dir, name).exists()
+}
+
+/// Apply the current search query to the load picker's full list and
+/// publish the filtered view onto the AppWindow (items + file list).
+/// Centralized so `on_configure_chain_preset`, the query-changed
+/// callback and `on_preset_picker_delete` all stay in sync. Issue #510.
+fn apply_preset_filter(
+    window: &AppWindow,
+    full: &Rc<RefCell<Vec<(String, PathBuf)>>>,
+    visible: &Rc<RefCell<Vec<PathBuf>>>,
+    query: &str,
+) {
+    let full = full.borrow();
+    let all_names: Vec<String> = full.iter().map(|(n, _)| n.clone()).collect();
+    let kept = filter_preset_names(&all_names, query);
+    let kept_set: std::collections::HashSet<&String> = kept.into_iter().collect();
+    let mut visible_paths: Vec<PathBuf> = Vec::with_capacity(full.len());
+    let mut visible_names: Vec<SharedString> = Vec::with_capacity(full.len());
+    for (name, path) in full.iter() {
+        if kept_set.contains(name) {
+            visible_paths.push(path.clone());
+            visible_names.push(name.clone().into());
+        }
+    }
+    *visible.borrow_mut() = visible_paths;
+    window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
 }
 
 #[cfg(test)]

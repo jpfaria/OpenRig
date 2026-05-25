@@ -3,14 +3,16 @@
 // desktop the old native FileDialog left users with no visible preset
 // list). Pure UI — the parent owns the data + load logic.
 
-import { VerticalBox, ScrollView } from "std-widgets.slint";
+import { VerticalBox, ScrollView, LineEdit } from "std-widgets.slint";
 
 export component PresetPickerOverlay {
     in property <bool> visible-overlay;
     in property <[string]> items;
+    in-out property <string> search-query;
     callback confirm(int);
     callback cancel();
     callback delete(int);
+    callback query-changed(string);
 
     if root.visible-overlay: Rectangle {
         x: 0;
@@ -33,6 +35,13 @@ export component PresetPickerOverlay {
                     font-size: 16px;
                     color: #ffffff;
                     font-weight: 700;
+                }
+                LineEdit {
+                    placeholder-text: @tr("preset-search-placeholder");
+                    text <=> root.search-query;
+                    edited(t) => {
+                        root.query-changed(t);
+                    }
                 }
                 ScrollView {
                     vertical-stretch: 1;

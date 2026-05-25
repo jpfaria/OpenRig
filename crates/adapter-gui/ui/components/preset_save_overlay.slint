@@ -1,0 +1,177 @@
+// In-window save-preset overlay (issue #510). Replaces the native
+// FileDialog: the user only types a name; the directory is the
+// configured `presets_path` (the adapter resolves the full path).
+// A second overlay (rendered by AppWindow) asks for overwrite
+// confirmation when the chosen name collides with an existing file.
+
+import { LineEdit } from "std-widgets.slint";
+
+export component PresetSaveOverlay inherits Rectangle {
+    in property <bool> visible-overlay;
+    in property <string> default-name;
+    in-out property <string> name-input;
+    callback request-save(string);
+    callback cancel();
+
+    visible: root.visible-overlay;
+    background: #000000b0;
+
+    if root.visible-overlay: TouchArea {
+        clicked => { /* swallow background clicks */ }
+    }
+
+    if root.visible-overlay: Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(root.width * 0.7, 420px);
+        height: 200px;
+        background: #1e1f22;
+        border-radius: 10px;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: #000000c0;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text {
+                text: @tr("title-dialog-save-preset");
+                font-size: 16px;
+                color: #ffffff;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+            name-edit := LineEdit {
+                text <=> root.name-input;
+                placeholder-text: root.default-name;
+                accepted(t) => {
+                    root.request-save(t == "" ? root.default-name : t);
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: @tr("btn-cancel");
+                        font-size: 13px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
+                    confirm-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.request-save(name-edit.text == "" ? root.default-name : name-edit.text);
+                        }
+                    }
+                    Text {
+                        text: @tr("btn-save");
+                        font-size: 13px;
+                        color: #ffffff;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component PresetOverwriteOverlay inherits Rectangle {
+    in property <bool> visible-overlay;
+    in property <string> preset-name;
+    callback cancel();
+    callback confirm();
+
+    visible: root.visible-overlay;
+    background: #000000b0;
+
+    if root.visible-overlay: TouchArea {
+        clicked => { /* swallow background clicks */ }
+    }
+
+    if root.visible-overlay: Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(root.width * 0.7, 420px);
+        height: 170px;
+        background: #1e1f22;
+        border-radius: 10px;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: #000000c0;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text {
+                text: @tr("title-dialog-overwrite-preset");
+                font-size: 16px;
+                color: #ffffff;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: @tr("msg-overwrite-preset", root.preset-name);
+                font-size: 13px;
+                color: #aaaaaa;
+                horizontal-alignment: center;
+                overflow: elide;
+                wrap: no-wrap;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: @tr("btn-cancel");
+                        font-size: 13px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 40px;
+                    border-radius: 6px;
+                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
+                    confirm-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.confirm(); }
+                    }
+                    Text {
+                        text: @tr("btn-overwrite");
+                        font-size: 13px;
+                        color: #ffffff;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
