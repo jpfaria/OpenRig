@@ -56,6 +56,8 @@ export component PresetSaveOverlay inherits Rectangle {
                     height: 40px;
                     clicked => { root.cancel(); }
                     Rectangle {
+                        width: parent.width;
+                        height: parent.height;
                         border-radius: 6px;
                         background: cancel-area.has-hover ? #444 : #2d2e32;
                         Text {
@@ -75,6 +77,8 @@ export component PresetSaveOverlay inherits Rectangle {
                         root.request-save(root.name-input == "" ? root.default-name : root.name-input);
                     }
                     Rectangle {
+                        width: parent.width;
+                        height: parent.height;
                         border-radius: 6px;
                         background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
                         Text {
@@ -138,6 +142,8 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     height: 40px;
                     clicked => { root.cancel(); }
                     Rectangle {
+                        width: parent.width;
+                        height: parent.height;
                         border-radius: 6px;
                         background: cancel-area.has-hover ? #444 : #2d2e32;
                         Text {
@@ -155,6 +161,8 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     height: 40px;
                     clicked => { root.confirm(); }
                     Rectangle {
+                        width: parent.width;
+                        height: parent.height;
                         border-radius: 6px;
                         background: confirm-area.has-hover ? #c0392b : #e74c3c;
                         Text {
