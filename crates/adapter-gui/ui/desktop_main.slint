@@ -77,9 +77,10 @@ export component DesktopMain inherits Rectangle {
     // Project / MIDI mapping editor (#513, #493)
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
-    // Project / Metadata section (#513)
-    in property <string> project-name;
-    in property <string> project-path-display;
+    // Project / Metadata section (#513) — default-binds to the existing
+    // draft/path properties so Rust doesn't need separate setters.
+    in property <string> project-name: root.project-name-draft;
+    in property <string> project-path-display: root.project-path-label;
     callback edit-project-name(string);
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;

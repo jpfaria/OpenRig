@@ -99,8 +99,11 @@ export component AppWindow inherits Window {
     in property <[MidiDeviceRow]> midi-devices;
     // Project / Metadata section (#513). Name is editable (dispatches
     // UpdateProjectName on each change); path is read-only display.
-    in property <string> project-name;
-    in property <string> project-path-display;
+    // Default expressions point at the existing draft/path so the
+    // Settings → Metadata section sees the current project values
+    // without a dedicated Rust setter.
+    in property <string> project-name: root.project-name-draft;
+    in property <string> project-path-display: root.project-path-label;
     // Project / MIDI mapping editor (#513, #493). Bindings list +
     // available `Command` variant names for the dropdown. Drafts and
     // finalized bindings share a single row list — `learning = true`
