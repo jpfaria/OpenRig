@@ -31,3 +31,56 @@ fn chain_row_wiring_uses_no_native_dialog() {
          instead — see `confirm_delete_dialog.slint`."
     );
 }
+
+#[test]
+fn block_editor_window_lifecycle_uses_no_native_dialog() {
+    let src = read_src("block_editor_window_lifecycle.rs");
+    assert!(
+        !src.contains("rfd::"),
+        "issue #360: block_editor_window_lifecycle.rs must not use `rfd::` \
+         (delete-block confirmation is the last native MessageDialog in this \
+         crate). Use an in-window overlay on `BlockEditorWindow` mirroring \
+         the `ConfirmDeleteBlockDialog` pattern already in use on AppWindow."
+    );
+}
+
+// ── Issue #360: every destructive action must raise its overlay before
+// dispatching the removal Command. Source-presence pins ensure the gate
+// stays in place — if someone re-inlines the dispatch without the
+// confirm step, these flip RED.
+
+#[test]
+fn compact_view_block_delete_is_gated_by_overlay() {
+    let src = read_src("compact_chain_block_handlers.rs");
+    assert!(
+        src.contains("set_show_confirm_delete_block"),
+        "issue #360: compact view must raise the in-window block-delete \
+         overlay (set_show_confirm_delete_block) before dispatching \
+         Command::RemoveBlock — the previous wiring removed the block \
+         silently on click."
+    );
+}
+
+#[test]
+fn compact_view_chain_delete_is_gated_by_overlay() {
+    let src = read_src("compact_chain_callbacks.rs");
+    assert!(
+        src.contains("set_show_confirm_delete_chain"),
+        "issue #360: compact view must raise its OWN in-window chain-delete \
+         overlay (set_show_confirm_delete_chain) — delegating to \
+         AppWindow.invoke_remove_chain surfaces the modal on the wrong \
+         window."
+    );
+}
+
+#[test]
+fn recent_project_remove_is_gated_by_overlay() {
+    let src = read_src("recent_projects_wiring.rs");
+    assert!(
+        src.contains("set_show_confirm_delete_recent_project"),
+        "issue #360: removing a recent-project entry must raise the \
+         confirmation overlay (set_show_confirm_delete_recent_project) \
+         first; on_remove_recent_project used to call \
+         Command::RemoveRecentProject with no confirmation at all."
+    );
+}

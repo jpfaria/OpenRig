@@ -22,9 +22,11 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
+use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
+use project::rig::{humanize_preset_label, RigProject};
 
 use crate::assign_new_block_ids;
 use crate::helpers::{clear_status, set_status_error, set_status_info};
@@ -78,7 +80,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                 );
                 return;
             };
-            let (chain_desc, chain_clone) = {
+            let (chain_desc, chain_clone, chain_id) = {
                 let proj = session.project.borrow();
                 let Some(chain) = proj.chains.get(index as usize) else {
                     drop(proj);
@@ -91,9 +93,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         .clone()
                         .unwrap_or_else(|| format!("chain_{}", index + 1)),
                     chain.clone(),
+                    chain.id.clone(),
                 )
             };
-            let default_name = chain_desc.replace(' ', "_").to_lowercase();
+            // Issue #518: filename = active preset's name (slug), not
+            // the chain's title (which is `input.label` after #436).
+            // Fall back to the chain's own slug for non-rig chains or
+            // when the rig is unavailable.
+            let preset_slug = session
+                .rig
+                .as_ref()
+                .and_then(|r| default_preset_filename_slug(&chain_id, &r.borrow()));
+            let default_name = preset_slug
+                .unwrap_or_else(|| chain_desc.replace(' ', "_").to_lowercase());
             let path = if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog
                 let _ = std::fs::create_dir_all(&session.presets_path);
@@ -209,36 +221,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             let chain_index = window.get_preset_picker_chain_index();
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    // Build new block list: keep I/O blocks from current chain,
-                    // replace non-I/O with preset blocks. Assign new IDs.
+                    // Hand the dispatcher I/O-stripped blocks (issue #518):
+                    // it is the dispatcher's job to preserve the chain's
+                    // existing Input/Output across the swap. Wrapping I/O
+                    // here too would land two of each on the chain.
                     let dispatch_result = {
                         let proj = session.project.borrow();
                         if let Some(chain) = proj.chains.get(chain_index as usize) {
                             let chain_id = chain.id.clone();
-                            let first_input = chain
-                                .blocks
-                                .iter()
-                                .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
-                                .cloned();
-                            let last_output = chain
-                                .blocks
-                                .iter()
-                                .rev()
-                                .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
-                                .cloned();
-                            let mut new_blocks: Vec<AudioBlock> = Vec::new();
-                            if let Some(input) = first_input {
-                                new_blocks.push(input);
-                            }
-                            new_blocks.extend(preset.blocks.into_iter().filter(|b| {
-                                !matches!(
-                                    b.kind,
-                                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                                )
-                            }));
-                            if let Some(output) = last_output {
-                                new_blocks.push(output);
-                            }
+                            let stripped = strip_io_blocks(preset.blocks);
                             // Assign fresh IDs via a temporary chain struct.
                             let mut tmp_chain = Chain {
                                 id: chain_id.clone(),
@@ -246,7 +237,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 instrument: String::new(),
                                 enabled: false,
                                 volume: 100.0,
-                                blocks: new_blocks,
+                                blocks: stripped,
                             };
                             assign_new_block_ids(&mut tmp_chain);
                             Some((chain_id, tmp_chain.blocks))
@@ -351,3 +342,42 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         });
     }
 }
+
+/// Drop Input/Output blocks from a preset's block list before it is
+/// dispatched onto a chain. The dispatcher owns the chain's I/O
+/// across a preset swap (it preserves the existing endpoints), so the
+/// adapter MUST hand it I/O-stripped blocks — otherwise both layers
+/// wrap I/O and the chain ends up with duplicates. Issue #518.
+pub(crate) fn strip_io_blocks(blocks: Vec<AudioBlock>) -> Vec<AudioBlock> {
+    blocks
+        .into_iter()
+        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+        .collect()
+}
+
+/// Slug the active preset's name into a filesystem-safe stem for the
+/// save dialog / kiosk auto-save. The chain title moved to
+/// `input.label` after #436, so reusing `chain.description` for the
+/// filename now reflects the chain, not the preset. Issue #518.
+///
+/// Returns `None` for chains that are not projected from a rig input
+/// (i.e. no `rig:` prefix, or the input/preset is missing) — the
+/// caller decides the fallback (typically the chain's own slug).
+pub(crate) fn default_preset_filename_slug(
+    chain_id: &ChainId,
+    rig: &RigProject,
+) -> Option<String> {
+    let input_name = chain_id.0.strip_prefix("rig:")?;
+    let input = rig.inputs.get(input_name)?;
+    let preset_key = input.bank.get(&input.active_preset)?;
+    let preset = rig.presets.get(preset_key)?;
+    let display = preset
+        .name
+        .clone()
+        .unwrap_or_else(|| humanize_preset_label(preset_key));
+    Some(display.replace(' ', "_").to_lowercase())
+}
+
+#[cfg(test)]
+#[path = "chain_preset_wiring_tests.rs"]
+mod tests;

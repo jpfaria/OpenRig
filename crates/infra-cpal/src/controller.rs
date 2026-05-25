@@ -340,8 +340,21 @@ impl ProjectRuntimeController {
             chain.enabled
         );
         if !chain.enabled {
-            self.remove_chain(&chain.id);
+            // Issue #522: pause instead of teardown. Keeps CPAL streams +
+            // every block processor alive so re-enable resumes in O(1).
+            self.pause_chain(&chain.id);
             return Ok(());
+        }
+        // Issue #522: fast-path resume of a paused chain — clear draining
+        // and return; no CPAL queries, no NAM reload, no graph rebuild.
+        if self.active_chains.contains_key(&chain.id) {
+            if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain.id) {
+                if runtime.is_draining() {
+                    log::info!("resuming paused chain '{}' (fast path)", chain.id.0);
+                    runtime.clear_draining();
+                    return Ok(());
+                }
+            }
         }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -362,6 +375,7 @@ impl ProjectRuntimeController {
             self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
     }
+
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
         log::info!("removing chain '{}' from runtime", chain_id.0);

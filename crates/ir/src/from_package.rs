@@ -69,15 +69,29 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    // Issue #491: aplica `manifest.output_gain_db` (baseline objetivo do
-    // audit, em dB) como wrapper estático pós-convolução. IR pura é
-    // gain-passive, mas o ganho efetivo perceptual varia bastante
-    // (cab/body shapers atenuam graves diferente) — o offset nivela.
-    Ok(wrap_with_output_gain_db(
-        processor,
-        package.manifest.output_gain_db,
-    ))
+    // Issue #491 + #514: aplica o baseline do audit (em dB) como
+    // wrapper estático pós-convolução. IR pura é gain-passive, mas o
+    // ganho efetivo perceptual varia bastante (cab/body shapers
+    // atenuam graves diferente). Capturas IR carregam um valor por
+    // arquivo (`capture.output_gain_db`); o top-level
+    // `manifest.output_gain_db` é fallback pra plugins de baseline
+    // único.
+    let audit_db = select_audit_db(capture.output_gain_db, package.manifest.output_gain_db);
+    Ok(wrap_with_output_gain_db(processor, audit_db))
 }
+
+/// Choose the audit-baseline dB to apply, preferring the per-capture
+/// value over the manifest-level fallback. Issue #514.
+pub(crate) fn select_audit_db(
+    capture_db: Option<f32>,
+    manifest_db: Option<f32>,
+) -> Option<f32> {
+    capture_db.or(manifest_db)
+}
+
+#[cfg(test)]
+#[path = "from_package_tests.rs"]
+mod tests;
 
 /// Register this crate's builder in the global package-builders table.
 pub fn register_builder() {

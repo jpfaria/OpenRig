@@ -77,6 +77,6 @@ Your project auto-saves as you work. You can also export presets to share specif
 
 ## What's Next?
 
-- [Blocks Reference](blocks-reference.md) -- Explore all 170+ available models across every block type.
+- [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md) -- Explore all 170+ available models across every block type.
 - [Presets](presets.md) -- Learn about creating and sharing presets.
 - [Installation Guide](installation.md) -- Detailed build and setup instructions.

@@ -43,6 +43,7 @@ mod jack_direct;
 
 mod controller;
 pub use controller::ProjectRuntimeController;
+mod controller_block_toggle;
 mod controller_taps;
 mod device_enum;
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -95,5 +96,7 @@ pub(crate) use validation::{
 mod tests;
 #[cfg(test)]
 mod tests_regression;
+#[cfg(test)]
+mod controller_pause_chain_tests;
 #[cfg(test)]
 mod tests_signatures;

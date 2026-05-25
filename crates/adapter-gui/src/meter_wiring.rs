@@ -61,67 +61,252 @@ pub fn compute_meter_for_chain(
     (i, o)
 }
 
-/// Per-chain ring handles held by the GUI so the meter timer can
-/// drain them without re-subscribing every tick.
-#[derive(Default)]
-pub struct ChainMeterRings {
+/// One stream's worth of meter rings (input + output). A chain owns
+/// N streams (multi-input layouts); the per-stream meter layer keeps
+/// one entry per stream so each one is visible in the GUI instead of
+/// only the first.
+#[derive(Default, Clone)]
+pub struct StreamMeterRings {
     pub input: Vec<Arc<SpscRing<f32>>>,
     pub output: Vec<Arc<SpscRing<f32>>>,
 }
 
-/// Shared store of every subscribed chain's meter rings. Cheap
-/// `Rc<RefCell<HashMap>>` because both the timer and the chain-
-/// lifecycle code mutate it from the GUI thread.
-pub type MeterStore = std::rc::Rc<
-    std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterRings>>,
+/// All meter rings for one chain, indexed by stream order. The list
+/// length equals `controller.stream_count(chain_id)` at subscribe time.
+#[derive(Default, Clone)]
+pub struct ChainMeterStreams {
+    pub streams: Vec<StreamMeterRings>,
+}
+
+/// Per-stream peak readings for one chain, returned by `poll_per_stream`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StreamMeterReading {
+    pub in_dbfs: f32,
+    pub out_dbfs: f32,
+}
+
+/// Per-stream meter store: each chain id maps to a list of stream
+/// meter rings (one entry per stream the runtime exposes).
+pub type MeterStorePerStream = std::rc::Rc<
+    std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, ChainMeterStreams>>,
 >;
 
-pub fn new_meter_store() -> MeterStore {
+pub fn new_meter_store_per_stream() -> MeterStorePerStream {
     std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))
 }
 
-/// Make sure every chain currently in `chain_ids` has its meter taps
-/// subscribed. Dropped chains stay in the store until they are
-/// removed by [`prune_dead`].
-pub fn ensure_subscribed(
-    controller: &infra_cpal::ProjectRuntimeController,
-    store: &MeterStore,
+/// Production-friendly per-stream refresh: keep existing entries
+/// untouched (no flicker), drop entries for chains no longer present,
+/// re-subscribe only when explicitly invalidated by the caller
+/// (toggle enabled, rig-nav, runtime restart). Pass `invalidate=[]`
+/// for the steady-state tick.
+pub fn refresh_subscriptions_lazy_per_stream<F>(
+    store: &MeterStorePerStream,
     chain_ids: &[domain::ids::ChainId],
-    capacity_per_channel: usize,
-) {
+    invalidate: &[domain::ids::ChainId],
+    make_streams: &F,
+) where
+    F: Fn(&domain::ids::ChainId) -> ChainMeterStreams,
+{
     let mut store = store.borrow_mut();
+    store.retain(|cid, _| chain_ids.contains(cid));
+    for cid in invalidate {
+        store.remove(cid);
+    }
     for cid in chain_ids {
-        if store.contains_key(cid) {
-            continue;
+        if !store.contains_key(cid) {
+            store.insert(cid.clone(), make_streams(cid));
         }
-        let input = controller.subscribe_input_tap(cid, 0, 2, &[0, 1], capacity_per_channel);
-        let output = controller
-            .subscribe_stream_tap(cid, 0, capacity_per_channel)
-            .map(|[l, r]| vec![l, r])
-            .unwrap_or_default();
-        store.insert(cid.clone(), ChainMeterRings { input, output });
     }
 }
 
-/// Drop entries for chains no longer in `chain_ids`. The underlying
-/// engine-side taps are pruned by their own dead-consumer sweep
-/// (`prune_dead_input_taps` / `prune_dead_stream_taps`) once the
-/// last Arc here is dropped.
-pub fn prune_dead(store: &MeterStore, chain_ids: &[domain::ids::ChainId]) {
-    let mut store = store.borrow_mut();
-    store.retain(|cid, _| chain_ids.contains(cid));
+/// Walk the project's chains, compute each one's current
+/// `timer_chain_signature`, compare against the cached value, and
+/// return the list of chains whose signature changed (must be
+/// re-subscribed).
+///
+/// `api == None` means the controller is offline. The whole cache is
+/// wiped so the next online tick treats every chain as a fresh
+/// subscription — without this, toggling off the last enabled chain
+/// drops the controller, and the subsequent toggle-on (which spins up
+/// a NEW controller with the same project state) would produce the
+/// same cached signature, skip invalidation, and leave the meter
+/// store handing out rings allocated against the dropped controller.
+pub fn detect_invalidations<T: MeterTapApi>(
+    chains: &[project::chain::Chain],
+    api: Option<&T>,
+    last_signature: &mut std::collections::HashMap<domain::ids::ChainId, u64>,
+) -> Vec<domain::ids::ChainId> {
+    let chain_ids: Vec<_> = chains.iter().map(|c| c.id.clone()).collect();
+    let Some(api) = api else {
+        last_signature.clear();
+        return Vec::new();
+    };
+    let mut invalidate = Vec::new();
+    for c in chains.iter() {
+        let sig = timer_chain_signature(c, api.stream_count(&c.id));
+        if last_signature.get(&c.id).copied() != Some(sig) {
+            invalidate.push(c.id.clone());
+            last_signature.insert(c.id.clone(), sig);
+        }
+    }
+    last_signature.retain(|cid, _| chain_ids.contains(cid));
+    invalidate
 }
 
-/// Pull the current peak dBFS for every subscribed chain. Returns
-/// a list of `(chain_id, in_dbfs, out_dbfs)` for the timer to fan
-/// out into the Slint VecModel.
-pub fn poll_all(store: &MeterStore) -> Vec<(domain::ids::ChainId, f32, f32)> {
+/// Full per-tick "did anything that requires a re-subscribe change?"
+/// signature: project-side bits AND the engine's current stream
+/// count for this chain. Stream count is the SUM across this chain's
+/// per-input runtimes (issue #350) and drops to 0 when the engine
+/// tears them down (chain toggle off, rig-nav rebuild, device
+/// reopen). Folding it into the signature is what makes the timer
+/// invalidate the dead ring handles a teardown leaves behind —
+/// `chain.enabled` alone is not enough because the project state and
+/// the engine state can disagree during the rebuild window. Hashes
+/// `(chain_meter_signature, stream_count)` together so neither
+/// dimension can mask a change in the other.
+pub fn timer_chain_signature(chain: &project::chain::Chain, stream_count: usize) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    chain_meter_signature(chain).hash(&mut h);
+    stream_count.hash(&mut h);
+    h.finish()
+}
+
+/// Compact "did the runtime layout change?" signature for a chain.
+/// Includes the chain's enabled flag and every block's `(id, enabled)`
+/// — the bits that flip when the runtime is torn down and rebuilt
+/// (toggle, rig-nav preset/scene switch, block add/remove). NOT
+/// affected by knob/param value changes, so steady-state ticks don't
+/// cause a re-subscribe (that's the flicker fix). The meter timer
+/// compares the signature against the previous tick's value and
+/// invalidates the chain's meter store entry on any difference.
+pub fn chain_meter_signature(chain: &project::chain::Chain) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    chain.enabled.hash(&mut h);
+    for b in &chain.blocks {
+        b.id.0.hash(&mut h);
+        b.enabled.hash(&mut h);
+    }
+    h.finish()
+}
+
+/// Minimal projection of the engine controller's meter-relevant
+/// surface, narrowed so the per-stream subscription logic can be unit
+/// tested with a recording fake. Production wires this to
+/// `infra_cpal::ProjectRuntimeController` via the blanket impl below.
+pub trait MeterTapApi {
+    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize;
+    fn subscribe_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>>;
+    fn subscribe_stream_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]>;
+}
+
+impl MeterTapApi for infra_cpal::ProjectRuntimeController {
+    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize {
+        infra_cpal::ProjectRuntimeController::stream_count(self, chain_id)
+    }
+    fn subscribe_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>> {
+        infra_cpal::ProjectRuntimeController::subscribe_input_tap(
+            self,
+            chain_id,
+            input_index,
+            total_channels,
+            subscribed_channels,
+            capacity_per_channel,
+        )
+    }
+    fn subscribe_stream_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
+        infra_cpal::ProjectRuntimeController::subscribe_stream_tap(
+            self,
+            chain_id,
+            stream_index,
+            capacity_per_channel,
+        )
+    }
+}
+
+/// Build the per-stream meter rings for a chain by asking the runtime
+/// how many streams it actually owns and subscribing each one
+/// independently. Replaces the older "subscribe channels 0..N of
+/// runtime 0 once, broadcast the same output ring across rows" path,
+/// which was wrong on two counts:
+///
+/// - The engine (issue #350) keeps one per-input runtime per
+///   `InputBlock` entry, keyed `(chain_id, input_index)`. Subscribing
+///   channels 1..N of runtime 0 pulls silence from a runtime that
+///   doesn't own those sources. Each row must instead subscribe
+///   `subscribe_input_tap(cid, i, 1, &[0], cap)`.
+/// - `SpscRing` is single-consumer. Subscribing once and cloning the
+///   `Arc` into every row means row 0 drains the post-FX ring and
+///   rows 1..N see an empty ring forever. Each row subscribes its own
+///   `subscribe_stream_tap(cid, i, cap)`.
+pub fn build_streams_from_taps<T: MeterTapApi>(
+    api: &T,
+    chain_id: &domain::ids::ChainId,
+    capacity_per_channel: usize,
+) -> ChainMeterStreams {
+    let stream_count = api.stream_count(chain_id);
+    let streams = (0..stream_count)
+        .map(|i| {
+            let input = api.subscribe_input_tap(chain_id, i, 1, &[0], capacity_per_channel);
+            let output = api
+                .subscribe_stream_tap(chain_id, i, capacity_per_channel)
+                .map(|[l, r]| vec![l, r])
+                .unwrap_or_default();
+            StreamMeterRings { input, output }
+        })
+        .collect();
+    ChainMeterStreams { streams }
+}
+
+/// Drain the per-stream rings and return one `StreamMeterReading`
+/// per stream for every chain in the store.
+pub fn poll_per_stream(
+    store: &MeterStorePerStream,
+) -> Vec<(domain::ids::ChainId, Vec<StreamMeterReading>)> {
     let store = store.borrow();
     store
         .iter()
-        .map(|(cid, rings)| {
-            let (i, o) = compute_meter_for_chain(&rings.input, &rings.output);
-            (cid.clone(), i, o)
+        .map(|(cid, streams)| {
+            let readings = streams
+                .streams
+                .iter()
+                .map(|s| {
+                    let (i, o) = compute_meter_for_chain(&s.input, &s.output);
+                    StreamMeterReading {
+                        in_dbfs: i,
+                        out_dbfs: o,
+                    }
+                })
+                .collect();
+            (cid.clone(), readings)
         })
         .collect()
 }
@@ -141,22 +326,76 @@ pub fn start_meter_polling(
     const TICK: std::time::Duration = std::time::Duration::from_millis(33); // ~30 Hz
     const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
 
-    let store = new_meter_store();
+    let store = new_meter_store_per_stream();
+    // Per-chain "runtime layout" signature snapshot from the previous
+    // tick. The signature changes on any state that tears down +
+    // rebuilds the chain's runtime (toggle, rig-nav preset/scene
+    // switch, block add/remove). Chains whose signature did NOT change
+    // keep their stable ring handles — no re-subscription, no flicker.
+    let last_signature: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
-        let rt_borrow = project_runtime.borrow();
-        let Some(controller) = rt_borrow.as_ref() else {
-            return;
-        };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
             return;
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
-        ensure_subscribed(controller, &store, &chain_ids, RING_CAPACITY);
-        prune_dead(&store, &chain_ids);
-        let readings = poll_all(&store);
+        let rt_borrow = project_runtime.borrow();
+        // Detect chains whose runtime-layout signature changed since
+        // the last tick. Signature mixes project bits (enabled, per
+        // block id+enabled) with the engine's current stream count;
+        // when the engine rebuilds the per-input runtimes (toggle
+        // off→on, rig-nav preset switch) the count or enabled flag
+        // flips and the store re-subscribes against the fresh rings.
+        // Controller=None ⇒ the whole controller was dropped (last
+        // chain toggled off); `detect_invalidations` wipes the cache
+        // so the next online tick treats every chain as fresh — and
+        // we also drop the store so we don't keep handing out rings
+        // pointed at the dropped controller.
+        let invalidate = detect_invalidations(
+            &project.chains,
+            rt_borrow.as_ref(),
+            &mut last_signature.borrow_mut(),
+        );
+        let Some(controller) = rt_borrow.as_ref() else {
+            store.borrow_mut().clear();
+            return;
+        };
+        let make_streams =
+            |cid: &domain::ids::ChainId| -> ChainMeterStreams {
+                build_streams_from_taps(controller, cid, RING_CAPACITY)
+            };
+        refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
+        // Reclaim any orphan tap slots left behind after an invalidation
+        // (rings dropped from the store free their consumer side, the
+        // runtime sweeps).
+        if !invalidate.is_empty() {
+            controller.prune_dead_input_taps();
+            controller.prune_dead_stream_taps();
+        }
+        // Aggregate per-stream readings to a single (max in, max out)
+        // pair per chain so the existing single-bar UI keeps showing
+        // *something*. The per-stream values are also forwarded into
+        // `ProjectChainItem.stream_meters` for the multi-stream UI
+        // surface.
+        let per_stream = poll_per_stream(&store);
+        let readings: Vec<(domain::ids::ChainId, f32, f32)> = per_stream
+            .iter()
+            .map(|(cid, streams)| {
+                let max_in = streams
+                    .iter()
+                    .map(|s| s.in_dbfs)
+                    .fold(engine::output_meter::SILENT_DBFS, f32::max);
+                let max_out = streams
+                    .iter()
+                    .map(|s| s.out_dbfs)
+                    .fold(engine::output_meter::SILENT_DBFS, f32::max);
+                (cid.clone(), max_in, max_out)
+            })
+            .collect();
         // Push readings into matching VecModel rows (rows are indexed
         // 1:1 with `project.chains`). The stream_tap reads the chain
         // signal BEFORE the audio callback applies the chain volume
@@ -170,12 +409,48 @@ pub fn start_meter_polling(
             let Some(mut row) = project_chains.row_data(idx) else {
                 continue;
             };
-            let out_db = apply_chain_volume_db(out_db_raw, project.chains[idx].volume);
-            if (row.meter_in_dbfs - in_db).abs() > 0.05
-                || (row.meter_out_dbfs - out_db).abs() > 0.05
-            {
+            let chain_volume = project.chains[idx].volume;
+            let out_db = apply_chain_volume_db(out_db_raw, chain_volume);
+            // Per-stream rows for the new multi-bar UI surface. Build
+            // them from the same `per_stream` data the max-aggregate
+            // came from above so they always agree.
+            let per_stream_rows: Vec<crate::StreamMeter> = per_stream
+                .iter()
+                .find(|(c, _)| c == &cid)
+                .map(|(_, streams)| {
+                    streams
+                        .iter()
+                        .map(|r| crate::StreamMeter {
+                            in_dbfs: r.in_dbfs,
+                            out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let stream_meters_changed = {
+                use slint::Model;
+                let current = row.stream_meters.iter().collect::<Vec<_>>();
+                current.len() != per_stream_rows.len()
+                    || current.iter().zip(&per_stream_rows).any(|(a, b)| {
+                        (a.in_dbfs - b.in_dbfs).abs() > 0.05
+                            || (a.out_dbfs - b.out_dbfs).abs() > 0.05
+                    })
+            };
+            let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
+                || (row.meter_out_dbfs - out_db).abs() > 0.05;
+            if aggregate_changed || stream_meters_changed {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
+                if stream_meters_changed {
+                    let model = std::rc::Rc::new(slint::VecModel::default());
+                    for r in &per_stream_rows {
+                        model.push(crate::StreamMeter {
+                            in_dbfs: r.in_dbfs,
+                            out_dbfs: r.out_dbfs,
+                        });
+                    }
+                    row.stream_meters = slint::ModelRc::from(model);
+                }
                 project_chains.set_row_data(idx, row);
             }
         }

@@ -697,3 +697,33 @@ msgstr ""
 msgctxt "ConfirmDeleteChainDialog"
 msgid "Excluir a chain \"{}\"?"
 msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
+msgctxt "ConfirmDeleteChainDialog"
+msgid "btn-cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
+msgctxt "ConfirmDeleteChainDialog"
+msgid "btn-delete"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "title-dialog-delete-recent-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "Remover o projeto \"{}\" dos recentes?"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:58
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "btn-cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
+msgctxt "ConfirmDeleteRecentProjectDialog"
+msgid "btn-remove"
+msgstr ""

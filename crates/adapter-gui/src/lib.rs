@@ -65,8 +65,8 @@ pub use cli::{
     parse_cli_args_from, parse_mcp_addr, parse_midi_map, validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
-    sync_project_runtime, system_language, ui_index_to_real_block_index,
+    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
+    sync_live_chain_runtime, sync_project_runtime, system_language, ui_index_to_real_block_index,
 };
 
 mod defaults;

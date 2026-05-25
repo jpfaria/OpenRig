@@ -273,7 +273,7 @@ pub struct GridParameter {
 }
 
 /// One cell of the NAM/IR capture grid.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridCapture {
     /// Map of parameter name → value identifying this cell on the grid.
     /// Empty for IR plugins that have no parametric variation.
@@ -281,6 +281,14 @@ pub struct GridCapture {
     pub values: BTreeMap<String, ParameterValue>,
     /// Path to the asset (`.nam` or `.wav`) relative to the plugin folder.
     pub file: PathBuf,
+    /// Per-capture loudness audit baseline (issue #514). IR plugins
+    /// ship one value per capture because each impulse has a different
+    /// perceived level; falls back to
+    /// [`PluginManifest::output_gain_db`] when absent. Same unit/sign
+    /// convention as the top-level field (`+6.0` = +6 dB at output,
+    /// `-6.0` = −6 dB).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_gain_db: Option<f32>,
 }
 
 /// Build target slot for an LV2 binary.
