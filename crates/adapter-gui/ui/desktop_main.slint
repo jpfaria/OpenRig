@@ -2,7 +2,7 @@ import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 import { LanguageSelector } from "components/language_selector.slint";
 
@@ -12,7 +12,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
-    in property <bool> show-project-settings;
+    in property <bool> show-settings;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
     in property <bool> fullscreen: false;
@@ -89,7 +89,7 @@ export component DesktopMain inherits Rectangle {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -248,7 +248,7 @@ export component DesktopMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        if root.show-project-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
+        if root.show-project-chains && !(root.fullscreen && (root.show-settings || root.show-chain-editor)) : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
@@ -329,8 +329,8 @@ export component DesktopMain inherits Rectangle {
             open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
 
-        // Fullscreen inline project settings
-        if root.fullscreen && root.show-project-settings : ProjectSettingsPage {
+        // Fullscreen inline settings
+        if root.fullscreen && root.show-settings : SettingsPage {
             width: parent.width;
             height: parent.height;
             project-name-draft <=> root.project-name-draft;
@@ -341,7 +341,7 @@ export component DesktopMain inherits Rectangle {
             status-message: root.status-message;
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
-            close-project-settings => { root.close-project-settings(); }
+            close-settings => { root.close-settings(); }
             toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
             update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
             update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
@@ -479,7 +479,7 @@ export component DesktopMain inherits Rectangle {
         }
     }
 
-    if root.show-project-settings : ProjectSettingsPage {
+    if root.show-settings : SettingsPage {
         width: parent.width;
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
@@ -490,7 +490,7 @@ export component DesktopMain inherits Rectangle {
         bit-depth-options: root.bit-depth-options;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }

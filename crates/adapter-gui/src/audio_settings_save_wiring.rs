@@ -240,7 +240,7 @@ pub(crate) fn wire(
                     clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                 }
             }
         });
@@ -355,7 +355,7 @@ pub(crate) fn wire(
                     );
                     settings_window.set_status_message("".into());
                     clear_status(&window, &toast_timer);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                     let _ = settings_window.hide();
                 }
             }

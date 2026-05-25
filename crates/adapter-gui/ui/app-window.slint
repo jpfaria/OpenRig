@@ -4,7 +4,7 @@ import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
@@ -32,7 +32,7 @@ export component AppWindow inherits Window {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
-    in property <bool> show-project-settings;
+    in property <bool> show-settings;
     in property <bool> project-dirty;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -119,7 +119,7 @@ export component AppWindow inherits Window {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -272,7 +272,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
-        show-project-settings: root.show-project-settings;
+        show-settings: root.show-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
@@ -378,7 +378,7 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }
@@ -472,7 +472,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
-        show-project-settings: root.show-project-settings;
+        show-settings: root.show-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
@@ -544,7 +544,7 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }

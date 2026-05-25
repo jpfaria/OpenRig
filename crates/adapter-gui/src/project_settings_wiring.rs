@@ -8,7 +8,7 @@
 //!   fullscreen inline render path).
 //! - Two `on_update_project_name` callbacks — name edits from either window
 //!   are mirrored to both windows and write back through to the session.
-//! - Two `on_close_project_settings` callbacks — restore the chains view and
+//! - Two `on_close_settings` callbacks — restore the chains view and
 //!   clear any toast.
 
 use std::cell::RefCell;
@@ -118,7 +118,7 @@ pub(crate) fn wire(
             if fullscreen {
                 // In fullscreen mode, render inline — set project-devices on main window
                 window.set_project_devices(settings_window.get_project_devices());
-                window.set_show_project_settings(true);
+                window.set_show_settings(true);
             } else {
                 show_child_window(window.window(), settings_window.window());
             }
@@ -180,18 +180,18 @@ pub(crate) fn wire(
     {
         let weak_window = window.as_weak();
         let toast_timer = toast_timer.clone();
-        window.on_close_project_settings(move || {
+        window.on_close_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             clear_status(&window, &toast_timer);
-            window.set_show_project_settings(false);
+            window.set_show_settings(false);
         });
     }
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
-        project_settings_window.on_close_project_settings(move || {
+        project_settings_window.on_close_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -200,7 +200,7 @@ pub(crate) fn wire(
             };
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
-            window.set_show_project_settings(false);
+            window.set_show_settings(false);
             let _ = settings_window.hide();
         });
     }

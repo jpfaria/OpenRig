@@ -1,6 +1,6 @@
 import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem } from "models.slint";
 import { Locale } from "locale_globals.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -14,7 +14,7 @@ export component ProjectSettingsWindow inherits Window {
     in property <[string]> bit-depth-options;
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
@@ -27,7 +27,7 @@ export component ProjectSettingsWindow inherits Window {
     preferred-height: 640px;
     background: #040708;
 
-    ProjectSettingsPage {
+    SettingsPage {
         width: parent.width;
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
@@ -38,7 +38,7 @@ export component ProjectSettingsWindow inherits Window {
         status-message: root.status-message;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }

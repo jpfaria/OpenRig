@@ -56,7 +56,7 @@ pub(crate) fn populate_initial_window_state(
     window.set_show_project_setup(false);
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
-    window.set_show_project_settings(false);
+    window.set_show_settings(false);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
     window.set_project_title(rust_i18n::t!("default-project-title").as_ref().into());

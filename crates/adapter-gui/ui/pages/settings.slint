@@ -57,7 +57,7 @@ component FieldBox inherits Rectangle {
     }
 }
 
-export component ProjectSettingsPage inherits Rectangle {
+export component SettingsPage inherits Rectangle {
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
     in property <[DeviceSelectionItem]> project-devices;
@@ -69,7 +69,7 @@ export component ProjectSettingsPage inherits Rectangle {
     in property <int> selected-language-index;
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
@@ -137,7 +137,7 @@ export component ProjectSettingsPage inherits Rectangle {
         x: parent.width - 196px;
         y: parent.height - 52px;
         label: @tr("btn-cancel");
-        clicked => { root.close-project-settings(); }
+        clicked => { root.close-settings(); }
     }
 
     FooterButton {
