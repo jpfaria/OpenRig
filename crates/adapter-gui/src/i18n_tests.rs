@@ -399,13 +399,16 @@ fn gettext_resolves_btn_new_project_in_en_us() {
     );
 }
 
-/// Bug (#436): the preset-picker dialog rendered raw keys
-/// ("BTN-LOAD-PRESET", "BTN-CANCEL"). Slint scopes `@tr` by component
-/// → gettext `msgctxt`. `PresetPickerOverlay` is a #436 component whose
-/// context was never extracted into the `.po`, so gettext fell back to
-/// the msgid (the key). Guard: every `@tr("…")` in
-/// `preset_picker_overlay.slint` must have a non-empty translation under
-/// `msgctxt "PresetPickerOverlay"` in the bundled pt_BR catalog.
+/// Bug (#436, refined under #513): the preset-picker dialog rendered raw
+/// keys ("BTN-LOAD-PRESET", "BTN-CANCEL") because Slint scopes `@tr` by
+/// the enclosing component name → gettext `msgctxt`, and the new component
+/// names (e.g. `PresetPickerOverlay`) were never extracted into the `.po`.
+/// Resolved under #513 by:
+///   1. `build.rs` calls `with_default_translation_context(None)` so the
+///      compiler stops emitting the component name as msgctxt.
+///   2. The `.po` catalogs are flat (no msgctxt lines).
+/// Guard: every `@tr("…")` in `preset_picker_overlay.slint` must have a
+/// non-empty translation in the pt_BR catalog under no msgctxt.
 #[test]
 fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
     let slint = include_str!("../ui/components/preset_picker_overlay.slint");
@@ -424,18 +427,19 @@ fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
         "fixture changed: expected btn-load-preset/btn-cancel, got {keys:?}"
     );
 
-    // A .po record translated under the PresetPickerOverlay context, with
-    // a non-empty msgstr, must exist for each key.
+    // A .po record with no msgctxt and a non-empty msgstr must exist for
+    // each key — that's the only lookup Slint will perform now that
+    // DefaultTranslationContext::None is set in build.rs.
     for key in keys {
         let resolved = po.split("\n\n").any(|rec| {
-            rec.contains("msgctxt \"PresetPickerOverlay\"")
+            !rec.contains("msgctxt ")
                 && rec.contains(&format!("msgid \"{key}\""))
                 && !rec.contains("msgstr \"\"")
         });
         assert!(
             resolved,
-            "no non-empty pt_BR translation for @tr(\"{key}\") under \
-             msgctxt \"PresetPickerOverlay\" — UI shows the raw key"
+            "no non-empty pt_BR translation for @tr(\"{key}\") in the \
+             flat (context-free) catalog — UI shows the raw key"
         );
     }
 }
