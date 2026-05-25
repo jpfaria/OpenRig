@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer};
+use slint::{ComponentHandle, Timer};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -97,12 +97,18 @@ pub(crate) fn wire(
                 // (replaces the native FileDialog). Stash the chain
                 // clone + default name; final write happens when the
                 // user confirms via `preset-save-request`.
+                // Issue #510 user feedback: pre-fill the text field
+                // with the default name (the placeholder alone left
+                // users unable to edit existing characters — they had
+                // to clear and re-type). The default also stays in
+                // `preset_save_default_name` so an empty submission
+                // still falls back to it.
                 *pending_save.borrow_mut() = Some(PendingSave {
                     chain_clone,
                     default_name: default_name.clone(),
                 });
-                window.set_preset_save_default_name(default_name.into());
-                window.set_preset_save_name_input(SharedString::new());
+                window.set_preset_save_default_name(default_name.clone().into());
+                window.set_preset_save_name_input(default_name.into());
                 window.set_show_preset_save_overwrite(false);
                 window.set_show_preset_save(true);
             }
