@@ -1,5 +1,10 @@
+// Language section — inline labeled ComboBox so the user can see the
+// current language and pick a new one without opening a popover. The
+// global LanguageSelector (used by the top-bar overlay) is the wrong
+// shape for a settings panel — too small, popup-driven, no label.
+
 import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
-import { LanguageSelector } from "../../components/language_selector.slint";
+import { ComboBox } from "std-widgets.slint";
 
 export component SectionSystemLanguage inherits SettingsSection {
     scope: SettingsScope.system;
@@ -10,10 +15,16 @@ export component SectionSystemLanguage inherits SettingsSection {
     in property <int> selected-language-index;
     callback language-selected(int);
 
-    LanguageSelector {
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        language-selected(i) => { root.language-selected(i); }
+    // Section title is already "Language" — no need for an inner label.
+    // The ComboBox sits alone, takes its natural width, and aligns left.
+    HorizontalLayout {
+        alignment: start;
+        combo := ComboBox {
+            model: root.language-options;
+            current-index: root.selected-language-index;
+            height: 28px;
+            width: 240px;
+            selected(_) => { root.language-selected(combo.current-index); }
+        }
     }
 }
