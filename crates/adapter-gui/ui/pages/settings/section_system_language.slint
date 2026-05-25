@@ -1,0 +1,19 @@
+import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
+import { LanguageSelector } from "../../components/language_selector.slint";
+
+export component SectionSystemLanguage inherits SettingsSection {
+    scope: SettingsScope.system;
+    title: @tr("title-section-language");
+
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    callback language-selected(int);
+
+    LanguageSelector {
+        language-options: root.language-options;
+        language-codes: root.language-codes;
+        selected-language-index: root.selected-language-index;
+        language-selected(i) => { root.language-selected(i); }
+    }
+}
