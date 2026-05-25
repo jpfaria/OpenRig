@@ -488,6 +488,29 @@ pub fn run_desktop_app(
         midi_device_model.clone(),
     );
     window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    // --- Project / Metadata section (#513) ---
+    let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    crate::settings::project_meta::install(
+        &window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    // Seed the initial project-name and project-path-display from the session.
+    {
+        let sess = project_session.borrow();
+        let name: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project.borrow().name.clone())
+            .unwrap_or_default()
+            .into();
+        let path: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project_path.as_ref().map(|p| p.display().to_string()))
+            .unwrap_or_else(|| "(unsaved)".into())
+            .into();
+        window.set_project_name(name);
+        window.set_project_path_display(path);
+    }
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(
         &window,

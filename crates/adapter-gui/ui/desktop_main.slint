@@ -75,6 +75,10 @@ export component DesktopMain inherits Rectangle {
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
     in property <[MidiDeviceRow]> midi-devices;
+    // Project / Metadata section (#513)
+    in property <string> project-name;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -348,6 +352,9 @@ export component DesktopMain inherits Rectangle {
             language-codes: root.language-codes;
             selected-language-index: root.selected-language-index;
             status-message: root.status-message;
+            project-name: root.project-name;
+            project-path-display: root.project-path-display;
+            edit-project-name(t) => { root.edit-project-name(t); }
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
             close-settings => { root.close-settings(); }
@@ -505,6 +512,9 @@ export component DesktopMain inherits Rectangle {
         language-options: root.language-options;
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }

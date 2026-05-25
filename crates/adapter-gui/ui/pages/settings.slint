@@ -2,6 +2,7 @@ import { DeviceSelectionItem, MidiDeviceRow } from "../models.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
+import { SectionProjectMeta } from "settings/section_project_meta.slint";
 
 component FooterButton inherits Rectangle {
     in property <string> label;
@@ -69,6 +70,9 @@ export component SettingsPage inherits Rectangle {
     in property <[string]> language-codes;
     in property <int> selected-language-index;
     in property <[MidiDeviceRow]> midi-devices;
+    in property <string> project-name;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-settings();
@@ -147,6 +151,16 @@ export component SettingsPage inherits Rectangle {
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         language-selected(i) => { root.language-selected(i); }
+    }
+
+    SectionProjectMeta {
+        x: 32px;
+        y: parent.height - 164px;
+        width: parent.width - 64px;
+        height: 52px;
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
     }
 
     FooterButton {

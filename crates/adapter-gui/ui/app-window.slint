@@ -96,6 +96,10 @@ export component AppWindow inherits Window {
     // System / MIDI devices section rows (#513). Built by Rust by merging
     // `adapter_midi::list_input_ports()` with the persisted selection.
     in property <[MidiDeviceRow]> midi-devices;
+    // Project / Metadata section (#513). Name is editable (dispatches
+    // UpdateProjectName on each change); path is read-only display.
+    in property <string> project-name;
+    in property <string> project-path-display;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -208,6 +212,8 @@ export component AppWindow inherits Window {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
+    // Project / Metadata section callbacks (#513)
+    callback edit-project-name(string);
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -463,6 +469,9 @@ export component AppWindow inherits Window {
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
         edit-chain-input(index) => { root.edit-chain-input(index); }
         remove-chain-input(index) => { root.remove-chain-input(index); }
         add-chain-input => { root.add-chain-input(); }
@@ -633,6 +642,9 @@ export component AppWindow inherits Window {
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
         preset-picker-items: root.preset-picker-items;

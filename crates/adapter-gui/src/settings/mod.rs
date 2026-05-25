@@ -9,3 +9,5 @@ pub mod audio;
 pub mod language;
 pub mod midi_devices;
 // added in later tasks: project_meta, midi_mapping
+
+pub mod project_meta;

@@ -1,0 +1,33 @@
+import { SettingsSection, SettingsScope } from "../../components/settings_section.slint";
+import { LineEdit } from "std-widgets.slint";
+
+export component SectionProjectMeta inherits SettingsSection {
+    scope: SettingsScope.project;
+    title: "Project";
+
+    in property <string> project-name;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
+
+    VerticalLayout {
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Name"; color: #cfd5e0; vertical-alignment: center; }
+            LineEdit {
+                text: root.project-name;
+                edited(t) => { root.edit-project-name(t); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "File"; color: #cfd5e0; vertical-alignment: center; }
+            Text {
+                text: root.project-path-display;
+                color: #8a92a3;
+                font-size: 11px;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

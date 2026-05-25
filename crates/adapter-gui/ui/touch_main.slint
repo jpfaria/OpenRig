@@ -70,6 +70,10 @@ export component TouchMain inherits Rectangle {
     in property <[string]> bit-depth-options;
     in property <[DeviceSelectionItem]> project-devices;
     in property <[MidiDeviceRow]> midi-devices;
+    // Project / Metadata section (#513)
+    in property <string> project-name;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -375,6 +379,9 @@ export component TouchMain inherits Rectangle {
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }
