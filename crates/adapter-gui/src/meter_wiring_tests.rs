@@ -213,3 +213,97 @@ fn split_rings_per_entry_returns_one_singleton_per_index() {
         assert_eq!(slot.len(), 1, "each slot is a single ring (entry i={})", i);
     }
 }
+
+// ── chain signature tracking (re-subscribe on ANY change) ──
+
+#[test]
+fn chain_signature_changes_when_enabled_flag_flips() {
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let mut c = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: false,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+    };
+    let s1 = chain_meter_signature(&c);
+    c.enabled = true;
+    let s2 = chain_meter_signature(&c);
+    assert_ne!(s1, s2, "enabled flip must change the signature");
+}
+
+#[test]
+fn chain_signature_changes_when_block_enabled_bit_flips() {
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let mut c = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+    };
+    let s1 = chain_meter_signature(&c);
+    c.blocks[0].enabled = false;
+    let s2 = chain_meter_signature(&c);
+    assert_ne!(s1, s2, "per-block enabled flip (scene bypass) must \
+         change the signature so the meter re-subscribes after scene \
+         switch even when block ids don't change");
+}
+
+#[test]
+fn chain_signature_stable_when_only_param_value_changes() {
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    use domain::value_objects::ParameterValue;
+    let mut params = ParameterSet::default();
+    params.insert("gain", ParameterValue::Float(0.5));
+    let mut c = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params,
+            }),
+        }],
+    };
+    let s1 = chain_meter_signature(&c);
+    // Just a knob movement — doesn't restart the runtime, must NOT
+    // invalidate the meter (would cause the flicker that #flicker-fix
+    // killed).
+    if let AudioBlockKind::Core(core) = &mut c.blocks[0].kind {
+        core.params.insert("gain", ParameterValue::Float(0.7));
+    }
+    let s2 = chain_meter_signature(&c);
+    assert_eq!(s1, s2, "param value change without runtime restart \
+         must keep the signature stable");
+}

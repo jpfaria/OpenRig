@@ -120,6 +120,26 @@ pub fn refresh_subscriptions_lazy_per_stream<F>(
     }
 }
 
+/// Compact "did the runtime layout change?" signature for a chain.
+/// Includes the chain's enabled flag and every block's `(id, enabled)`
+/// — the bits that flip when the runtime is torn down and rebuilt
+/// (toggle, rig-nav preset/scene switch, block add/remove). NOT
+/// affected by knob/param value changes, so steady-state ticks don't
+/// cause a re-subscribe (that's the flicker fix). The meter timer
+/// compares the signature against the previous tick's value and
+/// invalidates the chain's meter store entry on any difference.
+pub fn chain_meter_signature(chain: &project::chain::Chain) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    chain.enabled.hash(&mut h);
+    for b in &chain.blocks {
+        b.id.0.hash(&mut h);
+        b.enabled.hash(&mut h);
+    }
+    h.finish()
+}
+
 /// Split a flat list of per-channel input rings into one singleton
 /// slot per channel. Used by the meter timer when a chain has a
 /// multi-source InputBlock (e.g. 3 entradas): each source maps to a
@@ -172,12 +192,13 @@ pub fn start_meter_polling(
     const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
 
     let store = new_meter_store_per_stream();
-    // Per-chain enabled snapshot from the previous tick. A chain whose
-    // enabled flag flipped is invalidated so the meter re-subscribes
-    // to the freshly-started runtime; chains whose state didn't change
-    // keep their stable ring handles (no re-subscription ⇒ no flicker).
-    let last_enabled: std::rc::Rc<
-        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, bool>>,
+    // Per-chain "runtime layout" signature snapshot from the previous
+    // tick. The signature changes on any state that tears down +
+    // rebuilds the chain's runtime (toggle, rig-nav preset/scene
+    // switch, block add/remove). Chains whose signature did NOT change
+    // keep their stable ring handles — no re-subscription, no flicker.
+    let last_signature: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
@@ -191,16 +212,16 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
-        // Detect chains whose enabled flag flipped since the last tick.
-        // Those (and only those) need their meter rings refreshed.
+        // Detect chains whose runtime-layout signature changed since
+        // the last tick. Those (and only those) need re-subscription.
         let mut invalidate: Vec<domain::ids::ChainId> = Vec::new();
         {
-            let mut last = last_enabled.borrow_mut();
+            let mut last = last_signature.borrow_mut();
             for c in project.chains.iter() {
-                let prev = last.get(&c.id).copied();
-                if prev != Some(c.enabled) {
+                let sig = chain_meter_signature(c);
+                if last.get(&c.id).copied() != Some(sig) {
                     invalidate.push(c.id.clone());
-                    last.insert(c.id.clone(), c.enabled);
+                    last.insert(c.id.clone(), sig);
                 }
             }
             last.retain(|cid, _| chain_ids.contains(cid));
