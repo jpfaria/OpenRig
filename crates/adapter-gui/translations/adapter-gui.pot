@@ -727,3 +727,23 @@ msgstr ""
 msgctxt "ConfirmDeleteRecentProjectDialog"
 msgid "btn-remove"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint:38
+msgctxt "TracksPage"
+msgid "tracks-title"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint:55
+msgctxt "TracksPage"
+msgid "tracks-search-placeholder"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint:70
+msgctxt "TracksPage"
+msgid "tracks-import"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint:91
+msgctxt "TracksPage"
+msgid "tracks-empty"
+msgstr ""

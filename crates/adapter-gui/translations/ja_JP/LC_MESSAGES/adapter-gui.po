@@ -562,3 +562,16 @@ msgstr "上書き"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint
+msgid "tracks-title"
+msgstr "トラック"
+
+msgid "tracks-search-placeholder"
+msgstr "トラックを検索..."
+
+msgid "tracks-import"
+msgstr "インポートして分離"
+
+msgid "tracks-empty"
+msgstr "まだトラックがありません。曲をインポートして始めましょう。"

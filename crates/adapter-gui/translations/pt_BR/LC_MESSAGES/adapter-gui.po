@@ -619,3 +619,16 @@ msgstr "Salvar projeto"
 
 msgid "btn-save-audio-settings"
 msgstr "Aplicar"
+
+#: crates/adapter-gui/ui/pages/tracks.slint
+msgid "tracks-title"
+msgstr "Faixas"
+
+msgid "tracks-search-placeholder"
+msgstr "Buscar faixas..."
+
+msgid "tracks-import"
+msgstr "Importar e separar"
+
+msgid "tracks-empty"
+msgstr "Sem faixas ainda. Importe uma música para começar."

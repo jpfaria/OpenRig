@@ -558,3 +558,16 @@ msgstr "覆盖"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint
+msgid "tracks-title"
+msgstr "音轨"
+
+msgid "tracks-search-placeholder"
+msgstr "搜索音轨..."
+
+msgid "tracks-import"
+msgstr "导入并分离"
+
+msgid "tracks-empty"
+msgstr "还没有音轨。导入一首歌曲开始使用。"

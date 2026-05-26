@@ -561,3 +561,16 @@ msgstr "Écraser"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint
+msgid "tracks-title"
+msgstr "Pistes"
+
+msgid "tracks-search-placeholder"
+msgstr "Rechercher des pistes..."
+
+msgid "tracks-import"
+msgstr "Importer & séparer"
+
+msgid "tracks-empty"
+msgstr "Aucune piste pour l'instant. Importez une chanson pour commencer."

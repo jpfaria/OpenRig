@@ -1,0 +1,153 @@
+// Tracks catalog screen (#553).
+//
+// Layout: search bar + import button on top, list of cards (Moises-
+// style) below. Empty state when the catalog is empty. Routing into
+// this page and the Track detail view land in follow-up commits.
+
+import { ScrollView, LineEdit } from "std-widgets.slint";
+
+export struct TrackRowData {
+    id: string,
+    title: string,
+    artist: string,
+    duration: string,
+    stem-count: int,
+}
+
+export component TracksPage inherits Rectangle {
+    in property <[TrackRowData]> tracks;
+    in-out property <string> search-text;
+
+    callback import-clicked();
+    callback track-clicked(string);
+    callback search-changed(string);
+
+    background: #15171a;
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 16px;
+
+        // Header
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: stretch;
+
+            Text {
+                text: @tr("tracks-title");
+                color: #f4f7fb;
+                font-size: 22px;
+                font-weight: 700;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            Rectangle {
+                width: 220px;
+                height: 36px;
+                background: #2f3339;
+                border-width: 1px;
+                border-color: #4c515b;
+                border-radius: 4px;
+
+                LineEdit {
+                    x: 8px;
+                    y: 0px;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    placeholder-text: @tr("tracks-search-placeholder");
+                    text <=> root.search-text;
+                    edited(t) => { root.search-changed(t); }
+                }
+            }
+
+            Rectangle {
+                width: 180px;
+                height: 36px;
+                background: #188cff;
+                border-width: 1px;
+                border-color: #45a7ff;
+                border-radius: 4px;
+
+                Text {
+                    text: @tr("tracks-import");
+                    color: #f4f7fb;
+                    font-size: 13px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => { root.import-clicked(); }
+                }
+            }
+        }
+
+        // Empty state OR list
+        if root.tracks.length == 0 : Rectangle {
+            background: transparent;
+            vertical-stretch: 1;
+
+            Text {
+                text: @tr("tracks-empty");
+                color: #8a929e;
+                font-size: 14px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: parent.width;
+                height: parent.height;
+            }
+        }
+
+        if root.tracks.length > 0 : ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 8px;
+
+                for track in root.tracks : Rectangle {
+                    height: 56px;
+                    background: #1d2024;
+                    border-width: 1px;
+                    border-color: #2f3339;
+                    border-radius: 6px;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        alignment: stretch;
+
+                        Text {
+                            text: track.title;
+                            color: #f4f7fb;
+                            font-size: 14px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Text {
+                            text: track.artist;
+                            color: #b6bcc4;
+                            font-size: 13px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: track.duration;
+                            color: #8a929e;
+                            font-size: 13px;
+                            vertical-alignment: center;
+                            width: 60px;
+                            horizontal-alignment: right;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { root.track-clicked(track.id); }
+                    }
+                }
+            }
+        }
+    }
+}
