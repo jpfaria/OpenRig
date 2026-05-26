@@ -1,42 +1,11 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use adapter_gui::render_dispatch::{classify_launch, LaunchMode};
 use adapter_gui::{init_translations, run_desktop_app};
 use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    // `--render` short-circuits to the headless offline renderer (issue
-    // #552). Mutually exclusive with `--mcp`/`--midi`/positional project
-    // path — the classifier rejects those before we touch any Slint or
-    // engine init code. Exits 2 on classifier error, 1 on render error.
-    let raw_argv: Vec<String> = std::env::args().collect();
-    match classify_launch(&raw_argv) {
-        Ok(LaunchMode::Render(args)) => {
-            return match adapter_render::render(&args) {
-                Ok(summary) => {
-                    log::info!(
-                        "openrig --render: wrote {} frames at {} Hz → {}",
-                        summary.frames_written,
-                        summary.sample_rate_hz,
-                        summary.output.display()
-                    );
-                    Ok(())
-                }
-                Err(e) => {
-                    eprintln!("openrig --render: {e}");
-                    std::process::exit(1);
-                }
-            };
-        }
-        Ok(LaunchMode::Gui) => {}
-        Err(e) => {
-            eprintln!("openrig: {e}");
-            std::process::exit(2);
-        }
-    }
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.
