@@ -590,3 +590,9 @@ msgstr "चलाएं"
 
 msgid "track-pause"
 msgstr "रोकें"
+
+msgid "tracks-back"
+msgstr "वापस"
+
+msgid "btn-open-tracks"
+msgstr "ट्रैक्स"

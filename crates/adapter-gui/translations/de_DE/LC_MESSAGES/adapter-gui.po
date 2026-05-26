@@ -596,3 +596,9 @@ msgstr "Wiedergabe"
 
 msgid "track-pause"
 msgstr "Pause"
+
+msgid "tracks-back"
+msgstr "Zurück"
+
+msgid "btn-open-tracks"
+msgstr "Tracks"

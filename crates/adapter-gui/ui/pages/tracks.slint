@@ -21,6 +21,7 @@ export component TracksPage inherits Rectangle {
     callback import-clicked();
     callback track-clicked(string);
     callback search-changed(string);
+    callback back-clicked();
 
     background: #15171a;
 
@@ -32,6 +33,25 @@ export component TracksPage inherits Rectangle {
         HorizontalLayout {
             spacing: 12px;
             alignment: stretch;
+
+            Rectangle {
+                width: 64px;
+                height: 32px;
+                background: #2f3339;
+                border-width: 1px;
+                border-color: #4c515b;
+                border-radius: 4px;
+                y: 8px;
+
+                Text {
+                    text: @tr("tracks-back");
+                    color: #f4f7fb;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.back-clicked(); } }
+            }
 
             Text {
                 text: @tr("tracks-title");

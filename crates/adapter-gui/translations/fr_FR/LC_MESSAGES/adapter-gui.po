@@ -593,3 +593,9 @@ msgstr "Lecture"
 
 msgid "track-pause"
 msgstr "Pause"
+
+msgid "tracks-back"
+msgstr "Retour"
+
+msgid "btn-open-tracks"
+msgstr "Pistes"

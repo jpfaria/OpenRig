@@ -590,3 +590,9 @@ msgstr "播放"
 
 msgid "track-pause"
 msgstr "暂停"
+
+msgid "tracks-back"
+msgstr "返回"
+
+msgid "btn-open-tracks"
+msgstr "音轨"

@@ -630,3 +630,9 @@ msgstr "Play"
 
 msgid "track-pause"
 msgstr "Pause"
+
+msgid "tracks-back"
+msgstr "Back"
+
+msgid "btn-open-tracks"
+msgstr "Tracks"

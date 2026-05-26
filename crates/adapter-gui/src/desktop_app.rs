@@ -673,6 +673,9 @@ pub fn run_desktop_app(
         &spectrum_session,
         &spectrum_timer,
     );
+    // --- Tracks screen nav (#553) ---
+    crate::tracks_wiring::wire_tracks_nav(&window);
+
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
     crate::back_to_launcher_wiring::wire(
         &window,

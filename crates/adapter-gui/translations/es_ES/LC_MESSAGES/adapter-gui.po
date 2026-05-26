@@ -643,3 +643,9 @@ msgstr "Reproducir"
 
 msgid "track-pause"
 msgstr "Pausa"
+
+msgid "tracks-back"
+msgstr "Volver"
+
+msgid "btn-open-tracks"
+msgstr "Pistas"
