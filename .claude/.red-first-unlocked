@@ -1,2 +1,2 @@
-Phase 1 part 2: RED captured for QueryKind::Selection
-(crates/application/tests/query_selection_test.rs).
+Phase 2: RED captured for adapter_midi::profile module
+(crates/adapter-midi/tests/profile_test.rs).
