@@ -339,7 +339,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     };
                     (
                         chain.id.clone(),
-                        chain.description.clone().unwrap_or_else(|| chain.id.0.clone()),
+                        chain
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| chain.id.0.clone()),
                     )
                 };
                 *pending.borrow_mut() = Some(chain_id);
@@ -384,19 +387,20 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                if let Err(err) = session.dispatcher.dispatch(
-                    application::command::Command::RemoveChain { chain: chain_id.clone() },
-                ) {
+                if let Err(err) =
+                    session
+                        .dispatcher
+                        .dispatch(application::command::Command::RemoveChain {
+                            chain: chain_id.clone(),
+                        })
+                {
                     set_status_error(&main_win, &toast_timer, &err.to_string());
                     return;
                 }
                 if session.rig.is_some() {
                     crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&main_win, session);
                 }
-                crate::runtime_lifecycle::remove_live_chain_runtime(
-                    &project_runtime,
-                    &chain_id,
-                );
+                crate::runtime_lifecycle::remove_live_chain_runtime(&project_runtime, &chain_id);
                 crate::project_view::replace_project_chains(
                     &project_chains,
                     &*session.project.borrow(),

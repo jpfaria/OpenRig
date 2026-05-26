@@ -108,10 +108,9 @@ fn refilter_empty_query_restores_the_full_list() {
 fn compact_chain_callbacks_wires_on_search_block_model_to_refilter() {
     use std::path::PathBuf;
 
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/compact_chain_callbacks.rs");
-    let src = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let src =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     assert!(
         src.contains("on_search_block_model"),
@@ -139,10 +138,7 @@ fn refilter_keeps_the_same_filtered_models_modelrc_so_the_popup_keeps_observing(
 
     let after_rc = compact_blocks.row_data(0).expect("row 0").filtered_models;
     assert!(
-        std::ptr::addr_eq(
-            popup_rc.as_any() as *const _,
-            after_rc.as_any() as *const _,
-        ),
+        std::ptr::addr_eq(popup_rc.as_any() as *const _, after_rc.as_any() as *const _,),
         "the row's filtered_models must be the SAME ModelRc after refilter \
          — otherwise the open popup (bound to the original handle) keeps \
          showing the unfiltered list"
@@ -171,10 +167,9 @@ fn refilter_keeps_the_same_filtered_models_modelrc_so_the_popup_keeps_observing(
 fn compact_search_handler_reads_live_compact_blocks_each_invocation() {
     use std::path::PathBuf;
 
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/compact_chain_callbacks.rs");
-    let src = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let src =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     let needle = "on_search_block_model";
     let start = src
