@@ -1,0 +1,17 @@
+[package]
+name = "adapter-render"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+hound = "3.5"
+application = { path = "../application" }
+engine = { path = "../engine" }
+infra-filesystem = { path = "../infra-filesystem" }
+infra-yaml = { path = "../infra-yaml" }
+project = { path = "../project" }
+
+[[bin]]
+name = "openrig-render"
+path = "src/main.rs"
