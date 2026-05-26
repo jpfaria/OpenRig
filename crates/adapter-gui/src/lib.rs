@@ -56,6 +56,7 @@ mod spectrum_session;
 mod spectrum_wiring;
 mod thumbnails;
 mod tuner_session;
+pub mod tuner_close;
 mod tuner_wiring;
 mod virtual_keyboard_wiring;
 mod vst3_editor_wiring;

@@ -15,6 +15,7 @@ use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::state::ProjectSession;
+use crate::tuner_close::tuner_close_commands;
 use crate::tuner_session::TunerSession;
 use crate::{AppWindow, TunerRow, TunerWindow};
 
@@ -32,8 +33,20 @@ pub fn wire_tuner(
     tuner_timer: &Rc<Timer>,
 ) {
     wire_open(window, tuner_window);
-    wire_close_inline(window, project_runtime, tuner_session, tuner_timer);
-    wire_close_windowed(tuner_window, project_runtime, tuner_session, tuner_timer);
+    wire_close_inline(
+        window,
+        project_session,
+        project_runtime,
+        tuner_session,
+        tuner_timer,
+    );
+    wire_close_windowed(
+        tuner_window,
+        project_session,
+        project_runtime,
+        tuner_session,
+        tuner_timer,
+    );
     wire_mute_inline(window, project_session, project_runtime);
     wire_mute_windowed(tuner_window, project_session, project_runtime);
     wire_power(
@@ -81,40 +94,112 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
 
 fn wire_close_inline(
     window: &AppWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
+    let project_session = project_session.clone();
     let project_runtime = project_runtime.clone();
     let tuner_session = tuner_session.clone();
     let tuner_timer = tuner_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_tuner(move || {
+        dispatch_close_commands(&project_session);
         teardown_session(&tuner_timer, &tuner_session, &project_runtime);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_tuner(false);
             mw.set_tuner_mute_active(false);
+            // #544: keep the power footswitch sprite in sync with the
+            // backend going off. Without this, the next render of the
+            // inline panel could keep the lit-on look until wire_open's
+            // reset runs.
+            mw.set_tuner_enabled(false);
         }
     });
 }
 
 fn wire_close_windowed(
     tuner_window: &TunerWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
-    let project_runtime = project_runtime.clone();
-    let tuner_session = tuner_session.clone();
-    let tuner_timer = tuner_timer.clone();
-    let tuner_window_weak = tuner_window.as_weak();
-    tuner_window.on_close_tuner_window(move || {
-        teardown_session(&tuner_timer, &tuner_session, &project_runtime);
-        if let Some(tw) = tuner_window_weak.upgrade() {
-            tw.set_mute_active(false);
-            let _ = tw.hide();
+    // The explicit `close-tuner-window` callback is fired by the inline
+    // close button — present only when TunerPanel renders with
+    // `show-close-button: true`. In the standalone Window mode (which is
+    // what wire_close_windowed covers) the button is hidden, so the
+    // only way to close is the OS chrome (X / ⌘W). Slint routes that
+    // through `Window::on_close_requested`. Wire BOTH so neither path
+    // leaves the polling timer + auto-engaged mute alive (#544).
+    {
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let tuner_session = tuner_session.clone();
+        let tuner_timer = tuner_timer.clone();
+        let tuner_window_weak = tuner_window.as_weak();
+        tuner_window.on_close_tuner_window(move || {
+            close_tuner_windowed_impl(
+                &project_session,
+                &project_runtime,
+                &tuner_session,
+                &tuner_timer,
+                &tuner_window_weak,
+            );
+            if let Some(tw) = tuner_window_weak.upgrade() {
+                let _ = tw.hide();
+            }
+        });
+    }
+    {
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let tuner_session = tuner_session.clone();
+        let tuner_timer = tuner_timer.clone();
+        let tuner_window_weak = tuner_window.as_weak();
+        tuner_window.window().on_close_requested(move || {
+            close_tuner_windowed_impl(
+                &project_session,
+                &project_runtime,
+                &tuner_session,
+                &tuner_timer,
+                &tuner_window_weak,
+            );
+            slint::CloseRequestResponse::HideWindow
+        });
+    }
+}
+
+fn close_tuner_windowed_impl(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+    tuner_window_weak: &slint::Weak<TunerWindow>,
+) {
+    dispatch_close_commands(project_session);
+    teardown_session(tuner_timer, tuner_session, project_runtime);
+    if let Some(tw) = tuner_window_weak.upgrade() {
+        tw.set_mute_active(false);
+        tw.set_tuner_enabled(false);
+    }
+}
+
+fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>) {
+    // #544 + architectural law "every state change is a Command": close
+    // routes through the shared dispatcher so MCP / MIDI / future gRPC
+    // see the tuner go off and the mute release, instead of just the
+    // adapter mutating runtime state silently.
+    let pj = project_session.borrow();
+    let Some(session) = pj.as_ref() else {
+        return;
+    };
+    for cmd in tuner_close_commands() {
+        if let Err(e) = session.dispatcher.dispatch(cmd) {
+            log::warn!("[tuner.close] dispatch falhou: {e}");
         }
-    });
+    }
 }
 
 fn wire_mute_inline(
