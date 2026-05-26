@@ -1,1 +1,1 @@
-RED: daemon hot-plug — new_port_names + poll loop.
+RED: request_rescan + daemon waits on channel instead of polling.

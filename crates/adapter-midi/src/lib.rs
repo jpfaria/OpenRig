@@ -29,6 +29,29 @@ mod learn_tests;
 
 pub use daemon::{run_blocking, run_blocking_with_map, run_blocking_with_profiles};
 
+/// Shared rescan signal. The MIDI daemon parks on a `Receiver<()>`;
+/// the GUI's Settings "refresh" button calls [`request_rescan`] to
+/// pulse it. No timer, no polling — the rescan happens exactly when
+/// the user asks for it.
+static RESCAN_TX: std::sync::OnceLock<std::sync::mpsc::Sender<()>> =
+    std::sync::OnceLock::new();
+
+/// Signal the daemon to re-enumerate MIDI inputs and attach any new
+/// ports. Safe to call before the daemon starts — silently no-op when
+/// nobody is listening.
+pub fn request_rescan() {
+    if let Some(tx) = RESCAN_TX.get() {
+        let _ = tx.send(());
+    }
+}
+
+/// Register the daemon's rescan receiver. Internal; the daemon calls
+/// this once on startup. Subsequent calls are ignored (the `OnceLock`
+/// guarantees a single owner).
+pub(crate) fn register_rescan_sender(tx: std::sync::mpsc::Sender<()>) {
+    let _ = RESCAN_TX.set(tx);
+}
+
 /// One-call helper for the adapter that wants every profile from
 /// disk active out of the box. Scans `factory_dir` (install assets,
 /// e.g. the repo's `assets/midi-profiles/`) and `user_dir` (the user's

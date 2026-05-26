@@ -180,37 +180,53 @@ pub fn run_blocking_with_profiles(
     let mut connections: Vec<midir::MidiInputConnection<()>> = Vec::new();
     let mut known: Vec<String> = Vec::new();
 
-    // Hot-plug loop: every poll tick re-enumerate, attach any port that
-    // appeared since last tick (Bluetooth pair after startup, USB plug,
-    // user clicks refresh). Connections for vanished devices drop on
-    // their own from midir's side.
+    // Register the rescan channel and grab the receiver. The daemon
+    // does ONE initial enumerate pass, then blocks on rescan_rx until
+    // the GUI's refresh button (or any other caller) pulses
+    // `adapter_midi::request_rescan()`. No timer, no polling — rescan
+    // happens exactly when the user asks for it.
+    let (rescan_tx, rescan_rx) = std::sync::mpsc::channel::<()>();
+    crate::register_rescan_sender(rescan_tx);
+
+    let mut do_scan = true;
     loop {
-        let infos = crate::enumerate::list_input_ports().unwrap_or_default();
-        let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
-        let added = new_port_names(&known, &current);
-        for name in &added {
-            let Some(idx) = current.iter().position(|n| n == name) else {
-                continue;
-            };
-            match attach_port(
-                idx,
-                name,
-                Arc::clone(&profiles),
-                Arc::clone(&selection),
-                bridge.clone(),
-                Arc::clone(&learn),
-            ) {
-                Ok(conn) => {
-                    log::info!("adapter-midi: listening on '{name}' (profiles)");
-                    connections.push(conn);
-                }
-                Err(e) => {
-                    log::warn!("adapter-midi: failed to attach '{name}': {e}");
+        if do_scan {
+            let infos = crate::enumerate::list_input_ports().unwrap_or_default();
+            let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
+            let added = new_port_names(&known, &current);
+            for name in &added {
+                let Some(idx) = current.iter().position(|n| n == name) else {
+                    continue;
+                };
+                match attach_port(
+                    idx,
+                    name,
+                    Arc::clone(&profiles),
+                    Arc::clone(&selection),
+                    bridge.clone(),
+                    Arc::clone(&learn),
+                ) {
+                    Ok(conn) => {
+                        log::info!("adapter-midi: listening on '{name}' (profiles)");
+                        connections.push(conn);
+                    }
+                    Err(e) => {
+                        log::warn!("adapter-midi: failed to attach '{name}': {e}");
+                    }
                 }
             }
+            known = current;
         }
-        known = current;
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        // Block until somebody calls adapter_midi::request_rescan().
+        match rescan_rx.recv() {
+            Ok(()) => {
+                do_scan = true;
+            }
+            Err(_) => {
+                // All senders dropped; nothing else can wake us.
+                return Ok(());
+            }
+        }
     }
 }
 
