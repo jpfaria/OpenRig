@@ -14,12 +14,16 @@ repro, and trade-off discussion behind the change.
   `engine::offline::render_chain` driver that reuses the same
   `RuntimeProcessor::process_buffer` as the realtime callback — chains
   render byte-identical between offline and live for the same input.
-  Deterministic, atomic write (`<output>.tmp` + rename). Drives the
+  Accepts a chain/preset YAML directly (no project wrapper). Two input
+  modes selected by `--input` path existence: **file mode** reads the
+  WAV (optionally sliced with `--start`/`--end`), **live capture mode**
+  opens the cpal `--input-device` for `--duration` seconds and saves
+  the dry capture to `--input` for reuse — record once, iterate
+  forever. Atomic output write, deterministic file mode. Drives the
   audio-validation loop for the `openrig-tone-analyzer` skill
   (OpenRig-claude#8). Single-chain, no I/O blocks, no MIDI/automation
-  replay — multi-chain rendering remains out of scope. The GUI binary is
-  unaffected (`openrig-render` is its own console, not a flag on
-  `adapter-gui`). See `docs/render.md` (#552).
+  replay — multi-chain rendering remains out of scope. See
+  `docs/render.md` (#552).
 
 ## v0.1.0-dev.23 — 2026-05-25
 

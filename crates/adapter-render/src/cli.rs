@@ -1,26 +1,46 @@
-//! CLI argument parsing for `openrig --render` / `openrig-render`.
+//! CLI argument parsing for `openrig-render`.
 //!
-//! Hand-rolled to avoid pulling clap into the headless render binary. The
-//! surface is small and exact-match — keeping deps minimal helps the
-//! cross-platform headless build (issue #552).
+//! Hand-rolled — keeps the headless binary dep-light. The CLI surface is
+//! intentionally small: a chain (preset YAML), an input wav (file source
+//! OR live-capture cache path), an output wav. Optional slice flags
+//! (`--start`/`--end`) trim the input in file mode; optional capture
+//! flags (`--duration`/`--input-device`) bring up cpal when the input
+//! path doesn't exist yet.
 
 use std::path::PathBuf;
 
-/// Parsed `openrig-render` invocation. Field defaults match the documented
-/// CLI surface in `docs/cli.md`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed `openrig-render` invocation. Field defaults match
+/// `docs/render.md`.
+#[derive(Debug, Clone, PartialEq)]
 pub struct RenderArgs {
-    pub project: PathBuf,
+    /// Path to the chain/preset YAML to apply (`presets/clean.yaml` style).
+    pub chain: PathBuf,
+    /// Input wav. If the path exists, it's the source (file mode). If
+    /// it doesn't exist, the renderer captures from `input_device` for
+    /// `duration_s` seconds and saves the dry capture here (live mode).
     pub input: PathBuf,
+    /// Where to write the processed wav.
     pub output: PathBuf,
-    pub chain: Option<String>,
+    /// Optional start of the input slice (seconds). File mode only.
+    pub start_s: Option<f32>,
+    /// Optional end of the input slice (seconds). File mode only.
+    pub end_s: Option<f32>,
+    /// Duration of the live capture in seconds. Required when `input`
+    /// path doesn't exist; ignored otherwise.
+    pub duration_s: Option<f32>,
+    /// cpal input device name (substring match). `None` → default device.
+    pub input_device: Option<String>,
+    /// Engine sample rate.
     pub sample_rate_hz: u32,
+    /// Inner process block size.
     pub block_size: usize,
+    /// Output WAV bit depth (16, 24, or 32-float).
     pub bit_depth: u8,
+    /// Extra silence appended after the input to capture reverb/delay tails.
     pub tail_ms: u32,
 }
 
-/// Errors that can arise while parsing the `openrig-render` argv.
+/// Errors raised while parsing the argv.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RenderArgsError {
     MissingRequired(String),
@@ -31,9 +51,6 @@ pub enum RenderArgsError {
         value: String,
         reason: String,
     },
-    /// `--render` was combined with a flag that requires the live rig
-    /// (e.g. `--mcp`, `--midi`, or a positional project path).
-    MutuallyExclusive(String),
 }
 
 impl std::fmt::Display for RenderArgsError {
@@ -46,67 +63,44 @@ impl std::fmt::Display for RenderArgsError {
                 flag,
                 value,
                 reason,
-            } => {
-                write!(f, "invalid value for {flag} ({value}): {reason}")
-            }
-            Self::MutuallyExclusive(flag) => {
-                write!(f, "--render is mutually exclusive with {flag}")
-            }
+            } => write!(f, "invalid value for {flag} ({value}): {reason}"),
         }
     }
 }
 
 impl std::error::Error for RenderArgsError {}
 
-/// Parse the argv of `openrig-render` (or the `--render` subset of `openrig`).
-///
-/// `args[0]` is treated as the binary name and ignored.
+/// Parse the argv of `openrig-render`. `args[0]` is the binary name.
 pub fn parse_render_args(args: &[String]) -> Result<RenderArgs, RenderArgsError> {
-    let mut project: Option<PathBuf> = None;
+    let mut chain: Option<PathBuf> = None;
     let mut input: Option<PathBuf> = None;
     let mut output: Option<PathBuf> = None;
-    let mut chain: Option<String> = None;
+    let mut start_s: Option<f32> = None;
+    let mut end_s: Option<f32> = None;
+    let mut duration_s: Option<f32> = None;
+    let mut input_device: Option<String> = None;
     let mut sample_rate_hz: u32 = 48_000;
     let mut block_size: usize = 256;
     let mut bit_depth: u8 = 24;
     let mut tail_ms: u32 = 2_000;
 
-    let mut i = 1; // skip argv[0] (binary name)
+    let mut i = 1;
     while i < args.len() {
         let flag = &args[i];
-
-        // Boolean / mutually-exclusive flags — no value to consume.
-        match flag.as_str() {
-            "--mcp" | "--midi" => {
-                return Err(RenderArgsError::MutuallyExclusive(flag.clone()));
-            }
-            // The `--render` flag itself is permitted but carries no value;
-            // it just marks render mode (consumed by the outer `openrig`
-            // dispatcher; harmless if it ends up here).
-            "--render" => {
-                i += 1;
-                continue;
-            }
-            _ => {}
-        }
-
-        // Value-bearing flags consume the next argv slot.
-        let value = match args.get(i + 1) {
-            Some(v) if !v.starts_with("--") => v,
-            _ => return Err(RenderArgsError::MissingValue(flag.clone())),
-        };
+        let value = args
+            .get(i + 1)
+            .ok_or_else(|| RenderArgsError::MissingValue(flag.clone()))?;
 
         match flag.as_str() {
-            "--project" => project = Some(PathBuf::from(value)),
+            "--chain" => chain = Some(PathBuf::from(value)),
             "--input" => input = Some(PathBuf::from(value)),
             "--output" => output = Some(PathBuf::from(value)),
-            "--chain" => chain = Some(value.clone()),
-            "--sample-rate" => {
-                sample_rate_hz = parse_u32(flag, value)?;
-            }
-            "--block-size" => {
-                block_size = parse_usize(flag, value)?;
-            }
+            "--start" => start_s = Some(parse_f32(flag, value)?),
+            "--end" => end_s = Some(parse_f32(flag, value)?),
+            "--duration" => duration_s = Some(parse_f32(flag, value)?),
+            "--input-device" => input_device = Some(value.clone()),
+            "--sample-rate" => sample_rate_hz = parse_u32(flag, value)?,
+            "--block-size" => block_size = parse_usize(flag, value)?,
             "--bit-depth" => {
                 let n = parse_u8(flag, value)?;
                 if !matches!(n, 16 | 24 | 32) {
@@ -118,9 +112,7 @@ pub fn parse_render_args(args: &[String]) -> Result<RenderArgs, RenderArgsError>
                 }
                 bit_depth = n;
             }
-            "--tail-ms" => {
-                tail_ms = parse_u32(flag, value)?;
-            }
+            "--tail-ms" => tail_ms = parse_u32(flag, value)?,
             other => return Err(RenderArgsError::UnknownFlag(other.to_string())),
         }
 
@@ -128,10 +120,13 @@ pub fn parse_render_args(args: &[String]) -> Result<RenderArgs, RenderArgsError>
     }
 
     Ok(RenderArgs {
-        project: project.ok_or_else(|| RenderArgsError::MissingRequired("--project".into()))?,
+        chain: chain.ok_or_else(|| RenderArgsError::MissingRequired("--chain".into()))?,
         input: input.ok_or_else(|| RenderArgsError::MissingRequired("--input".into()))?,
         output: output.ok_or_else(|| RenderArgsError::MissingRequired("--output".into()))?,
-        chain,
+        start_s,
+        end_s,
+        duration_s,
+        input_device,
         sample_rate_hz,
         block_size,
         bit_depth,
@@ -162,6 +157,16 @@ fn parse_usize(flag: &str, value: &str) -> Result<usize, RenderArgsError> {
 fn parse_u8(flag: &str, value: &str) -> Result<u8, RenderArgsError> {
     value
         .parse::<u8>()
+        .map_err(|e| RenderArgsError::InvalidValue {
+            flag: flag.into(),
+            value: value.into(),
+            reason: e.to_string(),
+        })
+}
+
+fn parse_f32(flag: &str, value: &str) -> Result<f32, RenderArgsError> {
+    value
+        .parse::<f32>()
         .map_err(|e| RenderArgsError::InvalidValue {
             flag: flag.into(),
             value: value.into(),

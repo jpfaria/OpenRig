@@ -123,10 +123,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "application",
+ "cpal",
+ "domain",
  "engine",
  "hound",
  "infra-filesystem",
  "infra-yaml",
+ "log",
  "project",
 ]
 
