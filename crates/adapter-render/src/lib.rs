@@ -2,24 +2,12 @@
 //!
 //! Drives the engine through a `.openrig` project headlessly, reading an input
 //! WAV and writing an output WAV. No audio device, no GUI, no MIDI, no MCP.
-//! Same `engine.process_block()` as live mode — deterministic.
+//! Same `engine` block processors as live mode — deterministic.
 //!
-//! Current state (issue #552):
-//!
-//! * Phases P1–P3 ship the CLI surface and the WAV I/O helpers.
-//! * Phase P4 (this module) is intentionally a **passthrough shell**: it
-//!   loads + validates the project, reads the input WAV, writes the output
-//!   WAV padded with `--tail-ms` of silence, and atomically renames the
-//!   final file into place. It does NOT yet route samples through the
-//!   engine — that is P4b, which requires either an offline-mode runtime
-//!   in `crates/engine` or a stripped-down DSP walker bypassing the
-//!   device-bound input/output blocks. Both options need a design call
-//!   captured in the umbrella spec before implementation.
-//!
-//! The shell is still useful: the CLI surface, error mapping, atomic write
-//! and `--tail-ms` handling are exercised end-to-end, and the analyzer
-//! pipeline (issue OpenRig-claude#8) can already round-trip files through
-//! `openrig-render` to validate its own JSON contracts.
+//! The DSP path is delegated to `engine::offline::render_chain`, which reuses
+//! the same `RuntimeProcessor::process_buffer` as the realtime callback. The
+//! adapter wraps that with project loading, WAV I/O, tail padding, and an
+//! atomic output write.
 
 pub mod cli;
 pub mod wav;
@@ -36,6 +24,12 @@ pub enum RenderError {
     InputRead(wav::WavError),
     OutputWrite(wav::WavError),
     InvalidArgs(String),
+    /// The project has no buildable chain (e.g. legacy YAML with zero chains).
+    NoChain,
+    /// The named `--chain` argument did not match any chain in the project.
+    ChainNotFound(String),
+    /// The engine refused to build a runtime for the chosen chain.
+    EngineBuild(anyhow::Error),
 }
 
 impl std::fmt::Display for RenderError {
@@ -45,6 +39,9 @@ impl std::fmt::Display for RenderError {
             Self::InputRead(e) => write!(f, "failed to read input wav: {e}"),
             Self::OutputWrite(e) => write!(f, "failed to write output wav: {e}"),
             Self::InvalidArgs(msg) => write!(f, "invalid render args: {msg}"),
+            Self::NoChain => write!(f, "project has no chain to render"),
+            Self::ChainNotFound(name) => write!(f, "chain not found in project: {name}"),
+            Self::EngineBuild(e) => write!(f, "engine failed to build chain runtime: {e}"),
         }
     }
 }
@@ -67,32 +64,55 @@ pub struct RenderSummary {
 pub fn render(args: &RenderArgs) -> Result<RenderSummary, RenderError> {
     let bit_depth = bit_depth_from_arg(args.bit_depth)?;
 
-    // 1. Load + validate the project (errors propagated even though we don't
-    //    instantiate the engine yet — the consumer pipeline must still be
-    //    able to fail fast on a broken project file).
-    infra_yaml::load_project_any(&args.project).map_err(RenderError::ProjectLoad)?;
+    // 1. Load + validate the project.
+    let project = infra_yaml::load_project_any(&args.project).map_err(RenderError::ProjectLoad)?;
+    let chains = engine::rig_runtime::rig_to_chains(&project);
+    let chain = pick_chain(&chains, args.chain.as_deref())?;
 
     // 2. Read input WAV and normalize to stereo frames.
     let input = read_wav(&args.input).map_err(RenderError::InputRead)?;
-    let mut frames = interleaved_to_stereo_frames(&input.samples, input.channels);
-
-    // 3. Append `--tail-ms` of silence so reverb/delay tails are captured
-    //    once the engine integration lands.
+    let input_frames = interleaved_to_stereo_frames(&input.samples, input.channels);
     let tail_frames = (u64::from(args.tail_ms) * u64::from(args.sample_rate_hz) / 1000) as usize;
-    frames.extend(std::iter::repeat_n([0.0_f32, 0.0_f32], tail_frames));
+
+    // 3. Drive the chain offline through the engine — same processors as
+    //    realtime, just supplied with a buffer-based driver instead of cpal.
+    let output_frames = engine::offline::render_chain(
+        chain,
+        args.sample_rate_hz as f32,
+        &input_frames,
+        args.block_size,
+        tail_frames,
+    )
+    .map_err(RenderError::EngineBuild)?;
 
     // 4. Atomic write: temp file + rename.
     let tmp = tmp_output_path(&args.output);
-    write_wav_stereo(&tmp, &frames, args.sample_rate_hz, bit_depth)
+    write_wav_stereo(&tmp, &output_frames, args.sample_rate_hz, bit_depth)
         .map_err(RenderError::OutputWrite)?;
     std::fs::rename(&tmp, &args.output)
         .map_err(|e| RenderError::OutputWrite(wav::WavError::Io(e)))?;
 
     Ok(RenderSummary {
-        frames_written: frames.len() as u64,
+        frames_written: output_frames.len() as u64,
         sample_rate_hz: args.sample_rate_hz,
         output: args.output.clone(),
     })
+}
+
+fn pick_chain<'a>(
+    chains: &'a [project::chain::Chain],
+    requested: Option<&str>,
+) -> Result<&'a project::chain::Chain, RenderError> {
+    if chains.is_empty() {
+        return Err(RenderError::NoChain);
+    }
+    match requested {
+        None => Ok(&chains[0]),
+        Some(name) => chains
+            .iter()
+            .find(|c| c.id.0 == name || c.description.as_deref() == Some(name))
+            .ok_or_else(|| RenderError::ChainNotFound(name.to_string())),
+    }
 }
 
 fn bit_depth_from_arg(bit_depth: u8) -> Result<BitDepth, RenderError> {
