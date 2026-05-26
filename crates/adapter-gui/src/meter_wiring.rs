@@ -208,6 +208,18 @@ pub trait MeterTapApi {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> Vec<Arc<SpscRing<f32>>>;
+    /// Issue #557: subscribe the per-stream INPUT meter ring by GLOBAL
+    /// `stream_index`. The controller resolves the right per-input
+    /// runtime, the segment's cpal-callback group, and the device
+    /// channel the chain is actually wired to — so the meter for a
+    /// chain on device channel 1 sees channel 1's signal, and stream
+    /// `n >= 1` of a same-device multi-stream chain is no longer silent.
+    fn subscribe_stream_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<Arc<SpscRing<f32>>>;
     fn subscribe_stream_tap(
         &self,
         chain_id: &domain::ids::ChainId,
@@ -237,6 +249,19 @@ impl MeterTapApi for infra_cpal::ProjectRuntimeController {
             capacity_per_channel,
         )
     }
+    fn subscribe_stream_input_tap(
+        &self,
+        chain_id: &domain::ids::ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<Arc<SpscRing<f32>>> {
+        infra_cpal::ProjectRuntimeController::subscribe_stream_input_tap(
+            self,
+            chain_id,
+            stream_index,
+            capacity_per_channel,
+        )
+    }
     fn subscribe_stream_tap(
         &self,
         chain_id: &domain::ids::ChainId,
@@ -254,19 +279,24 @@ impl MeterTapApi for infra_cpal::ProjectRuntimeController {
 
 /// Build the per-stream meter rings for a chain by asking the runtime
 /// how many streams it actually owns and subscribing each one
-/// independently. Replaces the older "subscribe channels 0..N of
-/// runtime 0 once, broadcast the same output ring across rows" path,
-/// which was wrong on two counts:
+/// independently.
 ///
-/// - The engine (issue #350) keeps one per-input runtime per
-///   `InputBlock` entry, keyed `(chain_id, input_index)`. Subscribing
-///   channels 1..N of runtime 0 pulls silence from a runtime that
-///   doesn't own those sources. Each row must instead subscribe
-///   `subscribe_input_tap(cid, i, 1, &[0], cap)`.
-/// - `SpscRing` is single-consumer. Subscribing once and cloning the
-///   `Arc` into every row means row 0 drains the post-FX ring and
-///   rows 1..N see an empty ring forever. Each row subscribes its own
-///   `subscribe_stream_tap(cid, i, cap)`.
+/// History — replaces the older "subscribe channels 0..N of runtime
+/// 0 once, broadcast the same output ring across rows" path
+/// (silenced rows 1..N because `SpscRing` is single-consumer) and the
+/// follow-up "`subscribe_input_tap(cid, i, 1, &[0], cap)`" pattern
+/// that issue #557 finally killed: that one was wrong on two counts —
+/// the global stream index was used as the runtime-side `input_index`
+/// filter (silencing any tap past index 0 on same-device multi-stream
+/// chains), and `&[0]` ignored the chain's actual input endpoint
+/// channels (the meter for a chain wired to device channel 1 ended up
+/// reading channel 0 — the wrong guitar).
+///
+/// Now each row subscribes via [`MeterTapApi::subscribe_stream_input_tap`]
+/// (controller resolves the per-input runtime, cpal group, and
+/// endpoint channel) and [`MeterTapApi::subscribe_stream_tap`]
+/// (per-stream stereo post-FX, unchanged — its dispatch already
+/// translates global stream index to local segment).
 pub fn build_streams_from_taps<T: MeterTapApi>(
     api: &T,
     chain_id: &domain::ids::ChainId,
@@ -275,7 +305,10 @@ pub fn build_streams_from_taps<T: MeterTapApi>(
     let stream_count = api.stream_count(chain_id);
     let streams = (0..stream_count)
         .map(|i| {
-            let input = api.subscribe_input_tap(chain_id, i, 1, &[0], capacity_per_channel);
+            let input = api
+                .subscribe_stream_input_tap(chain_id, i, capacity_per_channel)
+                .map(|ring| vec![ring])
+                .unwrap_or_default();
             let output = api
                 .subscribe_stream_tap(chain_id, i, capacity_per_channel)
                 .map(|[l, r]| vec![l, r])

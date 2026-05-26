@@ -165,22 +165,14 @@ fn subscribe_input_tap_stream_one_must_receive_signal_when_runtime_processes_aud
         "channels=[0,1] in Mono mode produces two parallel streams in one runtime"
     );
 
-    // Mirror the GUI subscription for stream 1 with the channel mapping
-    // the fix must honour: the SECOND stream's audio rides on device
-    // channel 1. Tests for the existing hardcoded `&[0]` path live
-    // alongside this one to keep the channel-routing bug pinned too.
-    let rings_stream_1 = controller.subscribe_input_tap(
-        &chain.id,
-        /* input_index = */ 1,
-        /* total_channels = */ 2,
-        /* subscribed_channels = */ &[1],
-        /* capacity_per_channel = */ 256,
-    );
-    assert_eq!(
-        rings_stream_1.len(),
-        1,
-        "one ring per subscribed channel"
-    );
+    // Use the per-stream meter API (`subscribe_stream_input_tap`) the
+    // GUI must call. It takes the GLOBAL stream index, walks the per-
+    // input runtimes to find the one hosting the segment, and asks
+    // that runtime for the segment's real cpal group index and device
+    // channels before subscribing the tap.
+    let ring_stream_1 = controller
+        .subscribe_stream_input_tap(&chain.id, /* stream_index = */ 1, 256)
+        .expect("stream 1 must yield a ring on a 2-stream chain");
 
     // Drive the runtime as the real cpal callback would: a single
     // device group (index 0) with interleaved stereo samples. Channel
@@ -191,17 +183,18 @@ fn subscribe_input_tap_stream_one_must_receive_signal_when_runtime_processes_aud
     process_input_f32(&runtime, 0, &samples, 2);
 
     let mut got = Vec::new();
-    while let Some(s) = rings_stream_1[0].pop() {
+    while let Some(s) = ring_stream_1.pop() {
         got.push(s);
     }
     assert_eq!(
         got,
         vec![0.5_f32; frames],
-        "stream 1's input tap MUST receive the second guitar's samples \
-         (device channel 1). Today the ring is empty because the \
-         controller wires the tap's `input_index` to the GLOBAL stream \
-         index instead of translating it to the per-input runtime's \
-         LOCAL cpal group index (always 0 for a single-device chain)."
+        "stream 1's input meter MUST receive the second guitar's \
+         samples (device channel 1). The pre-fix call pattern \
+         (`subscribe_input_tap(cid, 1, 1, &[0], cap)`) returned an \
+         always-empty ring: the controller's lookup fell back to \
+         runtime 0 with `input_index=1`, which never matches the \
+         cpal callback's `input_index=0`."
     );
 }
 
@@ -223,21 +216,14 @@ fn subscribe_input_tap_must_honour_endpoint_channel_not_default_to_zero() {
         "one InputEntry with channels=[1] in Mono is one stream"
     );
 
-    // The fix must surface the endpoint's real device channel(s) to the
-    // tap subscription — either by computing it in the controller, or
-    // via a new MeterTapApi method. Either way, the meter must end up
-    // reading channel 1, not channel 0. We assert against the public
-    // controller signature the GUI calls; for the existing wrong path
-    // the GUI passes `&[0]` and the meter samples silence (or worse,
-    // ch0 — the wrong source).
-    let rings = controller.subscribe_input_tap(
-        &chain.id,
-        /* input_index = */ 0,
-        /* total_channels = */ 2,
-        /* subscribed_channels = */ &[1],
-        /* capacity_per_channel = */ 256,
-    );
-    assert_eq!(rings.len(), 1, "one ring per subscribed channel");
+    // The per-stream meter API must auto-resolve the endpoint's real
+    // device channel — the GUI does NOT pass a channel index. Today
+    // (before the fix) the GUI hardcoded `&[0]`, producing the user-
+    // visible "meter responds to the wrong guitar" symptom; the new
+    // method takes the chain's `InputEntry.channels` into account.
+    let ring = controller
+        .subscribe_stream_input_tap(&chain.id, /* stream_index = */ 0, 256)
+        .expect("single-stream chain must yield a ring");
 
     // Send stereo: channel 0 = +0.9 (a loud "wrong" signal from ch1
     // unplugged-but-cable-touched), channel 1 = -0.25 (the actual guitar
@@ -248,14 +234,14 @@ fn subscribe_input_tap_must_honour_endpoint_channel_not_default_to_zero() {
     process_input_f32(&runtime, 0, &samples, 2);
 
     let mut got = Vec::new();
-    while let Some(s) = rings[0].pop() {
+    while let Some(s) = ring.pop() {
         got.push(s);
     }
     assert_eq!(
         got,
         vec![-0.25_f32; frames],
         "the chain wired to device ch1 MUST surface ch1 samples in its \
-         meter ring; today the ring sees 0.9 (ch0) instead, which is \
-         the user-visible 'meter responds to the wrong guitar' bug."
+         meter ring; pre-fix the ring read 0.9 (ch0) instead — that's \
+         the screenshot the user posted."
     );
 }

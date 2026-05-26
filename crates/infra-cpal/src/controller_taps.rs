@@ -121,6 +121,62 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Subscribe to a per-stream INPUT meter tap. Mirrors
+    /// [`Self::subscribe_stream_tap`] in shape: takes a GLOBAL
+    /// `stream_index` in `0..stream_count(cid)` and returns a single
+    /// ring containing the device-side audio that this stream's
+    /// segment actually reads — honouring the chain's input endpoint
+    /// channels.
+    ///
+    /// Issue #557: replaces the meter's old call pattern of
+    /// `subscribe_input_tap(cid, i, 1, &[0], cap)`. That pattern is
+    /// wrong on two counts:
+    ///
+    /// 1. When several streams share one per-input runtime (e.g. two
+    ///    mono guitars on one device), each stream's segment lives at
+    ///    the SAME local cpal-callback group index (always 0 for a
+    ///    one-device chain). Passing the global stream index as the
+    ///    tap's `input_index` filter makes every tap past index 0
+    ///    silent because the runtime's callback only fires with the
+    ///    cpal group index.
+    /// 2. The hardcoded `&[0]` ignores the chain's input endpoint
+    ///    channels: a chain wired to device channel 1 still ends up
+    ///    sampling channel 0 of the interleaved frame.
+    ///
+    /// This method translates the global `stream_index` to the
+    /// `(per-input runtime, local segment)` pair (same walk
+    /// `subscribe_stream_tap` already uses) and then asks the runtime
+    /// for the segment's real cpal-callback index and device channels
+    /// before subscribing the tap. For the meter we surface the first
+    /// device channel only; multi-channel inputs keep their full
+    /// `subscribe_input_tap` access for advanced consumers (tuner /
+    /// spectrum / analyzers) that still want every channel separately.
+    pub fn subscribe_stream_input_tap(
+        &self,
+        chain_id: &ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<Arc<engine::spsc::SpscRing<f32>>> {
+        let mut remaining = stream_index;
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            let local_count = runtime.stream_count();
+            if remaining < local_count {
+                let (cpal_input_index, total_channels, device_channels) =
+                    runtime.input_routing_for_stream(remaining)?;
+                let first_channel = *device_channels.first()?;
+                let mut rings = runtime.subscribe_input_tap(
+                    cpal_input_index,
+                    total_channels,
+                    &[first_channel],
+                    capacity_per_channel,
+                );
+                return rings.pop();
+            }
+            remaining -= local_count;
+        }
+        None
+    }
+
     /// Drop input taps with no surviving consumer handles across all
     /// chains. Cheap; intended to be called from a UI timer or window
     /// close handler.

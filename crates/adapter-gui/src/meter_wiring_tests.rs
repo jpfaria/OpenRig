@@ -444,23 +444,30 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
 }
 
 // ── build_streams_from_taps: per-entry meter routing.
-// Bug from the user's 3-source screenshot: input shows in slot 3,
-// output only in slot 1. Two causes:
+// Original bug (3-source screenshot): input shows in slot 3, output
+// only in slot 1. Pinned causes covered here historically:
 //   (a) input was subscribed as channels [0..N] of runtime[0] instead
-//       of one ring per per-input runtime (issue #350 layout: each
-//       entry owns its own runtime keyed by (chain_id, input_index));
+//       of one ring per per-input runtime (issue #350 layout);
 //   (b) the chain stream_tap was subscribed ONCE (stream_index=0) and
 //       its Arc cloned into every row — SPSC ring has a single
 //       consumer, so row 0 drains it and rows 1..N see empty.
-// The new helper takes a `MeterTapApi` and must:
-//   - call subscribe_input_tap once per stream_index, channel [0]
-//   - call subscribe_stream_tap once per stream_index 0..N
+// Issue #557 closed the follow-up "stream 1 silent + wrong device
+// channel" gap: the helper now drives a single high-level call —
+// `subscribe_stream_input_tap(cid, i, cap)` — and the controller
+// resolves runtime, cpal group, and endpoint channel inside.
+// The new helper must:
+//   - call subscribe_stream_input_tap once per global stream_index 0..N
+//   - call subscribe_stream_tap once per global stream_index 0..N
 //   - place each subscription in its own row (no Arc broadcasting).
 
 #[derive(Default)]
 struct RecordingTapApi {
     stream_count: usize,
+    // Legacy (advanced) subscribe_input_tap traffic — kept so its
+    // signature still implements the trait and we can prove the
+    // helper does NOT use it.
     input_calls: std::cell::RefCell<Vec<(usize, Vec<usize>)>>, // (input_index, channels)
+    stream_input_calls: std::cell::RefCell<Vec<usize>>,        // stream_index
     stream_calls: std::cell::RefCell<Vec<usize>>,              // stream_index
 }
 
@@ -482,6 +489,15 @@ impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
         // One fresh ring per call so callers can prove rings are distinct.
         vec![Arc::new(SpscRing::<f32>::new(16, 0.0))]
     }
+    fn subscribe_stream_input_tap(
+        &self,
+        _cid: &domain::ids::ChainId,
+        stream_index: usize,
+        _capacity: usize,
+    ) -> Option<Arc<SpscRing<f32>>> {
+        self.stream_input_calls.borrow_mut().push(stream_index);
+        Some(Arc::new(SpscRing::<f32>::new(16, 0.0)))
+    }
     fn subscribe_stream_tap(
         &self,
         _cid: &domain::ids::ChainId,
@@ -497,29 +513,23 @@ impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
 }
 
 #[test]
-fn build_streams_subscribes_one_input_runtime_per_stream_not_channels_of_zero() {
+fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
     let api = RecordingTapApi { stream_count: 3, ..Default::default() };
     let cid = domain::ids::ChainId("c1".into());
     let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
-    let calls = api.input_calls.borrow();
-    let indexes: Vec<usize> = calls.iter().map(|(i, _)| *i).collect();
-    let channels: Vec<Vec<usize>> = calls.iter().map(|(_, c)| c.clone()).collect();
     assert_eq!(
-        indexes,
-        vec![0, 1, 2],
-        "must call subscribe_input_tap once per per-input runtime \
-         (input_index 0..stream_count), not once with all channels of \
-         runtime 0 — that's why secondary entries showed silence"
+        *api.stream_input_calls.borrow(),
+        vec![0_usize, 1, 2],
+        "input meter must subscribe via the per-stream API once per \
+         global stream index; the controller resolves the runtime, \
+         cpal group, and endpoint channel — issue #557"
     );
-    for ch in &channels {
-        assert_eq!(
-            ch,
-            &vec![0_usize],
-            "each per-input runtime exposes its source on channel 0; \
-             subscribing extra channels of runtime 0 pulls silence from \
-             a device the runtime doesn't even own"
-        );
-    }
+    assert!(
+        api.input_calls.borrow().is_empty(),
+        "helper must NOT call the legacy subscribe_input_tap; that \
+         path silenced stream >=1 on same-device chains and read the \
+         wrong device channel (always `&[0]`) on others"
+    );
 }
 
 #[test]
