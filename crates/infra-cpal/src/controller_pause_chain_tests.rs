@@ -46,7 +46,10 @@ fn empty_project() -> Project {
 
 fn controller_with_active_chain(
     chain_id: &ChainId,
-) -> (ProjectRuntimeController, Arc<engine::runtime::ChainRuntimeState>) {
+) -> (
+    ProjectRuntimeController,
+    Arc<engine::runtime::ChainRuntimeState>,
+) {
     let chain = empty_chain(&chain_id.0, true);
     let runtime_arc = Arc::new(
         engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
@@ -156,18 +159,19 @@ fn upsert_chain_enabled_resumes_paused_runtime_without_rebuilding() {
     );
 }
 
-/// Issue #545 — `pause_chain` calls `runtime_for_chain` which only
-/// returns the FIRST runtime of a chain (see the comment in
-/// `runtime_graph::runtime_for_chain`: "Multi-input fan-out for these
-/// call sites is Phase 3 (#350)"). On a chain with multiple input
-/// groups (one per physical input device), only group 0 actually gets
-/// `set_draining()` — the other groups keep processing, which is why
-/// the user observes the tap/meter still moving and CPU staying at
-/// the running-chain baseline after toggling the chain off.
+/// Issue #545 — `pause_chain` / fast-path resume both call
+/// `runtime_for_chain`, which only returns the FIRST runtime of a
+/// chain (see the comment in `runtime_graph::runtime_for_chain`:
+/// "Multi-input fan-out for these call sites is Phase 3 (#350)"). On
+/// a chain with multiple input groups (one per physical input
+/// device), only group 0 actually flips — the other groups keep
+/// processing, which is why the user observes the tap/meter still
+/// moving and CPU staying at the running-chain baseline after
+/// toggling the chain off.
 ///
-/// This test pins the multi-input contract: pausing the chain must
-/// drain every runtime registered for that chain id, regardless of
-/// group.
+/// Two paired contracts are pinned here: pause must drain every
+/// runtime, and the resume fast-path must clear draining on every
+/// runtime. Otherwise either edge leaves some groups out of sync.
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn pause_chain_drains_every_input_group_runtime() {
@@ -203,5 +207,50 @@ fn pause_chain_drains_every_input_group_runtime() {
          first input group is touched. The user observes the chain looking \
          alive (tap moving, CPU not dropping) because the other input \
          groups keep processing."
+    );
+}
+
+/// Issue #545 — symmetric counterpart of the pause test. After the
+/// pause fix lands, re-enabling the chain must also clear draining on
+/// every group, not just the first. Otherwise the cab path on the
+/// second physical input stays muted after toggle-on, even though the
+/// engine ran the resume.
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn upsert_chain_enabled_resumes_every_input_group_runtime() {
+    let chain_id = ChainId("chain:545:multi-input:resume".into());
+    let (mut controller, group0) = controller_with_active_chain(&chain_id);
+
+    let chain = empty_chain(&chain_id.0, true);
+    let group1 = Arc::new(
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+            .expect("group-1 runtime should build"),
+    );
+    controller
+        .runtime_graph
+        .chains
+        .insert((chain_id.clone(), 1), Arc::clone(&group1));
+
+    // Pause both groups first (the fixed pause_chain does the fan-out).
+    controller.pause_chain(&chain_id);
+    assert!(group0.is_draining());
+    assert!(group1.is_draining());
+
+    // Now re-enable via the same fast-path the controller takes on
+    // `Command::ToggleChainEnabled { enabled: true }`.
+    let project = empty_project();
+    let enabled = empty_chain(&chain_id.0, true);
+    controller
+        .upsert_chain(&project, &enabled)
+        .expect("re-enable must succeed");
+
+    assert!(
+        !group0.is_draining(),
+        "resume must clear draining on group 0"
+    );
+    assert!(
+        !group1.is_draining(),
+        "REGRESSION: resume only cleared group 0; group 1 stayed draining \
+         and its audio stays silent after toggle-on."
     );
 }

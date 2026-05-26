@@ -24,7 +24,9 @@
 use std::sync::Arc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use project::project::Project;
@@ -37,7 +39,8 @@ const MEASURE_CALLBACKS: usize = 120;
 
 fn passthrough_chain() -> Chain {
     let _ = ParameterSet::default; // silence unused-import if ParameterSet not needed
-    let _ = Project { // ensures `project::project::Project` import is exercised even though we don't construct it here
+    let _ = Project {
+        // ensures `project::project::Project` import is exercised even though we don't construct it here
         name: None,
         device_settings: vec![],
         chains: vec![],
