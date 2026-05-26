@@ -58,6 +58,18 @@ pub struct LocalDispatcher {
     /// [`Self::attach_presets_path`]; preset I/O Commands error out
     /// cleanly until that happens.
     pub(crate) presets_path: RefCell<Option<PathBuf>>,
+    /// #555: target path for `Command::SaveProject`. The dispatcher
+    /// writes the `.openrig` (+ legacy `.yaml` sibling when the user-
+    /// facing path is `.yaml`) itself instead of relying on the GUI to
+    /// do `fs::write`. `None` until the session attaches one — preset
+    /// dispatcher tests that don't exercise project save keep working
+    /// unchanged.
+    pub(crate) project_path: RefCell<Option<PathBuf>>,
+    /// #555: target path for the project's sidecar `config.yaml`. The
+    /// GUI used to compute this from `project_path.parent()` on save;
+    /// the dispatcher now owns the resolution. `None` ⇒ derive from
+    /// `project_path.parent().join("config.yaml")` at save time.
+    pub(crate) config_path: RefCell<Option<PathBuf>>,
 }
 
 impl LocalDispatcher {
@@ -72,6 +84,8 @@ impl LocalDispatcher {
             rig: RefCell::new(None),
             selection: RefCell::new(std::collections::HashMap::new()),
             presets_path: RefCell::new(None),
+            project_path: RefCell::new(None),
+            config_path: RefCell::new(None),
         }
     }
 
@@ -92,6 +106,21 @@ impl LocalDispatcher {
     /// Idempotent — calling this again replaces the path.
     pub fn attach_presets_path(&self, path: PathBuf) {
         *self.presets_path.borrow_mut() = Some(path);
+    }
+
+    /// #555: configure where `Command::SaveProject` writes the project
+    /// file. Called by the session bootstrap and again on every "Save
+    /// As" so the dispatcher and the GUI agree on the current target.
+    pub fn attach_project_path(&self, path: PathBuf) {
+        *self.project_path.borrow_mut() = Some(path);
+    }
+
+    /// #555: optional override for the sidecar `config.yaml` path.
+    /// `None` ⇒ the dispatcher derives it from `project_path.parent()
+    /// .join("config.yaml")` at save time (matches the pre-#555
+    /// behaviour). Idempotent.
+    pub fn attach_config_path(&self, path: Option<PathBuf>) {
+        *self.config_path.borrow_mut() = path;
     }
 }
 

@@ -1,14 +1,13 @@
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
-use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
+use crate::state::{AppConfigYaml, ProjectPaths, ProjectSession};
 use crate::RecentProjectItem;
 use crate::{AppWindow, UNTITLED_PROJECT_NAME};
 use anyhow::Result;
 use domain::ids::DeviceId;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
 use infra_yaml::{load_chain_preset_file, ChainBlocksPreset};
-use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
 use std::env;
@@ -401,8 +400,12 @@ pub(crate) fn sync_project_dirty(
 ) {
     if auto_save {
         if let Some(ref path) = session.project_path {
-            match save_project_session(session, path) {
-                Ok(()) => {
+            // #555: auto-save goes through the dispatcher too — the
+            // file writes live inside `Command::SaveProject`. Keep the
+            // local snapshot fingerprint up to date so the next
+            // dirty-check is accurate.
+            match session.dispatcher.dispatch(Command::SaveProject) {
+                Ok(_) => {
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(window, project_dirty, false);
                     log::debug!("auto-save: saved to {:?}", path);
@@ -421,202 +424,30 @@ pub(crate) fn sync_project_dirty(
     set_project_dirty(window, project_dirty, dirty);
 }
 
-pub(crate) fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
-    log::info!("saving project session to {:?}", project_path);
-    let parent_dir = project_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
-    fs::create_dir_all(&parent_dir)?;
-    // #449/#450: the `RigProject` is the only source of truth that
-    // round-trips on reload (`load_project_any` is idempotent and
-    // prefers the existing `.openrig` over any legacy `.yaml`). So
-    // every save must produce a `.openrig` that reflects what the user
-    // currently sees in the chains screen — even when the in-memory
-    // session has no rig attached (brand-new project) and even when
-    // the user added or removed chains since the last reload.
-    let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
-        project_path.clone()
-    } else {
-        project_path.with_extension("openrig")
-    };
-    let rig_to_save = build_rig_for_save(session);
-    infra_yaml::save_rig_project_file(&openrig, &rig_to_save)?;
-    // Also write the legacy `.yaml` snapshot when the user-facing path
-    // points at one (the recents list, file dialogs, and CLI args all
-    // historically use `.yaml`). The `.openrig` is the canonical source
-    // of truth on reload — `load_project_any` finds it via the sibling
-    // and ignores the `.yaml` body — but keeping the `.yaml` on disk
-    // means an old shortcut/recent entry still resolves to a file.
-    if openrig != *project_path {
-        fs::write(project_path, project_session_snapshot(session)?)?;
-    }
-    let config_path = session
-        .config_path
-        .clone()
-        .unwrap_or_else(|| resolve_project_config_path(project_path));
-    let config = ConfigYaml {
-        presets_path: "./presets".to_string(),
-    };
-    fs::write(config_path, serde_yaml::to_string(&config)?)?;
-    fs::create_dir_all(parent_dir.join("presets"))?;
-    Ok(())
+/// #555: test-only shim that dispatches `Command::SaveProject` after
+/// attaching the session's paths. Production callers go through
+/// `session.dispatcher.dispatch(Command::SaveProject)` directly —
+/// this shim exists so the existing `project_ops_persistence_tests`
+/// suite keeps exercising the end-to-end save path without each
+/// test repeating the four attach + dispatch lines.
+#[cfg(test)]
+pub(crate) fn save_project_session(
+    session: &ProjectSession,
+    project_path: &std::path::PathBuf,
+) -> Result<()> {
+    session.dispatcher.attach_project_path(project_path.clone());
+    session
+        .dispatcher
+        .attach_presets_path(session.presets_path.clone());
+    session
+        .dispatcher
+        .attach_config_path(session.config_path.clone());
+    session
+        .dispatcher
+        .dispatch(Command::SaveProject)
+        .map(|_| ())
 }
 
-/// Build the `RigProject` that should land on disk for this session.
-///
-/// Three sources of truth are reconciled:
-///
-/// 1. **The attached rig** (if any), which holds scenes, preset names,
-///    `active_preset`/`active_scene`, and any rig-level edits made via
-///    `Command::ApplyRigNav` / `RenameRigPreset`. We start from a clone
-///    of it so those are preserved verbatim.
-/// 2. **Edits to projected chains** (ids prefixed `rig:`): a
-///    `Command::CaptureRigEdits` dispatch copies the projected chain
-///    blocks back into the rig before we clone.
-/// 3. **Brand-new chains** in the legacy `Project` whose id does *not*
-///    start with `rig:` (e.g. created via `Command::AddChain` in a
-///    new-project session). These are migrated through
-///    [`migrate_legacy_project`] and merged into the rig.
-///
-/// Conversely, projected chains that no longer appear in
-/// `session.project.chains` (the user deleted them in the UI) are
-/// dropped from the rig so the next reload doesn't resurrect them.
-fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
-    use std::collections::BTreeSet;
-    if session.rig.is_some() {
-        let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
-    }
-    let mut rig_out = match &session.rig {
-        Some(rig) => rig.borrow().clone(),
-        None => project::rig::RigProject {
-            name: session.project.borrow().name.clone(),
-            inputs: std::collections::BTreeMap::new(),
-            outputs: std::collections::BTreeMap::new(),
-            presets: std::collections::BTreeMap::new(),
-            midi: None,
-            chain_order: Vec::new(),
-        },
-    };
-    // 1. New chains (not projected from the rig) → each becomes its
-    //    own input + preset bank. Migrating per-chain (rather than the
-    //    whole legacy project at once) avoids `migrate_legacy_project`'s
-    //    auto-grouping by capture source: two chains that happen to
-    //    share a device must remain two independent inputs because the
-    //    user explicitly created two chains.
-    let new_chains: Vec<Chain> = session
-        .project
-        .borrow()
-        .chains
-        .iter()
-        .filter(|c| !c.id.0.starts_with("rig:"))
-        .cloned()
-        .collect();
-    let mut newly_added_inputs: BTreeSet<String> = BTreeSet::new();
-    for chain in new_chains {
-        let temp = Project {
-            name: None,
-            device_settings: Vec::new(),
-            chains: vec![chain],
-            midi: None,
-        };
-        let mut migrated = project::migrate::migrate_legacy_project(&temp);
-        // Single-chain migration ⇒ exactly one input ("input-1"). Pop
-        // it, retarget the bank entry to a unique preset key, set the
-        // visible "Preset 1" default, and ensure scene 1 exists.
-        let (_old_input_name, mut input) = migrated
-            .inputs
-            .iter()
-            .next()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .expect("single-chain migration produces exactly one input");
-        // Generate the next unique input slot in `rig_out`.
-        let next_n = rig_out
-            .inputs
-            .keys()
-            .chain(newly_added_inputs.iter())
-            .filter_map(|k| {
-                k.strip_prefix("input-")
-                    .and_then(|n| n.parse::<usize>().ok())
-            })
-            .max()
-            .unwrap_or(0)
-            + 1;
-        let new_input_name = format!("input-{next_n}");
-        // The migrated bank's slot 1 names a preset (slug of the chain
-        // description). Two chains can slug to the same key, so we
-        // ensure uniqueness in `rig_out.presets`.
-        let old_preset_key = input
-            .bank
-            .get(&1)
-            .cloned()
-            .expect("migrated input bank slot 1 exists");
-        let mut preset = migrated
-            .presets
-            .remove(&old_preset_key)
-            .expect("preset for bank slot 1 exists");
-        let mut final_preset_key = old_preset_key.clone();
-        let mut suffix = 2;
-        while rig_out.presets.contains_key(&final_preset_key) {
-            final_preset_key = format!("{old_preset_key}-{suffix}");
-            suffix += 1;
-        }
-        if final_preset_key != old_preset_key {
-            input.bank.insert(1, final_preset_key.clone());
-        }
-        preset.id = final_preset_key.clone();
-        // Distinct, user-facing preset label so the chain name and the
-        // preset name don't collide ("Chain 1" vs "Preset 1").
-        preset.name = Some("Preset 1".to_string());
-        // Make scene 1 an addressable slot so the user can edit it
-        // without a "create scene" step.
-        preset
-            .scenes
-            .entry(1)
-            .or_insert_with(project::rig::RigScene::default);
-
-        rig_out.inputs.insert(new_input_name.clone(), input);
-        rig_out.presets.insert(final_preset_key, preset);
-        newly_added_inputs.insert(new_input_name);
-
-        for (name, output) in migrated.outputs {
-            rig_out.outputs.entry(name).or_insert(output);
-        }
-    }
-    // 2. Projected chains the user removed → drop the matching inputs
-    //    so the reload doesn't resurrect them.
-    let surviving_projected: BTreeSet<String> = session
-        .project
-        .borrow()
-        .chains
-        .iter()
-        .filter_map(|c| c.id.0.strip_prefix("rig:").map(String::from))
-        .collect();
-    rig_out
-        .inputs
-        .retain(|name, _| surviving_projected.contains(name) || newly_added_inputs.contains(name));
-    // Garbage-collect orphan presets / outputs no longer referenced.
-    let referenced_presets: BTreeSet<String> = rig_out
-        .inputs
-        .values()
-        .flat_map(|i| i.bank.values().cloned())
-        .collect();
-    rig_out
-        .presets
-        .retain(|name, _| referenced_presets.contains(name));
-    let referenced_outputs: BTreeSet<String> = rig_out
-        .inputs
-        .values()
-        .flat_map(|i| i.routing.iter().cloned())
-        .collect();
-    rig_out
-        .outputs
-        .retain(|name, _| referenced_outputs.contains(name));
-    // Carry the user-visible project name (`UpdateProjectName` writes
-    // to the legacy `Project`; the rig must mirror it on disk).
-    rig_out.name = session.project.borrow().name.clone();
-    rig_out
-}
 
 // `save_chain_blocks_to_preset` was moved to
 // `application::local_dispatcher_preset::handle_chain_preset` in #555.
