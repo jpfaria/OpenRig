@@ -111,7 +111,10 @@ fn delete_chain_preset_removes_file_when_presets_path_attached() {
     let preset_name = "Clocks — Coldplay (rhythm)";
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, preset_name);
     std::fs::write(&preset_path, b"id: clocks\nblocks: []\n").expect("seed preset");
-    assert!(preset_path.exists(), "fixture preset should exist before delete");
+    assert!(
+        preset_path.exists(),
+        "fixture preset should exist before delete"
+    );
 
     let dispatcher = dispatcher();
     dispatcher.attach_presets_path(presets_dir.clone());

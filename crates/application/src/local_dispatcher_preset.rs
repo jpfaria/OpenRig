@@ -32,15 +32,16 @@ impl LocalDispatcher {
                         anyhow::anyhow!("failed to create presets dir {dir:?}: {e}")
                     })?;
                     let project = self.project.borrow();
-                    let target = project
-                        .chains
-                        .iter()
-                        .find(|c| c.id == chain)
-                        .ok_or_else(|| {
-                            anyhow::anyhow!(
+                    let target =
+                        project
+                            .chains
+                            .iter()
+                            .find(|c| c.id == chain)
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
                                 "Command::SaveChainPreset: chain {chain:?} not found in project"
                             )
-                        })?;
+                            })?;
                     let path = preset_save_path(dir, &name);
                     let preset = ChainBlocksPreset {
                         id: preset_id_from_path(&path),
@@ -59,9 +60,7 @@ impl LocalDispatcher {
                     let path = preset_save_path(dir, &name);
                     if path.exists() {
                         std::fs::remove_file(&path).map_err(|e| {
-                            anyhow::anyhow!(
-                                "failed to remove preset file {path:?}: {e}"
-                            )
+                            anyhow::anyhow!("failed to remove preset file {path:?}: {e}")
                         })?;
                     }
                     // missing file is a silent no-op — same UX as the

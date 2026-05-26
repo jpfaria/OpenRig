@@ -448,7 +448,6 @@ pub(crate) fn save_project_session(
         .map(|_| ())
 }
 
-
 // `save_chain_blocks_to_preset` was moved to
 // `application::local_dispatcher_preset::handle_chain_preset` in #555.
 // The GUI now dispatches `Command::SaveChainPreset { chain, name }`
