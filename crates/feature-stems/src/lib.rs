@@ -11,12 +11,14 @@ mod inference;
 mod model;
 mod pipeline;
 mod resample;
+mod tags;
 
 pub use decode::decode_audio;
 pub use inference::{separate_stems, STEM_COUNT};
 pub use model::{ensure_model_with, ModelDownloader, UreqDownloader};
 pub use pipeline::{separate_track, SeparateRequest};
 pub use resample::resample_to;
+pub use tags::{extract_tags, ExtractedTags};
 
 use std::path::PathBuf;
 

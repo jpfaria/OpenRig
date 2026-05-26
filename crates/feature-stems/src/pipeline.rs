@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use feature_tracks::{StemInfo, StemKind, TrackEntry, TrackId, TrackMeta};
 use hound::{SampleFormat, WavSpec, WavWriter};
 
-use crate::{decode_audio, inference::separate_stems, resample_to, StemError};
+use crate::{decode_audio, inference::separate_stems, resample_to, tags::extract_tags, StemError};
 
 /// htdemucs operates at this rate.
 const MODEL_SAMPLE_RATE: u32 = 44_100;
@@ -77,14 +77,21 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
 
     let frames = (decoded.samples.len() / 2) as f64;
     let duration_secs = frames / source_sr as f64;
+    let extracted = extract_tags(&request.source_path).unwrap_or_default();
 
     let meta = TrackMeta {
         id: TrackId::new(&request.track_id),
-        title: request.title.clone(),
-        artist: None,
-        album: None,
-        year: None,
-        genre: None,
+        // Caller-supplied title wins; fall back to the ID3/Vorbis
+        // title when the caller passes an empty string.
+        title: if request.title.is_empty() {
+            extracted.title.unwrap_or_default()
+        } else {
+            request.title.clone()
+        },
+        artist: extracted.artist,
+        album: extracted.album,
+        year: extracted.year,
+        genre: extracted.genre,
         bpm: None,
         key: None,
         duration_secs,
