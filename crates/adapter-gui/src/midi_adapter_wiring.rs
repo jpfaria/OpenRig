@@ -18,7 +18,10 @@
 //! direct legacy-file load (no migration, no resolution) so explicit map
 //! files still work for testing.
 
+use std::sync::{Arc, RwLock};
+
 use anyhow::Result;
+use application::SelectionState;
 use infra_filesystem::midi_profile::MidiDeviceProfile;
 use infra_filesystem::{detect_data_root, midi_migrate, FilesystemStorage};
 use slint::{Timer, Weak};
@@ -32,6 +35,13 @@ use crate::AppWindow;
 /// spawn failure or a map-resolution error.
 pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg) -> Result<Timer> {
     let (bridge, drain) = application::bridge::channel();
+    // #548: the profile-driven daemon reads a snapshot of GUI selection
+    // from this Arc<RwLock<_>>. The drain timer (below) copies the
+    // dispatcher's authoritative `selection_state()` into it on every
+    // tick so the daemon thread can read without crossing back to the
+    // GUI thread — `LocalDispatcher` is !Send.
+    let daemon_selection: Arc<RwLock<SelectionState>> =
+        Arc::new(RwLock::new(SelectionState::default()));
 
     match arg {
         MidiMapArg::Default => {
@@ -67,18 +77,22 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
                 map.bindings.len()
             );
 
-            // #513 / #493: hand the daemon the process-wide learn flag.
-            // The drain loop below flips it from Event::MidiLearnStarted /
-            // MidiLearnStopped, which the dispatcher fans out after the
-            // GUI dispatches Command::Start/StopMidiLearn.
+            // #548: switch from the single-file map to the bundled
+            // factory profiles + slot catalog. The resolved legacy map
+            // above is still computed for back-compat (its `input` /
+            // `bindings` count is still logged for ops debugging) but
+            // the daemon is the new profile-driven one. The resolved
+            // bindings continue to live in the project YAML for the
+            // legacy `--midi=PATH` flow.
+            let _ = map; // keep the legacy resolution result alive — used by
+                         // adapter-mcp + the resolver tests; intentionally
+                         // not handed to the new daemon.
             let learn = adapter_midi::learn_state();
-            std::thread::Builder::new()
-                .name("openrig-midi".into())
-                .spawn(move || {
-                    if let Err(e) = adapter_midi::run_blocking_with_map(bridge, map, learn) {
-                        log::error!("MIDI adapter stopped: {e}");
-                    }
-                })?;
+            let _midi_thread = crate::start_midi_profiles(
+                bridge.clone(),
+                Arc::clone(&daemon_selection),
+                learn,
+            );
         }
         MidiMapArg::Path(map_path) => {
             // Direct legacy-file load — no migration, no resolution.
@@ -99,10 +113,29 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
     }
 
     let timer = Timer::default();
+    let daemon_selection_for_timer = Arc::clone(&daemon_selection);
     timer.start(
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(16),
         move || {
+            // #548: mirror the authoritative selection state (kept on
+            // the !Send `LocalDispatcher`) into the daemon's snapshot
+            // so MIDI slots that read "active chain / active block"
+            // see what the user has selected. Cheap clone — the
+            // struct is a handful of `Option<String>` + bools.
+            {
+                let session_borrow = ctx.project_session.borrow();
+                if let Some(session) = session_borrow.as_ref() {
+                    let src = session.dispatcher.selection_state();
+                    let snapshot = match src.read() {
+                        Ok(g) => g.clone(),
+                        Err(_) => return,
+                    };
+                    if let Ok(mut dst) = daemon_selection_for_timer.write() {
+                        *dst = snapshot;
+                    }
+                }
+            }
             // Drain on the Slint thread, then drop the session borrow
             // before refreshing (apply_events_to_ui re-borrows it).
             let events = {

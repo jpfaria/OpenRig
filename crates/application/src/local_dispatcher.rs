@@ -161,9 +161,27 @@ impl CommandDispatcher for LocalDispatcher {
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
 
             Command::SelectChainBlock { chain, block_index } => {
+                // Legacy per-chain selection map (kept for the old GUI
+                // wiring that hasn't migrated yet).
                 self.selection
                     .borrow_mut()
                     .insert(chain.clone(), block_index);
+                // #548: mirror the click into the GUI selection state
+                // the MIDI daemon reads. Resolve the block id from the
+                // index inside the project — slots address blocks by id.
+                {
+                    let project = self.project.borrow();
+                    let block_id = project
+                        .chains
+                        .iter()
+                        .find(|c| c.id == chain)
+                        .and_then(|c| c.blocks.get(block_index))
+                        .map(|b| b.id.0.clone());
+                    if let Ok(mut sel) = self.selection_state.write() {
+                        sel.active_chain = Some(chain.0.clone());
+                        sel.active_block = block_id;
+                    }
+                }
                 Ok(vec![Event::ProjectMutated])
             }
 
