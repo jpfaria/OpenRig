@@ -29,17 +29,29 @@ mod learn_tests;
 
 pub use daemon::{run_blocking, run_blocking_with_map, run_blocking_with_profiles};
 
-/// One-call helper for the adapter that wants every bundled factory
-/// profile active out of the box (the GUI default). Spawns the MIDI
-/// daemon on a fresh thread and returns its `JoinHandle`. The thread
-/// runs forever (the daemon is a `loop { park }`); the handle is mostly
-/// for the call site to keep alive and observe panics.
-pub fn spawn_with_bundled_profiles(
+/// One-call helper for the adapter that wants every profile from
+/// disk active out of the box. Scans `factory_dir` (install assets,
+/// e.g. the repo's `assets/midi-profiles/`) and `user_dir` (the user's
+/// per-app data dir, e.g. `~/.local/share/openrig/midi-profiles/`),
+/// concatenates everything, and spawns the daemon on a fresh thread.
+/// Either dir may be missing — empty contributes nothing.
+pub fn spawn_with_profiles_from(
+    factory_dir: &std::path::Path,
+    user_dir: &std::path::Path,
     bridge: application::bridge::CommandBridge,
     selection: std::sync::Arc<std::sync::RwLock<application::SelectionState>>,
     learn: std::sync::Arc<learn::LearnState>,
 ) -> std::thread::JoinHandle<anyhow::Result<()>> {
-    let profiles = profile::load_bundled_profiles();
+    let mut profiles = profile::load_profiles_from_dir(factory_dir);
+    profiles.extend(profile::load_profiles_from_dir(user_dir));
+    log::info!(
+        "adapter-midi: {} factory + user profile(s) loaded ({} from {}, {} from {})",
+        profiles.len(),
+        profile::load_profiles_from_dir(factory_dir).len(),
+        factory_dir.display(),
+        profile::load_profiles_from_dir(user_dir).len(),
+        user_dir.display(),
+    );
     std::thread::Builder::new()
         .name("openrig-midi-profiles".into())
         .spawn(move || run_blocking_with_profiles(bridge, profiles, selection, learn))

@@ -60,6 +60,7 @@ dependencies = [
  "application",
  "block-core",
  "cpal",
+ "dirs",
  "domain",
  "engine",
  "env_logger",
@@ -115,6 +116,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "tempfile",
 ]
 
 [[package]]

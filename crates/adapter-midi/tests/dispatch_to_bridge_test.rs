@@ -29,13 +29,16 @@ fn run_blocking_with_profiles_signature() {
 }
 
 #[test]
-fn spawn_with_bundled_profiles_signature() {
+fn spawn_with_profiles_from_signature() {
+    use std::path::Path;
     use std::sync::{Arc, RwLock};
     use std::thread::JoinHandle;
 
     let _f: fn(
+        &Path,
+        &Path,
         application::bridge::CommandBridge,
         Arc<RwLock<application::SelectionState>>,
         Arc<adapter_midi::learn::LearnState>,
-    ) -> JoinHandle<anyhow::Result<()>> = adapter_midi::spawn_with_bundled_profiles;
+    ) -> JoinHandle<anyhow::Result<()>> = adapter_midi::spawn_with_profiles_from;
 }
