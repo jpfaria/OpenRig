@@ -8,6 +8,8 @@
 
 mod decode;
 mod inference;
+#[cfg(feature = "real-htdemucs")]
+mod inference_ort;
 mod model;
 mod pipeline;
 mod resample;
@@ -15,6 +17,8 @@ mod tags;
 
 pub use decode::decode_audio;
 pub use inference::{separate_stems, STEM_COUNT};
+#[cfg(feature = "real-htdemucs")]
+pub use inference_ort::separate_stems_with_ort;
 pub use model::{ensure_model_with, ModelDownloader, UreqDownloader};
 pub use pipeline::{separate_track, SeparateRequest};
 pub use resample::resample_to;
@@ -77,6 +81,13 @@ pub enum StemError {
     /// Model download / cache verification failed.
     #[error("model download failure: {reason}")]
     ModelDownload {
+        /// Human-readable reason.
+        reason: String,
+    },
+
+    /// ONNX inference failed (load, run, shape mismatch).
+    #[error("inference failure: {reason}")]
+    Inference {
         /// Human-readable reason.
         reason: String,
     },

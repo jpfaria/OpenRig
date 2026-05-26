@@ -14,6 +14,36 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 
 use crate::{decode_audio, inference::separate_stems, resample_to, tags::extract_tags, StemError};
 
+/// Pick the real htdemucs path when the `real-htdemucs` feature is on
+/// and the ONNX model is present, otherwise fall back to the stub.
+fn run_separation(samples: &[f32], sample_rate: u32) -> Result<Vec<Vec<f32>>, StemError> {
+    #[cfg(feature = "real-htdemucs")]
+    {
+        let model_path = htdemucs_model_path();
+        if model_path.exists() {
+            return crate::inference_ort::separate_stems_with_ort(
+                samples,
+                sample_rate,
+                &model_path,
+            );
+        }
+    }
+    separate_stems(samples, sample_rate)
+}
+
+/// Canonical disk location for the htdemucs ONNX model.
+#[cfg(feature = "real-htdemucs")]
+fn htdemucs_model_path() -> PathBuf {
+    dirs::data_dir()
+        .map(|d| {
+            d.join("OpenRig")
+                .join("models")
+                .join("htdemucs")
+                .join("htdemucs.onnx")
+        })
+        .unwrap_or_else(|| PathBuf::from("models/htdemucs/htdemucs.onnx"))
+}
+
 /// htdemucs operates at this rate.
 const MODEL_SAMPLE_RATE: u32 = 44_100;
 
@@ -49,7 +79,7 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
     let source_sr = decoded.sample_rate;
     let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
 
-    let stems = separate_stems(&work, MODEL_SAMPLE_RATE)?;
+    let stems = run_separation(&work, MODEL_SAMPLE_RATE)?;
 
     let track_dir = request.catalog_dir.join(&request.track_id);
     fs::create_dir_all(&track_dir).map_err(|err| StemError::OpenSource {
