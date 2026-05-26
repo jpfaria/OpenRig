@@ -76,7 +76,7 @@ pub(crate) fn wire_standalone_block_editor_window(
 /// block at `(chain_idx, block_idx)`. Replaces the row in the
 /// `compact_blocks` model so Slint observes the change.
 pub(crate) fn refilter_compact_block(
-    compact_blocks: &Rc<VecModel<CompactBlockItem>>,
+    compact_blocks: &VecModel<CompactBlockItem>,
     chain_idx: i32,
     block_idx: i32,
     text: &str,
@@ -147,7 +147,7 @@ pub(crate) fn refilter_compact_block(
 /// Compact view: resolve a model_id to its index within a specific block's
 /// `models` list. Returns `None` when the block or id is not found.
 pub(crate) fn resolve_model_id_in_compact_block(
-    compact_blocks: &Rc<VecModel<CompactBlockItem>>,
+    compact_blocks: &VecModel<CompactBlockItem>,
     chain_idx: i32,
     block_idx: i32,
     model_id: &str,

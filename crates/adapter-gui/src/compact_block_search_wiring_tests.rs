@@ -157,3 +157,39 @@ fn refilter_keeps_the_same_filtered_models_modelrc_so_the_popup_keeps_observing(
         "the popup-held Rc must now expose the filtered list"
     );
 }
+
+// ── #538 follow-up — picking a model rebuilds the compact_blocks VecModel
+//     (`set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(...))))`
+//     is called from compact_chain_block_handlers /
+//     compact_chain_param_handlers after model/param updates). The search
+//     closure must therefore read the LIVE model via `get_compact_blocks()`
+//     each time it fires — capturing the original `Rc<VecModel>` by move
+//     freezes the handler against an orphaned VecModel and the popup
+//     stops filtering after the first model change.
+
+#[test]
+fn compact_search_handler_reads_live_compact_blocks_each_invocation() {
+    use std::path::PathBuf;
+
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src/compact_chain_callbacks.rs");
+    let src = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    let needle = "on_search_block_model";
+    let start = src
+        .find(needle)
+        .unwrap_or_else(|| panic!("compact_chain_callbacks.rs has no `{needle}` handler"));
+    // Window from the handler registration through the next 800 chars covers
+    // the whole closure body in any sane formatting.
+    let end = (start + 800).min(src.len());
+    let window = &src[start..end];
+
+    assert!(
+        window.contains("get_compact_blocks"),
+        "the on_search_block_model closure MUST fetch the live model via \
+         `cw.get_compact_blocks()` each invocation — otherwise the first \
+         `set_compact_blocks` after picking a model leaves the handler \
+         bound to an orphaned VecModel. Window read:\n{window}"
+    );
+}
