@@ -7,9 +7,11 @@
 //! be added in following phases.
 
 mod decode;
+mod model;
 mod resample;
 
 pub use decode::decode_audio;
+pub use model::{ensure_model_with, ModelDownloader, UreqDownloader};
 pub use resample::resample_to;
 
 use std::path::PathBuf;
@@ -62,6 +64,13 @@ pub enum StemError {
     /// Resampler failed to convert sample rate.
     #[error("resample failure: {reason}")]
     Resample {
+        /// Human-readable reason.
+        reason: String,
+    },
+
+    /// Model download / cache verification failed.
+    #[error("model download failure: {reason}")]
+    ModelDownload {
         /// Human-readable reason.
         reason: String,
     },
