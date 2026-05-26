@@ -7,11 +7,15 @@
 //! be added in following phases.
 
 mod decode;
+mod inference;
 mod model;
+mod pipeline;
 mod resample;
 
 pub use decode::decode_audio;
+pub use inference::{separate_stems, STEM_COUNT};
 pub use model::{ensure_model_with, ModelDownloader, UreqDownloader};
+pub use pipeline::{separate_track, SeparateRequest};
 pub use resample::resample_to;
 
 use std::path::PathBuf;

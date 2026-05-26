@@ -2097,6 +2097,7 @@ dependencies = [
 name = "feature-stems"
 version = "0.1.0"
 dependencies = [
+ "feature-tracks",
  "hound",
  "rubato",
  "sha2",

@@ -5,6 +5,8 @@ edition.workspace = true
 
 [dependencies]
 thiserror.workspace = true
+feature-tracks = { path = "../feature-tracks" }
+hound = "3"
 rubato = "0.16"
 sha2 = "0.10"
 ureq = { version = "2", default-features = false, features = ["tls"] }
