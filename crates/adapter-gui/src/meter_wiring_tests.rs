@@ -463,31 +463,13 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
 #[derive(Default)]
 struct RecordingTapApi {
     stream_count: usize,
-    // Legacy (advanced) subscribe_input_tap traffic — kept so its
-    // signature still implements the trait and we can prove the
-    // helper does NOT use it.
-    input_calls: std::cell::RefCell<Vec<(usize, Vec<usize>)>>, // (input_index, channels)
-    stream_input_calls: std::cell::RefCell<Vec<usize>>,        // stream_index
-    stream_calls: std::cell::RefCell<Vec<usize>>,              // stream_index
+    stream_input_calls: std::cell::RefCell<Vec<usize>>, // stream_index
+    stream_calls: std::cell::RefCell<Vec<usize>>,       // stream_index
 }
 
 impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
     fn stream_count(&self, _cid: &domain::ids::ChainId) -> usize {
         self.stream_count
-    }
-    fn subscribe_input_tap(
-        &self,
-        _cid: &domain::ids::ChainId,
-        input_index: usize,
-        _total_channels: usize,
-        subscribed_channels: &[usize],
-        _capacity: usize,
-    ) -> Vec<Arc<SpscRing<f32>>> {
-        self.input_calls
-            .borrow_mut()
-            .push((input_index, subscribed_channels.to_vec()));
-        // One fresh ring per call so callers can prove rings are distinct.
-        vec![Arc::new(SpscRing::<f32>::new(16, 0.0))]
     }
     fn subscribe_stream_input_tap(
         &self,
@@ -523,12 +505,6 @@ fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
         "input meter must subscribe via the per-stream API once per \
          global stream index; the controller resolves the runtime, \
          cpal group, and endpoint channel — issue #557"
-    );
-    assert!(
-        api.input_calls.borrow().is_empty(),
-        "helper must NOT call the legacy subscribe_input_tap; that \
-         path silenced stream >=1 on same-device chains and read the \
-         wrong device channel (always `&[0]`) on others"
     );
 }
 

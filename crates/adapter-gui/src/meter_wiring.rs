@@ -200,14 +200,6 @@ pub fn chain_meter_signature(chain: &project::chain::Chain) -> u64 {
 /// `infra_cpal::ProjectRuntimeController` via the blanket impl below.
 pub trait MeterTapApi {
     fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize;
-    fn subscribe_input_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        input_index: usize,
-        total_channels: usize,
-        subscribed_channels: &[usize],
-        capacity_per_channel: usize,
-    ) -> Vec<Arc<SpscRing<f32>>>;
     /// Issue #557: subscribe the per-stream INPUT meter ring by GLOBAL
     /// `stream_index`. The controller resolves the right per-input
     /// runtime, the segment's cpal-callback group, and the device
@@ -231,23 +223,6 @@ pub trait MeterTapApi {
 impl MeterTapApi for infra_cpal::ProjectRuntimeController {
     fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize {
         infra_cpal::ProjectRuntimeController::stream_count(self, chain_id)
-    }
-    fn subscribe_input_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        input_index: usize,
-        total_channels: usize,
-        subscribed_channels: &[usize],
-        capacity_per_channel: usize,
-    ) -> Vec<Arc<SpscRing<f32>>> {
-        infra_cpal::ProjectRuntimeController::subscribe_input_tap(
-            self,
-            chain_id,
-            input_index,
-            total_channels,
-            subscribed_channels,
-            capacity_per_channel,
-        )
     }
     fn subscribe_stream_input_tap(
         &self,
