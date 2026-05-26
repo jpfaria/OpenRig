@@ -175,6 +175,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
                 self.handle_paths_system(cmd)
             }
+
+            Command::SeparateStems { .. } => self.handle_separate_stems(cmd),
         }
     }
 

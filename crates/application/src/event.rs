@@ -237,6 +237,14 @@ pub enum Event {
     /// `config.yaml` on receipt. System-level event per ADR 0003.
     PathsSaved,
 
+    /// #553: stem separation enqueued. Adapter listens, spawns the
+    /// off-RT worker, and later reports completion / failure via
+    /// dedicated track events.
+    StemJobQueued {
+        /// Source audio file whose separation was enqueued.
+        source_path: std::path::PathBuf,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -302,6 +310,7 @@ impl Event {
             | Event::MidiEventReceived { .. }
             // #513: system-level paths event, never tied to a chain.
             | Event::PathsSaved
+            | Event::StemJobQueued { .. }
             | Event::Error { .. } => None,
         }
     }

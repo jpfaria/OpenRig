@@ -397,6 +397,18 @@ pub enum Command {
     /// setting per ADR 0003 — the adapter writes it into `config.yaml`
     /// on `Event::PathsSaved`.
     SetPluginsPath { path: Option<PathBuf> },
+
+    /// #553: enqueue stem separation of a source audio file.
+    ///
+    /// The dispatcher records the intent and emits
+    /// [`Event::StemJobQueued`]; the adapter runs the off-RT worker
+    /// (`feature_stems::separate_track`) and produces the catalog
+    /// entry. Same precedent as `SaveMidiDevices`: dispatcher = intent,
+    /// adapter = side effect.
+    SeparateStems {
+        /// Source audio file to be separated.
+        source_path: PathBuf,
+    },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.
