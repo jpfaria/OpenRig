@@ -1,2 +1,2 @@
-Phase 5: RED captured for assets/midi-profiles/chocolate_plus_program_change_a.yaml
-(crates/adapter-midi/tests/asset_chocolate_plus_pc_a_test.rs).
+Phase 3a follow-up: command_schema must list the 3 new MIDI Commands so
+the MCP parity guard doesn't widen its known gap (#489) by +3.

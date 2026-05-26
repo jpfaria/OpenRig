@@ -397,6 +397,24 @@ pub enum Command {
     /// setting per ADR 0003 — the adapter writes it into `config.yaml`
     /// on `Event::PathsSaved`.
     SetPluginsPath { path: Option<PathBuf> },
+
+    /// #548: move the GUI's active chain selection by `delta` positions
+    /// (wraps). Backs MIDI slots `prev_chain` / `next_chain`. Mutates
+    /// `SelectionState::active_chain` and clears `active_block` (block
+    /// belongs to chain).
+    SelectActiveChainRelative { delta: i32 },
+
+    /// #548: move the GUI's active block selection by `delta` positions
+    /// inside the active chain (wraps). `delta = ±1` is a single-block
+    /// step; `±2` is the compact-view double-step. No-op when no chain
+    /// is active or the chain has no blocks.
+    SelectActiveBlockRelative { delta: i32 },
+
+    /// #548: toggle the compact-view UI mode for the active chain. Backs
+    /// MIDI slot `toggle_compact_view`. State lives in `SelectionState`
+    /// alongside the active selection so MCP/gRPC see the same flag the
+    /// user sees.
+    SetCompactViewEnabled { enabled: bool },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

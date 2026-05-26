@@ -175,6 +175,16 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
                 self.handle_paths_system(cmd)
             }
+
+            // #548 Phase 3a — selection / view variants. Real handlers
+            // wire to `SelectionState` in Phase 3b (the type was added
+            // in Phase 1 but is not yet mounted on the session, so the
+            // dispatcher cannot mutate it here). Dispatching today is a
+            // no-op; the parity contract (every Command is a variant)
+            // is the value this commit ships.
+            Command::SelectActiveChainRelative { .. }
+            | Command::SelectActiveBlockRelative { .. }
+            | Command::SetCompactViewEnabled { .. } => Ok(vec![]),
         }
     }
 
