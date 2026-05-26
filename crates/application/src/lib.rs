@@ -8,6 +8,7 @@ pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
 mod local_dispatcher_block_edit;
+pub mod preset_file;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;

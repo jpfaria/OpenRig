@@ -356,38 +356,13 @@ pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject)
     )
 }
 
-/// Suffix used for preset files on disk. Issue #510 centralizes this
-/// so `preset_filename`, `preset_save_path` and the load filter stay
-/// in sync. The picker still accepts `.yml` for legacy bundles.
-const PRESET_EXTENSION: &str = "yaml";
-
-/// Characters that are illegal in filenames on at least one supported
-/// platform (Windows is the strictest). Everything else — spaces,
-/// dashes, dots, accents, mixed case — survives so the on-disk
-/// filename mirrors the user-visible name 1:1.
-fn sanitize_for_filename(s: &str) -> String {
-    s.chars()
-        .map(|c| match c {
-            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '\0' => '_',
-            _ => c,
-        })
-        .collect()
-}
-
-/// Build the on-disk filename from a preset name. Issue #510 user
-/// feedback: the file must keep the exact characters the user sees —
-/// no lowercasing, no space-to-underscore substitution. Only
-/// filesystem-illegal characters are replaced with `_`.
-pub(crate) fn preset_filename(name: &str) -> String {
-    let cleaned = sanitize_for_filename(name.trim());
-    format!("{cleaned}.{PRESET_EXTENSION}")
-}
-
-/// Resolve the absolute save path for a preset under the configured
-/// presets directory. Issue #510.
-pub(crate) fn preset_save_path(presets_dir: &std::path::Path, name: &str) -> PathBuf {
-    presets_dir.join(preset_filename(name))
-}
+// `PRESET_EXTENSION`, `sanitize_for_filename`, `preset_filename` and
+// `preset_save_path` moved to `application::preset_file` in issue
+// #555 so the dispatcher can resolve preset paths without
+// re-implementing the helpers. Re-exported for the existing
+// in-crate callers (`preset_save_wiring`, `chain_preset_wiring_tests`).
+#[allow(unused_imports)] // `preset_filename` is only consumed from tests.
+pub(crate) use application::preset_file::{preset_filename, preset_save_path};
 
 /// Derive the preset display name from a loaded file path so the
 /// adapter can dispatch `Command::RenameRigPreset` after a successful
