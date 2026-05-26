@@ -1,1 +1,1 @@
-RED: request_rescan + daemon waits on channel instead of polling.
+Post-merge fix: restore selection_state field + local_dispatcher_selection module.
