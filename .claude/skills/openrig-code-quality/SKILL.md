@@ -1,11 +1,19 @@
 ---
 name: openrig-code-quality
-description: Use when writing, editing, or refactoring code in this project — language-agnostic methodology rules (zero coupling, single source of truth, separation of concerns, file organization, naming, anti-patterns)
+description: Use when writing, editing, or refactoring code in OpenRig — project-specific rules that COMPLEMENT (do not duplicate) xgodev `dev-rules` and `quality-gate` skills
 ---
 
-# Code Quality — Architecture Methodology
+# Code Quality — OpenRig-specific complement
 
-Methodology rules for ANY code in this project. Apply BEFORE writing, not after. No exceptions.
+This skill carries **only what `dev-rules` and `quality-gate` do not cover**:
+the OpenRig-specific architecture, gitflow, i18n, audio invariants, file
+inventory, and tooling. Anything generic (TDD/RED-first, docs synced same
+commit, ownership/coupling/SoT, naming, file organization, DDD, verify
+before done, no silent fallback, no skipped tests, communication, generic
+red flags, living-document discipline) lives in **`dev-rules`** and is
+the source of truth for those rules. Gate mechanics (dispatcher, JSON
+parsing, bypass governance) live in **`quality-gate`**. Do not restate
+either here; cite them.
 
 ---
 
@@ -77,41 +85,24 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 ---
 
-## LEI — docs e referências SEMPRE em sincronia com o código
+## LEI — docs sync: camadas específicas do OpenRig
 
-**Documentação não é "depois". É parte da tarefa.** Toda mudança que altera comportamento, API, fluxo ou modelo precisa atualizar — no MESMO commit — todas as camadas de doc afetadas:
+> Regra geral ("docs no MESMO commit") está em `dev-rules` LAW 2. Aqui ficam só as **camadas concretas** do OpenRig que precisam ser tocadas:
 
 | Camada | Para quem | Quando atualizar |
 |---|---|---|
 | `docs/**/*.md` | humanos (contribuidores, usuários) | mudou comportamento de áudio, fluxo de UI, block, parâmetro, screen, CLI, deploy, hardware |
 | `CLAUDE.md` (raiz) | toda sessão Claude | mudou invariante, hierarquia de trade-offs, regra geral |
-| `.claude/skills/*/SKILL.md` | sessão futura do Claude | mudou metodologia, anti-pattern, debt file, gate, processo, gitflow detalhe |
+| `.claude/skills/*/SKILL.md` | sessão futura do Claude | mudou metodologia OpenRig, anti-pattern, debt file, gate, processo, gitflow detalhe |
 | `~/.claude/projects/<slug>/memory/*.md` | sessão futura do Claude | feedback do user, decisão de projeto, referência externa |
 | `README.md` + `README.pt-BR.md` + `README.es-ES.md` | mundo (3 línguas) | mudou tagline, feature list, build/deploy, link |
 | `CONTRIBUTING.md` | contribuidores | mudou processo de contribuição |
 
-**Why:** sessão futura (Claude **ou** humano) precisa enxergar o estado real. Doc desatualizada vira mentira que se propaga: o próximo contribuidor segue a doc errada e quebra produção; o próximo Claude lê a skill desatualizada e aplica regra que não vale mais. Vimos isso em #435 — eu não rodei o demo nem uma vez porque a skill `slint-best-practices` não tinha "valide visualmente antes de declarar pronto" como regra explícita. Esse furo foi caro.
-
-**How to apply:**
-- Antes de `git commit`, lista mental: mudei comportamento? → quais .md afetam? → atualizou todos?
+**How to apply (OpenRig-specific):**
 - Renomeou modelo/parâmetro/effect_type? → grep cross-repo em `docs/**`, `*.md`, `README*`, `CLAUDE.md`, todos `.claude/skills/*/SKILL.md`.
-- Aprendeu uma regra nova durante a sessão (feedback do user, anti-pattern descoberto, decisão arquitetural)? → escreve na skill **antes** de fechar a sessão. Não confia em memória pessoal — escreve.
 - Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `rust-best-practices`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
 - Mudou invariante (latência, isolation, mixing)? → `CLAUDE.md` + `docs/architecture.md`.
-
-**Anti-padrões:**
-```
-❌ "depois eu atualizo a doc" — sessão acaba, doc fica órfã, próxima quebra.
-❌ Commit que mexe em comportamento sem tocar nenhum .md.
-❌ Skill desatualizada porque "eu lembro de cabeça" — Claude da próxima sessão não lembra.
-❌ README.md (en) atualizado mas pt-BR/es-ES não — [[feedback_readme_three_languages]].
-```
-
-**Padrão correto:**
-```
-✅ Mesma PR/commit: código + docs/<area>.md + .claude/skills/<area>/SKILL.md + (se aplica) READMEs em 3 línguas.
-✅ Skill é LIVING DOCUMENT — quando o user corrige um padrão, a correção vai pra skill no MESMO turno, antes de fechar.
-```
+- README atualizado em uma língua sem as outras duas é regressão — [[feedback_readme_three_languages]].
 
 ---
 
@@ -230,51 +221,16 @@ exceção pra "é só visual".
 
 ---
 
-## LEI — TDD obrigatório, sempre teste primeiro
+## Processo de validação (OpenRig gitflow — não pular nenhum passo)
 
-**Antes de tocar QUALQUER linha de código de produção:**
-
-1. **Escreva o teste que prova o bug ou valida a feature.** Reproduz o sintoma exato relatado pelo usuário.
-2. **Rode o teste e confirme RED.** Se passa de primeira, o teste está cobrindo o caso errado — refaz.
-3. **SÓ ENTÃO** edita código de produção pra fazer o teste passar (GREEN).
-4. **Refatora** se necessário, mantendo tests verdes.
-
-Sem exceções. Vale pra:
-- Fix de bug (mesmo "trivial").
-- Feature nova.
-- Refactor que muda comportamento observável.
-- Mudança em parser, registry, dispatch, qualquer caminho de dados.
-
-Anti-padrões proibidos:
-```
-❌ "vou tentar essa correção" → edita prod → roda app → quebra → tenta outra
-❌ "depois eu adiciono o teste" → ship sem cobertura → regride na próxima sessão
-❌ teste escrito DEPOIS do fix passando — não prova nada
-```
-
-Pegou usuário 5 ciclos pra cobrar isso. Não pegue de novo.
-
----
-
-This skill is **language-agnostic**: it covers methodology principles (decoupling, ownership, naming, file organization) that apply identically to Rust, Slint, Python, shell, YAML, etc. Language-specific rules (Cargo workflow, Slint-only gotchas) live in:
-
-- `rust-best-practices` — Rust idioms + OpenRig Cargo workflow (validate.sh, cargo clean, zero warnings, cfg guards)
-- `slint-best-practices` — Slint UI rules (file size cap, sed-safety, `@image-url` constraints)
-
-Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabilidade de issue, distribuição cross-platform, alterações no SO da placa, atualização de documentação) vivem em `CLAUDE.md` e são carregadas em toda conversa. Esta skill cobre apenas as regras de **metodologia** de qualidade.
-
----
-
-## Processo de validação (LEI — não pular nenhum passo)
-
-Ordem obrigatória antes de abrir PR:
+> Princípio "verify before claiming done" é `dev-rules` LAW 3. Esta seção é a **ordem concreta** do gitflow OpenRig (`.solvers/`, `cargo clean` condicional, push antes do gate):
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
 2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
 3. **`cargo test --workspace --lib`** verde no solver (após o clean, se houve).
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
-6. **Quality gate compartilhado** rodar e ficar verde.
+6. **Quality gate compartilhado** rodar e ficar verde — invocar via skill `quality-gate` (mecânica do gate, JSON, bypass governance ficam todos lá).
 7. **Só ENTÃO** `gh pr create`.
 
 Não inverter:
@@ -282,143 +238,27 @@ Não inverter:
 - PR antes do gate = CI falha e abre sticky comment no PR.
 - Gate antes do push = bloqueia o usuário de testar enquanto roda (gate demora ~25min).
 
-## Quality Gate — compartilhado `xgodev/quality-gate` (issue #482)
-
-Gate **único**, mantido fora do repo, igual local e em CI. Roda no passo 5 acima (ou via skill `claude-plugin:quality-gate`):
-
-```bash
-git -C ~/.quality-gate pull --ff-only \
-  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
-~/.quality-gate/qg --base origin/develop
-```
-
-Compara 6 métricas do PR contra `origin/develop` e falha **apenas** se alguma piorou:
-
-| # | Métrica | Falha se |
-|---|---|---|
-| 1 | fmt errors | PR > base |
-| 2 | lint errors (`-D warnings`) | PR > base |
-| 3 | build errors | PR > base |
-| 4 | test failures | PR > base |
-| 5 | complexity violations | PR > base |
-| 6 | coverage % | PR < base − `QG_COV_MARGIN` (1.0pp) |
-
-CI clona o gate no job e passa `--baseline-dir baseline/ --force-full`. O gate **ignora** o `clippy.toml` do projeto (tamper-resistance). Detalhes em `docs/development/quality-gate.md`.
-
-**Regra desta skill:** o gate cuida da regressão de métrica mecânica. Esta skill foca no que o gate não consegue medir — invariantes de áudio, decisões de arquitetura, qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns.
-
-**Forbidden** pra silenciar o gate sem fix real: subir thresholds em `clippy.toml`, `#[ignore]`, `#[allow(...)]` sem causa raiz, `--no-verify`. Sempre causa raiz ou escalar.
+**Foco desta skill (não do gate):** invariantes de áudio, decisões de arquitetura OpenRig (Command/Query/i18n), qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns brand/model. Métrica mecânica (fmt/lint/build/test/complexity/coverage) é a skill `quality-gate`.
 
 ---
 
-## Comunicação — claro e objetivo
+## File Organization — known god files OpenRig
 
-Resposta ao usuário **default = 1-3 frases**. Nada de testamento.
+> Regra geral "one responsibility per file / lib.rs = re-exports / split match-chains" está em `dev-rules` (STOP checklist). Aqui ficam só os caps de tamanho e o **inventário concreto** de god files do OpenRig.
 
-- Pergunta sim/não → resposta sim/não + 1 frase de contexto se necessário.
-- Status → 1 linha por item.
-- Decisão → 1 recomendação direta. Outras opções só se pedido.
-- Sem headers/tabelas/bullets aninhados a menos que o conteúdo seja referência mecânica.
-- Cortar saudação, prefácio, recap do que o usuário acabou de dizer, "espero que ajude".
-- Bloco de código curto OK quando É o conteúdo pedido (comando, snippet).
+Caps concretos por linguagem:
+- `rust-best-practices` — 600 linhas por `.rs`
+- `slint-best-practices` — 500 linhas por `.slint`
 
-Expandir só quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", etc).
-
----
-
-## STOP — Check Before You Code
-
-### 1. Data Ownership
-
-- [ ] Information defined in the RIGHT place? (owner module, not consumer)
-- [ ] Reading from source, or duplicating/inferring?
-- [ ] Using `starts_with()`, `contains()`, string matching to determine type/brand? → **WRONG**
-
-### 1b. Separation of Concerns (Business vs Presentation)
-
-- [ ] **NEVER mix UI/visual config in business logic code** — colors, fonts, panel sizes, brand strip colors are GUI concerns
-- [ ] Business logic modules define ONLY: id, display_name, brand, backend_kind, schema, validate, build
-- [ ] Visual config (panel_bg, panel_text, brand_strip_bg, model_font) lives in the GUI layer
-- [ ] Visual config should be in configuration files (YAML/JSON) in the GUI assets, NOT in business logic structs
-- [ ] Adding or changing a color/font NEVER requires recompiling a business logic module
-
-### 2. Zero Coupling
-
-- [ ] Code references specific model IDs, brand names, effect types? → **WRONG**
-- [ ] Adding a new model requires changing this file? → **WRONG**
-- [ ] Match/if chain grows when new models are added? → **WRONG**
-- [ ] Consumer knows about specific producers? → **WRONG**
-
-### 3. Single Source of Truth
-
-- [ ] `DISPLAY_NAME` ONLY in the owning module (never in schema, never hardcoded elsewhere)
-- [ ] `brand` ONLY in the model definition (never inferred from model_id)
-- [ ] Colors ONLY in the model visual config (never hardcoded in UI)
-- [ ] String appears in 2+ places? → extract to const
-- [ ] **ZERO string literals in comparisons** — `==`, `match`, `if` must use `const`. Never `"preamp"`, always `EFFECT_TYPE_PREAMP`
-- [ ] Effect types, brands, model IDs — ALL constants, never inline strings
-
-### 4. Naming
-
-- [ ] Module files prefixed by backend (e.g. `native_`, `nam_`, `ir_`, `lv2_`)
-- [ ] `DISPLAY_NAME` does NOT contain brand name (brand is its own field)
-- [ ] Commits in English, no `Co-Authored-By` trailers
-- [ ] Branch names follow `feature/issue-N` or `bugfix/issue-N` (no description suffix)
-
-### 5. No Trash
-
-- [ ] No serde aliases for old names — update the data instead
-- [ ] No dead/commented code
-- [ ] No workarounds/hacks
-- [ ] Renamed something? → ALL references updated (code + YAML data files + presets)
-
-### 6. Impact Analysis (from real failures)
-
-Before making a change, verify:
-- [ ] **Build system**: Does any build script depend on file names? (e.g., `starts_with("compressor_")` breaks if file renamed to `native_compressor_`)
-- [ ] **UI capabilities**: Does the target UI component support ALL widget types needed? (file picker, bool toggle, numeric, enum)
-- [ ] **Callback chain**: Are ALL callbacks connected through the full chain? (model → crate → catalog → adapter-gui → Slint)
-- [ ] **Window sizing**: If changing UI content, does the window size accommodate it?
-
-### 7. Safe Refactoring
-
-- [ ] **After changing struct fields**: update ALL modules that construct the struct
-- [ ] **Test visually** before committing UI changes — don't assume it looks right
-- [ ] **One concern per commit** — don't mix refactoring with feature changes
-
-### 8. Responsive UI
-
-- [ ] **All UI elements must be responsive** — never invade adjacent areas
-- [ ] Elements must adapt to window/panel size
-- [ ] No hardcoded absolute positions that break at different sizes
-- [ ] Test with minimum and maximum window sizes before committing
-- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
-
-### 9. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
-
-- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
-- [ ] **`lib.rs` (or equivalent module entry) is for re-exports only** — NEVER implement logic there; move it to a named module
-- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
-- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
-- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
-- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
-- [ ] New feature? New file. Don't add to an existing file that already has a different concern
-
-> Concrete file size limits per language live in `rust-best-practices` (600 lines for `.rs`) and `slint-best-practices` (500 lines for `.slint`).
-
-**Known god files — never expand further (tracked in issue #276). Check current size before touching:**
+**Known god files — never expand further (tracked em issue #276). Check current size before touching:**
 - `crates/adapter-gui/src/lib.rs` — split in progress
 - `crates/project/src/block.rs` — split in progress
 - `crates/block-core/src/lib.rs` — split in progress
 - `crates/block-core/src/param.rs` — split in progress
 
-**Anti-patterns:**
 ```
 ❌ Adding a new function to adapter-gui/src/lib.rs
    // WRONG: already a god file. Create a new module instead.
-
-❌ lib.rs with 200 lines of business logic
-   // WRONG: lib.rs = re-exports only
 
 ❌ A match arm in block.rs growing from 13 to 14 branches
    // WRONG: the dispatch belongs in each block's own crate via trait
@@ -428,18 +268,18 @@ Before making a change, verify:
 ✅ crates/adapter-gui/src/chain.rs — only chain editing
 ```
 
-### 10. Test Coverage (OBRIGATORIO)
+---
 
-- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
-- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
-- [ ] Testar comportamento real, não mocks de fachada
-- [ ] **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/` em #413). Test passa SEMPRE.
-- [ ] **Registry tests**: iterar sobre TODOS os modelos via registry (schema, validate, build)
-- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
+## Test Coverage — OpenRig specifics
 
-> Detalhes Rust-específicos (golden samples `1e-4`, `#[cfg(test)] mod tests`, `cargo test --workspace`) ficam em `rust-best-practices`.
+> RED-first TDD = `dev-rules` LAW 1. "No skipped tests to go green" = `dev-rules` LAW 5. Esta seção é o **plano concreto OpenRig**:
 
-### 10b. `#[ignore]` é PROIBIDO (LEI)
+- Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`).
+- **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/` em #413). Test passa SEMPRE.
+- **Registry tests**: iterar sobre TODOS os modelos via registry (schema, validate, build).
+- Helpers de teste no próprio módulo — sem crate de test-utils separado. Sem `mockall` ou frameworks de mock — testar código real.
+
+### `#[ignore]` é PROIBIDO (LEI específica OpenRig — endurece LAW 5)
 
 `cargo test --workspace` é o gate de comportamento. Test marcado `#[ignore]` NÃO PARTICIPA do gate — vira documentação morta. **Em hipótese alguma** adicionar `#[ignore]` (ou equivalente: `#[cfg(any())]`, `if false {}`, etc.). Auditoria de 2026-05-11 encontrou 40 ignored em 1771 totais; alvo é **zero**.
 
@@ -456,36 +296,22 @@ Razões "razoáveis" que NÃO são exceção:
 
 Validação: `cargo test --workspace 2>&1 \| grep "ignored" \| grep -v "0 ignored"` deve retornar VAZIO. Qualquer `ignored > 0` é débito a fixar antes de merge.
 
-**Anti-Pattern (Testes):**
-```
-❌ Commitar código sem testes
-   // WRONG: código sem teste é dívida técnica
-
-❌ #[ignore] em qualquer test
-   // WRONG: vira documentação morta. Bundle o fixture, copie o
-   // asset, ajuste o cfg — mas NUNCA ignore.
-
-❌ Criar crate test-utils separado
-   // WRONG: cada módulo deve ser autossuficiente em testes
-
-❌ Usar mockall ou frameworks de mock
-   // WRONG: testar código real, não mocks
-```
-
 ---
 
-## YAML Data Files
+## YAML Data Files (OpenRig)
 
 When renaming effect types, models, or identifiers:
 - Update `project.yaml` in project root
 - Update `preset.yaml` if exists
 - Update ANY yaml files the user mentions
-- **Never** add serde aliases — update the data instead
+- **Never** add serde aliases — update the data instead (consistente com `dev-rules` "No Trash")
 - Search: `grep -rn "old_name" **/*.yaml`
 
 ---
 
-## Anti-Patterns
+## Anti-Patterns OpenRig (brand/model/effect_type)
+
+> Princípios "data ownership / single source of truth / zero coupling" em `dev-rules`. Aqui ficam só os **exemplos concretos** com o domínio do OpenRig (brand, model_id, effect_type):
 
 ```
 ❌ if model_id.starts_with("marshall") { "marshall" }
@@ -495,10 +321,10 @@ When renaming effect types, models, or identifiers:
    // WRONG: hardcoding by model_id
 
 ❌ pub const DISPLAY_NAME: &str = "Marshall JCM 800";
-   // WRONG: brand in display name
+   // WRONG: brand in display name (brand é campo próprio)
 
 ❌ if effect_type == "preamp" { ... }
-   // WRONG: string literal in comparison
+   // WRONG: string literal in comparison; use EFFECT_TYPE_PREAMP const
 
 ❌ #[serde(alias = "amp_head")]
    // WRONG: legacy alias
@@ -514,8 +340,7 @@ When renaming effect types, models, or identifiers:
    // WRONG: visual config in business logic crate. Move to UI config
 ```
 
-## Correct Patterns
-
+**Correct patterns:**
 ```
 ✅ // Business data from catalog
    let brand = catalog_entry.brand;
@@ -539,25 +364,28 @@ When renaming effect types, models, or identifiers:
    grep "starts_with\|stem ==" crates/block-*/build.rs
 ```
 
+### Naming OpenRig
+
+- Module files prefixed by backend (e.g. `native_`, `nam_`, `ir_`, `lv2_`).
+- `DISPLAY_NAME` does NOT contain brand name (brand é campo próprio).
+- Commits in English, no `Co-Authored-By` trailers.
+- Branch names follow `feature/issue-N` or `bugfix/issue-N` (no description suffix).
+
+### Impact analysis OpenRig (from real failures)
+
+- **Build system**: alguma `build.rs` depende de nome de arquivo? (ex.: `starts_with("compressor_")` quebra se o arquivo virar `native_compressor_`).
+- **UI capabilities**: o BlockEditorPanel suporta TODOS os widget types necessários? (file picker, bool toggle, numeric, enum).
+- **Callback chain**: todos os callbacks conectados na cadeia completa (model → crate → catalog → adapter-gui → Slint)?
+- **Window sizing**: se mudou conteúdo da UI, a janela acomoda?
+
 ---
 
-## Review Trigger
+## Responsive UI (OpenRig)
 
-After writing code:
-1. Add new model WITHOUT touching the UI layer? If yes → coupling
-2. Change brand color WITHOUT touching the UI? If yes → coupling
-3. File has match/if listing specific models? → coupling
-4. Visual result matches expectation? → test before commit
-
-## Red Flags — STOP and Redesign
-
-- Adding a model requires changes in 3+ files
-- Match arm count equals number of models
-- Consumer imports producer's internal types
-- Same string appears in code AND UI AND YAML
-- Feature flag enables something the UI can't handle
-- "Quick fix" that hardcodes a value
-- Path is hardcoded as string literal
+- Todo elemento deve ser responsivo — nunca invadir áreas adjacentes.
+- Sem posições absolutas hardcoded que quebrem em tamanhos diferentes.
+- Testar com janela mínima E máxima antes de commitar.
+- Overflow/clip tem que ser tratado — se não cabe, scroll ou truncate, nunca overflow.
 
 ---
 
@@ -572,32 +400,7 @@ Se dois testes exigem comportamentos incompatíveis e um deles é invariante **p
 
 **Caso real (2026-05-15, #350 vs #400):** testes Fase-2 do #350 (`two_channel_mono_input_must_not_saturate/cancel`) assumiam split-mono **não soma**; `g02`/`g03` (pinados, #400) exigem split-mono dual **soma** (`[0.3,0.3]→0.6`, `[0.8,0.8]→tanh(1.6)`). Decisão posterior (#355/#400) tornou a soma o invariante correto → os 2 testes Fase-2 do #350 ficaram obsoletos. Resolução: manter os obsoletos `#[ignore]` com a razão do conflito documentada, seguir com a parte não afetada (multi-device, Fase 3). Não mexer em `g02`/`g03`.
 
-## LEI — resposta ao usuário: 1-3 frases, problema antes de solução
-
-O usuário cobrou (2026-05-15): "vc escreve p caralho e nao eu nao entendo. vc precisa ser mais objetivo." Reforço de `feedback_terse_replies`:
-
-- Diagnóstico técnico longo → vai pra issue/skill, **não** pro chat.
-- No chat: **o problema em 1 frase**, **a decisão em 1 frase**. Tabelas/inventários só se o usuário pedir.
-- Se o caso do usuário NÃO depende do detalhe técnico, diga isso primeiro e siga — não despeje a análise inteira.
-
-## LEI — RED-FIRST OBRIGATÓRIO. Proibido implementar sem teste que falha antes
-
-**NUNCA** escrever/alterar código de produção sem um teste que **falhou primeiro**. Teste escrito depois da implementação (que passa de imediato) é **proibido** — não prova nada, "vicia" a suíte. Se você não viu o teste falhar, você não sabe se ele testa a coisa certa.
-
-**Fluxo de bug (único sancionado) — ORDEM ESTRITA:**
-1. **Entrevistar o usuário** — cenário exato, dados, passos, esperado vs obtido. Não adivinhar.
-2. **Escrever um teste que reproduz o bug** no caminho mais real possível (o que o app executa). **SEM ler o código procurando a causa antes disso.**
-3. **Rodar e VER FALHAR.** Mostrar a falha ao usuário (RED real). Se passa, não captura o bug — refazer até pegar, OU dizer honestamente que não é bug de lógica (ex.: render Slint não é unit-testável) e **parar**.
-4. **SÓ DEPOIS do RED**, investigar a causa — guiado pelo teste que falhou — e corrigir até GREEN.
-5. Suíte cheia + invariantes de áudio.
-
-**NÃO investigue o código pra achar a causa antes do teste existir e falhar.** Ler o código primeiro gera hipótese enviesada apresentada como "causa"; a causa só é válida quando o teste vermelho a demonstra. Hipótese de leitura ≠ causa. A investigação de código acontece **no passo 4**, dirigida pelo RED — nunca antes do passo 3.
-
-**Proibido:** investigar/ler código pra "achar a causa" antes do teste falhar; implementar e depois "cobrir com teste"; tentativa-e-erro usando o usuário como QA; teste que passa de primeira apresentado como prova; prosseguir pro fix antes do RED visível (com gate explícito do usuário, **parar e aguardar**).
-
-**Provar que um teste é real:** reverter SÓ a produção pro estado pré-fix (mantendo os testes), rodar → tem que dar RED. Restaurar depois (nada se perde, está commitado).
-
-**Caso real (2026-05-18, #436):** (a) entreguei fixes com testes escritos DEPOIS (passavam de imediato) — usuário: "testes viciados", "vc só escreve teste que passa"; reverter produção pro baseline `dc7f3b73` provou o RED. (b) Num bug seguinte, anunciei a causa lendo o código ANTES de escrever o teste — usuário: "eu não quero que vc ache a causa olhando o código. escreve o teste e DEPOIS ache a causa". Lição: red-first não é opção, e investigar código antes do teste falhar também é proibido.
+---
 
 ## LEI — GUI sem regra de negócio. Estado → Command. SIMPLES.
 
@@ -610,14 +413,3 @@ Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
 - Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
 
 **Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
-
----
-
-## Living Document
-
-This skill is a LIVING DOCUMENT. Every time the user corrects a methodology mistake:
-1. Identify the violated principle
-2. Add a rule or anti-pattern to this skill (if methodology) or to `rust-best-practices` / `slint-best-practices` (if language-specific)
-3. Commit the updated skill
-
-This ensures the same mistake is never repeated.
