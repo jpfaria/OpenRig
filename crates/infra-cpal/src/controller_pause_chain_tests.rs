@@ -155,3 +155,53 @@ fn upsert_chain_enabled_resumes_paused_runtime_without_rebuilding() {
         "resume must clear set_draining so the audio thread processes again"
     );
 }
+
+/// Issue #545 — `pause_chain` calls `runtime_for_chain` which only
+/// returns the FIRST runtime of a chain (see the comment in
+/// `runtime_graph::runtime_for_chain`: "Multi-input fan-out for these
+/// call sites is Phase 3 (#350)"). On a chain with multiple input
+/// groups (one per physical input device), only group 0 actually gets
+/// `set_draining()` — the other groups keep processing, which is why
+/// the user observes the tap/meter still moving and CPU staying at
+/// the running-chain baseline after toggling the chain off.
+///
+/// This test pins the multi-input contract: pausing the chain must
+/// drain every runtime registered for that chain id, regardless of
+/// group.
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn pause_chain_drains_every_input_group_runtime() {
+    let chain_id = ChainId("chain:545:multi-input".into());
+    let (mut controller, group0) = controller_with_active_chain(&chain_id);
+
+    // Add a second runtime under group 1 — same chain, second physical
+    // input device. Mirrors what the runtime_graph holds when a chain
+    // has two `InputBlock` entries.
+    let chain = empty_chain(&chain_id.0, true);
+    let group1 = Arc::new(
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+            .expect("group-1 runtime should build"),
+    );
+    controller
+        .runtime_graph
+        .chains
+        .insert((chain_id.clone(), 1), Arc::clone(&group1));
+
+    assert!(!group0.is_draining());
+    assert!(!group1.is_draining());
+
+    controller.pause_chain(&chain_id);
+
+    assert!(
+        group0.is_draining(),
+        "pause_chain must drain group 0 (currently passes — it is the only \
+         runtime `runtime_for_chain` returns)"
+    );
+    assert!(
+        group1.is_draining(),
+        "REGRESSION: pause_chain failed to drain group 1 runtime — only the \
+         first input group is touched. The user observes the chain looking \
+         alive (tap moving, CPU not dropping) because the other input \
+         groups keep processing."
+    );
+}
