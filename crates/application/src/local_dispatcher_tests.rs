@@ -1021,6 +1021,54 @@ fn replace_block_model_unknown_model_returns_err() {
     );
 }
 
+/// Issue #537 — positive contract pinned with native cabs: swapping one
+/// native cab model for another must keep the slot's `effect_type` as
+/// `"cab"`. The reported regression is on disk-package IR cabs (see the
+/// integration test in `tests/issue_537_replace_block_model_disk_package_cab.rs`);
+/// this unit test guards the parallel native code path so we know if the
+/// fix accidentally damages native swaps.
+#[test]
+fn replace_block_model_keeps_cab_effect_type_when_swapping_two_native_cabs() {
+    let block = AudioBlock {
+        id: BlockId("blk_cab".to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "cab".to_string(),
+            model: "american_2x12".to_string(),
+            params: ParameterSet::default(),
+        }),
+    };
+    let project = make_project("chain_0", block);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+        chain: ChainId("chain_0".to_string()),
+        block: BlockId("blk_cab".to_string()),
+        model_id: "brit_4x12".to_string(),
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    let proj = project.borrow();
+    let block = &proj.chains[0].blocks[0];
+    let core = match &block.kind {
+        AudioBlockKind::Core(cb) => cb,
+        other => panic!(
+            "expected Core variant after cab->cab native swap, got variant '{}'",
+            other.label()
+        ),
+    };
+    assert_eq!(
+        core.effect_type, "cab",
+        "effect_type must stay 'cab' after swapping one native cab for another \
+         (got '{}' on slot now hosting '{}')",
+        core.effect_type, core.model
+    );
+    assert_eq!(
+        core.model, "brit_4x12",
+        "model must be the newly picked 'brit_4x12'"
+    );
+}
+
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
