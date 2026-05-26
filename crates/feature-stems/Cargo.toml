@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 thiserror.workspace = true
+rubato = "0.16"
 symphonia = { version = "0.5", default-features = false, features = [
   "wav",
   "pcm",

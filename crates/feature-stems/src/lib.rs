@@ -7,8 +7,10 @@
 //! be added in following phases.
 
 mod decode;
+mod resample;
 
 pub use decode::decode_audio;
+pub use resample::resample_to;
 
 use std::path::PathBuf;
 
@@ -53,6 +55,13 @@ pub enum StemError {
     Decode {
         /// Source path that produced the failure.
         path: PathBuf,
+        /// Human-readable reason.
+        reason: String,
+    },
+
+    /// Resampler failed to convert sample rate.
+    #[error("resample failure: {reason}")]
+    Resample {
         /// Human-readable reason.
         reason: String,
     },
