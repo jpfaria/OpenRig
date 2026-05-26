@@ -13,8 +13,11 @@
 //!   `Some(v)`, wildcard when `None` (matches any byte).
 //! - Two profiles binding the same message both fire — no exclusivity.
 
+use application::dispatcher::CommandDispatcher;
+use application::SelectionState;
+
 use crate::profile::{MatchExpr, MidiProfile};
-use crate::slots::IncomingMessage;
+use crate::slots::{slot_to_command, IncomingMessage};
 
 /// One profile binding that fired for an incoming message.
 #[derive(Debug, Clone)]
@@ -98,4 +101,27 @@ pub fn match_message(
         }
     }
     hits
+}
+
+/// End-to-end connector: raw message + active profiles + selection
+/// snapshot → dispatch every command this message produces. Daemon
+/// (real MIDI input) calls this once per incoming message; tests use it
+/// to prove the full pipeline without spinning up a real MIDI port.
+///
+/// Each `SlotHit` independently produces (or not) a Command via
+/// `slot_to_command`; slots that need an active id without one return
+/// `None` and dispatch nothing. Dispatch errors are silently dropped —
+/// MIDI input is best-effort by design; the audio path keeps running.
+pub fn dispatch_midi_message(
+    active_profiles: &[&MidiProfile],
+    port_name: &str,
+    msg: &IncomingMessage,
+    selection: &SelectionState,
+    dispatcher: &dyn CommandDispatcher,
+) {
+    for hit in match_message(active_profiles, port_name, msg) {
+        if let Some(cmd) = slot_to_command(&hit.slot, &hit.message, selection) {
+            let _ = dispatcher.dispatch(cmd);
+        }
+    }
 }

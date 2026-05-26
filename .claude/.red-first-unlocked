@@ -1,2 +1,1 @@
-Phase 3e: RED captured — extend SelectionState with active_*_enabled
-and active_block_param_path; implement the 4 remaining slots.
+Phase 4 wiring: RED captured — pipeline::dispatch_midi_message glue.
