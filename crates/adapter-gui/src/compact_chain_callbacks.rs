@@ -120,9 +120,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         *open_compact_window.borrow_mut() = Some((ci, compact_win.as_weak()));
 
         // Wire search-block-model: update filtered_models inside the
-        // CompactBlockItem at (ci, bi).
+        // CompactBlockItem at (ci, bi). MUST read the live model via
+        // `cw.get_compact_blocks()` on every invocation — block CRUD and
+        // param updates call `set_compact_blocks(...)` and REPLACE the
+        // underlying VecModel, so capturing the original `Rc<VecModel>`
+        // by move leaves the handler bound to an orphaned model and the
+        // popup stops filtering after the first model change (#538).
         {
-            let compact_blocks = compact_blocks.clone();
+            let weak_compact = compact_win.as_weak();
             compact_win.on_search_block_model(move |ci, bi, text| {
                 log::debug!(
                     "[search-compact] callback received: ci={} bi={} text={:?}",
@@ -130,33 +135,51 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     bi,
                     text
                 );
-                crate::model_search_wiring::refilter_compact_block(
-                    &compact_blocks,
-                    ci,
-                    bi,
-                    text.as_str(),
-                );
+                let Some(cw) = weak_compact.upgrade() else {
+                    return;
+                };
+                let live = cw.get_compact_blocks();
+                let Some(vm) = live
+                    .as_any()
+                    .downcast_ref::<VecModel<crate::CompactBlockItem>>()
+                else {
+                    log::warn!(
+                        "[search-compact] live compact_blocks is not a VecModel; \
+                         search ignored"
+                    );
+                    return;
+                };
+                crate::model_search_wiring::refilter_compact_block(vm, ci, bi, text.as_str());
             });
         }
 
         // Wire choose-block-model-by-id: resolve model_id to its index
         // within the block's full models list, then forward to the
-        // existing index-based handler.
+        // existing index-based handler. Same live-model rule as the
+        // search handler — capturing the original Rc breaks model
+        // resolution after the first model change (#538).
         {
-            let compact_blocks = compact_blocks.clone();
             let weak_compact = compact_win.as_weak();
             compact_win.on_choose_block_model_by_id(move |ci, bi, model_id| {
+                let Some(cw) = weak_compact.upgrade() else {
+                    return;
+                };
+                let live = cw.get_compact_blocks();
+                let Some(vm) = live
+                    .as_any()
+                    .downcast_ref::<VecModel<crate::CompactBlockItem>>()
+                else {
+                    return;
+                };
                 let Some(idx) = crate::model_search_wiring::resolve_model_id_in_compact_block(
-                    &compact_blocks,
+                    vm,
                     ci,
                     bi,
                     model_id.as_str(),
                 ) else {
                     return;
                 };
-                if let Some(cw) = weak_compact.upgrade() {
-                    cw.invoke_choose_block_model(ci, bi, idx);
-                }
+                cw.invoke_choose_block_model(ci, bi, idx);
             });
         }
 
@@ -316,7 +339,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     };
                     (
                         chain.id.clone(),
-                        chain.description.clone().unwrap_or_else(|| chain.id.0.clone()),
+                        chain
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| chain.id.0.clone()),
                     )
                 };
                 *pending.borrow_mut() = Some(chain_id);
@@ -361,19 +387,20 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                if let Err(err) = session.dispatcher.dispatch(
-                    application::command::Command::RemoveChain { chain: chain_id.clone() },
-                ) {
+                if let Err(err) =
+                    session
+                        .dispatcher
+                        .dispatch(application::command::Command::RemoveChain {
+                            chain: chain_id.clone(),
+                        })
+                {
                     set_status_error(&main_win, &toast_timer, &err.to_string());
                     return;
                 }
                 if session.rig.is_some() {
                     crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&main_win, session);
                 }
-                crate::runtime_lifecycle::remove_live_chain_runtime(
-                    &project_runtime,
-                    &chain_id,
-                );
+                crate::runtime_lifecycle::remove_live_chain_runtime(&project_runtime, &chain_id);
                 crate::project_view::replace_project_chains(
                     &project_chains,
                     &*session.project.borrow(),
