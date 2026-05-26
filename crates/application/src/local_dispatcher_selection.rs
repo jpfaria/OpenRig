@@ -20,7 +20,7 @@ impl LocalDispatcher {
             return Ok(vec![]);
         }
         let n = project.chains.len() as i32;
-        let mut sel = self.selection_state.borrow_mut();
+        let mut sel = self.selection_state.write().expect("selection state poisoned");
         let current_idx = sel
             .active_chain
             .as_deref()
@@ -44,7 +44,7 @@ impl LocalDispatcher {
     /// no chain is active or the chain has no blocks.
     pub(crate) fn handle_select_active_block_relative(&self, delta: i32) -> Result<Vec<Event>> {
         let project = self.project.borrow();
-        let mut sel = self.selection_state.borrow_mut();
+        let mut sel = self.selection_state.write().expect("selection state poisoned");
         let Some(active_chain_id) = sel.active_chain.clone() else {
             return Ok(vec![]);
         };

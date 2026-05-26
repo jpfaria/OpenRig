@@ -46,9 +46,9 @@ fn dispatcher_exposes_selection_state_handle() {
     let project = project_with(vec![chain_named("chain_0")]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let sel = dispatcher.selection_state();
-    assert!(sel.borrow().active_chain.is_none());
-    assert!(sel.borrow().active_block.is_none());
-    assert!(!sel.borrow().compact_view_enabled);
+    assert!(sel.read().unwrap().active_chain.is_none());
+    assert!(sel.read().unwrap().active_block.is_none());
+    assert!(!sel.read().unwrap().compact_view_enabled);
 }
 
 #[test]
@@ -59,14 +59,14 @@ fn select_active_chain_relative_advances_and_wraps() {
         chain_named("chain_c"),
     ]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    dispatcher.selection_state().borrow_mut().active_chain = Some("chain_a".to_string());
+    dispatcher.selection_state().write().unwrap().active_chain = Some("chain_a".to_string());
 
     dispatcher
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
-        sel.borrow().active_chain.as_deref(),
+        sel.read().unwrap().active_chain.as_deref(),
         Some("chain_b")
     );
 
@@ -75,7 +75,7 @@ fn select_active_chain_relative_advances_and_wraps() {
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
-        sel.borrow().active_chain.as_deref(),
+        sel.read().unwrap().active_chain.as_deref(),
         Some("chain_c")
     );
 
@@ -84,7 +84,7 @@ fn select_active_chain_relative_advances_and_wraps() {
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
-        sel.borrow().active_chain.as_deref(),
+        sel.read().unwrap().active_chain.as_deref(),
         Some("chain_a"),
         "must wrap"
     );
@@ -94,7 +94,7 @@ fn select_active_chain_relative_advances_and_wraps() {
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
-        sel.borrow().active_chain.as_deref(),
+        sel.read().unwrap().active_chain.as_deref(),
         Some("chain_c"),
         "negative delta wraps backwards"
     );
@@ -106,7 +106,7 @@ fn select_active_chain_relative_clears_active_block_on_change() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let sel_handle = dispatcher.selection_state();
     {
-        let mut s = sel_handle.borrow_mut();
+        let mut s = sel_handle.write().unwrap();
         s.active_chain = Some("chain_a".to_string());
         s.active_block = Some("blk_held_over".to_string());
     }
@@ -115,7 +115,7 @@ fn select_active_chain_relative_clears_active_block_on_change() {
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
         .unwrap();
 
-    let sel = sel_handle.borrow();
+    let sel = sel_handle.read().unwrap();
     assert_eq!(sel.active_chain.as_deref(), Some("chain_b"));
     assert!(
         sel.active_block.is_none(),
@@ -133,7 +133,7 @@ fn select_active_chain_relative_seeds_first_when_none_active() {
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
-        sel.borrow().active_chain.as_deref(),
+        sel.read().unwrap().active_chain.as_deref(),
         Some("chain_a"),
         "first chain becomes active on first nav"
     );
@@ -143,15 +143,15 @@ fn select_active_chain_relative_seeds_first_when_none_active() {
 fn set_compact_view_enabled_stores_the_flag() {
     let project = project_with(vec![chain_named("chain_a")]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    assert!(!dispatcher.selection_state().borrow().compact_view_enabled);
+    assert!(!dispatcher.selection_state().read().unwrap().compact_view_enabled);
 
     dispatcher
         .dispatch(Command::SetCompactViewEnabled { enabled: true })
         .unwrap();
-    assert!(dispatcher.selection_state().borrow().compact_view_enabled);
+    assert!(dispatcher.selection_state().read().unwrap().compact_view_enabled);
 
     dispatcher
         .dispatch(Command::SetCompactViewEnabled { enabled: false })
         .unwrap();
-    assert!(!dispatcher.selection_state().borrow().compact_view_enabled);
+    assert!(!dispatcher.selection_state().read().unwrap().compact_view_enabled);
 }

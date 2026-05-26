@@ -120,3 +120,23 @@ pub fn parse_profile_yaml(yaml: &str) -> Result<MidiProfile, ProfileError> {
     }
     Ok(profile)
 }
+
+/// Factory profiles baked into the binary via `include_str!`. The
+/// daemon (and any test harness) loads them with `load_bundled_profiles()`
+/// so a release binary ships them untouched — no filesystem path
+/// required at runtime.
+const BUNDLED_PROFILE_YAMLS: &[&str] = &[
+    include_str!("../../../assets/midi-profiles/chocolate_plus_program_change_a.yaml"),
+];
+
+/// Parse every bundled profile YAML. A malformed bundled profile is a
+/// build-time bug — `include_str!` catches missing files at compile —
+/// so unparseable entries are silently dropped here rather than
+/// surfaced; the test suite (`bundled_profiles_test.rs`) is the gate
+/// that proves the bundle parses cleanly.
+pub fn load_bundled_profiles() -> Vec<MidiProfile> {
+    BUNDLED_PROFILE_YAMLS
+        .iter()
+        .filter_map(|yaml| parse_profile_yaml(yaml).ok())
+        .collect()
+}

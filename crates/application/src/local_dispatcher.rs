@@ -21,6 +21,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 
@@ -52,10 +53,11 @@ pub struct LocalDispatcher {
     /// `rig:<input>` and real ids); absent ⇒ nothing selected.
     pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
     /// #548: which chain / block the user has active on the Chains
-    /// screen, plus the compact-view flag. MIDI slots (Phase 3b) and the
-    /// GUI both mutate this through `Command`s; `QueryKind::Selection`
-    /// exposes it to MCP / gRPC.
-    pub(crate) selection_state: Rc<RefCell<SelectionState>>,
+    /// screen, plus the compact-view flag and the live snapshot the
+    /// MIDI slots read. `Arc<RwLock<…>>` so the MIDI daemon (separate
+    /// thread) can read the same state the GUI mutates — `RefCell`
+    /// would force a single thread.
+    pub(crate) selection_state: Arc<RwLock<SelectionState>>,
 }
 
 impl LocalDispatcher {
@@ -69,7 +71,7 @@ impl LocalDispatcher {
             project,
             rig: RefCell::new(None),
             selection: RefCell::new(std::collections::HashMap::new()),
-            selection_state: Rc::new(RefCell::new(SelectionState::default())),
+            selection_state: Arc::new(RwLock::new(SelectionState::default())),
         }
     }
 
@@ -79,12 +81,13 @@ impl LocalDispatcher {
         self.selection.borrow().get(chain).copied()
     }
 
-    /// Shared handle to the GUI selection state. The GUI mutates it on
-    /// click, MIDI slots mutate it through the 3 selection `Command`s
-    /// (Phase 3b), and `QueryKind::Selection` serializes it to MCP/gRPC.
-    /// Returning `Rc` lets callers (the GUI) hold a long-lived handle.
-    pub fn selection_state(&self) -> Rc<RefCell<SelectionState>> {
-        Rc::clone(&self.selection_state)
+    /// Shared handle to the GUI selection state. `Arc<RwLock<…>>` so
+    /// the MIDI daemon thread can read the same state the GUI thread
+    /// mutates; `Rc<RefCell<…>>` was tried first but `RefCell` is
+    /// single-threaded and the daemon runs on its own midir-callback
+    /// thread.
+    pub fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
+        Arc::clone(&self.selection_state)
     }
 
     /// Share the session's `RigProject` handle so rig-nav commands can
@@ -199,7 +202,10 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_select_active_block_relative(delta)
             }
             Command::SetCompactViewEnabled { enabled } => {
-                self.selection_state.borrow_mut().compact_view_enabled = enabled;
+                self.selection_state
+                    .write()
+                    .expect("selection state poisoned")
+                    .compact_view_enabled = enabled;
                 Ok(vec![])
             }
         }
