@@ -377,21 +377,10 @@ fn normalized_chain_description_empty_returns_none() {
     assert_eq!(normalized_chain_description("   "), None);
 }
 
-// --- preset_id_from_path ---
-
-use super::project_ops::preset_id_from_path;
-
-#[test]
-fn preset_id_from_path_extracts_stem() {
-    let path = std::path::Path::new("/some/dir/my_preset.yaml");
-    assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
-}
-
-#[test]
-fn preset_id_from_path_no_extension_uses_filename() {
-    let path = std::path::Path::new("/some/dir/my_preset");
-    assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
-}
+// `preset_id_from_path` moved to
+// `application::local_dispatcher_preset` in #555. The behaviour is
+// covered there alongside the dispatcher tests; the GUI no longer
+// owns the helper.
 
 // --- project_title_for_path ---
 
