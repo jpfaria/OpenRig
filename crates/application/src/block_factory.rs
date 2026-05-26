@@ -87,16 +87,32 @@ pub fn build_default_block(
     })
 }
 
-/// Determine which effect_type owns the given model_id by attempting a schema
-/// lookup across the known effect_type values.
+/// Determine which effect_type owns the given model_id.
 ///
-/// This is only needed for `ReplaceBlockModel` when we want to let the caller
-/// specify just the model_id without the effect_type. In this project the
-/// model_id is unique within the registry, so we can resolve it by trial.
+/// Disk-package models (NAM, IR, LV2, VST3) declare a single `type` in
+/// their manifest; the `plugin_loader` registry holds it. Reading it
+/// there is the authoritative resolution and is tried first.
 ///
-/// Returns the effect_type string that resolves the model, or `Err` if none
-/// does.
+/// Issue #537 — the trial loop below used to be the only path: it
+/// scanned effect_types in declaration order and returned the first one
+/// whose `schema_for_block_model` lookup succeeded. The disk-package
+/// schema lookup does not filter by effect_type, so any cab IR
+/// (`ir_v30_4x12`) matched `EFFECT_TYPE_PREAMP` first (because preamp
+/// leads the list) and the slot morphed cab→preamp on swap, sending the
+/// IR convolver through a preamp slot at runtime — broadband noise.
+///
+/// Native models still fall through to the trial loop; natives register
+/// under a single effect_type per `MODEL_DEFINITION`, so the first
+/// successful match is correct for them.
+///
+/// # Errors
+///
+/// Returns `Err` when the model is neither a registered disk package nor
+/// resolvable through any native effect_type registry.
 pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        return Ok(block_type_to_effect_type(pkg.manifest.block_type).to_string());
+    }
     use block_core::*;
     let candidate_types = [
         EFFECT_TYPE_PREAMP,
@@ -126,4 +142,30 @@ pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
         "model_id '{}' not found in any known effect_type registry",
         model_id
     ))
+}
+
+/// Map a manifest's `BlockType` to the canonical effect_type string
+/// defined in `block-core`. Counterpart to the private mapper in
+/// `project::catalog::block_type_for_effect_type` (kept private there
+/// because it's only consulted from the catalog). Lives here so this
+/// crate can resolve disk-package types without growing `catalog.rs`
+/// (already past the 600-line cap).
+fn block_type_to_effect_type(block_type: plugin_loader::manifest::BlockType) -> &'static str {
+    use block_core::*;
+    use plugin_loader::manifest::BlockType;
+    match block_type {
+        BlockType::Preamp => EFFECT_TYPE_PREAMP,
+        BlockType::Amp => EFFECT_TYPE_AMP,
+        BlockType::Cab => EFFECT_TYPE_CAB,
+        BlockType::Body => EFFECT_TYPE_BODY,
+        BlockType::GainPedal => EFFECT_TYPE_GAIN,
+        BlockType::Delay => EFFECT_TYPE_DELAY,
+        BlockType::Reverb => EFFECT_TYPE_REVERB,
+        BlockType::Mod => EFFECT_TYPE_MODULATION,
+        BlockType::Dyn => EFFECT_TYPE_DYNAMICS,
+        BlockType::Filter => EFFECT_TYPE_FILTER,
+        BlockType::Wah => EFFECT_TYPE_WAH,
+        BlockType::Pitch => EFFECT_TYPE_PITCH,
+        BlockType::Util => EFFECT_TYPE_UTILITY,
+    }
 }

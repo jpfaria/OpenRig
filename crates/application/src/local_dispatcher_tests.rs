@@ -1021,6 +1021,11 @@ fn replace_block_model_unknown_model_returns_err() {
     );
 }
 
+// Issue #537 native-cab swap positive contract lives in
+// `tests/issue_537_replace_block_model_native_cab.rs` (sibling to the
+// disk-package fixture test). Kept out of this file because the file is
+// already past the 600-line cap.
+
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
