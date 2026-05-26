@@ -1,2 +1,2 @@
-Phase 2: RED captured for adapter_midi::profile module
-(crates/adapter-midi/tests/profile_test.rs).
+Phase 5: RED captured for assets/midi-profiles/chocolate_plus_program_change_a.yaml
+(crates/adapter-midi/tests/asset_chocolate_plus_pc_a_test.rs).
