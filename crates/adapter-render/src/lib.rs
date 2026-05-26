@@ -5,3 +5,4 @@
 //! Same `engine.process_block()` as live mode — deterministic.
 
 pub mod cli;
+pub mod wav;
