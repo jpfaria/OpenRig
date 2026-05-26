@@ -266,12 +266,28 @@ impl LocalDispatcher {
         }
     }
 
-    /// #513: system-level paths overrides (presets, plugins). Mirrors
-    /// `handle_midi_system`: no project mutation, just signal the intent.
-    /// The adapter persists `config.yaml` on `Event::PathsSaved` (ADR 0003).
+    /// #513 / #540: system-level paths overrides (presets, plugins).
+    /// The command owns the persistence: write the picked path into
+    /// `config.yaml` (ADR 0003 — system setting), then emit
+    /// `Event::PathsSaved` so listeners (GUI label refresh, MCP, gRPC)
+    /// can pick up the change without re-reading from disk.
+    ///
+    /// The previous handler (#513) emitted the event only and relied on
+    /// "the adapter persists on PathsSaved" — but the event carries no
+    /// path payload and no listener was wired, so the user's pick
+    /// survived only in memory and reset to default on the next launch
+    /// (issue #540).
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
+        use infra_filesystem::FilesystemStorage;
         match cmd {
-            Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
+            Command::SetPresetsPath { path } => {
+                FilesystemStorage::save_presets_path(path)
+                    .map_err(|e| anyhow::anyhow!("save_presets_path failed: {e}"))?;
+                Ok(vec![Event::PathsSaved])
+            }
+            Command::SetPluginsPath { path } => {
+                FilesystemStorage::save_plugins_path(path)
+                    .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
                 Ok(vec![Event::PathsSaved])
             }
             other => {

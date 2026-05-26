@@ -33,5 +33,9 @@ pub mod validate;
 mod local_dispatcher_tests;
 
 #[cfg(test)]
+#[path = "local_dispatcher_paths_tests.rs"]
+mod local_dispatcher_paths_tests;
+
+#[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]
 mod local_dispatcher_rig_tests;
