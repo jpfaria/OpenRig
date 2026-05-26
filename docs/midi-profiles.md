@@ -131,3 +131,37 @@ There's a forthcoming `openrig-midi-profile-builder` skill in the
 ## Currently shipped profiles
 
 - [Chocolate Plus — Program Change A (factory)](../assets/midi-profiles/chocolate_plus_program_change_a.md)
+
+## Activating profiles at runtime
+
+The MIDI daemon that ties everything together lives in `adapter-midi`:
+
+```rust
+use adapter_midi::spawn_with_bundled_profiles;
+
+let _handle = spawn_with_bundled_profiles(
+    bridge,                    // CommandBridge clone
+    dispatcher.selection_state(), // Arc<RwLock<SelectionState>>
+    learn,                     // Arc<LearnState>
+);
+```
+
+That single call opens every available MIDI input, loads every YAML in
+`assets/midi-profiles/` (baked in via `include_str!`), and starts
+routing incoming messages through the pipeline. Each MIDI message is
+matched against every active profile; matches dispatched to the
+bridge; the GUI's drain loop runs them through the dispatcher exactly
+like a click would.
+
+The GUI also has to **mirror its selection into `SelectionState`** —
+when the user clicks a chain or a block, the same `Arc<RwLock<_>>` the
+daemon reads must reflect that. The dispatcher already exposes the
+handle (`LocalDispatcher::selection_state()`); writing to it on click
+is the GUI integrator's responsibility (one writeline per click
+callback).
+
+Both pieces are still pending in adapter-gui at the time of writing —
+the daemon function and the bundled loader are ready; the GUI's `main`
+hasn't been switched off the legacy `run_blocking_with_map` path yet.
+That switch + the selection-mirror is the last thing standing between
+this issue and a working footswitch.
