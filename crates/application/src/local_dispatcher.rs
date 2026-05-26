@@ -177,6 +177,20 @@ impl CommandDispatcher for LocalDispatcher {
             }
 
             Command::SeparateStems { .. } => self.handle_separate_stems(cmd),
+
+            Command::LoadTrack { .. }
+            | Command::UnloadTrack
+            | Command::RenameTrack { .. }
+            | Command::DeleteTrack { .. } => self.handle_track_lifecycle(cmd),
+
+            Command::TrackPlay | Command::TrackPause | Command::TrackSeek { .. } => {
+                self.handle_track_transport(cmd)
+            }
+
+            Command::SetStemMute { .. }
+            | Command::SetStemSolo { .. }
+            | Command::SetStemGain { .. }
+            | Command::SetStemPan { .. } => self.handle_stem_controls(cmd),
         }
     }
 

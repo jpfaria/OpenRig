@@ -11,6 +11,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::{BlockId, ChainId};
 
+/// #553: which per-stem control was touched. Used inside
+/// [`Event::StemControlChanged`] so subscribers don't need to inspect
+/// the dispatcher to know what changed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub enum StemControl {
+    /// Mute toggled.
+    Mute(bool),
+    /// Solo toggled.
+    Solo(bool),
+    /// Linear gain set.
+    Gain(f32),
+    /// Pan set in `[-1.0, 1.0]`.
+    Pan(f32),
+}
+
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum Event {
@@ -245,6 +260,52 @@ pub enum Event {
         source_path: std::path::PathBuf,
     },
 
+    /// #553: a track was requested for playback. Adapter loads the
+    /// stems and hands them to the engine.
+    TrackLoadRequested {
+        /// Stable track id.
+        track_id: String,
+    },
+
+    /// #553: the current track was released.
+    TrackUnloaded,
+
+    /// #553: a track was renamed; meta.yaml has been persisted by the
+    /// adapter.
+    TrackRenamed {
+        /// Stable track id.
+        track_id: String,
+        /// Title now stored on disk.
+        new_title: String,
+    },
+
+    /// #553: a track was removed from the catalog.
+    TrackDeleted {
+        /// Stable track id.
+        track_id: String,
+    },
+
+    /// #553: playback transport intent — adapter forwards to the engine.
+    TrackPlayRequested,
+
+    /// #553: playback transport intent — adapter forwards to the engine.
+    TrackPauseRequested,
+
+    /// #553: seek intent — adapter forwards to the engine playhead.
+    TrackSeekRequested {
+        /// Target position in seconds.
+        secs: f64,
+    },
+
+    /// #553: per-stem control intent. Adapter applies to the engine
+    /// player (`MultiStemPlayer::set_*`).
+    StemControlChanged {
+        /// Stem index (0=drums, 1=bass, 2=vocals, 3=other).
+        stem_index: usize,
+        /// Which control was touched.
+        kind: StemControl,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -311,6 +372,14 @@ impl Event {
             // #513: system-level paths event, never tied to a chain.
             | Event::PathsSaved
             | Event::StemJobQueued { .. }
+            | Event::TrackLoadRequested { .. }
+            | Event::TrackUnloaded
+            | Event::TrackRenamed { .. }
+            | Event::TrackDeleted { .. }
+            | Event::TrackPlayRequested
+            | Event::TrackPauseRequested
+            | Event::TrackSeekRequested { .. }
+            | Event::StemControlChanged { .. }
             | Event::Error { .. } => None,
         }
     }

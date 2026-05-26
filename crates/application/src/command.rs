@@ -409,6 +409,82 @@ pub enum Command {
         /// Source audio file to be separated.
         source_path: PathBuf,
     },
+
+    /// #553: load a track from the tracks catalog into the
+    /// multi-stem player. Adapter resolves the id to disk and hands the
+    /// stems to the engine.
+    LoadTrack {
+        /// Stable track id (directory name under `tracks/`).
+        track_id: String,
+    },
+
+    /// #553: tear down the current track and free its buffers.
+    UnloadTrack,
+
+    /// #553: rename an existing track. Adapter persists the new title
+    /// in `meta.yaml`.
+    RenameTrack {
+        /// Stable track id.
+        track_id: String,
+        /// New display title.
+        new_title: String,
+    },
+
+    /// #553: delete a track from the catalog. Adapter removes the
+    /// directory; if the track is currently loaded the engine unloads
+    /// first.
+    DeleteTrack {
+        /// Stable track id.
+        track_id: String,
+    },
+
+    /// #553: start playback of the currently loaded track.
+    TrackPlay,
+
+    /// #553: pause playback (playhead retained).
+    TrackPause,
+
+    /// #553: seek the playhead to `secs` seconds from the start of the
+    /// track. Adapter forwards to the engine's atomic playhead.
+    TrackSeek {
+        /// Position in seconds.
+        secs: f64,
+    },
+
+    /// #553: per-stem mute (engine `MultiStemPlayer::set_mute`).
+    SetStemMute {
+        /// Stem index following the canonical Demucs order
+        /// (0 = drums, 1 = bass, 2 = vocals, 3 = other).
+        stem_index: usize,
+        /// New mute state.
+        muted: bool,
+    },
+
+    /// #553: per-stem solo. Solo precedence is enforced by the engine
+    /// (`any solo => only soloed stems audible`).
+    SetStemSolo {
+        /// Stem index (see [`Command::SetStemMute`]).
+        stem_index: usize,
+        /// New solo state.
+        soloed: bool,
+    },
+
+    /// #553: per-stem linear gain (typically `[0.0, 2.0]`).
+    SetStemGain {
+        /// Stem index (see [`Command::SetStemMute`]).
+        stem_index: usize,
+        /// New linear gain value.
+        gain: f32,
+    },
+
+    /// #553: per-stem pan in `[-1.0, 1.0]` (`-1` = full left,
+    /// `+1` = full right).
+    SetStemPan {
+        /// Stem index (see [`Command::SetStemMute`]).
+        stem_index: usize,
+        /// New pan value, clamped on apply.
+        pan: f32,
+    },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.
