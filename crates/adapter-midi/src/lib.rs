@@ -15,6 +15,7 @@ mod mapping;
 mod message;
 pub mod profile;
 pub mod resolve;
+pub mod slots;
 mod translate;
 
 #[cfg(test)]

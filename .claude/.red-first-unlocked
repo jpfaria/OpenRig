@@ -1,2 +1,0 @@
-Phase 3b: RED captured — LocalDispatcher needs selection_state() handle
-and SelectionState needs compact_view_enabled flag plus the handlers.
