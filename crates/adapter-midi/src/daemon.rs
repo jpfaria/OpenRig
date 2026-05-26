@@ -5,16 +5,20 @@
 //! the audio thread.
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::{anyhow, Context, Result};
 use application::bridge::CommandBridge;
 use application::command::Command;
+use application::SelectionState;
 use midir::MidiInput;
 
 use crate::learn::LearnState;
 use crate::mapping::MidiMap;
 use crate::message::MidiMessage;
+use crate::pipeline::dispatch_midi_message_to_bridge;
+use crate::profile::MidiProfile;
+use crate::slots::IncomingMessage;
 use crate::translate::{resolve, source_from_bytes};
 
 const CLIENT_NAME: &str = "OpenRig";
@@ -128,6 +132,91 @@ pub fn run_blocking_with_map(
             )
             .map_err(|e| anyhow!("connecting to MIDI port '{name}': {e}"))?;
         log::info!("adapter-midi: listening on '{name}'");
+        connections.push(conn);
+    }
+
+    if connections.is_empty() {
+        return Err(anyhow!("no MIDI input port could be opened"));
+    }
+
+    loop {
+        std::thread::park();
+    }
+}
+
+/// New profile-driven path (issue #548). Opens **every** MIDI input
+/// port, parses each incoming byte stream into an [`IncomingMessage`],
+/// and routes through every active profile's bindings into the
+/// matching `Command`. The legacy [`run_blocking_with_map`] is preserved
+/// for the `--midi=PATH` (single-file map) flow; the GUI's standard
+/// path calls `run_blocking_with_profiles` once profiles land in the
+/// project's MIDI config.
+///
+/// `selection` is the live GUI snapshot the slots read (active
+/// chain/block, toggle flags, …) — shared with the dispatcher via
+/// `LocalDispatcher::selection_state()` so the GUI's writes are
+/// immediately visible here. `learn` honours the same short-circuit
+/// rule the legacy path uses.
+pub fn run_blocking_with_profiles(
+    bridge: CommandBridge,
+    profiles: Vec<MidiProfile>,
+    selection: Arc<RwLock<SelectionState>>,
+    learn: Arc<LearnState>,
+) -> Result<()> {
+    let profiles = Arc::new(profiles);
+    let infos = crate::enumerate::list_input_ports()?;
+    if infos.is_empty() {
+        return Err(anyhow!("no MIDI input port available"));
+    }
+
+    let mut connections = Vec::with_capacity(infos.len());
+    for (idx, info) in infos.iter().enumerate() {
+        let client = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
+        let ports = client.ports();
+        let Some(port) = ports.get(idx) else {
+            continue;
+        };
+        let port_name = info.raw_name.clone();
+        let profiles = Arc::clone(&profiles);
+        let selection = Arc::clone(&selection);
+        let bridge = bridge.clone();
+        let learn = Arc::clone(&learn);
+        let conn = client
+            .connect(
+                port,
+                PORT_NAME,
+                move |_stamp, bytes, _| {
+                    if learn.is_active() {
+                        if let Some(source) = source_from_bytes(bytes) {
+                            drop(bridge.submit(Command::PublishMidiEvent { source }));
+                            learn.on_event_captured();
+                            return;
+                        }
+                        return;
+                    }
+                    let Some(msg) = IncomingMessage::from_bytes(bytes) else {
+                        return;
+                    };
+                    // Snapshot SelectionState under a short read lock —
+                    // the lock is released before bridge.submit() so a
+                    // concurrent GUI writer never blocks on us.
+                    let snapshot = match selection.read() {
+                        Ok(g) => g.clone(),
+                        Err(_) => return, // poisoned → drop this event
+                    };
+                    let active: Vec<&MidiProfile> = profiles.iter().collect();
+                    dispatch_midi_message_to_bridge(
+                        &active,
+                        &port_name,
+                        &msg,
+                        &snapshot,
+                        &bridge,
+                    );
+                },
+                (),
+            )
+            .map_err(|e| anyhow!("connecting to MIDI port '{}': {e}", info.raw_name))?;
+        log::info!("adapter-midi: listening on '{}' (profiles)", info.raw_name);
         connections.push(conn);
     }
 

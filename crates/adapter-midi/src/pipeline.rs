@@ -13,6 +13,7 @@
 //!   `Some(v)`, wildcard when `None` (matches any byte).
 //! - Two profiles binding the same message both fire — no exclusivity.
 
+use application::bridge::CommandBridge;
 use application::dispatcher::CommandDispatcher;
 use application::SelectionState;
 
@@ -122,6 +123,26 @@ pub fn dispatch_midi_message(
     for hit in match_message(active_profiles, port_name, msg) {
         if let Some(cmd) = slot_to_command(&hit.slot, &hit.message, selection) {
             let _ = dispatcher.dispatch(cmd);
+        }
+    }
+}
+
+/// Same as [`dispatch_midi_message`] but submits over the
+/// `CommandBridge` instead of calling a `CommandDispatcher` directly.
+/// The MIDI daemon runs on a separate `midir`-callback thread; a
+/// `LocalDispatcher` is `!Send`, so the callback owns a
+/// `CommandBridge::clone` (which is `Send`) and uses this connector.
+/// The frontend thread drains the bridge and dispatches normally.
+pub fn dispatch_midi_message_to_bridge(
+    active_profiles: &[&MidiProfile],
+    port_name: &str,
+    msg: &IncomingMessage,
+    selection: &SelectionState,
+    bridge: &CommandBridge,
+) {
+    for hit in match_message(active_profiles, port_name, msg) {
+        if let Some(cmd) = slot_to_command(&hit.slot, &hit.message, selection) {
+            let _ = bridge.submit(cmd);
         }
     }
 }

@@ -27,7 +27,7 @@ mod resolve_tests;
 #[path = "learn_tests.rs"]
 mod learn_tests;
 
-pub use daemon::{run_blocking, run_blocking_with_map};
+pub use daemon::{run_blocking, run_blocking_with_map, run_blocking_with_profiles};
 pub use enumerate::{list_input_ports, MidiPortInfo, MidiPortKey};
 pub use learn::{learn_state, LearnState};
 pub use mapping::{Binding, MidiMap, Scale, Source};
