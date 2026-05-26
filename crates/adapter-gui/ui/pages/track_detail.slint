@@ -1,0 +1,272 @@
+// Track detail / multi-stem player view (#553).
+//
+// Layout mirrors the Moises reference shared on the issue: per-stem
+// rows (mute/solo, gain, pan, label) stacked vertically with a shared
+// transport row at the bottom and a small header showing title /
+// artist / BPM / key. Callbacks dispatch every state change through
+// the Command bus — this view holds no business logic.
+
+import { ScrollView, Slider } from "std-widgets.slint";
+
+export struct StemRowData {
+    index: int,
+    label: string,
+    muted: bool,
+    soloed: bool,
+    gain: float,
+    pan: float,
+}
+
+export component TrackDetailPage inherits Rectangle {
+    in property <string> title;
+    in property <string> artist;
+    in property <string> bpm-text;
+    in property <string> key-text;
+    in property <string> position-text;
+    in property <string> duration-text;
+    in property <[StemRowData]> stems;
+    in property <bool> playing;
+
+    callback back-clicked();
+    callback play-toggle();
+    callback seek-relative(int);
+    callback stem-mute-toggled(int, bool);
+    callback stem-solo-toggled(int, bool);
+    callback stem-gain-changed(int, float);
+    callback stem-pan-changed(int, float);
+
+    background: #0e1013;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Header
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: stretch;
+
+            // Back button
+            Rectangle {
+                width: 64px;
+                height: 32px;
+                background: #2f3339;
+                border-width: 1px;
+                border-color: #4c515b;
+                border-radius: 4px;
+
+                Text {
+                    text: @tr("track-back");
+                    color: #f4f7fb;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.back-clicked(); } }
+            }
+
+            Text {
+                text: root.title;
+                color: #f4f7fb;
+                font-size: 18px;
+                font-weight: 700;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            Text {
+                text: root.artist;
+                color: #b6bcc4;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: "BPM " + root.bpm-text;
+                color: #b6bcc4;
+                font-size: 13px;
+                vertical-alignment: center;
+                width: 80px;
+            }
+
+            Text {
+                text: @tr("track-key-label") + " " + root.key-text;
+                color: #b6bcc4;
+                font-size: 13px;
+                vertical-alignment: center;
+                width: 80px;
+            }
+        }
+
+        // Stem rows
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 4px;
+
+                for stem in root.stems : Rectangle {
+                    height: 60px;
+                    background: stem.soloed ? #1d3d6c : #1d2024;
+                    border-width: 1px;
+                    border-color: #2f3339;
+                    border-radius: 4px;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+                        alignment: stretch;
+
+                        // M/S buttons
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            background: stem.muted ? #b94a4a : #2f3339;
+                            border-radius: 4px;
+                            y: (parent.height - 28px) / 2;
+
+                            Text {
+                                text: @tr("track-stem-mute-abbr");
+                                color: #f4f7fb;
+                                font-size: 11px;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => { root.stem-mute-toggled(stem.index, !stem.muted); }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            background: stem.soloed ? #d9a83b : #2f3339;
+                            border-radius: 4px;
+                            y: (parent.height - 28px) / 2;
+
+                            Text {
+                                text: @tr("track-stem-solo-abbr");
+                                color: #f4f7fb;
+                                font-size: 11px;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => { root.stem-solo-toggled(stem.index, !stem.soloed); }
+                            }
+                        }
+
+                        Text {
+                            text: stem.label;
+                            color: #f4f7fb;
+                            font-size: 13px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            width: 100px;
+                        }
+
+                        Slider {
+                            minimum: 0.0;
+                            maximum: 1.5;
+                            value: stem.gain;
+                            width: 140px;
+                            changed(v) => { root.stem-gain-changed(stem.index, v); }
+                        }
+
+                        Slider {
+                            minimum: -1.0;
+                            maximum: 1.0;
+                            value: stem.pan;
+                            width: 100px;
+                            changed(v) => { root.stem-pan-changed(stem.index, v); }
+                        }
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            background: transparent;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Transport row
+        Rectangle {
+            height: 56px;
+            background: #1d2024;
+            border-width: 1px;
+            border-color: #2f3339;
+            border-radius: 6px;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 16px;
+                alignment: center;
+
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    background: #2f3339;
+                    border-radius: 18px;
+
+                    Text {
+                        text: "<<";
+                        color: #f4f7fb;
+                        font-size: 14px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea { clicked => { root.seek-relative(-5); } }
+                }
+
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    background: #188cff;
+                    border-radius: 24px;
+
+                    Text {
+                        text: root.playing ? @tr("track-pause") : @tr("track-play");
+                        color: #f4f7fb;
+                        font-size: 12px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea { clicked => { root.play-toggle(); } }
+                }
+
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    background: #2f3339;
+                    border-radius: 18px;
+
+                    Text {
+                        text: ">>";
+                        color: #f4f7fb;
+                        font-size: 14px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea { clicked => { root.seek-relative(5); } }
+                }
+
+                Text {
+                    text: root.position-text + " / " + root.duration-text;
+                    color: #b6bcc4;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    width: 120px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

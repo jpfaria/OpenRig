@@ -574,3 +574,22 @@ msgstr "Importer & séparer"
 
 msgid "tracks-empty"
 msgstr "Aucune piste pour l'instant. Importez une chanson pour commencer."
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "Retour"
+
+msgid "track-key-label"
+msgstr "Tonalité"
+
+msgid "track-stem-mute-abbr"
+msgstr "M"
+
+msgid "track-stem-solo-abbr"
+msgstr "S"
+
+msgid "track-play"
+msgstr "Lecture"
+
+msgid "track-pause"
+msgstr "Pause"

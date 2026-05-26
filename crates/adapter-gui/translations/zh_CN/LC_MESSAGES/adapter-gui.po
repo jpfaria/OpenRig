@@ -571,3 +571,22 @@ msgstr "导入并分离"
 
 msgid "tracks-empty"
 msgstr "还没有音轨。导入一首歌曲开始使用。"
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "返回"
+
+msgid "track-key-label"
+msgstr "调"
+
+msgid "track-stem-mute-abbr"
+msgstr "静"
+
+msgid "track-stem-solo-abbr"
+msgstr "独"
+
+msgid "track-play"
+msgstr "播放"
+
+msgid "track-pause"
+msgstr "暂停"

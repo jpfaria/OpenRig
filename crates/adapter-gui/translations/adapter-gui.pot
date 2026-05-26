@@ -747,3 +747,28 @@ msgstr ""
 msgctxt "TracksPage"
 msgid "tracks-empty"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgctxt "TrackDetailPage"
+msgid "track-back"
+msgstr ""
+
+msgctxt "TrackDetailPage"
+msgid "track-key-label"
+msgstr ""
+
+msgctxt "TrackDetailPage"
+msgid "track-stem-mute-abbr"
+msgstr ""
+
+msgctxt "TrackDetailPage"
+msgid "track-stem-solo-abbr"
+msgstr ""
+
+msgctxt "TrackDetailPage"
+msgid "track-play"
+msgstr ""
+
+msgctxt "TrackDetailPage"
+msgid "track-pause"
+msgstr ""

@@ -611,3 +611,22 @@ msgstr "Import & separate"
 
 msgid "tracks-empty"
 msgstr "No tracks yet. Import a song to get started."
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "Back"
+
+msgid "track-key-label"
+msgstr "Key"
+
+msgid "track-stem-mute-abbr"
+msgstr "M"
+
+msgid "track-stem-solo-abbr"
+msgstr "S"
+
+msgid "track-play"
+msgstr "Play"
+
+msgid "track-pause"
+msgstr "Pause"

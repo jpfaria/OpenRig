@@ -571,3 +571,22 @@ msgstr "आयात और अलग करें"
 
 msgid "tracks-empty"
 msgstr "अभी तक कोई ट्रैक नहीं। शुरू करने के लिए एक गाना आयात करें।"
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "वापस"
+
+msgid "track-key-label"
+msgstr "कुंजी"
+
+msgid "track-stem-mute-abbr"
+msgstr "म्यू"
+
+msgid "track-stem-solo-abbr"
+msgstr "सोलो"
+
+msgid "track-play"
+msgstr "चलाएं"
+
+msgid "track-pause"
+msgstr "रोकें"

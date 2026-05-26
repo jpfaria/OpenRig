@@ -577,3 +577,22 @@ msgstr "Importieren & trennen"
 
 msgid "tracks-empty"
 msgstr "Noch keine Tracks. Importiere ein Lied, um zu beginnen."
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "Zurück"
+
+msgid "track-key-label"
+msgstr "Tonart"
+
+msgid "track-stem-mute-abbr"
+msgstr "M"
+
+msgid "track-stem-solo-abbr"
+msgstr "S"
+
+msgid "track-play"
+msgstr "Wiedergabe"
+
+msgid "track-pause"
+msgstr "Pause"

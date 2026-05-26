@@ -571,3 +571,22 @@ msgstr "가져오기 및 분리"
 
 msgid "tracks-empty"
 msgstr "아직 트랙이 없습니다. 노래를 가져와서 시작하세요."
+
+#: crates/adapter-gui/ui/pages/track_detail.slint
+msgid "track-back"
+msgstr "뒤로"
+
+msgid "track-key-label"
+msgstr "키"
+
+msgid "track-stem-mute-abbr"
+msgstr "음소거"
+
+msgid "track-stem-solo-abbr"
+msgstr "솔로"
+
+msgid "track-play"
+msgstr "재생"
+
+msgid "track-pause"
+msgstr "일시정지"
