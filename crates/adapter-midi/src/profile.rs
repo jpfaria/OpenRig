@@ -34,6 +34,7 @@ pub const CATALOG: &[&str] = &[
     "prev_block_2",
     "next_block_2",
     "toggle_active_block_enabled",
+    "toggle_active_block_neighbor_enabled",
     // Continuous — CC (19-20)
     "chain_volume",
     "block_param_numeric",

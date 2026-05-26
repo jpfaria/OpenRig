@@ -1,1 +1,1 @@
-UI cleanup: remove the legacy "MAPEAMENTO MIDI" tab from Configurar projeto.
+RED: add toggle_active_block_neighbor_enabled to CATALOG + slot dispatch.

@@ -55,6 +55,58 @@ impl LocalDispatcher {
         Ok(vec![Event::ProjectMutated])
     }
 
+    /// `Command::ToggleActiveBlockNeighborEnabled`. Flips the
+    /// `enabled` flag of the block immediately AFTER `active_block` in
+    /// the active chain (wraps to first). No-op when no chain/block is
+    /// active or the chain has fewer than 2 blocks.
+    pub(crate) fn handle_toggle_active_block_neighbor_enabled(&self) -> Result<Vec<Event>> {
+        let chain_id_str = {
+            let sel = self.selection_state.read().expect("selection state poisoned");
+            sel.active_chain.clone()
+        };
+        let Some(chain_id) = chain_id_str else {
+            return Ok(vec![]);
+        };
+        let active_block_id = {
+            let sel = self.selection_state.read().expect("selection state poisoned");
+            sel.active_block.clone()
+        };
+        let Some(active_block_id) = active_block_id else {
+            return Ok(vec![]);
+        };
+
+        // Resolve the neighbor id under a brief project borrow.
+        let neighbor_id = {
+            let proj = self.project.borrow();
+            let chain = proj.chains.iter().find(|c| c.id.0 == chain_id);
+            let Some(chain) = chain else {
+                return Ok(vec![]);
+            };
+            if chain.blocks.len() < 2 {
+                return Ok(vec![]);
+            }
+            let active_idx = chain
+                .blocks
+                .iter()
+                .position(|b| b.id.0 == active_block_id);
+            let Some(idx) = active_idx else {
+                return Ok(vec![]);
+            };
+            let neighbor_idx = (idx + 1) % chain.blocks.len();
+            chain.blocks[neighbor_idx].id.0.clone()
+        };
+
+        // Recurse via the normal dispatch so all side effects (event
+        // emission, SelectionState mirror on the active block) run
+        // exactly the same way a click on that block's toggle would.
+        use crate::command::{BlockId, Command};
+        use crate::dispatcher::CommandDispatcher;
+        self.dispatch(Command::ToggleBlockEnabled {
+            chain: ChainId(chain_id),
+            block: BlockId(neighbor_id),
+        })
+    }
+
     /// `Command::SelectActiveBlockRelative { delta }`. Cycles through
     /// the active chain's `blocks` list (wraps both ways). No-op when
     /// no chain is active or the chain has no blocks.

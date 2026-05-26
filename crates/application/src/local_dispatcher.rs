@@ -226,6 +226,9 @@ impl CommandDispatcher for LocalDispatcher {
                     .compact_view_enabled = enabled;
                 Ok(vec![])
             }
+            Command::ToggleActiveBlockNeighborEnabled => {
+                self.handle_toggle_active_block_neighbor_enabled()
+            }
         }
     }
 

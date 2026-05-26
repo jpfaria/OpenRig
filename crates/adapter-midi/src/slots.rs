@@ -157,6 +157,14 @@ pub fn slot_to_command(
             chain: active_chain()?,
             block: BlockId(selection.active_block.clone()?),
         }),
+        "toggle_active_block_neighbor_enabled" => {
+            // Both active_chain and active_block must be set; the
+            // dispatcher resolves the neighbor index against the
+            // project's current block list.
+            let _ = active_chain()?;
+            let _ = selection.active_block.clone()?;
+            Some(Command::ToggleActiveBlockNeighborEnabled)
+        }
 
         // --- Continuous CC. Scaled 0..127 → 0.0..1.0; the project /
         //     parameter layer maps the normalised value to its real

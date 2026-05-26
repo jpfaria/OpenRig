@@ -415,6 +415,13 @@ pub enum Command {
     /// alongside the active selection so MCP/gRPC see the same flag the
     /// user sees.
     SetCompactViewEnabled { enabled: bool },
+
+    /// #548: toggle the block immediately AFTER the active block in
+    /// the active chain (wraps to first). Backs MIDI slot
+    /// `toggle_active_block_neighbor_enabled` — useful for a 4-switch
+    /// pedal where one row toggles the two blocks of a compact-view pair.
+    /// No-op when no chain/block is active or the chain has < 2 blocks.
+    ToggleActiveBlockNeighborEnabled,
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

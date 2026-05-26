@@ -10,44 +10,42 @@ to `Mode selection → Program change A` (the out-of-the-box mode).
 | Message type | `Program Change` |
 | Bank N → PC range | A=`4(n-1)`, B=`+1`, C=`+2`, D=`+3` |
 
-## Bindings
+## Hierarchy
 
-| Bank | Switch | PC | Action |
-|---|---|---|---|
-| **1 — Preset / Scene nav** | A | 0 | prev_preset |
-| | B | 1 | next_preset |
-| | C | 2 | prev_scene |
-| | D | 3 | next_scene |
-| **2 — Chain controls** | A | 4 | prev_chain |
-| | B | 5 | next_chain |
-| | C | 6 | toggle_active_chain_enabled |
-| | D | 7 | toggle_compact_view |
-| **3 — Block nav** | A | 8 | prev_block_1 |
-| | B | 9 | next_block_1 |
-| | C | 10 | prev_block_2 |
-| | D | 11 | next_block_2 |
-| **4 — Block + global toggles** | A | 12 | toggle_active_block_enabled |
-| | B | 13 | toggle_tuner |
-| | C | 14 | toggle_output_mute |
-| | D | 15 | toggle_spectrum |
+Banks 1-4 are bound. Banks 5-32 (PCs 16-127) are left for your custom
+mappings (clone the profile via **Settings → MIDI → [Customize]** —
+Phase 7 — or drop a YAML in `~/Library/Application Support/openrig/midi-profiles/`
+on macOS).
 
-Banks **5–32** (PCs 16–127) are unbound by the factory. Clone this
-profile in **Settings → MIDI → [Customize]** to add your own bindings
-(presets jumps, block param knobs, etc.) without touching the factory
-file.
+| Bank | Theme | A | B | C | D |
+|---|---|---|---|---|---|
+| **1** | Chains | prev_chain | toggle_active_chain_enabled | toggle_compact_view | next_chain |
+| **2** | Preset / Scene | prev_preset | next_preset | prev_scene | next_scene |
+| **3** | Block pair | prev_block_2 | toggle_active_block_enabled | toggle_active_block_neighbor_enabled | next_block_2 |
+| **4** | Global toggles | toggle_tuner | toggle_output_mute | toggle_spectrum | *(unbound)* |
+
+## How bank 3 works with compact view
+
+Compact view shows the active block + the next one side by side.
+With this profile, your foot has the natural mapping:
+
+- **A** — step the visible pair 2 blocks back.
+- **B** — bypass / engage the **left** block of the pair (the active one).
+- **C** — bypass / engage the **right** block of the pair (the neighbor).
+- **D** — step the visible pair 2 blocks forward.
 
 ## Pairing the pedal
 
 1. Put the Chocolate Plus in pairing mode (per its manual).
 2. macOS: *Audio MIDI Setup → Window → Show MIDI Studio → Bluetooth →
    Connect "Chocolate".* On Windows/Linux follow the platform's
-   Bluetooth manager; the device appears as a regular MIDI port
-   (typically named "FootCtrlPlus …" — the factory profile filters on
-   the `FootCtrlPlus` substring).
-3. In CubeSuite, confirm `Mode selection → Program change A` is
-   selected. If your pedal was previously customized, re-enter that
-   mode and `Export` to the pedal before running OpenRig.
-4. Open OpenRig, go to **Settings → MIDI**, activate the profile.
+   Bluetooth manager; the device appears as a MIDI port named
+   `FootCtrlPlus …` (factory profile filters on that substring).
+3. In CubeSuite, confirm `Mode selection → Program change A`. If the
+   pedal was customized, switch back to "Program change A" and Export
+   to the pedal before running OpenRig.
+4. Open OpenRig with `--midi` (or wire the auto-start), open a
+   project, and pisar.
 
 The same Bluetooth radio can only talk to one host at a time: close
 OpenRig (or unpair the pedal) before editing in CubeSuite, then reopen

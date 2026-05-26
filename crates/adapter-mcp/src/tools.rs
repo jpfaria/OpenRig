@@ -80,7 +80,10 @@ mod tests {
     /// in this phase (`SelectActiveChainRelative`,
     /// `SelectActiveBlockRelative`, `SetCompactViewEnabled`). All five
     /// have JsonSchema and round-trip through `command_from_variant`.
-    const COMMAND_VARIANT_COUNT: usize = 54;
+    /// Bumped 54 → 55 with `ToggleActiveBlockNeighborEnabled` (issue
+    /// #548 — backs the 4-switch pedal "toggle the second block of
+    /// the compact-view pair" slot).
+    const COMMAND_VARIANT_COUNT: usize = 55;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
