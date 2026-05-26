@@ -52,6 +52,7 @@ mod recent_projects_wiring;
 mod runtime_lifecycle;
 mod select_chain_block_callback;
 pub(crate) mod settings;
+pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
 mod thumbnails;
