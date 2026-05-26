@@ -25,7 +25,10 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 pub mod publishing_dispatcher;
 pub mod query;
+pub mod selection_state;
 pub mod session;
+
+pub use selection_state::SelectionState;
 pub mod validate;
 
 #[cfg(test)]
