@@ -28,6 +28,23 @@ mod resolve_tests;
 mod learn_tests;
 
 pub use daemon::{run_blocking, run_blocking_with_map, run_blocking_with_profiles};
+
+/// One-call helper for the adapter that wants every bundled factory
+/// profile active out of the box (the GUI default). Spawns the MIDI
+/// daemon on a fresh thread and returns its `JoinHandle`. The thread
+/// runs forever (the daemon is a `loop { park }`); the handle is mostly
+/// for the call site to keep alive and observe panics.
+pub fn spawn_with_bundled_profiles(
+    bridge: application::bridge::CommandBridge,
+    selection: std::sync::Arc<std::sync::RwLock<application::SelectionState>>,
+    learn: std::sync::Arc<learn::LearnState>,
+) -> std::thread::JoinHandle<anyhow::Result<()>> {
+    let profiles = profile::load_bundled_profiles();
+    std::thread::Builder::new()
+        .name("openrig-midi-profiles".into())
+        .spawn(move || run_blocking_with_profiles(bridge, profiles, selection, learn))
+        .expect("spawn midi-profiles thread")
+}
 pub use enumerate::{list_input_ports, MidiPortInfo, MidiPortKey};
 pub use learn::{learn_state, LearnState};
 pub use mapping::{Binding, MidiMap, Scale, Source};
