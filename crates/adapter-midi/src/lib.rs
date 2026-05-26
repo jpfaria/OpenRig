@@ -8,7 +8,7 @@
 //! frontend drains and dispatches on its own thread — zero audio-thread
 //! impact, real-time invariants preserved by construction.
 
-mod daemon;
+pub mod daemon;
 pub mod enumerate;
 pub mod learn;
 mod mapping;

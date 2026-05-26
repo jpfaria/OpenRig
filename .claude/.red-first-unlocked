@@ -1,1 +1,1 @@
-RED: add toggle_active_block_neighbor_enabled to CATALOG + slot dispatch.
+RED: daemon hot-plug — new_port_names + poll loop.

@@ -24,6 +24,19 @@ use crate::translate::{resolve, source_from_bytes};
 const CLIENT_NAME: &str = "OpenRig";
 const PORT_NAME: &str = "openrig-midi-in";
 
+/// Port names present in `current` that were not in `prev`. Drives the
+/// daemon's hot-plug loop: each tick we re-enumerate, ask this for the
+/// delta, and attach a connection for every new port. Disconnections
+/// are NOT pruned — midir's `MidiInputConnection` errors out on its
+/// own when the device vanishes, which is enough for V1.
+pub fn new_port_names(prev: &[String], current: &[String]) -> Vec<String> {
+    current
+        .iter()
+        .filter(|name| !prev.iter().any(|p| p == *name))
+        .cloned()
+        .collect()
+}
+
 /// Indices of **every** input port to open: all whose name contains
 /// `wanted` (case-insensitive) when set, else **all** ports. Returning
 /// every match is what lets several identical controllers (e.g. 4
@@ -164,69 +177,84 @@ pub fn run_blocking_with_profiles(
     learn: Arc<LearnState>,
 ) -> Result<()> {
     let profiles = Arc::new(profiles);
-    let infos = crate::enumerate::list_input_ports()?;
-    if infos.is_empty() {
-        return Err(anyhow!("no MIDI input port available"));
-    }
+    let mut connections: Vec<midir::MidiInputConnection<()>> = Vec::new();
+    let mut known: Vec<String> = Vec::new();
 
-    let mut connections = Vec::with_capacity(infos.len());
-    for (idx, info) in infos.iter().enumerate() {
-        let client = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
-        let ports = client.ports();
-        let Some(port) = ports.get(idx) else {
-            continue;
-        };
-        let port_name = info.raw_name.clone();
-        let profiles = Arc::clone(&profiles);
-        let selection = Arc::clone(&selection);
-        let bridge = bridge.clone();
-        let learn = Arc::clone(&learn);
-        let conn = client
-            .connect(
-                port,
-                PORT_NAME,
-                move |_stamp, bytes, _| {
-                    if learn.is_active() {
-                        if let Some(source) = source_from_bytes(bytes) {
-                            drop(bridge.submit(Command::PublishMidiEvent { source }));
-                            learn.on_event_captured();
-                            return;
-                        }
+    // Hot-plug loop: every poll tick re-enumerate, attach any port that
+    // appeared since last tick (Bluetooth pair after startup, USB plug,
+    // user clicks refresh). Connections for vanished devices drop on
+    // their own from midir's side.
+    loop {
+        let infos = crate::enumerate::list_input_ports().unwrap_or_default();
+        let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
+        let added = new_port_names(&known, &current);
+        for name in &added {
+            let Some(idx) = current.iter().position(|n| n == name) else {
+                continue;
+            };
+            match attach_port(
+                idx,
+                name,
+                Arc::clone(&profiles),
+                Arc::clone(&selection),
+                bridge.clone(),
+                Arc::clone(&learn),
+            ) {
+                Ok(conn) => {
+                    log::info!("adapter-midi: listening on '{name}' (profiles)");
+                    connections.push(conn);
+                }
+                Err(e) => {
+                    log::warn!("adapter-midi: failed to attach '{name}': {e}");
+                }
+            }
+        }
+        known = current;
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+}
+
+fn attach_port(
+    idx: usize,
+    port_name: &str,
+    profiles: Arc<Vec<MidiProfile>>,
+    selection: Arc<RwLock<SelectionState>>,
+    bridge: CommandBridge,
+    learn: Arc<LearnState>,
+) -> Result<midir::MidiInputConnection<()>> {
+    let client = MidiInput::new(CLIENT_NAME).context("creating MIDI input client")?;
+    let ports = client.ports();
+    let port = ports
+        .get(idx)
+        .ok_or_else(|| anyhow!("port index out of range"))?
+        .clone();
+    let name_for_cb = port_name.to_string();
+    client
+        .connect(
+            &port,
+            PORT_NAME,
+            move |_stamp, bytes, _| {
+                if learn.is_active() {
+                    if let Some(source) = source_from_bytes(bytes) {
+                        drop(bridge.submit(Command::PublishMidiEvent { source }));
+                        learn.on_event_captured();
                         return;
                     }
-                    let Some(msg) = IncomingMessage::from_bytes(bytes) else {
-                        return;
-                    };
-                    // Snapshot SelectionState under a short read lock —
-                    // the lock is released before bridge.submit() so a
-                    // concurrent GUI writer never blocks on us.
-                    let snapshot = match selection.read() {
-                        Ok(g) => g.clone(),
-                        Err(_) => return, // poisoned → drop this event
-                    };
-                    let active: Vec<&MidiProfile> = profiles.iter().collect();
-                    dispatch_midi_message_to_bridge(
-                        &active,
-                        &port_name,
-                        &msg,
-                        &snapshot,
-                        &bridge,
-                    );
-                },
-                (),
-            )
-            .map_err(|e| anyhow!("connecting to MIDI port '{}': {e}", info.raw_name))?;
-        log::info!("adapter-midi: listening on '{}' (profiles)", info.raw_name);
-        connections.push(conn);
-    }
-
-    if connections.is_empty() {
-        return Err(anyhow!("no MIDI input port could be opened"));
-    }
-
-    loop {
-        std::thread::park();
-    }
+                    return;
+                }
+                let Some(msg) = IncomingMessage::from_bytes(bytes) else {
+                    return;
+                };
+                let snapshot = match selection.read() {
+                    Ok(g) => g.clone(),
+                    Err(_) => return,
+                };
+                let active: Vec<&MidiProfile> = profiles.iter().collect();
+                dispatch_midi_message_to_bridge(&active, &name_for_cb, &msg, &snapshot, &bridge);
+            },
+            (),
+        )
+        .map_err(|e| anyhow!("connecting to MIDI port '{port_name}': {e}"))
 }
 
 #[cfg(test)]
