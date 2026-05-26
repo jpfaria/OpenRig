@@ -18,9 +18,18 @@ impl LocalDispatcher {
     pub(crate) fn handle_diagnostic_enabled(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::SetTunerEnabled { enabled } => {
+                // #548: mirror into the SelectionState snapshot so MIDI
+                // slot `toggle_tuner` sees the current state on the next
+                // press.
+                if let Ok(mut s) = self.selection_state.write() {
+                    s.tuner_enabled = enabled;
+                }
                 Ok(vec![Event::TunerEnabledChanged { enabled }])
             }
             Command::SetSpectrumEnabled { enabled } => {
+                if let Ok(mut s) = self.selection_state.write() {
+                    s.spectrum_enabled = enabled;
+                }
                 Ok(vec![Event::SpectrumEnabledChanged { enabled }])
             }
             other => {
