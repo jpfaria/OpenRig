@@ -14,6 +14,10 @@
 pub struct SelectionState {
     pub active_chain: Option<String>,
     pub active_block: Option<String>,
+    /// Whether the compact-view UI mode is on for the active chain.
+    /// Mutated by `Command::SetCompactViewEnabled` (MIDI slot
+    /// `toggle_compact_view`); read by the GUI and by `QueryKind::Selection`.
+    pub compact_view_enabled: bool,
 }
 
 impl SelectionState {

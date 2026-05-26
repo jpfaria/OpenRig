@@ -31,6 +31,7 @@ use project::rig::RigProject;
 use crate::command::Command;
 use crate::dispatcher::{CommandDispatcher, EventStream};
 use crate::event::Event;
+use crate::selection_state::SelectionState;
 
 /// In-process dispatcher backed by a shared `Project`.
 ///
@@ -50,6 +51,11 @@ pub struct LocalDispatcher {
     /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
     /// `rig:<input>` and real ids); absent ⇒ nothing selected.
     pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
+    /// #548: which chain / block the user has active on the Chains
+    /// screen, plus the compact-view flag. MIDI slots (Phase 3b) and the
+    /// GUI both mutate this through `Command`s; `QueryKind::Selection`
+    /// exposes it to MCP / gRPC.
+    pub(crate) selection_state: Rc<RefCell<SelectionState>>,
 }
 
 impl LocalDispatcher {
@@ -63,6 +69,7 @@ impl LocalDispatcher {
             project,
             rig: RefCell::new(None),
             selection: RefCell::new(std::collections::HashMap::new()),
+            selection_state: Rc::new(RefCell::new(SelectionState::default())),
         }
     }
 
@@ -70,6 +77,14 @@ impl LocalDispatcher {
     /// the GUI renders this, MIDI/MCP can set it). `None` if unset.
     pub fn selected_block(&self, chain: &ChainId) -> Option<usize> {
         self.selection.borrow().get(chain).copied()
+    }
+
+    /// Shared handle to the GUI selection state. The GUI mutates it on
+    /// click, MIDI slots mutate it through the 3 selection `Command`s
+    /// (Phase 3b), and `QueryKind::Selection` serializes it to MCP/gRPC.
+    /// Returning `Rc` lets callers (the GUI) hold a long-lived handle.
+    pub fn selection_state(&self) -> Rc<RefCell<SelectionState>> {
+        Rc::clone(&self.selection_state)
     }
 
     /// Share the session's `RigProject` handle so rig-nav commands can
@@ -176,15 +191,17 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_paths_system(cmd)
             }
 
-            // #548 Phase 3a — selection / view variants. Real handlers
-            // wire to `SelectionState` in Phase 3b (the type was added
-            // in Phase 1 but is not yet mounted on the session, so the
-            // dispatcher cannot mutate it here). Dispatching today is a
-            // no-op; the parity contract (every Command is a variant)
-            // is the value this commit ships.
-            Command::SelectActiveChainRelative { .. }
-            | Command::SelectActiveBlockRelative { .. }
-            | Command::SetCompactViewEnabled { .. } => Ok(vec![]),
+            // #548 Phase 3b — selection / view mutations.
+            Command::SelectActiveChainRelative { delta } => {
+                self.handle_select_active_chain_relative(delta)
+            }
+            Command::SelectActiveBlockRelative { delta } => {
+                self.handle_select_active_block_relative(delta)
+            }
+            Command::SetCompactViewEnabled { enabled } => {
+                self.selection_state.borrow_mut().compact_view_enabled = enabled;
+                Ok(vec![])
+            }
         }
     }
 

@@ -1,2 +1,2 @@
-Phase 3a follow-up: command_schema must list the 3 new MIDI Commands so
-the MCP parity guard doesn't widen its known gap (#489) by +3.
+Phase 3b: RED captured — LocalDispatcher needs selection_state() handle
+and SelectionState needs compact_view_enabled flag plus the handlers.
