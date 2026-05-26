@@ -65,6 +65,7 @@ dependencies = [
  "engine",
  "env_logger",
  "feature-dsp",
+ "feature-stems",
  "feature-tracks",
  "gettext-rs",
  "image",
@@ -84,6 +85,7 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "ui-openrig",
+ "uuid",
  "webbrowser",
 ]
 

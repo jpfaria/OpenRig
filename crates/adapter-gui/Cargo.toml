@@ -14,8 +14,10 @@ cpal = "0.17"
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 feature-dsp = { path = "../feature-dsp" }
+feature-stems = { path = "../feature-stems" }
 feature-tracks = { path = "../feature-tracks" }
 dirs.workspace = true
+uuid.workspace = true
 infra-cpal = { path = "../infra-cpal" }
 plugin-loader = { path = "../plugin-loader" }
 infra-filesystem = { path = "../infra-filesystem" }
