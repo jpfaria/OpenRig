@@ -198,6 +198,59 @@ fn subscribe_input_tap_stream_one_must_receive_signal_when_runtime_processes_aud
     );
 }
 
+/// Issue #557 — tuner side: the tuner subscribes via the lower-level
+/// `subscribe_input_tap(cid, per_entry_counter, total_channels,
+/// &entry.channels, cap)` because it needs multi-channel access for
+/// stereo / dual-mono entries. For chains where multiple entries
+/// share one per-input runtime (e.g. two mono guitars on the same
+/// Scarlett, modeled as either one entry with `channels=[0,1]` or
+/// two entries each with `channels=[X]`), the pre-fix lookup of
+/// `(cid, 1)` MISSED and fell back to runtime 0 with the global
+/// `input_index=1` filter — which the runtime's cpal callback for
+/// group 0 never matches, so the tuner ring for the second guitar
+/// stayed silent. The translation fix below mirrors
+/// `subscribe_stream_tap`'s walk and resolves the local cpal group
+/// index before calling the runtime, so tuner subscriptions for
+/// every global index past 0 land on the right cpal callback.
+#[test]
+fn subscribe_input_tap_translates_global_index_to_local_cpal_group() {
+    let chain = two_stream_mono_chain("rig:tuner", "scarlett", "monitor");
+    let (controller, runtime) = controller_with_single_runtime(&chain);
+
+    assert_eq!(controller.stream_count(&chain.id), 2);
+
+    // Mimic the tuner's per-entry call shape for the SECOND stream.
+    // The second stream's audio rides on device channel 1; total
+    // channel count of the cpal callback is 2.
+    let rings = controller.subscribe_input_tap(
+        &chain.id,
+        /* input_index = */ 1,
+        /* total_channels = */ 2,
+        /* subscribed_channels = */ &[1],
+        /* capacity_per_channel = */ 256,
+    );
+    assert_eq!(rings.len(), 1, "one ring per subscribed channel");
+
+    // Drive runtime as the cpal callback does: group 0, stereo, ch1 = -0.5.
+    let frames = 6usize;
+    let samples: Vec<f32> = (0..frames).flat_map(|_| [0.0_f32, -0.5_f32]).collect();
+    process_input_f32(&runtime, 0, &samples, 2);
+
+    let mut got = Vec::new();
+    while let Some(s) = rings[0].pop() {
+        got.push(s);
+    }
+    assert_eq!(
+        got,
+        vec![-0.5_f32; frames],
+        "tuner's input tap for stream 1 MUST receive the second \
+         guitar's ch1 samples; pre-fix the controller passed the \
+         global input_index `1` straight through to the runtime, \
+         and the runtime's cpal callback (input_index=0) never \
+         matched the tap's filter."
+    );
+}
+
 /// Issue #557 bug B: chain wired to device channel 1 (only). The
 /// INPUT meter for the chain's single stream MUST sample channel 1,
 /// NOT channel 0. Today `build_streams_from_taps` (GUI side) and the

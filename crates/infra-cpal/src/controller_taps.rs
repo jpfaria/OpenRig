@@ -88,7 +88,21 @@ impl ProjectRuntimeController {
 
     /// Subscribe to raw pre-FX samples from a chain's input. See
     /// [`engine::runtime::ChainRuntimeState::subscribe_input_tap`] for the
-    /// full contract. Returns an empty `Vec` if the chain has no runtime.
+    /// full contract. Returns an empty `Vec` if the chain has no runtime
+    /// or `input_index` is out of range.
+    ///
+    /// `input_index` is the GLOBAL stream index across the chain's
+    /// per-input runtimes (same convention as
+    /// [`Self::subscribe_stream_tap`] and [`Self::stream_count`]); the
+    /// dispatch walks `runtimes_for(chain_id)`, subtracts each runtime's
+    /// local stream count, and forwards to the runtime hosting the
+    /// segment using its real cpal-callback group index. Issue #557:
+    /// before this translation existed, an input_index of 1 on a chain
+    /// that hosts both streams in one runtime (e.g. two mono guitars on
+    /// the same device) fell back to the first runtime and passed `1`
+    /// as the runtime-side filter, which the runtime's group-0 callback
+    /// never matched — silencing every consumer (meter, tuner) for the
+    /// secondary streams.
     ///
     /// `total_channels` should be at least `max(subscribed_channels) + 1`;
     /// any extra slots are unused. Pass the actual device-side channel
@@ -101,24 +115,24 @@ impl ProjectRuntimeController {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> Vec<Arc<engine::spsc::SpscRing<f32>>> {
-        // Issue #350: the per-input runtime that owns this cpal input is
-        // keyed (chain_id, input_index). Fall back to the first runtime
-        // for single-input chains where the tap subscribes input 0.
-        let runtime = self
-            .runtime_graph
-            .chains
-            .get(&(chain_id.clone(), input_index))
-            .cloned()
-            .or_else(|| self.runtime_graph.runtime_for_chain(chain_id));
-        match runtime {
-            Some(runtime) => runtime.subscribe_input_tap(
-                input_index,
-                total_channels,
-                subscribed_channels,
-                capacity_per_channel,
-            ),
-            None => Vec::new(),
+        let mut remaining = input_index;
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            let local_count = runtime.stream_count();
+            if remaining < local_count {
+                let cpal_input_index = runtime
+                    .input_routing_for_stream(remaining)
+                    .map(|(cpal_idx, _, _)| cpal_idx)
+                    .unwrap_or(remaining);
+                return runtime.subscribe_input_tap(
+                    cpal_input_index,
+                    total_channels,
+                    subscribed_channels,
+                    capacity_per_channel,
+                );
+            }
+            remaining -= local_count;
         }
+        Vec::new()
     }
 
     /// Subscribe to a per-stream INPUT meter tap. Mirrors
