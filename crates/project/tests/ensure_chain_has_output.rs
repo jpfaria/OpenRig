@@ -54,6 +54,7 @@ fn ensure_chains_have_output_appends_default_when_missing() {
         name: Some("test".into()),
         device_settings: Vec::new(),
         chains: vec![chain_with_only_input("rig:input-4")],
+        midi: None,
     };
     ensure_chains_have_output(&mut project, &DeviceId(DEVICE.into()));
     let chain = &project.chains[0];
@@ -86,6 +87,7 @@ fn ensure_chains_have_output_is_no_op_when_output_present() {
         name: Some("test".into()),
         device_settings: Vec::new(),
         chains: vec![chain],
+        midi: None,
     };
     ensure_chains_have_output(&mut project, &DeviceId(DEVICE.into()));
     assert_eq!(
@@ -102,6 +104,7 @@ fn ensure_chains_have_output_does_nothing_when_default_device_empty() {
         name: Some("test".into()),
         device_settings: Vec::new(),
         chains: vec![chain_with_only_input("rig:input-4")],
+        midi: None,
     };
     ensure_chains_have_output(&mut project, &DeviceId(String::new()));
     assert_eq!(

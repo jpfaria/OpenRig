@@ -1,6 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
-import { LanguageSelector } from "../components/language_selector.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -366,13 +365,7 @@ export component ProjectLauncherPage inherits Rectangle {
         }
     }
 
-    // Render last so the dropdown z-orders above the project list.
-    LanguageSelector {
-        x: parent.width - 64px;
-        y: 24px;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        language-selected(i) => { root.change-language(i); }
-    }
+    // Global LanguageSelector removed (#513) — language now lives only
+    // inside Settings → Language. The launcher no longer needs a floating
+    // top-corner picker.
 }

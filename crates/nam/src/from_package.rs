@@ -139,10 +139,7 @@ impl StereoProcessor for StereoPassthrough {
 /// block factory writes it there on creation, and the project
 /// migration backfills existing presets). This function exists so
 /// the contract is testable in isolation from a real model file.
-pub fn resolve_user_output_level_db(
-    user_param_db: f32,
-    _manifest_audit_db: Option<f32>,
-) -> f32 {
+pub fn resolve_user_output_level_db(user_param_db: f32, _manifest_audit_db: Option<f32>) -> f32 {
     user_param_db
 }
 

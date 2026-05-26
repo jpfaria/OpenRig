@@ -334,9 +334,18 @@ fn b02_output_above_limiter_knee_is_softly_saturated() {
         ],
     );
     let peak = measure_steady_peak(&chain, 1, &[1.5], 2, 4);
-    assert!(peak <= 1.0, "above-knee must be bounded ≤ full scale; got {peak}");
-    assert!(peak < 1.5, "above-knee must be reduced from input 1.5; got {peak}");
-    assert!(peak > 0.9, "above-knee must stay loud (no quiet collapse); got {peak}");
+    assert!(
+        peak <= 1.0,
+        "above-knee must be bounded ≤ full scale; got {peak}"
+    );
+    assert!(
+        peak < 1.5,
+        "above-knee must be reduced from input 1.5; got {peak}"
+    );
+    assert!(
+        peak > 0.9,
+        "above-knee must stay loud (no quiet collapse); got {peak}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -717,7 +726,10 @@ fn g03_split_mono_dual_above_knee_is_softly_saturated() {
         ],
     );
     let peak = measure_steady_peak(&chain, 2, &[0.8, 0.8], 2, 4);
-    assert!(peak <= 1.0, "split-mono dual sum must be bounded ≤ 1.0; got {peak}");
+    assert!(
+        peak <= 1.0,
+        "split-mono dual sum must be bounded ≤ 1.0; got {peak}"
+    );
     assert!(peak < 1.6, "must be reduced from raw sum 1.6; got {peak}");
     assert!(peak > 0.9, "must stay loud (no quiet collapse); got {peak}");
 }
@@ -1225,7 +1237,8 @@ fn l01_real_engine_bare_chain_preserves_spectrum_per_octave() {
         worst.1.abs() < 1.0,
         "REAL ENGINE coloured the spectrum at {} Hz by {:+.2} dB — \
          every chain is bandpassed by the bare path",
-        worst.0, worst.1
+        worst.0,
+        worst.1
     );
 }
 
@@ -1256,7 +1269,9 @@ fn l02_real_engine_bare_chain_thd_n_low_for_pure_sine() {
     fft.process(&mut buf);
     let bin_hz = SR / nfft as f32;
     let fb = (1_000.0 / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
     eprintln!("\n=== REAL engine THD+N @ 1 kHz mono→stereo ===\n  THD+N = {thd_n_db:.2} dB");
@@ -1312,7 +1327,7 @@ fn l04_real_engine_thd_after_one_second_skip_isolates_fade_in() {
         .collect();
     let out = run_pink_through_chain(&chain, &sig);
     let skip = SR as usize; // skip first 1 s
-    // Issue #496 measurement fix: integer cycles, no zero-pad.
+                            // Issue #496 measurement fix: integer cycles, no zero-pad.
     let cycle_samples = (SR / 1_000.0).round() as usize;
     let usable = ((out.len() - skip) / cycle_samples) * cycle_samples;
     let tail = &out[skip..skip + usable];
@@ -1323,11 +1338,16 @@ fn l04_real_engine_thd_after_one_second_skip_isolates_fade_in() {
     fft.process(&mut buf);
     let bin_hz = SR / nfft as f32;
     let fb = (1_000.0 / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
     eprintln!("\n=== L04 THD+N (3s sine, 1s skip) ===\n  THD+N = {thd_n_db:.2} dB");
-    assert!(thd_n_db < -60.0, "L04: THD+N {thd_n_db:.2} dB after 1s skip");
+    assert!(
+        thd_n_db < -60.0,
+        "L04: THD+N {thd_n_db:.2} dB after 1s skip"
+    );
 }
 
 /// Drive SILENCE and capture output. A clean path produces pure
@@ -1460,7 +1480,9 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
         fft.process(&mut buf);
         let bin_hz = SR / nfft as f32;
         let fb = (1_000.0 / bin_hz).round() as usize;
-        let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+        let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+            .map(|b| buf[b].norm_sqr())
+            .sum();
         let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
         10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
     };
@@ -1520,7 +1542,9 @@ fn thd_n_db_at_freq_through_chain(chain: &Chain, sig: &[f32], buffer: usize, fre
     fft.process(&mut buf);
     let bin_hz = SR / nfft as f32;
     let fb = (freq / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
 }
@@ -1657,8 +1681,8 @@ macro_rules! freq_thd_test {
 freq_thd_test!(m16_freq_100, 100.0);
 // Issue #496: use freqs with integer-cycle period at 48 kHz to avoid
 // FFT leakage (220/440 Hz period is ~218/109 samples — non-integer).
-freq_thd_test!(m17_freq_200, 200.0);   // period = 240
-freq_thd_test!(m18_freq_480, 480.0);   // period = 100
+freq_thd_test!(m17_freq_200, 200.0); // period = 240
+freq_thd_test!(m18_freq_480, 480.0); // period = 100
 freq_thd_test!(m19_freq_1000, 1_000.0);
 freq_thd_test!(m20_freq_4000, 4_000.0);
 
@@ -1670,7 +1694,11 @@ macro_rules! dc_ac_test {
             let chain = bare_chain_for(stringify!($name));
             let ac = ac_rms_for_dc(&chain, $dc, 512);
             eprintln!("[DC={}] AC rms out = {ac:.6e}", $dc);
-            assert!(ac < 5e-4, "DC={} produced AC rms {ac:.6e} (>-66 dBFS = audible hiss)", $dc);
+            assert!(
+                ac < 5e-4,
+                "DC={} produced AC rms {ac:.6e} (>-66 dBFS = audible hiss)",
+                $dc
+            );
         }
     };
 }
@@ -1752,7 +1780,10 @@ macro_rules! bcast_sine_test {
                 .map(|i| $amp * (2.0 * std::f32::consts::PI * $f * i as f32 / SR).sin())
                 .collect();
             let d = max_lr_drift(&chain, &sig, $buf);
-            eprintln!("[bcast f={} amp={} buf={}] max drift = {d:.6}", $f, $amp, $buf);
+            eprintln!(
+                "[bcast f={} amp={} buf={}] max drift = {d:.6}",
+                $f, $amp, $buf
+            );
             assert!(d < 1e-5, "L vs R drift {d:.6} ≥ 1e-5");
         }
     };
@@ -1788,16 +1819,14 @@ macro_rules! bcast_signal_test {
 bcast_signal_test!(n14_b_dc_pos, vec![0.3_f32; (SR as usize) * 2], 256);
 bcast_signal_test!(n15_b_dc_neg, vec![-0.4_f32; (SR as usize) * 2], 256);
 bcast_signal_test!(n16_b_silence, vec![0.0_f32; (SR as usize) * 2], 256);
-bcast_signal_test!(
-    n17_b_pink_noise,
-    pink_noise((SR as usize) * 2, 0xCAFE),
-    256
-);
+bcast_signal_test!(n17_b_pink_noise, pink_noise((SR as usize) * 2, 0xCAFE), 256);
 bcast_signal_test!(
     n18_b_two_tone,
     (0..(SR as usize))
-        .map(|i| 0.3 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / SR).sin()
-            + 0.3 * (2.0 * std::f32::consts::PI * 440.0 * i as f32 / SR).sin())
+        .map(
+            |i| 0.3 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / SR).sin()
+                + 0.3 * (2.0 * std::f32::consts::PI * 440.0 * i as f32 / SR).sin()
+        )
         .collect(),
     256
 );
@@ -1810,15 +1839,21 @@ bcast_signal_test!(
 );
 bcast_signal_test!(
     n20_b_pluck,
-    (0..(SR as usize)).map(|i| {
-        let t = i as f32 / SR;
-        0.5 * (-t / 0.4).exp() * (2.0 * std::f32::consts::PI * 150.0 * t).sin()
-    }).collect(),
+    (0..(SR as usize))
+        .map(|i| {
+            let t = i as f32 / SR;
+            0.5 * (-t / 0.4).exp() * (2.0 * std::f32::consts::PI * 150.0 * t).sin()
+        })
+        .collect(),
     256
 );
 bcast_signal_test!(
     n21_b_impulse,
-    { let mut v = vec![0.0_f32; SR as usize]; v[128] = 0.7; v },
+    {
+        let mut v = vec![0.0_f32; SR as usize];
+        v[128] = 0.7;
+        v
+    },
     256
 );
 bcast_signal_test!(
@@ -1891,7 +1926,9 @@ fn thd_with_skip(chain: &Chain, freq: f32, amp: f32, buffer: usize, skip: usize)
     fft.process(&mut buf);
     let bin_hz = SR / nfft as f32;
     let fb = (freq / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
 }
@@ -1904,7 +1941,12 @@ macro_rules! fade_skip_test {
             let skip = (SR as usize) * $skip_ms / 1000;
             let thd = thd_with_skip(&chain, 1_000.0, 0.5, $buf, skip);
             eprintln!("[skip {} ms, buf {}] THD+N = {thd:.2} dB", $skip_ms, $buf);
-            assert!(thd < -60.0, "skip={}ms buf={} THD+N {thd:.2} dB ≥ -60", $skip_ms, $buf);
+            assert!(
+                thd < -60.0,
+                "skip={}ms buf={} THD+N {thd:.2} dB ≥ -60",
+                $skip_ms,
+                $buf
+            );
         }
     };
 }
@@ -1953,45 +1995,170 @@ fade_skip_test!(o30_skip_2s_buf_64, 2_000, 64);
 //    via bit-cast / off-by-one / wrap-around.
 // ─────────────────────────────────────────────────────────────────────────
 
-fn i16_to_f32(s: i16) -> f32 { s as f32 / i16::MAX as f32 }
-fn f32_to_i16(s: f32) -> i16 { (s * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16 }
-fn u16_to_f32(s: u16) -> f32 { (s as f32 / u16::MAX as f32) * 2.0 - 1.0 }
-fn f32_to_u16(s: f32) -> u16 { ((s + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32) as u16 }
-fn i32_to_f32(s: i32) -> f32 { s as f32 / i32::MAX as f32 }
-fn f32_to_i32(s: f32) -> i32 { (s * i32::MAX as f32).clamp(i32::MIN as f32, i32::MAX as f32) as i32 }
+fn i16_to_f32(s: i16) -> f32 {
+    s as f32 / i16::MAX as f32
+}
+fn f32_to_i16(s: f32) -> i16 {
+    (s * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16
+}
+fn u16_to_f32(s: u16) -> f32 {
+    (s as f32 / u16::MAX as f32) * 2.0 - 1.0
+}
+fn f32_to_u16(s: f32) -> u16 {
+    ((s + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32) as u16
+}
+fn i32_to_f32(s: i32) -> f32 {
+    s as f32 / i32::MAX as f32
+}
+fn f32_to_i32(s: f32) -> i32 {
+    (s * i32::MAX as f32).clamp(i32::MIN as f32, i32::MAX as f32) as i32
+}
 
-#[test] fn p01_i16_max_round_trip() { assert!((f32_to_i16(i16_to_f32(i16::MAX)) - i16::MAX).abs() <= 1); }
-#[test] fn p02_i16_min_round_trip() { assert!((f32_to_i16(i16_to_f32(i16::MIN)) - i16::MIN).abs() <= 1); }
-#[test] fn p03_i16_zero_round_trip() { assert_eq!(f32_to_i16(i16_to_f32(0)), 0); }
-#[test] fn p04_i16_one_round_trip() { assert_eq!(f32_to_i16(i16_to_f32(1)), 1); }
-#[test] fn p05_i16_neg_one_round_trip() { assert_eq!(f32_to_i16(i16_to_f32(-1)), -1); }
-#[test] fn p06_i16_half_round_trip() { let v = i16::MAX / 2; assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1); }
-#[test] fn p07_i16_neg_half_round_trip() { let v = i16::MIN / 2; assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1); }
-#[test] fn p08_i16_clamps_above_unity() { assert_eq!(f32_to_i16(2.0), i16::MAX); }
-#[test] fn p09_i16_clamps_below_minus_unity() { assert_eq!(f32_to_i16(-2.0), i16::MIN); }
-#[test] fn p10_i16_to_f32_bound() { for v in [-32768i16, -1, 0, 1, 32767] { let x = i16_to_f32(v); assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}"); } }
+#[test]
+fn p01_i16_max_round_trip() {
+    assert!((f32_to_i16(i16_to_f32(i16::MAX)) - i16::MAX).abs() <= 1);
+}
+#[test]
+fn p02_i16_min_round_trip() {
+    assert!((f32_to_i16(i16_to_f32(i16::MIN)) - i16::MIN).abs() <= 1);
+}
+#[test]
+fn p03_i16_zero_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(0)), 0);
+}
+#[test]
+fn p04_i16_one_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(1)), 1);
+}
+#[test]
+fn p05_i16_neg_one_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(-1)), -1);
+}
+#[test]
+fn p06_i16_half_round_trip() {
+    let v = i16::MAX / 2;
+    assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1);
+}
+#[test]
+fn p07_i16_neg_half_round_trip() {
+    let v = i16::MIN / 2;
+    assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1);
+}
+#[test]
+fn p08_i16_clamps_above_unity() {
+    assert_eq!(f32_to_i16(2.0), i16::MAX);
+}
+#[test]
+fn p09_i16_clamps_below_minus_unity() {
+    assert_eq!(f32_to_i16(-2.0), i16::MIN);
+}
+#[test]
+fn p10_i16_to_f32_bound() {
+    for v in [-32768i16, -1, 0, 1, 32767] {
+        let x = i16_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+    }
+}
 
-#[test] fn p11_u16_zero_maps_to_minus_one() { assert!((u16_to_f32(0) + 1.0).abs() < 1e-4); }
-#[test] fn p12_u16_max_maps_to_plus_one() { assert!((u16_to_f32(u16::MAX) - 1.0).abs() < 1e-4); }
-#[test] fn p13_u16_mid_maps_near_zero() { let v = u16::MAX / 2; assert!(u16_to_f32(v).abs() < 1e-4); }
-#[test] fn p14_u16_round_trip_zero() { assert_eq!(f32_to_u16(-1.0), 0); }
-#[test] fn p15_u16_round_trip_max() { assert_eq!(f32_to_u16(1.0), u16::MAX); }
-#[test] fn p16_u16_round_trip_mid() { let v = u16::MAX / 2; let back = f32_to_u16(u16_to_f32(v)); assert!((back as i32 - v as i32).abs() <= 1); }
-#[test] fn p17_u16_clamps_above_unity() { assert_eq!(f32_to_u16(2.0), u16::MAX); }
-#[test] fn p18_u16_clamps_below_minus_unity() { assert_eq!(f32_to_u16(-2.0), 0); }
-#[test] fn p19_u16_to_f32_bound() { for v in [0u16, 1, u16::MAX / 2, u16::MAX] { let x = u16_to_f32(v); assert!(x >= -1.001 && x <= 1.001); } }
-#[test] fn p20_u16_round_trip_dense() { for v in (0..u16::MAX).step_by(257) { let back = f32_to_u16(u16_to_f32(v)); assert!((back as i32 - v as i32).abs() <= 1, "v={v} back={back}"); } }
+#[test]
+fn p11_u16_zero_maps_to_minus_one() {
+    assert!((u16_to_f32(0) + 1.0).abs() < 1e-4);
+}
+#[test]
+fn p12_u16_max_maps_to_plus_one() {
+    assert!((u16_to_f32(u16::MAX) - 1.0).abs() < 1e-4);
+}
+#[test]
+fn p13_u16_mid_maps_near_zero() {
+    let v = u16::MAX / 2;
+    assert!(u16_to_f32(v).abs() < 1e-4);
+}
+#[test]
+fn p14_u16_round_trip_zero() {
+    assert_eq!(f32_to_u16(-1.0), 0);
+}
+#[test]
+fn p15_u16_round_trip_max() {
+    assert_eq!(f32_to_u16(1.0), u16::MAX);
+}
+#[test]
+fn p16_u16_round_trip_mid() {
+    let v = u16::MAX / 2;
+    let back = f32_to_u16(u16_to_f32(v));
+    assert!((back as i32 - v as i32).abs() <= 1);
+}
+#[test]
+fn p17_u16_clamps_above_unity() {
+    assert_eq!(f32_to_u16(2.0), u16::MAX);
+}
+#[test]
+fn p18_u16_clamps_below_minus_unity() {
+    assert_eq!(f32_to_u16(-2.0), 0);
+}
+#[test]
+fn p19_u16_to_f32_bound() {
+    for v in [0u16, 1, u16::MAX / 2, u16::MAX] {
+        let x = u16_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001);
+    }
+}
+#[test]
+fn p20_u16_round_trip_dense() {
+    for v in (0..u16::MAX).step_by(257) {
+        let back = f32_to_u16(u16_to_f32(v));
+        assert!((back as i32 - v as i32).abs() <= 1, "v={v} back={back}");
+    }
+}
 
-#[test] fn p21_i32_zero_round_trip() { assert_eq!(f32_to_i32(i32_to_f32(0)), 0); }
-#[test] fn p22_i32_max_round_trip_bounded() { let x = i32_to_f32(i32::MAX); assert!((x - 1.0).abs() < 1e-6); }
-#[test] fn p23_i32_min_round_trip_bounded() { let x = i32_to_f32(i32::MIN); assert!((x + 1.0).abs() < 1e-3); }
-#[test] fn p24_i32_clamps_above_unity() { assert_eq!(f32_to_i32(2.0), i32::MAX); }
-#[test] fn p25_i32_clamps_below_minus_unity() { assert_eq!(f32_to_i32(-2.0), i32::MIN); }
-#[test] fn p26_i32_to_f32_bound() { for v in [i32::MIN, -1, 0, 1, i32::MAX] { let x = i32_to_f32(v); assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}"); } }
-#[test] fn p27_i32_unity_round_trip() { assert_eq!(f32_to_i32(1.0), i32::MAX); }
-#[test] fn p28_i32_neg_unity_round_trip() { assert_eq!(f32_to_i32(-1.0), i32::MIN); }
-#[test] fn p29_i32_below_unity_is_within() { for &v in &[0.1_f32, 0.5, 0.9, -0.3] { assert!(f32_to_i32(v).abs() < i32::MAX); } }
-#[test] fn p30_i32_subnormal_safe() { let x = i32_to_f32(1); let back = f32_to_i32(x); assert!((back - 1).abs() <= 1); }
+#[test]
+fn p21_i32_zero_round_trip() {
+    assert_eq!(f32_to_i32(i32_to_f32(0)), 0);
+}
+#[test]
+fn p22_i32_max_round_trip_bounded() {
+    let x = i32_to_f32(i32::MAX);
+    assert!((x - 1.0).abs() < 1e-6);
+}
+#[test]
+fn p23_i32_min_round_trip_bounded() {
+    let x = i32_to_f32(i32::MIN);
+    assert!((x + 1.0).abs() < 1e-3);
+}
+#[test]
+fn p24_i32_clamps_above_unity() {
+    assert_eq!(f32_to_i32(2.0), i32::MAX);
+}
+#[test]
+fn p25_i32_clamps_below_minus_unity() {
+    assert_eq!(f32_to_i32(-2.0), i32::MIN);
+}
+#[test]
+fn p26_i32_to_f32_bound() {
+    for v in [i32::MIN, -1, 0, 1, i32::MAX] {
+        let x = i32_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+    }
+}
+#[test]
+fn p27_i32_unity_round_trip() {
+    assert_eq!(f32_to_i32(1.0), i32::MAX);
+}
+#[test]
+fn p28_i32_neg_unity_round_trip() {
+    assert_eq!(f32_to_i32(-1.0), i32::MIN);
+}
+#[test]
+fn p29_i32_below_unity_is_within() {
+    for &v in &[0.1_f32, 0.5, 0.9, -0.3] {
+        assert!(f32_to_i32(v).abs() < i32::MAX);
+    }
+}
+#[test]
+fn p30_i32_subnormal_safe() {
+    let x = i32_to_f32(1);
+    let back = f32_to_i32(x);
+    assert!((back - 1).abs() <= 1);
+}
 
 #[test]
 fn diag_thd_with_single_callback_push_pop() {
@@ -2006,19 +2173,28 @@ fn diag_thd_with_single_callback_push_pop() {
     process_input_f32(&runtime, 0, &sig, 1);
     let mut out_st = vec![0.0_f32; n * 2];
     process_output_f32(&runtime, 0, &mut out_st, 2);
-    let out: Vec<f32> = out_st.chunks_exact(2).map(|f| (f[0] + f[1]) * 0.5_f32).collect();
+    let out: Vec<f32> = out_st
+        .chunks_exact(2)
+        .map(|f| (f[0] + f[1]) * 0.5_f32)
+        .collect();
     // Skip fade-in.
     let skip = (crate::runtime_state::FADE_IN_FRAMES + 16).min(out.len() / 4);
     let tail = &out[skip..];
     let nfft = tail.len().next_power_of_two();
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(nfft);
-    let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0))
-        .chain(std::iter::repeat(Complex::new(0.0, 0.0))).take(nfft).collect();
+    let mut buf: Vec<Complex<f32>> = tail
+        .iter()
+        .map(|&s| Complex::new(s, 0.0))
+        .chain(std::iter::repeat(Complex::new(0.0, 0.0)))
+        .take(nfft)
+        .collect();
     fft.process(&mut buf);
     let bin_hz = SR / nfft as f32;
     let fb = (1_000.0 / bin_hz).round() as usize;
-    let fundamental: f32 = (fb.saturating_sub(3)..=fb + 3).map(|b| buf[b].norm_sqr()).sum();
+    let fundamental: f32 = (fb.saturating_sub(3)..=fb + 3)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
     let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
     let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
     eprintln!("\n=== diag SINGLE callback push/pop ===\n  THD+N = {thd_n_db:.2} dB  (signal length = {n} samples)");
@@ -2038,7 +2214,9 @@ fn diag_multi_callback_bit_exact_chunks_of_64() {
         process_input_f32(&runtime, 0, chunk, 1);
         let mut out = vec![0.0_f32; chunk.len() * 2];
         process_output_f32(&runtime, 0, &mut out, 2);
-        for f in out.chunks_exact(2) { out_collected.push((f[0] + f[1]) * 0.5_f32); }
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5_f32);
+        }
     }
     // Count exact mismatches per region.
     let skip = 128_usize; // past FADE_IN_FRAMES
@@ -2058,12 +2236,20 @@ fn diag_multi_callback_bit_exact_chunks_of_64() {
     eprintln!("\n=== diag MULTI 64-frame callbacks (skip {skip}) ===");
     eprintln!("  total frames after skip = {}", n - skip);
     eprintln!("  mismatches (|delta| > 1e-5) = {mismatches}");
-    eprintln!("  worst @ i={}: want={:+.6} got={:+.6}", worst.0, worst.1, worst.2);
+    eprintln!(
+        "  worst @ i={}: want={:+.6} got={:+.6}",
+        worst.0, worst.1, worst.2
+    );
     // Print 16 around worst.
     let around = worst.0.saturating_sub(8);
     eprintln!("  around worst (i={around}..{}):", around + 16);
     for i in around..(around + 16).min(n) {
-        eprintln!("   {i:>5}: want={:>+9.6}  got={:>+9.6}  delta={:>+9.6}", sig[i], out_collected[i], out_collected[i] - sig[i]);
+        eprintln!(
+            "   {i:>5}: want={:>+9.6}  got={:>+9.6}  delta={:>+9.6}",
+            sig[i],
+            out_collected[i],
+            out_collected[i] - sig[i]
+        );
     }
 }
 
@@ -2091,6 +2277,9 @@ fn diag_print_first_chunk_of_bare_chain_output() {
         let want = sig[i];
         let l = out[i * 2];
         let r = out[i * 2 + 1];
-        eprintln!(" {i:>3}: {want:>+10.6}  {l:>+10.6}  {r:>+10.6}  L-want={:+.6}", l - want);
+        eprintln!(
+            " {i:>3}: {want:>+10.6}  {l:>+10.6}  {r:>+10.6}  L-want={:+.6}",
+            l - want
+        );
     }
 }

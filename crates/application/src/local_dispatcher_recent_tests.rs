@@ -17,6 +17,7 @@ fn dispatcher() -> LocalDispatcher {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     })))
 }
 

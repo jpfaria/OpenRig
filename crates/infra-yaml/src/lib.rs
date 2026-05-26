@@ -135,6 +135,12 @@ impl ProjectYaml {
                 .enumerate()
                 .map(|(index, chain)| chain.into_chain(index))
                 .collect::<Result<Vec<_>>>()?,
+            // #513: legacy YAML projects predate the project-owned MIDI
+            // bindings (#499 / #513) — they have no `midi:` key. New
+            // projects round-trip through `RigProject` (rig.yaml), not this
+            // path; the YAML adapter here only deals with the legacy
+            // `Project` shape, so `None` is the correct value.
+            midi: None,
         })
     }
 

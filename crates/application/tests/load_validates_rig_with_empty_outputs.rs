@@ -24,7 +24,10 @@ const DEVICE: &str = "coreaudio:default";
 
 fn rig_without_outputs() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     let mut inputs = BTreeMap::new();
@@ -58,10 +61,8 @@ fn rig_to_legacy_project_chain_has_no_output_without_routing() {
     // Documents the baseline: rig-projected chain is born without an
     // Output when rig.outputs is empty.
     let rig = rig_without_outputs();
-    let project = engine::rig_runtime::rig_to_legacy_project(
-        &rig,
-        &std::collections::BTreeSet::new(),
-    );
+    let project =
+        engine::rig_runtime::rig_to_legacy_project(&rig, &std::collections::BTreeSet::new());
     let chain = project
         .chains
         .iter()
@@ -107,7 +108,10 @@ fn ensure_chains_have_output_makes_validate_project_pass() {
 
     // Sanity-check: the chain id used in the live screenshot.
     assert!(
-        project.chains.iter().any(|c| c.id == ChainId(CHAIN_ID.into())),
+        project
+            .chains
+            .iter()
+            .any(|c| c.id == ChainId(CHAIN_ID.into())),
         "the synthesized output belongs to rig:input-4 (CABELINHO)"
     );
 }

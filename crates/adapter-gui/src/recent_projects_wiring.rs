@@ -188,7 +188,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     window.set_show_project_launcher(false);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                 }
                 Err(error) => {
                     let reason = error.to_string();

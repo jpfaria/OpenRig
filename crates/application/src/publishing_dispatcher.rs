@@ -52,6 +52,7 @@ mod tests {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         }));
         let inner = LocalDispatcher::new(project);
         let (sink, mut rx) = event_sink();

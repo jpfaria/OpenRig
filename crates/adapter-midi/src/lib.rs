@@ -9,6 +9,8 @@
 //! impact, real-time invariants preserved by construction.
 
 mod daemon;
+pub mod enumerate;
+pub mod learn;
 mod mapping;
 mod message;
 pub mod resolve;
@@ -18,7 +20,13 @@ mod translate;
 #[path = "resolve_tests.rs"]
 mod resolve_tests;
 
+#[cfg(test)]
+#[path = "learn_tests.rs"]
+mod learn_tests;
+
 pub use daemon::{run_blocking, run_blocking_with_map};
+pub use enumerate::{list_input_ports, MidiPortInfo, MidiPortKey};
+pub use learn::{learn_state, LearnState};
 pub use mapping::{Binding, MidiMap, Scale, Source};
 pub use message::MidiMessage;
 pub use resolve::resolve_midi_map;

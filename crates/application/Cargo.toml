@@ -13,6 +13,7 @@ project = { path = "../project" }
 engine = { path = "../engine" }
 block-core = { path = "../block-core" }
 domain = { path = "../domain" }
+infra-filesystem = { path = "../infra-filesystem" }
 plugin-loader = { path = "../plugin-loader" }
 
 [dev-dependencies]

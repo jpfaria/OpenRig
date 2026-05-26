@@ -16,9 +16,7 @@
 //! file are written against `description` and chain count — never the
 //! raw `ChainId`, which is an internal projection artefact.
 
-use crate::project_ops::{
-    create_new_project_session, load_project_session, save_project_session,
-};
+use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use project::chain::Chain;
@@ -355,10 +353,7 @@ fn save_creates_parent_directory_when_missing() {
     save_project_session(&session, &nested).expect("save creates dirs");
 
     let reloaded = load_project_session(&nested, &cfg).expect("reload");
-    assert_eq!(
-        chain_descriptions(&reloaded),
-        vec![Some("g1".to_string())]
-    );
+    assert_eq!(chain_descriptions(&reloaded), vec![Some("g1".to_string())]);
 }
 
 #[test]
@@ -374,10 +369,7 @@ fn save_then_reload_works_with_openrig_extension() {
     save_project_session(&session, &path).expect("save .openrig");
 
     let reloaded = load_project_session(&path, &cfg).expect("reload .openrig");
-    assert_eq!(
-        chain_descriptions(&reloaded),
-        vec![Some("g1".to_string())]
-    );
+    assert_eq!(chain_descriptions(&reloaded), vec![Some("g1".to_string())]);
 }
 
 // ────────────────────────────────────────────────────────────────────

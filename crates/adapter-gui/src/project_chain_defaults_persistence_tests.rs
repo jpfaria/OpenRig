@@ -88,8 +88,7 @@ fn new_chain_save_sets_input_label_to_chain_description() {
     s.save(&session);
 
     let rig = s.read_openrig();
-    let labels: Vec<Option<String>> =
-        rig.inputs.values().map(|i| i.label.clone()).collect();
+    let labels: Vec<Option<String>> = rig.inputs.values().map(|i| i.label.clone()).collect();
     assert!(
         labels.contains(&Some("Chain 1".to_string())),
         "input.label must carry the chain description; got {labels:?}"
@@ -105,8 +104,7 @@ fn new_chain_save_does_not_duplicate_chain_name_into_preset_name() {
     s.save(&session);
 
     let rig = s.read_openrig();
-    let preset_names: Vec<Option<String>> =
-        rig.presets.values().map(|p| p.name.clone()).collect();
+    let preset_names: Vec<Option<String>> = rig.presets.values().map(|p| p.name.clone()).collect();
     assert!(
         !preset_names.iter().any(|n| n.as_deref() == Some("Chain 1")),
         "preset.name must be distinct from the chain name; got {preset_names:?}"
@@ -125,10 +123,11 @@ fn new_chain_save_uses_default_preset_label() {
     s.save(&session);
 
     let rig = s.read_openrig();
-    let preset_names: Vec<Option<String>> =
-        rig.presets.values().map(|p| p.name.clone()).collect();
+    let preset_names: Vec<Option<String>> = rig.presets.values().map(|p| p.name.clone()).collect();
     assert!(
-        preset_names.iter().any(|n| n.as_deref() == Some("Preset 1")),
+        preset_names
+            .iter()
+            .any(|n| n.as_deref() == Some("Preset 1")),
         "expected a 'Preset 1' default; got {preset_names:?}"
     );
 }
@@ -184,8 +183,7 @@ fn two_chains_with_same_source_save_as_two_separate_inputs() {
         rig.inputs.len(),
         rig.inputs.keys().collect::<Vec<_>>()
     );
-    let labels: Vec<Option<String>> =
-        rig.inputs.values().map(|i| i.label.clone()).collect();
+    let labels: Vec<Option<String>> = rig.inputs.values().map(|i| i.label.clone()).collect();
     assert!(
         labels.contains(&Some("Chain 1".to_string()))
             && labels.contains(&Some("Chain 2".to_string())),
@@ -206,8 +204,7 @@ fn two_chains_with_same_source_save_as_two_independent_preset_pools() {
     s.save(&session);
 
     let rig = s.read_openrig();
-    let total_bank_entries: usize =
-        rig.inputs.values().map(|i| i.bank.len()).sum();
+    let total_bank_entries: usize = rig.inputs.values().map(|i| i.bank.len()).sum();
     assert_eq!(
         total_bank_entries,
         2,
@@ -235,7 +232,11 @@ fn new_chain_defaults_are_consistent_end_to_end() {
     let rig = s.read_openrig();
     assert_eq!(rig.inputs.len(), 1, "one chain → one input");
     let (input_name, input) = rig.inputs.iter().next().unwrap();
-    assert_eq!(input.label.as_deref(), Some("GUITAR"), "input.label is chain name");
+    assert_eq!(
+        input.label.as_deref(),
+        Some("GUITAR"),
+        "input.label is chain name"
+    );
     assert_eq!(input.bank.len(), 1, "exactly one preset slot");
     let preset_key = input.bank.get(&1).expect("bank slot 1 present");
     let preset = rig.presets.get(preset_key).expect("preset exists");

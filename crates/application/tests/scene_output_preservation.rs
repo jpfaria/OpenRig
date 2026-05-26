@@ -107,7 +107,8 @@ fn dispatcher_with_user_output() -> (
     // the legacy project (the rig has no `outputs` entry for this chain).
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == CHAIN_ID {
-            c.blocks.retain(|b| !matches!(b.kind, AudioBlockKind::Output(_)));
+            c.blocks
+                .retain(|b| !matches!(b.kind, AudioBlockKind::Output(_)));
             c.blocks.push(user_output_block());
         }
     }

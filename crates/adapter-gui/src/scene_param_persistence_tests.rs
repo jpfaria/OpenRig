@@ -5,9 +5,7 @@
 //! runs before save_rig_project_file), and confirm the rig actually
 //! holds the override.
 
-use crate::project_ops::{
-    create_new_project_session, load_project_session, save_project_session,
-};
+use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::{Command, RigNavKind};

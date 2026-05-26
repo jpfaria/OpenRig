@@ -43,6 +43,18 @@ impl LocalDispatcher {
                 self.project.borrow_mut().device_settings = device_settings;
                 Ok(vec![Event::AudioSettingsSaved])
             }
+
+            // #513 / #493: replace the project's MIDI binding list. Lazily
+            // creates `project.midi` (absent on pre-#513 projects), then
+            // overwrites the bindings — caller is responsible for sending
+            // the full desired list.
+            Command::SaveMidiMapping { bindings } => {
+                let mut project = self.project.borrow_mut();
+                let midi = project.midi.get_or_insert_with(Default::default);
+                midi.bindings = bindings;
+                drop(project);
+                Ok(vec![Event::MidiMappingSaved, Event::ProjectMutated])
+            }
             other => unreachable!("handle_project received non-project command: {other:?}"),
         }
     }

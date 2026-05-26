@@ -64,6 +64,7 @@ fn validate_project_empty_chains_fails() {
         name: Some("test".to_string()),
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     };
     let err = validate_project(&project).unwrap_err();
     assert!(err.to_string().contains("no chains configured"));
@@ -121,6 +122,7 @@ fn validate_project_whitespace_input_device_id_fails() {
         name: Some("test".to_string()),
         device_settings: vec![test_device_settings("dev-out")],
         chains: vec![chain],
+        midi: None,
     };
     let err = validate_project(&project).unwrap_err();
     assert!(err.to_string().contains("missing device_id"));

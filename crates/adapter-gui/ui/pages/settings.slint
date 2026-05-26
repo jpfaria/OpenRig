@@ -1,0 +1,330 @@
+// Settings rendered as a master-detail panel (issue #513).
+//
+// Per ux-ui-mastery:desktop-app-design, master-detail (list left,
+// content right) is the dominant desktop preferences pattern (macOS
+// System Preferences, VS Code, Logic Pro). The previous
+// TabWidget+accordion layout was wrong for this surface — too many
+// expand/collapse interactions, too much chrome around tiny content.
+//
+// Tokens (from ux-ui-mastery:ui-visual-design-system):
+//   - Type scale Major Third — xs=10px, sm=13px, base=16px.
+//   - Spacing base-4 — 4/8/12/16/20/24/32/40/48.
+//   - Dark surfaces: page #171a1f, surface #1a1d22, elevated #22272f,
+//     hover #1e2229. Hairline border #25292f.
+//   - Text: primary #dde3ec, secondary #8a92a3, tertiary #6b7786.
+//   - Accent #188cff (focus/active). Focus ring 2px #45a7ff @ 150ms.
+
+import { Button, ScrollView } from "std-widgets.slint";
+import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.slint";
+import { SectionSystemAudio } from "settings/section_system_audio.slint";
+import { SectionSystemLanguage } from "settings/section_system_language.slint";
+import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
+import { SectionSystemPaths } from "settings/section_system_paths.slint";
+import { SectionProjectMeta } from "settings/section_project_meta.slint";
+import { SectionProjectMidiMapping } from "settings/section_project_midi_mapping.slint";
+
+// Sidebar nav row — selectable item with hover bg, active-state bg,
+// 2px brand-blue left accent when selected. Used inside the sidebar
+// VerticalLayout; not exported.
+component NavRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked();
+
+    height: 36px;
+    background: root.selected
+        ? #22272f
+        : (ta.has-hover ? #1e2229 : transparent);
+    animate background { duration: 150ms; }
+
+    // Left accent bar — only renders when this row is the active one.
+    if root.selected : Rectangle {
+        x: 0px;
+        y: 6px;
+        width: 2px;
+        height: parent.height - 12px;
+        background: #188cff;
+    }
+
+    Text {
+        x: 16px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.label;
+        color: root.selected ? #dde3ec : #8a92a3;
+        font-size: 16px;
+        font-weight: root.selected ? 600 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    // Anchor a min size so the inner layouts can resolve without
+    // bubbling preferred-width upward (which produces binding loops
+    // through the ScrollView viewport-width).
+    min-width: 720px;
+    min-height: 480px;
+    preferred-width: 960px;
+    preferred-height: 640px;
+
+    // ── Forwarded property surface (UNCHANGED from previous version) ──
+    // Kept for callsite compatibility — the old layout used these to
+    // edit the project name at the top of the page. The new layout
+    // edits the name from SectionProjectMeta via `edit-project-name`.
+    in-out property <string> project-name-draft;
+    in-out property <string> status-message;
+
+    in property <[DeviceSelectionItem]> project-devices;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
+    in property <[string]> language-options;
+    in property <[string]> language-codes;
+    in property <int> selected-language-index;
+    in property <[MidiDeviceRow]> midi-devices;
+    in property <[MidiBindingRow]> midi-bindings;
+    in property <[string]> available-commands;
+    // System / Paths section (#513). Empty string = use OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    // Default-bind to project-name-draft so SettingsPage shows the
+    // current project name inside the secondary ProjectSettingsWindow
+    // (which only forwards project-name-draft).
+    in property <string> project-name: root.project-name-draft;
+    in property <string> project-path-display;
+    callback edit-project-name(string);
+    // Retained for callsite compatibility (old top-of-page FieldBox).
+    callback update-project-name(string);
+    callback save-audio-settings();
+    // Project / Metadata "Save project" button (#513). Forwards to the
+    // app-level save-project callback so Settings can trigger the same
+    // Command::SaveProject path the toolbar Save button uses.
+    callback save-project();
+    callback close-settings();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
+    callback refresh-devices();
+    callback language-selected(int);
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
+    // System / Paths section callbacks (#513)
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+
+    // Active section index (sidebar selection). 0 = Audio, default.
+    in-out property <int> selected-section: 0;
+
+    background: #171a1f;
+
+    HorizontalLayout {
+        spacing: 0px;
+
+        // ── Sidebar ───────────────────────────────────────────────
+        Rectangle {
+            width: 200px;
+            background: #1a1d22;
+
+            VerticalLayout {
+                padding-top: 16px;
+                padding-bottom: 16px;
+                padding-left: 0px;
+                padding-right: 0px;
+                spacing: 4px;
+
+                // Group label: SYSTEM
+                Rectangle {
+                    height: 24px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        Text {
+                            text: @tr("nav-group-system");
+                            color: #6b7786;
+                            font-size: 14px;
+                            font-weight: 700;
+                            letter-spacing: 0.8px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                NavRow {
+                    label: @tr("title-section-audio-interface");
+                    selected: root.selected-section == 0;
+                    clicked => { root.selected-section = 0; }
+                }
+                NavRow {
+                    label: @tr("title-section-language");
+                    selected: root.selected-section == 1;
+                    clicked => { root.selected-section = 1; }
+                }
+                NavRow {
+                    label: @tr("title-section-midi-devices");
+                    selected: root.selected-section == 2;
+                    clicked => { root.selected-section = 2; }
+                }
+                NavRow {
+                    label: @tr("title-section-paths");
+                    selected: root.selected-section == 3;
+                    clicked => { root.selected-section = 3; }
+                }
+
+                // Visual gap between groups (24px between unrelated
+                // groups per the spacing tokens).
+                Rectangle { height: 12px; }
+
+                // Group label: PROJECT
+                Rectangle {
+                    height: 24px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        Text {
+                            text: @tr("nav-group-project");
+                            color: #6b7786;
+                            font-size: 14px;
+                            font-weight: 700;
+                            letter-spacing: 0.8px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                NavRow {
+                    label: @tr("title-section-project-meta");
+                    selected: root.selected-section == 4;
+                    clicked => { root.selected-section = 4; }
+                }
+                NavRow {
+                    label: @tr("title-section-midi-mapping");
+                    selected: root.selected-section == 5;
+                    clicked => { root.selected-section = 5; }
+                }
+
+                // Vertical stretch so the nav rows hug the top.
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+
+        // Vertical hairline divider between sidebar and content area.
+        Rectangle {
+            width: 1px;
+            background: #25292f;
+        }
+
+        // ── Content area ──────────────────────────────────────────
+        Rectangle {
+            horizontal-stretch: 1;
+            background: #171a1f;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                // Section title (rendered by the shell, not the section).
+                Text {
+                    text:
+                        root.selected-section == 0 ? @tr("title-section-audio-interface")
+                        : root.selected-section == 1 ? @tr("title-section-language")
+                        : root.selected-section == 2 ? @tr("title-section-midi-devices")
+                        : root.selected-section == 3 ? @tr("title-section-paths")
+                        : root.selected-section == 4 ? @tr("title-section-project-meta")
+                        : @tr("title-section-midi-mapping");
+                    color: #dde3ec;
+                    font-size: 18px;
+                    font-weight: 700;
+                }
+
+                // Hairline separator under the title.
+                Rectangle {
+                    background: #25292f;
+                    height: 1px;
+                }
+
+                // Active section content. ScrollView so over-tall
+                // sections scroll inside the panel.
+                ScrollView {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+
+                    if root.selected-section == 0 : SectionSystemAudio {
+                        project-devices: root.project-devices;
+                        sample-rate-options: root.sample-rate-options;
+                        buffer-size-options: root.buffer-size-options;
+                        bit-depth-options: root.bit-depth-options;
+                        refresh-devices => { root.refresh-devices(); }
+                        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+                        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+                        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+                        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+                        save-audio-settings => { root.save-audio-settings(); }
+                    }
+                    if root.selected-section == 1 : SectionSystemLanguage {
+                        language-options: root.language-options;
+                        language-codes: root.language-codes;
+                        selected-language-index: root.selected-language-index;
+                        language-selected(i) => { root.language-selected(i); }
+                    }
+                    if root.selected-section == 2 : SectionSystemMidiDevices {
+                        devices: root.midi-devices;
+                        refresh-midi-devices => { root.refresh-midi-devices(); }
+                        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+                        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+                    }
+                    if root.selected-section == 3 : SectionSystemPaths {
+                        presets-path: root.presets-path;
+                        plugins-path: root.plugins-path;
+                        pick-presets-path => { root.pick-presets-path(); }
+                        reset-presets-path => { root.reset-presets-path(); }
+                        pick-plugins-path => { root.pick-plugins-path(); }
+                        reset-plugins-path => { root.reset-plugins-path(); }
+                    }
+                    if root.selected-section == 4 : SectionProjectMeta {
+                        project-name: root.project-name;
+                        project-path-display: root.project-path-display;
+                        edit-project-name(t) => { root.edit-project-name(t); }
+                        save-project => { root.save-project(); }
+                    }
+                    if root.selected-section == 5 : SectionProjectMidiMapping {
+                        bindings: root.midi-bindings;
+                        available-commands: root.available-commands;
+                        add-midi-binding => { root.add-midi-binding(); }
+                        delete-midi-binding(i) => { root.delete-midi-binding(i); }
+                        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+                        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+                    }
+                }
+
+                // Footer: action buttons bottom-right. Aplicar only
+                // appears on the Audio section (it's the one that needs
+                // an explicit save — runtime restart).
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+                    if root.selected-section == 0 : Button {
+                        text: @tr("btn-save-audio-settings");
+                        clicked => { root.save-audio-settings(); }
+                    }
+                    Button {
+                        text: @tr("btn-close");
+                        clicked => { root.close-settings(); }
+                    }
+                }
+            }
+        }
+    }
+}
