@@ -262,6 +262,55 @@ under `crates/<x>/tests/fixtures/`.
    user activation exists. Detailed migration plan goes in the Phase 4
    PR description.
 
+## Phase 0 audit — slots × `Command` coverage
+
+Done 2026-05-26 against `crates/application/src/command.rs` on
+`origin/develop` @ a0b79c8a.
+
+| # | Slot | Backing Command | Status | Notes |
+|---|---|---|---|---|
+| 1 | `toggle_tuner` | `SetTunerEnabled { enabled }` | ✅ exists | slot reads current state, dispatches with `!current` |
+| 2 | `toggle_output_mute` | `SetOutputMuted { muted }` | ✅ exists | idem |
+| 3 | `toggle_spectrum` | `SetSpectrumEnabled { enabled }` | ✅ exists | idem |
+| 4 | `prev_chain` | `SelectActiveChainRelative { delta: -1 }` (new) | ❌ missing | requires `SelectionState::active_chain` (Phase 1) |
+| 5 | `next_chain` | `SelectActiveChainRelative { delta: +1 }` (new) | ❌ missing | idem |
+| 6 | `toggle_active_chain_enabled` | `ToggleChainEnabled { chain }` | ✅ exists | slot resolves `chain = active` |
+| 7 | `toggle_compact_view` | `SetCompactViewEnabled { enabled }` (new) | ❌ missing | currently GUI-only callback (`open_compact_chain_view` / `close_compact_view`); on #436 backlog |
+| 8 | `prev_preset` | `ApplyRigNav { chain, kind: StepPreset(-1) }` | ✅ exists | |
+| 9 | `next_preset` | `ApplyRigNav { chain, kind: StepPreset(+1) }` | ✅ exists | |
+| 10 | `prev_scene` | `ApplyRigNav { chain, kind: StepScene(-1) }` | ✅ exists | |
+| 11 | `next_scene` | `ApplyRigNav { chain, kind: StepScene(+1) }` | ✅ exists | |
+| 12 | `jump_preset_n` | `ApplyRigNav { chain, kind: Preset(n) }` | ✅ exists | `n` comes from PC/CC value (wildcard) |
+| 13 | `jump_scene_n` | `ApplyRigNav { chain, kind: Scene(n) }` | ✅ exists | idem |
+| 14 | `prev_block_1` | `SelectActiveBlockRelative { delta: -1 }` (new) | ❌ missing | option B fallback: slot reads active block index, dispatches existing `SelectChainBlock { block_index }`. Decision deferred to Phase 3 |
+| 15 | `next_block_1` | `SelectActiveBlockRelative { delta: +1 }` (new) | ❌ missing | idem |
+| 16 | `prev_block_2` | `SelectActiveBlockRelative { delta: -2 }` (new) | ❌ missing | idem |
+| 17 | `next_block_2` | `SelectActiveBlockRelative { delta: +2 }` (new) | ❌ missing | idem |
+| 18 | `toggle_active_block_enabled` | `ToggleBlockEnabled { chain, block }` | ✅ exists | slot resolves `chain = active`, `block = active` |
+| 19 | `chain_volume` | `SetChainVolume { chain, value }` | ✅ exists | slot scales CC 0..127 → param range |
+| 20 | `block_param_numeric` | `SetBlockParameterNumber { chain, block, path, value }` | ✅ exists | slot picks first numeric param of active block schema (v1); CC scaled |
+
+**Net new Commands required (3):**
+
+1. `SelectActiveChainRelative { delta: i32 }` — backs slots 4–5.
+   Touches `application` (variant + dispatcher) + `adapter-gui` (so
+   the GUI dispatches the same command when the user clicks the
+   chain-step arrows, closing the parity gap).
+2. `SetCompactViewEnabled { enabled: bool }` — backs slot 7. New
+   Command for a piece of state that lives in the GUI session today.
+   Same parity discipline: GUI dispatches it, MCP/gRPC get it free.
+3. `SelectActiveBlockRelative { delta: i32 }` — backs slots 14–17. If
+   Phase 3 prefers option B (slot computes index, dispatches existing
+   `SelectChainBlock`), this Command can be skipped — but adds parity
+   value, so default is to add it.
+
+**No Command is missing for slots 1–3, 6, 8–13, 18–20.** 13 of the 20
+slots are wired through existing Commands; the other 7 share **3 new
+Commands**.
+
+Phase 3 PR will add the 3 new Commands first (red-first on the
+dispatcher), then implement the slots that depend on them.
+
 ## Related work
 
 - #181 — MIDI infrastructure (umbrella for input/routing/chain
