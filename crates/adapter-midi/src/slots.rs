@@ -37,6 +37,52 @@ impl IncomingMessage {
             Self::NoteOff { .. } => 0,
         }
     }
+
+    /// Parse the raw bytes `midir` hands us into an `IncomingMessage`.
+    /// MIDI 1.0 status byte: high nibble = type, low nibble = channel
+    /// 0-15 (exposed 1-16). Returns `None` for unsupported types
+    /// (poly aftertouch, sysex, system real-time), truncated frames, or
+    /// empty input — the daemon treats `None` as "ignore this message".
+    ///
+    /// Convention: NoteOn with velocity 0 is rewritten as NoteOff (very
+    /// common in the wild) so slot maps don't need to match both.
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.is_empty() {
+            return None;
+        }
+        let status = bytes[0];
+        let channel = (status & 0x0F) + 1; // 1..=16
+        match status & 0xF0 {
+            0x80 if bytes.len() >= 3 => Some(Self::NoteOff {
+                channel,
+                note: bytes[1],
+            }),
+            0x90 if bytes.len() >= 3 => {
+                if bytes[2] == 0 {
+                    Some(Self::NoteOff {
+                        channel,
+                        note: bytes[1],
+                    })
+                } else {
+                    Some(Self::NoteOn {
+                        channel,
+                        note: bytes[1],
+                        velocity: bytes[2],
+                    })
+                }
+            }
+            0xB0 if bytes.len() >= 3 => Some(Self::ControlChange {
+                channel,
+                controller: bytes[1],
+                value: bytes[2],
+            }),
+            0xC0 if bytes.len() >= 2 => Some(Self::ProgramChange {
+                channel,
+                program: bytes[1],
+            }),
+            _ => None,
+        }
+    }
 }
 
 /// Build the `Command` for a catalog slot. Returns `None` when the slot

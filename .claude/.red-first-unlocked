@@ -1,1 +1,1 @@
-Phase 5 wiring: RED — load_bundled_profiles + include_str! Chocolate.
+Phase 5 wiring: RED — IncomingMessage::from_bytes parses raw MIDI bytes.
