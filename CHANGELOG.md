@@ -6,6 +6,20 @@ contributor-visible changes that landed in that release, grouped by area.
 Issue links (`#NNN`) point to the public tracker with the full motivation,
 repro, and trade-off discussion behind the change.
 
+## Unreleased
+
+### Added
+- **Headless offline render mode** (`openrig --render --project P --input
+  IN.wav --output OUT.wav`). New `adapter-render` crate plus a new
+  `engine::offline::render_chain` driver that reuses the same
+  `RuntimeProcessor::process_buffer` as the realtime callback — chains
+  render byte-identical between offline and live for the same input.
+  Deterministic, atomic write (`<output>.tmp` + rename), mutually
+  exclusive with `--mcp` / `--midi` / positional project path. Drives the
+  audio-validation loop for the `openrig-tone-analyzer` skill
+  (OpenRig-claude#8). Single-chain, no I/O blocks, no MIDI/automation
+  replay — multi-chain rendering remains out of scope (#552).
+
 ## v0.1.0-dev.23 — 2026-05-25
 
 The "project & rig" release: the project-level I/O + per-input preset bank
