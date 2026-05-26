@@ -49,6 +49,7 @@ mod plugin_info_inline_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
+pub mod render_dispatch;
 mod runtime_lifecycle;
 mod select_chain_block_callback;
 pub(crate) mod settings;
