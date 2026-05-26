@@ -595,6 +595,30 @@ export component AppWindow inherits Window {
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
         show-settings: root.show-settings;
+        show-tracks: root.show-tracks;
+        tracks: root.tracks;
+        tracks-search-text <=> root.tracks-search-text;
+        open-tracks-clicked => { root.open-tracks-clicked(); }
+        tracks-back-clicked => { root.tracks-back-clicked(); }
+        tracks-import-clicked => { root.tracks-import-clicked(); }
+        tracks-track-clicked(id) => { root.tracks-track-clicked(id); }
+        tracks-search-changed(t) => { root.tracks-search-changed(t); }
+        show-track-detail: root.show-track-detail;
+        track-detail-title: root.track-detail-title;
+        track-detail-artist: root.track-detail-artist;
+        track-detail-bpm-text: root.track-detail-bpm-text;
+        track-detail-key-text: root.track-detail-key-text;
+        track-detail-position-text: root.track-detail-position-text;
+        track-detail-duration-text: root.track-detail-duration-text;
+        track-detail-stems: root.track-detail-stems;
+        track-detail-playing: root.track-detail-playing;
+        track-detail-back-clicked => { root.track-detail-back-clicked(); }
+        track-detail-play-toggle => { root.track-detail-play-toggle(); }
+        track-detail-seek-relative(d) => { root.track-detail-seek-relative(d); }
+        track-detail-stem-mute-toggled(i, m) => { root.track-detail-stem-mute-toggled(i, m); }
+        track-detail-stem-solo-toggled(i, s) => { root.track-detail-stem-solo-toggled(i, s); }
+        track-detail-stem-gain-changed(i, g) => { root.track-detail-stem-gain-changed(i, g); }
+        track-detail-stem-pan-changed(i, p) => { root.track-detail-stem-pan-changed(i, p); }
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
