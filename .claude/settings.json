@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills openrig-code-quality, rust-best-practices, slint-best-practices quando tocar código Rust/Slint.\"}}'"
+            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills dev-rules, openrig-code-quality, rust-best-practices, slint-best-practices quando tocar código Rust/Slint (openrig-code-quality COMPLEMENTA dev-rules — LAW 1/2/3/5 vivem lá).\"}}'"
           }
         ]
       }
