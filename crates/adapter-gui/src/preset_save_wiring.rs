@@ -22,11 +22,8 @@ use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use project::chain::Chain;
 
-use crate::chain_preset_wiring::{
-    default_preset_filename_slug, preset_overwrite_required, preset_save_path,
-};
+use crate::chain_preset_wiring::{default_preset_filename_slug, preset_overwrite_required};
 use crate::helpers::{set_status_error, set_status_info};
-use crate::project_ops::save_chain_blocks_to_preset;
 use crate::state::ProjectSession;
 use crate::AppWindow;
 
@@ -92,7 +89,9 @@ pub(crate) fn wire(
 
             if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog.
-                let _ = std::fs::create_dir_all(&session.presets_path);
+                // (Directory creation is handled inside the
+                // `Command::SaveChainPreset` dispatcher; the GUI no
+                // longer touches the filesystem here — #555.)
                 perform_preset_save(
                     &window,
                     session,
@@ -234,19 +233,19 @@ fn perform_preset_save(
     window: &AppWindow,
     session: &mut ProjectSession,
     chain_id: &ChainId,
-    chain_clone: &Chain,
+    _chain_clone: &Chain,
     name: &str,
     toast_timer: &Rc<Timer>,
 ) {
-    let _ = std::fs::create_dir_all(&session.presets_path);
-    let path = preset_save_path(&session.presets_path, name);
-    match save_chain_blocks_to_preset(chain_clone, &path) {
-        Ok(()) => {
-            if let Err(e) = session.dispatcher.dispatch(Command::SaveChainPreset {
-                name: name.to_string(),
-            }) {
-                log::warn!("[preset-save] Command::SaveChainPreset failed: {e}");
-            }
+    // #555: the YAML write and the `create_dir_all` used to happen
+    // here in the adapter. They now live inside the dispatcher
+    // handler for `Command::SaveChainPreset`, so MCP/MIDI/gRPC
+    // clients produce the same on-disk effect as the GUI.
+    match session.dispatcher.dispatch(Command::SaveChainPreset {
+        chain: chain_id.clone(),
+        name: name.to_string(),
+    }) {
+        Ok(_) => {
             // Mirror the load flow: rename the active preset to the
             // chosen name and refresh the chain-rig-nav so the
             // combobox in the chain title reflects the new label

@@ -362,30 +362,11 @@ pub(crate) fn save_project_session(session: &ProjectSession, project_path: &Path
     Ok(())
 }
 
-pub(crate) fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
-    let effect_blocks = chain
-        .blocks
-        .iter()
-        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-        .cloned()
-        .collect();
-    let preset = ChainBlocksPreset {
-        id: preset_id_from_path(path)?,
-        name: chain.description.clone(),
-        blocks: effect_blocks,
-    };
-    save_chain_preset_file(path, &preset)
-}
+// `save_chain_blocks_to_preset` and `preset_id_from_path` moved to
+// `application::local_dispatcher_preset` in #555.
 
 pub(crate) fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     load_chain_preset_file(path)
-}
-
-pub(crate) fn preset_id_from_path(path: &Path) -> Result<String> {
-    path.file_stem()
-        .and_then(|value| value.to_str())
-        .map(|value| value.to_string())
-        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-preset-file")))
 }
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {

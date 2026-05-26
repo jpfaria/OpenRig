@@ -326,6 +326,7 @@ dependencies = [
  "engine",
  "futures",
  "infra-filesystem",
+ "infra-yaml",
  "plugin-loader",
  "project",
  "schemars 0.8.22",

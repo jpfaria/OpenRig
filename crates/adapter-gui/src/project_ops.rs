@@ -4,11 +4,10 @@ use application::dispatcher::CommandDispatcher;
 use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
 use crate::RecentProjectItem;
 use crate::{AppWindow, UNTITLED_PROJECT_NAME};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use domain::ids::DeviceId;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
-use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset};
-use project::block::AudioBlockKind;
+use infra_yaml::{load_chain_preset_file, ChainBlocksPreset};
 use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
@@ -619,32 +618,18 @@ fn build_rig_for_save(session: &ProjectSession) -> project::rig::RigProject {
     rig_out
 }
 
-pub(crate) fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
-    let effect_blocks = chain
-        .blocks
-        .iter()
-        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-        .cloned()
-        .collect();
-    let preset = ChainBlocksPreset {
-        id: preset_id_from_path(path)?,
-        name: chain.description.clone(),
-        volume: chain.volume,
-        blocks: effect_blocks,
-    };
-    save_chain_preset_file(path, &preset)
-}
+// `save_chain_blocks_to_preset` was moved to
+// `application::local_dispatcher_preset::handle_chain_preset` in #555.
+// The GUI now dispatches `Command::SaveChainPreset { chain, name }`
+// and the dispatcher does the file write.
 
 pub(crate) fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     load_chain_preset_file(path)
 }
 
-pub(crate) fn preset_id_from_path(path: &Path) -> Result<String> {
-    path.file_stem()
-        .and_then(|value| value.to_str())
-        .map(|value| value.to_string())
-        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-preset-file")))
-}
+// `preset_id_from_path` lives inside `local_dispatcher_preset` now —
+// the file id is derived at write time from the path the dispatcher
+// resolves, not from a GUI helper.
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
     if let Some(name) = project

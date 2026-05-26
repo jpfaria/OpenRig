@@ -5,6 +5,9 @@
 
 use anyhow::Result;
 
+use infra_yaml::{save_chain_preset_file, ChainBlocksPreset};
+use project::block::{AudioBlock, AudioBlockKind};
+
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -23,7 +26,34 @@ impl LocalDispatcher {
     /// working without a tempdir.
     pub(crate) fn handle_chain_preset(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SaveChainPreset { name } => Ok(vec![Event::ChainPresetSaved { name }]),
+            Command::SaveChainPreset { chain, name } => {
+                if let Some(dir) = self.presets_path.borrow().as_ref() {
+                    std::fs::create_dir_all(dir).map_err(|e| {
+                        anyhow::anyhow!("failed to create presets dir {dir:?}: {e}")
+                    })?;
+                    let project = self.project.borrow();
+                    let target = project
+                        .chains
+                        .iter()
+                        .find(|c| c.id == chain)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Command::SaveChainPreset: chain {chain:?} not found in project"
+                            )
+                        })?;
+                    let path = preset_save_path(dir, &name);
+                    let preset = ChainBlocksPreset {
+                        id: preset_id_from_path(&path),
+                        name: target.description.clone(),
+                        volume: target.volume,
+                        blocks: strip_io_blocks(&target.blocks),
+                    };
+                    save_chain_preset_file(&path, &preset).map_err(|e| {
+                        anyhow::anyhow!("failed to write preset file {path:?}: {e}")
+                    })?;
+                }
+                Ok(vec![Event::ChainPresetSaved { name }])
+            }
             Command::DeleteChainPreset { name } => {
                 if let Some(dir) = self.presets_path.borrow().as_ref() {
                     let path = preset_save_path(dir, &name);
@@ -46,6 +76,28 @@ impl LocalDispatcher {
             }
         }
     }
+}
+
+/// Filter out input/output blocks before serialising — the chain's
+/// I/O wiring is project state, not preset state. Mirrors the
+/// behaviour of `adapter-gui::chain_preset_wiring::strip_io_blocks`
+/// (which now only filters in-memory after the load path; the disk
+/// side is owned here).
+fn strip_io_blocks(blocks: &[AudioBlock]) -> Vec<AudioBlock> {
+    blocks
+        .iter()
+        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+        .cloned()
+        .collect()
+}
+
+/// Derive a stable preset id from the on-disk filename. The id is the
+/// file stem — mirrors the load path's expectation.
+fn preset_id_from_path(path: &std::path::Path) -> String {
+    path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 #[cfg(test)]
