@@ -4,7 +4,7 @@ import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, TrackRowData } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, TrackRowData, StemRowData } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
@@ -43,6 +43,23 @@ export component AppWindow inherits Window {
     callback tracks-import-clicked();
     callback tracks-track-clicked(string);
     callback tracks-search-changed(string);
+
+    in property <bool> show-track-detail;
+    in property <string> track-detail-title;
+    in property <string> track-detail-artist;
+    in property <string> track-detail-bpm-text;
+    in property <string> track-detail-key-text;
+    in property <string> track-detail-position-text;
+    in property <string> track-detail-duration-text;
+    in property <[StemRowData]> track-detail-stems;
+    in property <bool> track-detail-playing;
+    callback track-detail-back-clicked();
+    callback track-detail-play-toggle();
+    callback track-detail-seek-relative(int);
+    callback track-detail-stem-mute-toggled(int, bool);
+    callback track-detail-stem-solo-toggled(int, bool);
+    callback track-detail-stem-gain-changed(int, float);
+    callback track-detail-stem-pan-changed(int, float);
     in property <bool> project-dirty;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -335,6 +352,30 @@ export component AppWindow inherits Window {
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
         show-settings: root.show-settings;
+        show-tracks: root.show-tracks;
+        tracks: root.tracks;
+        tracks-search-text <=> root.tracks-search-text;
+        open-tracks-clicked => { root.open-tracks-clicked(); }
+        tracks-back-clicked => { root.tracks-back-clicked(); }
+        tracks-import-clicked => { root.tracks-import-clicked(); }
+        tracks-track-clicked(id) => { root.tracks-track-clicked(id); }
+        tracks-search-changed(t) => { root.tracks-search-changed(t); }
+        show-track-detail: root.show-track-detail;
+        track-detail-title: root.track-detail-title;
+        track-detail-artist: root.track-detail-artist;
+        track-detail-bpm-text: root.track-detail-bpm-text;
+        track-detail-key-text: root.track-detail-key-text;
+        track-detail-position-text: root.track-detail-position-text;
+        track-detail-duration-text: root.track-detail-duration-text;
+        track-detail-stems: root.track-detail-stems;
+        track-detail-playing: root.track-detail-playing;
+        track-detail-back-clicked => { root.track-detail-back-clicked(); }
+        track-detail-play-toggle => { root.track-detail-play-toggle(); }
+        track-detail-seek-relative(d) => { root.track-detail-seek-relative(d); }
+        track-detail-stem-mute-toggled(i, m) => { root.track-detail-stem-mute-toggled(i, m); }
+        track-detail-stem-solo-toggled(i, s) => { root.track-detail-stem-solo-toggled(i, s); }
+        track-detail-stem-gain-changed(i, g) => { root.track-detail-stem-gain-changed(i, g); }
+        track-detail-stem-pan-changed(i, p) => { root.track-detail-stem-pan-changed(i, p); }
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
