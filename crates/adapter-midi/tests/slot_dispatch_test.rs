@@ -17,8 +17,7 @@ fn pc(channel: u8, program: u8) -> IncomingMessage {
 fn selection_with_chain(chain: &str) -> SelectionState {
     SelectionState {
         active_chain: Some(chain.to_string()),
-        active_block: None,
-        compact_view_enabled: false,
+        ..SelectionState::default()
     }
 }
 

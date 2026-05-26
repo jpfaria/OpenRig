@@ -89,14 +89,22 @@ pub fn slot_to_command(
             kind: RigNavKind::Scene(msg.value_byte() as i32),
         }),
 
-        // --- View toggle ---
+        // --- View / global toggles (read current state, dispatch !current) ---
         "toggle_compact_view" => Some(Command::SetCompactViewEnabled {
             enabled: !selection.compact_view_enabled,
         }),
+        "toggle_tuner" => Some(Command::SetTunerEnabled {
+            enabled: !selection.tuner_enabled,
+        }),
+        "toggle_output_mute" => Some(Command::SetOutputMuted {
+            muted: !selection.output_muted,
+        }),
+        "toggle_spectrum" => Some(Command::SetSpectrumEnabled {
+            enabled: !selection.spectrum_enabled,
+        }),
 
-        // --- Other toggles & continuous slots: handled in a follow-up
-        //     phase (read-state-then-toggle for tuner/mute/spectrum;
-        //     CC range scaling for chain_volume / block_param_numeric).
+        // --- Continuous CC slots: handled in a follow-up phase (need
+        //     parameter-schema lookup to scale 0-127 → range).
         _ => None,
     }
 }

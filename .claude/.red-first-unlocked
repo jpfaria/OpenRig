@@ -1,1 +1,2 @@
-Phase 4: RED captured — adapter_midi::pipeline + match_message.
+Phase 3d: RED captured — SelectionState needs tuner/mute/spectrum flags,
+slots toggle_* need to read-then-flip.

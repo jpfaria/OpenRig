@@ -18,6 +18,15 @@ pub struct SelectionState {
     /// Mutated by `Command::SetCompactViewEnabled` (MIDI slot
     /// `toggle_compact_view`); read by the GUI and by `QueryKind::Selection`.
     pub compact_view_enabled: bool,
+    /// Snapshot of the tuner button — GUI keeps it in sync. MIDI slot
+    /// `toggle_tuner` reads it to dispatch `SetTunerEnabled { !current }`.
+    pub tuner_enabled: bool,
+    /// Snapshot of the output mute button. MIDI slot
+    /// `toggle_output_mute` reads it to dispatch `SetOutputMuted { !current }`.
+    pub output_muted: bool,
+    /// Snapshot of the spectrum button. MIDI slot
+    /// `toggle_spectrum` reads it to dispatch `SetSpectrumEnabled { !current }`.
+    pub spectrum_enabled: bool,
 }
 
 impl SelectionState {
