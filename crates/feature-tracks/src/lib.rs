@@ -7,10 +7,12 @@
 
 mod entry;
 mod meta;
+mod playback;
 mod scan;
 
 pub use entry::{StemInfo, StemKind, TrackEntry};
 pub use meta::{TrackId, TrackMeta};
+pub use playback::MultiStemPlayer;
 pub use scan::scan_catalog;
 
 /// Errors raised by the tracks catalog layer.
