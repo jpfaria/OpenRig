@@ -9,4 +9,6 @@ tantivy = "0.22"
 thiserror.workspace = true
 
 [dev-dependencies]
+feature-stems = { path = "../feature-stems" }
+hound = "3"
 tempfile = "3"

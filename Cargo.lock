@@ -2134,7 +2134,9 @@ dependencies = [
 name = "feature-search"
 version = "0.1.0"
 dependencies = [
+ "feature-stems",
  "feature-tracks",
+ "hound",
  "tantivy",
  "tempfile",
  "thiserror 1.0.69",
