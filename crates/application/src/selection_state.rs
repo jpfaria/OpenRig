@@ -27,6 +27,17 @@ pub struct SelectionState {
     /// Snapshot of the spectrum button. MIDI slot
     /// `toggle_spectrum` reads it to dispatch `SetSpectrumEnabled { !current }`.
     pub spectrum_enabled: bool,
+    /// Snapshot of the active chain's `enabled` flag, so MIDI slot
+    /// `toggle_active_chain_enabled` knows what to flip without
+    /// touching the project from the slot.
+    pub active_chain_enabled: bool,
+    /// Snapshot of the active block's `enabled` flag, for
+    /// `toggle_active_block_enabled`.
+    pub active_block_enabled: bool,
+    /// Which parameter `block_param_numeric` writes to on CC. The GUI
+    /// keeps this in sync when the user clicks a numeric knob on the
+    /// active block (the focused knob is the one the MIDI CC drives).
+    pub active_block_param_path: Option<String>,
 }
 
 impl SelectionState {

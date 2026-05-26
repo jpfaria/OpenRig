@@ -1,2 +1,2 @@
-Phase 3d: RED captured — SelectionState needs tuner/mute/spectrum flags,
-slots toggle_* need to read-then-flip.
+Phase 3e: RED captured — extend SelectionState with active_*_enabled
+and active_block_param_path; implement the 4 remaining slots.

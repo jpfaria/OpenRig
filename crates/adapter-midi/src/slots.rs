@@ -10,7 +10,7 @@
 //! `block_param_numeric`) need parameter-schema lookup to scale 0-127
 //! → range; they are handled in a follow-up sub-phase.
 
-use application::command::{ChainId, Command, RigNavKind};
+use application::command::{BlockId, ChainId, Command, RigNavKind};
 use application::SelectionState;
 
 /// MIDI message in the shape the daemon resolves before calling slots:
@@ -103,8 +103,29 @@ pub fn slot_to_command(
             enabled: !selection.spectrum_enabled,
         }),
 
-        // --- Continuous CC slots: handled in a follow-up phase (need
-        //     parameter-schema lookup to scale 0-127 → range).
+        // --- Chain / block enable on the active selection ---
+        "toggle_active_chain_enabled" => Some(Command::ToggleChainEnabled {
+            chain: active_chain()?,
+        }),
+        "toggle_active_block_enabled" => Some(Command::ToggleBlockEnabled {
+            chain: active_chain()?,
+            block: BlockId(selection.active_block.clone()?),
+        }),
+
+        // --- Continuous CC. Scaled 0..127 → 0.0..1.0; the project /
+        //     parameter layer maps the normalised value to its real
+        //     range. Per-param schema lookup is a later refinement.
+        "chain_volume" => Some(Command::SetChainVolume {
+            chain: active_chain()?,
+            value: msg.value_byte() as f32 / 127.0,
+        }),
+        "block_param_numeric" => Some(Command::SetBlockParameterNumber {
+            chain: active_chain()?,
+            block: BlockId(selection.active_block.clone()?),
+            path: selection.active_block_param_path.clone()?,
+            value: msg.value_byte() as f64 / 127.0,
+        }),
+
         _ => None,
     }
 }
