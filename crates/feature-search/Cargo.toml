@@ -1,0 +1,12 @@
+[package]
+name = "feature-search"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+feature-tracks = { path = "../feature-tracks" }
+tantivy = "0.22"
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

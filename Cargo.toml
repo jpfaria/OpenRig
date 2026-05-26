@@ -17,6 +17,7 @@ members = [
   "crates/feature-dsp",
   "crates/feature-stems",
   "crates/feature-tracks",
+  "crates/feature-search",
   "crates/nam",
   "crates/block-nam",
   "crates/block-preamp",
