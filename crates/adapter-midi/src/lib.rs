@@ -13,6 +13,7 @@ pub mod enumerate;
 pub mod learn;
 mod mapping;
 mod message;
+pub mod pipeline;
 pub mod profile;
 pub mod resolve;
 pub mod slots;
