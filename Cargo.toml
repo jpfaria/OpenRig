@@ -15,6 +15,7 @@ members = [
   "crates/block-util",
   "crates/block-routing",
   "crates/feature-dsp",
+  "crates/feature-stems",
   "crates/nam",
   "crates/block-nam",
   "crates/block-preamp",

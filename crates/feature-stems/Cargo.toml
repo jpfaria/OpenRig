@@ -1,0 +1,21 @@
+[package]
+name = "feature-stems"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+symphonia = { version = "0.5", default-features = false, features = [
+  "wav",
+  "pcm",
+  "mp3",
+  "flac",
+  "ogg",
+  "vorbis",
+  "isomp4",
+  "aac",
+] }
+
+[dev-dependencies]
+hound = "3"
+tempfile = "3"
