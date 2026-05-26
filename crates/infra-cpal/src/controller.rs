@@ -347,11 +347,24 @@ impl ProjectRuntimeController {
         }
         // Issue #522: fast-path resume of a paused chain — clear draining
         // and return; no CPAL queries, no NAM reload, no graph rebuild.
+        //
+        // Issue #545: fan over every input-group runtime, not just the
+        // first. The previous `runtime_for_chain` call only touched
+        // group 0, so chains with multiple physical input devices
+        // stayed half-muted after toggle-on. Mirrors the fan-out in
+        // `pause_chain`.
         if self.active_chains.contains_key(&chain.id) {
-            if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain.id) {
-                if runtime.is_draining() {
-                    log::info!("resuming paused chain '{}' (fast path)", chain.id.0);
-                    runtime.clear_draining();
+            let runtimes = self.runtime_graph.runtimes_for(&chain.id);
+            if let Some(first) = runtimes.first() {
+                if first.is_draining() {
+                    log::info!(
+                        "resuming paused chain '{}' across {} input group(s) (fast path)",
+                        chain.id.0,
+                        runtimes.len(),
+                    );
+                    for runtime in &runtimes {
+                        runtime.clear_draining();
+                    }
                     return Ok(());
                 }
             }
@@ -375,7 +388,6 @@ impl ProjectRuntimeController {
             self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
     }
-
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
         log::info!("removing chain '{}' from runtime", chain_id.0);

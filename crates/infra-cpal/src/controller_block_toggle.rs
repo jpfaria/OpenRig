@@ -51,9 +51,26 @@ impl ProjectRuntimeController {
     /// `runtime_graph` so the next enable resumes in O(1) via
     /// `upsert_chain`'s fast-path branch. No-op if the chain has no
     /// live runtime yet.
+    ///
+    /// Issue #545 — a chain with multiple input groups (one runtime per
+    /// physical input device, see #350 Phase 3) needs every group
+    /// drained. The previous implementation called
+    /// `runtime_for_chain`, which is documented as "returns the first
+    /// runtime" and left the other groups processing. That kept the
+    /// stream taps publishing and the audio thread spending CPU, which
+    /// the user observes as the chain looking alive after toggling
+    /// off. Fan over `runtimes_for` so every group flips.
     pub fn pause_chain(&self, chain_id: &ChainId) {
-        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
-            log::info!("pausing chain '{}' (keep streams alive)", chain_id.0);
+        let runtimes = self.runtime_graph.runtimes_for(chain_id);
+        if runtimes.is_empty() {
+            return;
+        }
+        log::info!(
+            "pausing chain '{}' across {} input group(s) (keep streams alive)",
+            chain_id.0,
+            runtimes.len(),
+        );
+        for runtime in &runtimes {
             runtime.set_draining();
         }
     }
