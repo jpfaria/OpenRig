@@ -164,6 +164,12 @@ fn main() -> Result<()> {
                     }
                     Ok(out)
                 }
+                QueryKind::Selection => {
+                    // Console adapter has no GUI selection — empty state
+                    // keeps the MCP resource shape stable (active_chain
+                    // and active_block both absent).
+                    Ok("active_chain=\nactive_block=\n".to_string())
+                }
             },
             64,
         );

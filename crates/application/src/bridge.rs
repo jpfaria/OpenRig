@@ -57,6 +57,12 @@ pub enum QueryKind {
     /// one record per line). Same numbers the GUI's IN/OUT bars read —
     /// every transport gets the same view (`openrig-code-quality` lei).
     ChainMeters,
+    /// Current GUI selection — which chain and which block the user has
+    /// active on the Chains screen. MIDI slots (issue #548) read it to
+    /// resolve "active chain / active block"; MCP/gRPC also see what the
+    /// user sees through this same query (read-side parity).
+    /// Payload: two lines, `active_chain=<id|>` and `active_block=<id|>`.
+    Selection,
 }
 
 struct QueryRequest {

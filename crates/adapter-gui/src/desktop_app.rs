@@ -963,6 +963,13 @@ pub fn run_desktop_app(
                                 }
                                 Ok(out)
                             }
+                            application::bridge::QueryKind::Selection => {
+                                // GUI selection wiring lands in issue
+                                // #548 Phase 6 (Settings/MIDI UI). For
+                                // now, return an empty state so MCP/gRPC
+                                // see a stable shape.
+                                Ok("active_chain=\nactive_block=\n".to_string())
+                            }
                         },
                         32,
                     );

@@ -1,2 +1,2 @@
-Phase 1 of issue #548: RED captured for SelectionState
-(crates/application/tests/selection_state_test.rs).
+Phase 1 part 2: RED captured for QueryKind::Selection
+(crates/application/tests/query_selection_test.rs).
