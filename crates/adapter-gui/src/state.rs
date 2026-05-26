@@ -51,6 +51,12 @@ impl ProjectSession {
     ) -> Self {
         let project = Rc::new(RefCell::new(project));
         let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
+        // #555: the dispatcher owns preset-file I/O for
+        // SaveChainPreset / DeleteChainPreset, so it needs to know
+        // where the presets live. Attach the session's resolved path
+        // right after construction so MCP / MIDI / GUI all hit the
+        // same dir.
+        dispatcher.attach_presets_path(presets_path.clone());
         Self {
             project,
             dispatcher,

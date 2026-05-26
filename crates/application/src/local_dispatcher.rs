@@ -20,6 +20,7 @@
 //! `unimplemented!()` on arms that live callers can reach.
 
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use anyhow::Result;
@@ -50,6 +51,13 @@ pub struct LocalDispatcher {
     /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
     /// `rig:<input>` and real ids); absent ⇒ nothing selected.
     pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
+    /// #555: filesystem directory where preset YAMLs live. Used by
+    /// `Command::SaveChainPreset` / `DeleteChainPreset` so the
+    /// dispatcher (not the GUI) owns the `fs::write` / `fs::remove_file`
+    /// calls. `None` until the session attaches one via
+    /// [`Self::attach_presets_path`]; preset I/O Commands error out
+    /// cleanly until that happens.
+    pub(crate) presets_path: RefCell<Option<PathBuf>>,
 }
 
 impl LocalDispatcher {
@@ -63,6 +71,7 @@ impl LocalDispatcher {
             project,
             rig: RefCell::new(None),
             selection: RefCell::new(std::collections::HashMap::new()),
+            presets_path: RefCell::new(None),
         }
     }
 
@@ -76,6 +85,13 @@ impl LocalDispatcher {
     /// mutate the same allocation the GUI renders from. Idempotent.
     pub fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
         *self.rig.borrow_mut() = Some(rig);
+    }
+
+    /// #555: configure the preset library directory. Called by the
+    /// session bootstrap once the resolved `presets_path` is known.
+    /// Idempotent — calling this again replaces the path.
+    pub fn attach_presets_path(&self, path: PathBuf) {
+        *self.presets_path.borrow_mut() = Some(path);
     }
 }
 

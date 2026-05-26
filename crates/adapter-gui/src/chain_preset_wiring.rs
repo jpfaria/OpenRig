@@ -278,28 +278,27 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             else {
                 return;
             };
-            match std::fs::remove_file(&path) {
-                Ok(()) => {
-                    // #436 F: apagar preset é negócio → Command no
-                    // dispatcher compartilhado (MCP/MIDI, observável via
-                    // Event::ChainPresetDeleted). O remove_file acima é
-                    // adapter-side (precedente SaveProject).
-                    let name = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("")
-                        .to_string();
-                    if let Some(session) = project_session.borrow().as_ref() {
-                        if let Err(e) = session
-                            .dispatcher
-                            .dispatch(Command::DeleteChainPreset { name })
-                        {
-                            log::warn!("[preset] Command::DeleteChainPreset falhou: {e}");
-                        }
-                    }
-                    // Issue #510: keep the full list (search source) in
-                    // sync with disk; then re-apply the active query so
-                    // the visible model stays consistent.
+            // #555: deletion is business — `Command::DeleteChainPreset`
+            // owns the `fs::remove_file` call inside the dispatcher
+            // (`local_dispatcher_preset.rs`). The GUI only dispatches
+            // the intent and refreshes its picker on success.
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            let outcome = if let Some(session) = project_session.borrow().as_ref() {
+                session
+                    .dispatcher
+                    .dispatch(Command::DeleteChainPreset { name })
+            } else {
+                Err(anyhow::anyhow!("no active session to dispatch on"))
+            };
+            match outcome {
+                Ok(_) => {
+                    // Issue #510: keep the full list (search source)
+                    // in sync with disk; then re-apply the active
+                    // query so the visible model stays consistent.
                     preset_full_list.borrow_mut().retain(|(_, p)| p != &path);
                     let query = window.get_preset_picker_search_query();
                     apply_preset_filter(

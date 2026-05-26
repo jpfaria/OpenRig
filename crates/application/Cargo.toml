@@ -20,3 +20,4 @@ plugin-loader = { path = "../plugin-loader" }
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }
 serde_yaml.workspace = true
+tempfile = "3"
