@@ -64,6 +64,7 @@ fn entry_to_row(entry: &TrackEntry) -> TrackRowData {
 struct TracksState {
     catalog: Vec<TrackEntry>,
     player: Option<Arc<MultiStemPlayer>>,
+    stream: Option<crate::tracks_player_stream::TrackPlaybackStream>,
 }
 
 impl TracksState {
@@ -71,6 +72,7 @@ impl TracksState {
         Self {
             catalog: Vec::new(),
             player: None,
+            stream: None,
         }
     }
 }
@@ -307,7 +309,9 @@ pub(crate) fn wire_tracks_nav(window: &AppWindow) {
         let window_weak = window.as_weak();
         window.on_track_detail_back_clicked(move || {
             if let Some(window) = window_weak.upgrade() {
-                state.borrow_mut().player = None;
+                let mut state = state.borrow_mut();
+                state.stream = None;
+                state.player = None;
                 window.set_show_track_detail(false);
                 window.set_show_tracks(true);
             }
@@ -367,11 +371,29 @@ pub(crate) fn wire_tracks_nav(window: &AppWindow) {
     }
 
     {
+        let state = state.clone();
         let window_weak = window.as_weak();
         window.on_track_detail_play_toggle(move || {
-            if let Some(window) = window_weak.upgrade() {
-                let playing = !window.get_track_detail_playing();
-                window.set_track_detail_playing(playing);
+            let Some(window) = window_weak.upgrade() else {
+                return;
+            };
+            let target_playing = !window.get_track_detail_playing();
+            let mut state = state.borrow_mut();
+            if target_playing {
+                if let Some(player) = state.player.clone() {
+                    match crate::tracks_player_stream::TrackPlaybackStream::start(player) {
+                        Ok(stream) => {
+                            state.stream = Some(stream);
+                            window.set_track_detail_playing(true);
+                        }
+                        Err(err) => {
+                            eprintln!("tracks: cannot start playback: {err}");
+                        }
+                    }
+                }
+            } else {
+                state.stream = None;
+                window.set_track_detail_playing(false);
             }
         });
     }

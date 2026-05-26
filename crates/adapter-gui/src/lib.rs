@@ -56,6 +56,7 @@ pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
 mod thumbnails;
+mod tracks_player_stream;
 mod tracks_wiring;
 pub mod tuner_close;
 mod tuner_session;
