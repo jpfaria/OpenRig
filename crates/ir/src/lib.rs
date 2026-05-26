@@ -131,6 +131,7 @@ pub fn build_mono_ir_processor_from_wav(
     };
     let samples = truncate_with_fade(samples, path);
     let samples = resample_if_needed(samples, ir.sample_rate, runtime_sample_rate, path);
+    let samples = normalize_to_unity_peak_frequency_response(samples, path);
     Ok(Box::new(MonoIrProcessor::new(samples)))
 }
 
@@ -149,7 +150,94 @@ pub fn build_stereo_ir_processor_from_wav(
     let right = truncate_with_fade(right, path);
     let left = resample_if_needed(left, ir.sample_rate, runtime_sample_rate, path);
     let right = resample_if_needed(right, ir.sample_rate, runtime_sample_rate, path);
+    // Use a shared scale across L/R so the stereo image is preserved
+    // (per-channel normalisation would attenuate the louder side and
+    // shift the apparent pan).
+    let (left, right) = normalize_stereo_to_unity_peak_frequency_response(left, right, path);
     Ok(Box::new(StereoIrProcessor::new(left, right)))
+}
+
+/// Issue #542 — guarantee the convolver has unity peak frequency
+/// response, so a cab/body IR shipped with raw peak-time-domain
+/// normalisation (samples scaled so the loudest sample is 1.0) does
+/// not contribute spectral peaks of +15 dB or more into a slot the
+/// chain treats as gain-passive. Without this step, the brickwall
+/// limiter downstream was forced into 5 dB+ of sustained gain
+/// reduction, which the user reports as "som estourado".
+///
+/// Implementation: compute the full-length real FFT of the truncated
+/// IR, find `max |H(f)|`, divide all samples by it. The IR's
+/// character (frequency-response shape) is preserved exactly; only
+/// the level shifts so the loudest band sits at unity. The
+/// per-capture / per-manifest `output_gain_db` audit value still
+/// applies on top via `wrap_with_output_gain_db` — engineers can
+/// still push or pull the level deliberately per package.
+fn normalize_to_unity_peak_frequency_response(samples: Vec<f32>, path: &str) -> Vec<f32> {
+    let n = samples.len();
+    if n == 0 {
+        return samples;
+    }
+    let max_mag = peak_spectral_magnitude(&samples);
+    if max_mag <= 1.0 + f32::EPSILON {
+        // Already at or below unity peak — nothing to do, and we never
+        // boost (auto-norm should never make an IR louder than its raw
+        // shape).
+        return samples;
+    }
+    log::info!(
+        "normalising IR '{}' for unity peak frequency response (scale = 1 / {:.3} = {:+.2} dB)",
+        path,
+        max_mag,
+        -20.0 * max_mag.log10(),
+    );
+    samples.into_iter().map(|s| s / max_mag).collect()
+}
+
+/// Stereo variant: share the larger of the two channel peaks so the
+/// stereo image is preserved (otherwise a louder side would be
+/// attenuated more, pulling the image toward the quieter side).
+fn normalize_stereo_to_unity_peak_frequency_response(
+    left: Vec<f32>,
+    right: Vec<f32>,
+    path: &str,
+) -> (Vec<f32>, Vec<f32>) {
+    let max_l = peak_spectral_magnitude(&left);
+    let max_r = peak_spectral_magnitude(&right);
+    let max_mag = max_l.max(max_r);
+    if max_mag <= 1.0 + f32::EPSILON {
+        return (left, right);
+    }
+    log::info!(
+        "normalising stereo IR '{}' for unity peak frequency response \
+         (shared scale = 1 / {:.3} = {:+.2} dB; L_peak={:.3}, R_peak={:.3})",
+        path,
+        max_mag,
+        -20.0 * max_mag.log10(),
+        max_l,
+        max_r,
+    );
+    let l = left.into_iter().map(|s| s / max_mag).collect();
+    let r = right.into_iter().map(|s| s / max_mag).collect();
+    (l, r)
+}
+
+/// `max_f |H(f)|` via real FFT over the full IR length.
+fn peak_spectral_magnitude(samples: &[f32]) -> f32 {
+    let n = samples.len();
+    if n == 0 {
+        return 0.0;
+    }
+    let mut planner = RealFftPlanner::<f32>::new();
+    let forward = planner.plan_fft_forward(n);
+    let mut input: Vec<f32> = samples.to_vec();
+    let mut spectrum = forward.make_output_vec();
+    if forward.process(&mut input, &mut spectrum).is_err() {
+        return 0.0;
+    }
+    spectrum
+        .iter()
+        .map(|c| c.norm())
+        .fold(0.0_f32, |a, b| a.max(b))
 }
 
 fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
