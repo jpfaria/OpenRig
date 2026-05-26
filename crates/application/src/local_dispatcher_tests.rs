@@ -3028,7 +3028,7 @@ fn set_chain_volume_passes_extreme_values_verbatim() {
 
 // ── #513 / #493: MIDI device + mapping + learn commands ──────────────────────
 
-fn empty_project_rc() -> Rc<RefCell<Project>> {
+pub(super) fn empty_project_rc() -> Rc<RefCell<Project>> {
     Rc::new(RefCell::new(Project {
         name: None,
         device_settings: vec![],
@@ -3123,65 +3123,7 @@ fn publish_midi_event_passthrough_emits_midi_event_received() {
     assert_eq!(events, vec![Event::MidiEventReceived { source }]);
 }
 
-// ── #513: System / Paths (presets + plugins) ─────────────────────────────────
-//
-// RED-FIRST tests: SetPresetsPath and SetPluginsPath are user-visible Settings
-// commands that update the system-level AssetPaths snapshot. They emit
-// PathsSaved so the adapter can persist config.yaml.
-
-#[test]
-fn set_presets_path_emits_paths_saved() {
-    let project = empty_project_rc();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let path = std::path::PathBuf::from("/tmp/openrig-test-presets");
-
-    let events = dispatcher
-        .dispatch(Command::SetPresetsPath {
-            path: Some(path.clone()),
-        })
-        .unwrap();
-
-    assert_eq!(events, vec![Event::PathsSaved]);
-    // System command must not touch the project itself.
-    assert!(project.borrow().chains.is_empty());
-    assert!(project.borrow().midi.is_none());
-}
-
-#[test]
-fn set_plugins_path_emits_paths_saved() {
-    let project = empty_project_rc();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let path = std::path::PathBuf::from("/tmp/openrig-test-plugins");
-
-    let events = dispatcher
-        .dispatch(Command::SetPluginsPath {
-            path: Some(path.clone()),
-        })
-        .unwrap();
-
-    assert_eq!(events, vec![Event::PathsSaved]);
-    assert!(project.borrow().chains.is_empty());
-    assert!(project.borrow().midi.is_none());
-}
-
-#[test]
-fn set_presets_path_none_resets_to_default_and_still_emits() {
-    let project = empty_project_rc();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let events = dispatcher
-        .dispatch(Command::SetPresetsPath { path: None })
-        .unwrap();
-    assert_eq!(events, vec![Event::PathsSaved]);
-}
-
-#[test]
-fn set_plugins_path_none_resets_to_default_and_still_emits() {
-    let project = empty_project_rc();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let events = dispatcher
-        .dispatch(Command::SetPluginsPath { path: None })
-        .unwrap();
-    assert_eq!(events, vec![Event::PathsSaved]);
-}
+// #513 / #540: System / Paths (presets + plugins) tests moved to
+// `local_dispatcher_paths_tests.rs` so this file does not grow further
+// (already over the per-file size cap) and so the FS-sandboxing helper
+// (`$HOME` redirect) stays scoped to the tests that need it.
