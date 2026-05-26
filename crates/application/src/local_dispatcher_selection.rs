@@ -6,6 +6,8 @@
 
 use anyhow::Result;
 
+use domain::ids::ChainId;
+
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -32,11 +34,25 @@ impl LocalDispatcher {
         };
         let next_id = project.chains[next_idx].id.0.clone();
         let changed = sel.active_chain.as_deref() != Some(next_id.as_str());
+        let new_chain_id = ChainId(next_id.clone());
+        sel.active_chain_enabled = project.chains[next_idx].enabled;
         sel.active_chain = Some(next_id);
         if changed {
             sel.active_block = None;
         }
-        Ok(vec![])
+        // Drop the write guard before touching `self.selection` to avoid
+        // holding two RefCell/RwLock guards at once.
+        drop(sel);
+
+        // Seed the legacy per-chain block-selection map. The existing
+        // GUI uses it to render the "current chain" highlight, so this
+        // is how a MIDI footswitch lights up the chain on screen.
+        self.selection
+            .borrow_mut()
+            .entry(new_chain_id)
+            .or_insert(0);
+
+        Ok(vec![Event::ProjectMutated])
     }
 
     /// `Command::SelectActiveBlockRelative { delta }`. Cycles through
@@ -64,6 +80,16 @@ impl LocalDispatcher {
             Some(i) => (((i as i32 + delta) % n) + n) as usize % n as usize,
         };
         sel.active_block = Some(chain.blocks[next_idx].id.0.clone());
-        Ok(vec![])
+        sel.active_block_enabled = chain.blocks[next_idx].enabled;
+        drop(sel);
+
+        // Seed the legacy per-chain selection so the existing GUI's
+        // "selected block" indicator follows MIDI navigation.
+        let chain_id = ChainId(active_chain_id);
+        self.selection
+            .borrow_mut()
+            .insert(chain_id, next_idx);
+
+        Ok(vec![Event::ProjectMutated])
     }
 }

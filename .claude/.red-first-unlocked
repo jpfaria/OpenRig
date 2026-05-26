@@ -1,1 +1,1 @@
-Chore deletion of graphview-demo — no behavior under test.
+Phase 6: RED — SelectActiveChainRelative must seed legacy selection and emit ProjectMutated.
