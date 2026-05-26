@@ -14,6 +14,7 @@ use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
+use crate::spectrum_close::spectrum_close_commands;
 use crate::spectrum_session::SpectrumSession;
 use crate::state::ProjectSession;
 use crate::{AppWindow, SpectrumRow, SpectrumWindow};
@@ -32,9 +33,16 @@ pub fn wire_spectrum(
     spectrum_timer: &Rc<Timer>,
 ) {
     wire_open(window, spectrum_window);
-    wire_close_inline(window, project_runtime, spectrum_session, spectrum_timer);
+    wire_close_inline(
+        window,
+        project_session,
+        project_runtime,
+        spectrum_session,
+        spectrum_timer,
+    );
     wire_close_windowed(
         spectrum_window,
+        project_session,
         project_runtime,
         spectrum_session,
         spectrum_timer,
@@ -83,38 +91,108 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
 
 fn wire_close_inline(
     window: &AppWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
+    let project_session = project_session.clone();
     let project_runtime = project_runtime.clone();
     let spectrum_session = spectrum_session.clone();
     let spectrum_timer = spectrum_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_spectrum(move || {
+        dispatch_close_commands(&project_session);
         teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_spectrum(false);
+            // #546: keep the Slint power state in sync with the backend
+            // going off. Without this, the toggle could stay lit on the
+            // next inline render until wire_open's reset runs.
+            mw.set_spectrum_enabled(false);
         }
     });
 }
 
 fn wire_close_windowed(
     spectrum_window: &SpectrumWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
-    let project_runtime = project_runtime.clone();
-    let spectrum_session = spectrum_session.clone();
-    let spectrum_timer = spectrum_timer.clone();
-    let spectrum_window_weak = spectrum_window.as_weak();
-    spectrum_window.on_close_spectrum_window(move || {
-        teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
-        if let Some(sw) = spectrum_window_weak.upgrade() {
-            let _ = sw.hide();
+    // Mirrors `tuner_wiring::wire_close_windowed` (#544). The windowed
+    // SpectrumWindow renders with `show-close-button: false`, so
+    // `on_close_spectrum_window` never fires today; the only way to
+    // close that window is the OS chrome (X / Cmd-W), which Slint
+    // routes through `Window::on_close_requested`. Wire BOTH so neither
+    // path leaves the FFT polling timer + stream taps alive (#546).
+    {
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let spectrum_session = spectrum_session.clone();
+        let spectrum_timer = spectrum_timer.clone();
+        let spectrum_window_weak = spectrum_window.as_weak();
+        spectrum_window.on_close_spectrum_window(move || {
+            close_spectrum_windowed_impl(
+                &project_session,
+                &project_runtime,
+                &spectrum_session,
+                &spectrum_timer,
+                &spectrum_window_weak,
+            );
+            if let Some(sw) = spectrum_window_weak.upgrade() {
+                let _ = sw.hide();
+            }
+        });
+    }
+    {
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let spectrum_session = spectrum_session.clone();
+        let spectrum_timer = spectrum_timer.clone();
+        let spectrum_window_weak = spectrum_window.as_weak();
+        spectrum_window.window().on_close_requested(move || {
+            close_spectrum_windowed_impl(
+                &project_session,
+                &project_runtime,
+                &spectrum_session,
+                &spectrum_timer,
+                &spectrum_window_weak,
+            );
+            slint::CloseRequestResponse::HideWindow
+        });
+    }
+}
+
+fn close_spectrum_windowed_impl(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
+    spectrum_timer: &Rc<Timer>,
+    spectrum_window_weak: &slint::Weak<SpectrumWindow>,
+) {
+    dispatch_close_commands(project_session);
+    teardown_session(spectrum_timer, spectrum_session, project_runtime);
+    if let Some(sw) = spectrum_window_weak.upgrade() {
+        sw.set_spectrum_enabled(false);
+    }
+}
+
+fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>) {
+    // #546 + architectural law "every state change is a Command": close
+    // routes through the shared dispatcher so MCP / MIDI / future gRPC
+    // see Event::SpectrumEnabledChanged { false } instead of the adapter
+    // mutating runtime state silently.
+    let pj = project_session.borrow();
+    let Some(session) = pj.as_ref() else {
+        return;
+    };
+    for cmd in spectrum_close_commands() {
+        if let Err(e) = session.dispatcher.dispatch(cmd) {
+            log::warn!("[spectrum.close] dispatch falhou: {e}");
         }
-    });
+    }
 }
 
 fn wire_power(
