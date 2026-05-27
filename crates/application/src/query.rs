@@ -296,16 +296,34 @@ pub fn find_plugins(query: &str) -> String {
 /// #572: parameter schema for one plugin (catalog-level). Looks the
 /// plugin up in `plugin_loader::registry` by manifest id and returns
 /// the `ModelParameterSchema` as JSON under a `params` envelope.
-/// Unknown id → `{"params": null}` (same null-wrap idiom as
-/// [`get_plugin`]). Pure read; the registry itself is process-wide
-/// static state populated at startup.
+/// Unknown id (or schema resolution failure) → `{"params": null}`
+/// (same null-wrap idiom as [`get_plugin`]). Pure read; the registry
+/// itself is process-wide static state populated at startup.
 pub fn get_plugin_params(plugin_id: &str) -> String {
-    if plugin_loader::registry::find(plugin_id).is_none() {
+    let Some(package) = plugin_loader::registry::find(plugin_id) else {
         return "{\"params\": null}".to_string();
+    };
+    let effect_type = block_type_str(&package.manifest.block_type);
+    let Ok(schema) = project::block::schema_for_block_model(&effect_type, plugin_id) else {
+        return "{\"params\": null}".to_string();
+    };
+    match serde_json::to_string(&schema) {
+        Ok(json) => format!("{{\"params\": {json}}}"),
+        Err(_) => "{\"params\": null}".to_string(),
     }
-    // Happy-path serialization lands in the next red-first cycle; the
-    // current contract only covers the unknown-id null envelope.
-    "{\"params\": null}".to_string()
+}
+
+/// Snake_case string for a `BlockType` (matches its serde tag —
+/// `Preamp` → `"preamp"`, `GainPedal` → `"gain_pedal"`). Used by
+/// `get_plugin_params` to feed `schema_for_block_model`'s
+/// effect-type argument; failure to render falls back to an empty
+/// string so the caller surfaces a clean null envelope rather than
+/// panicking on an unexpected new variant.
+fn block_type_str(bt: &plugin_loader::manifest::BlockType) -> String {
+    serde_json::to_value(bt)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

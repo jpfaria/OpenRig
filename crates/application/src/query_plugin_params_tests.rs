@@ -14,3 +14,65 @@ fn get_plugin_params_unknown_id_returns_null_envelope() {
     let out = get_plugin_params("definitely-not-a-real-plugin-id-572");
     assert_eq!(out, "{\"params\": null}");
 }
+
+#[test]
+fn get_plugin_params_known_id_returns_schema_envelope() {
+    use block_core::param::{ModelParameterSchema, ParameterSet};
+    use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+    use plugin_loader::manifest::BlockType;
+    use plugin_loader::native_runtimes::NativeRuntime;
+
+    fn schema_fn() -> anyhow::Result<ModelParameterSchema> {
+        Ok(ModelParameterSchema {
+            effect_type: "gain_pedal".into(),
+            model: "issue_572_get_params_happy".into(),
+            display_name: "Issue 572 Test Pedal".into(),
+            audio_mode: ModelAudioMode::DualMono,
+            parameters: Vec::new(),
+        })
+    }
+    fn validate_fn(_: &ParameterSet) -> anyhow::Result<()> {
+        Ok(())
+    }
+    fn build_fn(
+        _: &ParameterSet,
+        _: f32,
+        _: AudioChannelLayout,
+    ) -> anyhow::Result<BlockProcessor> {
+        anyhow::bail!("noop — not exercised in this test")
+    }
+
+    plugin_loader::registry::register_native_simple(
+        "issue_572_get_params_happy",
+        "Issue 572 Test Pedal",
+        Some("test"),
+        BlockType::GainPedal,
+        NativeRuntime {
+            schema: schema_fn,
+            validate: validate_fn,
+            build: build_fn,
+        },
+    );
+    // Mirror the existing pattern in `project/src/block_tests.rs`:
+    // `register_native_simple` stages the package; `init` is what
+    // actually promotes it into the lookup table `find` reads.
+    plugin_loader::registry::init(std::path::Path::new("/nonexistent-test-path-572"));
+
+    let out = get_plugin_params("issue_572_get_params_happy");
+    assert_ne!(
+        out, "{\"params\": null}",
+        "registered plugin must not return null envelope"
+    );
+    assert!(
+        out.contains("\"model\":\"issue_572_get_params_happy\""),
+        "expected model id in envelope, got: {out}"
+    );
+    assert!(
+        out.contains("\"display_name\":\"Issue 572 Test Pedal\""),
+        "expected display_name in envelope, got: {out}"
+    );
+    assert!(
+        out.contains("\"effect_type\":\"gain_pedal\""),
+        "expected effect_type in envelope, got: {out}"
+    );
+}
