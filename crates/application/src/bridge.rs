@@ -68,6 +68,18 @@ pub enum QueryKind {
     /// without being bound to any input bank; tone-builder Step 0
     /// reads this to avoid silently overwriting an existing preset.
     ListProjectPresets,
+    /// #561 (expanded scope): full plugin catalog as a JSON listing.
+    /// See [`crate::query::list_plugin_catalog`]. Read parity for the
+    /// reload / load / unload Commands so any transport can show the
+    /// agent / user what is currently addressable.
+    ListPluginCatalog,
+    /// #561 (expanded scope): single plugin by manifest id, or
+    /// `{"plugin": null}` when absent. See [`crate::query::get_plugin`].
+    GetPlugin { id: String },
+    /// #561 (expanded scope): text search across the catalog
+    /// (case-insensitive substring on id / display_name / brand).
+    /// Empty query = all entries. See [`crate::query::find_plugins`].
+    FindPlugins { query: String },
 }
 
 struct QueryRequest {

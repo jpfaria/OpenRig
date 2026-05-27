@@ -22,6 +22,7 @@ use slint::ComponentHandle;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
+use application::event::Event;
 use infra_filesystem::FilesystemStorage;
 
 use crate::state::ProjectSession;
@@ -79,6 +80,62 @@ fn apply_plugins_path(
     }
 }
 
+/// #561: dispatch `Command::ReloadPluginCatalog` and return a
+/// human-readable summary of the new totals (or an error message
+/// suitable for the status text). Both `install` and `install_secondary`
+/// share this helper so the success/failure path is one place.
+///
+/// When no project session is attached we still dispatch through a
+/// fresh in-process dispatcher snapshot — the catalog is process-wide
+/// state, not project-scoped. This mirrors the boot path
+/// (`init_many`), which runs before any project is loaded.
+fn run_reload_plugin_catalog(project_session: &Rc<RefCell<Option<ProjectSession>>>) -> String {
+    // Use the session's dispatcher when available so other listeners
+    // (publishing fan-out) see the event; fall back to a one-shot
+    // local dispatcher when no project is loaded (still triggers the
+    // registry reload because the handler reaches the same process-
+    // wide `plugin_loader::registry`).
+    let events_result: anyhow::Result<Vec<Event>> = {
+        let borrow = project_session.borrow();
+        if let Some(session) = borrow.as_ref() {
+            session.dispatcher.dispatch(Command::ReloadPluginCatalog)
+        } else {
+            drop(borrow);
+            // No project session — run the side-effect directly via a
+            // throwaway LocalDispatcher tied to an empty project. The
+            // registry is process-wide so the reload still takes
+            // effect for any future project session.
+            let project = Rc::new(std::cell::RefCell::new(project::project::Project {
+                name: None,
+                device_settings: Vec::new(),
+                chains: Vec::new(),
+                midi: None,
+            }));
+            application::local_dispatcher::LocalDispatcher::new(project)
+                .dispatch(Command::ReloadPluginCatalog)
+        }
+    };
+    match events_result {
+        Ok(events) => events
+            .iter()
+            .find_map(|e| match e {
+                Event::PluginCatalogReloaded {
+                    native_count,
+                    disk_count,
+                    total_count,
+                } => Some(format!(
+                    "{total_count} plugin(s) loaded ({native_count} native, {disk_count} disk)"
+                )),
+                _ => None,
+            })
+            .unwrap_or_else(|| "plugin catalog reloaded".to_string()),
+        Err(e) => {
+            log::warn!("[paths] Command::ReloadPluginCatalog failed: {e}");
+            format!("reload failed: {e}")
+        }
+    }
+}
+
 /// Install the Paths section callbacks on the primary `AppWindow`.
 /// Each Choose… opens the native folder dialog, persists into
 /// `config.yaml`, and updates the Slint property so the UI reflects
@@ -127,6 +184,16 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
         apply_plugins_path(&session, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(slint::SharedString::default());
+        }
+    });
+
+    // ── #561 reload plugin catalog ──────────────────────────────────
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_reload_plugin_catalog(move || {
+        let status = run_reload_plugin_catalog(&session);
+        if let Some(w) = win_weak.upgrade() {
+            w.set_plugin_catalog_status(status.into());
         }
     });
 }
@@ -178,6 +245,16 @@ pub fn install_secondary(
         apply_plugins_path(&session, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(slint::SharedString::default());
+        }
+    });
+
+    // ── #561 reload plugin catalog (secondary window) ───────────────
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_reload_plugin_catalog(move || {
+        let status = run_reload_plugin_catalog(&session);
+        if let Some(w) = win_weak.upgrade() {
+            w.set_plugin_catalog_status(status.into());
         }
     });
 }

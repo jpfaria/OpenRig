@@ -7,6 +7,7 @@
 use std::fmt::Write;
 
 use domain::ids::ChainId;
+use plugin_loader::manifest::Backend;
 use project::project::Project;
 use project::rig::RigProject;
 
@@ -153,13 +154,23 @@ pub fn list_project_presets(rig: &RigProject) -> String {
     out
 }
 
-/// Minimal JSON-string escaper for the small set of values this module
-/// emits. Avoids dragging `serde_json` into a pure listing helper —
-/// preset names and chain ids never carry control chars deeper than
-/// `"`, `\` or whitespace.
+/// Minimal JSON-string escaper that wraps the result in double quotes.
+/// Used by the #554 preset listings; avoids dragging `serde_json` into a
+/// pure listing helper — preset names and chain ids never carry control
+/// chars deeper than `"`, `\` or whitespace.
 fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
+    out.push_str(&json_escape(s));
+    out.push('"');
+    out
+}
+
+/// JSON-escape a string for inclusion in a manually-built JSON literal.
+/// Does NOT wrap the result in quotes — callers handle quoting (see
+/// [`json_string`] when both escape + quote are wanted).
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
             '"' => out.push_str("\\\""),
@@ -173,7 +184,112 @@ fn json_string(s: &str) -> String {
             c => out.push(c),
         }
     }
-    out.push('"');
+    out
+}
+
+/// Block-type label used in the plugin catalog JSON. Stable strings —
+/// adapters and clients pin against these.
+fn block_type_label(bt: &plugin_loader::manifest::BlockType) -> &'static str {
+    use plugin_loader::manifest::BlockType::*;
+    match bt {
+        GainPedal => "gain_pedal",
+        Preamp => "preamp",
+        Amp => "amp",
+        Cab => "cab",
+        Body => "body",
+        Reverb => "reverb",
+        Delay => "delay",
+        Mod => "mod",
+        Filter => "filter",
+        Dyn => "dyn",
+        Wah => "wah",
+        Pitch => "pitch",
+        Util => "util",
+    }
+}
+
+/// Serialize one `LoadedPackage` entry as a JSON object for the plugin
+/// catalog listing. Single source of truth for the shape (list and
+/// get share it).
+fn plugin_entry_json(p: &plugin_loader::LoadedPackage, out: &mut String) {
+    let backend = match p.manifest.backend {
+        Backend::Native { .. } => "native",
+        _ => "disk",
+    };
+    let _ = write!(
+        out,
+        "{{\"id\": \"{}\", \"display_name\": \"{}\", \"brand\": {}, \"block_type\": \"{}\", \"backend\": \"{}\"}}",
+        json_escape(&p.manifest.id),
+        json_escape(&p.manifest.display_name),
+        match p.manifest.brand.as_deref() {
+            Some(b) => format!("\"{}\"", json_escape(b)),
+            None => "null".to_string(),
+        },
+        block_type_label(&p.manifest.block_type),
+        backend,
+    );
+}
+
+/// #561 (expanded scope): JSON listing of every plugin currently in
+/// the process-wide catalog (`plugin_loader::registry::packages()`).
+/// Each entry carries id, display_name, brand (or null), block_type,
+/// backend ("native" / "disk"). Pure read — no mutation.
+pub fn list_plugin_catalog() -> String {
+    let mut out = String::from("{\"plugins\": [");
+    let mut first = true;
+    for p in plugin_loader::registry::packages() {
+        if !first {
+            out.push_str(", ");
+        }
+        first = false;
+        plugin_entry_json(p, &mut out);
+    }
+    out.push_str("]}");
+    out
+}
+
+/// #561 (expanded scope): JSON entry for the plugin with manifest id
+/// `id`, wrapped under a `plugin` key. Returns `{"plugin": null}` when
+/// no plugin in the catalog matches. Pure read.
+pub fn get_plugin(id: &str) -> String {
+    match plugin_loader::registry::find(id) {
+        Some(p) => {
+            let mut out = String::from("{\"plugin\": ");
+            plugin_entry_json(p, &mut out);
+            out.push('}');
+            out
+        }
+        None => "{\"plugin\": null}".to_string(),
+    }
+}
+
+/// #561 (expanded scope): text search across the catalog.
+/// Case-insensitive substring match against `id`, `display_name`, and
+/// `brand`. Empty query returns every entry (same as
+/// [`list_plugin_catalog`]) — lets the agent treat search and listing
+/// as one tool. Same JSON envelope as the listing.
+pub fn find_plugins(query: &str) -> String {
+    let needle = query.to_lowercase();
+    let mut out = String::from("{\"plugins\": [");
+    let mut first = true;
+    for p in plugin_loader::registry::packages() {
+        let matches = needle.is_empty()
+            || p.manifest.id.to_lowercase().contains(&needle)
+            || p.manifest.display_name.to_lowercase().contains(&needle)
+            || p.manifest
+                .brand
+                .as_deref()
+                .is_some_and(|b| b.to_lowercase().contains(&needle));
+        if !matches {
+            continue;
+        }
+        if !first {
+            out.push_str(", ");
+        }
+        first = false;
+        plugin_entry_json(p, &mut out);
+    }
+    out.push_str("]}");
     out
 }
 
