@@ -67,16 +67,22 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
     let mut slots = String::new();
     slots.push('[');
     let mut first = true;
-    for (idx, preset_name) in input.bank.iter() {
+    for (idx, preset_key) in input.bank.iter() {
         if !first {
             slots.push(',');
         }
         first = false;
+        let label = rig
+            .presets
+            .get(preset_key)
+            .and_then(|p| p.name.clone())
+            .unwrap_or_else(|| preset_key.clone());
         let _ = write!(
             slots,
-            "{{\"index\":{},\"name\":{}}}",
+            "{{\"index\":{},\"name\":{},\"key\":{}}}",
             idx,
-            json_string(preset_name)
+            json_string(&label),
+            json_string(preset_key)
         );
     }
     slots.push(']');
@@ -84,7 +90,14 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
     let active_preset = input
         .bank
         .get(&input.active_preset)
-        .map(|name| json_string(name))
+        .map(|key| {
+            let label = rig
+                .presets
+                .get(key)
+                .and_then(|p| p.name.clone())
+                .unwrap_or_else(|| key.clone());
+            json_string(&label)
+        })
         .unwrap_or_else(|| "null".to_string());
 
     Ok(format!(
@@ -96,26 +109,45 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
 }
 
 /// #554 follow-up: list every named preset in `RigProject.presets` —
-/// the in-memory pool that the rig's input banks reference by name.
+/// the in-memory pool that the rig's input banks reference by key.
 /// A preset can sit in the pool without being bound to any input slot
 /// yet (e.g. the user saved it via the rig screen but hasn't wired it
 /// into a chain). The tone-builder skill's Step 0 reads this to make
 /// sure it doesn't silently overwrite an existing preset on save.
 ///
+/// Each entry returns the user-visible label (`RigPreset.name`,
+/// falling back to the pool key when the field is absent) AND the
+/// pool key — the key is what the bank slots reference and what
+/// `Command::DeleteChainPreset` / load operations take, so consumers
+/// need both. Sorted by display label so the GUI's combobox and the
+/// MCP read produce the same order.
+///
 /// Pure: `&RigProject` in, `String` out. Reads the in-memory rig
 /// only — the on-disk preset library (`config.paths.presets_path`)
 /// is a separate concern.
 pub fn list_project_presets(rig: &RigProject) -> String {
-    let mut names: Vec<&String> = rig.presets.keys().collect();
-    names.sort();
+    let mut entries: Vec<(&String, String)> = rig
+        .presets
+        .iter()
+        .map(|(key, preset)| {
+            let label = preset.name.clone().unwrap_or_else(|| key.clone());
+            (key, label)
+        })
+        .collect();
+    entries.sort_by(|(_, a), (_, b)| a.cmp(b));
     let mut out = String::from("{\"presets\":[");
     let mut first = true;
-    for name in names {
+    for (key, label) in entries {
         if !first {
             out.push(',');
         }
         first = false;
-        let _ = write!(out, "{{\"name\":{}}}", json_string(name));
+        let _ = write!(
+            out,
+            "{{\"name\":{},\"key\":{}}}",
+            json_string(&label),
+            json_string(key)
+        );
     }
     out.push_str("]}");
     out
