@@ -12,6 +12,7 @@ export struct TrackRowData {
     artist: string,
     duration: string,
     stem-count: int,
+    cover-art: image,
 }
 
 export component TracksPage inherits Rectangle {
@@ -109,14 +110,45 @@ export component TracksPage inherits Rectangle {
             background: transparent;
             vertical-stretch: 1;
 
-            Text {
-                text: @tr("tracks-empty");
-                color: #8a929e;
-                font-size: 14px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            VerticalLayout {
+                spacing: 14px;
+                alignment: center;
                 width: parent.width;
                 height: parent.height;
+
+                Rectangle {
+                    width: 96px;
+                    height: 96px;
+                    background: @linear-gradient(180deg, #2a2d33 0%, #16181c 100%);
+                    border-radius: 16px;
+                    border-width: 1px;
+                    border-color: #3d4148;
+                    horizontal-stretch: 0;
+
+                    Image {
+                        x: 22px;
+                        y: 22px;
+                        width: 52px;
+                        height: 52px;
+                        source: @image-url("../assets/tracks.svg");
+                        image-fit: contain;
+                        colorize: #6e7682;
+                    }
+                }
+
+                Text {
+                    text: @tr("tracks-empty");
+                    color: #b6bcc4;
+                    font-size: 16px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: @tr("tracks-empty-hint");
+                    color: #6e7682;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                }
             }
         }
 
@@ -127,36 +159,68 @@ export component TracksPage inherits Rectangle {
                 spacing: 8px;
 
                 for track in root.tracks : Rectangle {
-                    height: 56px;
-                    background: #1d2024;
+                    height: 72px;
+                    background: @linear-gradient(180deg, #1d2024 0%, #16181c 100%);
                     border-width: 1px;
                     border-color: #2f3339;
-                    border-radius: 6px;
+                    border-radius: 8px;
+                    drop-shadow-color: #00000060;
+                    drop-shadow-offset-y: 1px;
+                    drop-shadow-blur: 3px;
 
                     HorizontalLayout {
-                        padding-left: 16px;
-                        padding-right: 16px;
-                        spacing: 12px;
+                        padding: 10px;
+                        spacing: 14px;
                         alignment: stretch;
 
-                        Text {
-                            text: track.title;
-                            color: #f4f7fb;
-                            font-size: 14px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
+                        // Cover art (or stylized placeholder when no embedded image).
+                        Rectangle {
+                            width: 52px;
+                            height: 52px;
+                            background: @linear-gradient(180deg, #2a2d33 0%, #16181c 100%);
+                            border-width: 1px;
+                            border-color: #3d4148;
+                            border-radius: 6px;
+                            clip: true;
+
+                            Image {
+                                width: parent.width;
+                                height: parent.height;
+                                source: track.cover-art;
+                                image-fit: cover;
+                            }
                         }
-                        Text {
-                            text: track.artist;
-                            color: #b6bcc4;
-                            font-size: 13px;
-                            vertical-alignment: center;
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            alignment: center;
+                            Text {
+                                text: track.title;
+                                color: #f4f7fb;
+                                font-size: 15px;
+                                font-weight: 700;
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: track.artist;
+                                    color: #b6bcc4;
+                                    font-size: 12px;
+                                }
+                                Text {
+                                    text: track.stem-count + " stems";
+                                    color: #8a929e;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                }
+                            }
                         }
                         Text {
                             text: track.duration;
                             color: #8a929e;
-                            font-size: 13px;
+                            font-size: 14px;
+                            font-weight: 600;
                             vertical-alignment: center;
                             width: 60px;
                             horizontal-alignment: right;

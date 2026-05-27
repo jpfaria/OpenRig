@@ -30,6 +30,7 @@ export component TracksWindow inherits Window {
     in property <bool> show-track-detail;
     in property <string> track-detail-title;
     in property <string> track-detail-artist;
+    in property <image> track-detail-cover-art;
     in property <string> track-detail-bpm-text;
     in property <string> track-detail-key-text;
     in property <string> track-detail-position-text;
@@ -62,6 +63,7 @@ export component TracksWindow inherits Window {
         height: parent.height;
         title: root.track-detail-title;
         artist: root.track-detail-artist;
+        cover-art: root.track-detail-cover-art;
         bpm-text: root.track-detail-bpm-text;
         key-text: root.track-detail-key-text;
         position-text: root.track-detail-position-text;

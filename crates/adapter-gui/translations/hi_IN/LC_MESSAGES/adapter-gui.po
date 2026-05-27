@@ -599,3 +599,6 @@ msgstr "ट्रैक्स / स्टेम्स"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — ट्रैक्स"
+
+msgid "tracks-empty-hint"
+msgstr "\"आयात और अलग करें\" पर क्लिक करके शुरू करें।"

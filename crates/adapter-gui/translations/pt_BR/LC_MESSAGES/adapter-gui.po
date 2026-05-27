@@ -660,3 +660,6 @@ msgstr "Faixas / Stems"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — Faixas"
+
+msgid "tracks-empty-hint"
+msgstr "Clique em \"Importar e separar\" para começar."

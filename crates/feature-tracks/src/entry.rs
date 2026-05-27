@@ -167,4 +167,12 @@ impl TrackEntry {
         let basename = kind.default_filename().trim_end_matches(".wav");
         self.dir.join("peaks").join(format!("{basename}.png"))
     }
+
+    /// Absolute path to the embedded cover-art blob (raw bytes the
+    /// source file had — JPEG or PNG). `None` when the file had no
+    /// embedded art at separation time.
+    #[must_use]
+    pub fn cover_path(&self) -> PathBuf {
+        self.dir.join("cover.bin")
+    }
 }

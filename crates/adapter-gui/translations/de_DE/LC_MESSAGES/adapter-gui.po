@@ -605,3 +605,6 @@ msgstr "Tracks / Stems"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — Tracks"
+
+msgid "tracks-empty-hint"
+msgstr "Klicke auf \"Importieren & trennen\" um zu beginnen."

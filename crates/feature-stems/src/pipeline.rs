@@ -165,6 +165,14 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
     let duration_secs = frames / source_sr as f64;
     let extracted = extract_tags(&request.source_path).unwrap_or_default();
 
+    // Persist the cover-art bytes alongside the stems so the GUI can
+    // render the album thumbnail in the list + detail header. The
+    // file format is whatever the source had embedded (JPEG / PNG).
+    if let Some(cover_bytes) = crate::extract_cover_bytes(&request.source_path) {
+        let cover_path = track_dir.join("cover.bin");
+        let _ = std::fs::write(&cover_path, &cover_bytes);
+    }
+
     let meta = TrackMeta {
         id: TrackId::new(&request.track_id),
         // Caller-supplied title wins; fall back to the ID3/Vorbis

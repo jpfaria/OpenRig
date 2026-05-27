@@ -25,7 +25,7 @@ pub use inference_ort::separate_stems_with_ort;
 pub use model::{ensure_model_with, ModelDownloader, UreqDownloader};
 pub use pipeline::{separate_track, SeparateRequest};
 pub use resample::resample_to;
-pub use tags::{extract_tags, ExtractedTags};
+pub use tags::{extract_cover_bytes, extract_tags, ExtractedTags};
 
 use std::path::PathBuf;
 

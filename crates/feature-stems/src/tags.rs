@@ -8,6 +8,7 @@
 use std::path::Path;
 
 use lofty::file::TaggedFileExt;
+use lofty::picture::PictureType;
 use lofty::probe::Probe;
 use lofty::tag::Accessor;
 
@@ -63,4 +64,19 @@ pub fn extract_tags(path: &Path) -> Result<ExtractedTags, StemError> {
         year: tag.year(),
         genre: tag.genre().map(|s| s.to_string()),
     })
+}
+
+/// Extract the embedded cover-art image bytes (PNG/JPEG), preferring
+/// `CoverFront`. Returns `None` for sources without art or with
+/// unsupported encodings — the catalog falls back to a placeholder.
+pub fn extract_cover_bytes(path: &Path) -> Option<Vec<u8>> {
+    let probe = Probe::open(path).ok()?;
+    let tagged = probe.read().ok()?;
+    let tag = tagged.primary_tag().or_else(|| tagged.first_tag())?;
+    let pictures = tag.pictures();
+    let cover = pictures
+        .iter()
+        .find(|p| p.pic_type() == PictureType::CoverFront)
+        .or_else(|| pictures.first())?;
+    Some(cover.data().to_vec())
 }

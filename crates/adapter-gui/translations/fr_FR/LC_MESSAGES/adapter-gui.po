@@ -602,3 +602,6 @@ msgstr "Pistes / Stems"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — Pistes"
+
+msgid "tracks-empty-hint"
+msgstr "Cliquez sur \"Importer & séparer\" pour commencer."

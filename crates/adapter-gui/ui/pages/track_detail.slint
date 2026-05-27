@@ -319,6 +319,7 @@ component TransportButton inherits Rectangle {
 export component TrackDetailPage inherits Rectangle {
     in property <string> title;
     in property <string> artist;
+    in property <image> cover-art;
     in property <string> bpm-text;
     in property <string> key-text;
     in property <string> position-text;
@@ -391,6 +392,25 @@ export component TrackDetailPage inherits Rectangle {
                     TouchArea { clicked => { root.back-clicked(); } }
                 }
 
+                // Cover thumbnail
+                Rectangle {
+                    width: 52px;
+                    height: 52px;
+                    y: (parent.height - 52px) / 2;
+                    background: @linear-gradient(180deg, #2a2d33 0%, #16181c 100%);
+                    border-width: 1px;
+                    border-color: #3d4148;
+                    border-radius: 6px;
+                    clip: true;
+
+                    Image {
+                        width: parent.width;
+                        height: parent.height;
+                        source: root.cover-art;
+                        image-fit: cover;
+                    }
+                }
+
                 VerticalLayout {
                     horizontal-stretch: 1;
                     spacing: 2px;
@@ -398,13 +418,13 @@ export component TrackDetailPage inherits Rectangle {
                     Text {
                         text: root.title;
                         color: #f4f7fb;
-                        font-size: 20px;
+                        font-size: 22px;
                         font-weight: 800;
                     }
                     Text {
                         text: root.artist;
                         color: #b6bcc4;
-                        font-size: 12px;
+                        font-size: 13px;
                         font-weight: 500;
                     }
                 }

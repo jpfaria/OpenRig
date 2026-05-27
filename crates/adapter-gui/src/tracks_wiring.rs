@@ -48,6 +48,12 @@ fn format_duration(secs: f64) -> SharedString {
 }
 
 fn entry_to_row(entry: &TrackEntry) -> TrackRowData {
+    let cover_path = entry.cover_path();
+    let cover = if cover_path.exists() {
+        Image::load_from_path(&cover_path).unwrap_or_default()
+    } else {
+        Image::default()
+    };
     TrackRowData {
         id: SharedString::from(entry.meta.id.as_str()),
         title: SharedString::from(entry.meta.title.as_str()),
@@ -59,6 +65,7 @@ fn entry_to_row(entry: &TrackEntry) -> TrackRowData {
             .unwrap_or_default(),
         duration: format_duration(entry.meta.duration_secs),
         stem_count: entry.meta.stems.len() as i32,
+        cover_art: cover,
     }
 }
 
@@ -84,8 +91,43 @@ impl TracksState {
 fn rescan_catalog(state: &Rc<RefCell<TracksState>>, tracks_window: &TracksWindow) {
     let dir = default_tracks_dir();
     let entries = feature_tracks::scan_catalog(&dir).unwrap_or_default();
-    let rows: Vec<TrackRowData> = entries.iter().map(entry_to_row).collect();
     state.borrow_mut().catalog = entries;
+    apply_search_filter(state, tracks_window);
+}
+
+/// Re-render the list model using the current search-text as a case-
+/// insensitive substring filter against title / artist / album.
+fn apply_search_filter(state: &Rc<RefCell<TracksState>>, tracks_window: &TracksWindow) {
+    let needle = tracks_window
+        .get_tracks_search_text()
+        .as_str()
+        .trim()
+        .to_lowercase();
+    let rows: Vec<TrackRowData> = state
+        .borrow()
+        .catalog
+        .iter()
+        .filter(|entry| {
+            if needle.is_empty() {
+                return true;
+            }
+            let in_title = entry.meta.title.to_lowercase().contains(&needle);
+            let in_artist = entry
+                .meta
+                .artist
+                .as_deref()
+                .map(|s| s.to_lowercase().contains(&needle))
+                .unwrap_or(false);
+            let in_album = entry
+                .meta
+                .album
+                .as_deref()
+                .map(|s| s.to_lowercase().contains(&needle))
+                .unwrap_or(false);
+            in_title || in_artist || in_album
+        })
+        .map(entry_to_row)
+        .collect();
     let model = Rc::new(VecModel::from(rows));
     tracks_window.set_tracks(ModelRc::from(model));
 }
@@ -186,6 +228,13 @@ fn populate_track_detail(tracks_window: &TracksWindow, entry: &TrackEntry) {
             .to_string()
             .into(),
     );
+    let cover_path = entry.cover_path();
+    let cover = if cover_path.exists() {
+        Image::load_from_path(&cover_path).unwrap_or_default()
+    } else {
+        Image::default()
+    };
+    tracks_window.set_track_detail_cover_art(cover);
     tracks_window.set_track_detail_bpm_text(
         entry
             .meta
@@ -313,9 +362,20 @@ pub(crate) fn wire_tracks_window(
     project_session: Rc<RefCell<Option<ProjectSession>>>,
 ) {
     let state = Rc::new(RefCell::new(TracksState::new()));
-    rescan_catalog(&state, tracks_window);
     tracks_window.set_tracks_search_text(SharedString::new());
+    rescan_catalog(&state, tracks_window);
     tracks_window.set_show_track_detail(false);
+
+    // Search bar → live substring filter on title / artist / album.
+    {
+        let state = state.clone();
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_tracks_search_changed(move |_text| {
+            if let Some(tw) = tw_weak.upgrade() {
+                apply_search_filter(&state, &tw);
+            }
+        });
+    }
 
     // 30 Hz playhead poll → updates the position label + 0..1
     // progress so the waveform line moves while a stem is playing.

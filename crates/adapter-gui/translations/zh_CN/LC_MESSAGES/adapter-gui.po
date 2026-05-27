@@ -599,3 +599,6 @@ msgstr "音轨 / 分轨"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — 音轨"
+
+msgid "tracks-empty-hint"
+msgstr "点击\"导入并分离\"开始。"

@@ -599,3 +599,6 @@ msgstr "트랙 / 스템"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — 트랙"
+
+msgid "tracks-empty-hint"
+msgstr "\"가져오기 및 분리\"를 클릭하여 시작하세요."

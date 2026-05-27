@@ -788,3 +788,8 @@ msgstr ""
 msgctxt "TracksWindow"
 msgid "title-window-tracks"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/tracks.slint
+msgctxt "TracksPage"
+msgid "tracks-empty-hint"
+msgstr ""

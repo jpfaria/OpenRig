@@ -603,3 +603,6 @@ msgstr "トラック / ステム"
 
 msgid "title-window-tracks"
 msgstr "OpenRig — トラック"
+
+msgid "tracks-empty-hint"
+msgstr "\"インポートして分離\"をクリックして始めましょう。"
