@@ -4,7 +4,25 @@
 //! `docs/superpowers/specs/2026-05-27-issue-572-mcp-block-plugin-params-design.md`.
 
 use crate::bridge::QueryKind;
-use crate::query::get_plugin_params;
+use crate::query::{get_block_params, get_plugin_params};
+use domain::ids::{BlockId, ChainId};
+use project::project::Project;
+
+#[test]
+fn get_block_params_unknown_chain_returns_err() {
+    // No chain with that id in the project — surface a typed error so
+    // the transport can map it cleanly (mirrors `list_chain_presets`'s
+    // contract, not `get_plugin_params`'s null envelope, because here
+    // the lookup is over Project state the transport owns, not over
+    // the process-wide plugin catalog).
+    let project = Project::default();
+    let result = get_block_params(
+        &project,
+        &ChainId("issue-572-nope-chain".to_string()),
+        &BlockId("issue-572-nope-block".to_string()),
+    );
+    assert!(result.is_err(), "unknown chain must be Err, got: {result:?}");
+}
 
 #[test]
 fn querykind_get_plugin_params_carries_plugin_id() {

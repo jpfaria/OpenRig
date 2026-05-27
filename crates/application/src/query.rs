@@ -326,6 +326,22 @@ fn block_type_str(bt: &plugin_loader::manifest::BlockType) -> String {
         .unwrap_or_default()
 }
 
+/// #572: list of materialised `BlockParameterDescriptor` for one placed
+/// block (schema + `current_value` per parameter), serialised under a
+/// `params` envelope. Mirrors what `list_chain_presets` does for the
+/// preset bank — looks up the chain in the project, finds the block,
+/// then resolves the model's parameter specs and binds them to the
+/// block's current `ParameterSet`. Unknown chain / block → `Err`.
+pub fn get_block_params(
+    _project: &project::project::Project,
+    _chain: &domain::ids::ChainId,
+    _block: &domain::ids::BlockId,
+) -> Result<String, String> {
+    // Minimal cycle 1: only the unknown-chain `Err` path. Happy-path
+    // materialisation lands in the next red-first cycle.
+    Err("chain not found".to_string())
+}
+
 #[cfg(test)]
 #[path = "query_chain_presets_tests.rs"]
 mod chain_presets_tests;
