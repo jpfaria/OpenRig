@@ -1,157 +1,123 @@
 # MCP read parity for block/plugin parameters (#572)
 
-**Status:** draft
+**Status:** draft (rewritten 2026-05-27 after recon — the original
+two-phase plan was based on a false premise; see "What this spec used
+to say" at the bottom).
 **Issue:** [#572](https://github.com/jpfaria/OpenRig/issues/572)
 **Date:** 2026-05-27
 **Author:** brainstorm with @jpfaria
 
 ## Problem
 
-MCP (and any future transport: gRPC, remote) can already **set** block parameters
-via `Command::SetBlockParameter{Number,Bool,Text,File}` and
-`Command::SelectBlockParameterOption` — these are auto-derived into MCP tools
-(`set_block_parameter_number`, `select_block_parameter_option`, etc.) by
-`crates/application/src/command_schema.rs`. But there is no way for any
-transport to **discover**:
+MCP (and any future transport: gRPC, remote) can already **set** block
+parameters via `Command::SetBlockParameter{Number,Bool,Text,File}` and
+`Command::SelectBlockParameterOption` — these are auto-derived into MCP
+tools (`set_block_parameter_number`, `select_block_parameter_option`,
+etc.) by `crates/application/src/command_schema.rs`. But there is no way
+for any transport to **discover**:
 
-- Which parameters a given plugin (catalog entry) exposes.
+- Which parameters a given plugin (catalog model) exposes.
 - Which parameters a given placed block instance currently has.
-- The schema of each parameter (kind, range, options, default).
+- The schema of each parameter (kind, range, options, default, unit,
+  widget, group).
 - The current value of each parameter on a placed block.
 
 Without that, an MCP / gRPC client can only drive parameter mutations it
 already knows about by name and type — there is no introspection. The
-preset/tone-builder workflow, in particular, needs to know which knobs are
-reachable before deciding which `set_block_parameter_*` to call.
+preset / tone-builder workflow needs to know which knobs are reachable
+before deciding which `set_block_parameter_*` to call.
 
-## Architectural constraint (the real hard part)
+## What already exists (the part the first draft of this spec missed)
 
-The parameter **descriptor** — the metadata that says "this knob is a number
-0..10 default 5", "this is an option { A, B, C } default A", etc. — currently
-lives in the GUI layer (`crates/adapter-gui/src/block_editor_param_items.rs`
-builds Slint rows from per-block knowledge encoded there). That violates two
-inegociáveis OpenRig laws (`CLAUDE.md`):
+The descriptor infrastructure is **already complete** in
+`crates/block-core/src/param/`:
 
-1. **"Tela não tem regra de negócio. Slint é dispatcher puro."**
-2. **"Backend transport-agnostic."**
+- `schema::ModelParameterSchema { effect_type, model, display_name,
+  audio_mode, parameters: Vec<ParameterSpec> }` — catalog-level schema
+  per block model.
+- `schema::ParameterSpec { path, label, group, widget, unit, domain,
+  default_value, optional, allow_empty }` — per-param schema with all
+  metadata.
+- `schema::ParameterDomain { Bool | IntRange | FloatRange | Enum | Text
+  | FilePath }` — the value space.
+- `schema::ParameterWidget { Knob | Toggle | Select | FilePicker |
+  TextInput | MultiSlider | CurveEditor }` — UI rendering hint.
+- `schema::ParameterUnit { None | Decibels | Hertz | Milliseconds |
+  Percent | Ratio | Semitones }` — display unit.
+- `descriptor::BlockParameterDescriptor` — per-block-instance descriptor
+  carrying schema + `current_value`.
+- `ParameterSpec::materialize(block_id, effect_type, model, audio_mode,
+  current_value) -> BlockParameterDescriptor` — the exact bridge from
+  "catalog schema" to "live block param".
 
-If a new MCP `QueryKind::GetPluginParams` resolver pulled the schema from the
-GUI (or duplicated the rules inside `crates/adapter-mcp`), every new transport
-(gRPC, remote control) would re-duplicate the same schema rules and they would
-drift the moment one transport added a knob or changed a range. The setters
-already *nasce* `Command` (single source of truth); the readers must read from
-a matching single source.
+All of these already derive `Serialize, Deserialize` — JSON is free.
 
-**Conclusion:** the work is two phases. Phase 1 is the real architectural
-change. Phase 2 (the actual MCP queries) becomes trivial once Phase 1 is done.
+The GUI is already a pure consumer:
+`crates/adapter-gui/src/block_editor_param_items.rs` does
+`use project::param::{ParameterDomain, ParameterSpec, ParameterWidget};
+spec.domain → BlockParameterItem`. Zero schema literals live in
+`adapter-gui`.
+
+The bridge from "model id string" to `ModelParameterSchema` is
+`project::block::schema_for_block_model(...)` (consumed by the editor
+today). The bridge from "(chain, block) placed instance" to a list of
+materialized `BlockParameterDescriptor` lives in the project crate
+(exact path to be confirmed in the implementation phase via grep on
+`materialize`).
+
+**Conclusion:** the architectural concern is already satisfied. Schema
+metadata is centralised in `block-core::param`, the GUI consumes it.
+The only work this issue needs is the MCP transport binding.
 
 ## Goals
 
-1. A single domain-owned source of truth for block parameter descriptors.
-2. The GUI consumes that source (no schema rules left in `adapter-gui`).
-3. MCP exposes two new read tools/resources that read the same source.
-4. Adapter-console parity test covers the two new `QueryKind` variants.
-5. Zero regression to existing setter Commands, the GUI's block editor, or
-   any audio-thread invariant (`CLAUDE.md` invariantes 1–10).
+1. Add `QueryKind::GetPluginParams { plugin_id }` — returns the model's
+   `ModelParameterSchema` as JSON.
+2. Add `QueryKind::GetBlockParams { chain, block }` — returns the list
+   of materialized `BlockParameterDescriptor` for the placed block, as
+   JSON (schema + `current_value`).
+3. Wire two MCP tools (`get_plugin_params`, `get_block_params`) and two
+   MCP resources (`openrig://plugin/{id}/params`,
+   `openrig://chain/{cid}/block/{bid}/params`).
+4. Adapter-console parity test arm for both new variants (same pattern
+   used for `ListChainPresets` / `ListProjectPresets`).
+5. Zero regression to existing setter Commands, the GUI's block editor,
+   or any audio-thread invariant (`CLAUDE.md` invariantes 1–10).
 
 ## Non-goals
 
-- gRPC adapter wiring (the new `QueryKind` variants will feed it automatically
-  whenever the gRPC adapter exists; nothing transport-specific in this issue).
-- Adding new parameter kinds beyond what `ParameterValue` already supports
-  (`Number`, `Bool`, `Text`, `Option`, `File`).
+- gRPC adapter wiring (the new `QueryKind` variants feed it automatically
+  whenever the gRPC adapter exists; nothing transport-specific in this
+  issue).
+- New parameter kinds, widgets, units, or domains beyond what already
+  exists in `block-core::param::schema`.
+- Refactoring `ModelParameterSchema` / `ParameterSpec` /
+  `BlockParameterDescriptor` field names or shapes. Whatever they
+  serialize to today is what we expose. If a field is internal-only,
+  we may project a thinner view — but no rename / restructure here.
 - Changing the mutation path or the on-disk shape of `Project`.
-- Exposing setter parity (already exists via the 5 `set_block_parameter_*`
-  Commands).
+- Exposing setter parity (already exists via the 5
+  `set_block_parameter_*` Commands).
 - A persistent disk-side plugin parameter schema cache.
 
-## Phase 1 — extract `ParameterDescriptor` into `domain`
+## Design
 
-### New domain type
-
-Add next to `domain::value_objects::ParameterValue`:
-
-```rust
-pub struct ParameterDescriptor {
-    pub id: domain::ids::ParameterId,
-    pub kind: ParameterKind,
-    pub default: ParameterValue,
-}
-
-pub enum ParameterKind {
-    Number { min: f32, max: f32, step: f32 },
-    Bool,
-    Text,
-    Option { values: Vec<String> },
-    File,
-}
-```
-
-Invariants enforced by constructors (and tested red-first):
-
-- `Number`: `min < max`, `step > 0`, `default` is `Number(v)` with `min <= v <= max`.
-- `Option`: `values.len() >= 1`, `default` is `Text(v)` with `v` in `values`.
-- `Bool`: `default` is `Bool(_)`.
-- `Text`: `default` is `Text(_)`.
-- `File`: `default` is `Text(_)` (path) or unset — to be settled by the
-  current `PickBlockParameterFile` semantics during extraction.
-
-### Source per block
-
-Each block model exposes its descriptor list. Two viable shapes — to be
-chosen in the implementation plan after a code read of the block registry:
-
-- **(a)** A `BlockModel` trait method `fn descriptors(&self) -> &[ParameterDescriptor]`
-  with each model returning a `'static` slice (cheap, deterministic).
-- **(b)** The block registry stores descriptors next to the model id (data,
-  not behavior — works if model construction is cheap and we want them
-  introspectable without instantiating).
-
-Shape (a) is the working assumption; (b) only if registry analysis shows
-descriptors are already keyed by model id elsewhere.
-
-### GUI becomes a consumer
-
-`crates/adapter-gui/src/block_editor_param_items.rs` and any of the
-`block_editor_*` siblings that today encode per-model schema rules must move
-those rules into the model's `descriptors()` and read back through that
-single source. No `min` / `max` / `options` literal stays in `adapter-gui`
-after this phase.
-
-Red-first per `docs/testing.md`:
-
-- Add a domain unit test asserting each existing block model returns
-  descriptors that match the rows the GUI used to build. The test fails
-  before extraction (no `descriptors()` exists) — that is the red — then
-  goes green as the extraction lands.
-- Add a Slint-free GUI test (against the value layer in
-  `block_editor_values.rs`) confirming that the rows the editor would render
-  come from `descriptors()` and not from local literals.
-
-### Done criteria for Phase 1
-
-- `grep -rEn '\b(min|max|options|step)\s*[:=]' crates/adapter-gui/src` shows
-  zero parameter-schema literals.
-- All existing tests still pass (`cargo test --workspace`).
-- GUI block editor still renders identical rows for every model (manual
-  smoke + golden where applicable).
-- Volume invariants and audio-thread invariants untouched (Phase 1 does not
-  touch the audio path at all).
-
-## Phase 2 — read parity via `QueryKind`
-
-### New variants
+### New `QueryKind` variants
 
 Add to `crates/application/src/bridge.rs::QueryKind`:
 
 ```rust
 /// #572: full parameter schema for one plugin (catalog-level).
-/// No placed instance required. Resolved from the block model's
-/// ParameterDescriptor list. JSON payload omits `current`.
+/// No placed instance required. Resolved via
+/// `project::block::schema_for_block_model(plugin_id)` and serialized
+/// to JSON. Empty / unknown plugin id → error.
 GetPluginParams { plugin_id: String },
 
-/// #572: schema + current value for one placed block instance.
-/// JSON payload includes `current` per param, read from the Project.
+/// #572: list of materialized `BlockParameterDescriptor` for one
+/// placed block (schema + current value per param). Resolved by
+/// iterating the placed block's `ParameterSpec`s in the project's
+/// model schema and calling `ParameterSpec::materialize(...)` with
+/// the current value from `Project`.
 GetBlockParams {
     chain: domain::ids::ChainId,
     block: domain::ids::BlockId,
@@ -160,73 +126,97 @@ GetBlockParams {
 
 ### Resolvers
 
-`crates/application/src/query.rs` gets two new pure functions following the
-existing `list_plugin_catalog` / `get_plugin` / `find_plugins` pattern:
+`crates/application/src/query.rs` gets two new pure functions following
+the existing `list_plugin_catalog` / `get_plugin` / `find_plugins`
+pattern:
 
 ```rust
-pub fn get_plugin_params(catalog: &PluginCatalog, id: &str)
+pub fn get_plugin_params(project: &RigProject, plugin_id: &str)
     -> Result<String, String>;
-pub fn get_block_params(project: &RigProject, chain: ChainId, block: BlockId)
-    -> Result<String, String>;
+
+pub fn get_block_params(
+    project: &RigProject,
+    chain: &ChainId,
+    block: &BlockId,
+) -> Result<String, String>;
 ```
 
-Both serialize to the JSON shape below. Each is independently unit-tested
-against fixtures with the same red-first discipline as the other `query`
-functions on develop.
+Both serialize via `serde_json::to_string(...)` against the existing
+types. Each is independently unit-tested with the same red-first
+discipline as the other `query` functions.
 
-### JSON shape (uniform)
+### JSON shape
+
+Default approach: **let the existing `Serialize` impls speak.** That
+gives MCP clients the exact same wire shape the rest of the system uses
+(no parallel schema to maintain). Concretely, the responses are
+roughly:
+
+`get_plugin_params` (the `ModelParameterSchema` direct serialization):
 
 ```json
 {
-  "params": [
+  "effect_type": "preamp",
+  "model": "british_70s",
+  "display_name": "British 70s",
+  "audio_mode": "stereo",
+  "parameters": [
     {
-      "id": "drive",
-      "kind": "number",
-      "min": 0.0,
-      "max": 10.0,
-      "step": 0.1,
-      "default": 5.0,
-      "current": 7.2
-    },
-    {
-      "id": "voice",
-      "kind": "option",
-      "options": ["A", "B", "C"],
-      "default": "A",
-      "current": "B"
-    },
-    {
-      "id": "enabled",
-      "kind": "bool",
-      "default": true,
-      "current": false
-    },
-    {
-      "id": "ir_file",
-      "kind": "file",
-      "current": "/path/to.wav"
+      "path": "drive",
+      "label": "Drive",
+      "group": null,
+      "widget": "Knob",
+      "unit": "none",
+      "domain": { "FloatRange": { "min": 0.0, "max": 10.0, "step": 0.1 } },
+      "default_value": 5.0,
+      "optional": false,
+      "allow_empty": false
     }
   ]
 }
 ```
 
-Rules:
+`get_block_params` (a `Vec<BlockParameterDescriptor>` serialization,
+wrapped in `{ "params": [...] }` to leave room for future top-level
+metadata without breaking clients):
 
-- `current` is **omitted** in `GetPluginParams` responses.
-- `current` is **always present** in `GetBlockParams` responses for every
-  param the block has (even if the user has not changed it from `default`).
-- A param the block lacks (model mismatch, stale snapshot) is dropped from
-  the response — never reported with `current: null`. The transport sees
-  the truth of the current `Project` state, nothing more.
-- Numeric values are JSON numbers (not strings), booleans are JSON booleans.
+```json
+{
+  "params": [
+    {
+      "id": "chain:abc:block:def::drive",
+      "block_id": "chain:abc:block:def",
+      "effect_type": "preamp",
+      "model": "british_70s",
+      "audio_mode": "stereo",
+      "path": "drive",
+      "label": "Drive",
+      "group": null,
+      "widget": "Knob",
+      "unit": "none",
+      "domain": { "FloatRange": { "min": 0.0, "max": 10.0, "step": 0.1 } },
+      "default_value": 5.0,
+      "current_value": 7.2,
+      "optional": false,
+      "allow_empty": false
+    }
+  ]
+}
+```
+
+If the existing serialization carries fields that are noisy for an MCP
+client (e.g., very long file-path extension lists, or
+`audio_mode`-only metadata that we already expose elsewhere), the
+implementation phase may add a thin projection type. Default is "no
+projection" — fewer types, less drift.
 
 ### Transport bindings
 
 `crates/adapter-mcp`:
 
 - `tools.rs`: two new tool definitions, `get_plugin_params { plugin_id }`
-  and `get_block_params { chain_id, block_id }`. Names follow the existing
-  `list_plugin_catalog` / `get_plugin` style (snake_case, no `mcp` prefix).
+  and `get_block_params { chain_id, block_id }`. Names follow the
+  existing `list_plugin_catalog` / `get_plugin` style (snake_case).
 - `resources.rs`: two new resource templates,
   `openrig://plugin/{id}/params` and
   `openrig://chain/{cid}/block/{bid}/params`.
@@ -234,65 +224,118 @@ Rules:
 ### Adapter-console parity
 
 The same test that on develop guards new `QueryKind` variants
-(`ListChainPresets`, `ListProjectPresets`, etc.) gets two new arms covering
-`GetPluginParams` and `GetBlockParams`. That is the canary that future
-`QueryKind` additions also need adapter-console coverage.
+(`ListChainPresets`, `ListProjectPresets`, etc.) gets two new arms
+covering `GetPluginParams` and `GetBlockParams`. That keeps the
+adapter-console guard rail in sync.
 
-### Done criteria for Phase 2
+Note: on `develop` today `cargo build -p adapter-console` already fails
+because the `ListChainPresets` / `ListProjectPresets` arms were never
+backported from `feature/issue-548`. That is **not** in scope for #572,
+but the new arms this issue adds must not make it worse — confirm
+adapter-console builds clean after the parity arms land (which they
+will, because the parity arms are explicitly what fixes the missing
+coverage).
 
-- `cargo test --workspace` green (including the two new resolver suites and
-  the adapter-console parity test).
-- MCP smoke (manual): `get_plugin_params {plugin_id: "<known>"}` returns
-  the expected schema; `get_block_params {chain_id, block_id}` returns
-  schema + current after one `set_block_parameter_number` round-trip.
-- Resources reachable: `openrig://plugin/<id>/params` and
-  `openrig://chain/<cid>/block/<bid>/params` deliver the same JSON the
-  tools return.
-- Zero new warnings (`cargo build` clean per `CLAUDE.md`).
+## Done criteria
 
-## Phasing / PR strategy
+- `cargo test -p application` — green, including the two new resolver
+  unit suites.
+- `cargo test -p adapter-mcp` — green, including the parity test arm
+  for both new variants.
+- `cargo build -p adapter-console` — clean (covering the
+  pre-existing-on-develop gap as a side effect of adding the parity
+  arms).
+- `cargo build --workspace` — clean, zero new warnings
+  (`CLAUDE.md` "zero warnings").
+- Manual MCP smoke (locally): `get_plugin_params {plugin_id: "<known>"}`
+  returns the catalog schema; `get_block_params {chain_id, block_id}`
+  returns schema + current after one `set_block_parameter_number`
+  round-trip.
+- `docs/architecture.md` (or the appropriate MCP section in
+  `docs/architecture.md` / `docs/cli.md`) mentions the two new tools
+  and resources in the same commit as the implementation, per
+  `CLAUDE.md` "doc no mesmo commit".
 
-One issue, one branch (`feature/issue-572`), but two logical commit clusters
-inside it. The PR description will call the phase boundary out explicitly so
-review can read them in order:
+## Implementation order (suggested)
 
-1. Phase 1 commits — domain `ParameterDescriptor`, GUI extraction, tests.
-2. Phase 2 commits — `QueryKind` variants, resolvers, MCP tools/resources,
-   adapter-console parity test.
+One issue, one branch (`feature/issue-572`), small commits — each one
+red-first per `docs/testing.md`:
 
-If Phase 1 churn turns out to be larger than expected during the
-implementation-plan write-up, the plan may propose splitting Phase 1 into a
-separate PR (still #572 issue, separate sibling PR) — the spec does not
-prescribe that, the implementation plan will decide based on diff size.
+1. Locate the existing bridge functions:
+   `project::block::schema_for_block_model(...)` and the "materialize
+   descriptors for a placed block" helper (exact name to confirm via
+   grep). If the second helper does not exist as a single function
+   today, add it to `project` first (red-first), tested in isolation —
+   it is the same loop the block editor already does, factored.
+2. Add `QueryKind::GetPluginParams { plugin_id }` + resolver
+   `get_plugin_params` + unit tests. Wire the frontend's
+   `serve_queries` arm. No transport wiring yet.
+3. Wire `get_plugin_params` MCP tool + `openrig://plugin/{id}/params`
+   resource. Adapter-console parity arm. End-to-end smoke.
+4. Add `QueryKind::GetBlockParams { chain, block }` + resolver
+   `get_block_params` + unit tests.
+5. Wire `get_block_params` MCP tool + `openrig://chain/{cid}/block/{bid}/params`
+   resource. Adapter-console parity arm. End-to-end smoke.
+6. Docs update (architecture.md / architecture-mcp section) +
+   `gh issue comment` per push.
 
 ## Risks / open questions
 
-- **Block registry shape (Phase 1).** The `(a)` vs `(b)` decision above
-  depends on what the block registry currently looks like. The
-  implementation plan will read `crates/registry` (or equivalent) first.
-- **File-kind defaults.** Need to confirm during extraction whether `File`
-  has a meaningful default (probably no — the user picks at use time). If
-  so, `default` may be optional on `ParameterKind::File`.
-- **Param-id stability.** The JSON contract uses `id` strings; these must
-  match what `Command::SetBlockParameter*` already accepts in `path`, so
-  agents can chain `get_block_params` → `set_block_parameter_number`
-  without translation. The implementation plan will verify this against
-  the existing `path` parsing in `local_dispatcher_block_param.rs`.
-- **Adapter-gui scope creep.** Phase 1 touches `block_editor_*` files; the
-  extraction must stop at moving schema literals, not refactor unrelated
-  rendering code (per `CLAUDE.md` "delete só o escopo literal pedido").
+- **Existing serialization fidelity.** The "let `Serialize` speak"
+  default depends on the existing `serde` attributes producing a wire
+  shape that is reasonable for agent clients. If, e.g., `ParameterDomain`
+  serializes as `{"FloatRange":{...}}` (Rust enum default) we may want
+  to project to a flatter shape. Decide during implementation, not
+  before — first commit shows the raw output, then we decide.
+- **`schema_for_block_model` ownership.** The function lives in the
+  `project` crate today. The new resolver needs read-only access to
+  it through whatever the frontend already exposes (no new
+  cross-crate types). Confirm during step 1.
+- **Param-id `path` stability.** `ParameterSpec.path` is what
+  `Command::SetBlockParameter*` accepts as `path`. The resolver
+  output uses the same field — agents can chain
+  `get_block_params` → `set_block_parameter_number` without
+  translation. Verify against `local_dispatcher_block_param.rs`
+  during step 4.
+
+## What this spec used to say
+
+The original draft proposed a two-phase plan — Phase 1 "extract a new
+`ParameterDescriptor` type from `adapter-gui` into `domain`", Phase 2
+the actual MCP queries. Four commits were landed on this branch and
+reverted (see git log for the revert SHAs) once recon on
+`crates/block-core/src/param/` showed that:
+
+- `BlockParameterDescriptor`, `ParameterSpec`, `ModelParameterSchema`,
+  `ParameterDomain`, `ParameterWidget`, `ParameterUnit`,
+  `ParameterOption` all already exist in `block-core::param`.
+- `block_editor_param_items.rs` is already a pure consumer of those
+  types — no schema literals there.
+
+The architectural concern that drove the two-phase plan ("tela não tem
+regra de negócio") was correct in general but already satisfied in
+practice for parameters. The recon failure was on me — should have
+`ls`-ed `block-core/src/param/` before writing the original spec.
 
 ## References
 
 - `CLAUDE.md` — invariantes, leis de arquitetura, gitflow.
-- `docs/development/gitflow.md` — workspace, branches, comentários em issue.
+- `docs/development/gitflow.md` — workspace, branches, comentários em
+  issue.
 - `docs/testing.md` — red-first TDD discipline.
 - `crates/application/src/bridge.rs` — `QueryKind` enum.
-- `crates/application/src/query.rs` — existing resolvers.
+- `crates/application/src/query.rs` — existing resolvers (the new ones
+  follow this pattern).
 - `crates/application/src/command_schema.rs` — MCP tool auto-derivation
-  pattern from the `Command` enum (read-side equivalent does not exist yet
-  and is **not** introduced by this issue — each `QueryKind` arm in
-  adapter-mcp is hand-written, same as today).
+  pattern from the `Command` enum (read-side equivalent does not exist;
+  each `QueryKind` arm in adapter-mcp is hand-written, same as today).
+- `crates/block-core/src/param/schema.rs` — `ModelParameterSchema`,
+  `ParameterSpec`, `ParameterDomain`, `ParameterWidget`,
+  `ParameterUnit`, `ParameterOption`.
+- `crates/block-core/src/param/descriptor.rs` — `BlockParameterDescriptor`.
+- `crates/block-core/src/param/builders.rs` — `float_parameter`,
+  `bool_parameter`, `enum_parameter`, `text_parameter`,
+  `file_path_parameter`, etc. — how each model declares its specs.
+- `crates/adapter-gui/src/block_editor_param_items.rs` — current GUI
+  consumer (untouched by this issue).
 - `crates/adapter-mcp/src/{tools,resources}.rs` — transport bindings.
-- `crates/adapter-gui/src/block_editor_param_items.rs` — current home of
-  the schema literals to extract.
