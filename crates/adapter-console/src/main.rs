@@ -169,6 +169,14 @@ fn main() -> Result<()> {
                 QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),
                 QueryKind::GetPlugin { id } => Ok(application::query::get_plugin(id)),
                 QueryKind::FindPlugins { query } => Ok(application::query::find_plugins(query)),
+                // #554: preset queries require an in-memory RigProject.
+                // The console adapter operates on a bare Project, so it
+                // surfaces the same error shape the GUI emits when no rig
+                // is attached, keeping the resource contract uniform.
+                QueryKind::ListChainPresets { chain: _ }
+                | QueryKind::ListProjectPresets => {
+                    Err("no rig attached to the session".to_string())
+                }
             },
             64,
         );
