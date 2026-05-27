@@ -1,4 +1,4 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
@@ -223,15 +223,15 @@ export component CompactChainViewWindow inherits Window {
     default-font-family: Locale.font-family;
     default-font-size: 13px;
     title: @tr("title-window-chain-view");
-    // Defaults wide enough to fit a full block row (model selector at
-    // x=158px, brand logo at x=432px, parameter strip right-aligned).
-    // Below ~1280px the per-block knobs overlap the stream display, and
-    // the user only perceives the IN/OUT footer as "the content" — the
-    // block list looks empty. Issue #559.
-    min-width: 1280px;
+    // Defaults match the size the user pinned in #559: ~1200×860 so the
+    // full block strip renders (selector at x=158, brand at x=432,
+    // right-aligned knobs) and the per-stream IN/OUT meter rows fit at
+    // the footer without clipping. `min-width` keeps the row layout
+    // legible; below ~1000 px the per-block knobs collide.
+    min-width: 1000px;
     min-height: 480px;
-    preferred-width: 1800px;
-    preferred-height: 760px;
+    preferred-width: 1200px;
+    preferred-height: 860px;
     background: #0a0c10;
 
     in property <string> chain-title;
@@ -244,6 +244,10 @@ export component CompactChainViewWindow inherits Window {
     in property <ChainRigNav> rig-nav;
     in property <float> meter-in-dbfs: -120.0;
     in property <float> meter-out-dbfs: -120.0;
+    // Per-stream meter rows — mirrors `ProjectChainItem.stream_meters`.
+    // Multi-input chain (e.g. 3 inputs) ⇒ 3 entries ⇒ 3 IN/OUT bars at
+    // the footer (parity with the main `ChainRow`).
+    in property <[StreamMeter]> stream-meters;
     in property <int> volume: 100;
 
     // I/O device configuration
@@ -302,6 +306,7 @@ export component CompactChainViewWindow inherits Window {
         rig-nav: root.rig-nav;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;
+        stream-meters: root.stream-meters;
         volume: root.volume;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
