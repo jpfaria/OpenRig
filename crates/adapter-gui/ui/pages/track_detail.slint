@@ -1,10 +1,9 @@
 // Track detail / multi-stem player view (#553).
 //
-// Layout mirrors the Moises reference shared on the issue: per-stem
-// rows (mute/solo, gain, pan, label) stacked vertically with a shared
-// transport row at the bottom and a small header showing title /
-// artist / BPM / key. Callbacks dispatch every state change through
-// the Command bus — this view holds no business logic.
+// Layout inspired by Moises: tight per-stem rows with prominent
+// M / S toggles, gain + pan sliders with numeric readouts, a tinted
+// "active" lane when soloed/muted, and a centered transport bar at
+// the bottom. Header collapses to one row with title + meta chips.
 
 import { ScrollView, Slider } from "std-widgets.slint";
 
@@ -15,6 +14,219 @@ export struct StemRowData {
     soloed: bool,
     gain: float,
     pan: float,
+}
+
+component MetaChip inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    height: 32px;
+    background: #1f232a;
+    border-width: 1px;
+    border-color: #2f3339;
+    border-radius: 4px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 6px;
+        alignment: center;
+
+        Text {
+            text: root.label;
+            color: #8a929e;
+            font-size: 10px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.value;
+            color: #f4f7fb;
+            font-size: 12px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ToggleSquare inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    in property <color> active-color: #b94a4a;
+    callback clicked();
+
+    width: 36px;
+    height: 36px;
+    background: root.active ? root.active-color : #2a2e35;
+    border-width: 1px;
+    border-color: root.active ? root.active-color.brighter(0.2) : #3a3f47;
+    border-radius: 6px;
+
+    Text {
+        text: root.label;
+        color: #f4f7fb;
+        font-size: 13px;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        width: parent.width;
+        height: parent.height;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component StemRow inherits Rectangle {
+    in property <StemRowData> data;
+    callback mute-toggled(int, bool);
+    callback solo-toggled(int, bool);
+    callback gain-changed(int, float);
+    callback pan-changed(int, float);
+
+    height: 64px;
+    background: root.data.soloed ? #15334d : (root.data.muted ? #2a1818 : #1a1d22);
+    border-width: 1px;
+    border-color: root.data.soloed ? #2f6aa1 : (root.data.muted ? #5a2a2a : #2a2e35);
+    border-radius: 6px;
+
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 12px;
+        alignment: stretch;
+
+        // Stem label (fixed width, big)
+        Text {
+            text: root.data.label;
+            color: #f4f7fb;
+            font-size: 15px;
+            font-weight: 700;
+            vertical-alignment: center;
+            width: 96px;
+        }
+
+        // M / S column
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: center;
+            ToggleSquare {
+                label: "M";
+                active: root.data.muted;
+                active-color: #b94a4a;
+                clicked => { root.mute-toggled(root.data.index, !root.data.muted); }
+            }
+            ToggleSquare {
+                label: "S";
+                active: root.data.soloed;
+                active-color: #d9a83b;
+                clicked => { root.solo-toggled(root.data.index, !root.data.soloed); }
+            }
+        }
+
+        // Gain group
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            Text {
+                text: "GAIN";
+                color: #8a929e;
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Slider {
+                minimum: 0.0;
+                maximum: 1.5;
+                value: root.data.gain;
+                width: 160px;
+                changed(v) => { root.gain-changed(root.data.index, v); }
+            }
+            Text {
+                text: Math.round(root.data.gain * 100) + "%";
+                color: #f4f7fb;
+                font-size: 11px;
+                font-weight: 700;
+                vertical-alignment: center;
+                width: 40px;
+                horizontal-alignment: right;
+            }
+        }
+
+        // Pan group
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            Text {
+                text: "PAN";
+                color: #8a929e;
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Slider {
+                minimum: -1.0;
+                maximum: 1.0;
+                value: root.data.pan;
+                width: 120px;
+                changed(v) => { root.pan-changed(root.data.index, v); }
+            }
+            Text {
+                text: Math.abs(root.data.pan) < 0.05
+                    ? "C"
+                    : (root.data.pan < 0
+                        ? "L" + Math.round(Math.abs(root.data.pan) * 100)
+                        : "R" + Math.round(root.data.pan * 100));
+                color: #f4f7fb;
+                font-size: 11px;
+                font-weight: 700;
+                vertical-alignment: center;
+                width: 40px;
+                horizontal-alignment: right;
+            }
+        }
+
+        // Soft "lane" indicator on the far right
+        Rectangle {
+            horizontal-stretch: 1;
+            background: transparent;
+            Rectangle {
+                x: 0;
+                y: parent.height / 2 - 1px;
+                width: parent.width;
+                height: 2px;
+                background: root.data.soloed
+                    ? #2f6aa1
+                    : (root.data.muted ? #5a2a2a : #2a2e35);
+                border-radius: 1px;
+            }
+        }
+    }
+}
+
+component TransportButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    width: root.primary ? 64px : 44px;
+    height: root.primary ? 64px : 44px;
+    background: root.primary ? #188cff : #2a2e35;
+    border-width: 1px;
+    border-color: root.primary ? #45a7ff : #3a3f47;
+    border-radius: root.primary ? 32px : 22px;
+
+    Text {
+        text: root.label;
+        color: #f4f7fb;
+        font-size: root.primary ? 13px : 12px;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        width: parent.width;
+        height: parent.height;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
 }
 
 export component TrackDetailPage inherits Rectangle {
@@ -38,233 +250,138 @@ export component TrackDetailPage inherits Rectangle {
     background: #0e1013;
 
     VerticalLayout {
-        padding: 16px;
-        spacing: 12px;
+        padding: 20px;
+        spacing: 16px;
 
-        // Header
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: stretch;
-
-            // Back button
-            Rectangle {
-                width: 64px;
-                height: 32px;
-                background: #2f3339;
-                border-width: 1px;
-                border-color: #4c515b;
-                border-radius: 4px;
-
-                Text {
-                    text: @tr("track-back");
-                    color: #f4f7fb;
-                    font-size: 12px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-                TouchArea { clicked => { root.back-clicked(); } }
-            }
-
-            Text {
-                text: root.title;
-                color: #f4f7fb;
-                font-size: 18px;
-                font-weight: 700;
-                vertical-alignment: center;
-                horizontal-stretch: 1;
-            }
-
-            Text {
-                text: root.artist;
-                color: #b6bcc4;
-                font-size: 13px;
-                vertical-alignment: center;
-            }
-
-            Text {
-                text: "BPM " + root.bpm-text;
-                color: #b6bcc4;
-                font-size: 13px;
-                vertical-alignment: center;
-                width: 80px;
-            }
-
-            Text {
-                text: @tr("track-key-label") + " " + root.key-text;
-                color: #b6bcc4;
-                font-size: 13px;
-                vertical-alignment: center;
-                width: 80px;
-            }
-        }
-
-        // Stem rows
-        ScrollView {
-            vertical-stretch: 1;
-
-            VerticalLayout {
-                spacing: 4px;
-
-                for stem in root.stems : Rectangle {
-                    height: 60px;
-                    background: stem.soloed ? #1d3d6c : #1d2024;
-                    border-width: 1px;
-                    border-color: #2f3339;
-                    border-radius: 4px;
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        spacing: 12px;
-                        alignment: stretch;
-
-                        // M/S buttons
-                        Rectangle {
-                            width: 28px;
-                            height: 28px;
-                            background: stem.muted ? #b94a4a : #2f3339;
-                            border-radius: 4px;
-                            y: (parent.height - 28px) / 2;
-
-                            Text {
-                                text: @tr("track-stem-mute-abbr");
-                                color: #f4f7fb;
-                                font-size: 11px;
-                                font-weight: 700;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea {
-                                clicked => { root.stem-mute-toggled(stem.index, !stem.muted); }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 28px;
-                            height: 28px;
-                            background: stem.soloed ? #d9a83b : #2f3339;
-                            border-radius: 4px;
-                            y: (parent.height - 28px) / 2;
-
-                            Text {
-                                text: @tr("track-stem-solo-abbr");
-                                color: #f4f7fb;
-                                font-size: 11px;
-                                font-weight: 700;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea {
-                                clicked => { root.stem-solo-toggled(stem.index, !stem.soloed); }
-                            }
-                        }
-
-                        Text {
-                            text: stem.label;
-                            color: #f4f7fb;
-                            font-size: 13px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            width: 100px;
-                        }
-
-                        Slider {
-                            minimum: 0.0;
-                            maximum: 1.5;
-                            value: stem.gain;
-                            width: 140px;
-                            changed(v) => { root.stem-gain-changed(stem.index, v); }
-                        }
-
-                        Slider {
-                            minimum: -1.0;
-                            maximum: 1.0;
-                            value: stem.pan;
-                            width: 100px;
-                            changed(v) => { root.stem-pan-changed(stem.index, v); }
-                        }
-
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            background: transparent;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Transport row
+        // ── Header ────────────────────────────────────────────────
         Rectangle {
             height: 56px;
-            background: #1d2024;
+            background: #15181d;
             border-width: 1px;
-            border-color: #2f3339;
-            border-radius: 6px;
+            border-color: #2a2e35;
+            border-radius: 8px;
 
             HorizontalLayout {
                 padding-left: 16px;
                 padding-right: 16px;
-                spacing: 16px;
-                alignment: center;
+                spacing: 14px;
+                alignment: stretch;
 
                 Rectangle {
-                    width: 36px;
+                    width: 72px;
                     height: 36px;
-                    background: #2f3339;
-                    border-radius: 18px;
+                    y: (parent.height - 36px) / 2;
+                    background: #2a2e35;
+                    border-width: 1px;
+                    border-color: #3a3f47;
+                    border-radius: 6px;
 
                     Text {
-                        text: "<<";
-                        color: #f4f7fb;
-                        font-size: 14px;
-                        font-weight: 700;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                    TouchArea { clicked => { root.seek-relative(-5); } }
-                }
-
-                Rectangle {
-                    width: 48px;
-                    height: 48px;
-                    background: #188cff;
-                    border-radius: 24px;
-
-                    Text {
-                        text: root.playing ? @tr("track-pause") : @tr("track-play");
+                        text: @tr("track-back");
                         color: #f4f7fb;
                         font-size: 12px;
                         font-weight: 700;
                         horizontal-alignment: center;
                         vertical-alignment: center;
+                        width: parent.width;
+                        height: parent.height;
                     }
-                    TouchArea { clicked => { root.play-toggle(); } }
+                    TouchArea { clicked => { root.back-clicked(); } }
                 }
 
-                Rectangle {
-                    width: 36px;
-                    height: 36px;
-                    background: #2f3339;
-                    border-radius: 18px;
-
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 2px;
+                    alignment: center;
                     Text {
-                        text: ">>";
+                        text: root.title;
                         color: #f4f7fb;
-                        font-size: 14px;
+                        font-size: 18px;
                         font-weight: 700;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
                     }
-                    TouchArea { clicked => { root.seek-relative(5); } }
+                    Text {
+                        text: root.artist;
+                        color: #b6bcc4;
+                        font-size: 12px;
+                        font-weight: 500;
+                    }
+                }
+
+                MetaChip {
+                    width: 88px;
+                    y: (parent.height - 32px) / 2;
+                    label: "BPM";
+                    value: root.bpm-text;
+                }
+                MetaChip {
+                    width: 96px;
+                    y: (parent.height - 32px) / 2;
+                    label: @tr("track-key-label");
+                    value: root.key-text;
+                }
+            }
+        }
+
+        // ── Stem rows ─────────────────────────────────────────────
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 6px;
+                for stem in root.stems : StemRow {
+                    data: stem;
+                    mute-toggled(i, m) => { root.stem-mute-toggled(i, m); }
+                    solo-toggled(i, s) => { root.stem-solo-toggled(i, s); }
+                    gain-changed(i, g) => { root.stem-gain-changed(i, g); }
+                    pan-changed(i, p) => { root.stem-pan-changed(i, p); }
+                }
+            }
+        }
+
+        // ── Transport ─────────────────────────────────────────────
+        Rectangle {
+            height: 88px;
+            background: #15181d;
+            border-width: 1px;
+            border-color: #2a2e35;
+            border-radius: 8px;
+
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 20px;
+                alignment: center;
+
+                Text {
+                    text: root.position-text;
+                    color: #f4f7fb;
+                    font-size: 14px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    width: 80px;
+                    horizontal-alignment: right;
+                }
+
+                TransportButton {
+                    label: "<<5s";
+                    clicked => { root.seek-relative(-5); }
+                }
+                TransportButton {
+                    label: root.playing ? @tr("track-pause") : @tr("track-play");
+                    primary: true;
+                    clicked => { root.play-toggle(); }
+                }
+                TransportButton {
+                    label: "5s>>";
+                    clicked => { root.seek-relative(5); }
                 }
 
                 Text {
-                    text: root.position-text + " / " + root.duration-text;
-                    color: #b6bcc4;
-                    font-size: 13px;
+                    text: root.duration-text;
+                    color: #8a929e;
+                    font-size: 14px;
+                    font-weight: 500;
                     vertical-alignment: center;
-                    width: 120px;
-                    horizontal-alignment: center;
+                    width: 80px;
                 }
             }
         }
