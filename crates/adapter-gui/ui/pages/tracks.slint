@@ -13,6 +13,7 @@ export struct TrackRowData {
     duration: string,
     stem-count: int,
     cover-art: image,
+    pending: bool,
 }
 
 export component TracksPage inherits Rectangle {
@@ -160,13 +161,15 @@ export component TracksPage inherits Rectangle {
 
                 for track in root.tracks : Rectangle {
                     height: 72px;
-                    background: @linear-gradient(180deg, #1d2024 0%, #16181c 100%);
+                    background: track.pending
+                        ? @linear-gradient(180deg, #1a2530 0%, #14202b 100%)
+                        : @linear-gradient(180deg, #1d2024 0%, #16181c 100%);
                     border-width: 1px;
-                    border-color: #2f3339;
+                    border-color: track.pending ? #2e8ad9 : #2f3339;
                     border-radius: 8px;
-                    drop-shadow-color: #00000060;
+                    drop-shadow-color: track.pending ? #2e8ad988 : #00000060;
                     drop-shadow-offset-y: 1px;
-                    drop-shadow-blur: 3px;
+                    drop-shadow-blur: track.pending ? 8px : 3px;
 
                     HorizontalLayout {
                         padding: 10px;
@@ -179,15 +182,28 @@ export component TracksPage inherits Rectangle {
                             height: 52px;
                             background: @linear-gradient(180deg, #2a2d33 0%, #16181c 100%);
                             border-width: 1px;
-                            border-color: #3d4148;
+                            border-color: track.pending ? #2e8ad9 : #3d4148;
                             border-radius: 6px;
                             clip: true;
 
-                            Image {
+                            if !track.pending : Image {
                                 width: parent.width;
                                 height: parent.height;
                                 source: track.cover-art;
                                 image-fit: cover;
+                            }
+
+                            // Pulse indicator for pending entries.
+                            if track.pending : Rectangle {
+                                x: (parent.width - 28px) / 2;
+                                y: (parent.height - 28px) / 2;
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 14px;
+                                background: #2e8ad9;
+                                opacity: 0.85;
+                                border-width: 2px;
+                                border-color: #69b7ff;
                             }
                         }
 
@@ -205,11 +221,12 @@ export component TracksPage inherits Rectangle {
                                 spacing: 8px;
                                 Text {
                                     text: track.artist;
-                                    color: #b6bcc4;
+                                    color: track.pending ? #69b7ff : #b6bcc4;
                                     font-size: 12px;
+                                    font-weight: track.pending ? 600 : 400;
                                 }
                                 Text {
-                                    text: track.stem-count + " stems";
+                                    text: track.pending ? "" : track.stem-count + " stems";
                                     color: #8a929e;
                                     font-size: 11px;
                                     font-weight: 600;
@@ -218,17 +235,21 @@ export component TracksPage inherits Rectangle {
                         }
                         Text {
                             text: track.duration;
-                            color: #8a929e;
+                            color: track.pending ? #69b7ff : #8a929e;
                             font-size: 14px;
                             font-weight: 600;
                             vertical-alignment: center;
-                            width: 60px;
+                            width: 100px;
                             horizontal-alignment: right;
                         }
                     }
 
                     TouchArea {
-                        clicked => { root.track-clicked(track.id); }
+                        clicked => {
+                            if (!track.pending) {
+                                root.track-clicked(track.id);
+                            }
+                        }
                     }
                 }
             }

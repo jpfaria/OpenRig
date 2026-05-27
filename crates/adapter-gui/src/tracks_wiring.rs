@@ -12,6 +12,7 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,9 +22,7 @@ use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use feature_stems::SeparateRequest;
 use feature_tracks::{MultiStemPlayer, StemKind, TrackEntry};
-use slint::{
-    ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel, Weak,
-};
+use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use uuid::Uuid;
 
 use crate::helpers::show_child_window;
@@ -66,7 +65,27 @@ fn entry_to_row(entry: &TrackEntry) -> TrackRowData {
         duration: format_duration(entry.meta.duration_secs),
         stem_count: entry.meta.stems.len() as i32,
         cover_art: cover,
+        pending: false,
     }
+}
+
+fn pending_to_row(pending: &PendingImport) -> TrackRowData {
+    TrackRowData {
+        id: SharedString::from(pending.id.as_str()),
+        title: SharedString::from(pending.title.as_str()),
+        artist: "Separando…".into(),
+        duration: "—".into(),
+        stem_count: 0,
+        cover_art: Image::default(),
+        pending: true,
+    }
+}
+
+struct PendingImport {
+    /// Stable id we use to remove the row when the worker finishes.
+    id: String,
+    /// Filename shown as the title while separation is running.
+    title: String,
 }
 
 struct TracksState {
@@ -75,15 +94,27 @@ struct TracksState {
     stream: Option<crate::tracks_player_stream::TrackPlaybackStream>,
     /// Total frames in the currently loaded track (for playhead → progress).
     total_frames: usize,
+    /// Imports the worker is currently processing — surfaced as
+    /// distinguished rows at the top of the list.
+    pending: Vec<PendingImport>,
+    /// Receiver fed by worker threads when they finish (success OR
+    /// failure). The playhead timer drains it on the main thread to
+    /// remove the pending row + rescan the catalog.
+    completion_rx: Receiver<String>,
+    completion_tx: Sender<String>,
 }
 
 impl TracksState {
     fn new() -> Self {
+        let (completion_tx, completion_rx) = mpsc::channel();
         Self {
             catalog: Vec::new(),
             player: None,
             stream: None,
             total_frames: 0,
+            pending: Vec::new(),
+            completion_rx,
+            completion_tx,
         }
     }
 }
@@ -97,37 +128,40 @@ fn rescan_catalog(state: &Rc<RefCell<TracksState>>, tracks_window: &TracksWindow
 
 /// Re-render the list model using the current search-text as a case-
 /// insensitive substring filter against title / artist / album.
+/// Pending imports always render at the top regardless of the filter.
 fn apply_search_filter(state: &Rc<RefCell<TracksState>>, tracks_window: &TracksWindow) {
     let needle = tracks_window
         .get_tracks_search_text()
         .as_str()
         .trim()
         .to_lowercase();
-    let rows: Vec<TrackRowData> = state
-        .borrow()
-        .catalog
-        .iter()
-        .filter(|entry| {
-            if needle.is_empty() {
-                return true;
-            }
-            let in_title = entry.meta.title.to_lowercase().contains(&needle);
-            let in_artist = entry
-                .meta
-                .artist
-                .as_deref()
-                .map(|s| s.to_lowercase().contains(&needle))
-                .unwrap_or(false);
-            let in_album = entry
-                .meta
-                .album
-                .as_deref()
-                .map(|s| s.to_lowercase().contains(&needle))
-                .unwrap_or(false);
-            in_title || in_artist || in_album
-        })
-        .map(entry_to_row)
-        .collect();
+    let snapshot = state.borrow();
+    let mut rows: Vec<TrackRowData> = snapshot.pending.iter().map(pending_to_row).collect();
+    rows.extend(
+        snapshot
+            .catalog
+            .iter()
+            .filter(|entry| {
+                if needle.is_empty() {
+                    return true;
+                }
+                let in_title = entry.meta.title.to_lowercase().contains(&needle);
+                let in_artist = entry
+                    .meta
+                    .artist
+                    .as_deref()
+                    .map(|s| s.to_lowercase().contains(&needle))
+                    .unwrap_or(false);
+                let in_album = entry
+                    .meta
+                    .album
+                    .as_deref()
+                    .map(|s| s.to_lowercase().contains(&needle))
+                    .unwrap_or(false);
+                in_title || in_artist || in_album
+            })
+            .map(entry_to_row),
+    );
     let model = Rc::new(VecModel::from(rows));
     tracks_window.set_tracks(ModelRc::from(model));
 }
@@ -275,6 +309,7 @@ fn populate_track_detail(tracks_window: &TracksWindow, entry: &TrackEntry) {
 }
 
 fn dispatch_separation(
+    state: &Rc<RefCell<TracksState>>,
     tracks_window: &TracksWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     source_path: PathBuf,
@@ -287,7 +322,7 @@ fn dispatch_separation(
             Ok(events) => {
                 for ev in events {
                     if let Event::StemJobQueued { source_path } = ev {
-                        spawn_separation_worker(tracks_window, source_path);
+                        spawn_separation_worker(state, tracks_window, source_path);
                         spawned_via_bus = true;
                     }
                 }
@@ -298,11 +333,15 @@ fn dispatch_separation(
         }
     }
     if !spawned_via_bus {
-        spawn_separation_worker(tracks_window, source_path);
+        spawn_separation_worker(state, tracks_window, source_path);
     }
 }
 
-fn spawn_separation_worker(tracks_window: &TracksWindow, source_path: PathBuf) {
+fn spawn_separation_worker(
+    state: &Rc<RefCell<TracksState>>,
+    tracks_window: &TracksWindow,
+    source_path: PathBuf,
+) {
     let catalog_dir = default_tracks_dir();
     if let Err(err) = std::fs::create_dir_all(&catalog_dir) {
         eprintln!(
@@ -318,27 +357,31 @@ fn spawn_separation_worker(tracks_window: &TracksWindow, source_path: PathBuf) {
         .map(str::to_string)
         .unwrap_or_else(|| "Untitled".to_string());
 
+    // Push the pending row so the user sees the import immediately.
+    state.borrow_mut().pending.push(PendingImport {
+        id: track_id.clone(),
+        title: title.clone(),
+    });
+    apply_search_filter(state, tracks_window);
+
     let request = SeparateRequest {
         source_path,
         catalog_dir,
-        track_id,
+        track_id: track_id.clone(),
         title,
         model: "stub".to_string(),
         generated_at: current_utc_iso8601(),
     };
 
-    let tw_weak: Weak<TracksWindow> = tracks_window.as_weak();
-    thread::spawn(move || match feature_stems::separate_track(&request) {
-        Ok(_) => {
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(tw) = tw_weak.upgrade() {
-                    refresh_only_list(&tw);
-                }
-            });
-        }
-        Err(err) => {
+    let completion_tx = state.borrow().completion_tx.clone();
+    thread::spawn(move || {
+        if let Err(err) = feature_stems::separate_track(&request) {
             eprintln!("tracks: separation failed: {err}");
         }
+        // Send the track_id back; the playhead timer drains the
+        // channel on the main thread (Rc isn't Send so state can't
+        // be touched from here).
+        let _ = completion_tx.send(track_id);
     });
 }
 
@@ -377,8 +420,8 @@ pub(crate) fn wire_tracks_window(
         });
     }
 
-    // 30 Hz playhead poll → updates the position label + 0..1
-    // progress so the waveform line moves while a stem is playing.
+    // 30 Hz playhead poll + worker-completion drain. Both run on
+    // the same timer so we don't need a second one.
     let playhead_timer = Timer::default();
     {
         let state = state.clone();
@@ -388,6 +431,26 @@ pub(crate) fn wire_tracks_window(
             std::time::Duration::from_millis(33),
             move || {
                 let Some(tw) = tw_weak.upgrade() else { return };
+
+                // Drain any finished workers: remove their pending
+                // rows and rescan the catalog so new entries surface
+                // with cover + peaks + meta.
+                let mut completed: Vec<String> = Vec::new();
+                while let Ok(id) = state.borrow().completion_rx.try_recv() {
+                    completed.push(id);
+                }
+                if !completed.is_empty() {
+                    {
+                        let mut s = state.borrow_mut();
+                        for id in &completed {
+                            s.pending.retain(|p| &p.id != id);
+                        }
+                        let dir = default_tracks_dir();
+                        s.catalog = feature_tracks::scan_catalog(&dir).unwrap_or_default();
+                    }
+                    apply_search_filter(&state, &tw);
+                }
+
                 let snapshot = state.borrow();
                 let Some(player) = snapshot.player.as_ref() else {
                     return;
@@ -447,6 +510,7 @@ pub(crate) fn wire_tracks_window(
     {
         let tw_weak = tracks_window.as_weak();
         let project_session = project_session.clone();
+        let state_clone = state.clone();
         tracks_window.on_tracks_import_clicked(move || {
             let file = rfd::FileDialog::new()
                 .add_filter("Audio", &["wav", "mp3", "flac", "ogg", "m4a"])
@@ -456,7 +520,7 @@ pub(crate) fn wire_tracks_window(
                 return;
             }
             if let Some(tw) = tw_weak.upgrade() {
-                dispatch_separation(&tw, &project_session, path);
+                dispatch_separation(&state_clone, &tw, &project_session, path);
             }
         });
     }
