@@ -636,3 +636,6 @@ msgstr "Back"
 
 msgid "tooltip-tracks"
 msgstr "Tracks / Stems"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — Tracks"

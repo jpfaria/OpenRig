@@ -200,6 +200,11 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&tuner_window).set_font_family(boot_font.into());
     }
+    let tracks_window = crate::TracksWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&tracks_window).set_font_family(boot_font.into());
+    }
     let tuner_session: Rc<RefCell<Option<crate::tuner_session::TunerSession>>> =
         Rc::new(RefCell::new(None));
     let tuner_timer = Rc::new(Timer::default());
@@ -674,7 +679,7 @@ pub fn run_desktop_app(
         &spectrum_timer,
     );
     // --- Tracks screen nav (#553) ---
-    crate::tracks_wiring::wire_tracks_nav(&window, project_session.clone());
+    crate::tracks_wiring::wire_tracks_window(&window, &tracks_window, project_session.clone());
 
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
     crate::back_to_launcher_wiring::wire(

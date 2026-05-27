@@ -1,15 +1,13 @@
-//! #553 — Tracks screen GUI wiring.
+//! #553 — Tracks secondary-window wiring.
 //!
 //! Owns:
-//! - Launcher ↔ Tracks ↔ Track Detail navigation
-//! - Catalog scan + list population
-//! - Import button → off-RT separation worker
-//! - Track Detail state (stems, per-stem mute/solo/gain/pan, playhead)
-//!
-//! The `MultiStemPlayer` is held here and exposed to the audio engine
-//! through `Arc` so the eventual cpal output stage can drain it. For
-//! now, playback state is recorded in atomics and reflected back to
-//! the UI — the actual cpal hookup lands in a follow-up.
+//! - Launcher / Chains → `open-tracks-clicked` → show the secondary
+//!   `TracksWindow` (same pattern as Tuner/Spectrum/CompactChainView).
+//! - Catalog scan + list population inside the window.
+//! - Import button → off-RT separation worker (Command bus when a
+//!   project session is open, direct call otherwise).
+//! - Track detail state inside the window (stems, mute/solo/gain/pan,
+//!   playhead) + cpal output stream.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -26,8 +24,9 @@ use feature_tracks::{MultiStemPlayer, StemKind, TrackEntry};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use uuid::Uuid;
 
+use crate::helpers::show_child_window;
 use crate::state::ProjectSession;
-use crate::{AppWindow, StemRowData, TrackRowData};
+use crate::{AppWindow, StemRowData, TrackRowData, TracksWindow};
 
 /// Resolve the catalog root: `<data-dir>/OpenRig/tracks/`.
 fn default_tracks_dir() -> PathBuf {
@@ -61,10 +60,6 @@ fn entry_to_row(entry: &TrackEntry) -> TrackRowData {
     }
 }
 
-/// Shared state across all Tracks callbacks. Catalog is cached so a
-/// track-click can resolve the id back to its entry without rescanning
-/// the disk; the player is dropped when the user navigates away from
-/// the detail view so its buffers free immediately.
 struct TracksState {
     catalog: Vec<TrackEntry>,
     player: Option<Arc<MultiStemPlayer>>,
@@ -81,13 +76,13 @@ impl TracksState {
     }
 }
 
-fn rescan_catalog(state: &Rc<RefCell<TracksState>>, window: &AppWindow) {
+fn rescan_catalog(state: &Rc<RefCell<TracksState>>, tracks_window: &TracksWindow) {
     let dir = default_tracks_dir();
     let entries = feature_tracks::scan_catalog(&dir).unwrap_or_default();
     let rows: Vec<TrackRowData> = entries.iter().map(entry_to_row).collect();
     state.borrow_mut().catalog = entries;
     let model = Rc::new(VecModel::from(rows));
-    window.set_tracks(ModelRc::from(model));
+    tracks_window.set_tracks(ModelRc::from(model));
 }
 
 fn current_utc_iso8601() -> String {
@@ -141,9 +136,9 @@ fn load_stems_for_entry(entry: &TrackEntry) -> Vec<Vec<f32>> {
         .collect()
 }
 
-fn populate_track_detail(window: &AppWindow, entry: &TrackEntry, player: &MultiStemPlayer) {
-    window.set_track_detail_title(entry.meta.title.as_str().into());
-    window.set_track_detail_artist(
+fn populate_track_detail(tracks_window: &TracksWindow, entry: &TrackEntry) {
+    tracks_window.set_track_detail_title(entry.meta.title.as_str().into());
+    tracks_window.set_track_detail_artist(
         entry
             .meta
             .artist
@@ -152,7 +147,7 @@ fn populate_track_detail(window: &AppWindow, entry: &TrackEntry, player: &MultiS
             .to_string()
             .into(),
     );
-    window.set_track_detail_bpm_text(
+    tracks_window.set_track_detail_bpm_text(
         entry
             .meta
             .bpm
@@ -160,11 +155,11 @@ fn populate_track_detail(window: &AppWindow, entry: &TrackEntry, player: &MultiS
             .unwrap_or_else(|| "—".to_string())
             .into(),
     );
-    window.set_track_detail_key_text(entry.meta.key.as_deref().unwrap_or("—").to_string().into());
-    window.set_track_detail_duration_text(format_duration(entry.meta.duration_secs));
-    window.set_track_detail_position_text(format_duration(0.0));
+    tracks_window
+        .set_track_detail_key_text(entry.meta.key.as_deref().unwrap_or("—").to_string().into());
+    tracks_window.set_track_detail_duration_text(format_duration(entry.meta.duration_secs));
+    tracks_window.set_track_detail_position_text(format_duration(0.0));
 
-    let _ = player;
     let stems: Vec<StemRowData> = entry
         .meta
         .stems
@@ -180,11 +175,40 @@ fn populate_track_detail(window: &AppWindow, entry: &TrackEntry, player: &MultiS
         })
         .collect();
     let model = Rc::new(VecModel::from(stems));
-    window.set_track_detail_stems(ModelRc::from(model));
-    window.set_track_detail_playing(false);
+    tracks_window.set_track_detail_stems(ModelRc::from(model));
+    tracks_window.set_track_detail_playing(false);
+    tracks_window.set_show_track_detail(true);
 }
 
-fn spawn_separation_worker(window: &AppWindow, source_path: PathBuf) {
+fn dispatch_separation(
+    tracks_window: &TracksWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    source_path: PathBuf,
+) {
+    let mut spawned_via_bus = false;
+    if let Some(session) = project_session.borrow().as_ref() {
+        match session.dispatcher.dispatch(Command::SeparateStems {
+            source_path: source_path.clone(),
+        }) {
+            Ok(events) => {
+                for ev in events {
+                    if let Event::StemJobQueued { source_path } = ev {
+                        spawn_separation_worker(tracks_window, source_path);
+                        spawned_via_bus = true;
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("tracks: dispatch SeparateStems failed: {err}");
+            }
+        }
+    }
+    if !spawned_via_bus {
+        spawn_separation_worker(tracks_window, source_path);
+    }
+}
+
+fn spawn_separation_worker(tracks_window: &TracksWindow, source_path: PathBuf) {
     let catalog_dir = default_tracks_dir();
     if let Err(err) = std::fs::create_dir_all(&catalog_dir) {
         eprintln!(
@@ -209,12 +233,12 @@ fn spawn_separation_worker(window: &AppWindow, source_path: PathBuf) {
         generated_at: current_utc_iso8601(),
     };
 
-    let window_weak: Weak<AppWindow> = window.as_weak();
+    let tw_weak: Weak<TracksWindow> = tracks_window.as_weak();
     thread::spawn(move || match feature_stems::separate_track(&request) {
         Ok(_) => {
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(window) = window_weak.upgrade() {
-                    refresh_only_list(&window);
+                if let Some(tw) = tw_weak.upgrade() {
+                    refresh_only_list(&tw);
                 }
             });
         }
@@ -224,11 +248,7 @@ fn spawn_separation_worker(window: &AppWindow, source_path: PathBuf) {
     });
 }
 
-/// Helper for the import worker that has no access to the shared
-/// state cell: rescan the disk straight into the Slint model without
-/// caching the entries (the next time the user opens Tracks, the
-/// regular rescan caches them).
-fn refresh_only_list(window: &AppWindow) {
+fn refresh_only_list(tracks_window: &TracksWindow) {
     let dir = default_tracks_dir();
     let rows: Vec<TrackRowData> = feature_tracks::scan_catalog(&dir)
         .unwrap_or_default()
@@ -236,77 +256,55 @@ fn refresh_only_list(window: &AppWindow) {
         .map(entry_to_row)
         .collect();
     let model = Rc::new(VecModel::from(rows));
-    window.set_tracks(ModelRc::from(model));
+    tracks_window.set_tracks(ModelRc::from(model));
 }
 
-/// Dispatch `Command::SeparateStems` through the project session's
-/// Command bus when one is open, then react to the resulting
-/// `Event::StemJobQueued` by spawning the off-RT worker. When no
-/// project session is open the worker is spawned directly so the
-/// Tracks feature still works as a user-wide tool.
-fn dispatch_separation(
-    window: &AppWindow,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    source_path: PathBuf,
-) {
-    let mut spawned_via_bus = false;
-    if let Some(session) = project_session.borrow().as_ref() {
-        match session.dispatcher.dispatch(Command::SeparateStems {
-            source_path: source_path.clone(),
-        }) {
-            Ok(events) => {
-                for ev in events {
-                    if let Event::StemJobQueued { source_path } = ev {
-                        spawn_separation_worker(window, source_path);
-                        spawned_via_bus = true;
-                    }
-                }
-            }
-            Err(err) => {
-                eprintln!("tracks: dispatch SeparateStems failed: {err}");
-            }
-        }
-    }
-    if !spawned_via_bus {
-        spawn_separation_worker(window, source_path);
-    }
-}
-
-/// Hook every Tracks-related callback. Called once during app start.
-pub(crate) fn wire_tracks_nav(
-    window: &AppWindow,
+/// Wire the Tracks secondary window. Mirrors the Tuner/Spectrum
+/// pattern: own native window, opened by a header callback on the main
+/// window, closed by the window's own back/close action.
+pub(crate) fn wire_tracks_window(
+    main_window: &AppWindow,
+    tracks_window: &TracksWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
 ) {
     let state = Rc::new(RefCell::new(TracksState::new()));
-    rescan_catalog(&state, window);
+    rescan_catalog(&state, tracks_window);
+    tracks_window.set_tracks_search_text(SharedString::new());
+    tracks_window.set_show_track_detail(false);
 
+    // Open: main window → show TracksWindow as a child window.
     {
         let state = state.clone();
-        let window_weak = window.as_weak();
-        window.on_open_tracks_clicked(move || {
-            if let Some(window) = window_weak.upgrade() {
-                rescan_catalog(&state, &window);
-                window.set_show_project_launcher(false);
-                window.set_show_track_detail(false);
-                window.set_show_tracks(true);
+        let main_weak = main_window.as_weak();
+        let tw_weak = tracks_window.as_weak();
+        main_window.on_open_tracks_clicked(move || {
+            let Some(main_w) = main_weak.upgrade() else {
+                return;
+            };
+            let Some(tw) = tw_weak.upgrade() else {
+                return;
+            };
+            tw.set_show_track_detail(false);
+            rescan_catalog(&state, &tw);
+            show_child_window(main_w.window(), tw.window());
+        });
+    }
+
+    // Back / close: hide the window.
+    {
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_close_tracks(move || {
+            if let Some(tw) = tw_weak.upgrade() {
+                tw.window().hide().ok();
             }
         });
     }
 
+    // Import → file picker → separation worker.
     {
-        let window_weak = window.as_weak();
-        window.on_tracks_back_clicked(move || {
-            if let Some(window) = window_weak.upgrade() {
-                window.set_show_tracks(false);
-                window.set_show_project_launcher(true);
-            }
-        });
-    }
-
-    {
-        let window_weak = window.as_weak();
+        let tw_weak = tracks_window.as_weak();
         let project_session = project_session.clone();
-        window.on_tracks_import_clicked(move || {
+        tracks_window.on_tracks_import_clicked(move || {
             let file = rfd::FileDialog::new()
                 .add_filter("Audio", &["wav", "mp3", "flac", "ogg", "m4a"])
                 .pick_file();
@@ -314,19 +312,18 @@ pub(crate) fn wire_tracks_nav(
             if !path.exists() || !path.is_file() {
                 return;
             }
-            if let Some(window) = window_weak.upgrade() {
-                dispatch_separation(&window, &project_session, path);
+            if let Some(tw) = tw_weak.upgrade() {
+                dispatch_separation(&tw, &project_session, path);
             }
         });
     }
 
+    // Track click → open detail in same window.
     {
         let state = state.clone();
-        let window_weak = window.as_weak();
-        window.on_tracks_track_clicked(move |id| {
-            let Some(window) = window_weak.upgrade() else {
-                return;
-            };
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_tracks_track_clicked(move |id| {
+            let Some(tw) = tw_weak.upgrade() else { return };
             let entry = state
                 .borrow()
                 .catalog
@@ -337,31 +334,29 @@ pub(crate) fn wire_tracks_nav(
 
             let stems = load_stems_for_entry(&entry);
             let player = MultiStemPlayer::new(stems, entry.meta.source_sample_rate);
-            populate_track_detail(&window, &entry, &player);
+            populate_track_detail(&tw, &entry);
             state.borrow_mut().player = Some(Arc::new(player));
-
-            window.set_show_tracks(false);
-            window.set_show_track_detail(true);
         });
     }
 
+    // Back inside detail → list.
     {
         let state = state.clone();
-        let window_weak = window.as_weak();
-        window.on_track_detail_back_clicked(move || {
-            if let Some(window) = window_weak.upgrade() {
-                let mut state = state.borrow_mut();
-                state.stream = None;
-                state.player = None;
-                window.set_show_track_detail(false);
-                window.set_show_tracks(true);
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_track_detail_back_clicked(move || {
+            if let Some(tw) = tw_weak.upgrade() {
+                let mut s = state.borrow_mut();
+                s.stream = None;
+                s.player = None;
+                tw.set_show_track_detail(false);
             }
         });
     }
 
+    // Per-stem controls.
     {
         let state = state.clone();
-        window.on_track_detail_stem_mute_toggled(move |idx, muted| {
+        tracks_window.on_track_detail_stem_mute_toggled(move |idx, muted| {
             if let Some(player) = state.borrow().player.as_ref() {
                 player.set_mute(idx as usize, muted);
             }
@@ -369,7 +364,7 @@ pub(crate) fn wire_tracks_nav(
     }
     {
         let state = state.clone();
-        window.on_track_detail_stem_solo_toggled(move |idx, soloed| {
+        tracks_window.on_track_detail_stem_solo_toggled(move |idx, soloed| {
             if let Some(player) = state.borrow().player.as_ref() {
                 player.set_solo(idx as usize, soloed);
             }
@@ -377,7 +372,7 @@ pub(crate) fn wire_tracks_nav(
     }
     {
         let state = state.clone();
-        window.on_track_detail_stem_gain_changed(move |idx, gain| {
+        tracks_window.on_track_detail_stem_gain_changed(move |idx, gain| {
             if let Some(player) = state.borrow().player.as_ref() {
                 player.set_gain(idx as usize, gain);
             }
@@ -385,47 +380,53 @@ pub(crate) fn wire_tracks_nav(
     }
     {
         let state = state.clone();
-        window.on_track_detail_stem_pan_changed(move |idx, pan| {
+        tracks_window.on_track_detail_stem_pan_changed(move |idx, pan| {
             if let Some(player) = state.borrow().player.as_ref() {
                 player.set_pan(idx as usize, pan);
             }
         });
     }
 
-    // Reflect mute / solo toggles back into the row model so the UI
-    // shows the new colour without a roundtrip.
+    // Reflect mute/solo back into the row model.
     {
-        let window_weak = window.as_weak();
-        window.on_track_detail_stem_mute_toggled(move |idx, muted| {
-            if let Some(window) = window_weak.upgrade() {
-                update_stem_row(&window, idx as usize, |row| row.muted = muted);
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_track_detail_stem_mute_toggled(move |idx, muted| {
+            if let Some(tw) = tw_weak.upgrade() {
+                let model = tw.get_track_detail_stems();
+                if let Some(mut row) = model.row_data(idx as usize) {
+                    row.muted = muted;
+                    model.set_row_data(idx as usize, row);
+                }
             }
         });
     }
     {
-        let window_weak = window.as_weak();
-        window.on_track_detail_stem_solo_toggled(move |idx, soloed| {
-            if let Some(window) = window_weak.upgrade() {
-                update_stem_row(&window, idx as usize, |row| row.soloed = soloed);
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_track_detail_stem_solo_toggled(move |idx, soloed| {
+            if let Some(tw) = tw_weak.upgrade() {
+                let model = tw.get_track_detail_stems();
+                if let Some(mut row) = model.row_data(idx as usize) {
+                    row.soloed = soloed;
+                    model.set_row_data(idx as usize, row);
+                }
             }
         });
     }
 
+    // Play / pause → cpal stream.
     {
         let state = state.clone();
-        let window_weak = window.as_weak();
-        window.on_track_detail_play_toggle(move || {
-            let Some(window) = window_weak.upgrade() else {
-                return;
-            };
-            let target_playing = !window.get_track_detail_playing();
-            let mut state = state.borrow_mut();
+        let tw_weak = tracks_window.as_weak();
+        tracks_window.on_track_detail_play_toggle(move || {
+            let Some(tw) = tw_weak.upgrade() else { return };
+            let target_playing = !tw.get_track_detail_playing();
+            let mut s = state.borrow_mut();
             if target_playing {
-                if let Some(player) = state.player.clone() {
+                if let Some(player) = s.player.clone() {
                     match crate::tracks_player_stream::TrackPlaybackStream::start(player) {
                         Ok(stream) => {
-                            state.stream = Some(stream);
-                            window.set_track_detail_playing(true);
+                            s.stream = Some(stream);
+                            tw.set_track_detail_playing(true);
                         }
                         Err(err) => {
                             eprintln!("tracks: cannot start playback: {err}");
@@ -433,32 +434,15 @@ pub(crate) fn wire_tracks_nav(
                     }
                 }
             } else {
-                state.stream = None;
-                window.set_track_detail_playing(false);
-            }
-        });
-    }
-    {
-        // Seek currently advances the position label only — the cpal
-        // pipeline hook lands separately. Keeping it wired here so the
-        // UI does not look frozen when the user drags the transport.
-        let window_weak = window.as_weak();
-        window.on_track_detail_seek_relative(move |_delta| {
-            if let Some(window) = window_weak.upgrade() {
-                let _ = window;
+                s.stream = None;
+                tw.set_track_detail_playing(false);
             }
         });
     }
 
-    window.set_tracks_search_text(SharedString::new());
-}
-
-fn update_stem_row(window: &AppWindow, idx: usize, mutate: impl FnOnce(&mut StemRowData)) {
-    let model = window.get_track_detail_stems();
-    if let Some(mut row) = model.row_data(idx) {
-        mutate(&mut row);
-        model.set_row_data(idx, row);
-    }
+    // Seek currently a no-op until the cpal stream exposes a playhead
+    // hook; the UI binding stays wired for forward compatibility.
+    tracks_window.on_track_detail_seek_relative(|_delta| {});
 }
 
 #[cfg(test)]

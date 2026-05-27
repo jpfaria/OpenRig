@@ -596,3 +596,6 @@ msgstr "वापस"
 
 msgid "tooltip-tracks"
 msgstr "ट्रैक्स / स्टेम्स"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — ट्रैक्स"

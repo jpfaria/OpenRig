@@ -657,3 +657,6 @@ msgstr "Voltar"
 
 msgid "tooltip-tracks"
 msgstr "Faixas / Stems"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — Faixas"

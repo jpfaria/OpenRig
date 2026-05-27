@@ -1,0 +1,78 @@
+// Tracks secondary window (#553).
+//
+// Lives as its own native Window — same pattern as Tuner, Spectrum,
+// CompactChainView. The main AppWindow (Launcher / Chains) stays
+// visible behind it so the user keeps editing the rig while browsing
+// stems.
+
+import { TracksPage, TrackRowData } from "tracks.slint";
+import { TrackDetailPage, StemRowData } from "track_detail.slint";
+
+export component TracksWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    title: @tr("title-window-tracks");
+    min-width: 900px;
+    min-height: 600px;
+    preferred-width: 1100px;
+    preferred-height: 720px;
+    background: #15171a;
+
+    // List state
+    in property <[TrackRowData]> tracks;
+    in-out property <string> tracks-search-text;
+
+    callback tracks-import-clicked();
+    callback tracks-track-clicked(string);
+    callback tracks-search-changed(string);
+    callback close-tracks();
+
+    // Detail state
+    in property <bool> show-track-detail;
+    in property <string> track-detail-title;
+    in property <string> track-detail-artist;
+    in property <string> track-detail-bpm-text;
+    in property <string> track-detail-key-text;
+    in property <string> track-detail-position-text;
+    in property <string> track-detail-duration-text;
+    in property <[StemRowData]> track-detail-stems;
+    in property <bool> track-detail-playing;
+
+    callback track-detail-back-clicked();
+    callback track-detail-play-toggle();
+    callback track-detail-seek-relative(int);
+    callback track-detail-stem-mute-toggled(int, bool);
+    callback track-detail-stem-solo-toggled(int, bool);
+    callback track-detail-stem-gain-changed(int, float);
+    callback track-detail-stem-pan-changed(int, float);
+
+    if !root.show-track-detail : TracksPage {
+        width: parent.width;
+        height: parent.height;
+        tracks: root.tracks;
+        search-text <=> root.tracks-search-text;
+        import-clicked => { root.tracks-import-clicked(); }
+        track-clicked(id) => { root.tracks-track-clicked(id); }
+        search-changed(t) => { root.tracks-search-changed(t); }
+        back-clicked => { root.close-tracks(); }
+    }
+
+    if root.show-track-detail : TrackDetailPage {
+        width: parent.width;
+        height: parent.height;
+        title: root.track-detail-title;
+        artist: root.track-detail-artist;
+        bpm-text: root.track-detail-bpm-text;
+        key-text: root.track-detail-key-text;
+        position-text: root.track-detail-position-text;
+        duration-text: root.track-detail-duration-text;
+        stems: root.track-detail-stems;
+        playing: root.track-detail-playing;
+        back-clicked => { root.track-detail-back-clicked(); }
+        play-toggle => { root.track-detail-play-toggle(); }
+        seek-relative(d) => { root.track-detail-seek-relative(d); }
+        stem-mute-toggled(i, m) => { root.track-detail-stem-mute-toggled(i, m); }
+        stem-solo-toggled(i, s) => { root.track-detail-stem-solo-toggled(i, s); }
+        stem-gain-changed(i, g) => { root.track-detail-stem-gain-changed(i, g); }
+        stem-pan-changed(i, p) => { root.track-detail-stem-pan-changed(i, p); }
+    }
+}

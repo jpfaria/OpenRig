@@ -596,3 +596,6 @@ msgstr "返回"
 
 msgid "tooltip-tracks"
 msgstr "音轨 / 分轨"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — 音轨"

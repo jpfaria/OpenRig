@@ -600,3 +600,6 @@ msgstr "戻る"
 
 msgid "tooltip-tracks"
 msgstr "トラック / ステム"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — トラック"

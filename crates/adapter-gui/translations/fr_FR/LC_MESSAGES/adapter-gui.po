@@ -599,3 +599,6 @@ msgstr "Retour"
 
 msgid "tooltip-tracks"
 msgstr "Pistes / Stems"
+
+msgid "title-window-tracks"
+msgstr "OpenRig — Pistes"
