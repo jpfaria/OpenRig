@@ -189,8 +189,30 @@ pub fn run_blocking_with_profiles(
     crate::register_rescan_sender(rescan_tx);
 
     let mut do_scan = true;
+    let mut first_scan = true;
     loop {
         if do_scan {
+            // #548: midir's CoreMIDI client doesn't see new BLE-MIDI
+            // devices added AFTER it was created (the system's
+            // device-added notifications don't reach a long-lived client
+            // already running in our process). Forcing `MIDIRestart`
+            // makes the next enumeration see them. Skip on the initial
+            // boot scan — nothing to refresh yet.
+            #[cfg(target_os = "macos")]
+            if !first_scan {
+                unsafe extern "C" {
+                    fn MIDIRestart() -> i32;
+                }
+                let status = unsafe { MIDIRestart() };
+                if status != 0 {
+                    log::warn!("adapter-midi: MIDIRestart returned {status}");
+                }
+                // CoreMIDI re-publishes devices asynchronously; a brief
+                // sleep gives the BLE port time to re-appear in the next
+                // `list_input_ports` call.
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+            first_scan = false;
             let infos = crate::enumerate::list_input_ports().unwrap_or_default();
             let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
             let added = new_port_names(&known, &current);
