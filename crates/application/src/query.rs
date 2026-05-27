@@ -330,16 +330,29 @@ fn block_type_str(bt: &plugin_loader::manifest::BlockType) -> String {
 /// block (schema + `current_value` per parameter), serialised under a
 /// `params` envelope. Mirrors what `list_chain_presets` does for the
 /// preset bank — looks up the chain in the project, finds the block,
-/// then resolves the model's parameter specs and binds them to the
-/// block's current `ParameterSet`. Unknown chain / block → `Err`.
+/// then delegates to `AudioBlock::parameter_descriptors()` (the same
+/// helper the GUI uses) so the schema + current-value walk lives in
+/// `project::block`, never re-derived per transport. Unknown chain /
+/// block / schema mismatch → `Err`.
 pub fn get_block_params(
-    _project: &project::project::Project,
-    _chain: &domain::ids::ChainId,
-    _block: &domain::ids::BlockId,
+    project: &project::project::Project,
+    chain: &domain::ids::ChainId,
+    block: &domain::ids::BlockId,
 ) -> Result<String, String> {
-    // Minimal cycle 1: only the unknown-chain `Err` path. Happy-path
-    // materialisation lands in the next red-first cycle.
-    Err("chain not found".to_string())
+    let chain_ref = project
+        .chains
+        .iter()
+        .find(|c| c.id == *chain)
+        .ok_or_else(|| format!("chain not found: {}", chain.0))?;
+    let block_ref = chain_ref
+        .blocks
+        .iter()
+        .find(|b| b.id == *block)
+        .ok_or_else(|| format!("block not found in chain {}: {}", chain.0, block.0))?;
+    let descriptors = block_ref.parameter_descriptors()?;
+    let payload = serde_json::to_string(&descriptors)
+        .map_err(|e| format!("failed to serialize descriptors: {e}"))?;
+    Ok(format!("{{\"params\": {payload}}}"))
 }
 
 #[cfg(test)]
