@@ -999,6 +999,23 @@ pub fn run_desktop_app(
                             application::bridge::QueryKind::FindPlugins { query } => {
                                 Ok(application::query::find_plugins(query))
                             }
+                            // #572: per-plugin parameter schema
+                            // (catalog-level). No project state needed —
+                            // resolves against the process-wide plugin
+                            // registry, same as the catalog reads above.
+                            application::bridge::QueryKind::GetPluginParams { plugin_id } => {
+                                Ok(application::query::get_plugin_params(plugin_id))
+                            }
+                            // #572: per-block-instance descriptors
+                            // (schema + current value). Reads from the
+                            // live project the GUI session owns.
+                            application::bridge::QueryKind::GetBlockParams { chain, block } => {
+                                application::query::get_block_params(
+                                    &project.borrow(),
+                                    chain,
+                                    block,
+                                )
+                            }
                         },
                         32,
                     );

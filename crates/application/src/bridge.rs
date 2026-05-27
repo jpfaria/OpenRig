@@ -80,6 +80,21 @@ pub enum QueryKind {
     /// (case-insensitive substring on id / display_name / brand).
     /// Empty query = all entries. See [`crate::query::find_plugins`].
     FindPlugins { query: String },
+    /// #572: full parameter schema for one plugin (catalog-level). No
+    /// placed instance required. Resolved via
+    /// `project::block::schema_for_block_model` and wrapped under a
+    /// `params` envelope by [`crate::query::get_plugin_params`].
+    /// Unknown id → `{"params": null}`.
+    GetPluginParams { plugin_id: String },
+    /// #572: list of materialised `BlockParameterDescriptor` for one
+    /// placed block instance (schema + `current_value` per parameter).
+    /// Resolved by [`crate::query::get_block_params`], which delegates
+    /// to `AudioBlock::parameter_descriptors()` (same helper the GUI
+    /// uses). Unknown chain / block → `Err`.
+    GetBlockParams {
+        chain: domain::ids::ChainId,
+        block: domain::ids::BlockId,
+    },
 }
 
 struct QueryRequest {

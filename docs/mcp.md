@@ -27,8 +27,27 @@ follow-up.
 - **Tools** — one per `Command` variant (JSON schema auto-derived from
   `application::command`; no hand-written schema). The agent adds blocks,
   changes parameters, switches presets, saves the project, etc.
-- **Resources** (read-only): `openrig://project` (current project as YAML),
-  `openrig://devices` (audio devices).
+- **Resources** (read-only):
+  - `openrig://project` — current project as YAML.
+  - `openrig://devices` — available audio devices.
+  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`).
+  - `openrig://meters` — per-chain peak meters (dBFS).
+  - `openrig://presets` — project preset pool (JSON).
+  - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
+  - `openrig://plugins` — full plugin catalog (JSON).
+  - `openrig://plugins/{id}` — single plugin entry by manifest id (JSON).
+  - `openrig://plugins/search/{query}` — case-insensitive substring
+    search across `id` / `display_name` / `brand` (JSON).
+  - `openrig://plugins/{id}/params` — catalog-level parameter schema
+    for one plugin: kind, range, options, default, unit, widget (JSON).
+    Unknown id → `{"params": null}`.
+  - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
+    parameter snapshot: schema **plus** `current_value` per parameter
+    (JSON, wrapped under a `params` envelope). Unknown chain / block
+    → error from the bridge.
+
+  All reads return JSON unless the type is documented as YAML or
+  newline-delimited text.
 - **Prompts**: `tune_tone`, `diagnose_chain`, `build_preset`,
   `analyze_reference`.
 
@@ -58,8 +77,8 @@ the `openrig-tone-builder` skill — no manual client config.
 
 Then start OpenRig with the server on: `openrig --mcp`. The plugin's
 `.mcp.json` points the client at `http://127.0.0.1:4123`; the client lists one
-tool per `Command`, the `openrig://project` / `openrig://devices` resources,
-and the prompts. The `openrig-tone-builder` skill activates when you ask for an
+tool per `Command`, the `openrig://*` resources listed in the
+[Surface](#surface) section, and the prompts. The `openrig-tone-builder` skill activates when you ask for an
 artist/song tone and drives the rig through the tools.
 
 ### Claude Desktop
