@@ -529,17 +529,34 @@ fn build_nam_audio_processor(
     input_layout: AudioChannelLayout,
     sample_rate: f32,
 ) -> Result<ProcessorBuildOutcome> {
-    let _ = (
-        optional_string(&stage.params, "ir_path"),
-        required_string(&stage.params, "model_path")?,
-    );
     build_audio_processor_for_model(
         chain,
         block_core::EFFECT_TYPE_NAM,
         &stage.model,
         input_layout,
-        |layout| build_nam_processor_for_layout(&stage.model, &stage.params, sample_rate, layout),
+        |layout| build_nam_processor_via_dispatch(&stage.model, &stage.params, sample_rate, layout),
     )
+}
+
+/// Resolve a NAM block via the plugin loader (issue #574) and fall back
+/// to the legacy `model_path`-in-params path only for callers that
+/// inject the path themselves. Without this, YAML presets never built
+/// because they don't carry `model_path`.
+fn build_nam_processor_via_dispatch(
+    model: &str,
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    if let Some(package) = plugin_loader::registry::find(model) {
+        return package.build_processor(params, sample_rate, layout);
+    }
+    if params.get_string("model_path").is_some() {
+        return build_nam_processor_for_layout(model, params, sample_rate, layout);
+    }
+    Err(anyhow!(
+        "no NAM plugin package registered for model '{model}' and no `model_path` in params"
+    ))
 }
 
 fn expect_mono_processor(
@@ -574,20 +591,6 @@ fn expect_stereo_processor(
             model
         )),
     }
-}
-
-fn required_string(params: &ParameterSet, path: &str) -> Result<String> {
-    params
-        .get_string(path)
-        .map(ToString::to_string)
-        .ok_or_else(|| anyhow!("missing or invalid string parameter '{}'", path))
-}
-
-fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
-    params
-        .get_optional_string(path)
-        .flatten()
-        .map(ToString::to_string)
 }
 
 pub(crate) fn next_block_instance_serial() -> u64 {
