@@ -30,6 +30,12 @@ pub const URI_PLUGIN_PREFIX: &str = "openrig://plugins/";
 /// Matched BEFORE [`URI_PLUGIN_PREFIX`] so the `/params` suffix is not
 /// swallowed into a manifest id.
 pub const URI_PLUGIN_PARAMS_TEMPLATE: &str = "openrig://plugins/{id}/params";
+/// #572: URI template for one placed block's parameter snapshot
+/// (schema + current value per parameter). Concrete URIs look like
+/// `openrig://chains/<chain_id>/blocks/<block_id>/params`. Matched
+/// BEFORE the chain-presets parser so the URI shapes do not collide.
+pub const URI_BLOCK_PARAMS_TEMPLATE: &str =
+    "openrig://chains/{chain}/blocks/{block}/params";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -75,15 +81,28 @@ pub fn resources() -> Vec<Resource> {
             ),
             None,
         ),
+        Annotated::new(
+            RawResource::new(
+                URI_BLOCK_PARAMS_TEMPLATE,
+                "Placed-block parameter snapshot (schema + current_value) — JSON",
+            ),
+            None,
+        ),
     ]
 }
 
 /// Resolve a resource URI by querying the frontend.
 pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResult> {
-    // #572: `openrig://plugins/<id>/params` is a sub-resource of the
-    // plugin namespace — must be matched BEFORE `URI_PLUGIN_PREFIX` so
-    // the `/params` suffix is not swallowed into a manifest id.
-    let kind = if let Some(chain_id) = parse_chain_presets_uri(uri) {
+    // #572: `openrig://plugins/<id>/params` and
+    // `openrig://chains/<cid>/blocks/<bid>/params` are sub-resources
+    // of namespaces matched by simpler patterns — match BEFORE the
+    // broader arms so the `/params` suffix is not swallowed.
+    let kind = if let Some((chain, block)) = parse_block_params_uri(uri) {
+        QueryKind::GetBlockParams {
+            chain: ChainId(chain),
+            block: domain::ids::BlockId(block),
+        }
+    } else if let Some(chain_id) = parse_chain_presets_uri(uri) {
         QueryKind::ListChainPresets {
             chain: ChainId(chain_id),
         }
@@ -133,6 +152,19 @@ pub fn parse_plugin_params_uri(uri: &str) -> Option<String> {
         .and_then(|rest| rest.strip_suffix("/params"))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
+}
+
+/// Extract `(chain, block)` from
+/// `openrig://chains/<chain>/blocks/<block>/params`. Returns `None`
+/// for any other URI shape. Either segment empty → rejected.
+/// Issue #572.
+pub fn parse_block_params_uri(uri: &str) -> Option<(String, String)> {
+    let rest = uri.strip_prefix("openrig://chains/")?.strip_suffix("/params")?;
+    let (chain, after_chain) = rest.split_once("/blocks/")?;
+    if chain.is_empty() || after_chain.is_empty() {
+        return None;
+    }
+    Some((chain.to_string(), after_chain.to_string()))
 }
 
 #[cfg(test)]
