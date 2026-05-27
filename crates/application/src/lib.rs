@@ -39,6 +39,10 @@ pub mod validate;
 mod local_dispatcher_tests;
 
 #[cfg(test)]
+#[path = "local_dispatcher_midi_block_nav_tests.rs"]
+mod local_dispatcher_midi_block_nav_tests;
+
+#[cfg(test)]
 #[path = "local_dispatcher_paths_tests.rs"]
 mod local_dispatcher_paths_tests;
 
