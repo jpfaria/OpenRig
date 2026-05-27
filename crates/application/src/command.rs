@@ -344,11 +344,13 @@ pub enum Command {
     /// `Event::RecentProjectRemoved`.
     RemoveRecentProject { index: usize },
 
-    /// #436 F: save the active chain as a named preset file. Was
-    /// GUI-only (direct file write in a wiring closure). `SaveProject`
-    /// precedent: the adapter writes the file; the dispatcher records
-    /// the intent and signals `Event::ChainPresetSaved`.
-    SaveChainPreset { name: String },
+    /// #555: save a chain's current FX blocks as a named preset file.
+    /// The dispatcher snapshots `project.chains[chain]`, strips
+    /// input/output blocks (I/O wiring isn't part of a preset), and
+    /// writes the YAML under the configured `presets_path`. Every
+    /// transport (GUI / MCP / gRPC) dispatches the same Command and
+    /// gets the same on-disk effect.
+    SaveChainPreset { chain: ChainId, name: String },
 
     /// #436 F: delete a named chain preset file. Was GUI-only
     /// (`std::fs::remove_file` in a wiring closure). `SaveProject`

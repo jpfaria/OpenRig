@@ -29,7 +29,7 @@ use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
     canonical_project_path, create_new_project_session, load_project_session, project_display_name,
     project_session_snapshot, project_title_for_path, recent_project_items,
-    register_recent_project, resolve_project_config_path, save_project_session, set_project_dirty,
+    register_recent_project, resolve_project_config_path, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
 use crate::state::{ProjectPaths, ProjectSession};
@@ -303,12 +303,23 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     .map(PathBuf::from)
                     .unwrap_or_else(|| PathBuf::from("."))
                     .join("presets");
+                // #555: re-attach the new paths on Save As so the
+                // dispatcher writes to the right files.
+                session.dispatcher.attach_project_path(path.clone());
+                session
+                    .dispatcher
+                    .attach_config_path(session.config_path.clone());
+                session
+                    .dispatcher
+                    .attach_presets_path(session.presets_path.clone());
                 path
             };
-            match save_project_session(session, &project_path) {
-                Ok(()) => {
-                    // Signal successful save through the dispatcher.
-                    let _ = session.dispatcher.dispatch(Command::SaveProject);
+            // #555: the file writes used to happen here via
+            // `save_project_session(session, &project_path)`. They now
+            // live inside the `Command::SaveProject` dispatcher handler
+            // — MCP/MIDI clients reach the same on-disk state.
+            match session.dispatcher.dispatch(Command::SaveProject) {
+                Ok(_) => {
                     let canonical_path =
                         canonical_project_path(&project_path).unwrap_or(project_path.clone());
                     let recent_name = project_display_name(&*session.project.borrow());

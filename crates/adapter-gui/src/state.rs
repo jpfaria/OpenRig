@@ -51,6 +51,16 @@ impl ProjectSession {
     ) -> Self {
         let project = Rc::new(RefCell::new(project));
         let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
+        // #555: the dispatcher owns the file I/O for SaveProject /
+        // SaveChainPreset / DeleteChainPreset so MCP / MIDI / GUI all
+        // hit the same disk locations. Attach the session's resolved
+        // paths right after construction; the file dialog wiring
+        // re-attaches them on "Save As" if the user picks a new path.
+        dispatcher.attach_presets_path(presets_path.clone());
+        if let Some(ref path) = project_path {
+            dispatcher.attach_project_path(path.clone());
+        }
+        dispatcher.attach_config_path(config_path.clone());
         Self {
             project,
             dispatcher,
@@ -174,10 +184,10 @@ pub(crate) enum AudioSettingsMode {
     Project,
 }
 
-#[derive(Debug, Serialize)]
-pub(crate) struct ConfigYaml {
-    pub(crate) presets_path: String,
-}
+// `ConfigYaml` moved into `Command::SaveProject`'s dispatcher
+// handler (`application::local_dispatcher_project`) in #555 — the
+// sidecar `config.yaml` is now written there with a fixed
+// `presets_path: ./presets` body, matching what this struct produced.
 
 pub(crate) const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
 
