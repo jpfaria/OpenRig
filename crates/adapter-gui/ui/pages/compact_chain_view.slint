@@ -1,5 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockTypePickerItem, ChainRigNav } from "../models.slint";
+import { CompactBlockItem, BlockTypePickerItem, ChainRigNav, StreamMeter } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainTitlePreset } from "../components/chain_title_preset.slint";
@@ -21,6 +21,11 @@ export component CompactChainViewPage inherits Rectangle {
     // Per-chain peak meters (#496) — same range as the main row.
     in property <float> meter-in-dbfs: -120.0;
     in property <float> meter-out-dbfs: -120.0;
+    // Per-stream IN/OUT meter rows. Empty ⇒ fall back to the single
+    // aggregate `meter-in-dbfs` / `meter-out-dbfs` pair so old wiring
+    // keeps working. Non-empty ⇒ render one IN/OUT bar per stream
+    // (multi-input chains, same shape `ChainRow` uses on the main page).
+    in property <[StreamMeter]> stream-meters;
     // Chain output volume %, 0..200 (#440). Hooked to the volume button.
     in property <int> volume: 100;
 
@@ -214,12 +219,18 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
+    // Footer reservation: one 22 px row per stream meter (multi-input
+    // chains stack), minimum one row so the IN/OUT pair always fits.
+    property <int> meter-row-count:
+        root.stream-meters.length > 0 ? root.stream-meters.length : 1;
+    property <length> meter-footer-height: root.meter-row-count * 22px + 6px;
+
     // Block rows with insert slots between them
     Flickable {
         x: 0; y: 66px;
         width: parent.width;
-        // Leave room at the bottom for the IN/OUT dBFS meters footer.
-        height: parent.height - 66px - 28px;
+        // Leave room at the bottom for the per-stream IN/OUT meter rows.
+        height: parent.height - 66px - root.meter-footer-height;
         viewport-height: root.compact-blocks.length * 112px + 24px;
         interactive: false;
 
@@ -451,8 +462,127 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
-    // ── Footer: per-chain IN / OUT peak meters (#496) ─────────────────
-    Rectangle {
+    // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
+    // One IN/OUT pair per `stream-meters` entry. Multi-input chains
+    // (e.g. a 3-input chain) get 3 stacked rows here. Empty list ⇒
+    // fall back to the single aggregate `meter-in-dbfs` /
+    // `meter-out-dbfs` pair so old wiring keeps working.
+    for stream[i] in root.stream-meters: Rectangle {
+        x: 0px;
+        y: parent.height - 22px
+            - (root.stream-meters.length - 1 - i) * 22px;
+        width: parent.width;
+        height: 16px;
+
+        Rectangle {
+            x: 60px; y: 0px;
+            width: 220px; height: 16px;
+            Text {
+                x: 0px; y: 0px;
+                width: 44px; height: parent.height;
+                text: "INPUT";
+                font-size: 8px; font-weight: 700;
+                color: #9ca3af;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                x: 48px; y: 2px;
+                width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-radius: 2px;
+                background: @linear-gradient(90deg,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
+                    #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0,
+                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0));
+                    y: 0px;
+                    width: parent.width * (1.0 - Math.max(0.0,
+                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 182px; y: 0px;
+                width: 36px; height: parent.height;
+                text: stream.in_dbfs <= -119.0
+                    ? "—"
+                    : Math.round(stream.in_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: stream.in_dbfs <= -119.0 ? #6b7280
+                     : stream.in_dbfs > -3.0     ? #f87171
+                     : stream.in_dbfs >= -30.0   ? #4ade80
+                     :                              #facc15;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            x: parent.width - 240px; y: 0px;
+            width: 230px; height: 16px;
+            Text {
+                x: 0px; y: 0px;
+                width: 50px; height: parent.height;
+                text: "OUTPUT";
+                font-size: 8px; font-weight: 700;
+                color: #9ca3af;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                x: 54px; y: 2px;
+                width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-radius: 2px;
+                background: @linear-gradient(90deg,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
+                    #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0,
+                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0));
+                    y: 0px;
+                    width: parent.width * (1.0 - Math.max(0.0,
+                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 188px; y: 0px;
+                width: 40px; height: parent.height;
+                text: stream.out_dbfs <= -119.0
+                    ? "—"
+                    : Math.round(stream.out_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: stream.out_dbfs <= -119.0 ? #6b7280
+                     : stream.out_dbfs > -3.0     ? #f87171
+                     : stream.out_dbfs >= -30.0   ? #4ade80
+                     :                               #facc15;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Fallback: when `stream-meters` is empty, render the legacy
+    // single aggregate IN/OUT pair so wiring that hasn't migrated
+    // to per-stream meters still shows something at the footer.
+    if root.stream-meters.length == 0 : Rectangle {
         x: 60px;
         y: parent.height - 22px;
         width: 220px;
@@ -505,7 +635,7 @@ export component CompactChainViewPage inherits Rectangle {
             vertical-alignment: center;
         }
     }
-    Rectangle {
+    if root.stream-meters.length == 0 : Rectangle {
         x: parent.width - 240px;
         y: parent.height - 22px;
         width: 230px;

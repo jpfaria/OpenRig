@@ -2,17 +2,29 @@
 // plugins directory — each a label + current path + Choose…/Reset.
 // Empty path means "use OS default" (the resolver handles it). Both
 // rows share a fixed-width label column so they line up vertically.
+//
+// #561 adds a third row for the plugin catalog: a "Reload" button
+// that dispatches `Command::ReloadPluginCatalog`, plus a status text
+// showing the post-reload counts. Lives in the same section because
+// the action is bound to the plugins directory above it.
 
 import { Button } from "std-widgets.slint";
 
 export component SectionSystemPaths inherits Rectangle {
     in property <string> presets-path;
     in property <string> plugins-path;
+    // #561: status string filled by the wiring after the reload
+    // completes — "12 plugins loaded (8 native, 4 disk)" etc. Empty
+    // when no reload has run yet.
+    in property <string> plugin-catalog-status;
 
     callback pick-presets-path();
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    // #561: re-scan the plugin packages directories without
+    // restarting the process.
+    callback reload-plugin-catalog();
 
     background: transparent;
 
@@ -81,6 +93,34 @@ export component SectionSystemPaths inherits Rectangle {
             Button {
                 text: @tr("btn-reset-path");
                 clicked => { root.reset-plugins-path(); }
+            }
+        }
+
+        // ── Plugin catalog reload row (#561) ──────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-plugin-catalog");
+                color: #cfd5e0;
+                font-size: 16px;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.plugin-catalog-status == ""
+                    ? @tr("status-plugin-catalog-idle")
+                    : root.plugin-catalog-status;
+                color: root.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Button {
+                text: @tr("btn-reload-plugin-catalog");
+                clicked => { root.reload-plugin-catalog(); }
             }
         }
     }

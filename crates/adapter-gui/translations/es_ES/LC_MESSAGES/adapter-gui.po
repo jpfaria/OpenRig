@@ -655,3 +655,14 @@ msgstr "OpenRig — Pistas"
 
 msgid "tracks-empty-hint"
 msgstr "Pulsa \"Importar y separar\" para empezar."
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-plugin-catalog"
+msgstr "Catálogo de plugins"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Recargar"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Aún no recargado"

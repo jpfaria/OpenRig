@@ -642,3 +642,14 @@ msgstr "OpenRig — Tracks"
 
 msgid "tracks-empty-hint"
 msgstr "Click \"Import & separate\" to get started."
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-plugin-catalog"
+msgstr "Plugin catalog"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Reload"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Not reloaded yet"

@@ -442,6 +442,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     if let Some(row) = chains.row_data(ci) {
                         cw.set_meter_in_dbfs(row.meter_in_dbfs);
                         cw.set_meter_out_dbfs(row.meter_out_dbfs);
+                        cw.set_stream_meters(row.stream_meters.clone());
                         cw.set_volume(row.volume);
                         cw.set_chain_enabled(row.enabled);
                         cw.set_chain_title(row.title.clone());

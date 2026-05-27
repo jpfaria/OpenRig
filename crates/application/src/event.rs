@@ -306,6 +306,30 @@ pub enum Event {
         kind: StemControl,
     },
 
+    /// #561: emitted after `Command::ReloadPluginCatalog` re-scanned
+    /// the plugin packages directories. Carries the post-reload totals
+    /// so adapters can show the user what changed (GUI toast, MCP
+    /// response). `total_count == native_count + disk_count`.
+    PluginCatalogReloaded {
+        native_count: usize,
+        disk_count: usize,
+        total_count: usize,
+    },
+
+    /// #561 (expanded scope): emitted after `Command::LoadPlugin`
+    /// brought a single plugin into the catalog (or confirmed it was
+    /// already there). `id` mirrors the request.
+    PluginLoaded {
+        id: String,
+    },
+
+    /// #561 (expanded scope): emitted after `Command::UnloadPlugin`
+    /// dropped a single disk plugin from the catalog. `id` mirrors
+    /// the request.
+    PluginUnloaded {
+        id: String,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -380,6 +404,11 @@ impl Event {
             | Event::TrackPauseRequested
             | Event::TrackSeekRequested { .. }
             | Event::StemControlChanged { .. }
+            // #561: catalog-wide reload, never tied to a single chain.
+            | Event::PluginCatalogReloaded { .. }
+            // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
+            | Event::PluginLoaded { .. }
+            | Event::PluginUnloaded { .. }
             | Event::Error { .. } => None,
         }
     }

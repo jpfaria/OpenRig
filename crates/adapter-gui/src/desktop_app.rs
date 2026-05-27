@@ -971,6 +971,18 @@ pub fn run_desktop_app(
                                 }
                                 Ok(out)
                             }
+                            // #561 (expanded scope): plugin catalog
+                            // reads — same pure helpers MCP would call
+                            // (process-wide registry, no project state).
+                            application::bridge::QueryKind::ListPluginCatalog => {
+                                Ok(application::query::list_plugin_catalog())
+                            }
+                            application::bridge::QueryKind::GetPlugin { id } => {
+                                Ok(application::query::get_plugin(id))
+                            }
+                            application::bridge::QueryKind::FindPlugins { query } => {
+                                Ok(application::query::find_plugins(query))
+                            }
                         },
                         32,
                     );

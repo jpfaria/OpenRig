@@ -115,6 +115,8 @@ export component AppWindow inherits Window {
     // System / Paths section (#513). Empty string = use OS default.
     in property <string> presets-path;
     in property <string> plugins-path;
+    // #561: status text for the plugin catalog reload row.
+    in property <string> plugin-catalog-status;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -239,6 +241,8 @@ export component AppWindow inherits Window {
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    // #561: re-scan the plugin packages directories without restart.
+    callback reload-plugin-catalog();
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -523,10 +527,12 @@ export component AppWindow inherits Window {
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        reload-plugin-catalog => { root.reload-plugin-catalog(); }
         edit-chain-input(index) => { root.edit-chain-input(index); }
         remove-chain-input(index) => { root.remove-chain-input(index); }
         add-chain-input => { root.add-chain-input(); }
@@ -709,10 +715,12 @@ export component AppWindow inherits Window {
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        reload-plugin-catalog => { root.reload-plugin-catalog(); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
         preset-picker-items: root.preset-picker-items;
