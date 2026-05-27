@@ -164,12 +164,7 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
     );
 
     // Caller invalidates explicitly (e.g. on chain toggle / rig-nav).
-    refresh_subscriptions_lazy_per_stream(
-        &store,
-        &[id.clone()],
-        &[id.clone()],
-        &make_streams,
-    );
+    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[id.clone()], &make_streams);
     assert_eq!(
         calls.get(),
         2,
@@ -255,17 +250,20 @@ fn chain_signature_changes_when_block_enabled_bit_flips() {
     let s1 = chain_meter_signature(&c);
     c.blocks[0].enabled = false;
     let s2 = chain_meter_signature(&c);
-    assert_ne!(s1, s2, "per-block enabled flip (scene bypass) must \
+    assert_ne!(
+        s1, s2,
+        "per-block enabled flip (scene bypass) must \
          change the signature so the meter re-subscribes after scene \
-         switch even when block ids don't change");
+         switch even when block ids don't change"
+    );
 }
 
 #[test]
 fn chain_signature_stable_when_only_param_value_changes() {
+    use domain::value_objects::ParameterValue;
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
     use project::chain::Chain;
     use project::param::ParameterSet;
-    use domain::value_objects::ParameterValue;
     let mut params = ParameterSet::default();
     params.insert("gain", ParameterValue::Float(0.5));
     let mut c = Chain {
@@ -292,8 +290,11 @@ fn chain_signature_stable_when_only_param_value_changes() {
         core.params.insert("gain", ParameterValue::Float(0.7));
     }
     let s2 = chain_meter_signature(&c);
-    assert_eq!(s1, s2, "param value change without runtime restart \
-         must keep the signature stable");
+    assert_eq!(
+        s1, s2,
+        "param value change without runtime restart \
+         must keep the signature stable"
+    );
 }
 
 // ── timer-shape signature: tracks engine runtime layout, not just
@@ -330,16 +331,20 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
     // Toggle off: enabled flips to false, engine tears down → stream_count=0.
     c.enabled = false;
     let s_off = crate::meter_wiring::timer_chain_signature(&c, 0);
-    assert_ne!(s_initial, s_off,
+    assert_ne!(
+        s_initial, s_off,
         "toggle off must flip the signature so the timer invalidates \
-         the dead ring handles left by the torn-down runtime");
+         the dead ring handles left by the torn-down runtime"
+    );
     // Toggle on: enabled flips back to true, fresh runtime → stream_count=3.
     c.enabled = true;
     let s_on = crate::meter_wiring::timer_chain_signature(&c, 3);
-    assert_ne!(s_off, s_on,
+    assert_ne!(
+        s_off, s_on,
         "toggle on must flip the signature again so the timer drops \
          the empty cache entry and re-subscribes against the freshly \
-         rebuilt per-input runtimes");
+         rebuilt per-input runtimes"
+    );
 }
 
 #[test]
@@ -377,7 +382,10 @@ fn controller_offline_then_back_invalidates_every_chain() {
     };
     let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
         std::collections::HashMap::new();
-    let api_on = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api_on = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     // Tick 1: controller online with 3-stream chain.
     let inv1 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
@@ -400,7 +408,10 @@ fn controller_offline_then_back_invalidates_every_chain() {
     );
     // Tick 3: fresh controller comes back (different api instance,
     // same project state).
-    let api_on2 = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api_on2 = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let inv3 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
         Some(&api_on2),
@@ -496,7 +507,10 @@ impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
 
 #[test]
 fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert_eq!(
@@ -510,7 +524,10 @@ fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
 
 #[test]
 fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert_eq!(
@@ -524,7 +541,10 @@ fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
 
 #[test]
 fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert_eq!(chain.streams.len(), 3, "one row per stream");
@@ -546,7 +566,10 @@ fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
 
 #[test]
 fn build_streams_returns_empty_when_chain_has_no_runtime() {
-    let api = RecordingTapApi { stream_count: 0, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 0,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert!(

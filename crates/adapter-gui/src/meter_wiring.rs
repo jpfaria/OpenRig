@@ -423,10 +423,9 @@ pub fn start_meter_polling(
             store.borrow_mut().clear();
             return;
         };
-        let make_streams =
-            |cid: &domain::ids::ChainId| -> ChainMeterStreams {
-                build_streams_from_taps(controller, cid, RING_CAPACITY)
-            };
+        let make_streams = |cid: &domain::ids::ChainId| -> ChainMeterStreams {
+            build_streams_from_taps(controller, cid, RING_CAPACITY)
+        };
         refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
         // Reclaim any orphan tap slots left behind after an invalidation
         // (rings dropped from the store free their consumer side, the

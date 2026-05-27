@@ -93,12 +93,12 @@ pub(crate) use validation::{
 };
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod tests_regression;
-#[cfg(test)]
 mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod tests_regression;
 #[cfg(test)]
 mod tests_signatures;

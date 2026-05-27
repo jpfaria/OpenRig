@@ -128,7 +128,12 @@ fn single_stream_on_channel_one(id: &str, input_device: &str, output_device: &st
     }
 }
 
-fn controller_with_single_runtime(chain: &Chain) -> (ProjectRuntimeController, Arc<engine::runtime::ChainRuntimeState>) {
+fn controller_with_single_runtime(
+    chain: &Chain,
+) -> (
+    ProjectRuntimeController,
+    Arc<engine::runtime::ChainRuntimeState>,
+) {
     let runtime = Arc::new(
         build_chain_runtime_state(chain, 48_000.0, &[256])
             .expect("two-stream mono chain must build a runtime"),
@@ -136,7 +141,9 @@ fn controller_with_single_runtime(chain: &Chain) -> (ProjectRuntimeController, A
     let mut graph = RuntimeGraph {
         chains: std::collections::HashMap::new(),
     };
-    graph.chains.insert((chain.id.clone(), 0), Arc::clone(&runtime));
+    graph
+        .chains
+        .insert((chain.id.clone(), 0), Arc::clone(&runtime));
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains: std::collections::HashMap::new(),
