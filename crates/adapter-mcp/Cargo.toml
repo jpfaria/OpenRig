@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 application = { path = "../application" }
+domain = { path = "../domain" }
 project = { path = "../project" }
 infra-yaml = { path = "../infra-yaml" }
 infra-cpal = { path = "../infra-cpal" }
