@@ -123,14 +123,20 @@ pub(crate) fn build_runtime_block_nodes(
                 blocks.push(node);
             }
             Err(e) => {
-                // Don't fail the whole chain — bypass this block and keep going
+                // Don't fail the whole chain — bypass this block and keep going,
+                // but record the reason so offline-render callers (and any
+                // diagnostic surface) can refuse to claim success. Issue #574:
+                // without this, the failure was log-only and invisible to the
+                // CLI, producing misleading WAV output for different presets.
+                let reason = e.to_string();
                 log::error!(
-                    "[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    "[engine] block {:?} (id={}) build failed: {reason} — inserting faulted bypass",
                     block.model_ref().map(|m| m.model.to_string()),
                     block.id.0
                 );
                 let mut node = bypass_runtime_node(block, current_layout);
                 node.faulted = true;
+                node.fault_reason = Some(reason);
                 blocks.push(node);
             }
         }
@@ -349,6 +355,7 @@ fn build_select_runtime_node(
         },
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     })
 }
 
@@ -368,6 +375,7 @@ pub(crate) fn bypass_runtime_node(
         fade_state: FadeState::Bypassed,
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 
@@ -391,6 +399,7 @@ pub(crate) fn audio_block_runtime_node(
         },
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 
