@@ -164,12 +164,7 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
     );
 
     // Caller invalidates explicitly (e.g. on chain toggle / rig-nav).
-    refresh_subscriptions_lazy_per_stream(
-        &store,
-        &[id.clone()],
-        &[id.clone()],
-        &make_streams,
-    );
+    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[id.clone()], &make_streams);
     assert_eq!(
         calls.get(),
         2,
@@ -255,17 +250,20 @@ fn chain_signature_changes_when_block_enabled_bit_flips() {
     let s1 = chain_meter_signature(&c);
     c.blocks[0].enabled = false;
     let s2 = chain_meter_signature(&c);
-    assert_ne!(s1, s2, "per-block enabled flip (scene bypass) must \
+    assert_ne!(
+        s1, s2,
+        "per-block enabled flip (scene bypass) must \
          change the signature so the meter re-subscribes after scene \
-         switch even when block ids don't change");
+         switch even when block ids don't change"
+    );
 }
 
 #[test]
 fn chain_signature_stable_when_only_param_value_changes() {
+    use domain::value_objects::ParameterValue;
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
     use project::chain::Chain;
     use project::param::ParameterSet;
-    use domain::value_objects::ParameterValue;
     let mut params = ParameterSet::default();
     params.insert("gain", ParameterValue::Float(0.5));
     let mut c = Chain {
@@ -292,8 +290,11 @@ fn chain_signature_stable_when_only_param_value_changes() {
         core.params.insert("gain", ParameterValue::Float(0.7));
     }
     let s2 = chain_meter_signature(&c);
-    assert_eq!(s1, s2, "param value change without runtime restart \
-         must keep the signature stable");
+    assert_eq!(
+        s1, s2,
+        "param value change without runtime restart \
+         must keep the signature stable"
+    );
 }
 
 // ── timer-shape signature: tracks engine runtime layout, not just
@@ -330,16 +331,20 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
     // Toggle off: enabled flips to false, engine tears down → stream_count=0.
     c.enabled = false;
     let s_off = crate::meter_wiring::timer_chain_signature(&c, 0);
-    assert_ne!(s_initial, s_off,
+    assert_ne!(
+        s_initial, s_off,
         "toggle off must flip the signature so the timer invalidates \
-         the dead ring handles left by the torn-down runtime");
+         the dead ring handles left by the torn-down runtime"
+    );
     // Toggle on: enabled flips back to true, fresh runtime → stream_count=3.
     c.enabled = true;
     let s_on = crate::meter_wiring::timer_chain_signature(&c, 3);
-    assert_ne!(s_off, s_on,
+    assert_ne!(
+        s_off, s_on,
         "toggle on must flip the signature again so the timer drops \
          the empty cache entry and re-subscribes against the freshly \
-         rebuilt per-input runtimes");
+         rebuilt per-input runtimes"
+    );
 }
 
 #[test]
@@ -377,7 +382,10 @@ fn controller_offline_then_back_invalidates_every_chain() {
     };
     let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
         std::collections::HashMap::new();
-    let api_on = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api_on = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     // Tick 1: controller online with 3-stream chain.
     let inv1 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
@@ -400,7 +408,10 @@ fn controller_offline_then_back_invalidates_every_chain() {
     );
     // Tick 3: fresh controller comes back (different api instance,
     // same project state).
-    let api_on2 = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api_on2 = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let inv3 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
         Some(&api_on2),
@@ -444,43 +455,41 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
 }
 
 // ── build_streams_from_taps: per-entry meter routing.
-// Bug from the user's 3-source screenshot: input shows in slot 3,
-// output only in slot 1. Two causes:
+// Original bug (3-source screenshot): input shows in slot 3, output
+// only in slot 1. Pinned causes covered here historically:
 //   (a) input was subscribed as channels [0..N] of runtime[0] instead
-//       of one ring per per-input runtime (issue #350 layout: each
-//       entry owns its own runtime keyed by (chain_id, input_index));
+//       of one ring per per-input runtime (issue #350 layout);
 //   (b) the chain stream_tap was subscribed ONCE (stream_index=0) and
 //       its Arc cloned into every row — SPSC ring has a single
 //       consumer, so row 0 drains it and rows 1..N see empty.
-// The new helper takes a `MeterTapApi` and must:
-//   - call subscribe_input_tap once per stream_index, channel [0]
-//   - call subscribe_stream_tap once per stream_index 0..N
+// Issue #557 closed the follow-up "stream 1 silent + wrong device
+// channel" gap: the helper now drives a single high-level call —
+// `subscribe_stream_input_tap(cid, i, cap)` — and the controller
+// resolves runtime, cpal group, and endpoint channel inside.
+// The new helper must:
+//   - call subscribe_stream_input_tap once per global stream_index 0..N
+//   - call subscribe_stream_tap once per global stream_index 0..N
 //   - place each subscription in its own row (no Arc broadcasting).
 
 #[derive(Default)]
 struct RecordingTapApi {
     stream_count: usize,
-    input_calls: std::cell::RefCell<Vec<(usize, Vec<usize>)>>, // (input_index, channels)
-    stream_calls: std::cell::RefCell<Vec<usize>>,              // stream_index
+    stream_input_calls: std::cell::RefCell<Vec<usize>>, // stream_index
+    stream_calls: std::cell::RefCell<Vec<usize>>,       // stream_index
 }
 
 impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
     fn stream_count(&self, _cid: &domain::ids::ChainId) -> usize {
         self.stream_count
     }
-    fn subscribe_input_tap(
+    fn subscribe_stream_input_tap(
         &self,
         _cid: &domain::ids::ChainId,
-        input_index: usize,
-        _total_channels: usize,
-        subscribed_channels: &[usize],
+        stream_index: usize,
         _capacity: usize,
-    ) -> Vec<Arc<SpscRing<f32>>> {
-        self.input_calls
-            .borrow_mut()
-            .push((input_index, subscribed_channels.to_vec()));
-        // One fresh ring per call so callers can prove rings are distinct.
-        vec![Arc::new(SpscRing::<f32>::new(16, 0.0))]
+    ) -> Option<Arc<SpscRing<f32>>> {
+        self.stream_input_calls.borrow_mut().push(stream_index);
+        Some(Arc::new(SpscRing::<f32>::new(16, 0.0)))
     }
     fn subscribe_stream_tap(
         &self,
@@ -497,34 +506,28 @@ impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
 }
 
 #[test]
-fn build_streams_subscribes_one_input_runtime_per_stream_not_channels_of_zero() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
-    let calls = api.input_calls.borrow();
-    let indexes: Vec<usize> = calls.iter().map(|(i, _)| *i).collect();
-    let channels: Vec<Vec<usize>> = calls.iter().map(|(_, c)| c.clone()).collect();
     assert_eq!(
-        indexes,
-        vec![0, 1, 2],
-        "must call subscribe_input_tap once per per-input runtime \
-         (input_index 0..stream_count), not once with all channels of \
-         runtime 0 — that's why secondary entries showed silence"
+        *api.stream_input_calls.borrow(),
+        vec![0_usize, 1, 2],
+        "input meter must subscribe via the per-stream API once per \
+         global stream index; the controller resolves the runtime, \
+         cpal group, and endpoint channel — issue #557"
     );
-    for ch in &channels {
-        assert_eq!(
-            ch,
-            &vec![0_usize],
-            "each per-input runtime exposes its source on channel 0; \
-             subscribing extra channels of runtime 0 pulls silence from \
-             a device the runtime doesn't even own"
-        );
-    }
 }
 
 #[test]
 fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let _ = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert_eq!(
@@ -538,7 +541,10 @@ fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
 
 #[test]
 fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
-    let api = RecordingTapApi { stream_count: 3, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 3,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert_eq!(chain.streams.len(), 3, "one row per stream");
@@ -560,7 +566,10 @@ fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
 
 #[test]
 fn build_streams_returns_empty_when_chain_has_no_runtime() {
-    let api = RecordingTapApi { stream_count: 0, ..Default::default() };
+    let api = RecordingTapApi {
+        stream_count: 0,
+        ..Default::default()
+    };
     let cid = domain::ids::ChainId("c1".into());
     let chain = crate::meter_wiring::build_streams_from_taps(&api, &cid, 4096);
     assert!(

@@ -14,9 +14,11 @@ engine = { path = "../engine" }
 block-core = { path = "../block-core" }
 domain = { path = "../domain" }
 infra-filesystem = { path = "../infra-filesystem" }
+infra-yaml = { path = "../infra-yaml" }
 plugin-loader = { path = "../plugin-loader" }
 
 [dev-dependencies]
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }
 serde_yaml.workspace = true
+tempfile = "3"
