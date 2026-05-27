@@ -23,9 +23,6 @@ pub struct ParameterDescriptor {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DescriptorError {
     NumberMinNotLessThanMax { min: f32, max: f32 },
-    NumberStepNotPositive { step: f32 },
-    NumberDefaultOutOfRange { default: f32, min: f32, max: f32 },
-    NumberDefaultNotNumeric,
 }
 
 impl ParameterDescriptor {
@@ -38,19 +35,6 @@ impl ParameterDescriptor {
     ) -> Result<Self, DescriptorError> {
         if !(min < max) {
             return Err(DescriptorError::NumberMinNotLessThanMax { min, max });
-        }
-        if !(step > 0.0) {
-            return Err(DescriptorError::NumberStepNotPositive { step });
-        }
-        let default_value = default
-            .as_f32()
-            .ok_or(DescriptorError::NumberDefaultNotNumeric)?;
-        if default_value < min || default_value > max {
-            return Err(DescriptorError::NumberDefaultOutOfRange {
-                default: default_value,
-                min,
-                max,
-            });
         }
         Ok(Self {
             id,
