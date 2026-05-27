@@ -237,6 +237,16 @@ pub enum Event {
     /// `config.yaml` on receipt. System-level event per ADR 0003.
     PathsSaved,
 
+    /// #561: emitted after `Command::ReloadPluginCatalog` re-scanned
+    /// the plugin packages directories. Carries the post-reload totals
+    /// so adapters can show the user what changed (GUI toast, MCP
+    /// response). `total_count == native_count + disk_count`.
+    PluginCatalogReloaded {
+        native_count: usize,
+        disk_count: usize,
+        total_count: usize,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -302,6 +312,8 @@ impl Event {
             | Event::MidiEventReceived { .. }
             // #513: system-level paths event, never tied to a chain.
             | Event::PathsSaved
+            // #561: catalog-wide reload, never tied to a single chain.
+            | Event::PluginCatalogReloaded { .. }
             | Event::Error { .. } => None,
         }
     }

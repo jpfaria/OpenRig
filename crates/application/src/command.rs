@@ -399,6 +399,17 @@ pub enum Command {
     /// setting per ADR 0003 — the adapter writes it into `config.yaml`
     /// on `Event::PathsSaved`.
     SetPluginsPath { path: Option<PathBuf> },
+
+    /// #561: re-scan the plugin packages directories without restarting
+    /// the process. Same path resolution as boot
+    /// (`detect_data_root().join("plugins")` + `plugins_root_from_config`),
+    /// natives are preserved. The dispatcher emits
+    /// `Event::PluginCatalogReloaded { native_count, disk_count,
+    /// total_count }` so adapters can surface the new totals to the
+    /// user (GUI toast, MCP tool response). Closes the gap between
+    /// "import a new NAM" and "build a preset that uses it" without a
+    /// session break.
+    ReloadPluginCatalog,
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

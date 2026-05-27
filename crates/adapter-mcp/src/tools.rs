@@ -73,7 +73,9 @@ mod tests {
     /// `SaveMidiMapping`, `StartMidiLearn`, `StopMidiLearn`, and
     /// `PublishMidiEvent`. Each adds one MCP tool automatically via
     /// `command_schema` (single source of truth — the `Command` enum).
-    const COMMAND_VARIANT_COUNT: usize = 49;
+    /// #513 (paths overrides) bumped to 51 with `SetPresetsPath` and
+    /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`.
+    const COMMAND_VARIANT_COUNT: usize = 52;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

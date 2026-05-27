@@ -220,6 +220,9 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
                 self.handle_paths_system(cmd)
             }
+
+            // #561: hot-reload the plugin catalog (no payload).
+            Command::ReloadPluginCatalog => self.handle_reload_plugin_catalog(),
         }
     }
 

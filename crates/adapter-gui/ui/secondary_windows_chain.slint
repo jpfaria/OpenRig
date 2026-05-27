@@ -48,10 +48,13 @@ export component ProjectSettingsWindow inherits Window {
     // System / Paths section (#513). Empty = OS default.
     in property <string> presets-path;
     in property <string> plugins-path;
+    // #561: plugin catalog reload row in the Paths section.
+    in property <string> plugin-catalog-status;
     callback pick-presets-path();
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    callback reload-plugin-catalog();
     title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
@@ -95,10 +98,12 @@ export component ProjectSettingsWindow inherits Window {
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        reload-plugin-catalog => { root.reload-plugin-catalog(); }
     }
 }
 

@@ -18,6 +18,7 @@ mod local_dispatcher_close;
 mod local_dispatcher_diagnostic;
 mod local_dispatcher_language;
 mod local_dispatcher_output;
+mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;
 mod local_dispatcher_recent;
