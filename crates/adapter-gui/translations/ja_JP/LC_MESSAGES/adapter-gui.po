@@ -598,5 +598,5 @@ msgstr "一時停止"
 msgid "tracks-back"
 msgstr "戻る"
 
-msgid "btn-open-tracks"
-msgstr "トラック"
+msgid "tooltip-tracks"
+msgstr "トラック / ステム"

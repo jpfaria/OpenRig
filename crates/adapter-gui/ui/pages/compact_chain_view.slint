@@ -36,6 +36,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback insert-block(int, int); // chain_index, before_index
     callback reorder-block(int, int, int); // chain_index, from_index, before_index
     callback open-block-detail(int, int);
+    callback open-tracks();
     callback close-compact-view();
     callback choose-block-type(int, int, int); // chain_index, before_index, type_index
     callback remove-block(int, int); // chain_index, block_index
@@ -117,6 +118,14 @@ export component CompactChainViewPage inherits Rectangle {
             y: (parent.height - 36px) / 2;
             volume: root.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 348px;
+            y: (parent.height - 30px) / 2;
+            icon: @image-url("../assets/tracks.svg");
+            tooltip: @tr("tooltip-tracks");
+            clicked => { root.open-tracks(); }
         }
 
         ChainActionIcon {

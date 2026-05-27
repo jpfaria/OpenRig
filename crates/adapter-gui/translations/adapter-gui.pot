@@ -773,12 +773,13 @@ msgctxt "TrackDetailPage"
 msgid "track-pause"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint
-msgctxt "ProjectLauncherPage"
-msgid "btn-open-tracks"
-msgstr ""
-
 #: crates/adapter-gui/ui/pages/tracks.slint
 msgctxt "TracksPage"
 msgid "tracks-back"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint
+msgctxt "ProjectChainsPage"
+msgid "tooltip-tracks"
 msgstr ""

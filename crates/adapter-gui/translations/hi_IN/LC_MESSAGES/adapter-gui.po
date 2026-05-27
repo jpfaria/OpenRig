@@ -594,5 +594,5 @@ msgstr "रोकें"
 msgid "tracks-back"
 msgstr "वापस"
 
-msgid "btn-open-tracks"
-msgstr "ट्रैक्स"
+msgid "tooltip-tracks"
+msgstr "ट्रैक्स / स्टेम्स"

@@ -48,6 +48,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-project();
     callback open-tuner-window();
     callback open-spectrum-window();
+    callback open-tracks();
     callback remove-chain(int);
     in property <[ChainRigNav]> chain-rig-nav;
     callback switch-chain-preset(int, int);
@@ -136,6 +137,14 @@ export component ProjectChainsPage inherits Rectangle {
             icon: @image-url("../assets/arrow-left.svg");
             tooltip: @tr("tooltip-back");
             clicked => { root.back-to-launcher(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 240px;
+            y: 14px;
+            icon: @image-url("../assets/tracks.svg");
+            tooltip: @tr("tooltip-tracks");
+            clicked => { root.open-tracks(); }
         }
 
         HeaderIconAction {

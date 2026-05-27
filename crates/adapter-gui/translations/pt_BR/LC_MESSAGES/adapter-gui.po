@@ -655,5 +655,5 @@ msgstr "Pausar"
 msgid "tracks-back"
 msgstr "Voltar"
 
-msgid "btn-open-tracks"
-msgstr "Faixas"
+msgid "tooltip-tracks"
+msgstr "Faixas / Stems"

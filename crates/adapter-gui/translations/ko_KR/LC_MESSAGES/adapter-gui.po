@@ -594,5 +594,5 @@ msgstr "일시정지"
 msgid "tracks-back"
 msgstr "뒤로"
 
-msgid "btn-open-tracks"
-msgstr "트랙"
+msgid "tooltip-tracks"
+msgstr "트랙 / 스템"

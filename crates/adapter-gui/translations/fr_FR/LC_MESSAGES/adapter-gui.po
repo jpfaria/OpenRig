@@ -597,5 +597,5 @@ msgstr "Pause"
 msgid "tracks-back"
 msgstr "Retour"
 
-msgid "btn-open-tracks"
-msgstr "Pistes"
+msgid "tooltip-tracks"
+msgstr "Pistes / Stems"

@@ -634,5 +634,5 @@ msgstr "Pause"
 msgid "tracks-back"
 msgstr "Back"
 
-msgid "btn-open-tracks"
-msgstr "Tracks"
+msgid "tooltip-tracks"
+msgstr "Tracks / Stems"

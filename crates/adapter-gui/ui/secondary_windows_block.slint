@@ -273,6 +273,7 @@ export component CompactChainViewWindow inherits Window {
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback remove-chain(int);
+    callback open-tracks();
 
     // Issue #360: in-window delete confirmations (replaces the previous
     // implicit delegation to AppWindow's overlay, which used to surface
@@ -322,6 +323,7 @@ export component CompactChainViewWindow inherits Window {
         save-chain-preset-as => { root.save-chain-preset-as(); }
         configure-chain(ci) => { root.configure-chain(ci); }
         probe-chain-latency(ci) => { root.probe-chain-latency(ci); }
+        open-tracks => { root.open-tracks(); }
         chain-volume-changed(ci, v) => { root.chain-volume-changed(ci, v); }
         move-chain-up(ci) => { root.move-chain-up(ci); }
         move-chain-down(ci) => { root.move-chain-down(ci); }

@@ -343,6 +343,7 @@ export component TouchMain inherits Rectangle {
             configure-project => { root.configure-project(); }
             open-tuner-window => { root.open-tuner-window(); }
             open-spectrum-window => { root.open-spectrum-window(); }
+            open-tracks => { root.open-tracks-clicked(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }

@@ -214,7 +214,6 @@ export component ProjectLauncherPage inherits Rectangle {
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
-    callback open-tracks-clicked();
     in property <[string]> language-options;
     in property <[string]> language-codes;
     in property <int> selected-language-index;
@@ -279,14 +278,6 @@ export component ProjectLauncherPage inherits Rectangle {
             height: 52px;
             source: @image-url("../assets/openrig-logotype.png");
             image-fit: contain;
-        }
-
-        LauncherButton {
-            x: parent.width - 372px;
-            y: 6px;
-            label: @tr("btn-open-tracks");
-            primary: false;
-            clicked => { root.open-tracks-clicked(); }
         }
 
         IconLauncherButton {
