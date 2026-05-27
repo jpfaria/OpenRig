@@ -101,6 +101,24 @@ impl MultiStemPlayer {
         self.sample_rate
     }
 
+    /// Total frames in the loaded stems (= shortest stem length).
+    /// Returns 0 for an empty player.
+    #[must_use]
+    pub fn total_frames(&self) -> usize {
+        self.total_frames
+    }
+
+    /// Move the playhead to `frame` (clamped to `[0, total_frames)`).
+    /// Safe to call from any thread.
+    pub fn seek_to_frame(&self, frame: usize) {
+        let target = if self.total_frames == 0 {
+            0
+        } else {
+            frame.min(self.total_frames.saturating_sub(1))
+        };
+        self.playhead.store(target, Ordering::Release);
+    }
+
     /// Set per-stem gain. Values are not clamped — callers usually
     /// keep them in `[0.0, 2.0]`. Out-of-bounds indices are ignored.
     pub fn set_gain(&self, idx: usize, gain: f32) {

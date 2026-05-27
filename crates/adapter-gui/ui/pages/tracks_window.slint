@@ -42,6 +42,7 @@ export component TracksWindow inherits Window {
     callback track-detail-back-clicked();
     callback track-detail-play-toggle();
     callback track-detail-seek-relative(int);
+    callback track-detail-seek-fraction(float);
     callback track-detail-stem-mute-toggled(int, bool);
     callback track-detail-stem-solo-toggled(int, bool);
     callback track-detail-stem-gain-changed(int, float);
@@ -74,6 +75,7 @@ export component TracksWindow inherits Window {
         back-clicked => { root.track-detail-back-clicked(); }
         play-toggle => { root.track-detail-play-toggle(); }
         seek-relative(d) => { root.track-detail-seek-relative(d); }
+        seek-fraction(f) => { root.track-detail-seek-fraction(f); }
         stem-mute-toggled(i, m) => { root.track-detail-stem-mute-toggled(i, m); }
         stem-solo-toggled(i, s) => { root.track-detail-stem-solo-toggled(i, s); }
         stem-gain-changed(i, g) => { root.track-detail-stem-gain-changed(i, g); }

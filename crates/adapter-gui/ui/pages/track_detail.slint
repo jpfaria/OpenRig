@@ -104,6 +104,7 @@ component StemStrip inherits Rectangle {
     callback solo-toggled(int, bool);
     callback gain-changed(int, float);
     callback pan-changed(int, float);
+    callback seek-fraction(float);
 
     height: 112px;
     background: @linear-gradient(180deg,
@@ -142,6 +143,17 @@ component StemStrip inherits Rectangle {
         height: parent.height - 12px;
         background: #ffe9a8;
         opacity: 0.85;
+    }
+
+    // Click-to-seek hotspot covering the waveform area.
+    waveform-area := TouchArea {
+        x: 240px;
+        y: 0;
+        width: parent.width - 240px;
+        height: parent.height;
+        clicked => {
+            root.seek-fraction(Math.max(0.0, Math.min(1.0, self.mouse-x / self.width)));
+        }
     }
 
     HorizontalLayout {
@@ -331,6 +343,7 @@ export component TrackDetailPage inherits Rectangle {
     callback back-clicked();
     callback play-toggle();
     callback seek-relative(int);
+    callback seek-fraction(float);
     callback stem-mute-toggled(int, bool);
     callback stem-solo-toggled(int, bool);
     callback stem-gain-changed(int, float);
@@ -456,6 +469,7 @@ export component TrackDetailPage inherits Rectangle {
                     solo-toggled(i, s) => { root.stem-solo-toggled(i, s); }
                     gain-changed(i, g) => { root.stem-gain-changed(i, g); }
                     pan-changed(i, p) => { root.stem-pan-changed(i, p); }
+                    seek-fraction(f) => { root.seek-fraction(f); }
                 }
             }
         }

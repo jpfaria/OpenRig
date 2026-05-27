@@ -385,17 +385,6 @@ fn spawn_separation_worker(
     });
 }
 
-fn refresh_only_list(tracks_window: &TracksWindow) {
-    let dir = default_tracks_dir();
-    let rows: Vec<TrackRowData> = feature_tracks::scan_catalog(&dir)
-        .unwrap_or_default()
-        .iter()
-        .map(entry_to_row)
-        .collect();
-    let model = Rc::new(VecModel::from(rows));
-    tracks_window.set_tracks(ModelRc::from(model));
-}
-
 /// Wire the Tracks secondary window. Mirrors the Tuner/Spectrum
 /// pattern: own native window, opened by a header callback on the main
 /// window, closed by the window's own back/close action.
@@ -512,15 +501,16 @@ pub(crate) fn wire_tracks_window(
         let project_session = project_session.clone();
         let state_clone = state.clone();
         tracks_window.on_tracks_import_clicked(move || {
-            let file = rfd::FileDialog::new()
+            let files = rfd::FileDialog::new()
                 .add_filter("Audio", &["wav", "mp3", "flac", "ogg", "m4a"])
-                .pick_file();
-            let Some(path) = file else { return };
-            if !path.exists() || !path.is_file() {
-                return;
-            }
+                .pick_files();
+            let Some(files) = files else { return };
             if let Some(tw) = tw_weak.upgrade() {
-                dispatch_separation(&state_clone, &tw, &project_session, path);
+                for path in files {
+                    if path.exists() && path.is_file() {
+                        dispatch_separation(&state_clone, &tw, &project_session, path);
+                    }
+                }
             }
         });
     }
@@ -653,10 +643,41 @@ pub(crate) fn wire_tracks_window(
         });
     }
 
-    // Seek currently a no-op until the cpal stream exposes a playhead
-    // hook; the UI binding stays wired for forward compatibility.
-    tracks_window.on_track_detail_seek_relative(|_delta| {});
+    // Seek relative (±5s buttons) → translate to frames using SR.
+    {
+        let state = state.clone();
+        tracks_window.on_track_detail_seek_relative(move |delta_secs| {
+            let s = state.borrow();
+            let Some(player) = s.player.as_ref() else {
+                return;
+            };
+            let sr = player.sample_rate() as i64;
+            let frames_delta = delta_secs as i64 * sr;
+            let current = player.playhead() as i64;
+            let target = (current + frames_delta).max(0) as usize;
+            player.seek_to_frame(target);
+        });
+    }
+
+    // Click the waveform anywhere → jump there.
+    {
+        let state = state.clone();
+        tracks_window.on_track_detail_seek_fraction(move |fraction| {
+            let s = state.borrow();
+            let Some(player) = s.player.as_ref() else {
+                return;
+            };
+            let frame = (fraction.clamp(0.0, 1.0) * s.total_frames as f32) as usize;
+            player.seek_to_frame(frame);
+        });
+    }
 }
+
+// Drop the legacy `refresh_only_list` — superseded by
+// `apply_search_filter` which handles both pending rows and the
+// search filter atomically.
+#[allow(dead_code)]
+fn refresh_only_list_legacy() {}
 
 #[cfg(test)]
 mod tests {
