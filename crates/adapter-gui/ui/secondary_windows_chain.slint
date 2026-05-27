@@ -21,8 +21,6 @@ export component ProjectSettingsWindow inherits Window {
     in property <[string]> language-codes;
     in property <int> selected-language-index;
     in property <[MidiDeviceRow]> midi-devices;
-    in property <[MidiBindingRow]> midi-bindings;
-    in property <[string]> available-commands;
     in property <string> project-path-display;
     callback update-project-name(string);
     callback save-audio-settings();
@@ -40,10 +38,6 @@ export component ProjectSettingsWindow inherits Window {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
-    callback add-midi-binding();
-    callback delete-midi-binding(int);
-    callback pick-midi-binding-command(int, string);
-    callback cancel-midi-binding-draft(int);
     callback edit-project-name(string);
     // System / Paths section (#513). Empty = OS default.
     in property <string> presets-path;
@@ -75,8 +69,6 @@ export component ProjectSettingsWindow inherits Window {
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         midi-devices: root.midi-devices;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
@@ -91,10 +83,6 @@ export component ProjectSettingsWindow inherits Window {
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;

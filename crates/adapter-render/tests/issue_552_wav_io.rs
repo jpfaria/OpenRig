@@ -1,14 +1,17 @@
 //! Red-first tests for WAV I/O + mono→stereo broadcast (issue #552).
 
 use adapter_render::wav::{
-    broadcast_mono_to_stereo, interleaved_to_stereo_frames, read_wav, write_wav_stereo,
-    BitDepth, WavData, WavError,
+    broadcast_mono_to_stereo, interleaved_to_stereo_frames, read_wav, write_wav_stereo, BitDepth,
+    WavData, WavError,
 };
 use std::path::PathBuf;
 
 fn tmp_path(name: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!("openrig-render-tests-{}-{name}", std::process::id()));
+    p.push(format!(
+        "openrig-render-tests-{}-{name}",
+        std::process::id()
+    ));
     p
 }
 
@@ -16,7 +19,10 @@ fn tmp_path(name: &str) -> PathBuf {
 fn read_wav_returns_error_when_path_missing() {
     let path = tmp_path("does_not_exist.wav");
     let err = read_wav(&path).expect_err("missing file must error");
-    assert!(matches!(err, WavError::Io(_)), "expected Io error, got {err:?}");
+    assert!(
+        matches!(err, WavError::Io(_)),
+        "expected Io error, got {err:?}"
+    );
 }
 
 #[test]
@@ -98,7 +104,10 @@ fn write_wav_stereo_is_deterministic_byte_for_byte() {
 
     let bytes_a = std::fs::read(&path_a).unwrap();
     let bytes_b = std::fs::read(&path_b).unwrap();
-    assert_eq!(bytes_a, bytes_b, "same input must produce byte-identical WAVs");
+    assert_eq!(
+        bytes_a, bytes_b,
+        "same input must produce byte-identical WAVs"
+    );
 
     let _ = std::fs::remove_file(&path_a);
     let _ = std::fs::remove_file(&path_b);

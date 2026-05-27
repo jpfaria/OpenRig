@@ -82,10 +82,7 @@ pub fn build_from_package(
 
 /// Choose the audit-baseline dB to apply, preferring the per-capture
 /// value over the manifest-level fallback. Issue #514.
-pub(crate) fn select_audit_db(
-    capture_db: Option<f32>,
-    manifest_db: Option<f32>,
-) -> Option<f32> {
+pub(crate) fn select_audit_db(capture_db: Option<f32>, manifest_db: Option<f32>) -> Option<f32> {
     capture_db.or(manifest_db)
 }
 

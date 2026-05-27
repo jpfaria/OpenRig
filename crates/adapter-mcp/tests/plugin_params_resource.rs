@@ -15,7 +15,10 @@ fn parse_plugin_params_uri_extracts_plugin_id() {
 #[test]
 fn parse_plugin_params_uri_ignores_unrelated_uris() {
     assert_eq!(parse_plugin_params_uri("openrig://plugins"), None);
-    assert_eq!(parse_plugin_params_uri("openrig://plugins/british_70s"), None);
+    assert_eq!(
+        parse_plugin_params_uri("openrig://plugins/british_70s"),
+        None
+    );
     assert_eq!(
         parse_plugin_params_uri("openrig://chains/rig:input-1/presets"),
         None
@@ -27,8 +30,5 @@ fn parse_plugin_params_uri_ignores_unrelated_uris() {
 
 #[test]
 fn plugin_params_template_constant_matches_spec() {
-    assert_eq!(
-        URI_PLUGIN_PARAMS_TEMPLATE,
-        "openrig://plugins/{id}/params"
-    );
+    assert_eq!(URI_PLUGIN_PARAMS_TEMPLATE, "openrig://plugins/{id}/params");
 }

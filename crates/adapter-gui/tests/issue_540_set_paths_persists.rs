@@ -54,10 +54,8 @@ fn with_temp_home<F: FnOnce(&PathBuf)>(label: &str, f: F) {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let tmp = std::env::temp_dir().join(format!(
-        "openrig-540-{label}-{}-{now}",
-        std::process::id()
-    ));
+    let tmp =
+        std::env::temp_dir().join(format!("openrig-540-{label}-{}-{now}", std::process::id()));
     std::fs::create_dir_all(&tmp).expect("mkdir tempdir");
     let prev = std::env::var_os("HOME");
     std::env::set_var("HOME", &tmp);
