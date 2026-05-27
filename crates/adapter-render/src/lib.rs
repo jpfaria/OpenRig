@@ -35,6 +35,12 @@ pub enum RenderError {
     InvalidArgs(String),
     /// The engine refused to build a runtime for the chain.
     EngineBuild(anyhow::Error),
+    /// One or more blocks in the chain could not be built into runtime
+    /// processors and would have been silently bypassed. Refusing to
+    /// claim success — otherwise different presets render to identical
+    /// bytes because every failing block disappears from the signal path
+    /// (issue #574). Each entry is `(block_id, effect_type, model, error)`.
+    BlocksFailed(Vec<engine::offline::FaultedBlock>),
     /// Live capture was requested but `--duration` was not supplied (or
     /// cpal could not open the requested input device).
     Capture(anyhow::Error),
@@ -48,6 +54,24 @@ impl std::fmt::Display for RenderError {
             Self::OutputWrite(e) => write!(f, "failed to write output wav: {e}"),
             Self::InvalidArgs(msg) => write!(f, "invalid render args: {msg}"),
             Self::EngineBuild(e) => write!(f, "engine failed to build chain runtime: {e}"),
+            Self::BlocksFailed(faulted) => {
+                writeln!(
+                    f,
+                    "{} block(s) in the chain failed to build and would have been silently bypassed:",
+                    faulted.len()
+                )?;
+                for fb in faulted {
+                    writeln!(
+                        f,
+                        "  - block '{}' ({}/{}): {}",
+                        fb.block_id, fb.effect_type, fb.model, fb.error
+                    )?;
+                }
+                write!(
+                    f,
+                    "refusing to write a WAV that would be missing those blocks' contribution"
+                )
+            }
             Self::Capture(e) => write!(f, "live capture failed: {e}"),
         }
     }
@@ -87,7 +111,7 @@ pub fn render(args: &RenderArgs) -> Result<RenderSummary, RenderError> {
     let tail_frames = (u64::from(args.tail_ms) * u64::from(args.sample_rate_hz) / 1000) as usize;
 
     // 4. Drive the chain offline through the engine.
-    let output_frames = engine::offline::render_chain(
+    let outcome = engine::offline::render_chain(
         &chain,
         args.sample_rate_hz as f32,
         &input_frames,
@@ -96,15 +120,24 @@ pub fn render(args: &RenderArgs) -> Result<RenderSummary, RenderError> {
     )
     .map_err(RenderError::EngineBuild)?;
 
+    // Issue #574: the engine returns a best-effort render even when some
+    // blocks could not be built (the GUI relies on that to keep running
+    // with a partial chain). The CLI must NOT inherit that policy — a
+    // WAV that silently drops the user's amp/cab/effect is worse than no
+    // WAV. Fail loud before writing anything.
+    if !outcome.faulted_blocks.is_empty() {
+        return Err(RenderError::BlocksFailed(outcome.faulted_blocks));
+    }
+
     // 5. Atomic write: temp file + rename.
     let tmp = tmp_output_path(&args.output);
-    write_wav_stereo(&tmp, &output_frames, args.sample_rate_hz, bit_depth)
+    write_wav_stereo(&tmp, &outcome.samples, args.sample_rate_hz, bit_depth)
         .map_err(RenderError::OutputWrite)?;
     std::fs::rename(&tmp, &args.output)
         .map_err(|e| RenderError::OutputWrite(wav::WavError::Io(e)))?;
 
     Ok(RenderSummary {
-        frames_written: output_frames.len() as u64,
+        frames_written: outcome.samples.len() as u64,
         sample_rate_hz: args.sample_rate_hz,
         output: args.output.clone(),
         captured_input,

@@ -67,8 +67,30 @@ renderer exits with `1` and the message
 | Code | Meaning |
 |---|---|
 | `0` | Render succeeded; `--output` written |
-| `1` | Render failed (bad chain, bad input WAV, capture failed, engine error, IO error). No partial output file remains |
+| `1` | Render failed (bad chain, bad input WAV, capture failed, engine error, **one or more chain blocks could not be built**, IO error). No partial output file remains |
 | `2` | Argument error (missing required flag, invalid value such as `--bit-depth 19`, unknown flag) |
+
+### Failing-block policy (issue #574)
+
+`engine::offline::render_chain` is best-effort: when an individual block
+fails to build at setup time (missing plugin file, unresolvable model
+id, invalid params), the engine replaces it with a pass-through bypass
+node and keeps rendering. The GUI relies on this — the user must be
+able to keep working with a partial chain. **The CLI does not inherit
+that policy.** If any block in the chain ends up bypassed because it
+could not be built, `openrig-render` exits with code `1` and stderr
+lists every failing block:
+
+```
+openrig-render: 1 block(s) in the chain failed to build and would have been silently bypassed:
+  - block 'preset:Coldplay - Clocks (rhythm):block:3' (nam/nam_fender_twin_reverb): missing or invalid string parameter 'model_path'
+refusing to write a WAV that would be missing those blocks' contribution
+```
+
+Before #574 the same render exited `0` with a WAV that silently omitted
+the failing blocks' contribution — two different presets could produce
+byte-identical output. Refusing to claim success is the only honest
+outcome for an offline render.
 
 ## Scope
 
