@@ -21,7 +21,7 @@ use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use feature_stems::SeparateRequest;
 use feature_tracks::{MultiStemPlayer, StemKind, TrackEntry};
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, VecModel, Weak};
 use uuid::Uuid;
 
 use crate::helpers::show_child_window;
@@ -124,6 +124,38 @@ fn stem_kind_label(kind: StemKind) -> &'static str {
     }
 }
 
+fn stem_kind_icon(kind: StemKind) -> Image {
+    // The instrument SVGs ship in `assets/instruments/`; map each
+    // stem to the closest visual metaphor. `Other` reuses the
+    // generic placeholder.
+    match kind {
+        StemKind::Drums => {
+            Image::load_from_svg_data(include_bytes!("../../../assets/instruments/drums.svg"))
+                .unwrap_or_default()
+        }
+        StemKind::Bass => {
+            Image::load_from_svg_data(include_bytes!("../../../assets/instruments/bass.svg"))
+                .unwrap_or_default()
+        }
+        StemKind::Vocals => {
+            Image::load_from_svg_data(include_bytes!("../../../assets/instruments/voice.svg"))
+                .unwrap_or_default()
+        }
+        StemKind::Other => {
+            Image::load_from_svg_data(include_bytes!("../../../assets/instruments/generic.svg"))
+                .unwrap_or_default()
+        }
+        StemKind::Guitar => Image::load_from_svg_data(include_bytes!(
+            "../../../assets/instruments/electric_guitar.svg"
+        ))
+        .unwrap_or_default(),
+        StemKind::Piano => {
+            Image::load_from_svg_data(include_bytes!("../../../assets/instruments/keys.svg"))
+                .unwrap_or_default()
+        }
+    }
+}
+
 fn load_stems_for_entry(entry: &TrackEntry) -> Vec<Vec<f32>> {
     entry
         .meta
@@ -170,6 +202,7 @@ fn populate_track_detail(tracks_window: &TracksWindow, entry: &TrackEntry) {
         .map(|(idx, stem)| StemRowData {
             index: idx as i32,
             label: stem_kind_label(stem.kind).into(),
+            icon: stem_kind_icon(stem.kind),
             muted: false,
             soloed: false,
             gain: 1.0,
