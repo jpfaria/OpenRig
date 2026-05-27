@@ -194,6 +194,13 @@ pub fn run_blocking_with_profiles(
             let infos = crate::enumerate::list_input_ports().unwrap_or_default();
             let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
             let added = new_port_names(&known, &current);
+            log::info!(
+                "adapter-midi rescan: {} port(s) visible {:?}; {} new {:?}",
+                current.len(),
+                current,
+                added.len(),
+                added,
+            );
             for name in &added {
                 let Some(idx) = current.iter().position(|n| n == name) else {
                     continue;

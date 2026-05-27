@@ -1,1 +1,1 @@
-Post-merge fix: restore selection_state field + local_dispatcher_selection module.
+Bug: refresh not picking up newly connected MIDI port. Diagnostic via log.
