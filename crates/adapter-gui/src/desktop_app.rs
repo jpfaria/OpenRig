@@ -963,6 +963,30 @@ pub fn run_desktop_app(
                                 }
                                 Ok(out)
                             }
+                            application::bridge::QueryKind::ListChainPresets { chain } => {
+                                // #554: the chain's preset bank, served
+                                // from the in-memory RigProject so MCP /
+                                // gRPC see the same list the GUI shows
+                                // in the chain-title combobox.
+                                match session.rig.as_ref() {
+                                    Some(rig) => {
+                                        application::query::list_chain_presets(&rig.borrow(), chain)
+                                    }
+                                    None => Err("no rig attached to the session".to_string()),
+                                }
+                            }
+                            application::bridge::QueryKind::ListProjectPresets => {
+                                // #554 follow-up: project-level preset
+                                // pool (RigProject.presets in memory).
+                                // A preset can sit here without being
+                                // wired to any input bank yet.
+                                match session.rig.as_ref() {
+                                    Some(rig) => {
+                                        Ok(application::query::list_project_presets(&rig.borrow()))
+                                    }
+                                    None => Err("no rig attached to the session".to_string()),
+                                }
+                            }
                             // #561 (expanded scope): plugin catalog
                             // reads — same pure helpers MCP would call
                             // (process-wide registry, no project state).
