@@ -134,3 +134,109 @@ fn parameter_descriptor_number_accepts_int_default_within_range() {
     .expect("Int default within range must be accepted");
     assert_eq!(descriptor.default, ParameterValue::Int(5));
 }
+
+// ── Text kind ─────────────────────────────────────────────────────────────
+
+#[test]
+fn parameter_descriptor_text_accepts_string_default() {
+    let id = ParameterId("label".to_string());
+    let descriptor =
+        ParameterDescriptor::text(id.clone(), ParameterValue::String("clean".to_string()))
+            .expect("String default must be accepted");
+    assert_eq!(descriptor.id, id);
+    assert_eq!(descriptor.kind, ParameterKind::Text);
+    assert_eq!(descriptor.default, ParameterValue::String("clean".to_string()));
+}
+
+#[test]
+fn parameter_descriptor_text_rejects_non_string_default() {
+    let id = ParameterId("label".to_string());
+    let result = ParameterDescriptor::text(id, ParameterValue::Bool(true));
+    assert!(result.is_err(), "Text kind default must be a String");
+}
+
+// ── Option kind ───────────────────────────────────────────────────────────
+
+#[test]
+fn parameter_descriptor_option_accepts_default_in_values() {
+    let id = ParameterId("voicing".to_string());
+    let descriptor = ParameterDescriptor::option(
+        id.clone(),
+        vec!["A".to_string(), "B".to_string(), "C".to_string()],
+        ParameterValue::String("B".to_string()),
+    )
+    .expect("default within values must be accepted");
+    assert_eq!(descriptor.id, id);
+    assert_eq!(
+        descriptor.kind,
+        ParameterKind::Option {
+            values: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+        }
+    );
+    assert_eq!(descriptor.default, ParameterValue::String("B".to_string()));
+}
+
+#[test]
+fn parameter_descriptor_option_rejects_empty_values() {
+    let id = ParameterId("voicing".to_string());
+    let result = ParameterDescriptor::option(id, vec![], ParameterValue::String("A".to_string()));
+    assert!(result.is_err(), "Option kind requires at least one value");
+}
+
+#[test]
+fn parameter_descriptor_option_rejects_default_not_in_values() {
+    let id = ParameterId("voicing".to_string());
+    let result = ParameterDescriptor::option(
+        id,
+        vec!["A".to_string(), "B".to_string()],
+        ParameterValue::String("Z".to_string()),
+    );
+    assert!(result.is_err(), "Option default must appear in values list");
+}
+
+#[test]
+fn parameter_descriptor_option_rejects_non_string_default() {
+    let id = ParameterId("voicing".to_string());
+    let result = ParameterDescriptor::option(
+        id,
+        vec!["A".to_string()],
+        ParameterValue::Int(0),
+    );
+    assert!(result.is_err(), "Option default must be a String");
+}
+
+// ── File kind ─────────────────────────────────────────────────────────────
+
+#[test]
+fn parameter_descriptor_file_accepts_string_path_default() {
+    let id = ParameterId("ir_file".to_string());
+    let descriptor = ParameterDescriptor::file(
+        id.clone(),
+        ParameterValue::String("/path/to.wav".to_string()),
+    )
+    .expect("String path default must be accepted");
+    assert_eq!(descriptor.id, id);
+    assert_eq!(descriptor.kind, ParameterKind::File);
+    assert_eq!(
+        descriptor.default,
+        ParameterValue::String("/path/to.wav".to_string())
+    );
+}
+
+#[test]
+fn parameter_descriptor_file_accepts_null_default() {
+    let id = ParameterId("ir_file".to_string());
+    let descriptor = ParameterDescriptor::file(id, ParameterValue::Null)
+        .expect("Null default (no preset file) must be accepted");
+    assert_eq!(descriptor.default, ParameterValue::Null);
+}
+
+#[test]
+fn parameter_descriptor_file_rejects_non_path_default() {
+    let id = ParameterId("ir_file".to_string());
+    let result = ParameterDescriptor::file(id, ParameterValue::Bool(true));
+    assert!(
+        result.is_err(),
+        "File kind default must be a String path or Null"
+    );
+}

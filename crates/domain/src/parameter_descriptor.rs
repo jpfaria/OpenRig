@@ -12,6 +12,9 @@ use crate::value_objects::ParameterValue;
 pub enum ParameterKind {
     Number { min: f32, max: f32, step: f32 },
     Bool,
+    Text,
+    Option { values: Vec<String> },
+    File,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +31,11 @@ pub enum DescriptorError {
     NumberDefaultOutOfRange { default: f32, min: f32, max: f32 },
     NumberDefaultNotNumeric,
     BoolDefaultNotBool,
+    TextDefaultNotString,
+    OptionEmptyValues,
+    OptionDefaultNotInValues { default: String },
+    OptionDefaultNotString,
+    FileDefaultNotPathOrNull,
 }
 
 impl ParameterDescriptor {
@@ -70,5 +78,50 @@ impl ParameterDescriptor {
             kind: ParameterKind::Bool,
             default,
         })
+    }
+
+    pub fn text(id: ParameterId, default: ParameterValue) -> Result<Self, DescriptorError> {
+        if default.as_str().is_none() {
+            return Err(DescriptorError::TextDefaultNotString);
+        }
+        Ok(Self {
+            id,
+            kind: ParameterKind::Text,
+            default,
+        })
+    }
+
+    pub fn option(
+        id: ParameterId,
+        values: Vec<String>,
+        default: ParameterValue,
+    ) -> Result<Self, DescriptorError> {
+        if values.is_empty() {
+            return Err(DescriptorError::OptionEmptyValues);
+        }
+        let default_str = default
+            .as_str()
+            .ok_or(DescriptorError::OptionDefaultNotString)?;
+        if !values.iter().any(|v| v == default_str) {
+            return Err(DescriptorError::OptionDefaultNotInValues {
+                default: default_str.to_string(),
+            });
+        }
+        Ok(Self {
+            id,
+            kind: ParameterKind::Option { values },
+            default,
+        })
+    }
+
+    pub fn file(id: ParameterId, default: ParameterValue) -> Result<Self, DescriptorError> {
+        match &default {
+            ParameterValue::String(_) | ParameterValue::Null => Ok(Self {
+                id,
+                kind: ParameterKind::File,
+                default,
+            }),
+            _ => Err(DescriptorError::FileDefaultNotPathOrNull),
+        }
     }
 }
