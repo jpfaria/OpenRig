@@ -38,9 +38,7 @@ fn matches(expr: &MatchExpr, msg: &IncomingMessage) -> bool {
                 note: filter,
             },
             IncomingMessage::NoteOn {
-                channel: c,
-                note,
-                ..
+                channel: c, note, ..
             },
         ) => *channel == *c && filter.map(|f| f == *note).unwrap_or(true),
         (

@@ -11,8 +11,14 @@ use application::SelectionState;
 #[test]
 fn selection_state_default_is_empty() {
     let s: SelectionState = SelectionState::default();
-    assert!(s.active_chain.is_none(), "default active_chain must be None");
-    assert!(s.active_block.is_none(), "default active_block must be None");
+    assert!(
+        s.active_chain.is_none(),
+        "default active_chain must be None"
+    );
+    assert!(
+        s.active_block.is_none(),
+        "default active_block must be None"
+    );
 }
 
 #[test]
@@ -46,5 +52,8 @@ fn clearing_block_does_not_clear_chain() {
         Some("rig:guitar"),
         "clearing block must NOT touch the chain"
     );
-    assert!(s.active_block.is_none(), "clear_block must clear active_block");
+    assert!(
+        s.active_block.is_none(),
+        "clear_block must clear active_block"
+    );
 }

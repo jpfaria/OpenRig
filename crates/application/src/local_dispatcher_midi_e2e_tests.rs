@@ -266,9 +266,11 @@ fn bank3_c_toggle_neighbor_noop_without_active_chain_or_block() {
 fn bank4_a_toggle_tuner_round_trip() {
     let d = dispatcher_with(vec![chain("a", &[])]);
     assert!(!d.selection_state().read().unwrap().tuner_enabled);
-    d.dispatch(Command::SetTunerEnabled { enabled: true }).unwrap();
+    d.dispatch(Command::SetTunerEnabled { enabled: true })
+        .unwrap();
     assert!(d.selection_state().read().unwrap().tuner_enabled);
-    d.dispatch(Command::SetTunerEnabled { enabled: false }).unwrap();
+    d.dispatch(Command::SetTunerEnabled { enabled: false })
+        .unwrap();
     assert!(!d.selection_state().read().unwrap().tuner_enabled);
 }
 
@@ -277,7 +279,8 @@ fn bank4_b_toggle_output_mute_round_trip() {
     let d = dispatcher_with(vec![chain("a", &[])]);
     d.dispatch(Command::SetOutputMuted { muted: true }).unwrap();
     assert!(d.selection_state().read().unwrap().output_muted);
-    d.dispatch(Command::SetOutputMuted { muted: false }).unwrap();
+    d.dispatch(Command::SetOutputMuted { muted: false })
+        .unwrap();
     assert!(!d.selection_state().read().unwrap().output_muted);
 }
 
@@ -296,16 +299,24 @@ fn bank4_c_toggle_spectrum_round_trip() {
 fn each_toggle_emits_its_own_event_for_gui_refresh() {
     let d = dispatcher_with(vec![chain("a", &[])]);
 
-    let ev = d.dispatch(Command::SetTunerEnabled { enabled: true }).unwrap();
-    assert!(ev.iter().any(|e| matches!(e, Event::TunerEnabledChanged { .. })));
+    let ev = d
+        .dispatch(Command::SetTunerEnabled { enabled: true })
+        .unwrap();
+    assert!(ev
+        .iter()
+        .any(|e| matches!(e, Event::TunerEnabledChanged { .. })));
 
     let ev = d.dispatch(Command::SetOutputMuted { muted: true }).unwrap();
-    assert!(ev.iter().any(|e| matches!(e, Event::OutputMutedChanged { .. })));
+    assert!(ev
+        .iter()
+        .any(|e| matches!(e, Event::OutputMutedChanged { .. })));
 
     let ev = d
         .dispatch(Command::SetSpectrumEnabled { enabled: true })
         .unwrap();
-    assert!(ev.iter().any(|e| matches!(e, Event::SpectrumEnabledChanged { .. })));
+    assert!(ev
+        .iter()
+        .any(|e| matches!(e, Event::SpectrumEnabledChanged { .. })));
 }
 
 // ─── Cross-bank: chain change clears block selection ────────────────────────

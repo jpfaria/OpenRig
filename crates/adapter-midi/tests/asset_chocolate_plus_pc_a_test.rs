@@ -10,8 +10,7 @@ fn load_asset() -> String {
         .nth(2)
         .expect("repo root")
         .join("assets/midi-profiles/chocolate_plus_program_change_a.yaml");
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {:?}: {e}", path))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {:?}: {e}", path))
 }
 
 #[test]

@@ -55,8 +55,8 @@ fn supported_block_models_gain_debug_listing() {
     // Diagnostic: dump every model the gain picker returns so we can
     // see whether NAM models are present, what type_labels they carry,
     // and whether the list is empty / partial / complete.
-    let list = supported_block_models(block_core::EFFECT_TYPE_GAIN)
-        .expect("gain picker must succeed");
+    let list =
+        supported_block_models(block_core::EFFECT_TYPE_GAIN).expect("gain picker must succeed");
     eprintln!("gain picker total = {}", list.len());
     for item in &list {
         eprintln!(

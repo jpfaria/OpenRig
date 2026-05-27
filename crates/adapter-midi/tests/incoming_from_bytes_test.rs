@@ -29,10 +29,7 @@ fn parses_note_on() {
 fn parses_note_on_channel_16() {
     let bytes = [0x9F, 60, 100];
     let msg = IncomingMessage::from_bytes(&bytes).unwrap();
-    assert!(matches!(
-        msg,
-        IncomingMessage::NoteOn { channel: 16, .. }
-    ));
+    assert!(matches!(msg, IncomingMessage::NoteOn { channel: 16, .. }));
 }
 
 #[test]

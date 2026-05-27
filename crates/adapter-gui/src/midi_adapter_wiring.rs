@@ -38,11 +38,8 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
     match arg {
         MidiMapArg::Default => {
             let learn = adapter_midi::learn_state();
-            let _midi_thread = crate::start_midi_profiles(
-                bridge.clone(),
-                Arc::clone(&daemon_selection),
-                learn,
-            );
+            let _midi_thread =
+                crate::start_midi_profiles(bridge.clone(), Arc::clone(&daemon_selection), learn);
         }
         MidiMapArg::Path(map_path) => {
             log::info!(

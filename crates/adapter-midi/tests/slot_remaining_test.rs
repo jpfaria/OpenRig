@@ -11,7 +11,7 @@
 //!   (active_block_param_path); value is the normalised CC byte.
 
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::{Command, ChainId, BlockId};
+use application::command::{BlockId, ChainId, Command};
 use application::SelectionState;
 
 fn cc(value: u8) -> IncomingMessage {

@@ -22,7 +22,10 @@ impl LocalDispatcher {
             return Ok(vec![]);
         }
         let n = project.chains.len() as i32;
-        let mut sel = self.selection_state.write().expect("selection state poisoned");
+        let mut sel = self
+            .selection_state
+            .write()
+            .expect("selection state poisoned");
         let current_idx = sel
             .active_chain
             .as_deref()
@@ -47,10 +50,7 @@ impl LocalDispatcher {
         // Seed the legacy per-chain block-selection map. The existing
         // GUI uses it to render the "current chain" highlight, so this
         // is how a MIDI footswitch lights up the chain on screen.
-        self.selection
-            .borrow_mut()
-            .entry(new_chain_id)
-            .or_insert(0);
+        self.selection.borrow_mut().entry(new_chain_id).or_insert(0);
 
         Ok(vec![Event::ProjectMutated])
     }
@@ -61,14 +61,20 @@ impl LocalDispatcher {
     /// active or the chain has fewer than 2 blocks.
     pub(crate) fn handle_toggle_active_block_neighbor_enabled(&self) -> Result<Vec<Event>> {
         let chain_id_str = {
-            let sel = self.selection_state.read().expect("selection state poisoned");
+            let sel = self
+                .selection_state
+                .read()
+                .expect("selection state poisoned");
             sel.active_chain.clone()
         };
         let Some(chain_id) = chain_id_str else {
             return Ok(vec![]);
         };
         let active_block_id = {
-            let sel = self.selection_state.read().expect("selection state poisoned");
+            let sel = self
+                .selection_state
+                .read()
+                .expect("selection state poisoned");
             sel.active_block.clone()
         };
         let Some(active_block_id) = active_block_id else {
@@ -85,10 +91,7 @@ impl LocalDispatcher {
             if chain.blocks.len() < 2 {
                 return Ok(vec![]);
             }
-            let active_idx = chain
-                .blocks
-                .iter()
-                .position(|b| b.id.0 == active_block_id);
+            let active_idx = chain.blocks.iter().position(|b| b.id.0 == active_block_id);
             let Some(idx) = active_idx else {
                 return Ok(vec![]);
             };
@@ -115,7 +118,10 @@ impl LocalDispatcher {
     pub(crate) fn handle_select_active_block_relative(&self, delta: i32) -> Result<Vec<Event>> {
         use project::block::AudioBlockKind;
         let project = self.project.borrow();
-        let mut sel = self.selection_state.write().expect("selection state poisoned");
+        let mut sel = self
+            .selection_state
+            .write()
+            .expect("selection state poisoned");
         let Some(active_chain_id) = sel.active_chain.clone() else {
             return Ok(vec![]);
         };
@@ -132,10 +138,7 @@ impl LocalDispatcher {
             .iter()
             .enumerate()
             .filter(|(_, b)| {
-                !matches!(
-                    b.kind,
-                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                )
+                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
             })
             .collect();
 
@@ -159,9 +162,7 @@ impl LocalDispatcher {
         // Seed the legacy per-chain selection (uses the REAL index in
         // the full blocks list — the GUI's compact view indexes there).
         let chain_id = ChainId(active_chain_id);
-        self.selection
-            .borrow_mut()
-            .insert(chain_id, real_idx);
+        self.selection.borrow_mut().insert(chain_id, real_idx);
 
         Ok(vec![Event::ProjectMutated])
     }

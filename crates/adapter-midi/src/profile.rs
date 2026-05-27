@@ -96,10 +96,9 @@ impl std::fmt::Display for ProfileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ProfileError::Yaml(e) => write!(f, "yaml parse error: {e}"),
-            ProfileError::UnknownSlot(name) => write!(
-                f,
-                "unknown MIDI slot '{name}' — not in the 20-slot catalog"
-            ),
+            ProfileError::UnknownSlot(name) => {
+                write!(f, "unknown MIDI slot '{name}' — not in the 20-slot catalog")
+            }
         }
     }
 }

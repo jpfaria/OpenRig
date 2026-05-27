@@ -459,7 +459,9 @@ fn every_tr_key_has_translation_in_en_pt_es() {
     use std::path::Path;
 
     fn collect_slint_files(root: &Path, out: &mut Vec<String>) {
-        let Ok(entries) = fs::read_dir(root) else { return };
+        let Ok(entries) = fs::read_dir(root) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             // Skip vendored Slint modules (third-party UI kits we don't translate).
@@ -592,8 +594,14 @@ fn every_tr_key_has_translation_in_en_pt_es() {
     // already the English UI string (gettext falls back to msgid). For pt_BR
     // and es_ES, empty msgstr means a user sees English — a real bug.
     let strict_locales: &[(&str, &str)] = &[
-        ("pt_BR", include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po")),
-        ("es_ES", include_str!("../translations/es_ES/LC_MESSAGES/adapter-gui.po")),
+        (
+            "pt_BR",
+            include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po"),
+        ),
+        (
+            "es_ES",
+            include_str!("../translations/es_ES/LC_MESSAGES/adapter-gui.po"),
+        ),
     ];
 
     // Line-walk lookup: a msgid is "resolved" when the very next msgstr
@@ -617,11 +625,8 @@ fn every_tr_key_has_translation_in_en_pt_es() {
                             // Could be a multi-line msgstr (msgstr "" followed
                             // by "..." continuation lines).
                             // Check whether any continuation line is non-empty.
-                            let cont_start = i + 1
-                                + lines[i + 1..]
-                                    .iter()
-                                    .position(|l| *l == follow)
-                                    .unwrap();
+                            let cont_start =
+                                i + 1 + lines[i + 1..].iter().position(|l| *l == follow).unwrap();
                             for &c in &lines[cont_start + 1..] {
                                 if c.starts_with('"') && c != "\"\"" {
                                     return true;
@@ -686,7 +691,9 @@ fn no_raw_text_literals_in_settings_slint() {
     use std::path::Path;
 
     fn collect_slint_paths(root: &Path, out: &mut Vec<std::path::PathBuf>) {
-        let Ok(entries) = fs::read_dir(root) else { return };
+        let Ok(entries) = fs::read_dir(root) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {

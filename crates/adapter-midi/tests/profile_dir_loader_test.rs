@@ -48,7 +48,11 @@ fn missing_dir_returns_empty() {
 fn malformed_yaml_is_skipped_not_panic() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::write(tmp.path().join("good.yaml"), "name: \"OK\"\nbindings: []\n").unwrap();
-    std::fs::write(tmp.path().join("bad.yaml"), "this: is: not: valid: yaml: : :").unwrap();
+    std::fs::write(
+        tmp.path().join("bad.yaml"),
+        "this: is: not: valid: yaml: : :",
+    )
+    .unwrap();
     let profiles = load_profiles_from_dir(tmp.path());
     let names: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
     assert_eq!(profiles.len(), 1, "got names: {names:?}");

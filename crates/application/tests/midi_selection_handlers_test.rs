@@ -65,19 +65,13 @@ fn select_active_chain_relative_advances_and_wraps() {
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
         .unwrap();
     let sel = dispatcher.selection_state();
-    assert_eq!(
-        sel.read().unwrap().active_chain.as_deref(),
-        Some("chain_b")
-    );
+    assert_eq!(sel.read().unwrap().active_chain.as_deref(), Some("chain_b"));
 
     dispatcher
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
         .unwrap();
     let sel = dispatcher.selection_state();
-    assert_eq!(
-        sel.read().unwrap().active_chain.as_deref(),
-        Some("chain_c")
-    );
+    assert_eq!(sel.read().unwrap().active_chain.as_deref(), Some("chain_c"));
 
     dispatcher
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
@@ -143,15 +137,33 @@ fn select_active_chain_relative_seeds_first_when_none_active() {
 fn set_compact_view_enabled_stores_the_flag() {
     let project = project_with(vec![chain_named("chain_a")]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    assert!(!dispatcher.selection_state().read().unwrap().compact_view_enabled);
+    assert!(
+        !dispatcher
+            .selection_state()
+            .read()
+            .unwrap()
+            .compact_view_enabled
+    );
 
     dispatcher
         .dispatch(Command::SetCompactViewEnabled { enabled: true })
         .unwrap();
-    assert!(dispatcher.selection_state().read().unwrap().compact_view_enabled);
+    assert!(
+        dispatcher
+            .selection_state()
+            .read()
+            .unwrap()
+            .compact_view_enabled
+    );
 
     dispatcher
         .dispatch(Command::SetCompactViewEnabled { enabled: false })
         .unwrap();
-    assert!(!dispatcher.selection_state().read().unwrap().compact_view_enabled);
+    assert!(
+        !dispatcher
+            .selection_state()
+            .read()
+            .unwrap()
+            .compact_view_enabled
+    );
 }

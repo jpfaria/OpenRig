@@ -209,12 +209,10 @@ fn no_navigable_blocks_is_noop() {
         .dispatch(Command::SelectActiveBlockRelative { delta: 1 })
         .unwrap();
 
-    assert!(
-        dispatcher
-            .selection_state()
-            .read()
-            .unwrap()
-            .active_block
-            .is_none()
-    );
+    assert!(dispatcher
+        .selection_state()
+        .read()
+        .unwrap()
+        .active_block
+        .is_none());
 }

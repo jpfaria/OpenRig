@@ -9,9 +9,9 @@
 //! - A message hitting bindings in 2 active profiles produces 2 slot
 //!   hits (no exclusivity enforcement — explicit decision per spec).
 
+use adapter_midi::pipeline::{match_message, SlotHit};
 use adapter_midi::profile::parse_profile_yaml;
 use adapter_midi::slots::IncomingMessage;
-use adapter_midi::pipeline::{match_message, SlotHit};
 
 #[test]
 fn message_matches_program_change_binding_by_exact_value() {
@@ -25,7 +25,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ProgramChange { channel: 1, program: 0 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 1,
+        program: 0,
+    };
     let hits = match_message(&[&profile], "FootCtrlPlus Bluetooth", &msg);
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].slot, "prev_preset");
@@ -42,7 +45,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ProgramChange { channel: 2, program: 0 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 2,
+        program: 0,
+    };
     assert!(match_message(&[&profile], "any", &msg).is_empty());
 }
 
@@ -57,7 +63,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ProgramChange { channel: 1, program: 8 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 1,
+        program: 8,
+    };
     assert!(match_message(&[&profile], "any", &msg).is_empty());
 }
 
@@ -72,7 +81,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ProgramChange { channel: 1, program: 42 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 1,
+        program: 42,
+    };
     let hits = match_message(&[&profile], "FootCtrlPlus", &msg);
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].slot, "jump_preset_n");
@@ -96,7 +108,10 @@ bindings:
     )
     .unwrap();
 
-    let msg = IncomingMessage::ProgramChange { channel: 1, program: 0 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 1,
+        program: 0,
+    };
     // Port name contains the substring → matches.
     assert_eq!(
         match_message(&[&chocolate], "FootCtrlPlus Bluetooth", &msg).len(),
@@ -117,9 +132,16 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::NoteOn { channel: 1, note: 60, velocity: 100 };
+    let msg = IncomingMessage::NoteOn {
+        channel: 1,
+        note: 60,
+        velocity: 100,
+    };
     assert_eq!(match_message(&[&universal], "anything", &msg).len(), 1);
-    assert_eq!(match_message(&[&universal], "totally-different", &msg).len(), 1);
+    assert_eq!(
+        match_message(&[&universal], "totally-different", &msg).len(),
+        1
+    );
 }
 
 #[test]
@@ -142,7 +164,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ProgramChange { channel: 1, program: 0 };
+    let msg = IncomingMessage::ProgramChange {
+        channel: 1,
+        program: 0,
+    };
     let hits: Vec<SlotHit> = match_message(&[&a, &b], "any", &msg);
     assert_eq!(hits.len(), 2);
     let slots: Vec<&str> = hits.iter().map(|h| h.slot.as_str()).collect();
@@ -161,7 +186,11 @@ bindings:
 "#,
     )
     .unwrap();
-    let msg = IncomingMessage::ControlChange { channel: 1, controller: 7, value: 90 };
+    let msg = IncomingMessage::ControlChange {
+        channel: 1,
+        controller: 7,
+        value: 90,
+    };
     let hits = match_message(&[&profile], "any", &msg);
     assert_eq!(hits.len(), 1);
     if let IncomingMessage::ControlChange { value, .. } = hits[0].message {

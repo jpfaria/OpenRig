@@ -321,7 +321,9 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 Err(err) => {
                     log::warn!(
                         "[catalog] skipping model '{}' (effect_type='{}'): {}",
-                        model_id, effect_type, err
+                        model_id,
+                        effect_type,
+                        err
                     );
                     return None;
                 }

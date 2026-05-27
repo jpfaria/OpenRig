@@ -33,8 +33,7 @@ pub use daemon::{run_blocking, run_blocking_with_map, run_blocking_with_profiles
 /// the GUI's Settings "refresh" button calls [`request_rescan`] to
 /// pulse it. No timer, no polling — the rescan happens exactly when
 /// the user asks for it.
-static RESCAN_TX: std::sync::OnceLock<std::sync::mpsc::Sender<()>> =
-    std::sync::OnceLock::new();
+static RESCAN_TX: std::sync::OnceLock<std::sync::mpsc::Sender<()>> = std::sync::OnceLock::new();
 
 /// Signal the daemon to re-enumerate MIDI inputs and attach any new
 /// ports. Safe to call before the daemon starts — silently no-op when

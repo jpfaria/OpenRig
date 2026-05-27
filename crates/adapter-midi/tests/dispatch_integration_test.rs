@@ -63,14 +63,17 @@ bindings:
         channel: 1,
         program: 0,
     };
-    dispatch_midi_message(&[&profile], "FootCtrlPlus Bluetooth", &msg, &sel, &dispatcher);
+    dispatch_midi_message(
+        &[&profile],
+        "FootCtrlPlus Bluetooth",
+        &msg,
+        &sel,
+        &dispatcher,
+    );
 
     let seen = dispatcher.seen.borrow();
     assert_eq!(seen.len(), 1);
-    assert!(matches!(
-        seen[0],
-        Command::ApplyRigNav { .. }
-    ));
+    assert!(matches!(seen[0], Command::ApplyRigNav { .. }));
 }
 
 #[test]

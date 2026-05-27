@@ -23,10 +23,8 @@ impl LocalDispatcher {
                 // active block so MIDI slot `toggle_active_block_enabled`
                 // sees the truth on the next press.
                 if let Ok(mut s) = self.selection_state.write() {
-                    let is_active_chain =
-                        s.active_chain.as_deref() == Some(chain.0.as_str());
-                    let is_active_block =
-                        s.active_block.as_deref() == Some(block.0.as_str());
+                    let is_active_chain = s.active_chain.as_deref() == Some(chain.0.as_str());
+                    let is_active_block = s.active_block.as_deref() == Some(block.0.as_str());
                     if is_active_chain && is_active_block {
                         s.active_block_enabled = new_state;
                     }
