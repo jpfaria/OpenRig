@@ -96,6 +96,7 @@ dependencies = [
  "anyhow",
  "application",
  "axum",
+ "domain",
  "futures",
  "infra-cpal",
  "infra-yaml",
@@ -119,6 +120,22 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+]
+
+[[package]]
+name = "adapter-render"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "application",
+ "cpal",
+ "domain",
+ "engine",
+ "hound",
+ "infra-filesystem",
+ "infra-yaml",
+ "log",
+ "project",
 ]
 
 [[package]]

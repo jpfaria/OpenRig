@@ -6,6 +6,25 @@ contributor-visible changes that landed in that release, grouped by area.
 Issue links (`#NNN`) point to the public tracker with the full motivation,
 repro, and trade-off discussion behind the change.
 
+## Unreleased
+
+### Added
+- **`openrig-render` — headless offline render console.** New
+  standalone binary in `crates/adapter-render`, plus a new
+  `engine::offline::render_chain` driver that reuses the same
+  `RuntimeProcessor::process_buffer` as the realtime callback — chains
+  render byte-identical between offline and live for the same input.
+  Accepts a chain/preset YAML directly (no project wrapper). Two input
+  modes selected by `--input` path existence: **file mode** reads the
+  WAV (optionally sliced with `--start`/`--end`), **live capture mode**
+  opens the cpal `--input-device` for `--duration` seconds and saves
+  the dry capture to `--input` for reuse — record once, iterate
+  forever. Atomic output write, deterministic file mode. Drives the
+  audio-validation loop for the `openrig-tone-analyzer` skill
+  (OpenRig-claude#8). Single-chain, no I/O blocks, no MIDI/automation
+  replay — multi-chain rendering remains out of scope. See
+  `docs/render.md` (#552).
+
 ## v0.1.0-dev.23 — 2026-05-25
 
 The "project & rig" release: the project-level I/O + per-input preset bank
