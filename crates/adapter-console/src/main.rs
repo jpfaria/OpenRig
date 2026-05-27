@@ -175,6 +175,11 @@ fn main() -> Result<()> {
                 QueryKind::GetPluginParams { plugin_id } => {
                     Ok(application::query::get_plugin_params(plugin_id))
                 }
+                // #572: per-block-instance descriptors (schema + current
+                // value). Resolves against the live project.
+                QueryKind::GetBlockParams { chain, block } => {
+                    application::query::get_block_params(&shared.borrow(), chain, block)
+                }
                 // #554: preset reads need a `RigProject`. Console adapter
                 // doesn't own one (it speaks the device-level engine, no
                 // rig attached), so mirror the GUI adapter's

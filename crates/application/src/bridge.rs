@@ -86,6 +86,15 @@ pub enum QueryKind {
     /// `params` envelope by [`crate::query::get_plugin_params`].
     /// Unknown id → `{"params": null}`.
     GetPluginParams { plugin_id: String },
+    /// #572: list of materialised `BlockParameterDescriptor` for one
+    /// placed block instance (schema + `current_value` per parameter).
+    /// Resolved by [`crate::query::get_block_params`], which delegates
+    /// to `AudioBlock::parameter_descriptors()` (same helper the GUI
+    /// uses). Unknown chain / block → `Err`.
+    GetBlockParams {
+        chain: domain::ids::ChainId,
+        block: domain::ids::BlockId,
+    },
 }
 
 struct QueryRequest {

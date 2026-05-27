@@ -140,6 +140,21 @@ fn get_block_params_unknown_chain_returns_err() {
 }
 
 #[test]
+fn querykind_get_block_params_carries_chain_and_block() {
+    let kind = QueryKind::GetBlockParams {
+        chain: ChainId("issue-572-querykind-chain".to_string()),
+        block: BlockId("issue-572-querykind-block".to_string()),
+    };
+    match &kind {
+        QueryKind::GetBlockParams { chain, block } => {
+            assert_eq!(chain.0, "issue-572-querykind-chain");
+            assert_eq!(block.0, "issue-572-querykind-block");
+        }
+        other => panic!("expected GetBlockParams variant, got {other:?}"),
+    }
+}
+
+#[test]
 fn querykind_get_plugin_params_carries_plugin_id() {
     // Drives the QueryKind variant the bridge needs so that any
     // transport (MCP, gRPC, adapter-console) can dispatch
