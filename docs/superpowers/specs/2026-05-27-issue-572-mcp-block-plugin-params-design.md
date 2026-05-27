@@ -76,9 +76,13 @@ The only work this issue needs is the MCP transport binding.
 2. Add `QueryKind::GetBlockParams { chain, block }` — returns the list
    of materialized `BlockParameterDescriptor` for the placed block, as
    JSON (schema + `current_value`).
-3. Wire two MCP tools (`get_plugin_params`, `get_block_params`) and two
-   MCP resources (`openrig://plugin/{id}/params`,
-   `openrig://chain/{cid}/block/{bid}/params`).
+3. Wire two MCP resources (`openrig://plugins/{id}/params`,
+   `openrig://chains/{cid}/blocks/{bid}/params`). **No MCP tools.**
+   `adapter-mcp::tools::tools()` auto-derives from `Command` variants
+   exclusively (`parity_guard_every_command_variant_is_a_tool` invariant)
+   — there is no read-side equivalent today, and there should not be
+   without an analogous `query_schema` system. MCP read access for
+   parameters lives entirely on the resource path.
 4. Adapter-console parity test arm for both new variants (same pattern
    used for `ListChainPresets` / `ListProjectPresets`).
 5. Zero regression to existing setter Commands, the GUI's block editor,
@@ -214,12 +218,21 @@ projection" — fewer types, less drift.
 
 `crates/adapter-mcp`:
 
-- `tools.rs`: two new tool definitions, `get_plugin_params { plugin_id }`
-  and `get_block_params { chain_id, block_id }`. Names follow the
-  existing `list_plugin_catalog` / `get_plugin` style (snake_case).
 - `resources.rs`: two new resource templates,
-  `openrig://plugin/{id}/params` and
-  `openrig://chain/{cid}/block/{bid}/params`.
+  `openrig://plugins/{id}/params` and
+  `openrig://chains/{cid}/blocks/{bid}/params`. Each gets a `parse_*`
+  helper (matched **before** the broader `URI_PLUGIN_PREFIX` /
+  `URI_CHAIN_PRESETS_TEMPLATE` arms so the `/params` suffix is not
+  swallowed).
+- `tools.rs`: **no change**. The current `tools()` function is a 1:1
+  auto-derivation from the `Command` enum (each `Command` variant
+  becomes one MCP tool via `command_schema`). There is no equivalent
+  for `QueryKind` reads, and the parity test
+  `parity_guard_every_command_variant_is_a_tool` enforces that count.
+  Reads live exclusively on the resource path. If a future issue
+  introduces a `query_schema`-style read-side derivation, both
+  `get_plugin_params` and `get_block_params` would gain tools as a
+  side effect — out of scope here.
 
 ### Adapter-console parity
 
@@ -270,12 +283,13 @@ red-first per `docs/testing.md`:
 2. Add `QueryKind::GetPluginParams { plugin_id }` + resolver
    `get_plugin_params` + unit tests. Wire the frontend's
    `serve_queries` arm. No transport wiring yet.
-3. Wire `get_plugin_params` MCP tool + `openrig://plugin/{id}/params`
-   resource. Adapter-console parity arm. End-to-end smoke.
+3. Wire `openrig://plugins/{id}/params` MCP resource (no tool —
+   see "Transport bindings"). Adapter-console parity arm. End-to-end
+   smoke.
 4. Add `QueryKind::GetBlockParams { chain, block }` + resolver
    `get_block_params` + unit tests.
-5. Wire `get_block_params` MCP tool + `openrig://chain/{cid}/block/{bid}/params`
-   resource. Adapter-console parity arm. End-to-end smoke.
+5. Wire `openrig://chains/{cid}/blocks/{bid}/params` MCP resource
+   (no tool, same reason). Adapter-console parity arm. End-to-end smoke.
 6. Docs update (architecture.md / architecture-mcp section) +
    `gh issue comment` per push.
 
