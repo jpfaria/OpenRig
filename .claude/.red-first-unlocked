@@ -1,1 +1,1 @@
-RED: BLE-MIDI hot-plug needs MIDIRestart on rescan.
+RED: log every MIDI message + match hits for debugging.

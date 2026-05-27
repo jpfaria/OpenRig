@@ -140,9 +140,25 @@ pub fn dispatch_midi_message_to_bridge(
     selection: &SelectionState,
     bridge: &CommandBridge,
 ) {
-    for hit in match_message(active_profiles, port_name, msg) {
-        if let Some(cmd) = slot_to_command(&hit.slot, &hit.message, selection) {
-            let _ = bridge.submit(cmd);
+    let hits = match_message(active_profiles, port_name, msg);
+    log::info!(
+        "MIDI in port={:?} msg={:?} matched {} hit(s)",
+        port_name,
+        msg,
+        hits.len()
+    );
+    for hit in &hits {
+        match slot_to_command(&hit.slot, &hit.message, selection) {
+            Some(cmd) => {
+                log::info!("MIDI hit slot={:?} -> dispatching {:?}", hit.slot, cmd);
+                let _ = bridge.submit(cmd);
+            }
+            None => {
+                log::info!(
+                    "MIDI hit slot={:?} returned None (active chain/block missing?)",
+                    hit.slot
+                );
+            }
         }
     }
 }
