@@ -1,1 +1,1 @@
-Delete dead Mapeamento MIDI section — no behaviour to preserve, cargo check is the gate.
+RED captured: cargo check workspace fails — QueryKind::ListChainPresets & ListProjectPresets not covered in adapter-console after develop merge.

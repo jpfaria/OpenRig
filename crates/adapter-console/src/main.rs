@@ -169,6 +169,10 @@ fn main() -> Result<()> {
                 QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),
                 QueryKind::GetPlugin { id } => Ok(application::query::get_plugin(id)),
                 QueryKind::FindPlugins { query } => Ok(application::query::find_plugins(query)),
+                // The console adapter does not surface a preset library
+                // — emit empty bodies so the MCP resource shape is stable.
+                QueryKind::ListChainPresets { .. } => Ok(String::new()),
+                QueryKind::ListProjectPresets => Ok(String::new()),
             },
             64,
         );

@@ -133,6 +133,7 @@ dependencies = [
  "infra-filesystem",
  "infra-yaml",
  "log",
+ "plugin-loader",
  "project",
 ]
 
