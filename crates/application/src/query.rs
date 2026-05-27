@@ -293,6 +293,21 @@ pub fn find_plugins(query: &str) -> String {
     out
 }
 
+/// #572: parameter schema for one plugin (catalog-level). Looks the
+/// plugin up in `plugin_loader::registry` by manifest id and returns
+/// the `ModelParameterSchema` as JSON under a `params` envelope.
+/// Unknown id → `{"params": null}` (same null-wrap idiom as
+/// [`get_plugin`]). Pure read; the registry itself is process-wide
+/// static state populated at startup.
+pub fn get_plugin_params(plugin_id: &str) -> String {
+    if plugin_loader::registry::find(plugin_id).is_none() {
+        return "{\"params\": null}".to_string();
+    }
+    // Happy-path serialization lands in the next red-first cycle; the
+    // current contract only covers the unknown-id null envelope.
+    "{\"params\": null}".to_string()
+}
+
 #[cfg(test)]
 #[path = "query_chain_presets_tests.rs"]
 mod chain_presets_tests;
@@ -300,6 +315,10 @@ mod chain_presets_tests;
 #[cfg(test)]
 #[path = "query_project_presets_tests.rs"]
 mod project_presets_tests;
+
+#[cfg(test)]
+#[path = "query_plugin_params_tests.rs"]
+mod plugin_params_tests;
 
 #[cfg(test)]
 mod tests {
