@@ -241,63 +241,55 @@ pub fn run_blocking_with_profiles(
     let (rescan_tx, rescan_rx) = std::sync::mpsc::channel::<()>();
     crate::register_rescan_sender(rescan_tx);
 
-    let mut do_scan = true;
-    let mut first_scan = true;
     loop {
-        if do_scan {
-            // Initial boot: zero retries (no MIDIRestart) — we just
-            // want the current snapshot. Subsequent rescans (user
-            // pressed refresh after pairing a pedal) use 5 retries
-            // with a 600 ms gap and MIDIRestart between each, because
-            // CoreMIDI publishes BLE-MIDI ports asynchronously and a
-            // single restart + sleep often isn't enough.
-            let (retries, gap) = if first_scan {
-                (0, std::time::Duration::from_millis(0))
-            } else {
-                (5, std::time::Duration::from_millis(600))
-            };
-            first_scan = false;
-            let current = scan_with_retry(&known, retries, gap);
-            let added = new_port_names(&known, &current);
-            log::info!(
-                "adapter-midi rescan: {} port(s) visible {:?}; {} new {:?}",
-                current.len(),
-                current,
-                added.len(),
-                added,
-            );
-            for name in &added {
-                let Some(idx) = current.iter().position(|n| n == name) else {
-                    continue;
-                };
-                match attach_port(
-                    idx,
-                    name,
-                    Arc::clone(&profiles),
-                    Arc::clone(&selection),
-                    bridge.clone(),
-                    Arc::clone(&learn),
-                ) {
-                    Ok(conn) => {
-                        log::info!("adapter-midi: listening on '{name}' (profiles)");
-                        connections.push(conn);
-                    }
-                    Err(e) => {
-                        log::warn!("adapter-midi: failed to attach '{name}': {e}");
-                    }
+        // Drop every existing MidiInputConnection BEFORE we re-enumerate.
+        // Each connection holds its own CoreMIDI client; the long-lived
+        // clients were the ones blind to BLE-MIDI ports paired after
+        // startup. By draining `connections` here we close those clients
+        // — the next `list_input_ports()` call creates a fresh client
+        // (inside `enumerate.rs`) that sees the current device list,
+        // including any BLE port paired in the meantime. This is the
+        // in-process equivalent of "reopen the app for MIDI only".
+        let dropped = connections.len();
+        connections.clear();
+        if dropped > 0 {
+            log::info!("adapter-midi: dropped {dropped} stale connection(s) before rescan");
+        }
+
+        let infos = crate::enumerate::list_input_ports().unwrap_or_default();
+        let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
+        let added = new_port_names(&known, &current);
+        log::info!(
+            "adapter-midi rescan: {} port(s) visible {:?}; {} new since last scan {:?}",
+            current.len(),
+            current,
+            added.len(),
+            added,
+        );
+        for (idx, name) in current.iter().enumerate() {
+            match attach_port(
+                idx,
+                name,
+                Arc::clone(&profiles),
+                Arc::clone(&selection),
+                bridge.clone(),
+                Arc::clone(&learn),
+            ) {
+                Ok(conn) => {
+                    log::info!("adapter-midi: listening on '{name}' (profiles)");
+                    connections.push(conn);
+                }
+                Err(e) => {
+                    log::warn!("adapter-midi: failed to attach '{name}': {e}");
                 }
             }
-            known = current;
         }
+        known = current;
+
         // Block until somebody calls adapter_midi::request_rescan().
-        match rescan_rx.recv() {
-            Ok(()) => {
-                do_scan = true;
-            }
-            Err(_) => {
-                // All senders dropped; nothing else can wake us.
-                return Ok(());
-            }
+        if rescan_rx.recv().is_err() {
+            // All senders dropped; nothing else can wake us.
+            return Ok(());
         }
     }
 }
