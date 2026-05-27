@@ -410,6 +410,19 @@ pub enum Command {
     /// "import a new NAM" and "build a preset that uses it" without a
     /// session break.
     ReloadPluginCatalog,
+
+    /// #561 (expanded scope): bring a single disk plugin into the
+    /// in-memory catalog by manifest id. Re-scans the known plugin
+    /// roots and adds the one whose id matches. Errors when no disk
+    /// package with that id is discoverable; no-op when the plugin
+    /// is already loaded. Emits `Event::PluginLoaded { id }`.
+    LoadPlugin { id: String },
+
+    /// #561 (expanded scope): remove a single disk plugin from the
+    /// in-memory catalog by manifest id. Refuses natives — they are
+    /// compiled-in and cannot be dropped without restarting the
+    /// process. Emits `Event::PluginUnloaded { id }`.
+    UnloadPlugin { id: String },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

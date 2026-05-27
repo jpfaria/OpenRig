@@ -223,6 +223,9 @@ impl CommandDispatcher for LocalDispatcher {
 
             // #561: hot-reload the plugin catalog (no payload).
             Command::ReloadPluginCatalog => self.handle_reload_plugin_catalog(),
+            // #561 (expanded scope): per-plugin load / unload.
+            Command::LoadPlugin { id } => self.handle_load_plugin(id),
+            Command::UnloadPlugin { id } => self.handle_unload_plugin(id),
         }
     }
 

@@ -74,8 +74,10 @@ mod tests {
     /// `PublishMidiEvent`. Each adds one MCP tool automatically via
     /// `command_schema` (single source of truth — the `Command` enum).
     /// #513 (paths overrides) bumped to 51 with `SetPresetsPath` and
-    /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`.
-    const COMMAND_VARIANT_COUNT: usize = 52;
+    /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`,
+    /// then to 54 with `LoadPlugin` and `UnloadPlugin` (expanded scope:
+    /// per-plugin load / unload).
+    const COMMAND_VARIANT_COUNT: usize = 54;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

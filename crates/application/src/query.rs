@@ -6,6 +6,7 @@
 
 use std::fmt::Write;
 
+use plugin_loader::manifest::Backend;
 use project::project::Project;
 
 /// Human-readable, copy-paste-ready listing of every chain and block with
@@ -36,6 +37,101 @@ pub fn list_ids(project: &Project) -> String {
     }
     let _ = writeln!(out, "(chains: {})", project.chains.len());
     out
+}
+
+/// JSON-escape a string for inclusion in a manually-built JSON literal.
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Block-type label used in the plugin catalog JSON. Stable strings —
+/// adapters and clients pin against these.
+fn block_type_label(bt: &plugin_loader::manifest::BlockType) -> &'static str {
+    use plugin_loader::manifest::BlockType::*;
+    match bt {
+        GainPedal => "gain_pedal",
+        Preamp => "preamp",
+        Amp => "amp",
+        Cab => "cab",
+        Body => "body",
+        Reverb => "reverb",
+        Delay => "delay",
+        Mod => "mod",
+        Filter => "filter",
+        Dyn => "dyn",
+        Wah => "wah",
+        Pitch => "pitch",
+        Util => "util",
+    }
+}
+
+/// Serialize one `LoadedPackage` entry as a JSON object for the plugin
+/// catalog listing. Single source of truth for the shape (list and
+/// get share it).
+fn plugin_entry_json(p: &plugin_loader::LoadedPackage, out: &mut String) {
+    let backend = match p.manifest.backend {
+        Backend::Native { .. } => "native",
+        _ => "disk",
+    };
+    let _ = write!(
+        out,
+        "{{\"id\": \"{}\", \"display_name\": \"{}\", \"brand\": {}, \"block_type\": \"{}\", \"backend\": \"{}\"}}",
+        json_escape(&p.manifest.id),
+        json_escape(&p.manifest.display_name),
+        match p.manifest.brand.as_deref() {
+            Some(b) => format!("\"{}\"", json_escape(b)),
+            None => "null".to_string(),
+        },
+        block_type_label(&p.manifest.block_type),
+        backend,
+    );
+}
+
+/// #561 (expanded scope): JSON listing of every plugin currently in
+/// the process-wide catalog (`plugin_loader::registry::packages()`).
+/// Each entry carries id, display_name, brand (or null), block_type,
+/// backend ("native" / "disk"). Pure read — no mutation.
+pub fn list_plugin_catalog() -> String {
+    let mut out = String::from("{\"plugins\": [");
+    let mut first = true;
+    for p in plugin_loader::registry::packages() {
+        if !first {
+            out.push_str(", ");
+        }
+        first = false;
+        plugin_entry_json(p, &mut out);
+    }
+    out.push_str("]}");
+    out
+}
+
+/// #561 (expanded scope): JSON entry for the plugin with manifest id
+/// `id`, wrapped under a `plugin` key. Returns `{"plugin": null}` when
+/// no plugin in the catalog matches. Pure read.
+pub fn get_plugin(id: &str) -> String {
+    match plugin_loader::registry::find(id) {
+        Some(p) => {
+            let mut out = String::from("{\"plugin\": ");
+            plugin_entry_json(p, &mut out);
+            out.push('}');
+            out
+        }
+        None => "{\"plugin\": null}".to_string(),
+    }
 }
 
 #[cfg(test)]
