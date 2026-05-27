@@ -373,6 +373,32 @@ impl AudioBlockYaml {
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
                 let model = migrate_legacy_model_id(effect_type, model, &params);
+
+                // Issue #552: NAM captures are persisted under their natural
+                // block type ("gain" for stompbox NAMs, "amp" / "preamp" for
+                // amp NAMs) — that's how the MCP `add_block` path saves them
+                // when the user passes `kind: gain, model_id: nam_*`. The
+                // offline preset loader was treating the model as a generic
+                // gain/amp model and failing the registry lookup, dropping
+                // the block silently. Routing model ids prefixed with `nam_`
+                // to the Nam runtime here matches the live engine's
+                // behaviour and keeps the offline render faithful to what
+                // the user heard live.
+                if model.starts_with("nam_") {
+                    return Ok(AudioBlock {
+                        id: generated_id,
+                        enabled,
+                        kind: AudioBlockKind::Nam(NamBlock {
+                            model: model.clone(),
+                            params: load_model_params(
+                                block_core::EFFECT_TYPE_NAM,
+                                &model,
+                                params,
+                            )?,
+                        }),
+                    });
+                }
+
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,

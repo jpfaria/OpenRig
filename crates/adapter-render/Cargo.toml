@@ -13,6 +13,7 @@ domain = { path = "../domain" }
 engine = { path = "../engine" }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
+plugin-loader = { path = "../plugin-loader" }
 project = { path = "../project" }
 
 [[bin]]
