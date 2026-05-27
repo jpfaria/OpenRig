@@ -108,9 +108,12 @@ impl LocalDispatcher {
     }
 
     /// `Command::SelectActiveBlockRelative { delta }`. Cycles through
-    /// the active chain's `blocks` list (wraps both ways). No-op when
-    /// no chain is active or the chain has no blocks.
+    /// the active chain's audio blocks — skipping Input/Output blocks
+    /// that the user doesn't see on the Chains screen — wrapping both
+    /// ways. No-op when no chain is active or the chain has no audio
+    /// blocks.
     pub(crate) fn handle_select_active_block_relative(&self, delta: i32) -> Result<Vec<Event>> {
+        use project::block::AudioBlockKind;
         let project = self.project.borrow();
         let mut sel = self.selection_state.write().expect("selection state poisoned");
         let Some(active_chain_id) = sel.active_chain.clone() else {
@@ -119,28 +122,46 @@ impl LocalDispatcher {
         let Some(chain) = project.chains.iter().find(|c| c.id.0 == active_chain_id) else {
             return Ok(vec![]);
         };
-        if chain.blocks.is_empty() {
+
+        // Build the navigable view: keep the original block index but
+        // drop Input/Output/Insert wrappers — those don't show as
+        // "blocks" on the chain UI, so a MIDI step that lands on them
+        // would look like a no-op to the user.
+        let navigable: Vec<(usize, &project::block::AudioBlock)> = chain
+            .blocks
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| {
+                !matches!(
+                    b.kind,
+                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
+                )
+            })
+            .collect();
+
+        if navigable.is_empty() {
             return Ok(vec![]);
         }
-        let n = chain.blocks.len() as i32;
-        let current_idx = sel
+        let n = navigable.len() as i32;
+        let current_pos_in_navigable = sel
             .active_block
             .as_deref()
-            .and_then(|id| chain.blocks.iter().position(|b| b.id.0 == id));
-        let next_idx = match current_idx {
+            .and_then(|id| navigable.iter().position(|(_, b)| b.id.0 == id));
+        let next_pos = match current_pos_in_navigable {
             None => 0,
             Some(i) => (((i as i32 + delta) % n) + n) as usize % n as usize,
         };
-        sel.active_block = Some(chain.blocks[next_idx].id.0.clone());
-        sel.active_block_enabled = chain.blocks[next_idx].enabled;
+        let (real_idx, next_block) = navigable[next_pos];
+        sel.active_block = Some(next_block.id.0.clone());
+        sel.active_block_enabled = next_block.enabled;
         drop(sel);
 
-        // Seed the legacy per-chain selection so the existing GUI's
-        // "selected block" indicator follows MIDI navigation.
+        // Seed the legacy per-chain selection (uses the REAL index in
+        // the full blocks list — the GUI's compact view indexes there).
         let chain_id = ChainId(active_chain_id);
         self.selection
             .borrow_mut()
-            .insert(chain_id, next_idx);
+            .insert(chain_id, real_idx);
 
         Ok(vec![Event::ProjectMutated])
     }
