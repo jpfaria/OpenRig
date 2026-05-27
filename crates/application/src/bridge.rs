@@ -57,6 +57,12 @@ pub enum QueryKind {
     /// one record per line). Same numbers the GUI's IN/OUT bars read —
     /// every transport gets the same view (`openrig-code-quality` lei).
     ChainMeters,
+    /// #554: the named preset bank of one chain (`rig:<input>`) as JSON.
+    /// Resolved from the in-memory `RigProject.inputs[input].bank` — the
+    /// disk-side preset library is a separate concept (different
+    /// follow-up). Lets MCP / gRPC clients see the same preset list the
+    /// GUI shows in the chain title combobox.
+    ListChainPresets { chain: domain::ids::ChainId },
 }
 
 struct QueryRequest {

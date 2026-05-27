@@ -92,6 +92,7 @@ dependencies = [
  "anyhow",
  "application",
  "axum",
+ "domain",
  "futures",
  "infra-cpal",
  "infra-yaml",

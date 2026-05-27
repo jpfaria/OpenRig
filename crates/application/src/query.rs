@@ -6,7 +6,9 @@
 
 use std::fmt::Write;
 
+use domain::ids::ChainId;
 use project::project::Project;
+use project::rig::RigProject;
 
 /// Human-readable, copy-paste-ready listing of every chain and block with
 /// its full ID, instrument/kind, and enabled state — the values that go
@@ -37,6 +39,89 @@ pub fn list_ids(project: &Project) -> String {
     let _ = writeln!(out, "(chains: {})", project.chains.len());
     out
 }
+
+/// #554: return the bank of chain-scoped presets for one chain as JSON.
+///
+/// The `chain_id` must be of the form `rig:<input-name>`. The input's
+/// `bank: BTreeMap<usize, String>` (slot → preset name) is emitted as a
+/// `slots` array sorted by slot index, plus the resolved `active_preset`
+/// name (or `null` when the bank is empty / the active slot is unbound).
+///
+/// Reads from the in-memory `RigProject` only — never the filesystem.
+/// The disk-side preset library (under `config.paths.presets_path`) is a
+/// separate concept tracked by a different follow-up.
+pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String, String> {
+    let input_name = chain_id.0.strip_prefix("rig:").ok_or_else(|| {
+        format!(
+            "chain id '{}' is not a rig: input (expected 'rig:<input-name>')",
+            chain_id.0
+        )
+    })?;
+    let input = rig.inputs.get(input_name).ok_or_else(|| {
+        format!(
+            "input '{input_name}' not found in project (chain id '{}' references no live input)",
+            chain_id.0
+        )
+    })?;
+
+    let mut slots = String::new();
+    slots.push('[');
+    let mut first = true;
+    for (idx, preset_name) in input.bank.iter() {
+        if !first {
+            slots.push(',');
+        }
+        first = false;
+        let _ = write!(
+            slots,
+            "{{\"index\":{},\"name\":{}}}",
+            idx,
+            json_string(preset_name)
+        );
+    }
+    slots.push(']');
+
+    let active_preset = input
+        .bank
+        .get(&input.active_preset)
+        .map(|name| json_string(name))
+        .unwrap_or_else(|| "null".to_string());
+
+    Ok(format!(
+        "{{\"chain\":{},\"active_preset\":{},\"slots\":{}}}",
+        json_string(&chain_id.0),
+        active_preset,
+        slots
+    ))
+}
+
+/// Minimal JSON-string escaper for the small set of values this module
+/// emits. Avoids dragging `serde_json` into a pure listing helper —
+/// preset names and chain ids never carry control chars deeper than
+/// `"`, `\` or whitespace.
+fn json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+#[cfg(test)]
+#[path = "query_chain_presets_tests.rs"]
+mod chain_presets_tests;
 
 #[cfg(test)]
 mod tests {
