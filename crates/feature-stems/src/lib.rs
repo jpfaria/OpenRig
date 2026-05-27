@@ -6,6 +6,7 @@
 //! (`resample`, `inference`, `writer`, `peaks`, `model`, `meta`) will
 //! be added in following phases.
 
+mod cli;
 mod decode;
 mod inference;
 #[cfg(feature = "real-htdemucs")]

@@ -99,18 +99,22 @@ def main() -> int:
     dummy = torch.zeros(1, 2, args.chunk_frames, dtype=torch.float32)
 
     print(f"Exporting to {out}…")
+    # `dynamo=False` forces the legacy TorchScript tracer. Demucs's
+    # spectral padding uses data-dependent control flow that breaks
+    # the new `torch.export`-based exporter on torch >= 2.5.
     torch.onnx.export(
         model,
         dummy,
         out,
         input_names=["mix"],
         output_names=["stems"],
-        opset_version=17,
+        opset_version=20,
         dynamic_axes={
             "mix": {2: "samples"},
             "stems": {3: "samples"},
         },
         do_constant_folding=True,
+        dynamo=False,
     )
 
     print(f"OK. Run OpenRig with `--features real-htdemucs` to pick it up.")

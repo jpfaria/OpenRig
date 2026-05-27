@@ -79,9 +79,27 @@ pub struct SeparateRequest {
 pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError> {
     let decoded = decode_audio(&request.source_path)?;
     let source_sr = decoded.sample_rate;
-    let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
 
-    let stems = run_separation(&work, MODEL_SAMPLE_RATE)?;
+    // Demucs CLI path: real htdemucs_6s when the user has the
+    // `demucs` python package installed. Returns 6 stems already
+    // resampled by Demucs to the source SR — no model resample
+    // pass needed.
+    let (stems, model_name, stems_at_source_sr) = if crate::cli::locate_demucs_binary().is_some() {
+        let model = "htdemucs_6s";
+        match crate::cli::separate_via_demucs_cli(&request.source_path, model) {
+            Ok(s) => (s, model.to_string(), true),
+            Err(err) => {
+                eprintln!("demucs CLI failed, falling back to stub: {err}");
+                let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
+                let s = run_separation(&work, MODEL_SAMPLE_RATE)?;
+                (s, "stub".to_string(), false)
+            }
+        }
+    } else {
+        let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
+        let s = run_separation(&work, MODEL_SAMPLE_RATE)?;
+        (s, request.model.clone(), false)
+    };
 
     let track_dir = request.catalog_dir.join(&request.track_id);
     fs::create_dir_all(&track_dir).map_err(|err| StemError::OpenSource {
@@ -97,10 +115,14 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
     }
     let mut stem_meta = Vec::with_capacity(kinds.len());
     for (&kind, stem_samples) in kinds.iter().zip(stems.iter()) {
-        let resampled_back = resample_to(stem_samples, MODEL_SAMPLE_RATE, source_sr)?;
+        let final_samples = if stems_at_source_sr {
+            stem_samples.clone()
+        } else {
+            resample_to(stem_samples, MODEL_SAMPLE_RATE, source_sr)?
+        };
         let filename = kind.default_filename();
         let path = track_dir.join(filename);
-        write_stereo_wav(&path, &resampled_back, source_sr)?;
+        write_stereo_wav(&path, &final_samples, source_sr)?;
         stem_meta.push(StemInfo {
             kind,
             filename: filename.to_string(),
@@ -129,7 +151,7 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
         duration_secs,
         source_sample_rate: source_sr,
         stems: stem_meta,
-        model: request.model.clone(),
+        model: model_name,
         generated_at: request.generated_at.clone(),
     };
     let entry = TrackEntry {
