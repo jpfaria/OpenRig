@@ -876,10 +876,6 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
             "section_project_meta.slint",
             include_str!("../ui/pages/settings/section_project_meta.slint"),
         ),
-        (
-            "section_project_midi_mapping.slint",
-            include_str!("../ui/pages/settings/section_project_midi_mapping.slint"),
-        ),
     ];
     let po = include_str!("../translations/pt_BR/LC_MESSAGES/adapter-gui.po");
 

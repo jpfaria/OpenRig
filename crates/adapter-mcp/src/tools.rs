@@ -76,8 +76,10 @@ mod tests {
     /// #513 (paths overrides) bumped to 51 with `SetPresetsPath` and
     /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`,
     /// then to 54 with `LoadPlugin` and `UnloadPlugin` (expanded scope:
-    /// per-plugin load / unload).
-    const COMMAND_VARIANT_COUNT: usize = 54;
+    /// per-plugin load / unload). #548 bumped to 58 with
+    /// `SelectActiveChainRelative`, `SelectActiveBlockRelative`,
+    /// `SetCompactViewEnabled`, `ToggleActiveBlockNeighborEnabled`.
+    const COMMAND_VARIANT_COUNT: usize = 58;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
