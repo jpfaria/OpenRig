@@ -36,6 +36,7 @@ export component TracksWindow inherits Window {
     in property <string> track-detail-duration-text;
     in property <[StemRowData]> track-detail-stems;
     in property <bool> track-detail-playing;
+    in property <float> track-detail-progress: 0.0;
 
     callback track-detail-back-clicked();
     callback track-detail-play-toggle();
@@ -67,6 +68,7 @@ export component TracksWindow inherits Window {
         duration-text: root.track-detail-duration-text;
         stems: root.track-detail-stems;
         playing: root.track-detail-playing;
+        progress: root.track-detail-progress;
         back-clicked => { root.track-detail-back-clicked(); }
         play-toggle => { root.track-detail-play-toggle(); }
         seek-relative(d) => { root.track-detail-seek-relative(d); }

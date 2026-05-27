@@ -12,6 +12,7 @@ thiserror.workspace = true
 dirs.workspace = true
 feature-tracks = { path = "../feature-tracks" }
 hound = "3"
+image = { version = "0.25", default-features = false, features = ["png"] }
 lofty = "0.21"
 rubato = "0.16"
 sha2 = "0.10"

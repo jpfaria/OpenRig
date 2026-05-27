@@ -14,6 +14,30 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 
 use crate::{decode_audio, inference::separate_stems, resample_to, tags::extract_tags, StemError};
 
+/// Second-best separation path: demucs CLI ensemble or, if that's
+/// also unavailable, the bandpass stub. Mirrors the previous default
+/// behaviour from before mlx-audio-separator was wired in.
+fn cli_or_stub_fallback(
+    request: &SeparateRequest,
+    decoded_samples: &[f32],
+    source_sr: u32,
+) -> Result<(Vec<Vec<f32>>, String, bool), StemError> {
+    if crate::cli::locate_demucs_binary().is_some() {
+        let quality = crate::cli::Quality::from_env();
+        let model_label = match quality {
+            crate::cli::Quality::Fast => "htdemucs_6s",
+            crate::cli::Quality::Best => "htdemucs_ft+6s",
+        };
+        match crate::cli::separate_via_demucs_cli(&request.source_path, quality) {
+            Ok(s) => return Ok((s, model_label.to_string(), true)),
+            Err(err) => eprintln!("demucs CLI failed, falling back to stub: {err}"),
+        }
+    }
+    let work = resample_to(decoded_samples, source_sr, MODEL_SAMPLE_RATE)?;
+    let s = run_separation(&work, MODEL_SAMPLE_RATE)?;
+    Ok((s, "stub".to_string(), false))
+}
+
 /// Pick the real htdemucs path when the `real-htdemucs` feature is on
 /// and the ONNX model is present, otherwise fall back to the stub.
 fn run_separation(samples: &[f32], sample_rate: u32) -> Result<Vec<Vec<f32>>, StemError> {
@@ -80,31 +104,23 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
     let decoded = decode_audio(&request.source_path)?;
     let source_sr = decoded.sample_rate;
 
-    // Demucs CLI path: real source separation when the user has the
-    // `demucs` python package installed. Returns stems already at
-    // the source SR (Demucs handles its own resampling internally) —
-    // skip the model-SR resample pass. Quality is picked from
-    // `OPENRIG_STEMS_QUALITY=fast|best` (default best: ensemble
-    // htdemucs_ft + htdemucs_6s, shifts=2, ~5x slower).
-    let (stems, model_name, stems_at_source_sr) = if crate::cli::locate_demucs_binary().is_some() {
-        let quality = crate::cli::Quality::from_env();
-        let model_label = match quality {
-            crate::cli::Quality::Fast => "htdemucs_6s",
-            crate::cli::Quality::Best => "htdemucs_ft+6s",
-        };
-        match crate::cli::separate_via_demucs_cli(&request.source_path, quality) {
-            Ok(s) => (s, model_label.to_string(), true),
+    // Separation backend priority (best → fallback):
+    //   1. mlx-audio-separator ensemble (Apple Silicon native MLX,
+    //      MelBand Roformer Big for vocals + htdemucs_ft for
+    //      drums/bass/other + htdemucs_6s for guitar/piano). Highest
+    //      SDR open-source path available today.
+    //   2. demucs CLI ensemble (PyTorch, slower).
+    //   3. Bandpass stub (no Python at all).
+    let (stems, model_name, stems_at_source_sr) = if crate::mlx::locate_mlx_binary().is_some() {
+        match crate::mlx::separate_via_mlx_ensemble(&request.source_path) {
+            Ok(s) => (s, "mlx:roformer+htdemucs_ft+6s".to_string(), true),
             Err(err) => {
-                eprintln!("demucs CLI failed, falling back to stub: {err}");
-                let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
-                let s = run_separation(&work, MODEL_SAMPLE_RATE)?;
-                (s, "stub".to_string(), false)
+                eprintln!("mlx ensemble failed, trying demucs CLI: {err}");
+                cli_or_stub_fallback(&request, &decoded.samples, source_sr)?
             }
         }
     } else {
-        let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;
-        let s = run_separation(&work, MODEL_SAMPLE_RATE)?;
-        (s, request.model.clone(), false)
+        cli_or_stub_fallback(&request, &decoded.samples, source_sr)?
     };
 
     let track_dir = request.catalog_dir.join(&request.track_id);
@@ -129,6 +145,16 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
         let filename = kind.default_filename();
         let path = track_dir.join(filename);
         write_stereo_wav(&path, &final_samples, source_sr)?;
+
+        // Peak thumbnail next to the WAV — small PNG the GUI renders
+        // behind the stem strip's controls.
+        let peaks_path = track_dir
+            .join("peaks")
+            .join(format!("{}.png", filename.trim_end_matches(".wav")));
+        if let Err(err) = crate::peaks::render_peaks_png(&final_samples, &peaks_path) {
+            eprintln!("peaks render failed for {}: {err}", peaks_path.display());
+        }
+
         stem_meta.push(StemInfo {
             kind,
             filename: filename.to_string(),

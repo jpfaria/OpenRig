@@ -21,7 +21,9 @@ use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use feature_stems::SeparateRequest;
 use feature_tracks::{MultiStemPlayer, StemKind, TrackEntry};
-use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{
+    ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel, Weak,
+};
 use uuid::Uuid;
 
 use crate::helpers::show_child_window;
@@ -64,6 +66,8 @@ struct TracksState {
     catalog: Vec<TrackEntry>,
     player: Option<Arc<MultiStemPlayer>>,
     stream: Option<crate::tracks_player_stream::TrackPlaybackStream>,
+    /// Total frames in the currently loaded track (for playhead → progress).
+    total_frames: usize,
 }
 
 impl TracksState {
@@ -72,6 +76,7 @@ impl TracksState {
             catalog: Vec::new(),
             player: None,
             stream: None,
+            total_frames: 0,
         }
     }
 }
@@ -199,14 +204,19 @@ fn populate_track_detail(tracks_window: &TracksWindow, entry: &TrackEntry) {
         .stems
         .iter()
         .enumerate()
-        .map(|(idx, stem)| StemRowData {
-            index: idx as i32,
-            label: stem_kind_label(stem.kind).into(),
-            icon: stem_kind_icon(stem.kind),
-            muted: false,
-            soloed: false,
-            gain: 1.0,
-            pan: 0.0,
+        .map(|(idx, stem)| {
+            let peaks_path = entry.stem_peaks_path(stem.kind);
+            let peaks = Image::load_from_path(&peaks_path).unwrap_or_default();
+            StemRowData {
+                index: idx as i32,
+                label: stem_kind_label(stem.kind).into(),
+                icon: stem_kind_icon(stem.kind),
+                peaks,
+                muted: false,
+                soloed: false,
+                gain: 1.0,
+                pan: 0.0,
+            }
         })
         .collect();
     let model = Rc::new(VecModel::from(stems));
@@ -307,6 +317,44 @@ pub(crate) fn wire_tracks_window(
     tracks_window.set_tracks_search_text(SharedString::new());
     tracks_window.set_show_track_detail(false);
 
+    // 30 Hz playhead poll → updates the position label + 0..1
+    // progress so the waveform line moves while a stem is playing.
+    let playhead_timer = Timer::default();
+    {
+        let state = state.clone();
+        let tw_weak = tracks_window.as_weak();
+        playhead_timer.start(
+            TimerMode::Repeated,
+            std::time::Duration::from_millis(33),
+            move || {
+                let Some(tw) = tw_weak.upgrade() else { return };
+                let snapshot = state.borrow();
+                let Some(player) = snapshot.player.as_ref() else {
+                    return;
+                };
+                let total = snapshot.total_frames;
+                let head = player.playhead();
+                let secs = if player.sample_rate() > 0 {
+                    head as f64 / player.sample_rate() as f64
+                } else {
+                    0.0
+                };
+                tw.set_track_detail_position_text(format_duration(secs));
+                let progress = if total > 0 {
+                    (head as f32 / total as f32).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                tw.set_track_detail_progress(progress);
+            },
+        );
+    }
+    // Keep the timer alive for the whole window lifetime by leaking
+    // it into the closure that holds it. (Timer is not Drop-cancelled
+    // when the window closes; this is intentional — re-opening the
+    // window reuses the same Slint event loop.)
+    Box::leak(Box::new(playhead_timer));
+
     // Open: main window → show TracksWindow as a child window.
     {
         let state = state.clone();
@@ -368,9 +416,13 @@ pub(crate) fn wire_tracks_window(
             let Some(entry) = entry else { return };
 
             let stems = load_stems_for_entry(&entry);
+            let total_frames = stems.iter().map(|s| s.len() / 2).min().unwrap_or(0);
             let player = MultiStemPlayer::new(stems, entry.meta.source_sample_rate);
             populate_track_detail(&tw, &entry);
-            state.borrow_mut().player = Some(Arc::new(player));
+            let mut s = state.borrow_mut();
+            s.player = Some(Arc::new(player));
+            s.total_frames = total_frames;
+            tw.set_track_detail_progress(0.0);
         });
     }
 
@@ -383,6 +435,8 @@ pub(crate) fn wire_tracks_window(
                 let mut s = state.borrow_mut();
                 s.stream = None;
                 s.player = None;
+                s.total_frames = 0;
+                tw.set_track_detail_progress(0.0);
                 tw.set_show_track_detail(false);
             }
         });

@@ -151,9 +151,20 @@ impl TrackEntry {
         self.dir.join(filename)
     }
 
-    /// Absolute path to the pre-rendered waveform peaks file.
+    /// Absolute path to the pre-rendered waveform peaks file (legacy
+    /// single-blob format).
     #[must_use]
     pub fn peaks_path(&self) -> PathBuf {
         self.dir.join(PEAKS_FILENAME)
+    }
+
+    /// Absolute path to a per-stem peak thumbnail PNG. The pipeline
+    /// writes one of these next to each stem WAV when separation
+    /// completes; the GUI renders them as the waveform under the
+    /// stem strip controls.
+    #[must_use]
+    pub fn stem_peaks_path(&self, kind: StemKind) -> PathBuf {
+        let basename = kind.default_filename().trim_end_matches(".wav");
+        self.dir.join("peaks").join(format!("{basename}.png"))
     }
 }

@@ -11,7 +11,9 @@ mod decode;
 mod inference;
 #[cfg(feature = "real-htdemucs")]
 mod inference_ort;
+mod mlx;
 mod model;
+mod peaks;
 mod pipeline;
 mod resample;
 mod tags;

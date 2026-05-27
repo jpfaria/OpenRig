@@ -12,6 +12,7 @@ export struct StemRowData {
     index: int,
     label: string,
     icon: image,
+    peaks: image,
     muted: bool,
     soloed: bool,
     gain: float,
@@ -98,12 +99,13 @@ component LedButton inherits Rectangle {
 
 component StemStrip inherits Rectangle {
     in property <StemRowData> data;
+    in property <float> progress: 0.0; // 0..1 playhead position
     callback mute-toggled(int, bool);
     callback solo-toggled(int, bool);
     callback gain-changed(int, float);
     callback pan-changed(int, float);
 
-    height: 88px;
+    height: 112px;
     background: @linear-gradient(180deg,
         #2a2d33 0%,
         #1f2228 50%,
@@ -118,6 +120,29 @@ component StemStrip inherits Rectangle {
         : (root.data.muted ? #b94a4a55 : #00000080);
     drop-shadow-offset-y: 2px;
     drop-shadow-blur: root.data.soloed || root.data.muted ? 10px : 4px;
+    clip: true;
+
+    // Waveform behind everything (dimmed when muted, soft blue otherwise).
+    Image {
+        x: 240px;
+        y: 0;
+        width: parent.width - 240px;
+        height: parent.height;
+        source: root.data.peaks;
+        image-fit: fill;
+        opacity: root.data.muted ? 0.22 : (root.data.soloed ? 0.92 : 0.55);
+        colorize: root.data.soloed ? #ffe9a8 : (root.data.muted ? #5a2a2a : transparent);
+    }
+
+    // Playhead line over the waveform.
+    Rectangle {
+        x: 240px + (parent.width - 240px) * root.progress;
+        y: 6px;
+        width: 1px;
+        height: parent.height - 12px;
+        background: #ffe9a8;
+        opacity: 0.85;
+    }
 
     HorizontalLayout {
         padding-left: 16px;
@@ -249,7 +274,7 @@ component StemStrip inherits Rectangle {
             }
         }
 
-        // Filler / right-side breathing room
+        // The right side is filled by the waveform behind the strip.
         Rectangle {
             horizontal-stretch: 1;
             background: transparent;
@@ -300,6 +325,7 @@ export component TrackDetailPage inherits Rectangle {
     in property <string> duration-text;
     in property <[StemRowData]> stems;
     in property <bool> playing;
+    in property <float> progress: 0.0;
 
     callback back-clicked();
     callback play-toggle();
@@ -405,6 +431,7 @@ export component TrackDetailPage inherits Rectangle {
                 spacing: 10px;
                 for stem in root.stems : StemStrip {
                     data: stem;
+                    progress: root.progress;
                     mute-toggled(i, m) => { root.stem-mute-toggled(i, m); }
                     solo-toggled(i, s) => { root.stem-solo-toggled(i, s); }
                     gain-changed(i, g) => { root.stem-gain-changed(i, g); }

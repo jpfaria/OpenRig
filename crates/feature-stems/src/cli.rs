@@ -78,6 +78,11 @@ fn which_on_path(bin: &str) -> Option<PathBuf> {
     None
 }
 
+/// Public helper for the mlx module to reuse `$PATH` lookup.
+pub(crate) fn which(bin: &str) -> Option<PathBuf> {
+    which_on_path(bin)
+}
+
 /// Run one Demucs invocation and return the per-stem buffers in
 /// canonical (filename-alphabetical-mapped-to-StemKind) order.
 fn run_one(
