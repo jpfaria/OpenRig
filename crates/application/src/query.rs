@@ -95,6 +95,32 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
     ))
 }
 
+/// #554 follow-up: list every named preset in `RigProject.presets` —
+/// the in-memory pool that the rig's input banks reference by name.
+/// A preset can sit in the pool without being bound to any input slot
+/// yet (e.g. the user saved it via the rig screen but hasn't wired it
+/// into a chain). The tone-builder skill's Step 0 reads this to make
+/// sure it doesn't silently overwrite an existing preset on save.
+///
+/// Pure: `&RigProject` in, `String` out. Reads the in-memory rig
+/// only — the on-disk preset library (`config.paths.presets_path`)
+/// is a separate concern.
+pub fn list_project_presets(rig: &RigProject) -> String {
+    let mut names: Vec<&String> = rig.presets.keys().collect();
+    names.sort();
+    let mut out = String::from("{\"presets\":[");
+    let mut first = true;
+    for name in names {
+        if !first {
+            out.push(',');
+        }
+        first = false;
+        let _ = write!(out, "{{\"name\":{}}}", json_string(name));
+    }
+    out.push_str("]}");
+    out
+}
+
 /// Minimal JSON-string escaper for the small set of values this module
 /// emits. Avoids dragging `serde_json` into a pure listing helper —
 /// preset names and chain ids never carry control chars deeper than
@@ -122,6 +148,10 @@ fn json_string(s: &str) -> String {
 #[cfg(test)]
 #[path = "query_chain_presets_tests.rs"]
 mod chain_presets_tests;
+
+#[cfg(test)]
+#[path = "query_project_presets_tests.rs"]
+mod project_presets_tests;
 
 #[cfg(test)]
 mod tests {

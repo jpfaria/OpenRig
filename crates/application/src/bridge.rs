@@ -63,6 +63,11 @@ pub enum QueryKind {
     /// follow-up). Lets MCP / gRPC clients see the same preset list the
     /// GUI shows in the chain title combobox.
     ListChainPresets { chain: domain::ids::ChainId },
+    /// #554 follow-up: every preset name in the project's in-memory
+    /// `RigProject.presets` pool as JSON. A preset can sit in the pool
+    /// without being bound to any input bank; tone-builder Step 0
+    /// reads this to avoid silently overwriting an existing preset.
+    ListProjectPresets,
 }
 
 struct QueryRequest {

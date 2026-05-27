@@ -11,6 +11,7 @@ pub const URI_PROJECT: &str = "openrig://project";
 pub const URI_DEVICES: &str = "openrig://devices";
 pub const URI_IDS: &str = "openrig://ids";
 pub const URI_METERS: &str = "openrig://meters";
+pub const URI_PRESETS: &str = "openrig://presets";
 /// #554: parameterised resource — the chain id replaces `{chain}` in the
 /// URI, e.g. `openrig://chains/rig:input-1/presets`.
 pub const URI_CHAIN_PRESETS_TEMPLATE: &str = "openrig://chains/{chain}/presets";
@@ -36,6 +37,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_PRESETS,
+                "Project preset pool (all names in RigProject.presets) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_CHAIN_PRESETS_TEMPLATE,
                 "Chain preset bank (replace {chain} with a rig:<input> id) — JSON",
             ),
@@ -56,6 +64,7 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
             URI_DEVICES => QueryKind::Devices,
             URI_IDS => QueryKind::Ids,
             URI_METERS => QueryKind::ChainMeters,
+            URI_PRESETS => QueryKind::ListProjectPresets,
             other => anyhow::bail!("unknown resource: {other}"),
         }
     };
