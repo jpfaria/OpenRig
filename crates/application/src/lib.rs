@@ -43,6 +43,10 @@ mod local_dispatcher_tests;
 mod local_dispatcher_midi_block_nav_tests;
 
 #[cfg(test)]
+#[path = "local_dispatcher_midi_e2e_tests.rs"]
+mod local_dispatcher_midi_e2e_tests;
+
+#[cfg(test)]
 #[path = "local_dispatcher_paths_tests.rs"]
 mod local_dispatcher_paths_tests;
 
