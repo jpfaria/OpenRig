@@ -2155,6 +2155,7 @@ dependencies = [
  "dirs",
  "feature-tracks",
  "hound",
+ "image",
  "lofty",
  "ndarray",
  "ort",
