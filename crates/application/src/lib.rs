@@ -23,6 +23,8 @@ mod local_dispatcher_project;
 mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
+pub mod preset_file;
+pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
 pub mod session;

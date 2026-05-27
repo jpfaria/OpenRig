@@ -1,4 +1,4 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
@@ -223,10 +223,13 @@ export component CompactChainViewWindow inherits Window {
     default-font-family: Locale.font-family;
     default-font-size: 13px;
     title: @tr("title-window-chain-view");
-    min-width: 800px;
-    min-height: 260px;
-    preferred-width: 1000px;
-    preferred-height: 460px;
+    // Defaults pinned to the screenshot the user attached in #559:
+    // 1305×840. `min-width` keeps the row layout legible; below
+    // ~1000 px the per-block knobs collide with the brand logo.
+    min-width: 1000px;
+    min-height: 480px;
+    preferred-width: 1305px;
+    preferred-height: 840px;
     background: #0a0c10;
 
     in property <string> chain-title;
@@ -239,6 +242,10 @@ export component CompactChainViewWindow inherits Window {
     in property <ChainRigNav> rig-nav;
     in property <float> meter-in-dbfs: -120.0;
     in property <float> meter-out-dbfs: -120.0;
+    // Per-stream meter rows — mirrors `ProjectChainItem.stream_meters`.
+    // Multi-input chain (e.g. 3 inputs) ⇒ 3 entries ⇒ 3 IN/OUT bars at
+    // the footer (parity with the main `ChainRow`).
+    in property <[StreamMeter]> stream-meters;
     in property <int> volume: 100;
 
     // I/O device configuration
@@ -297,6 +304,7 @@ export component CompactChainViewWindow inherits Window {
         rig-nav: root.rig-nav;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;
+        stream-meters: root.stream-meters;
         volume: root.volume;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
