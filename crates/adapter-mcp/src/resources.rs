@@ -34,8 +34,7 @@ pub const URI_PLUGIN_PARAMS_TEMPLATE: &str = "openrig://plugins/{id}/params";
 /// (schema + current value per parameter). Concrete URIs look like
 /// `openrig://chains/<chain_id>/blocks/<block_id>/params`. Matched
 /// BEFORE the chain-presets parser so the URI shapes do not collide.
-pub const URI_BLOCK_PARAMS_TEMPLATE: &str =
-    "openrig://chains/{chain}/blocks/{block}/params";
+pub const URI_BLOCK_PARAMS_TEMPLATE: &str = "openrig://chains/{chain}/blocks/{block}/params";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -159,7 +158,9 @@ pub fn parse_plugin_params_uri(uri: &str) -> Option<String> {
 /// for any other URI shape. Either segment empty → rejected.
 /// Issue #572.
 pub fn parse_block_params_uri(uri: &str) -> Option<(String, String)> {
-    let rest = uri.strip_prefix("openrig://chains/")?.strip_suffix("/params")?;
+    let rest = uri
+        .strip_prefix("openrig://chains/")?
+        .strip_suffix("/params")?;
     let (chain, after_chain) = rest.split_once("/blocks/")?;
     if chain.is_empty() || after_chain.is_empty() {
         return None;

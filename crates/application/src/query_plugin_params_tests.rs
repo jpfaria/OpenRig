@@ -45,11 +45,7 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
     fn validate_fn(_: &ParameterSet) -> anyhow::Result<()> {
         Ok(())
     }
-    fn build_fn(
-        _: &ParameterSet,
-        _: f32,
-        _: AudioChannelLayout,
-    ) -> anyhow::Result<BlockProcessor> {
+    fn build_fn(_: &ParameterSet, _: f32, _: AudioChannelLayout) -> anyhow::Result<BlockProcessor> {
         anyhow::bail!("noop — not exercised in this test")
     }
     plugin_loader::registry::register_native_simple(
@@ -117,10 +113,7 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
         json.starts_with("{\"params\":"),
         "expected params envelope, got: {json}"
     );
-    assert!(
-        json.ends_with("}"),
-        "expected closed envelope, got: {json}"
-    );
+    assert!(json.ends_with("}"), "expected closed envelope, got: {json}");
 }
 
 #[test]
@@ -136,7 +129,10 @@ fn get_block_params_unknown_chain_returns_err() {
         &ChainId("issue-572-nope-chain".to_string()),
         &BlockId("issue-572-nope-block".to_string()),
     );
-    assert!(result.is_err(), "unknown chain must be Err, got: {result:?}");
+    assert!(
+        result.is_err(),
+        "unknown chain must be Err, got: {result:?}"
+    );
 }
 
 #[test]
@@ -203,11 +199,7 @@ fn get_plugin_params_known_id_returns_schema_envelope() {
     fn validate_fn(_: &ParameterSet) -> anyhow::Result<()> {
         Ok(())
     }
-    fn build_fn(
-        _: &ParameterSet,
-        _: f32,
-        _: AudioChannelLayout,
-    ) -> anyhow::Result<BlockProcessor> {
+    fn build_fn(_: &ParameterSet, _: f32, _: AudioChannelLayout) -> anyhow::Result<BlockProcessor> {
         anyhow::bail!("noop — not exercised in this test")
     }
 
