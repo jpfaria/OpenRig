@@ -202,15 +202,18 @@ pub fn run_blocking_with_profiles(
             if !first_scan {
                 unsafe extern "C" {
                     fn MIDIRestart() -> i32;
+                    fn MIDIGetNumberOfSources() -> usize;
                 }
+                let before = unsafe { MIDIGetNumberOfSources() };
                 let status = unsafe { MIDIRestart() };
-                if status != 0 {
-                    log::warn!("adapter-midi: MIDIRestart returned {status}");
-                }
-                // CoreMIDI re-publishes devices asynchronously; a brief
-                // sleep gives the BLE port time to re-appear in the next
-                // `list_input_ports` call.
-                std::thread::sleep(std::time::Duration::from_millis(300));
+                // CoreMIDI re-publishes devices asynchronously. BLE-MIDI
+                // in particular needs noticeably more than 300 ms — give
+                // it a full second before re-querying.
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+                let after = unsafe { MIDIGetNumberOfSources() };
+                log::info!(
+                    "adapter-midi: MIDIRestart status={status} sources before={before} after={after}"
+                );
             }
             first_scan = false;
             let infos = crate::enumerate::list_input_ports().unwrap_or_default();

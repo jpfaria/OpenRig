@@ -1,1 +1,1 @@
-RED: SelectActiveBlockRelative must skip InputBlock/OutputBlock.
+Delete dead Mapeamento MIDI section — no behaviour to preserve, cargo check is the gate.

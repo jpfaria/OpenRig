@@ -20,21 +20,9 @@ use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
-use crate::settings::midi_mapping;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
-use crate::{AppWindow, ChainRigNav, MidiBindingRow, ProjectChainItem};
-use project::midi::Binding;
-
-/// State the MIDI mapping editor needs in `apply_events_to_ui` so
-/// `Event::MidiEventReceived` fills the draft being learned. Carried
-/// inside `ChainRigNavCtx` so both the GUI click path and the MIDI/MCP
-/// drain timers route the event through the same place.
-pub(crate) struct MidiMappingCtx {
-    pub bindings: Rc<RefCell<Vec<Binding>>>,
-    pub drafts: Rc<RefCell<Vec<midi_mapping::Draft>>>,
-    pub model: Rc<VecModel<MidiBindingRow>>,
-}
+use crate::{AppWindow, ChainRigNav, ProjectChainItem};
 
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
@@ -49,11 +37,6 @@ pub(crate) struct ChainRigNavCtx {
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub auto_save: bool,
-    /// #513 / #493: optional handle to the MIDI mapping editor state
-    /// so `Event::MidiEventReceived` fills the draft being learned.
-    /// `None` in code paths that build the ctx before the editor exists
-    /// (so the test suite stays oblivious to it).
-    pub midi_mapping: Option<MidiMappingCtx>,
 }
 
 /// Refresh the `chain-rig-nav` model from the current session (no-op if
@@ -167,20 +150,11 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // #513 / #493: forward learn-mode toggles to the MIDI daemon's
     // process-wide flag. Safe whether or not the daemon thread is
     // running — the `Arc<LearnState>` exists per-process and the daemon
-    // only consults it on incoming events. `MidiEventReceived` is
-    // routed into the mapping editor (Task 12) when the ctx carries it.
+    // only consults it on incoming events.
     for ev in events {
         match ev {
             Event::MidiLearnStarted => adapter_midi::learn_state().start(),
             Event::MidiLearnStopped => adapter_midi::learn_state().stop(),
-            Event::MidiEventReceived { source } => {
-                if let Some(mm) = ctx.midi_mapping.as_ref() {
-                    let mut drafts = mm.drafts.borrow_mut();
-                    midi_mapping::apply_learned_source(&mut drafts, source.clone());
-                    let bindings = mm.bindings.borrow();
-                    midi_mapping::repaint(&mm.model, &bindings, &drafts);
-                }
-            }
             _ => {}
         }
     }
