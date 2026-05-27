@@ -73,17 +73,11 @@ mod tests {
     /// `SaveMidiMapping`, `StartMidiLearn`, `StopMidiLearn`, and
     /// `PublishMidiEvent`. Each adds one MCP tool automatically via
     /// `command_schema` (single source of truth — the `Command` enum).
-    ///
-    /// #548 Phase 3a bumps it 49 → 54: 2 variants already present on
-    /// `develop` left this constant stale (parity guard was already RED
-    /// with diff = 2 before this branch — see issue 489) plus 3 added
-    /// in this phase (`SelectActiveChainRelative`,
-    /// `SelectActiveBlockRelative`, `SetCompactViewEnabled`). All five
-    /// have JsonSchema and round-trip through `command_from_variant`.
-    /// Bumped 54 → 55 with `ToggleActiveBlockNeighborEnabled` (issue
-    /// #548 — backs the 4-switch pedal "toggle the second block of
-    /// the compact-view pair" slot).
-    const COMMAND_VARIANT_COUNT: usize = 55;
+    /// #513 (paths overrides) bumped to 51 with `SetPresetsPath` and
+    /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`,
+    /// then to 54 with `LoadPlugin` and `UnloadPlugin` (expanded scope:
+    /// per-plugin load / unload).
+    const COMMAND_VARIANT_COUNT: usize = 54;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

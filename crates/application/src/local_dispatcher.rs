@@ -257,23 +257,11 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_paths_system(cmd)
             }
 
-            // #548 Phase 3b — selection / view mutations.
-            Command::SelectActiveChainRelative { delta } => {
-                self.handle_select_active_chain_relative(delta)
-            }
-            Command::SelectActiveBlockRelative { delta } => {
-                self.handle_select_active_block_relative(delta)
-            }
-            Command::SetCompactViewEnabled { enabled } => {
-                self.selection_state
-                    .write()
-                    .expect("selection state poisoned")
-                    .compact_view_enabled = enabled;
-                Ok(vec![])
-            }
-            Command::ToggleActiveBlockNeighborEnabled => {
-                self.handle_toggle_active_block_neighbor_enabled()
-            }
+            // #561: hot-reload the plugin catalog (no payload).
+            Command::ReloadPluginCatalog => self.handle_reload_plugin_catalog(),
+            // #561 (expanded scope): per-plugin load / unload.
+            Command::LoadPlugin { id } => self.handle_load_plugin(id),
+            Command::UnloadPlugin { id } => self.handle_unload_plugin(id),
         }
     }
 

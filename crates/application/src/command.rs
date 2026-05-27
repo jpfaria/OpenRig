@@ -400,30 +400,29 @@ pub enum Command {
     /// on `Event::PathsSaved`.
     SetPluginsPath { path: Option<PathBuf> },
 
-    /// #548: move the GUI's active chain selection by `delta` positions
-    /// (wraps). Backs MIDI slots `prev_chain` / `next_chain`. Mutates
-    /// `SelectionState::active_chain` and clears `active_block` (block
-    /// belongs to chain).
-    SelectActiveChainRelative { delta: i32 },
+    /// #561: re-scan the plugin packages directories without restarting
+    /// the process. Same path resolution as boot
+    /// (`detect_data_root().join("plugins")` + `plugins_root_from_config`),
+    /// natives are preserved. The dispatcher emits
+    /// `Event::PluginCatalogReloaded { native_count, disk_count,
+    /// total_count }` so adapters can surface the new totals to the
+    /// user (GUI toast, MCP tool response). Closes the gap between
+    /// "import a new NAM" and "build a preset that uses it" without a
+    /// session break.
+    ReloadPluginCatalog,
 
-    /// #548: move the GUI's active block selection by `delta` positions
-    /// inside the active chain (wraps). `delta = ±1` is a single-block
-    /// step; `±2` is the compact-view double-step. No-op when no chain
-    /// is active or the chain has no blocks.
-    SelectActiveBlockRelative { delta: i32 },
+    /// #561 (expanded scope): bring a single disk plugin into the
+    /// in-memory catalog by manifest id. Re-scans the known plugin
+    /// roots and adds the one whose id matches. Errors when no disk
+    /// package with that id is discoverable; no-op when the plugin
+    /// is already loaded. Emits `Event::PluginLoaded { id }`.
+    LoadPlugin { id: String },
 
-    /// #548: toggle the compact-view UI mode for the active chain. Backs
-    /// MIDI slot `toggle_compact_view`. State lives in `SelectionState`
-    /// alongside the active selection so MCP/gRPC see the same flag the
-    /// user sees.
-    SetCompactViewEnabled { enabled: bool },
-
-    /// #548: toggle the block immediately AFTER the active block in
-    /// the active chain (wraps to first). Backs MIDI slot
-    /// `toggle_active_block_neighbor_enabled` — useful for a 4-switch
-    /// pedal where one row toggles the two blocks of a compact-view pair.
-    /// No-op when no chain/block is active or the chain has < 2 blocks.
-    ToggleActiveBlockNeighborEnabled,
+    /// #561 (expanded scope): remove a single disk plugin from the
+    /// in-memory catalog by manifest id. Refuses natives — they are
+    /// compiled-in and cannot be dropped without restarting the
+    /// process. Emits `Event::PluginUnloaded { id }`.
+    UnloadPlugin { id: String },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.
