@@ -4,6 +4,7 @@
 //! coexisting with it (both share one `ProjectSession`).
 
 mod prompts;
+pub mod render_tool;
 pub mod resources;
 mod server;
 mod tools;

@@ -95,3 +95,57 @@ mode). Putting it on the GUI binary would force the headless build to
 compile Slint, MCP, and MIDI even when none of them initialise. It
 follows the same pattern as `adapter-console` and `adapter-console-rig`:
 console-style adapters around the same engine core.
+
+## MCP tool: `render_chain` (issue #576)
+
+When an MCP client is co-located with the rig (same machine), the
+`render_chain` tool exposes this exact pipeline over MCP — same
+`engine::offline::render_chain` call site as the binary, same atomic
+output write, same determinism guarantee. Agents that build presets and
+want to validate them against a reference take can render through MCP
+without shelling out.
+
+Tool name: `render_chain`. Input shape (mirrors the flag table above):
+
+```jsonc
+{
+  "chain_path":   "/abs/path/chain.yaml",   // required
+  "input_path":   "/abs/path/di.wav",       // required (file mode or live target)
+  "output_path":  "/abs/path/wet.wav",      // required
+  "start_s":      0.0,                       // optional, file mode only
+  "end_s":        12.34,                     // optional, file mode only
+  "duration_s":   10.0,                      // optional, live capture only
+  "input_device": "Focusrite Scarlett 2i2",  // optional, live capture only
+  "sample_rate_hz": 48000,                   // optional, default 48000
+  "block_size":     256,                     // optional, default 256
+  "bit_depth":      24,                      // optional, 16|24|32, default 24
+  "tail_ms":      2000                       // optional, default 2000
+}
+```
+
+Response on success:
+
+```jsonc
+{
+  "output_path":     "/abs/path/wet.wav",
+  "duration_seconds": 12.34,
+  "sample_rate":     48000,
+  "bit_depth":       24,
+  "mode":            "file"   // or "live" when input_path was captured this call
+}
+```
+
+Error mapping mirrors the CLI exit codes:
+
+* argument-level rejections (invalid `bit_depth`, malformed JSON args) →
+  MCP `invalid_params` (CLI exit 2);
+* render-time failures (chain load error, missing input WAV without
+  `duration_s`, engine error, IO error) → MCP `internal_error` (CLI
+  exit 1). No partial output WAV is left on failure (atomic
+  `<output>.tmp` + rename).
+
+Paths are local to the host. The tool does **not** stream audio over
+MCP — host and client are assumed co-located. Same scope limits as the
+binary (single chain, no I/O block routing, no MIDI/automation replay).
+The `openrig-render` binary stays — the MCP tool is an additional
+surface, not a substitute.

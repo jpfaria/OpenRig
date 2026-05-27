@@ -23,7 +23,7 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use rmcp::{ErrorData, RoleServer};
 use serde_json::Value;
 
-use crate::{prompts, resources, tools};
+use crate::{prompts, render_tool, resources, tools};
 
 #[derive(Clone)]
 pub struct OpenRigMcp {
@@ -53,7 +53,11 @@ impl ServerHandler for OpenRigMcp {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ListToolsResult, ErrorData>> + Send + '_ {
-        async move { Ok(ListToolsResult::with_all_items(tools::tools())) }
+        async move {
+            let mut all = tools::tools();
+            all.push(render_tool::tool());
+            Ok(ListToolsResult::with_all_items(all))
+        }
     }
 
     fn call_tool(
@@ -63,6 +67,9 @@ impl ServerHandler for OpenRigMcp {
     ) -> impl Future<Output = Result<CallToolResult, ErrorData>> + Send + '_ {
         async move {
             let args = request.arguments.map(Value::Object).unwrap_or(Value::Null);
+            if request.name == render_tool::RENDER_CHAIN_TOOL_NAME {
+                return render_tool::handle(args);
+            }
             match tools::dispatch_tool(&self.bridge, &request.name, args).await {
                 Ok(events) => {
                     let json = serde_json::to_string(&events)
