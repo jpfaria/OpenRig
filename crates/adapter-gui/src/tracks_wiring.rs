@@ -18,11 +18,15 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use application::event::Event;
 use feature_stems::SeparateRequest;
 use feature_tracks::{MultiStemPlayer, StemKind, TrackEntry};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use uuid::Uuid;
 
+use crate::state::ProjectSession;
 use crate::{AppWindow, StemRowData, TrackRowData};
 
 /// Resolve the catalog root: `<data-dir>/OpenRig/tracks/`.
@@ -235,8 +239,44 @@ fn refresh_only_list(window: &AppWindow) {
     window.set_tracks(ModelRc::from(model));
 }
 
+/// Dispatch `Command::SeparateStems` through the project session's
+/// Command bus when one is open, then react to the resulting
+/// `Event::StemJobQueued` by spawning the off-RT worker. When no
+/// project session is open the worker is spawned directly so the
+/// Tracks feature still works as a user-wide tool.
+fn dispatch_separation(
+    window: &AppWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    source_path: PathBuf,
+) {
+    let mut spawned_via_bus = false;
+    if let Some(session) = project_session.borrow().as_ref() {
+        match session.dispatcher.dispatch(Command::SeparateStems {
+            source_path: source_path.clone(),
+        }) {
+            Ok(events) => {
+                for ev in events {
+                    if let Event::StemJobQueued { source_path } = ev {
+                        spawn_separation_worker(window, source_path);
+                        spawned_via_bus = true;
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("tracks: dispatch SeparateStems failed: {err}");
+            }
+        }
+    }
+    if !spawned_via_bus {
+        spawn_separation_worker(window, source_path);
+    }
+}
+
 /// Hook every Tracks-related callback. Called once during app start.
-pub(crate) fn wire_tracks_nav(window: &AppWindow) {
+pub(crate) fn wire_tracks_nav(
+    window: &AppWindow,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+) {
     let state = Rc::new(RefCell::new(TracksState::new()));
     rescan_catalog(&state, window);
 
@@ -265,6 +305,7 @@ pub(crate) fn wire_tracks_nav(window: &AppWindow) {
 
     {
         let window_weak = window.as_weak();
+        let project_session = project_session.clone();
         window.on_tracks_import_clicked(move || {
             let file = rfd::FileDialog::new()
                 .add_filter("Audio", &["wav", "mp3", "flac", "ogg", "m4a"])
@@ -274,7 +315,7 @@ pub(crate) fn wire_tracks_nav(window: &AppWindow) {
                 return;
             }
             if let Some(window) = window_weak.upgrade() {
-                spawn_separation_worker(&window, path);
+                dispatch_separation(&window, &project_session, path);
             }
         });
     }
