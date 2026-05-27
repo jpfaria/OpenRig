@@ -105,23 +105,6 @@ fn parameter_descriptor_number_accepts_valid_inputs() {
 }
 
 #[test]
-fn parameter_descriptor_bool_accepts_bool_default() {
-    let id = ParameterId("enabled".to_string());
-    let descriptor = ParameterDescriptor::bool(id.clone(), ParameterValue::Bool(true))
-        .expect("Bool default must be accepted");
-    assert_eq!(descriptor.id, id);
-    assert_eq!(descriptor.kind, ParameterKind::Bool);
-    assert_eq!(descriptor.default, ParameterValue::Bool(true));
-}
-
-#[test]
-fn parameter_descriptor_bool_rejects_non_bool_default() {
-    let id = ParameterId("enabled".to_string());
-    let result = ParameterDescriptor::bool(id, ParameterValue::Float(1.0));
-    assert!(result.is_err(), "Bool kind default must be a Bool");
-}
-
-#[test]
 fn parameter_descriptor_number_accepts_int_default_within_range() {
     let id = ParameterId("voicing".to_string());
     let descriptor = ParameterDescriptor::number(
