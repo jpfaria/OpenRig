@@ -223,10 +223,15 @@ export component CompactChainViewWindow inherits Window {
     default-font-family: Locale.font-family;
     default-font-size: 13px;
     title: @tr("title-window-chain-view");
-    min-width: 800px;
-    min-height: 260px;
-    preferred-width: 1000px;
-    preferred-height: 460px;
+    // Defaults wide enough to fit a full block row (model selector at
+    // x=158px, brand logo at x=432px, parameter strip right-aligned).
+    // Below ~1280px the per-block knobs overlap the stream display, and
+    // the user only perceives the IN/OUT footer as "the content" — the
+    // block list looks empty. Issue #559.
+    min-width: 1280px;
+    min-height: 480px;
+    preferred-width: 1800px;
+    preferred-height: 760px;
     background: #0a0c10;
 
     in property <string> chain-title;
