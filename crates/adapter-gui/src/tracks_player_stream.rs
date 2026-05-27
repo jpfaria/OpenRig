@@ -43,9 +43,13 @@ impl TrackPlaybackStream {
             .default_output_config()
             .map_err(|err| err.to_string())?;
 
-        // Force a stereo `f32` config; every modern OS supports it.
+        // Force a stereo `f32` config AT THE PLAYER'S SAMPLE RATE so
+        // the cpal output runs at the same rate the stems were
+        // written at; mismatching the rates plays the track faster
+        // or slower (44.1 kHz stems in a 48 kHz stream = ~9% fast).
         let mut config: StreamConfig = supported.clone().into();
         config.channels = 2;
+        config.sample_rate = player.sample_rate();
 
         let err_fn = |err| eprintln!("cpal: stream error: {err}");
         let stream = device

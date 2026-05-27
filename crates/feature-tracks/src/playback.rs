@@ -29,7 +29,6 @@ pub struct MultiStemPlayer {
     /// Total frames in the loaded buffers (assumed identical across
     /// stems; the shortest stem dictates the loop length).
     total_frames: usize,
-    #[allow(dead_code)]
     sample_rate: u32,
 }
 
@@ -92,6 +91,14 @@ impl MultiStemPlayer {
     #[must_use]
     pub fn playhead(&self) -> usize {
         self.playhead.load(Ordering::Acquire)
+    }
+
+    /// Sample rate the loaded stems were written at. Callers wiring
+    /// the player into a real audio device (cpal/JACK) must request a
+    /// stream at this rate so playback stays time-correct.
+    #[must_use]
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     /// Set per-stem gain. Values are not clamped — callers usually
