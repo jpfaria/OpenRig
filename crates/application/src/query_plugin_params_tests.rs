@@ -3,7 +3,28 @@
 //! See spec
 //! `docs/superpowers/specs/2026-05-27-issue-572-mcp-block-plugin-params-design.md`.
 
+use crate::bridge::QueryKind;
 use crate::query::get_plugin_params;
+
+#[test]
+fn querykind_get_plugin_params_carries_plugin_id() {
+    // Drives the QueryKind variant the bridge needs so that any
+    // transport (MCP, gRPC, adapter-console) can dispatch
+    // `get_plugin_params` over the bus by name without re-walking
+    // catalog state itself.
+    let kind = QueryKind::GetPluginParams {
+        plugin_id: "issue-572-querykind-bridge".to_string(),
+    };
+    match &kind {
+        QueryKind::GetPluginParams { plugin_id } => {
+            assert_eq!(plugin_id, "issue-572-querykind-bridge");
+            // The bridge contract: the resolver this variant maps to
+            // returns the same wire shape as a direct call.
+            assert_eq!(get_plugin_params(plugin_id), "{\"params\": null}");
+        }
+        other => panic!("expected GetPluginParams variant, got {other:?}"),
+    }
+}
 
 #[test]
 fn get_plugin_params_unknown_id_returns_null_envelope() {

@@ -80,6 +80,12 @@ pub enum QueryKind {
     /// (case-insensitive substring on id / display_name / brand).
     /// Empty query = all entries. See [`crate::query::find_plugins`].
     FindPlugins { query: String },
+    /// #572: full parameter schema for one plugin (catalog-level). No
+    /// placed instance required. Resolved via
+    /// `project::block::schema_for_block_model` and wrapped under a
+    /// `params` envelope by [`crate::query::get_plugin_params`].
+    /// Unknown id → `{"params": null}`.
+    GetPluginParams { plugin_id: String },
 }
 
 struct QueryRequest {

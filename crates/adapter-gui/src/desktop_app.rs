@@ -999,6 +999,13 @@ pub fn run_desktop_app(
                             application::bridge::QueryKind::FindPlugins { query } => {
                                 Ok(application::query::find_plugins(query))
                             }
+                            // #572: per-plugin parameter schema
+                            // (catalog-level). No project state needed —
+                            // resolves against the process-wide plugin
+                            // registry, same as the catalog reads above.
+                            application::bridge::QueryKind::GetPluginParams { plugin_id } => {
+                                Ok(application::query::get_plugin_params(plugin_id))
+                            }
                         },
                         32,
                     );
