@@ -37,6 +37,59 @@ pub fn new_port_names(prev: &[String], current: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// Force a CoreMIDI restart + re-enumerate up to `retries` times with
+/// `gap` between attempts, stopping as soon as the port set grows
+/// beyond `prev`. The union of every snapshot we saw is returned, so a
+/// port that briefly flickered in then out still counts as "seen".
+///
+/// CoreMIDI surfaces BLE-MIDI ports asynchronously after a restart;
+/// a single restart + sleep + enumerate is empirically not enough.
+/// On non-macOS targets the restart calls are skipped — the loop is
+/// still useful (some USB stacks are also slow to publish).
+pub fn scan_with_retry(prev: &[String], retries: usize, gap: std::time::Duration) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut union: HashSet<String> = prev.iter().cloned().collect();
+    let mut last: Vec<String> = Vec::new();
+    for attempt in 0..=retries {
+        if attempt > 0 {
+            #[cfg(target_os = "macos")]
+            unsafe {
+                unsafe extern "C" {
+                    fn MIDIRestart() -> i32;
+                }
+                let _ = MIDIRestart();
+            }
+            std::thread::sleep(gap);
+        }
+        let infos = crate::enumerate::list_input_ports().unwrap_or_default();
+        let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
+        log::info!(
+            "adapter-midi: scan attempt {}/{} → {} port(s) visible {:?}",
+            attempt,
+            retries,
+            current.len(),
+            current
+        );
+        last = current.clone();
+        for name in current {
+            union.insert(name);
+        }
+        // Stop early if the union already grew beyond prev — we have
+        // the new port, no need to keep restarting CoreMIDI.
+        if union.len() > prev.len() {
+            return union.into_iter().collect();
+        }
+    }
+    // Exhausted retries without growth — return whatever the last
+    // snapshot showed (could still differ from prev if a port was
+    // removed).
+    if last.is_empty() {
+        union.into_iter().collect()
+    } else {
+        last
+    }
+}
+
 /// Indices of **every** input port to open: all whose name contains
 /// `wanted` (case-insensitive) when set, else **all** ports. Returning
 /// every match is what lets several identical controllers (e.g. 4
@@ -192,32 +245,19 @@ pub fn run_blocking_with_profiles(
     let mut first_scan = true;
     loop {
         if do_scan {
-            // #548: midir's CoreMIDI client doesn't see new BLE-MIDI
-            // devices added AFTER it was created (the system's
-            // device-added notifications don't reach a long-lived client
-            // already running in our process). Forcing `MIDIRestart`
-            // makes the next enumeration see them. Skip on the initial
-            // boot scan — nothing to refresh yet.
-            #[cfg(target_os = "macos")]
-            if !first_scan {
-                unsafe extern "C" {
-                    fn MIDIRestart() -> i32;
-                    fn MIDIGetNumberOfSources() -> usize;
-                }
-                let before = unsafe { MIDIGetNumberOfSources() };
-                let status = unsafe { MIDIRestart() };
-                // CoreMIDI re-publishes devices asynchronously. BLE-MIDI
-                // in particular needs noticeably more than 300 ms — give
-                // it a full second before re-querying.
-                std::thread::sleep(std::time::Duration::from_millis(1000));
-                let after = unsafe { MIDIGetNumberOfSources() };
-                log::info!(
-                    "adapter-midi: MIDIRestart status={status} sources before={before} after={after}"
-                );
-            }
+            // Initial boot: zero retries (no MIDIRestart) — we just
+            // want the current snapshot. Subsequent rescans (user
+            // pressed refresh after pairing a pedal) use 5 retries
+            // with a 600 ms gap and MIDIRestart between each, because
+            // CoreMIDI publishes BLE-MIDI ports asynchronously and a
+            // single restart + sleep often isn't enough.
+            let (retries, gap) = if first_scan {
+                (0, std::time::Duration::from_millis(0))
+            } else {
+                (5, std::time::Duration::from_millis(600))
+            };
             first_scan = false;
-            let infos = crate::enumerate::list_input_ports().unwrap_or_default();
-            let current: Vec<String> = infos.iter().map(|i| i.raw_name.clone()).collect();
+            let current = scan_with_retry(&known, retries, gap);
             let added = new_port_names(&known, &current);
             log::info!(
                 "adapter-midi rescan: {} port(s) visible {:?}; {} new {:?}",

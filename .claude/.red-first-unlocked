@@ -1,1 +1,1 @@
-RED captured: cargo check workspace fails — QueryKind::ListChainPresets & ListProjectPresets not covered in adapter-console after develop merge.
+RED: cargo check fails after exposing new daemon::scan_with_midi_restart_retry helper signature.
