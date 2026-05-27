@@ -12,6 +12,11 @@ pub const URI_IDS: &str = "openrig://ids";
 pub const URI_METERS: &str = "openrig://meters";
 /// #561 (expanded scope): full plugin catalog as JSON.
 pub const URI_PLUGINS: &str = "openrig://plugins";
+/// #561 (expanded scope): URI template for text search.
+/// Concrete URIs look like `openrig://plugins/search/<query>`.
+/// Matched BEFORE [`URI_PLUGIN_PREFIX`] so `search` is never read
+/// as a manifest id.
+pub const URI_PLUGIN_SEARCH_PREFIX: &str = "openrig://plugins/search/";
 /// #561 (expanded scope): URI template for a single plugin by id.
 /// Concrete URIs look like `openrig://plugins/<manifest_id>`.
 pub const URI_PLUGIN_PREFIX: &str = "openrig://plugins/";
@@ -50,6 +55,9 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
         URI_IDS => QueryKind::Ids,
         URI_METERS => QueryKind::ChainMeters,
         URI_PLUGINS => QueryKind::ListPluginCatalog,
+        other if other.starts_with(URI_PLUGIN_SEARCH_PREFIX) => QueryKind::FindPlugins {
+            query: other[URI_PLUGIN_SEARCH_PREFIX.len()..].to_string(),
+        },
         other if other.starts_with(URI_PLUGIN_PREFIX) => QueryKind::GetPlugin {
             id: other[URI_PLUGIN_PREFIX.len()..].to_string(),
         },

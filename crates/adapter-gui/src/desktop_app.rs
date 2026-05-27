@@ -972,6 +972,9 @@ pub fn run_desktop_app(
                             application::bridge::QueryKind::GetPlugin { id } => {
                                 Ok(application::query::get_plugin(id))
                             }
+                            application::bridge::QueryKind::FindPlugins { query } => {
+                                Ok(application::query::find_plugins(query))
+                            }
                         },
                         32,
                     );

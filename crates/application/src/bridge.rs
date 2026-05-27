@@ -65,6 +65,10 @@ pub enum QueryKind {
     /// #561 (expanded scope): single plugin by manifest id, or
     /// `{"plugin": null}` when absent. See [`crate::query::get_plugin`].
     GetPlugin { id: String },
+    /// #561 (expanded scope): text search across the catalog
+    /// (case-insensitive substring on id / display_name / brand).
+    /// Empty query = all entries. See [`crate::query::find_plugins`].
+    FindPlugins { query: String },
 }
 
 struct QueryRequest {

@@ -134,6 +134,36 @@ pub fn get_plugin(id: &str) -> String {
     }
 }
 
+/// #561 (expanded scope): text search across the catalog.
+/// Case-insensitive substring match against `id`, `display_name`, and
+/// `brand`. Empty query returns every entry (same as
+/// [`list_plugin_catalog`]) — lets the agent treat search and listing
+/// as one tool. Same JSON envelope as the listing.
+pub fn find_plugins(query: &str) -> String {
+    let needle = query.to_lowercase();
+    let mut out = String::from("{\"plugins\": [");
+    let mut first = true;
+    for p in plugin_loader::registry::packages() {
+        let matches = needle.is_empty()
+            || p.manifest.id.to_lowercase().contains(&needle)
+            || p.manifest.display_name.to_lowercase().contains(&needle)
+            || p.manifest
+                .brand
+                .as_deref()
+                .is_some_and(|b| b.to_lowercase().contains(&needle));
+        if !matches {
+            continue;
+        }
+        if !first {
+            out.push_str(", ");
+        }
+        first = false;
+        plugin_entry_json(p, &mut out);
+    }
+    out.push_str("]}");
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
