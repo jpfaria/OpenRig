@@ -25,6 +25,11 @@ pub const URI_PLUGIN_SEARCH_PREFIX: &str = "openrig://plugins/search/";
 /// #561 (expanded scope): URI template for a single plugin by id.
 /// Concrete URIs look like `openrig://plugins/<manifest_id>`.
 pub const URI_PLUGIN_PREFIX: &str = "openrig://plugins/";
+/// #572: URI template for one plugin's parameter schema (catalog-level).
+/// Concrete URIs look like `openrig://plugins/<manifest_id>/params`.
+/// Matched BEFORE [`URI_PLUGIN_PREFIX`] so the `/params` suffix is not
+/// swallowed into a manifest id.
+pub const URI_PLUGIN_PARAMS_TEMPLATE: &str = "openrig://plugins/{id}/params";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -63,15 +68,27 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(URI_PLUGINS, "Plugin catalog (id, kind, backend)"),
             None,
         ),
+        Annotated::new(
+            RawResource::new(
+                URI_PLUGIN_PARAMS_TEMPLATE,
+                "Plugin parameter schema (replace {id} with a manifest id) — JSON",
+            ),
+            None,
+        ),
     ]
 }
 
 /// Resolve a resource URI by querying the frontend.
 pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResult> {
+    // #572: `openrig://plugins/<id>/params` is a sub-resource of the
+    // plugin namespace — must be matched BEFORE `URI_PLUGIN_PREFIX` so
+    // the `/params` suffix is not swallowed into a manifest id.
     let kind = if let Some(chain_id) = parse_chain_presets_uri(uri) {
         QueryKind::ListChainPresets {
             chain: ChainId(chain_id),
         }
+    } else if let Some(plugin_id) = parse_plugin_params_uri(uri) {
+        QueryKind::GetPluginParams { plugin_id }
     } else {
         match uri {
             URI_PROJECT => QueryKind::ProjectYaml,
@@ -104,6 +121,16 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
 fn parse_chain_presets_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/presets"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Extract `<id>` from `openrig://plugins/<id>/params`. Returns `None`
+/// for any other URI shape — empty id rejected so `.../params` with no
+/// id is not addressable. Issue #572.
+pub fn parse_plugin_params_uri(uri: &str) -> Option<String> {
+    uri.strip_prefix("openrig://plugins/")
+        .and_then(|rest| rest.strip_suffix("/params"))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
 }
