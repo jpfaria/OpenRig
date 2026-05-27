@@ -611,3 +611,15 @@ msgstr "Guardar proyecto"
 
 msgid "btn-save-audio-settings"
 msgstr "Aplicar"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-plugin-catalog"
+msgstr "Catálogo de plugins"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Recargar"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Aún no recargado"
