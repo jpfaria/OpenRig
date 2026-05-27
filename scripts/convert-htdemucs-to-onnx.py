@@ -39,28 +39,34 @@ import sys
 from pathlib import Path
 
 
-def default_out() -> Path:
+def default_out(model_name: str = "htdemucs_6s") -> Path:
+    import os
     system = platform.system()
     if system == "Darwin":
         root = Path.home() / "Library" / "Application Support"
     elif system == "Windows":
-        appdata = Path(os.environ.get("APPDATA", Path.home()))  # noqa: F821 — guarded import below
-        root = appdata
+        root = Path(os.environ.get("APPDATA", Path.home()))
     else:
         root = Path.home() / ".local" / "share"
-    return root / "OpenRig" / "models" / "htdemucs" / "htdemucs.onnx"
+    return root / "OpenRig" / "models" / "htdemucs" / f"{model_name}.onnx"
 
 
 def main() -> int:
-    import os  # noqa: PLC0415 — guard so the script can be parsed everywhere
-
-    global default_out  # type: ignore[misc]
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--model",
+        choices=["htdemucs", "htdemucs_6s"],
+        default="htdemucs_6s",
+        help="Which Demucs variant to convert. `htdemucs` = 4 stems "
+             "(drums/bass/vocals/other), `htdemucs_6s` = 6 stems "
+             "(adds guitar + piano). Defaults to the 6-stem model.",
+    )
     parser.add_argument(
         "--out",
         type=Path,
         default=None,
-        help="Output .onnx path (default: OS data dir, OpenRig convention).",
+        help="Output .onnx path. Defaults to the OS data dir + the "
+             "model name (`htdemucs.onnx` or `htdemucs_6s.onnx`).",
     )
     parser.add_argument(
         "--chunk-frames",
@@ -70,7 +76,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    out: Path = args.out or default_out()
+    out: Path = args.out or default_out(args.model)
     out.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -85,8 +91,8 @@ def main() -> int:
         )
         return 1
 
-    print(f"Loading htdemucs weights via the `demucs` package…")
-    bag = get_model("htdemucs")
+    print(f"Loading {args.model} weights via the `demucs` package…")
+    bag = get_model(args.model)
     model = bag.models[0]
     model.eval()
 

@@ -31,17 +31,19 @@ fn run_separation(samples: &[f32], sample_rate: u32) -> Result<Vec<Vec<f32>>, St
     separate_stems(samples, sample_rate)
 }
 
-/// Canonical disk location for the htdemucs ONNX model.
+/// Canonical disk location for the htdemucs ONNX model. Prefers the
+/// 6-stem variant (`htdemucs_6s.onnx`) when present, falls back to
+/// the 4-stem `htdemucs.onnx` so existing installs keep working.
 #[cfg(feature = "real-htdemucs")]
 fn htdemucs_model_path() -> PathBuf {
-    dirs::data_dir()
-        .map(|d| {
-            d.join("OpenRig")
-                .join("models")
-                .join("htdemucs")
-                .join("htdemucs.onnx")
-        })
-        .unwrap_or_else(|| PathBuf::from("models/htdemucs/htdemucs.onnx"))
+    let base = dirs::data_dir()
+        .map(|d| d.join("OpenRig").join("models").join("htdemucs"))
+        .unwrap_or_else(|| PathBuf::from("models/htdemucs"));
+    let six = base.join("htdemucs_6s.onnx");
+    if six.exists() {
+        return six;
+    }
+    base.join("htdemucs.onnx")
 }
 
 /// htdemucs operates at this rate.
@@ -87,14 +89,14 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
         source: err,
     })?;
 
-    let kinds = [
-        StemKind::Drums,
-        StemKind::Bass,
-        StemKind::Vocals,
-        StemKind::Other,
-    ];
+    let kinds = StemKind::layout_for(stems.len());
+    if kinds.is_empty() {
+        return Err(StemError::Inference {
+            reason: format!("unsupported stem count {} (expected 4 or 6)", stems.len()),
+        });
+    }
     let mut stem_meta = Vec::with_capacity(kinds.len());
-    for (kind, stem_samples) in kinds.into_iter().zip(stems.iter()) {
+    for (&kind, stem_samples) in kinds.iter().zip(stems.iter()) {
         let resampled_back = resample_to(stem_samples, MODEL_SAMPLE_RATE, source_sr)?;
         let filename = kind.default_filename();
         let path = track_dir.join(filename);

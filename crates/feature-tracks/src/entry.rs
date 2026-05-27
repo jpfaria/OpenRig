@@ -11,11 +11,14 @@ use crate::TracksError;
 const META_FILENAME: &str = "meta.yaml";
 const PEAKS_FILENAME: &str = "peaks.bin";
 
-/// One of the four stems produced by the htdemucs model.
+/// One of the canonical Demucs stems.
 ///
-/// The variant order matches the canonical Demucs layout
-/// (`drums`, `bass`, `vocals`, `other`) so the index can be used as the
-/// channel id during inference.
+/// The variant order matches the model output order:
+/// - `htdemucs` (4 stems): Drums, Bass, Vocals, Other
+/// - `htdemucs_6s` (6 stems): Drums, Bass, Vocals, Other, Guitar, Piano
+///
+/// New variants stay at the END so existing 4-stem catalogs keep
+/// indexing into the same positions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StemKind {
@@ -25,8 +28,12 @@ pub enum StemKind {
     Bass,
     /// Lead and backing vocals.
     Vocals,
-    /// Everything else (guitar, keys, pads, etc.).
+    /// Everything not captured by the named stems.
     Other,
+    /// Electric / acoustic guitar (htdemucs_6s only).
+    Guitar,
+    /// Piano / keys (htdemucs_6s only).
+    Piano,
 }
 
 impl StemKind {
@@ -38,6 +45,26 @@ impl StemKind {
             Self::Bass => "bass.wav",
             Self::Vocals => "vocals.wav",
             Self::Other => "other.wav",
+            Self::Guitar => "guitar.wav",
+            Self::Piano => "piano.wav",
+        }
+    }
+
+    /// Canonical ordered list for a model that produces `count` stems.
+    /// Returns an empty slice when no Demucs layout matches `count`.
+    #[must_use]
+    pub fn layout_for(count: usize) -> &'static [StemKind] {
+        match count {
+            4 => &[Self::Drums, Self::Bass, Self::Vocals, Self::Other],
+            6 => &[
+                Self::Drums,
+                Self::Bass,
+                Self::Vocals,
+                Self::Other,
+                Self::Guitar,
+                Self::Piano,
+            ],
+            _ => &[],
         }
     }
 }

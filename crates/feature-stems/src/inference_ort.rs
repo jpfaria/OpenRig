@@ -83,9 +83,10 @@ pub fn separate_stems_with_ort(
         })?;
 
     let total_frames = samples.len() / CHANNELS;
-    let mut stems: Vec<Vec<f32>> = (0..STEM_COUNT)
-        .map(|_| Vec::with_capacity(samples.len()))
-        .collect();
+    // Stem count is read from the first chunk's output shape — works
+    // for both htdemucs (4 stems) and htdemucs_6s (6 stems) without
+    // any caller-side flag.
+    let mut stems: Vec<Vec<f32>> = Vec::new();
 
     let mut pos = 0;
     while pos < total_frames {
@@ -126,24 +127,28 @@ pub fn separate_stems_with_ort(
                     reason: format!("try_extract_tensor: {e}"),
                 })?;
         let (shape, data) = extracted;
-        if shape.len() != 4
-            || shape[0] != 1
-            || shape[1] as usize != STEM_COUNT
-            || shape[2] as usize != CHANNELS
-        {
+        if shape.len() != 4 || shape[0] != 1 || shape[2] as usize != CHANNELS {
+            return Err(StemError::Inference {
+                reason: format!("unexpected output shape {shape:?} (want [1, N, {CHANNELS}, T])",),
+            });
+        }
+        let stem_count = shape[1] as usize;
+        if stems.is_empty() {
+            stems = (0..stem_count)
+                .map(|_| Vec::with_capacity(samples.len()))
+                .collect();
+        } else if stems.len() != stem_count {
             return Err(StemError::Inference {
                 reason: format!(
-                    "unexpected output shape {:?} (want [1, {STEM_COUNT}, {CHANNELS}, T])",
-                    shape
+                    "stem count changed mid-stream: was {} now {stem_count}",
+                    stems.len()
                 ),
             });
         }
         let out_frames = shape[3] as usize;
         let valid_out = valid.min(out_frames);
 
-        // Re-interleave the per-stem planar output, trim to `valid`
-        // frames, append to the running stem buffer.
-        for stem_idx in 0..STEM_COUNT {
+        for stem_idx in 0..stem_count {
             let stem_offset = stem_idx * CHANNELS * out_frames;
             for frame in 0..valid_out {
                 let l = data[stem_offset + frame];

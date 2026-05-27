@@ -119,6 +119,8 @@ fn stem_kind_label(kind: StemKind) -> &'static str {
         StemKind::Bass => "Bass",
         StemKind::Vocals => "Vocals",
         StemKind::Other => "Other",
+        StemKind::Guitar => "Guitar",
+        StemKind::Piano => "Piano",
     }
 }
 
