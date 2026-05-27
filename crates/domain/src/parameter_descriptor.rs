@@ -11,6 +11,7 @@ use crate::value_objects::ParameterValue;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParameterKind {
     Number { min: f32, max: f32, step: f32 },
+    Bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +27,7 @@ pub enum DescriptorError {
     NumberStepNotPositive { step: f32 },
     NumberDefaultOutOfRange { default: f32, min: f32, max: f32 },
     NumberDefaultNotNumeric,
+    BoolDefaultNotBool,
 }
 
 impl ParameterDescriptor {
@@ -55,6 +57,17 @@ impl ParameterDescriptor {
         Ok(Self {
             id,
             kind: ParameterKind::Number { min, max, step },
+            default,
+        })
+    }
+
+    pub fn bool(id: ParameterId, default: ParameterValue) -> Result<Self, DescriptorError> {
+        if default.as_bool().is_none() {
+            return Err(DescriptorError::BoolDefaultNotBool);
+        }
+        Ok(Self {
+            id,
+            kind: ParameterKind::Bool,
             default,
         })
     }
