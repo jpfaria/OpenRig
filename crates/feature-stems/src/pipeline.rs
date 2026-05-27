@@ -80,14 +80,20 @@ pub fn separate_track(request: &SeparateRequest) -> Result<TrackEntry, StemError
     let decoded = decode_audio(&request.source_path)?;
     let source_sr = decoded.sample_rate;
 
-    // Demucs CLI path: real htdemucs_6s when the user has the
-    // `demucs` python package installed. Returns 6 stems already
-    // resampled by Demucs to the source SR — no model resample
-    // pass needed.
+    // Demucs CLI path: real source separation when the user has the
+    // `demucs` python package installed. Returns stems already at
+    // the source SR (Demucs handles its own resampling internally) —
+    // skip the model-SR resample pass. Quality is picked from
+    // `OPENRIG_STEMS_QUALITY=fast|best` (default best: ensemble
+    // htdemucs_ft + htdemucs_6s, shifts=2, ~5x slower).
     let (stems, model_name, stems_at_source_sr) = if crate::cli::locate_demucs_binary().is_some() {
-        let model = "htdemucs_6s";
-        match crate::cli::separate_via_demucs_cli(&request.source_path, model) {
-            Ok(s) => (s, model.to_string(), true),
+        let quality = crate::cli::Quality::from_env();
+        let model_label = match quality {
+            crate::cli::Quality::Fast => "htdemucs_6s",
+            crate::cli::Quality::Best => "htdemucs_ft+6s",
+        };
+        match crate::cli::separate_via_demucs_cli(&request.source_path, quality) {
+            Ok(s) => (s, model_label.to_string(), true),
             Err(err) => {
                 eprintln!("demucs CLI failed, falling back to stub: {err}");
                 let work = resample_to(&decoded.samples, source_sr, MODEL_SAMPLE_RATE)?;

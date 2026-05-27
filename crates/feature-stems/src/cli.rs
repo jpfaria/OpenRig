@@ -24,6 +24,29 @@ use std::process::Command;
 use crate::decode_audio;
 use crate::StemError;
 
+/// Quality preset: balances SDR vs wall-clock per song.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Quality {
+    /// Single-model htdemucs_6s, shifts=1. Fastest.
+    Fast,
+    /// Ensemble htdemucs_ft (4 stems, highest SDR) + htdemucs_6s
+    /// (steals Guitar + Piano). 2 shifts each. ~5x slower than Fast.
+    Best,
+}
+
+impl Quality {
+    pub(crate) fn from_env() -> Self {
+        match std::env::var("OPENRIG_STEMS_QUALITY")
+            .ok()
+            .as_deref()
+            .map(str::trim)
+        {
+            Some("fast") => Self::Fast,
+            _ => Self::Best,
+        }
+    }
+}
+
 /// Locate a usable `demucs` binary. Returns `None` when none of the
 /// candidates exist, which the orchestrator treats as "fall back to
 /// the stub separator".
@@ -55,29 +78,23 @@ fn which_on_path(bin: &str) -> Option<PathBuf> {
     None
 }
 
-/// Run `demucs -n <model> -o <tmp> --filename "{stem}.wav" <source>`
-/// and decode each emitted stem back as interleaved stereo `f32`.
-///
-/// The exact stem set depends on the model: `htdemucs` → 4 stems,
-/// `htdemucs_6s` → 6 stems. The returned vector is ordered the same
-/// way the CLI writes them on disk (alphabetical) and then mapped
-/// back to canonical order by [`StemKind::layout_for`] in the
-/// orchestrator.
-pub(crate) fn separate_via_demucs_cli(
+/// Run one Demucs invocation and return the per-stem buffers in
+/// canonical (filename-alphabetical-mapped-to-StemKind) order.
+fn run_one(
+    bin: &Path,
     source: &Path,
     model: &str,
+    shifts: u32,
 ) -> Result<Vec<Vec<f32>>, StemError> {
-    let bin = locate_demucs_binary().ok_or_else(|| StemError::Inference {
-        reason: "demucs binary not found (set DEMUCS_BIN or install via .venv-tracks)".to_string(),
-    })?;
-
     let tmp = tempdir().map_err(|err| StemError::Inference {
         reason: format!("tempdir: {err}"),
     })?;
 
-    let status = Command::new(&bin)
+    let status = Command::new(bin)
         .arg("-n")
         .arg(model)
+        .arg("--shifts")
+        .arg(shifts.to_string())
         .arg("--filename")
         .arg("{stem}.wav")
         .arg("--float32")
@@ -90,14 +107,11 @@ pub(crate) fn separate_via_demucs_cli(
         })?;
     if !status.success() {
         return Err(StemError::Inference {
-            reason: format!("demucs exited with status {status:?}"),
+            reason: format!("demucs {model} exited with status {status:?}"),
         });
     }
 
-    // With `--filename "{stem}.wav"` the CLI skips the per-track
-    // subdirectory — outputs land directly under `<tmp>/<model>/`.
     let stems_dir = tmp.path().join(model);
-
     let order = canonical_filename_order(model);
     let mut stems = Vec::with_capacity(order.len());
     for filename in order {
@@ -106,6 +120,47 @@ pub(crate) fn separate_via_demucs_cli(
         stems.push(decoded.samples);
     }
     Ok(stems)
+}
+
+/// Best-quality stem separation: ensemble of `htdemucs_ft` (4 stems,
+/// highest open-source SDR) + `htdemucs_6s` (steals Guitar + Piano),
+/// each with 2 shifts averaging for an extra ~0.5 dB SDR.
+///
+/// Result is always 6 stems in canonical order: `[drums, bass, vocals,
+/// other, guitar, piano]`. drums/bass/vocals/other come from `_ft`;
+/// guitar/piano come from `_6s`.
+pub(crate) fn separate_via_demucs_cli(
+    source: &Path,
+    quality: Quality,
+) -> Result<Vec<Vec<f32>>, StemError> {
+    let bin = locate_demucs_binary().ok_or_else(|| StemError::Inference {
+        reason: "demucs binary not found (set DEMUCS_BIN or install via .venv-tracks)".to_string(),
+    })?;
+
+    match quality {
+        Quality::Fast => run_one(&bin, source, "htdemucs_6s", 1),
+        Quality::Best => {
+            let four = run_one(&bin, source, "htdemucs_ft", 2)?;
+            let six = run_one(&bin, source, "htdemucs_6s", 2)?;
+            // canonical_filename_order is [drums, bass, vocals, other]
+            // for `_ft` and [drums, bass, vocals, other, guitar, piano]
+            // for `_6s`. Take 0..4 from `_ft` (highest SDR) and 4..6
+            // from `_6s`.
+            if four.len() != 4 || six.len() != 6 {
+                return Err(StemError::Inference {
+                    reason: format!(
+                        "ensemble shape mismatch: ft={} stems, 6s={} stems (want 4 and 6)",
+                        four.len(),
+                        six.len()
+                    ),
+                });
+            }
+            let mut merged = four;
+            merged.push(six[4].clone());
+            merged.push(six[5].clone());
+            Ok(merged)
+        }
+    }
 }
 
 /// Canonical stem-filename order for a given Demucs model name.
@@ -120,6 +175,7 @@ fn canonical_filename_order(model: &str) -> &'static [&'static str] {
             "guitar.wav",
             "piano.wav",
         ],
+        // `htdemucs`, `htdemucs_ft`, anything else 4-stem.
         _ => &["drums.wav", "bass.wav", "vocals.wav", "other.wav"],
     }
 }
