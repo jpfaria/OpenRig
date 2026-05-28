@@ -123,14 +123,20 @@ pub(crate) fn build_runtime_block_nodes(
                 blocks.push(node);
             }
             Err(e) => {
-                // Don't fail the whole chain — bypass this block and keep going
+                // Don't fail the whole chain — bypass this block and keep going,
+                // but record the reason so offline-render callers (and any
+                // diagnostic surface) can refuse to claim success. Issue #574:
+                // without this, the failure was log-only and invisible to the
+                // CLI, producing misleading WAV output for different presets.
+                let reason = e.to_string();
                 log::error!(
-                    "[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    "[engine] block {:?} (id={}) build failed: {reason} — inserting faulted bypass",
                     block.model_ref().map(|m| m.model.to_string()),
                     block.id.0
                 );
                 let mut node = bypass_runtime_node(block, current_layout);
                 node.faulted = true;
+                node.fault_reason = Some(reason);
                 blocks.push(node);
             }
         }
@@ -349,6 +355,7 @@ fn build_select_runtime_node(
         },
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     })
 }
 
@@ -368,6 +375,7 @@ pub(crate) fn bypass_runtime_node(
         fade_state: FadeState::Bypassed,
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 
@@ -391,6 +399,7 @@ pub(crate) fn audio_block_runtime_node(
         },
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 
@@ -520,17 +529,34 @@ fn build_nam_audio_processor(
     input_layout: AudioChannelLayout,
     sample_rate: f32,
 ) -> Result<ProcessorBuildOutcome> {
-    let _ = (
-        optional_string(&stage.params, "ir_path"),
-        required_string(&stage.params, "model_path")?,
-    );
     build_audio_processor_for_model(
         chain,
         block_core::EFFECT_TYPE_NAM,
         &stage.model,
         input_layout,
-        |layout| build_nam_processor_for_layout(&stage.model, &stage.params, sample_rate, layout),
+        |layout| build_nam_processor_via_dispatch(&stage.model, &stage.params, sample_rate, layout),
     )
+}
+
+/// Resolve a NAM block via the plugin loader (issue #574) and fall back
+/// to the legacy `model_path`-in-params path only for callers that
+/// inject the path themselves. Without this, YAML presets never built
+/// because they don't carry `model_path`.
+fn build_nam_processor_via_dispatch(
+    model: &str,
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    if let Some(package) = plugin_loader::registry::find(model) {
+        return package.build_processor(params, sample_rate, layout);
+    }
+    if params.get_string("model_path").is_some() {
+        return build_nam_processor_for_layout(model, params, sample_rate, layout);
+    }
+    Err(anyhow!(
+        "no NAM plugin package registered for model '{model}' and no `model_path` in params"
+    ))
 }
 
 fn expect_mono_processor(
@@ -565,20 +591,6 @@ fn expect_stereo_processor(
             model
         )),
     }
-}
-
-fn required_string(params: &ParameterSet, path: &str) -> Result<String> {
-    params
-        .get_string(path)
-        .map(ToString::to_string)
-        .ok_or_else(|| anyhow!("missing or invalid string parameter '{}'", path))
-}
-
-fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
-    params
-        .get_optional_string(path)
-        .flatten()
-        .map(ToString::to_string)
 }
 
 pub(crate) fn next_block_instance_serial() -> u64 {

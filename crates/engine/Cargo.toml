@@ -30,9 +30,9 @@ block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }
 project = { path = "../project" }
 vst3-host = { path = "../vst3" }
+plugin-loader = { path = "../plugin-loader" }
 
 [dev-dependencies]
-plugin-loader = { path = "../plugin-loader" }
 domain = { path = "../domain" }
 nam = { path = "../nam" }
 ir = { path = "../ir" }

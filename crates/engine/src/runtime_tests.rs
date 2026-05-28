@@ -889,6 +889,7 @@ fn panicking_block_node() -> BlockRuntimeNode {
         fade_state: FadeState::Active,
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 
@@ -917,6 +918,7 @@ fn counting_block_node(
         fade_state: FadeState::Active,
         fade_dry_buffer: Vec::new(),
         faulted: false,
+        fault_reason: None,
     }
 }
 

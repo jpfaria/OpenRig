@@ -178,9 +178,17 @@ pub(crate) struct BlockRuntimeNode {
     /// extends only realloc if capacity is exceeded — which after the
     /// first frame is no longer the case for fixed-buffer audio backends.
     pub(crate) fade_dry_buffer: Vec<AudioFrame>,
-    /// Set to true if this block panicked during audio processing.
-    /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
+    /// Set to true if this block panicked during audio processing OR if
+    /// its runtime build failed at setup time. Once faulted, the block is
+    /// permanently bypassed to prevent repeated crashes.
     pub(crate) faulted: bool,
+    /// Human-readable explanation when [`Self::faulted`] is set due to a
+    /// build-time failure. `None` for runtime panics (the panic site logs
+    /// separately) and for healthy blocks. Surfaced via
+    /// `engine::offline::RenderOutcome::faulted_blocks` so offline-render
+    /// callers can refuse to claim success when a block was silently
+    /// bypassed. Issue #574.
+    pub(crate) fault_reason: Option<String>,
 }
 
 pub(crate) struct SelectRuntimeState {
