@@ -103,18 +103,30 @@ fn nam_ir_chain_keeps_calibrated_loudness_after_each_block() {
         Some(PLEXI_CAL_DB),
         "fixture manifest must carry the dB calibration the engine reads"
     );
-    let mut amp_params = ParameterSet::default();
-    amp_params.insert("preset", ParameterValue::String("angus".into()));
+    // Per the #496 contract: `manifest.output_gain_db` is no longer
+    // stacked on top of the user `output_db` param at load time. The
+    // block factory (or the project migrator) copies it into
+    // `params.output_db` so the UI knob mirrors the calibration. In
+    // this unit test we bypass the factory, so we have to write the
+    // audit dB into `output_db` ourselves on the calibrated build —
+    // that is what the engine actually applies in production.
+    let mut amp_params_calibrated = ParameterSet::default();
+    amp_params_calibrated.insert("preset", ParameterValue::String("angus".into()));
+    amp_params_calibrated.insert("output_db", ParameterValue::Float(PLEXI_CAL_DB));
     let mut amp = plexi
-        .build_processor(&amp_params, SR, AudioChannelLayout::Mono)
+        .build_processor(&amp_params_calibrated, SR, AudioChannelLayout::Mono)
         .expect("NAM amp should build from the bundled fixture");
 
     // ── Block 1 (control): same package, calibration field cleared ─────
-    // This is exactly the pre-#491 state (field deserialized to None).
+    // Same package, manifest calibration cleared, user param at 0 dB
+    // (the pre-factory state: nothing has been baked into `output_db`).
+    let mut amp_params_uncalibrated = ParameterSet::default();
+    amp_params_uncalibrated.insert("preset", ParameterValue::String("angus".into()));
+    amp_params_uncalibrated.insert("output_db", ParameterValue::Float(0.0));
     let mut plexi_dead = plexi.clone();
     plexi_dead.manifest.output_gain_db = None;
     let mut amp_dead = plexi_dead
-        .build_processor(&amp_params, SR, AudioChannelLayout::Mono)
+        .build_processor(&amp_params_uncalibrated, SR, AudioChannelLayout::Mono)
         .expect("control NAM amp should build");
 
     let di = di_sine(8_192);

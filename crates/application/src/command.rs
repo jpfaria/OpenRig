@@ -441,6 +441,28 @@ pub enum Command {
     /// the active chain (wraps to first). Backs MIDI slot
     /// `toggle_active_block_neighbor_enabled`.
     ToggleActiveBlockNeighborEnabled,
+
+    /// #576: headless offline render — apply a chain/preset YAML to an
+    /// input WAV and write the processed output WAV. File mode only;
+    /// the `openrig-render` binary owns the live-capture convenience
+    /// (cpal-driven) so `application` stays free of audio-device deps.
+    ///
+    /// Does NOT mutate the project's State. It lives on the Command
+    /// bus so MCP/gRPC/any future transport adapter inherits the tool
+    /// through `command_schema` instead of each adapter wiring it
+    /// manually (LEI: every user operation is a Command, transports
+    /// inherit parity automatically).
+    RenderChain {
+        chain_path: String,
+        input_path: String,
+        output_path: String,
+        start_s: Option<f32>,
+        end_s: Option<f32>,
+        sample_rate_hz: Option<u32>,
+        block_size: Option<u32>,
+        bit_depth: Option<u8>,
+        tail_ms: Option<u32>,
+    },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

@@ -59,9 +59,12 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
             build: build_fn,
         },
     );
-    plugin_loader::registry::init(std::path::Path::new(
+    // See sibling test note: `reload` (not first-call-wins `init`)
+    // rebuilds the catalog so the just-staged native is queryable
+    // regardless of test order inside this binary.
+    let _ = plugin_loader::registry::reload(&[std::path::PathBuf::from(
         "/nonexistent-test-path-572-block-params",
-    ));
+    )]);
 
     // 2. Build a project with one chain + one Core block of that
     //    model. The block's current `params` set `bypass = true` (≠
@@ -214,10 +217,15 @@ fn get_plugin_params_known_id_returns_schema_envelope() {
             build: build_fn,
         },
     );
-    // Mirror the existing pattern in `project/src/block_tests.rs`:
-    // `register_native_simple` stages the package; `init` is what
-    // actually promotes it into the lookup table `find` reads.
-    plugin_loader::registry::init(std::path::Path::new("/nonexistent-test-path-572"));
+    // `register_native_simple` stages the package in `NATIVES`; the
+    // catalog is rebuilt lazily by `init` / `reload`. `init` is a
+    // first-call-wins no-op (so when another test in this binary ran
+    // it first, the staged plugin never landed in the catalog this
+    // test queries against). `reload` always rebuilds, picking up the
+    // freshly-staged native. Same contract `Command::ReloadPluginCatalog`
+    // gives MCP/gRPC clients.
+    let _ =
+        plugin_loader::registry::reload(&[std::path::PathBuf::from("/nonexistent-test-path-572")]);
 
     let out = get_plugin_params("issue_572_get_params_happy");
     assert_ne!(

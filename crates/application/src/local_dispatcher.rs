@@ -201,6 +201,32 @@ impl CommandDispatcher for LocalDispatcher {
 
             Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
 
+            // #576: offline render — does not mutate the live project,
+            // lives on the Command bus purely for transport-adapter
+            // parity (MCP/gRPC auto-derive the tool via command_schema).
+            Command::RenderChain {
+                chain_path,
+                input_path,
+                output_path,
+                start_s,
+                end_s,
+                sample_rate_hz,
+                block_size,
+                bit_depth,
+                tail_ms,
+            } => crate::render_handler::run(
+                chain_path,
+                input_path,
+                output_path,
+                start_s,
+                end_s,
+                sample_rate_hz,
+                block_size,
+                bit_depth,
+                tail_ms,
+            )
+            .map(|ev| vec![ev]),
+
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),

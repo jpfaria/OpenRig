@@ -273,6 +273,17 @@ pub enum Event {
         chain: ChainId,
         left: usize,
     },
+
+    /// #576: `Command::RenderChain` finished writing the output WAV.
+    /// The agent receives this on the MCP side serialized as JSON, so
+    /// it knows where the rendered file lives and what its key audio
+    /// metadata are.
+    RenderCompleted {
+        output_path: String,
+        duration_seconds: f64,
+        sample_rate: u32,
+        bit_depth: u8,
+    },
 }
 
 impl Event {
@@ -331,6 +342,8 @@ impl Event {
             // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
             | Event::PluginLoaded { .. }
             | Event::PluginUnloaded { .. }
+            // #576: offline render does not touch any chain in the live project.
+            | Event::RenderCompleted { .. }
             | Event::Error { .. } => None,
         }
     }

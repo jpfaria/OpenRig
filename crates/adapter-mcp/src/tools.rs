@@ -79,7 +79,9 @@ mod tests {
     /// per-plugin load / unload). #548 bumped to 58 with
     /// `SelectActiveChainRelative`, `SelectActiveBlockRelative`,
     /// `SetCompactViewEnabled`, `ToggleActiveBlockNeighborEnabled`.
-    const COMMAND_VARIANT_COUNT: usize = 58;
+    /// #576 bumped to 59 with `RenderChain` — offline render via the
+    /// command bus so every transport adapter (MCP/gRPC/…) inherits it.
+    const COMMAND_VARIANT_COUNT: usize = 59;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
