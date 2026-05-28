@@ -16,6 +16,7 @@ domain = { path = "../domain" }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 plugin-loader = { path = "../plugin-loader" }
+adapter-render = { path = "../adapter-render" }
 
 [dev-dependencies]
 block-delay = { path = "../block-delay" }

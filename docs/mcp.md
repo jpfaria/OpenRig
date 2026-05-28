@@ -26,11 +26,12 @@ follow-up.
 
 - **Tools** — one per `Command` variant (JSON schema auto-derived from
   `application::command`; no hand-written schema). The agent adds blocks,
-  changes parameters, switches presets, saves the project, etc. Plus
-  one offline-only tool, `render_chain`, that wraps `adapter-render` to
-  apply a chain/preset YAML to a WAV and write the processed output
-  WAV — same call site as the `openrig-render` binary (#576, paths are
-  local to the host). See `docs/render.md`.
+  changes parameters, switches presets, saves the project, etc. Includes
+  `render_chain` (`Command::RenderChain`, #576) — an offline render that
+  applies a chain/preset YAML to a WAV and writes the processed output
+  WAV via the same `adapter-render` call site as `openrig-render`. Paths
+  are local to the host; live capture stays in the binary. See
+  `docs/render.md`.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.

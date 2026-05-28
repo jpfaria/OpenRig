@@ -29,6 +29,7 @@ pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
+pub mod render_handler;
 pub mod selection_state;
 pub mod session;
 
