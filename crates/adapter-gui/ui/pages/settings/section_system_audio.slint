@@ -156,10 +156,17 @@ component AudioDeviceRow inherits Rectangle {
         selected(value) => { root.bit-depth-selected(value); }
     }
 
+    // #581: width must shrink when the device is selected so the toggle
+    // hit region stops before the Hz/Buffer/Bits controls (the "Hz"
+    // label starts at `parent.width - 424px`). A fixed `width: 300px`
+    // overlapped the sample-rate ComboBox (`x: parent.width - 394px`)
+    // whenever the row was narrower than ~694px, stealing its clicks
+    // and deselecting the device when the user tried to open the
+    // dropdown.
     TouchArea {
         x: 0px;
         y: 0px;
-        width: 300px;
+        width: root.device.selected ? parent.width - 424px : parent.width;
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.toggled(!root.device.selected); }
