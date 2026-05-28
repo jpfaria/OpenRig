@@ -1,42 +1,78 @@
-//! Issue #580: `ChainRuntimeState::stream_count` must not block on the
-//! `processing` Mutex.
+//! THE RULE (issue #580, pinned forever)
+//! ═══════════════════════════════════════
+//!
+//! Any method on `ChainRuntimeState` that is callable from a non-audio
+//! thread at sustained rate (GUI timer, MCP poll, observability tick)
+//! **MUST NOT acquire `processing` (or any other Mutex shared with the
+//! audio thread)**, not even with `try_lock`. Use a lock-free atomic
+//! mirror updated at the rare write sites in `runtime_graph.rs`
+//! (`build_chain_runtime_state` + the rebuild step that swaps
+//! `input_states`) instead.
+//!
+//! If a new accessor needs a value that lives behind the Mutex, mirror
+//! it into an atomic (or `ArcSwap`) at the write sites — do not push
+//! the cost onto the read path. CLAUDE.md invariant #8 ("zero lock on
+//! the audio thread") covers this in spirit: a Mutex the audio thread
+//! `try_lock`s is still a synchronisation point, and *every* contention
+//! window the read side opens is a callback the audio thread skips.
 //!
 //! Why this is load-bearing
 //! ────────────────────────
 //! The audio thread enters `process_input_f32` and calls
 //! `runtime.processing.try_lock()` (engine/runtime.rs around line 102).
-//! If the lock is held, the callback returns early — **no samples are
-//! pushed to any output route for that buffer**. The Latency-probe
-//! comment in `process_input_f32` already documents this as a tolerable
-//! event "during a config rebuild in flight" — i.e. very rare.
+//! When the lock is held by another thread, the call returns Err and the
+//! callback **emits no samples for that buffer**. The latency-probe
+//! comment in `process_input_f32` documents that as tolerable "during a
+//! config rebuild in flight" — i.e. a write event that fires once per
+//! preset switch / block add-remove / rig-nav. Any *read* accessor that
+//! takes the same lock at high rate breaks the rare-event assumption,
+//! producing audible clicks at small buffer sizes.
 //!
-//! `ChainRuntimeState::stream_count` taking a *blocking* `.lock()` on the
-//! same Mutex breaks that "rare event" assumption. The meter polling
-//! timer (`adapter-gui/src/meter_wiring.rs::start_meter_polling`, wired
-//! from `desktop_app.rs:353`) calls it **once per chain at 30 Hz** —
-//! steady state, for the life of the session, regardless of whether any
-//! visualisation window is open.
+//! The symptom is buffer-size dependent: at buffer = 32 frames @ 48 kHz
+//! (callback period ≈ 666 µs), even a single OS preemption that holds
+//! the GUI thread mid-`lock()` blows the window — the missed input
+//! callback is felt at output because the elastic SPSC ring between the
+//! two stages only buffers `buffer_size` samples of upstream headroom.
+//! At buffer = 256 (≈ 5.3 ms) the window is 8× larger AND the ring
+//! holds 8× more headroom, so misses are absorbed silently. Offline
+//! single-threaded deadline tests **cannot reproduce this** — they need
+//! the contention between threads that only this kind of test
+//! simulates.
 //!
-//! Whenever the GUI thread is holding `processing` to read its length,
-//! the audio thread's `try_lock` fails and the callback emits silence.
-//! At buffer = 32 frames @ 48 kHz (callback period ≈ 666 µs), any
-//! OS-level preemption holding the GUI mid-lock blows the window. At
-//! buffer = 256 (≈ 5.3 ms), the window is 8× larger and the elastic
-//! output buffer absorbs the dropouts — which is exactly the regression
-//! reported in #580 ("had to raise the buffer from 32 to 256 to get
-//! clean audio after the per-stream meters landed").
+//! Case study — the regression this test pins
+//! ──────────────────────────────────────────
+//! Pre-fix, `ChainRuntimeState::stream_count()` was implemented as
+//! `processing.lock().map(|p| p.input_states.len())` (runtime_state.rs).
+//! The meter polling timer
+//! `adapter-gui/src/meter_wiring.rs::start_meter_polling` (wired from
+//! `desktop_app.rs:353`) calls `controller.stream_count(&chain.id)` at
+//! 30 Hz from app startup, **per chain, regardless of any visualisation
+//! window being open**. Two chains = 60 blocking lock acquisitions per
+//! second on the GUI thread, sustained for the life of the session.
+//! Users hit dropouts at buffer = 32 that disappeared at buffer = 256
+//! — exact 8× ratio matching the window/headroom analysis above.
 //!
-//! `input_states.len()` only changes on runtime build / rebuild
-//! (`runtime_graph::build_chain_runtime_state` and the rebuild path in
-//! the same file). Both are infrequent. So `stream_count` does not need
-//! the lock at all — it can read an `AtomicUsize` mirror updated at
-//! those two sites.
+//! Fix: `stream_count` reads an `AtomicUsize` mirror updated by
+//! `build_chain_runtime_state` and the rebuild path in
+//! `runtime_graph.rs` (both rare). The accessor is lock-free.
 //!
-//! This test holds the `processing` Mutex on the test thread (simulating
-//! the audio thread mid-callback) and asserts that another thread can
-//! call `stream_count()` without blocking. The current implementation
-//! fails this — the call blocks forever and the channel timeout fires.
-//! After the fix lands, it passes immediately.
+//! How this test enforces the rule
+//! ───────────────────────────────
+//! The test thread holds `runtime.processing` for the duration of the
+//! check (standing in for the audio thread mid-callback). A second
+//! thread calls `stream_count()` and tries to deliver its result back
+//! through a channel; the test thread expects the result inside a tight
+//! timeout. If `stream_count()` ever tries to acquire the same Mutex
+//! (whether `.lock()` blocking OR `.try_lock()` followed by a fallback
+//! that depends on the lock being free), the channel never receives and
+//! the timeout fires with the error message below — pointing the next
+//! contributor directly at the rule.
+//!
+//! This test fires red on the regression pattern, regardless of which
+//! specific accessor introduced it. If a future change adds another
+//! GUI-callable read on `ChainRuntimeState` that takes `processing`,
+//! adapt this test to cover the new accessor too (one-test-per-pattern
+//! is fine; do not delete the existing one to "save lines").
 
 use crate::runtime::{build_chain_runtime_state, DEFAULT_ELASTIC_TARGET};
 use domain::ids::{BlockId, ChainId, DeviceId};
@@ -117,12 +153,19 @@ fn stream_count_does_not_block_on_processing_lock() {
     let received = rx.recv_timeout(Duration::from_millis(200));
     assert!(
         received.is_ok(),
-        "issue #580: stream_count() blocked on the processing Mutex. \
-         The meter polling timer calls it at 30 Hz on the GUI thread; \
-         while it holds the lock the audio thread's process_input_f32 \
-         try_lock fails and the callback emits silence. stream_count() \
-         must read a lock-free atomic mirror so it never contends with \
-         the audio callback."
+        "THE RULE (issue #580): a non-audio-thread accessor on \
+         ChainRuntimeState — `stream_count` here, but the rule applies \
+         to every GUI / MCP / observability poll — must NOT acquire the \
+         `processing` Mutex, not even with try_lock. The audio thread \
+         takes that Mutex via try_lock in process_input_f32 and skips \
+         the entire callback (emitting silence) whenever the try_lock \
+         fails. At 30 Hz from the meter polling timer the GUI thread \
+         opens enough contention windows that buffer=32 @48k cannot \
+         stay glitch-free, while buffer=256 hides it via elastic-buffer \
+         headroom. Fix: mirror the needed value into an AtomicUsize / \
+         ArcSwap updated at the rare write sites in runtime_graph.rs \
+         (build + rebuild). See the module docstring for the full \
+         pattern."
     );
 
     let count = received.unwrap();
