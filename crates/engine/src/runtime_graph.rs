@@ -191,6 +191,29 @@ fn build_per_input_runtimes(
     Ok(out)
 }
 
+/// The per-input group ids a chain would produce, WITHOUT instantiating any
+/// block processor. Issue #588: the in-place `upsert_chain` fast path used to
+/// call `build_per_input_runtimes` purely to read these ids for a topology
+/// comparison — which loaded every NAM/IR model in the chain from disk on
+/// each edit, only to throw the runtime away. The grouping depends solely on
+/// the chain's input/output endpoints and segment split, never on the built
+/// processors, so it can be derived directly.
+fn input_group_ids(chain: &Chain) -> Vec<usize> {
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let eff_outputs = effective_outputs(chain);
+    let all_segments = split_chain_into_segments(
+        chain,
+        &eff_inputs,
+        &eff_input_cpal_indices,
+        &eff_split_positions,
+        &eff_outputs,
+    );
+    group_segments_by_input(chain, all_segments)
+        .into_iter()
+        .map(|(group, _segments)| group)
+        .collect()
+}
+
 /// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
 /// if the caller did not provide a value for this route index.
 fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> usize {
@@ -838,8 +861,11 @@ impl RuntimeGraph {
         // cpal streams, so the callbacks kept the OLD Arcs and the edit
         // never reached the audio thread (slider did nothing).
         if !existing_groups.is_empty() {
-            let new_runtimes = build_per_input_runtimes(chain, sample_rate, elastic_targets)?;
-            let mut new_groups: Vec<usize> = new_runtimes.iter().map(|(g, _)| *g).collect();
+            // Issue #588: derive the new group ids WITHOUT building runtimes —
+            // building here reloaded every NAM/IR model in the chain from disk
+            // on each edit (volume, knob, toggle), only to discard them and
+            // update the existing runtime in place.
+            let mut new_groups: Vec<usize> = input_group_ids(chain);
             let mut existing_sorted = existing_groups.clone();
             new_groups.sort_unstable();
             existing_sorted.sort_unstable();
