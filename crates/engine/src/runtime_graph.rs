@@ -390,6 +390,11 @@ fn assemble_chain_runtime_state(
         // `set_volume_pct(100.0)` depois.
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
         stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
+        // Issue #580 follow-up: GUI block-toggle is queued and drained
+        // on the audio thread inside its own `processing` lock,
+        // removing the GUI/audio Mutex contention that caused an
+        // audible click on every block on/off at small buffer sizes.
+        pending_block_toggles: ArrayQueue::new(64),
     })
 }
 

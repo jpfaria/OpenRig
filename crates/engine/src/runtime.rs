@@ -104,6 +104,15 @@ pub fn process_input_f32(
         Err(_) => return,
     };
 
+    // Issue #580 follow-up: drain queued block-toggle requests inside
+    // the same lock we already hold. The GUI thread's
+    // `set_block_enabled` is now lock-free (push to ArrayQueue) so it
+    // never contends with this `try_lock` — the click the user heard
+    // on every UI block on/off is gone. Cheap: the queue is empty in
+    // steady state, a `pop` is two atomic ops, and a non-empty drain
+    // does one in-place walk over `input_states.blocks` per toggle.
+    crate::runtime_block_toggle::drain_pending_block_toggles(runtime, &mut processing_guard);
+
     // If a latency probe is armed, replace the first portion of this
     // callback's input with a short sine beep and record the injection
     // time. Only the primary input (index 0) probes so we measure the
@@ -753,6 +762,10 @@ mod audio_under_gui_pressure;
 #[cfg(test)]
 #[path = "audio_alloc_invariant_tests.rs"]
 mod audio_alloc_invariant;
+
+#[cfg(test)]
+#[path = "audio_under_block_toggle_tests.rs"]
+mod audio_under_block_toggle;
 
 #[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]

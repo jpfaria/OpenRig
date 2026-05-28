@@ -312,6 +312,21 @@ pub struct ChainRuntimeState {
     /// seeing the old count just defers an extra subscription to the
     /// next tick. No synchronisation with audio-thread state needed.
     pub(crate) stream_count: AtomicUsize,
+    /// Lock-free producer/consumer queue for pending block-toggle
+    /// requests (issue #580 follow-up). The GUI's
+    /// `Command::ToggleBlockEnabled` handler calls `set_block_enabled`,
+    /// which pushes `(block_id, enabled)` here without taking any lock.
+    /// The audio thread drains and applies the toggle inside its
+    /// `process_input_f32` `try_lock`'d section (one cheap walk over
+    /// `input_states.blocks`, in place). Result: the GUI thread NEVER
+    /// holds `processing`, so the audio thread's `try_lock` never fails
+    /// because of a user toggle — the click the user heard on every
+    /// block on/off is gone. Capacity 64 is far above the user's
+    /// per-frame click rate (the audio drain runs at hundreds of Hz),
+    /// so a queue overflow in practice would mean the audio thread has
+    /// stalled — which is a louder bug than a dropped toggle. The
+    /// `set_block_enabled` API still surfaces such overflows as `Err`.
+    pub(crate) pending_block_toggles: ArrayQueue<(BlockId, bool)>,
 }
 
 impl ChainRuntimeState {
