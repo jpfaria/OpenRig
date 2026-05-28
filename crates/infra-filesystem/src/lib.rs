@@ -184,14 +184,14 @@ pub fn user_data_root() -> PathBuf {
         let home = std::env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
-        return home.join("Library/Application Support/OpenRig");
+        home.join("Library/Application Support/OpenRig")
     }
     #[cfg(target_os = "windows")]
     {
         let appdata = std::env::var_os("APPDATA")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
-        return appdata.join("OpenRig");
+        appdata.join("OpenRig")
     }
     #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
     {
