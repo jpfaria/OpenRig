@@ -169,13 +169,25 @@ fn main() -> Result<()> {
                 QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),
                 QueryKind::GetPlugin { id } => Ok(application::query::get_plugin(id)),
                 QueryKind::FindPlugins { query } => Ok(application::query::find_plugins(query)),
-                // #554: preset queries require an in-memory RigProject.
-                // The console adapter operates on a bare Project, so it
-                // surfaces the same error shape the GUI emits when no rig
-                // is attached, keeping the resource contract uniform.
-                QueryKind::ListChainPresets { chain: _ }
-                | QueryKind::ListProjectPresets => {
-                    Err("no rig attached to the session".to_string())
+                // #572: per-plugin parameter schema (catalog-level). Same
+                // pure helper any transport calls; process-wide registry
+                // means no project state needed.
+                QueryKind::GetPluginParams { plugin_id } => {
+                    Ok(application::query::get_plugin_params(plugin_id))
+                }
+                // #572: per-block-instance descriptors (schema + current
+                // value). Resolves against the live project.
+                QueryKind::GetBlockParams { chain, block } => {
+                    application::query::get_block_params(&shared.borrow(), chain, block)
+                }
+                // #554: preset reads need a `RigProject`. Console adapter
+                // doesn't own one (it speaks the device-level engine, no
+                // rig attached), so mirror the GUI adapter's
+                // "no rig attached" error rather than fabricating an
+                // empty rig — keeps the wire contract uniform across
+                // both adapters.
+                QueryKind::ListChainPresets { .. } | QueryKind::ListProjectPresets => {
+                    Err("console adapter has no rig attached".to_string())
                 }
             },
             64,

@@ -22,6 +22,7 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 
@@ -32,6 +33,7 @@ use project::rig::RigProject;
 use crate::command::Command;
 use crate::dispatcher::{CommandDispatcher, EventStream};
 use crate::event::Event;
+use crate::selection_state::SelectionState;
 
 /// In-process dispatcher backed by a shared `Project`.
 ///
@@ -70,6 +72,12 @@ pub struct LocalDispatcher {
     /// the dispatcher now owns the resolution. `None` ⇒ derive from
     /// `project_path.parent().join("config.yaml")` at save time.
     pub(crate) config_path: RefCell<Option<PathBuf>>,
+    /// #548: which chain / block the user has active on the Chains
+    /// screen, plus snapshots of the toggle states. MIDI slots and the
+    /// GUI both mutate this through `Command`s; `QueryKind::Selection`
+    /// exposes it to MCP / gRPC. `Arc<RwLock<…>>` because the MIDI
+    /// daemon thread reads it cross-thread.
+    pub(crate) selection_state: Arc<RwLock<SelectionState>>,
 }
 
 impl LocalDispatcher {
@@ -86,6 +94,7 @@ impl LocalDispatcher {
             presets_path: RefCell::new(None),
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
+            selection_state: Arc::new(RwLock::new(SelectionState::default())),
         }
     }
 
@@ -93,6 +102,15 @@ impl LocalDispatcher {
     /// the GUI renders this, MIDI/MCP can set it). `None` if unset.
     pub fn selected_block(&self, chain: &ChainId) -> Option<usize> {
         self.selection.borrow().get(chain).copied()
+    }
+
+    /// Shared handle to the GUI selection state. `Arc<RwLock<…>>` so
+    /// the MIDI daemon thread can read the same state the GUI thread
+    /// mutates; `Rc<RefCell<…>>` was tried first but `RefCell` is
+    /// single-threaded and the daemon runs on its own midir-callback
+    /// thread.
+    pub fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
+        Arc::clone(&self.selection_state)
     }
 
     /// Share the session's `RigProject` handle so rig-nav commands can
@@ -188,9 +206,27 @@ impl CommandDispatcher for LocalDispatcher {
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
 
             Command::SelectChainBlock { chain, block_index } => {
+                // Legacy per-chain selection map (kept for the old GUI
+                // wiring that hasn't migrated yet).
                 self.selection
                     .borrow_mut()
                     .insert(chain.clone(), block_index);
+                // #548: mirror the click into the GUI selection state
+                // the MIDI daemon reads. Resolve the block id from the
+                // index inside the project — slots address blocks by id.
+                {
+                    let project = self.project.borrow();
+                    let block_id = project
+                        .chains
+                        .iter()
+                        .find(|c| c.id == chain)
+                        .and_then(|c| c.blocks.get(block_index))
+                        .map(|b| b.id.0.clone());
+                    if let Ok(mut sel) = self.selection_state.write() {
+                        sel.active_chain = Some(chain.0.clone());
+                        sel.active_block = block_id;
+                    }
+                }
                 Ok(vec![Event::ProjectMutated])
             }
 
@@ -241,6 +277,24 @@ impl CommandDispatcher for LocalDispatcher {
             // #561 (expanded scope): per-plugin load / unload.
             Command::LoadPlugin { id } => self.handle_load_plugin(id),
             Command::UnloadPlugin { id } => self.handle_unload_plugin(id),
+
+            // #548: selection / view mutations driven by MIDI slots.
+            Command::SelectActiveChainRelative { delta } => {
+                self.handle_select_active_chain_relative(delta)
+            }
+            Command::SelectActiveBlockRelative { delta } => {
+                self.handle_select_active_block_relative(delta)
+            }
+            Command::SetCompactViewEnabled { enabled } => {
+                self.selection_state
+                    .write()
+                    .expect("selection state poisoned")
+                    .compact_view_enabled = enabled;
+                Ok(vec![])
+            }
+            Command::ToggleActiveBlockNeighborEnabled => {
+                self.handle_toggle_active_block_neighbor_enabled()
+            }
         }
     }
 

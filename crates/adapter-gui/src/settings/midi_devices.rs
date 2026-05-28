@@ -113,6 +113,9 @@ pub fn install(
         *rows_for_refresh.borrow_mut() = merged.clone();
         replace_model(&model_for_refresh, &merged);
         dispatch_and_persist(&session_for_refresh, &merged);
+        // #548: signal the profile daemon to attach any newly visible
+        // port (e.g. a pedal paired AFTER the app started).
+        adapter_midi::request_rescan();
     });
 
     let session_for_toggle = project_session.clone();
@@ -177,6 +180,9 @@ pub fn install_secondary(
         *rows_for_refresh.borrow_mut() = merged.clone();
         replace_model(&model_for_refresh, &merged);
         dispatch_and_persist(&session_for_refresh, &merged);
+        // #548: signal the profile daemon to attach any newly visible
+        // port (e.g. a pedal paired AFTER the app started).
+        adapter_midi::request_rescan();
     });
 
     let session_for_toggle = project_session.clone();

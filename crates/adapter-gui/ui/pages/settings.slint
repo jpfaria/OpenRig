@@ -21,7 +21,6 @@ import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
 import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
-import { SectionProjectMidiMapping } from "settings/section_project_midi_mapping.slint";
 
 // Sidebar nav row — selectable item with hover bg, active-state bg,
 // 2px brand-blue left accent when selected. Used inside the sidebar
@@ -214,12 +213,6 @@ export component SettingsPage inherits Rectangle {
                     selected: root.selected-section == 4;
                     clicked => { root.selected-section = 4; }
                 }
-                NavRow {
-                    label: @tr("title-section-midi-mapping");
-                    selected: root.selected-section == 5;
-                    clicked => { root.selected-section = 5; }
-                }
-
                 // Vertical stretch so the nav rows hug the top.
                 Rectangle { vertical-stretch: 1; }
             }
@@ -247,8 +240,7 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 1 ? @tr("title-section-language")
                         : root.selected-section == 2 ? @tr("title-section-midi-devices")
                         : root.selected-section == 3 ? @tr("title-section-paths")
-                        : root.selected-section == 4 ? @tr("title-section-project-meta")
-                        : @tr("title-section-midi-mapping");
+                        : @tr("title-section-project-meta");
                     color: #dde3ec;
                     font-size: 18px;
                     font-weight: 700;
@@ -305,14 +297,6 @@ export component SettingsPage inherits Rectangle {
                         project-path-display: root.project-path-display;
                         edit-project-name(t) => { root.edit-project-name(t); }
                         save-project => { root.save-project(); }
-                    }
-                    if root.selected-section == 5 : SectionProjectMidiMapping {
-                        bindings: root.midi-bindings;
-                        available-commands: root.available-commands;
-                        add-midi-binding => { root.add-midi-binding(); }
-                        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-                        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-                        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
                     }
                 }
 

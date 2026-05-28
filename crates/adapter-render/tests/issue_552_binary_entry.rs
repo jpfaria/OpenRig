@@ -11,10 +11,7 @@ use std::process::Command;
 
 fn workdir(test: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!(
-        "openrig-render-bin-{}-{test}",
-        std::process::id()
-    ));
+    p.push(format!("openrig-render-bin-{}-{test}", std::process::id()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
     p
@@ -72,7 +69,10 @@ fn binary_renders_input_wav_to_output_wav() {
         .expect("failed to spawn openrig-render binary");
 
     assert!(status.success(), "binary must exit 0 on a valid invocation");
-    assert!(output.exists(), "output.wav must exist after a successful render");
+    assert!(
+        output.exists(),
+        "output.wav must exist after a successful render"
+    );
 
     let data = read_wav(&output).expect("output.wav must be a valid WAV");
     assert_eq!(data.sample_rate_hz, 48_000);

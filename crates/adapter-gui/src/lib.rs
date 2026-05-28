@@ -93,6 +93,8 @@ mod meter_wiring;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
+pub mod midi_profile_wiring;
+pub use midi_profile_wiring::start_midi_profiles;
 mod model_search;
 mod model_search_wiring;
 mod project_ops;

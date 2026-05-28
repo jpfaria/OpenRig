@@ -511,6 +511,24 @@ pub enum Command {
     /// compiled-in and cannot be dropped without restarting the
     /// process. Emits `Event::PluginUnloaded { id }`.
     UnloadPlugin { id: String },
+
+    /// #548: move the GUI's active chain selection by `delta` positions
+    /// (wraps). Backs MIDI slots `prev_chain` / `next_chain`. Mutates
+    /// `SelectionState::active_chain` and clears `active_block` (block
+    /// belongs to chain).
+    SelectActiveChainRelative { delta: i32 },
+
+    /// #548: move the GUI's active block selection by `delta` positions
+    /// inside the active chain (wraps, skipping Input/Output blocks).
+    SelectActiveBlockRelative { delta: i32 },
+
+    /// #548: toggle the compact-view UI mode for the active chain.
+    SetCompactViewEnabled { enabled: bool },
+
+    /// #548: toggle the block immediately AFTER the active block in
+    /// the active chain (wraps to first). Backs MIDI slot
+    /// `toggle_active_block_neighbor_enabled`.
+    ToggleActiveBlockNeighborEnabled,
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

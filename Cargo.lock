@@ -120,6 +120,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "tempfile",
 ]
 
 [[package]]
@@ -135,6 +136,7 @@ dependencies = [
  "infra-filesystem",
  "infra-yaml",
  "log",
+ "plugin-loader",
  "project",
 ]
 
@@ -2715,16 +2717,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c4ee00b289aba7a9e5306d57c2d05499b2e5dc427f84ac708bd2c090212cf3e"
 dependencies = [
  "gl_generator",
-]
-
-[[package]]
-name = "graphview-demo"
-version = "0.1.0"
-dependencies = [
- "adapter-gui",
- "env_logger",
- "log",
- "slint",
 ]
 
 [[package]]

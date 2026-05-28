@@ -20,9 +20,8 @@ fn main() {
     // ship, falling back to the raw key in the UI (e.g. "BTN-CLOSE"
     // showing up as Bebas Neue all-caps). See slint_build docs for
     // with_default_translation_context.
-    let base = slint_build::CompilerConfiguration::new().with_default_translation_context(
-        slint_build::DefaultTranslationContext::None,
-    );
+    let base = slint_build::CompilerConfiguration::new()
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
     let config = if translations.exists() {
         base.with_bundled_translations(translations)
     } else {

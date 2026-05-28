@@ -24,18 +24,30 @@ mod local_dispatcher_project;
 mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
+mod local_dispatcher_selection;
 mod local_dispatcher_stems;
 mod local_dispatcher_tracks;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
+pub mod selection_state;
 pub mod session;
+
+pub use selection_state::SelectionState;
 pub mod validate;
 
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_midi_block_nav_tests.rs"]
+mod local_dispatcher_midi_block_nav_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_midi_e2e_tests.rs"]
+mod local_dispatcher_midi_e2e_tests;
 
 #[cfg(test)]
 #[path = "local_dispatcher_paths_tests.rs"]

@@ -11,8 +11,7 @@
 use std::path::PathBuf;
 
 fn slint() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("ui/pages/chain_row.slint");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/pages/chain_row.slint");
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
@@ -22,8 +21,7 @@ fn each_stream_renders_full_row_with_per_stream_db_text() {
     // The dB text on the right of each bar must read the per-stream
     // value, otherwise multi-stream chains all show the same number.
     assert!(
-        src.contains("stream.in_dbfs <= -119.0")
-            && src.contains("stream.out_dbfs <= -119.0"),
+        src.contains("stream.in_dbfs <= -119.0") && src.contains("stream.out_dbfs <= -119.0"),
         "stream-meter loop must use per-stream dB text \
          (`stream.in_dbfs` / `stream.out_dbfs`), not the chain aggregate"
     );

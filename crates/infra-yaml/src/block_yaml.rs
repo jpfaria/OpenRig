@@ -390,11 +390,7 @@ impl AudioBlockYaml {
                         enabled,
                         kind: AudioBlockKind::Nam(NamBlock {
                             model: model.clone(),
-                            params: load_model_params(
-                                block_core::EFFECT_TYPE_NAM,
-                                &model,
-                                params,
-                            )?,
+                            params: load_model_params(block_core::EFFECT_TYPE_NAM, &model, params)?,
                         }),
                     });
                 }

@@ -5,12 +5,18 @@ no business logic — *every* user-meaningful action is a `Command` the
 dispatcher applies, so MIDI / MCP / GUI all do the same thing the same
 way. MIDI is just another producer; it can only reach what is a Command.
 
-**Reality today:** the `Command` enum has **34** variants — they cover
-**project/rig mutations only**. The desktop GUI exposes **~152**
-user-action callbacks. So roughly **~118 user actions are GUI-only** and
-are *not* reachable by MIDI/MCP. That is the gap this audit tracks; it
-is an architectural program (done red-first, incrementally), not a
-single change.
+**Reality today:** the `Command` enum has **54** variants. The desktop
+GUI still exposes more user-action callbacks than that — the remainder
+listed below is the live gap. That is the audit; it is an architectural
+program (done red-first, incrementally), not a single change.
+
+**Recent additions:**
+- #513 / #493: `SaveMidiDevices`, `SaveMidiMapping`, `StartMidiLearn`,
+  `StopMidiLearn`, `PublishMidiEvent` (5).
+- #548 Phase 3a: `SelectActiveChainRelative`, `SelectActiveBlockRelative`,
+  `SetCompactViewEnabled` (3). These back the MIDI slots `prev/next_chain`,
+  `prev/next_block_1`, `prev/next_block_2`, `toggle_compact_view` — see
+  [`docs/midi-profiles.md`](midi-profiles.md).
 
 ## The 34 that ARE commands (work via MIDI today)
 
@@ -29,9 +35,14 @@ called out block-click, compact view, latency test, opening configs):
   `toggle_block_drawer_enabled`, `close_block_drawer`,
   `delete_block_drawer` — clicking a block, opening its drawer.
 - **View toggles & windows:** `open_compact_chain_view`,
-  `close_compact_view`, `open_spectrum_window`, `close_spectrum`,
-  `open_tuner_window`, `close_tuner`, `toggle_spectrum_enabled`,
-  `toggle_tuner_enabled`, `toggle_tuner_mute`, `show_plugin_info`,
+  `close_compact_view` ✅ (#548 Phase 3a: `SetCompactViewEnabled`),
+  `open_spectrum_window`, `close_spectrum`,
+  `open_tuner_window`, `close_tuner`, `toggle_spectrum_enabled`
+  ✅ (existing `SetSpectrumEnabled`, exposed via MIDI slot
+  `toggle_spectrum` since #548 Phase 3d),
+  `toggle_tuner_enabled` ✅ (`SetTunerEnabled`, MIDI slot
+  `toggle_tuner`),
+  `toggle_tuner_mute`, `show_plugin_info`,
   `open_plugin`, `open_vst`, `close_plugin_info`.
 - **Latency / probe:** the per-chain latency probe trigger (latency
   badge) — running a measurement.

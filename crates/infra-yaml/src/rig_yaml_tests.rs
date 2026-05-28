@@ -373,10 +373,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
         name: Some("A".into()),
         blocks: Vec::new(),
         scene_params: Vec::new(),
-        scenes: BTreeMap::from([
-            (1, RigScene::default()),
-            (2, RigScene::default()),
-        ]),
+        scenes: BTreeMap::from([(1, RigScene::default()), (2, RigScene::default())]),
         volume: 100.0,
     };
     preset_a.scenes.entry(1).or_insert_with(RigScene::default);

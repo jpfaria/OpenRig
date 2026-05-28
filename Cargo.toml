@@ -43,7 +43,6 @@ members = [
   "crates/adapter-vst3",
   "crates/adapter-render",
   "crates/vst3",
-  "crates/graphview-demo",
 ]
 resolver = "2"
 

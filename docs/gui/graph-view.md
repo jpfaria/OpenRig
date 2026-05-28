@@ -2,7 +2,6 @@
 
 **Status:** introduced in #435.
 **Source:** `crates/adapter-gui/ui/components/graph_view.slint` + `crates/adapter-gui/src/graph_view_model.rs`.
-**Demo:** `cargo run -p graphview-demo` (own crate — keeps adapter-gui free of demo build weight).
 
 A reusable Slint component for rendering a directed graph with full interactivity. Built first as a standalone primitive — integration with the existing chain UI (`secondary_windows_chain.slint`, `chain_chips.slint`) is a separate effort and not part of this component.
 
@@ -171,14 +170,6 @@ Layout helper has 17 tests in `crates/adapter-gui/src/graph_view_model_tests.rs`
 - The output of `linear_chain_layout` is always valid
 
 Visual behaviour (drag, zoom, click thresholds) is validated by running the demo example. There is no automated UI test harness for Slint at this time — that's a project-wide gap, not specific to this component.
-
-## Demo
-
-```bash
-cargo run -p graphview-demo
-```
-
-Opens a window with a hardcoded chain (Noise Gate → Compressor → Overdrive → split → 2× Vox AC30 → 2× delays → merge → Shimmer Reverb → Output). Click a node to select, double-click to log "would open editor", drag to reposition, scroll to zoom, drag empty space to pan.
 
 ## Future work
 
