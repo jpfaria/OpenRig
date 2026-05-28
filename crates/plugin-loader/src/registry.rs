@@ -168,8 +168,20 @@ pub fn reload(plugins_roots: &[std::path::PathBuf]) -> ReloadStats {
     let natives = NATIVES.lock().expect("NATIVES poisoned").clone();
     let native_count = natives.len();
     let mut loaded = natives;
-    let mut seen_ids: std::collections::HashSet<String> =
+    // Natives always win — their runtime fn pointers are compiled in and
+    // have no manifest on disk to override them.
+    let native_ids: std::collections::HashSet<String> =
         loaded.iter().map(|e| e.manifest.id.clone()).collect();
+    // Among disk roots, a LATER root overrides an EARLIER one on id
+    // collision (issue #542): `init_many(&[bundled_root, user_root])`
+    // passes the read-only bundled tree first and the user's writable
+    // `plugins_path` second, so the user's copy must win. Otherwise a
+    // bundled IR cab shipped with an uncalibrated `output_gain_db: 0.0`
+    // shadows the user's calibrated copy → the convolver runs raw →
+    // ~+18 dB hot → "estourado". Maps each disk id to its slot so a
+    // later root replaces in place (keeping registration order stable).
+    let mut disk_slot: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for root in plugins_roots {
         if !root.is_dir() {
             continue;
@@ -179,12 +191,14 @@ pub fn reload(plugins_roots: &[std::path::PathBuf]) -> ReloadStats {
                 for result in results {
                     match result {
                         Ok(package) => {
-                            // De-dup by manifest id: when the same
-                            // package appears in both the bundled and
-                            // user roots, the first occurrence wins
-                            // (bundled has priority since it's earlier
-                            // in the list).
-                            if seen_ids.insert(package.manifest.id.clone()) {
+                            let id = package.manifest.id.clone();
+                            if native_ids.contains(&id) {
+                                // A native with this id already won.
+                            } else if let Some(&slot) = disk_slot.get(&id) {
+                                // Later root overrides the earlier one.
+                                loaded[slot] = package;
+                            } else {
+                                disk_slot.insert(id, loaded.len());
                                 loaded.push(package);
                             }
                         }
