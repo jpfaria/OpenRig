@@ -751,6 +751,10 @@ mod stream_count_contention;
 mod audio_under_gui_pressure;
 
 #[cfg(test)]
+#[path = "audio_alloc_invariant_tests.rs"]
+mod audio_alloc_invariant;
+
+#[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]
 mod audio_signal_integrity;
 
