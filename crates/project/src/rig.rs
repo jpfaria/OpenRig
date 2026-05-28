@@ -37,8 +37,9 @@ pub struct RigProject {
     pub midi: Option<crate::midi::RigProjectMidi>,
     /// User-defined order of projected chains by input name (no `rig:`
     /// prefix). Empty ⇒ alphabetical `inputs` iteration (default). Issue
-    /// #502 / regression of #246.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// #502 / regression of #246. Persists under the kebab-case key
+    /// `chain-order:` to match `active-preset`, `scene-params`, etc.
+    #[serde(default, rename = "chain-order", skip_serializing_if = "Vec::is_empty")]
     pub chain_order: Vec<String>,
 }
 

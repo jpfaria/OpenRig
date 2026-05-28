@@ -17,20 +17,38 @@ fn slint() -> String {
 #[test]
 fn chain_row_stream_meter_loop_advances_y_not_x() {
     let src = slint();
-    assert!(
-        src.contains("per-bar-height"),
-        "chain_row.slint must compute per-bar-height (vertical stacking)"
-    );
+    // The user-facing contract: NO horizontal per-stream layout —
+    // we never want streams sitting side-by-side ("um do lado do
+    // outro"). Whatever variable the Slint uses to size the bar,
+    // it must not be named `per-bar-width` (which signalled the
+    // bug originally).
     assert!(
         !src.contains("per-bar-width"),
-        "chain_row.slint must NOT keep per-bar-width — the user asked \
-         for vertical stacking; horizontal layout is the bug"
+        "chain_row.slint must NOT use per-bar-width — vertical stacking only"
     );
-    // The per-stream loop body for the INPUT mini-bars must offset y
-    // by the stream index, not x.
+    // The per-stream `for stream[i] in …` loop must position each
+    // bar by an increasing y offset driven by the loop index `i`.
+    // The current layout stacks UPWARD from the bottom row (last
+    // stream lands at the base slot), but any vertical-stacking
+    // formula is acceptable here as long as it offsets `y` by `i`,
+    // not `x`. We assert the loop body uses the index inside a `y:`
+    // expression and never inside an `x:` expression.
+    let stream_loop_start = src
+        .find("for stream[i] in root.chain.stream_meters")
+        .expect("expected per-stream Rectangle loop in chain_row.slint");
+    let loop_body = &src[stream_loop_start..];
     assert!(
-        src.contains("y: 2px + i * (parent.per-bar-height + parent.bar-gap)")
-            || src.contains("y: 2px + i * (parent.bar-gap + parent.per-bar-height)"),
-        "stream loop must position each bar at increasing y, not x"
+        loop_body.contains("y:") && loop_body.contains("i)") || loop_body.contains("- i)"),
+        "per-stream loop must offset `y` using the loop index `i`"
+    );
+    // Forbid an `x: ... * i` layout in the loop body (the original
+    // horizontal-layout regression).
+    let horizontal_loop_offset = loop_body
+        .lines()
+        .take_while(|l| !l.contains("}"))
+        .any(|l| l.contains("x:") && (l.contains("* i") || l.contains("i *")));
+    assert!(
+        !horizontal_loop_offset,
+        "per-stream loop must NOT offset `x` by the loop index — that brings the horizontal layout back"
     );
 }

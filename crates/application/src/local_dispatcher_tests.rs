@@ -237,7 +237,14 @@ fn set_block_parameter_number_non_existent_block_returns_err() {
 }
 
 #[test]
-fn set_block_parameter_number_non_existent_path_returns_err() {
+fn set_block_parameter_number_unknown_path_inserts_without_touching_other_params() {
+    // Post-#496: `set_parameter_number` no longer rejects unknown paths;
+    // a NAM block saved before #496 (when `output_db` was filtered out
+    // of the schema) has no entry for it yet, and the dispatch layer
+    // only emits paths drawn from the active schema. So writing a new
+    // path is a valid insert. What this test still pins is the
+    // ISOLATION contract: setting one path must not corrupt the value
+    // of another, existing parameter on the same block.
     let block = make_core_block_with_param("blk_0", "gain", 0.5);
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
@@ -245,17 +252,15 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-        path: "no_such_param".to_string(),
+        path: "newly_exposed_param".to_string(),
         value: 0.8,
     });
 
-    assert!(result.is_err(), "expected Err for missing path, got Ok");
-    let err_msg = result.unwrap_err().to_string();
     assert!(
-        err_msg.contains("no_such_param"),
-        "error message must mention the missing path, got: {err_msg}"
+        result.is_ok(),
+        "unknown path must insert (post-#496), got: {:?}",
+        result.err()
     );
-    // Original value must be unchanged
     let proj = project.borrow();
     let AudioBlockKind::Core(ref core) = proj.chains[0].blocks[0].kind else {
         panic!("expected CoreBlock");
@@ -263,7 +268,12 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     assert_eq!(
         core.params.get_f32("gain"),
         Some(0.5_f32),
-        "gain must not be mutated when path is not found"
+        "writing newly_exposed_param must not touch the gain value"
+    );
+    assert_eq!(
+        core.params.get_f32("newly_exposed_param"),
+        Some(0.8_f32),
+        "the newly-exposed path must now be set to the dispatched value"
     );
 }
 
