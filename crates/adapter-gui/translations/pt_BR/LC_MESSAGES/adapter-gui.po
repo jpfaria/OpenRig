@@ -598,6 +598,10 @@ msgid "label-plugins-path"
 msgstr "Pasta de plugins"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-evaluations-path"
+msgstr "Pasta de avaliações"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "btn-choose-path"
 msgstr "Escolher…"
 

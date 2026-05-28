@@ -577,6 +577,10 @@ msgid "label-plugins-path"
 msgstr "Plugins folder"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-evaluations-path"
+msgstr "Evaluations folder"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "btn-choose-path"
 msgstr "Choose…"
 

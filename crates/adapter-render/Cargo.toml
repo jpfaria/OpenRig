@@ -8,7 +8,6 @@ anyhow.workspace = true
 hound = "3.5"
 cpal.workspace = true
 log.workspace = true
-application = { path = "../application" }
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 infra-filesystem = { path = "../infra-filesystem" }

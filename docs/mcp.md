@@ -26,7 +26,12 @@ follow-up.
 
 - **Tools** — one per `Command` variant (JSON schema auto-derived from
   `application::command`; no hand-written schema). The agent adds blocks,
-  changes parameters, switches presets, saves the project, etc.
+  changes parameters, switches presets, saves the project, etc. Includes
+  `render_chain` (`Command::RenderChain`, #576) — an offline render that
+  applies a chain/preset YAML to a WAV and writes the processed output
+  WAV via the same `adapter-render` call site as `openrig-render`. Paths
+  are local to the host; live capture stays in the binary. See
+  `docs/render.md`.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
@@ -45,6 +50,13 @@ follow-up.
     parameter snapshot: schema **plus** `current_value` per parameter
     (JSON, wrapped under a `params` envelope). Unknown chain / block
     → error from the bridge.
+  - `openrig://paths` (#582) — effective resolved system paths
+    (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
+    as a JSON object. Every value is an absolute path: when the user
+    has not set an override in `config.yaml`, the resource returns the
+    OS default a consumer would compute itself. Skills (e.g.
+    `openrig-tone-analyzer`) read this instead of hard-coding
+    `~/Library/Application Support/OpenRig/…`.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.

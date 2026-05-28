@@ -117,3 +117,68 @@ mode). Putting it on the GUI binary would force the headless build to
 compile Slint, MCP, and MIDI even when none of them initialise. It
 follows the same pattern as `adapter-console` and `adapter-console-rig`:
 console-style adapters around the same engine core.
+
+## Render as a `Command` (issue #576)
+
+Offline render is exposed as `Command::RenderChain`. It does not mutate
+the live project's State; it sits on the command bus purely for
+transport-adapter parity — the LEI "every user operation is a
+`Command`" applies here too, so MCP/gRPC/any future transport inherits
+the tool automatically through `application::command_schema`. The
+handler in `application::render_handler` is a thin shim that calls
+`adapter_render::render()` (the same call site as the `openrig-render`
+binary, same atomic output write, same determinism guarantee).
+
+**File mode only.** Live capture (cpal-driven) stays inside the
+`openrig-render` binary so `application` does not pick up a sound-device
+dep. An MCP/gRPC client that needs a live capture re-uses the binary
+out-of-band, then re-runs the command with the captured WAV.
+
+### MCP tool: `render_chain`
+
+Auto-derived from the `Command::RenderChain` variant — no hand-written
+schema, no special-case wiring in `adapter-mcp`. The tool appears in the
+catalog alongside every other Command-tool.
+
+Input shape (mirrors the file-mode flags above; live-capture flags are
+intentionally absent — use the binary for that):
+
+```jsonc
+{
+  "chain_path":   "/abs/path/chain.yaml",   // required
+  "input_path":   "/abs/path/di.wav",       // required (must exist on disk)
+  "output_path":  "/abs/path/wet.wav",      // required
+  "start_s":      0.0,                       // optional
+  "end_s":        12.34,                     // optional
+  "sample_rate_hz": 48000,                   // optional, default 48000
+  "block_size":     256,                     // optional, default 256
+  "bit_depth":      24,                      // optional, 16|24|32, default 24
+  "tail_ms":      2000                       // optional, default 2000
+}
+```
+
+The tool call returns the dispatcher's event list as JSON; the
+interesting event is `RenderCompleted`:
+
+```jsonc
+{
+  "RenderCompleted": {
+    "output_path":      "/abs/path/wet.wav",
+    "duration_seconds": 12.34,
+    "sample_rate":      48000,
+    "bit_depth":        24
+  }
+}
+```
+
+Failures (invalid `bit_depth`, missing input WAV, chain load error,
+engine error, IO error) come back as a `CallToolResult` error with the
+underlying message. No partial output WAV is left on failure — the
+atomic `<output>.tmp` + rename guarantee carries through unchanged from
+the binary.
+
+Paths are local to the host. The tool does **not** stream audio over
+MCP — host and client are assumed co-located. Same scope limits as the
+binary (single chain, no I/O block routing, no MIDI/automation replay).
+The `openrig-render` binary stays — the Command path is an additional
+surface for agents/transports, not a substitute.

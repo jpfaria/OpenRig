@@ -237,7 +237,14 @@ fn set_block_parameter_number_non_existent_block_returns_err() {
 }
 
 #[test]
-fn set_block_parameter_number_non_existent_path_returns_err() {
+fn set_block_parameter_number_unknown_path_inserts_without_touching_other_params() {
+    // Post-#496: `set_parameter_number` no longer rejects unknown paths;
+    // a NAM block saved before #496 (when `output_db` was filtered out
+    // of the schema) has no entry for it yet, and the dispatch layer
+    // only emits paths drawn from the active schema. So writing a new
+    // path is a valid insert. What this test still pins is the
+    // ISOLATION contract: setting one path must not corrupt the value
+    // of another, existing parameter on the same block.
     let block = make_core_block_with_param("blk_0", "gain", 0.5);
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
@@ -245,17 +252,15 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-        path: "no_such_param".to_string(),
+        path: "newly_exposed_param".to_string(),
         value: 0.8,
     });
 
-    assert!(result.is_err(), "expected Err for missing path, got Ok");
-    let err_msg = result.unwrap_err().to_string();
     assert!(
-        err_msg.contains("no_such_param"),
-        "error message must mention the missing path, got: {err_msg}"
+        result.is_ok(),
+        "unknown path must insert (post-#496), got: {:?}",
+        result.err()
     );
-    // Original value must be unchanged
     let proj = project.borrow();
     let AudioBlockKind::Core(ref core) = proj.chains[0].blocks[0].kind else {
         panic!("expected CoreBlock");
@@ -263,7 +268,12 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     assert_eq!(
         core.params.get_f32("gain"),
         Some(0.5_f32),
-        "gain must not be mutated when path is not found"
+        "writing newly_exposed_param must not touch the gain value"
+    );
+    assert_eq!(
+        core.params.get_f32("newly_exposed_param"),
+        Some(0.8_f32),
+        "the newly-exposed path must now be set to the dispatched value"
     );
 }
 
@@ -2444,72 +2454,82 @@ fn make_device_settings(device_id: &str) -> project::device::DeviceSettings {
     }
 }
 
+// #581: SaveAudioSettings now persists into the per-machine
+// `config.yaml`. Each test redirects `$HOME` to a unique tempdir so the
+// FS write stays out of the developer's real `~/Library/Application
+// Support/OpenRig/`.
 #[test]
 fn save_audio_settings_writes_device_settings_and_emits_event() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-emit", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: settings.clone(),
+        let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: settings.clone(),
+        });
+
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        let events = result.unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, Event::AudioSettingsSaved)),
+            "expected AudioSettingsSaved event, got {:?}",
+            events
+        );
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 2);
+        assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
+        assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
     });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let events = result.unwrap();
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, Event::AudioSettingsSaved)),
-        "expected AudioSettingsSaved event, got {:?}",
-        events
-    );
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 2);
-    assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
-    assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
 }
 
 #[test]
 fn save_audio_settings_replaces_previous_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("old_dev")],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-replace", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("old_dev")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![make_device_settings("new_dev")],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: vec![make_device_settings("new_dev")],
+        });
+
+        assert!(result.is_ok());
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 1);
+        assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
     });
-
-    assert!(result.is_ok());
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 1);
-    assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
 }
 
 #[test]
 fn save_audio_settings_empty_clears_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("dev_a")],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-empty", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("dev_a")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: vec![],
+        });
+
+        assert!(result.is_ok());
+        assert!(project.borrow().device_settings.is_empty());
     });
-
-    assert!(result.is_ok());
-    assert!(project.borrow().device_settings.is_empty());
 }
 
 // ── SaveProject tests ─────────────────────────────────────────────────────────

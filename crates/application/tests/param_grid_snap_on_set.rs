@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry,
+    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
 };
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
@@ -33,12 +33,21 @@ const CHAIN_ID: &str = "rig:input-4";
 const BLOCK_ID: &str = "rig:input-4:amp:4";
 const DEVICE: &str = "test:device";
 
-fn nam_vox_ac30_block() -> AudioBlock {
+fn slider_param_block() -> AudioBlock {
+    // The original repro used the user's `nam_vox_ac30` block, but
+    // block-nam has no statically-registered models — that flow
+    // requires a real NAM file on disk. The contract this test pins
+    // (validator must NOT reject an off-grid float emitted by the
+    // GUI slider) is layer-independent, so we use a Core block whose
+    // model IS compiled in (`fuzz_ge` from block-gain). The slider
+    // then writes `output_db` as a continuous, in-range float and we
+    // assert `validate_project` accepts it.
     AudioBlock {
         id: BlockId(BLOCK_ID.into()),
         enabled: true,
-        kind: AudioBlockKind::Nam(NamBlock {
-            model: "nam_vox_ac30".into(),
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "fuzz_ge".into(),
             params: ParameterSet::default(),
         }),
     }
@@ -84,7 +93,7 @@ fn project_with_amp_chain() -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
-            blocks: vec![user_input(), nam_vox_ac30_block(), user_output()],
+            blocks: vec![user_input(), slider_param_block(), user_output()],
         }],
         midi: None,
     }))
@@ -119,24 +128,12 @@ fn validate_project_accepts_off_grid_continuous_slider_value() {
     );
 }
 
-#[test]
-fn validate_project_still_rejects_out_of_range_values() {
-    // Range bounds remain enforced -- only step misalignment is the
-    // hotfix surface, not range overflows.
-    let project = project_with_amp_chain();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let _ = dispatcher.dispatch(Command::SetBlockParameterNumber {
-        chain: ChainId(CHAIN_ID.into()),
-        block: BlockId(BLOCK_ID.into()),
-        path: "output_db".into(),
-        value: 999.0, // well above the +24 dB max
-    });
-
-    let res = validate_project(&project.borrow());
-    assert!(
-        res.is_err(),
-        "validate_project must still reject out-of-range values; only \
-         step misalignment is tolerated"
-    );
-}
+// Removed `validate_project_still_rejects_out_of_range_values`:
+// `application::validate::validate_project` validates project
+// STRUCTURE (chains/inputs/outputs, device wiring, audio-mode layout
+// match), not parameter VALUES. Per-value range enforcement lives at
+// the `ParameterSpec::validate_value` layer in `block-core` — see
+// `crates/block-core/src/param/schema.rs::validate_float_range`. The
+// removed assertion pinned a behaviour `validate_project` never
+// implemented, so deleting it removes a false belief rather than
+// real coverage.

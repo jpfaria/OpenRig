@@ -25,7 +25,7 @@
 //!     modules.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwap;
@@ -299,6 +299,34 @@ pub struct ChainRuntimeState {
     /// f32 armazenado como u32 bits (Relaxed ordering é suficiente — não há
     /// sincronização com outras escritas).
     pub(crate) volume_pct_bits: AtomicU32,
+    /// Lock-free mirror of `processing.input_states.len()` (issue #580).
+    /// The meter polling timer calls `stream_count` at 30 Hz on the GUI
+    /// thread — reading it through the `processing` Mutex contends with
+    /// the audio thread's `process_input_f32 → try_lock`, and a failed
+    /// try_lock there means the callback emits silence (audible click at
+    /// small buffer sizes). `input_states.len()` only changes on runtime
+    /// build / rebuild in `runtime_graph`, so a single `AtomicUsize`
+    /// updated at those two sites is sufficient — readers never block
+    /// the audio thread. Relaxed ordering: the value is purely
+    /// informational for the GUI's subscription loop; a reader briefly
+    /// seeing the old count just defers an extra subscription to the
+    /// next tick. No synchronisation with audio-thread state needed.
+    pub(crate) stream_count: AtomicUsize,
+    /// Lock-free producer/consumer queue for pending block-toggle
+    /// requests (issue #580 follow-up). The GUI's
+    /// `Command::ToggleBlockEnabled` handler calls `set_block_enabled`,
+    /// which pushes `(block_id, enabled)` here without taking any lock.
+    /// The audio thread drains and applies the toggle inside its
+    /// `process_input_f32` `try_lock`'d section (one cheap walk over
+    /// `input_states.blocks`, in place). Result: the GUI thread NEVER
+    /// holds `processing`, so the audio thread's `try_lock` never fails
+    /// because of a user toggle — the click the user heard on every
+    /// block on/off is gone. Capacity 64 is far above the user's
+    /// per-frame click rate (the audio drain runs at hundreds of Hz),
+    /// so a queue overflow in practice would mean the audio thread has
+    /// stalled — which is a louder bug than a dropped toggle. The
+    /// `set_block_enabled` API still surfaces such overflows as `Err`.
+    pub(crate) pending_block_toggles: ArrayQueue<(BlockId, bool)>,
 }
 
 impl ChainRuntimeState {
@@ -453,11 +481,14 @@ impl ChainRuntimeState {
     /// How many streams this chain currently runs (one per
     /// `InputProcessingState`). Used by the UI to know how many
     /// per-stream taps to subscribe.
+    ///
+    /// Reads a lock-free atomic mirror updated by `runtime_graph` on
+    /// build / rebuild (issue #580). Never blocks — the meter polling
+    /// timer calls this at 30 Hz on the GUI thread, and any lock taken
+    /// here contends with the audio thread's `try_lock` on
+    /// `processing`, silencing callbacks at small buffer sizes.
     pub fn stream_count(&self) -> usize {
-        self.processing
-            .lock()
-            .map(|p| p.input_states.len())
-            .unwrap_or(0)
+        self.stream_count.load(Ordering::Relaxed)
     }
 
     /// For a given LOCAL stream index in this runtime

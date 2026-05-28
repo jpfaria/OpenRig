@@ -8,10 +8,7 @@ use std::path::PathBuf;
 
 fn workdir(test: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!(
-        "openrig-issue-574-{}-{test}",
-        std::process::id()
-    ));
+    p.push(format!("openrig-issue-574-{}-{test}", std::process::id()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
     p
@@ -177,8 +174,12 @@ blocks:
     let out_enabled = dir.join("out_enabled.wav");
     let out_disabled = dir.join("out_disabled.wav");
 
-    render(&base_args(chain_enabled, input.clone(), out_enabled.clone()))
-        .expect("render enabled");
+    render(&base_args(
+        chain_enabled,
+        input.clone(),
+        out_enabled.clone(),
+    ))
+    .expect("render enabled");
     render(&base_args(chain_disabled, input, out_disabled.clone())).expect("render disabled");
 
     let bytes_enabled = std::fs::read(&out_enabled).unwrap();
@@ -200,11 +201,15 @@ fn render_with_bundled_input_different_gain() {
 
     // If assets don't exist, skip this test gracefully
     if !bundled_input.exists() {
-        eprintln!("Skipping: bundled input.wav not found at {:?}", bundled_input);
+        eprintln!(
+            "Skipping: bundled input.wav not found at {:?}",
+            bundled_input
+        );
         return;
     }
 
-    let dir = std::env::temp_dir().join(format!("openrig-issue-574-bundled-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("openrig-issue-574-bundled-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
 

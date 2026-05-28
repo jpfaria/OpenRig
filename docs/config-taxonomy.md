@@ -24,7 +24,14 @@ page for the working rule.
 
 - `language` — UI locale.
 - `recent_projects` — recently opened projects list.
-- `paths` — asset roots (thumbnails, screenshots, metadata).
+- `paths` — asset roots (thumbnails, screenshots, metadata) plus three
+  user-overridable directories: `presets_path` (project presets,
+  #513), `plugins_path` (NAM/IR/LV2 packs, #513),
+  `evaluations_path` (tone-analyzer outputs, #582). Each defaults to
+  a folder under the OS data root (`~/Library/Application
+  Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
+  and is machine-local per ADR 0003 — never travels with
+  `project.openrig`.
 - `input_devices` / `output_devices` — per-machine audio device defaults.
 - MIDI device profile (`midi-profile.yaml`) — which controller port to listen to.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has

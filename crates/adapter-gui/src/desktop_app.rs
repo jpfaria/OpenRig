@@ -966,6 +966,16 @@ pub fn run_desktop_app(
                                     block,
                                 )
                             }
+                            // #582: effective resolved system paths
+                            // (data root + every configurable directory)
+                            // for the `openrig://paths` MCP resource.
+                            // Loads from `config.yaml` on each call so
+                            // path overrides written via
+                            // `Command::Set*Path` are visible immediately
+                            // without restarting the process.
+                            application::bridge::QueryKind::Paths => {
+                                Ok(application::query::resolved_paths_json())
+                            }
                         },
                         32,
                     );

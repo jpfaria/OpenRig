@@ -201,6 +201,32 @@ impl CommandDispatcher for LocalDispatcher {
 
             Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
 
+            // #576: offline render — does not mutate the live project,
+            // lives on the Command bus purely for transport-adapter
+            // parity (MCP/gRPC auto-derive the tool via command_schema).
+            Command::RenderChain {
+                chain_path,
+                input_path,
+                output_path,
+                start_s,
+                end_s,
+                sample_rate_hz,
+                block_size,
+                bit_depth,
+                tail_ms,
+            } => crate::render_handler::run(
+                chain_path,
+                input_path,
+                output_path,
+                start_s,
+                end_s,
+                sample_rate_hz,
+                block_size,
+                bit_depth,
+                tail_ms,
+            )
+            .map(|ev| vec![ev]),
+
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
@@ -253,9 +279,9 @@ impl CommandDispatcher for LocalDispatcher {
             // #513: system-level paths overrides. No project mutation —
             // the adapter persists `config.yaml` on `Event::PathsSaved`,
             // mirroring `SaveMidiDevices` (ADR 0003).
-            Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
-                self.handle_paths_system(cmd)
-            }
+            Command::SetPresetsPath { .. }
+            | Command::SetPluginsPath { .. }
+            | Command::SetEvaluationsPath { .. } => self.handle_paths_system(cmd),
 
             Command::SeparateStems { .. } => self.handle_separate_stems(cmd),
 
@@ -408,6 +434,11 @@ impl LocalDispatcher {
             Command::SetPluginsPath { path } => {
                 FilesystemStorage::save_plugins_path(path)
                     .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
+                Ok(vec![Event::PathsSaved])
+            }
+            Command::SetEvaluationsPath { path } => {
+                FilesystemStorage::save_evaluations_path(path)
+                    .map_err(|e| anyhow::anyhow!("save_evaluations_path failed: {e}"))?;
                 Ok(vec![Event::PathsSaved])
             }
             other => {

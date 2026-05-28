@@ -48,7 +48,12 @@ captures:
     );
     write(&pkg.join("bright.wav"), b"fake");
     write(&pkg.join("neutral.wav"), b"fake");
-    plugin_loader::registry::init(&root);
+    // `init` is first-call-wins (OnceLock-backed): if a sibling test in
+    // this binary ran first, this `init` is a no-op and the catalog
+    // never picks up THIS test's body package. `reload` always rebuilds
+    // the catalog from the supplied roots, so each test sees its own
+    // body package regardless of test order.
+    let _ = plugin_loader::registry::reload(&[root]);
 }
 
 #[test]

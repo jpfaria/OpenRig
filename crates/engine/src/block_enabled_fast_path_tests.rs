@@ -23,8 +23,8 @@ use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 
 use super::{
-    build_chain_runtime_state, set_block_enabled, ChainRuntimeState, FadeState,
-    DEFAULT_ELASTIC_TARGET,
+    build_chain_runtime_state, process_input_f32, process_output_f32, set_block_enabled,
+    ChainRuntimeState, FadeState, DEFAULT_ELASTIC_TARGET,
 };
 
 const SR: f32 = 48_000.0;
@@ -95,6 +95,22 @@ fn build_runtime() -> Arc<ChainRuntimeState> {
     )
 }
 
+/// Drive one input + output callback. Issue #580 follow-up:
+/// `set_block_enabled` now queues the toggle on a lock-free
+/// `ArrayQueue` and the audio thread drains + applies it inside its
+/// own `processing` `try_lock` guard. So these tests must run at
+/// least one callback after the toggle to observe the resulting
+/// `fade_state` mutation / `error_queue` entry.
+fn drive_one_callback(runtime: &Arc<ChainRuntimeState>) {
+    let input_total_channels = 1_usize; // mono input per `test_chain`
+    let output_total_channels = 2_usize; // stereo output per `test_chain`
+    let frames = 32_usize;
+    let input_buf = vec![0.0_f32; frames * input_total_channels];
+    let mut output_buf = vec![0.0_f32; frames * output_total_channels];
+    process_input_f32(runtime, 0, &input_buf, input_total_channels);
+    process_output_f32(runtime, 0, &mut output_buf, output_total_channels);
+}
+
 fn block_fade_state(runtime: &ChainRuntimeState, block: &BlockId) -> Option<FadeState> {
     let processing = runtime.processing.lock().expect("lock processing");
     for input_state in processing.input_states.iter() {
@@ -118,7 +134,8 @@ fn set_block_enabled_false_transitions_to_fading_out_without_rebuild() {
         "block must start active or fading in, got {before:?}"
     );
 
-    set_block_enabled(&runtime, &block, false).expect("fast-path must succeed");
+    set_block_enabled(&runtime, &block, false).expect("queueing must succeed");
+    drive_one_callback(&runtime); // drain pending_block_toggles
 
     let after = block_fade_state(&runtime, &block).expect("block stays in runtime after disable");
     assert!(
@@ -132,8 +149,9 @@ fn set_block_enabled_true_after_disable_transitions_back_to_fading_in() {
     let runtime = build_runtime();
     let block = BlockId(BLOCK_ID.into());
 
-    set_block_enabled(&runtime, &block, false).expect("disable succeeds");
-    set_block_enabled(&runtime, &block, true).expect("re-enable succeeds");
+    set_block_enabled(&runtime, &block, false).expect("queue disable");
+    set_block_enabled(&runtime, &block, true).expect("queue re-enable");
+    drive_one_callback(&runtime); // drain both queued toggles
 
     let after = block_fade_state(&runtime, &block).expect("block stays in runtime");
     assert!(
@@ -143,13 +161,30 @@ fn set_block_enabled_true_after_disable_transitions_back_to_fading_in() {
 }
 
 #[test]
-fn set_block_enabled_unknown_block_returns_err_without_mutation() {
+fn set_block_enabled_unknown_block_posts_error_to_error_queue() {
+    // Issue #580 follow-up: `set_block_enabled` now returns Ok if the
+    // toggle was queued successfully — the per-block lookup (and its
+    // "not found" diagnosis) happens on the audio thread, which posts
+    // the failure to the runtime's `error_queue` for the GUI to drain
+    // via `poll_errors`. Pin the new contract.
     let runtime = build_runtime();
     let missing = BlockId("does:not:exist".into());
 
     let result = set_block_enabled(&runtime, &missing, false);
     assert!(
-        result.is_err(),
-        "missing block must yield Err, got {result:?}"
+        result.is_ok(),
+        "queueing must succeed even for an unknown block id, got {result:?}"
+    );
+
+    drive_one_callback(&runtime); // audio thread drains + diagnoses
+
+    let errors = runtime.poll_errors();
+    let saw_not_found = errors
+        .iter()
+        .any(|e| e.block_id == missing && e.message.contains("not found"));
+    assert!(
+        saw_not_found,
+        "audio thread must post a 'not found' BlockError for the missing \
+         block id, got {errors:?}"
     );
 }
