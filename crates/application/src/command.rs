@@ -400,6 +400,14 @@ pub enum Command {
     /// on `Event::PathsSaved`.
     SetPluginsPath { path: Option<PathBuf> },
 
+    /// #582: persist the user's preferred directory for evaluation
+    /// artifacts (tone-analyzer outputs, fingerprints, comparison
+    /// reports). `None` resets to the OS default
+    /// ([`infra_filesystem::default_evaluations_path`]). System-level
+    /// setting per ADR 0003 — the adapter writes it into `config.yaml`
+    /// on `Event::PathsSaved`.
+    SetEvaluationsPath { path: Option<PathBuf> },
+
     /// #561: re-scan the plugin packages directories without restarting
     /// the process. Same path resolution as boot
     /// (`detect_data_root().join("plugins")` + `plugins_root_from_config`),

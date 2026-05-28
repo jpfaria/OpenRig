@@ -90,9 +90,10 @@ export component SettingsPage inherits Rectangle {
     in property <[MidiDeviceRow]> midi-devices;
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
-    // System / Paths section (#513). Empty string = use OS default.
+    // System / Paths section (#513 + #582). Empty string = use OS default.
     in property <string> presets-path;
     in property <string> plugins-path;
+    in property <string> evaluations-path;
     // #561: status text for the plugin catalog reload row in the
     // Paths section. Empty until the user runs the action.
     in property <string> plugin-catalog-status;
@@ -128,6 +129,9 @@ export component SettingsPage inherits Rectangle {
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    // #582: evaluations directory pick/reset (Settings → Paths).
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
     // #561: hot-reload the plugin catalog (no payload).
     callback reload-plugin-catalog();
 
@@ -285,11 +289,14 @@ export component SettingsPage inherits Rectangle {
                     if root.selected-section == 3 : SectionSystemPaths {
                         presets-path: root.presets-path;
                         plugins-path: root.plugins-path;
+                        evaluations-path: root.evaluations-path;
                         plugin-catalog-status: root.plugin-catalog-status;
                         pick-presets-path => { root.pick-presets-path(); }
                         reset-presets-path => { root.reset-presets-path(); }
                         pick-plugins-path => { root.pick-plugins-path(); }
                         reset-plugins-path => { root.reset-plugins-path(); }
+                        pick-evaluations-path => { root.pick-evaluations-path(); }
+                        reset-evaluations-path => { root.reset-evaluations-path(); }
                         reload-plugin-catalog => { root.reload-plugin-catalog(); }
                     }
                     if root.selected-section == 4 : SectionProjectMeta {

@@ -590,6 +590,10 @@ msgid "label-plugins-path"
 msgstr "Carpeta de plugins"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
+msgid "label-evaluations-path"
+msgstr "Carpeta de evaluaciones"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "btn-choose-path"
 msgstr "Elegir…"
 

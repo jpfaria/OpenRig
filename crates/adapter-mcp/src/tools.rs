@@ -81,7 +81,9 @@ mod tests {
     /// `SetCompactViewEnabled`, `ToggleActiveBlockNeighborEnabled`.
     /// #576 bumped to 59 with `RenderChain` — offline render via the
     /// command bus so every transport adapter (MCP/gRPC/…) inherits it.
-    const COMMAND_VARIANT_COUNT: usize = 59;
+    /// #582 bumped to 60 with `SetEvaluationsPath` — third
+    /// system-paths override alongside `SetPresetsPath`/`SetPluginsPath`.
+    const COMMAND_VARIANT_COUNT: usize = 60;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

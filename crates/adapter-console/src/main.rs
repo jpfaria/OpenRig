@@ -199,6 +199,11 @@ fn main() -> Result<()> {
                 QueryKind::ListChainPresets { .. } | QueryKind::ListProjectPresets => {
                     Err("console adapter has no rig attached".to_string())
                 }
+                // #582: effective resolved system paths. Reads
+                // `config.yaml` directly via the application helper —
+                // no project state required, so the console adapter
+                // serves the same envelope the GUI does.
+                QueryKind::Paths => Ok(application::query::resolved_paths_json()),
             },
             64,
         );
