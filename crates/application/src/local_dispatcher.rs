@@ -279,9 +279,9 @@ impl CommandDispatcher for LocalDispatcher {
             // #513: system-level paths overrides. No project mutation —
             // the adapter persists `config.yaml` on `Event::PathsSaved`,
             // mirroring `SaveMidiDevices` (ADR 0003).
-            Command::SetPresetsPath { .. } | Command::SetPluginsPath { .. } => {
-                self.handle_paths_system(cmd)
-            }
+            Command::SetPresetsPath { .. }
+            | Command::SetPluginsPath { .. }
+            | Command::SetEvaluationsPath { .. } => self.handle_paths_system(cmd),
 
             // #561: hot-reload the plugin catalog (no payload).
             Command::ReloadPluginCatalog => self.handle_reload_plugin_catalog(),
@@ -419,6 +419,11 @@ impl LocalDispatcher {
             Command::SetPluginsPath { path } => {
                 FilesystemStorage::save_plugins_path(path)
                     .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
+                Ok(vec![Event::PathsSaved])
+            }
+            Command::SetEvaluationsPath { path } => {
+                FilesystemStorage::save_evaluations_path(path)
+                    .map_err(|e| anyhow::anyhow!("save_evaluations_path failed: {e}"))?;
                 Ok(vec![Event::PathsSaved])
             }
             other => {

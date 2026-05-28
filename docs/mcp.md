@@ -50,6 +50,13 @@ follow-up.
     parameter snapshot: schema **plus** `current_value` per parameter
     (JSON, wrapped under a `params` envelope). Unknown chain / block
     → error from the bridge.
+  - `openrig://paths` (#582) — effective resolved system paths
+    (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
+    as a JSON object. Every value is an absolute path: when the user
+    has not set an override in `config.yaml`, the resource returns the
+    OS default a consumer would compute itself. Skills (e.g.
+    `openrig-tone-analyzer`) read this instead of hard-coding
+    `~/Library/Application Support/OpenRig/…`.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.

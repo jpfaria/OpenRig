@@ -80,6 +80,27 @@ fn apply_plugins_path(
     }
 }
 
+/// #582: same persist+dispatch pattern for the evaluations directory.
+fn apply_evaluations_path(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    path: Option<PathBuf>,
+) {
+    if let Err(e) = FilesystemStorage::save_evaluations_path(path.clone()) {
+        log::warn!("[paths] failed to persist evaluations-path into config.yaml: {e}");
+        return;
+    }
+    let session = project_session.borrow();
+    let Some(session) = session.as_ref() else {
+        return;
+    };
+    if let Err(e) = session
+        .dispatcher
+        .dispatch(Command::SetEvaluationsPath { path })
+    {
+        log::warn!("[paths] Command::SetEvaluationsPath failed: {e}");
+    }
+}
+
 /// #561: dispatch `Command::ReloadPluginCatalog` and return a
 /// human-readable summary of the new totals (or an error message
 /// suitable for the status text). Both `install` and `install_secondary`
@@ -187,6 +208,29 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
         }
     });
 
+    // ── evaluations / Choose (#582) ─────────────────────────────────
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_pick_evaluations_path(move || {
+        let Some(path) = pick_folder_dialog() else {
+            return;
+        };
+        apply_evaluations_path(&session, Some(path.clone()));
+        if let Some(w) = win_weak.upgrade() {
+            w.set_evaluations_path(path.to_string_lossy().into_owned().into());
+        }
+    });
+
+    // ── evaluations / Reset (#582) ──────────────────────────────────
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_reset_evaluations_path(move || {
+        apply_evaluations_path(&session, None);
+        if let Some(w) = win_weak.upgrade() {
+            w.set_evaluations_path(slint::SharedString::default());
+        }
+    });
+
     // ── #561 reload plugin catalog ──────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
@@ -248,6 +292,28 @@ pub fn install_secondary(
         }
     });
 
+    // ── evaluations (#582) — secondary window ───────────────────────
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_pick_evaluations_path(move || {
+        let Some(path) = pick_folder_dialog() else {
+            return;
+        };
+        apply_evaluations_path(&session, Some(path.clone()));
+        if let Some(w) = win_weak.upgrade() {
+            w.set_evaluations_path(path.to_string_lossy().into_owned().into());
+        }
+    });
+
+    let win_weak = win.as_weak();
+    let session = project_session.clone();
+    win.on_reset_evaluations_path(move || {
+        apply_evaluations_path(&session, None);
+        if let Some(w) = win_weak.upgrade() {
+            w.set_evaluations_path(slint::SharedString::default());
+        }
+    });
+
     // ── #561 reload plugin catalog (secondary window) ───────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
@@ -259,10 +325,11 @@ pub fn install_secondary(
     });
 }
 
-/// Seed the initial `presets-path` / `plugins-path` Slint properties
-/// from the persisted `AppConfig.paths` snapshot so the Settings
-/// screen renders the user's current choice on first open. Called
-/// once at startup from `desktop_app::setup`.
+/// Seed the initial `presets-path` / `plugins-path` /
+/// `evaluations-path` Slint properties from the persisted
+/// `AppConfig.paths` snapshot so the Settings screen renders the
+/// user's current choice on first open. Called once at startup from
+/// `desktop_app::setup`.
 pub fn seed_initial(win: &AppWindow) {
     let config = FilesystemStorage::load_app_config().unwrap_or_default();
     let presets = config
@@ -275,8 +342,14 @@ pub fn seed_initial(win: &AppWindow) {
         .plugins_path
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
+    let evaluations = config
+        .paths
+        .evaluations_path
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
     win.set_presets_path(presets.into());
     win.set_plugins_path(plugins.into());
+    win.set_evaluations_path(evaluations.into());
 }
 
 /// Mirror of [`seed_initial`] for the secondary `ProjectSettingsWindow`.
@@ -292,6 +365,12 @@ pub fn seed_initial_secondary(win: &ProjectSettingsWindow) {
         .plugins_path
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
+    let evaluations = config
+        .paths
+        .evaluations_path
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
     win.set_presets_path(presets.into());
     win.set_plugins_path(plugins.into());
+    win.set_evaluations_path(evaluations.into());
 }

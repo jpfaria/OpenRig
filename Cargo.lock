@@ -96,6 +96,7 @@ dependencies = [
  "domain",
  "futures",
  "infra-cpal",
+ "infra-filesystem",
  "infra-yaml",
  "project",
  "rmcp",

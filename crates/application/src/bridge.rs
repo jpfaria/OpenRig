@@ -95,6 +95,14 @@ pub enum QueryKind {
         chain: domain::ids::ChainId,
         block: domain::ids::BlockId,
     },
+    /// #582: effective resolved system paths (data root + every
+    /// configurable directory) as a JSON envelope. Resolved by
+    /// [`crate::query::paths::resolved_paths_json`] over
+    /// `AppConfig.paths` from `FilesystemStorage::load_app_config`.
+    /// Every field reports the absolute resolved path — `None`
+    /// overrides fall back to the OS default (consumers don't
+    /// re-implement the fallback). MCP serves this as `openrig://paths`.
+    Paths,
 }
 
 struct QueryRequest {

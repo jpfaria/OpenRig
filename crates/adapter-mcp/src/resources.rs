@@ -12,6 +12,13 @@ pub const URI_DEVICES: &str = "openrig://devices";
 pub const URI_IDS: &str = "openrig://ids";
 pub const URI_METERS: &str = "openrig://meters";
 pub const URI_PRESETS: &str = "openrig://presets";
+/// #582: effective resolved system paths (data root + every
+/// configurable directory). Lets skills and other MCP clients read
+/// target locations dynamically instead of re-implementing the
+/// per-platform OS-default logic. The envelope is built from a struct
+/// in `application::query::ResolvedPaths` so adding a new path field
+/// is a hard compile error here too.
+pub const URI_PATHS: &str = "openrig://paths";
 /// #554: parameterised resource — the chain id replaces `{chain}` in the
 /// URI, e.g. `openrig://chains/rig:input-1/presets`.
 pub const URI_CHAIN_PRESETS_TEMPLATE: &str = "openrig://chains/{chain}/presets";
@@ -75,6 +82,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_PATHS,
+                "Effective resolved system paths (data root + every configurable directory) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_PLUGIN_PARAMS_TEMPLATE,
                 "Plugin parameter schema (replace {id} with a manifest id) — JSON",
             ),
@@ -115,6 +129,7 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
             URI_METERS => QueryKind::ChainMeters,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
+            URI_PATHS => QueryKind::Paths,
             other if other.starts_with(URI_PLUGIN_SEARCH_PREFIX) => QueryKind::FindPlugins {
                 query: other[URI_PLUGIN_SEARCH_PREFIX.len()..].to_string(),
             },

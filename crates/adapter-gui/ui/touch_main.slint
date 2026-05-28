@@ -77,15 +77,18 @@ export component TouchMain inherits Rectangle {
     in property <string> project-name;
     in property <string> project-path-display;
     callback edit-project-name(string);
-    // System / Paths section (#513). Empty = OS default.
+    // System / Paths section (#513 + #582). Empty = OS default.
     in property <string> presets-path;
     in property <string> plugins-path;
+    in property <string> evaluations-path;
     // #561: plugin catalog reload row in the Paths section.
     in property <string> plugin-catalog-status;
     callback pick-presets-path();
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
     callback reload-plugin-catalog();
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -420,11 +423,14 @@ export component TouchMain inherits Rectangle {
         cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        evaluations-path: root.evaluations-path;
         plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        pick-evaluations-path => { root.pick-evaluations-path(); }
+        reset-evaluations-path => { root.reset-evaluations-path(); }
         reload-plugin-catalog => { root.reload-plugin-catalog(); }
     }
 

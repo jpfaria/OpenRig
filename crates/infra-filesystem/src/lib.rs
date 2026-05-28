@@ -51,6 +51,13 @@ pub struct AssetPaths {
     /// override wins for plugin scanning.
     #[serde(default)]
     pub plugins_path: Option<PathBuf>,
+    /// #582: user-chosen directory where tone analyzers and other tools
+    /// write evaluation artifacts (spectrograms, fingerprints, comparison
+    /// reports). `None` keeps the OS default resolved by
+    /// [`default_evaluations_path`]. Machine-local concern per ADR 0003 —
+    /// lives in `config.yaml`, not the project YAML.
+    #[serde(default)]
+    pub evaluations_path: Option<PathBuf>,
 }
 
 impl Default for AssetPaths {
@@ -61,6 +68,7 @@ impl Default for AssetPaths {
             metadata: default_metadata(),
             presets_path: None,
             plugins_path: None,
+            evaluations_path: None,
         }
     }
 }
@@ -141,9 +149,56 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         metadata: resolve(&root, paths.metadata),
         // #513: user overrides are stored absolute (file picker resolves them).
         // No data-root rebase — `None` means "use the OS default" and is the
-        // signal the resolvers look for.
+        // signal the resolvers look for. Same applies to #582's
+        // `evaluations_path`.
         presets_path: paths.presets_path,
         plugins_path: paths.plugins_path,
+        evaluations_path: paths.evaluations_path,
+    }
+}
+
+/// #582: OS default for the evaluations directory (tone analyzer outputs,
+/// fingerprint snapshots, A/B comparison reports). Per CLAUDE.md
+/// cross-platform rule:
+///
+/// - macOS: `~/Library/Application Support/OpenRig/evaluations/`
+/// - Windows: `%APPDATA%\OpenRig\evaluations\`
+/// - Linux: `~/.local/share/openrig/evaluations/`
+///
+/// Used when [`AssetPaths::evaluations_path`] is `None`. Returns the path
+/// without creating it — callers materialize the directory only when they
+/// actually write into it.
+pub fn default_evaluations_path() -> PathBuf {
+    user_data_root().join("evaluations")
+}
+
+/// #582: OS-specific user data root for OpenRig
+/// (`~/Library/Application Support/OpenRig` on macOS,
+/// `%APPDATA%\OpenRig` on Windows,
+/// `~/.local/share/openrig` on Linux). Mirrors the same convention
+/// `FilesystemStorage::app_config_path` uses, kept as a shared helper so
+/// every `default_*_path` derived from it stays consistent.
+pub fn user_data_root() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        return home.join("Library/Application Support/OpenRig");
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        return appdata.join("OpenRig");
+    }
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        home.join(".local/share/openrig")
     }
 }
 
@@ -463,6 +518,16 @@ impl FilesystemStorage {
     pub fn save_plugins_path(path: Option<PathBuf>) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.paths.plugins_path = path;
+        Self::save_app_config(&config)
+    }
+
+    /// #582: update only the user's evaluations directory override
+    /// (under `AppConfig.paths.evaluations_path`), preserving every other
+    /// config field. `None` resets the override so the OS default
+    /// ([`default_evaluations_path`]) wins again.
+    pub fn save_evaluations_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.evaluations_path = path;
         Self::save_app_config(&config)
     }
 

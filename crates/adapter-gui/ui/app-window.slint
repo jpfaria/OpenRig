@@ -111,9 +111,10 @@ export component AppWindow inherits Window {
     // marks a draft awaiting MIDI Learn capture.
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
-    // System / Paths section (#513). Empty string = use OS default.
+    // System / Paths section (#513 + #582). Empty string = use OS default.
     in property <string> presets-path;
     in property <string> plugins-path;
+    in property <string> evaluations-path;
     // #561: status text for the plugin catalog reload row.
     in property <string> plugin-catalog-status;
     // Fullscreen inline chain editor
@@ -235,11 +236,13 @@ export component AppWindow inherits Window {
     callback cancel-midi-binding-draft(int);
     // Project / Metadata section callbacks (#513)
     callback edit-project-name(string);
-    // System / Paths section callbacks (#513)
+    // System / Paths section callbacks (#513 + #582)
     callback pick-presets-path();
     callback reset-presets-path();
     callback pick-plugins-path();
     callback reset-plugins-path();
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
     // #561: re-scan the plugin packages directories without restart.
     callback reload-plugin-catalog();
     // Fullscreen inline chain editor callbacks
@@ -525,11 +528,14 @@ export component AppWindow inherits Window {
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        evaluations-path: root.evaluations-path;
         plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        pick-evaluations-path => { root.pick-evaluations-path(); }
+        reset-evaluations-path => { root.reset-evaluations-path(); }
         reload-plugin-catalog => { root.reload-plugin-catalog(); }
         edit-chain-input(index) => { root.edit-chain-input(index); }
         remove-chain-input(index) => { root.remove-chain-input(index); }
@@ -712,11 +718,14 @@ export component AppWindow inherits Window {
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
+        evaluations-path: root.evaluations-path;
         plugin-catalog-status: root.plugin-catalog-status;
         pick-presets-path => { root.pick-presets-path(); }
         reset-presets-path => { root.reset-presets-path(); }
         pick-plugins-path => { root.pick-plugins-path(); }
         reset-plugins-path => { root.reset-plugins-path(); }
+        pick-evaluations-path => { root.pick-evaluations-path(); }
+        reset-evaluations-path => { root.reset-evaluations-path(); }
         reload-plugin-catalog => { root.reload-plugin-catalog(); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
