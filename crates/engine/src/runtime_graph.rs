@@ -33,7 +33,7 @@
 //!     so the existing `engine::runtime::*` paths used by infra-cpal /
 //!     adapter-console keep working unchanged.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
@@ -55,7 +55,7 @@ use crate::runtime_endpoints::{effective_inputs, effective_outputs};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
-    InputProcessingState, OutgoingTail, OutputRoutingState, SPILLOVER_FRAMES,
+    InputProcessingState, OutgoingTail, OutputRoutingState, RuntimeProcessor, SPILLOVER_FRAMES,
 };
 
 /// Bounded capacity for the per-chain SPSC error queue. Audio-thread
@@ -367,6 +367,11 @@ fn assemble_chain_runtime_state(
     // thread's `processing` try_lock. Captured before the Vec moves into
     // the Mutex.
     let initial_stream_count = input_states.len();
+    // Issue #580 follow-up: capture the set of bypass (no live processor)
+    // nodes so the GUI block-toggle fast path can decline re-enabling them
+    // and fall back to a rebuild. Computed before `input_states` moves into
+    // the Mutex, mirroring `initial_stream_count`.
+    let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
 
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
@@ -395,7 +400,25 @@ fn assemble_chain_runtime_state(
         // removing the GUI/audio Mutex contention that caused an
         // audible click on every block on/off at small buffer sizes.
         pending_block_toggles: ArrayQueue::new(64),
+        bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
     })
+}
+
+/// Collect the ids of every block whose live node is a
+/// `RuntimeProcessor::Bypass` (built while disabled, or build-faulted).
+/// These nodes have no real DSP, so re-enabling them needs a full rebuild
+/// rather than the in-place fade fast path. See `ChainRuntimeState::
+/// bypass_block_ids`.
+fn collect_bypass_block_ids(input_states: &[InputProcessingState]) -> HashSet<BlockId> {
+    let mut ids = HashSet::new();
+    for input_state in input_states {
+        for node in &input_state.blocks {
+            if matches!(node.processor, RuntimeProcessor::Bypass) {
+                ids.insert(node.block_id.clone());
+            }
+        }
+    }
+    ids
 }
 
 /// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
@@ -666,6 +689,13 @@ fn update_chain_runtime_state_impl(
             processing.input_states.len(),
             std::sync::atomic::Ordering::Relaxed,
         );
+        // Issue #580 follow-up: refresh the lock-free bypass mirror from the
+        // new nodes so re-enabling a (still) born-disabled block keeps
+        // declining the fast path. Swapped inside the same critical section
+        // as the Vec so a reader never sees a stale (nodes, bypass-set) pair.
+        runtime
+            .bypass_block_ids
+            .store(Arc::new(collect_bypass_block_ids(&processing.input_states)));
 
         // Rebuild input_to_segments mapping from current segments
         let max_input_idx = segments
