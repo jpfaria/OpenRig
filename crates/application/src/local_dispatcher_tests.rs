@@ -2454,72 +2454,82 @@ fn make_device_settings(device_id: &str) -> project::device::DeviceSettings {
     }
 }
 
+// #581: SaveAudioSettings now persists into the per-machine
+// `config.yaml`. Each test redirects `$HOME` to a unique tempdir so the
+// FS write stays out of the developer's real `~/Library/Application
+// Support/OpenRig/`.
 #[test]
 fn save_audio_settings_writes_device_settings_and_emits_event() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-emit", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: settings.clone(),
+        let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: settings.clone(),
+        });
+
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        let events = result.unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, Event::AudioSettingsSaved)),
+            "expected AudioSettingsSaved event, got {:?}",
+            events
+        );
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 2);
+        assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
+        assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
     });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let events = result.unwrap();
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, Event::AudioSettingsSaved)),
-        "expected AudioSettingsSaved event, got {:?}",
-        events
-    );
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 2);
-    assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
-    assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
 }
 
 #[test]
 fn save_audio_settings_replaces_previous_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("old_dev")],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-replace", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("old_dev")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![make_device_settings("new_dev")],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: vec![make_device_settings("new_dev")],
+        });
+
+        assert!(result.is_ok());
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 1);
+        assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
     });
-
-    assert!(result.is_ok());
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 1);
-    assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
 }
 
 #[test]
 fn save_audio_settings_empty_clears_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("dev_a")],
-        chains: vec![],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-empty", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("dev_a")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            device_settings: vec![],
+        });
+
+        assert!(result.is_ok());
+        assert!(project.borrow().device_settings.is_empty());
     });
-
-    assert!(result.is_ok());
-    assert!(project.borrow().device_settings.is_empty());
 }
 
 // ── SaveProject tests ─────────────────────────────────────────────────────────
