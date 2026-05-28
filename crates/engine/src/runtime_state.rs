@@ -25,7 +25,7 @@
 //!     modules.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwap;
@@ -299,6 +299,19 @@ pub struct ChainRuntimeState {
     /// f32 armazenado como u32 bits (Relaxed ordering é suficiente — não há
     /// sincronização com outras escritas).
     pub(crate) volume_pct_bits: AtomicU32,
+    /// Lock-free mirror of `processing.input_states.len()` (issue #580).
+    /// The meter polling timer calls `stream_count` at 30 Hz on the GUI
+    /// thread — reading it through the `processing` Mutex contends with
+    /// the audio thread's `process_input_f32 → try_lock`, and a failed
+    /// try_lock there means the callback emits silence (audible click at
+    /// small buffer sizes). `input_states.len()` only changes on runtime
+    /// build / rebuild in `runtime_graph`, so a single `AtomicUsize`
+    /// updated at those two sites is sufficient — readers never block
+    /// the audio thread. Relaxed ordering: the value is purely
+    /// informational for the GUI's subscription loop; a reader briefly
+    /// seeing the old count just defers an extra subscription to the
+    /// next tick. No synchronisation with audio-thread state needed.
+    pub(crate) stream_count: AtomicUsize,
 }
 
 impl ChainRuntimeState {
@@ -453,11 +466,14 @@ impl ChainRuntimeState {
     /// How many streams this chain currently runs (one per
     /// `InputProcessingState`). Used by the UI to know how many
     /// per-stream taps to subscribe.
+    ///
+    /// Reads a lock-free atomic mirror updated by `runtime_graph` on
+    /// build / rebuild (issue #580). Never blocks — the meter polling
+    /// timer calls this at 30 Hz on the GUI thread, and any lock taken
+    /// here contends with the audio thread's `try_lock` on
+    /// `processing`, silencing callbacks at small buffer sizes.
     pub fn stream_count(&self) -> usize {
-        self.processing
-            .lock()
-            .map(|p| p.input_states.len())
-            .unwrap_or(0)
+        self.stream_count.load(Ordering::Relaxed)
     }
 
     /// For a given LOCAL stream index in this runtime

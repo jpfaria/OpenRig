@@ -743,6 +743,10 @@ mod rig_spillover;
 mod audio_deadline;
 
 #[cfg(test)]
+#[path = "stream_count_contention_tests.rs"]
+mod stream_count_contention;
+
+#[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]
 mod audio_signal_integrity;
 

@@ -362,6 +362,12 @@ fn assemble_chain_runtime_state(
         .map(|_| InputCallbackScratch::default())
         .collect();
 
+    // Issue #580: lock-free mirror of `input_states.len()` for the meter
+    // polling timer to read at 30 Hz without contending with the audio
+    // thread's `processing` try_lock. Captured before the Vec moves into
+    // the Mutex.
+    let initial_stream_count = input_states.len();
+
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
@@ -383,6 +389,7 @@ fn assemble_chain_runtime_state(
         // de unity isolado (probe runtimes de latência) sobrescrevem com
         // `set_volume_pct(100.0)` depois.
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
+        stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
     })
 }
 
@@ -644,6 +651,16 @@ fn update_chain_runtime_state_impl(
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
         processing.input_states = new_input_states;
+        // Issue #580: keep the lock-free `stream_count` mirror in sync
+        // with the new Vec length. Updated INSIDE the same critical
+        // section that swaps the Vec so any concurrent reader sees a
+        // consistent (new Vec length, new count) pair after the lock
+        // releases. Relaxed ordering — the value is purely advisory for
+        // the meter timer's subscription loop.
+        runtime.stream_count.store(
+            processing.input_states.len(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
 
         // Rebuild input_to_segments mapping from current segments
         let max_input_idx = segments
