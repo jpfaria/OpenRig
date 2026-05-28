@@ -86,6 +86,8 @@
 use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
+use crate::runtime_state::ChainRuntimeState;
+use crate::spsc::SpscRing;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
     AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
@@ -266,7 +268,29 @@ fn run_deadline(
         build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime should build for deadline test"),
     );
+    measure_deadline(
+        label,
+        &runtime,
+        input_total_channels,
+        output_total_channels,
+        buffer_frames,
+        sample_rate_hz,
+        iterations,
+    )
+}
 
+/// Same loop as [`run_deadline`] but takes an already-built runtime so the
+/// caller can register taps (issue #580) or otherwise mutate runtime state
+/// before measurement.
+fn measure_deadline(
+    label: &'static str,
+    runtime: &Arc<ChainRuntimeState>,
+    input_total_channels: usize,
+    output_total_channels: usize,
+    buffer_frames: usize,
+    sample_rate_hz: u32,
+    iterations: usize,
+) -> DeadlineResult {
     let period_ns = (buffer_frames as u128 * 1_000_000_000) / sample_rate_hz as u128;
     let input_buf = vec![0.1_f32; buffer_frames * input_total_channels];
     let mut output_buf = vec![0.0_f32; buffer_frames * output_total_channels];
@@ -274,15 +298,15 @@ fn run_deadline(
     // Warm-up: a few iterations so caches/branch predictors stabilize and the
     // FADE_IN ramp completes. Not measured.
     for _ in 0..16 {
-        process_input_f32(&runtime, 0, &input_buf, input_total_channels);
-        process_output_f32(&runtime, 0, &mut output_buf, output_total_channels);
+        process_input_f32(runtime, 0, &input_buf, input_total_channels);
+        process_output_f32(runtime, 0, &mut output_buf, output_total_channels);
     }
 
     let mut elapsed: Vec<u128> = Vec::with_capacity(iterations);
     for _ in 0..iterations {
         let t0 = Instant::now();
-        process_input_f32(&runtime, 0, &input_buf, input_total_channels);
-        process_output_f32(&runtime, 0, &mut output_buf, output_total_channels);
+        process_input_f32(runtime, 0, &input_buf, input_total_channels);
+        process_output_f32(runtime, 0, &mut output_buf, output_total_channels);
         elapsed.push(t0.elapsed().as_nanos());
     }
 
@@ -423,4 +447,133 @@ fn pipe_only_mono_64_at_48000_meets_deadline() {
         N_ITERATIONS,
     );
     result.assert_meets();
+}
+
+// ── Issue #580: buffer = 32 + meter-style taps registered ──────────────
+//
+// User-reported regression: audio was clean at device buffer = 32 frames
+// @ 48 kHz before the per-chain meter / spectrum / tuner visualization
+// work landed; after, the buffer had to be raised to 256 frames to get
+// the same clean output. The 8× jump strongly suggests a per-callback
+// fixed cost was added on the audio thread.
+//
+// `adapter-gui/src/meter_wiring.rs::start_meter_polling` (wired from
+// `desktop_app.rs:353`) registers, **at app startup, for every enabled
+// chain, unconditionally — even with no meter / spectrum / tuner window
+// visible** — 3 SPSC rings per stream:
+//   - 1 ring via `subscribe_stream_input_tap` (per-stream INPUT meter)
+//   - 2 rings (L+R) via `subscribe_stream_tap`  (per-stream OUTPUT meter)
+//
+// The audio-thread dispatch loop then loads `runtime.input_taps` /
+// `stream_taps` via ArcSwap and pushes every sample of every frame into
+// each registered ring (one atomic store + two atomic loads per sample
+// per ring, via `SpscRing::push`). When no consumer was ever registered
+// the loaded `Vec` is empty and the dispatch costs only the ArcSwap load
+// — but the meter timer keeps the rings alive for the lifetime of the
+// session, so this cheap-path early-out never triggers in practice.
+//
+// The two tests below pin the regression at the deadline layer:
+//   1. `*_control_no_taps` — buffer = 32 with no taps registered.
+//      Establishes the baseline: if even this fails, the buffer is too
+//      tight for any work on this machine and we cannot conclude the
+//      regression is in the tap dispatch.
+//   2. `*_with_meter_taps` — same chain, with 1 input ring + 2 stream
+//      rings registered (mirroring one chain × one stream in the live
+//      app). Asserts the same thresholds.
+//
+// If (1) passes and (2) fails, the regression is the tap dispatch on
+// the audio thread — confirmed at this layer. Fix candidates:
+//   - Only register meter taps while a meter UI surface is actually
+//     visible (and tear them down on hide).
+//   - Coalesce the per-sample atomic pushes (batch into a single
+//     write of `num_frames` samples per callback).
+//
+// If both pass, the regression is below this test's resolution and
+// needs a different probe (full cpal-driven stream + real callback
+// thread + GUI in parallel).
+//
+// `RING_CAPACITY` matches `meter_wiring::start_meter_polling::RING_CAPACITY`.
+const ISSUE_580_RING_CAPACITY: usize = 4096;
+
+fn stereo_pipe_chain(label: &'static str) -> Chain {
+    chain_with_blocks(
+        label,
+        vec![
+            input_stereo(vec![0, 1]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    )
+}
+
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "deadline tests require --release for meaningful timing"
+)]
+fn pipe_stereo_32_at_48000_meets_deadline_control_no_taps() {
+    // 32 frames @ 48k — period 666 µs, the buffer size the user
+    // reported as clean before the visualization work landed. Control:
+    // no taps registered, only the chain itself.
+    let chain = stereo_pipe_chain("issue580-control-32-48k");
+    let result = run_deadline(
+        "issue580_control_no_taps_32@48k",
+        &chain,
+        2,
+        2,
+        32,
+        48_000,
+        N_ITERATIONS,
+    );
+    result.assert_meets();
+}
+
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "deadline tests require --release for meaningful timing"
+)]
+fn pipe_stereo_32_at_48000_with_meter_taps_meets_deadline() {
+    // Issue #580 regression pin. Same chain + same buffer as the
+    // control above, but with the runtime taps the meter polling timer
+    // keeps alive for the session — 1 input ring + 2 stream rings per
+    // stream/chain — registered before measurement starts. Handles are
+    // bound to a local so `Arc::strong_count > 1` and `prune_dead_*`
+    // (not called here, but mirrored against the live behaviour) would
+    // keep them.
+    let chain = stereo_pipe_chain("issue580-with-meter-taps-32-48k");
+    let runtime = Arc::new(
+        build_chain_runtime_state(&chain, 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+            .expect("runtime should build for issue #580 regression test"),
+    );
+
+    // Mirror `subscribe_stream_input_tap` for stream 0 — one channel of
+    // the stereo input (channel 0).
+    let _input_handles: Vec<Arc<SpscRing<f32>>> = runtime.subscribe_input_tap(
+        /* input_index */ 0,
+        /* total_channels */ 2,
+        /* subscribed_channels */ &[0],
+        ISSUE_580_RING_CAPACITY,
+    );
+    // Mirror `subscribe_stream_tap` for stream 0 — L + R post-FX.
+    let _stream_handles: [Arc<SpscRing<f32>>; 2] =
+        runtime.subscribe_stream_tap(/* stream_index */ 0, ISSUE_580_RING_CAPACITY);
+
+    let result = measure_deadline(
+        "issue580_with_meter_taps_32@48k",
+        &runtime,
+        2,
+        2,
+        32,
+        48_000,
+        N_ITERATIONS,
+    );
+    // Pin the regression: until the fix lands, this assertion is the
+    // canary. Once green, the fix is upheld.
+    result.assert_meets();
+
+    // Keep handles alive across the measurement — drop them only here
+    // so the audio-thread dispatch sees rings whose `Arc::strong_count`
+    // is > 1 throughout, matching the live meter timer's behaviour.
+    drop(_input_handles);
+    drop(_stream_handles);
 }
