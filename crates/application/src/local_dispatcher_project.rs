@@ -11,6 +11,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
+use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings};
 
 use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
@@ -60,7 +61,42 @@ impl LocalDispatcher {
             }
 
             Command::SaveAudioSettings { device_settings } => {
-                self.project.borrow_mut().device_settings = device_settings;
+                self.project.borrow_mut().device_settings = device_settings.clone();
+
+                // #581: persist the pick into the per-machine
+                // `config.yaml` so it survives restarts and so every
+                // transport (GUI, MCP, gRPC) dispatching this command
+                // gets the same durable effect — per the Command-bus
+                // parity LAW. Touch only `input_devices` /
+                // `output_devices`, preserving the rest of `AppConfig`
+                // (language, midi_devices, paths, recent_projects).
+                let gui_devices: Vec<GuiAudioDeviceSettings> = device_settings
+                    .iter()
+                    .map(|s| GuiAudioDeviceSettings {
+                        device_id: s.device_id.0.clone(),
+                        // `name` is for UI display; `DeviceSettings`
+                        // does not carry it. The GUI rebuilds the
+                        // human name from the live cpal descriptor
+                        // (`build_project_device_rows`), so an empty
+                        // string here is safe.
+                        name: String::new(),
+                        sample_rate: s.sample_rate,
+                        buffer_size_frames: s.buffer_size_frames,
+                        bit_depth: s.bit_depth,
+                        #[cfg(target_os = "linux")]
+                        realtime: s.realtime,
+                        #[cfg(target_os = "linux")]
+                        rt_priority: s.rt_priority,
+                        #[cfg(target_os = "linux")]
+                        nperiods: s.nperiods,
+                    })
+                    .collect();
+                let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+                config.input_devices = gui_devices.clone();
+                config.output_devices = gui_devices;
+                FilesystemStorage::save_app_config(&config)
+                    .map_err(|e| anyhow!("failed to persist audio settings: {e}"))?;
+
                 Ok(vec![Event::AudioSettingsSaved])
             }
 

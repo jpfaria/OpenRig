@@ -26,7 +26,11 @@ static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// Run `f` with `$HOME` pointed at a fresh tempdir. Restores the
 /// previous `$HOME` (or removes it) and deletes the tempdir whether
 /// `f` panics or returns normally.
-fn with_tmp_home<F: FnOnce()>(label: &str, f: F) {
+///
+/// `pub(super)` so the sibling `local_dispatcher_tests` module can
+/// reuse it for commands that now hit `config.yaml` too (#581 made
+/// `SaveAudioSettings` persist).
+pub(super) fn with_tmp_home<F: FnOnce()>(label: &str, f: F) {
     let _g = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
