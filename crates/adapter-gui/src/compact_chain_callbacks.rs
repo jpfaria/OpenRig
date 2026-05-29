@@ -87,6 +87,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             return;
         };
         let ci = chain_index as usize;
+        // #591: if this chain's compact view is already open, focus it
+        // rather than stacking a second window — a footswitch
+        // (`toggle_compact_view`) can re-trigger this for the active chain.
+        if let Some((open_ci, weak)) = &*open_compact_window.borrow() {
+            if *open_ci == ci {
+                if let Some(existing) = weak.upgrade() {
+                    let _ = existing.show();
+                    return;
+                }
+            }
+        }
         let compact_win = match CompactChainViewWindow::new() {
             Ok(w) => w,
             Err(e) => {

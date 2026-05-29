@@ -303,7 +303,10 @@ impl CommandDispatcher for LocalDispatcher {
                     .write()
                     .expect("selection state poisoned")
                     .compact_view_enabled = enabled;
-                Ok(vec![])
+                // #591: emit so the adapter can open/close the compact view
+                // for the active chain — the MIDI footswitch path drains
+                // events and had nothing to act on before.
+                Ok(vec![Event::CompactViewEnabledChanged { enabled }])
             }
             Command::ToggleActiveBlockNeighborEnabled => {
                 self.handle_toggle_active_block_neighbor_enabled()

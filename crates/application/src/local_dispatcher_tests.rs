@@ -1423,6 +1423,28 @@ fn select_active_chain_non_existent_returns_err() {
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
 
+#[test]
+fn set_compact_view_enabled_emits_event_so_the_gui_can_react() {
+    // #591: a footswitch bound to `toggle_compact_view` dispatches
+    // SetCompactViewEnabled. The handler only flipped a SelectionState
+    // snapshot and returned no events, so the MIDI drain had nothing to
+    // act on and the compact view never opened ("isso não faz nada").
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SetCompactViewEnabled { enabled: true })
+        .expect("dispatch ok");
+
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::CompactViewEnabledChanged { enabled: true }
+        )),
+        "expected CompactViewEnabledChanged{{true}}, got {events:?}"
+    );
+}
+
 // ── AddChain tests ────────────────────────────────────────────────────────────
 
 #[test]
