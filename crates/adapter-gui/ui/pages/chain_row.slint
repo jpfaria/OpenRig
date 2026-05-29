@@ -25,6 +25,9 @@ export component ChainRow inherits Rectangle {
     in property <int> selected-block-index;
     // #591: UI index of the block the footswitch block-toggle acts on.
     in property <int> selected-block-neighbor-index: -1;
+    // #591: gates the selection markers — they only show while a MIDI
+    // command is recent (last 10s).
+    in property <bool> midi-selection-active: false;
     in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
@@ -78,36 +81,16 @@ export component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
-    // #591: highlight the row when this chain is the active selection
-    // (set by tapping the chain, by selecting one of its blocks, or by
-    // MIDI prev/next). This is the chain the footswitch toggles.
+    // #591: outline the row when this chain is the active selection AND a
+    // MIDI command is recent (last 10s). The marker is MIDI-activity
+    // feedback — it appears on a footswitch command and fades out after
+    // 10s of no stimulus (`midi-selection-active` flips false). Lit when
+    // the chain is enabled, dimmer when disabled.
     property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
-    // #591: transient emphasis when the selection MOVES to this chain —
-    // a strong border that fades back to the subtle persistent marker
-    // after a moment, so a footswitch step is visible without leaving
-    // permanent clutter. `pulse` is raised on the rising edge of
-    // `chain-selected` and cleared by the one-shot timer below.
-    property <bool> pulse: false;
-    border-width: root.chain-selected ? (root.pulse ? 3px : 1px) : 0px;
-    border-color: root.chain-selected
-        ? (root.pulse ? #ffc14d : #f0a02066)
-        : transparent;
-    animate border-width { duration: 1600ms; easing: ease-out; }
-    animate border-color { duration: 1600ms; easing: ease-out; }
-    changed chain-selected => {
-        if (root.chain-selected) {
-            root.pulse = true;
-            pulse-timer.running = true;
-        }
-    }
-    pulse-timer := Timer {
-        interval: 1800ms;
-        running: false;
-        triggered => {
-            root.pulse = false;
-            self.running = false;
-        }
-    }
+    border-width: (root.chain-selected && root.midi-selection-active) ? 2px : 0px;
+    border-color: root.chain.enabled ? #f0a020 : #f0a02055;
+    animate border-width { duration: 350ms; easing: ease-out; }
+    animate border-color { duration: 350ms; easing: ease-out; }
     // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
     // which collided with the block grid (bottom at y = 62 + n*108).
     // Add 32px of breathing room so the meters sit clearly below the
@@ -415,6 +398,7 @@ export component ChainRow inherits Rectangle {
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
             neighbor: root.selected-block-chain-index == root.chain-index && root.selected-block-neighbor-index == block-index;
+            markers-visible: root.midi-selection-active;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
             chain-dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             clicked => { root.select-chain-block(root.chain-index, block-index); }

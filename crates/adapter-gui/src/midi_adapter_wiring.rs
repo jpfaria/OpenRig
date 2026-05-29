@@ -19,7 +19,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 use application::SelectionState;
-use slint::{Timer, Weak};
+use slint::{ComponentHandle, Timer, Weak};
 
 use crate::chain_rig_nav_wiring::{apply_events_to_ui, ChainRigNavCtx};
 use crate::cli::MidiMapArg;
@@ -60,6 +60,11 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
 
     let timer = Timer::default();
     let daemon_selection_for_timer = Arc::clone(&daemon_selection);
+    // #591: the chain/block selection markers are MIDI-activity feedback —
+    // shown only when a MIDI command arrives and hidden again after 10s of
+    // no further MIDI. This one-shot timer is re-armed on every MIDI command.
+    let markers_hide_timer: std::rc::Rc<std::cell::RefCell<Option<Timer>>> =
+        std::rc::Rc::new(std::cell::RefCell::new(None));
     timer.start(
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(16),
@@ -95,6 +100,22 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
                 return;
             }
             if let Some(window) = window.upgrade() {
+                // #591: a MIDI command arrived — light the selection markers
+                // and (re)arm the 10s hide timer so they fade out after the
+                // last footswitch stimulus.
+                window.set_midi_selection_active(true);
+                let weak_for_hide = window.as_weak();
+                let hide = Timer::default();
+                hide.start(
+                    slint::TimerMode::SingleShot,
+                    std::time::Duration::from_secs(10),
+                    move || {
+                        if let Some(w) = weak_for_hide.upgrade() {
+                            w.set_midi_selection_active(false);
+                        }
+                    },
+                );
+                *markers_hide_timer.borrow_mut() = Some(hide);
                 apply_events_to_ui(&window, &ctx, &events);
             }
         },

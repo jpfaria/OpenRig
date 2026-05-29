@@ -201,6 +201,14 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`
+    /// → `SetCompactViewEnabled`). The adapter opens/closes the per-chain
+    /// compact window for the active chain; without this event the MIDI
+    /// drain had nothing to act on and the footswitch did nothing.
+    CompactViewEnabledChanged {
+        enabled: bool,
+    },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
@@ -327,6 +335,7 @@ impl Event {
             | Event::ChainPresetDeleted { .. }
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
+            | Event::CompactViewEnabledChanged { .. }
             | Event::ProjectClosed
             // #513 / #493: MIDI device / mapping / learn events live at the
             // system or project root, not a single chain.

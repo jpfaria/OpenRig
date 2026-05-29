@@ -13,6 +13,9 @@ export component BlockChip inherits Rectangle {
     // #591: the block the footswitch's block-toggle (neighbor) would act
     // on — marked lighter than the active block so the user sees the pair.
     in property <bool> neighbor: false;
+    // #591: gates the selected/neighbor markers — they only show while a
+    // MIDI command is recent (last 10s), then fade out.
+    in property <bool> markers-visible: false;
     in property <bool> dragging: false;
     // True while ANY block in the same chain row is being dragged. Drives
     // the type-label fade so the floating ghost has a clear path across
@@ -37,34 +40,23 @@ export component BlockChip inherits Rectangle {
 
     width: 100px;
     height: 100px;
-    background: root.selected ? #f0a02014 : transparent;
-    // #591: mark the active block (strong) and the neighbor the block
-    // footswitch toggle acts on (light). The chain row already outlines
-    // the active chain; this shows the selected block within it.
-    // `pulse` adds a brief stronger emphasis when the selection MOVES to
-    // this chip (footswitch block step), fading back after a moment.
-    property <bool> pulse: false;
-    border-width: root.selected ? (root.pulse ? 3px : 2px) : root.neighbor ? 1px : 0px;
-    border-color: root.selected
-        ? (root.pulse ? #ffc14d : #f0a020)
-        : root.neighbor ? #f0a0207a : transparent;
+    // #591: the active-block (strong) and neighbor (light) markers only
+    // show while a MIDI command is recent (`markers-visible`), then fade
+    // out after 10s. Lit when the block is enabled, dimmer when disabled.
+    background: (root.markers-visible && root.selected) ? #f0a02014 : transparent;
+    border-width: root.markers-visible
+        ? (root.selected ? 2px : root.neighbor ? 1px : 0px)
+        : 0px;
+    border-color: root.markers-visible
+        ? (root.selected
+            ? (root.block.enabled ? #f0a020 : #f0a02066)
+            : root.neighbor
+                ? (root.block.enabled ? #f0a0207a : #f0a02040)
+                : transparent)
+        : transparent;
     border-radius: 6px;
-    animate border-width { duration: 1500ms; easing: ease-out; }
-    animate border-color { duration: 1500ms; easing: ease-out; }
-    changed selected => {
-        if (root.selected) {
-            root.pulse = true;
-            chip-pulse-timer.running = true;
-        }
-    }
-    chip-pulse-timer := Timer {
-        interval: 1700ms;
-        running: false;
-        triggered => {
-            root.pulse = false;
-            self.running = false;
-        }
-    }
+    animate border-width { duration: 350ms; easing: ease-out; }
+    animate border-color { duration: 350ms; easing: ease-out; }
 
     // Type label on top — fades out while a drag is happening anywhere in
     // this chain row so it doesn't obscure the floating ghost or the chips

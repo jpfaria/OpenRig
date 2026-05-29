@@ -165,10 +165,18 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         }
     }
 
+    // #591: a footswitch `toggle_compact_view` → SetCompactViewEnabled emits
+    // this. The compact view is a per-chain window opened via the same
+    // callback the expand button uses — open it for the active chain.
+    let open_compact_view = events
+        .iter()
+        .any(|e| matches!(e, Event::CompactViewEnabledChanged { enabled: true }));
+
     let session_borrow = ctx.project_session.borrow();
     let Some(session) = session_borrow.as_ref() else {
         return;
     };
+    let mut compact_open_idx: Option<i32> = None;
 
     // Re-sync the live runtime for each chain a command touched (once).
     let mut synced: Vec<ChainId> = Vec::new();
@@ -197,6 +205,13 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         let sel_arc = session.dispatcher.selection_state();
         let sel = sel_arc.read().expect("selection state poisoned");
         crate::selection_highlight::sync_selection_markers(window, &proj, &sel);
+        if open_compact_view {
+            compact_open_idx = sel
+                .active_chain
+                .as_deref()
+                .and_then(|id| proj.chains.iter().position(|c| c.id.0 == id))
+                .map(|i| i as i32);
+        }
     }
     sync_project_dirty(
         window,
@@ -205,6 +220,14 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         &ctx.project_dirty,
         ctx.auto_save,
     );
+
+    // #591: open the active chain's compact view AFTER dropping the session
+    // borrow — the callback re-borrows `project_session`, so invoking it
+    // while still borrowed would panic.
+    drop(session_borrow);
+    if let Some(idx) = compact_open_idx {
+        window.invoke_open_compact_chain_view(idx);
+    }
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
