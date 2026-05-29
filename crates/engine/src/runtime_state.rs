@@ -24,7 +24,7 @@
 //!     used only from `runtime.rs`, `stream_tap.rs`, and the test
 //!     modules.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -327,6 +327,22 @@ pub struct ChainRuntimeState {
     /// stalled — which is a louder bug than a dropped toggle. The
     /// `set_block_enabled` API still surfaces such overflows as `Err`.
     pub(crate) pending_block_toggles: ArrayQueue<(BlockId, bool)>,
+    /// Lock-free mirror of the block ids whose live node is a
+    /// `RuntimeProcessor::Bypass` — blocks built while disabled (or whose
+    /// build faulted) carry no real DSP. Re-enabling such a block CANNOT
+    /// be served by the queued in-place fade fast path (there is no
+    /// processor to fade in), so `set_block_enabled` declines synchronously
+    /// and the caller falls back to a full `upsert_chain` rebuild.
+    ///
+    /// Issue #580 regression: once the fast path started *queueing* every
+    /// toggle and always returning `Ok`, the synchronous decline that used
+    /// to trigger that rebuild was lost — re-enabling a born-disabled block
+    /// only spammed "has no live processor" to `error_queue` and the block
+    /// never came back. This mirror restores the decline without taking the
+    /// `processing` lock on the GUI thread (`ArcSwap::load` is wait-free).
+    /// Swapped at the same build/rebuild sites that update `stream_count`,
+    /// so it always reflects the current set of live nodes.
+    pub(crate) bypass_block_ids: ArcSwap<HashSet<BlockId>>,
 }
 
 impl ChainRuntimeState {

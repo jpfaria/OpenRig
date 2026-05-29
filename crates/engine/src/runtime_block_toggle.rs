@@ -72,6 +72,20 @@ pub fn set_block_enabled(
     block_id: &BlockId,
     enabled: bool,
 ) -> Result<()> {
+    // A block whose live node is a `Bypass` (built while disabled, or
+    // build-faulted) has no DSP to fade in. Queueing a re-enable would only
+    // post "has no live processor" from the audio thread and leave the
+    // block dead. Decline synchronously — wait-free read of the bypass
+    // mirror, no `processing` lock — so the caller falls back to a full
+    // rebuild that builds the real processor (issue #580 regression).
+    // Disabling (`enabled == false`) never needs a processor, so it always
+    // queues on the lock-free fast path.
+    if enabled && runtime.bypass_block_ids.load().contains(block_id) {
+        return Err(anyhow!(
+            "block '{}' has no live processor — needs full rebuild to re-enable",
+            block_id.0
+        ));
+    }
     runtime
         .pending_block_toggles
         .push((block_id.clone(), enabled))

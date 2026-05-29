@@ -161,6 +161,46 @@ fn set_block_enabled_true_after_disable_transitions_back_to_fading_in() {
 }
 
 #[test]
+fn re_enabling_a_born_disabled_block_declines_fast_path_for_rebuild() {
+    // Issue #580 follow-up (user repro): blocks in `input-1` saved as
+    // `enabled: false` are built as a `Bypass` node with NO live processor.
+    // The queued fast path can't fade in a DSP that doesn't exist. Before
+    // #580 `set_block_enabled` returned `Err` synchronously for this case
+    // and the controller fell back to a full rebuild (which builds the real
+    // processor). #580 made the call always-`Ok` (just enqueue), dropping
+    // that fallback — the audio thread only spammed
+    //   "block '...' has no live processor — needs full rebuild to re-enable"
+    // to the error queue and the block never came back. Pin the restored
+    // contract: re-enabling a born-disabled (bypass) block DECLINES
+    // synchronously so the caller rebuilds, and posts NO async error.
+    let mut chain = test_chain();
+    for b in chain.blocks.iter_mut() {
+        if b.id == BlockId(BLOCK_ID.into()) {
+            b.enabled = false;
+        }
+    }
+    let runtime = Arc::new(
+        build_chain_runtime_state(&chain, SR, &[DEFAULT_ELASTIC_TARGET])
+            .expect("runtime must build for test chain"),
+    );
+    let block = BlockId(BLOCK_ID.into());
+
+    let result = set_block_enabled(&runtime, &block, true);
+    assert!(
+        result.is_err(),
+        "re-enabling a born-disabled (bypass) block must decline the fast \
+         path so the caller falls back to a full rebuild, got {result:?}"
+    );
+
+    drive_one_callback(&runtime); // nothing was queued → nothing to drain
+    let errors = runtime.poll_errors();
+    assert!(
+        errors.is_empty(),
+        "declining synchronously must not also post an async error, got {errors:?}"
+    );
+}
+
+#[test]
 fn set_block_enabled_unknown_block_posts_error_to_error_queue() {
     // Issue #580 follow-up: `set_block_enabled` now returns Ok if the
     // toggle was queued successfully — the per-block lookup (and its
