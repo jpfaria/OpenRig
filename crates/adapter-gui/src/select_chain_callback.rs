@@ -51,11 +51,12 @@ pub(crate) fn wire(
             .dispatch(application::command::Command::SelectActiveChain { chain: chain_id })
         {
             Ok(_) => {
-                // Reflect the chain-level selection highlight (no specific
-                // block). The ChainRow border keys on this chain index;
-                // block index -1 means "no block highlighted".
-                window.set_selected_chain_block_chain_index(chain_index);
-                window.set_selected_chain_block_index(-1);
+                // Reflect the selection markers from the dispatcher-owned
+                // SelectionState (single source of truth, shared with MIDI).
+                let proj = session.project.borrow();
+                let sel_arc = session.dispatcher.selection_state();
+                let sel = sel_arc.read().expect("selection state poisoned");
+                crate::selection_highlight::sync_selection_markers(&window, &proj, &sel);
             }
             Err(_) => {
                 set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));

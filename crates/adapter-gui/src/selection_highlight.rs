@@ -12,6 +12,7 @@ use application::SelectionState;
 use project::project::Project;
 
 use crate::project_view::real_block_index_to_ui;
+use crate::AppWindow;
 
 /// `(chain_index, block_ui_index)` to highlight, or `-1` for "none".
 ///
@@ -36,6 +37,16 @@ pub(crate) fn active_highlight_indices(project: &Project, sel: &SelectionState) 
         .unwrap_or(-1);
 
     (chain_index as i32, block_ui_index)
+}
+
+/// Push the active chain/block markers onto the Chains screen from the
+/// dispatcher-owned `SelectionState`. Called on every path that can change
+/// the selection — GUI clicks, taps, and (critically) the MIDI/footswitch
+/// drain — so the screen always shows what a footswitch acts on.
+pub(crate) fn sync_selection_markers(window: &AppWindow, project: &Project, sel: &SelectionState) {
+    let (chain_index, block_ui_index) = active_highlight_indices(project, sel);
+    window.set_selected_chain_block_chain_index(chain_index);
+    window.set_selected_chain_block_index(block_ui_index);
 }
 
 #[cfg(test)]
