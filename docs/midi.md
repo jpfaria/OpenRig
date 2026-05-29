@@ -278,7 +278,7 @@ below is bindable.
 | 27 | `CreateProject` | Create a new project | `{ project: object }` |
 | 28 ★ | `SetChainVolume` | Set chain volume (% — knob via `scale`, or fixed `value`) | `{ chain: id, value: num }` |
 | 29 | `UpdateProjectName` | Rename the project | `{ name: text }` |
-| 30 | `SaveAudioSettings` | Save audio device settings | `{ device_settings: [object] }` |
+| 30 | `SaveAudioSettings` | Save audio device settings (input/output persisted separately into per-machine `config.yaml`) | `{ input_devices: [object], output_devices: [object] }` |
 | 31 ★ | `ApplyRigNav` | Preset/scene: step (footswitch) or jump (fixed) | `{ chain: id, kind: <see below> }` |
 | 32 ★ | `SelectChainBlock` | Select a block by index (dispatcher-owned; MIDI/MCP/GUI) | `{ chain: id, block_index: uint }` |
 | 33 | `RenameRigPreset` | Rename the chain's active preset | `{ chain: id, name: text }` |

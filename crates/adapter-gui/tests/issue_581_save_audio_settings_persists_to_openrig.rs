@@ -101,7 +101,8 @@ fn issue_581_save_audio_settings_persists_into_config_yaml() {
         let picked = picked_device();
         dispatcher
             .dispatch(Command::SaveAudioSettings {
-                device_settings: vec![picked.clone()],
+                input_devices: vec![picked.clone()],
+                output_devices: vec![],
             })
             .expect("SaveAudioSettings dispatch");
 

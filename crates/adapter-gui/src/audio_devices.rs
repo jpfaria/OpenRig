@@ -402,3 +402,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
         .parse::<u32>()
         .map_err(|_| anyhow!("'{}' inválido: '{}'", field, value))
 }
+
+#[cfg(test)]
+#[path = "audio_devices_tests.rs"]
+mod tests;
