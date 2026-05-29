@@ -129,6 +129,19 @@ impl ElasticBuffer {
         }
     }
 
+    /// Pre-fill the buffer with `frames` silent frames so it starts at a
+    /// real jitter cushion instead of empty. Used on the INITIAL build of a
+    /// chain whose per-block worst-case latency (e.g. an IR convolver's
+    /// per-partition FFT spike) can momentarily starve the consumer before
+    /// the producer warms up — issue #592. The cushion costs `frames` of
+    /// output latency; callers only prime when the chain warrants it.
+    pub(crate) fn prime(&self, frames: usize) {
+        let silence = silent_frame(self.layout);
+        for _ in 0..frames {
+            self.push(silence);
+        }
+    }
+
     /// Seed the underrun fallback from another buffer's last pushed frame.
     /// Used during chain rebuild so that a brief underrun on the new buffer
     /// repeats the tail of the old buffer instead of jumping to silence.

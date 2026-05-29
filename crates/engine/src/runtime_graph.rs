@@ -322,6 +322,11 @@ fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> Result<ChainRuntimeState> {
+    // Issue #592: prime the output elastic cushion only on the INITIAL
+    // build (existing_blocks == None). A rebuild/edit runs warm and refills
+    // naturally — re-priming on every knob turn would add a silence gap.
+    let is_initial_build = existing_blocks.is_none();
+    let has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -367,8 +372,15 @@ fn assemble_chain_runtime_state(
 
     let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
     for (route_idx, output) in eff_outputs.iter().enumerate() {
-        let target = target_for_route(elastic_targets, route_idx);
-        output_routes.push(Arc::new(build_output_routing_state(output, target)));
+        let base = target_for_route(elastic_targets, route_idx);
+        let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
+        let prime_frames =
+            crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
+        output_routes.push(Arc::new(build_output_routing_state(
+            output,
+            target,
+            prime_frames,
+        )));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -529,6 +541,7 @@ fn build_input_processing_state(
 pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
+    prime_frames: usize,
 ) -> OutputRoutingState {
     let output_layout = if output.channels.len() >= 2 {
         match output.mode {
@@ -538,10 +551,17 @@ pub(crate) fn build_output_routing_state(
     } else {
         AudioChannelLayout::Mono
     };
+    let buffer = ElasticBuffer::new(elastic_target, output_layout);
+    // Issue #592: prime the cushion (silence) only when the caller asks —
+    // a cold-start IR chain at a small device buffer would otherwise
+    // underrun on the convolver's per-partition FFT spike.
+    if prime_frames > 0 {
+        buffer.prime(prime_frames);
+    }
     OutputRoutingState {
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        buffer: ElasticBuffer::new(elastic_target, output_layout),
+        buffer,
     }
 }
 
@@ -681,12 +701,18 @@ fn update_chain_runtime_state_impl(
     }
 
     // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
+    // Keep the IR capacity floor consistent with the initial build, but do
+    // NOT prime on a rebuild — the producer is already warm, so it refills
+    // naturally (issue #592).
+    let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
         .map(|(route_idx, o)| {
-            let target = target_for_route(elastic_targets, route_idx);
-            Arc::new(build_output_routing_state(o, target))
+            let base = target_for_route(elastic_targets, route_idx);
+            let target =
+                crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
+            Arc::new(build_output_routing_state(o, target, 0))
         })
         .collect();
 
@@ -944,3 +970,7 @@ impl RuntimeGraph {
 // Slice 4 of Phase 2: block-level builders moved to runtime_block_builders.rs.
 // `runtime_graph.rs` only needs `build_runtime_block_nodes` for chain assembly.
 pub(crate) use crate::runtime_block_builders::build_runtime_block_nodes;
+
+#[cfg(test)]
+#[path = "issue_592_elastic_prime_tests.rs"]
+mod issue_592_elastic_prime_tests;

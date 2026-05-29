@@ -110,3 +110,31 @@ To prepare for this:
 - No clicks/pops when using multiple outputs on different devices
 - Latency increase <= 6ms
 - Same device input+output: no behavior change (buffer stays near empty)
+
+## Addendum — IR cold-start cushion (issue #592)
+
+The buffer "stays near empty" assumption above holds for light chains, but
+a convolution (IR/cab) block runs a full FFT **inline** once per
+`ir::PARTITION_SIZE` (512) samples. At small device buffers (32/64) that
+periodic spike is far heavier than the other callbacks, so on a **cold**
+first stream start — before the DSP producer warms up — the near-empty
+buffer drains to silence on the spike and the output crackles/distorts
+until a warm rebuild. (This is what made a freshly-loaded IR preset sound
+distorted until the user nudged a knob.)
+
+Fix (`engine::elastic_prime`): for a chain that contains an enabled
+convolution block, the output `ElasticBuffer` is
+
+1. **sized** to hold at least one convolver partition
+   (`elastic_capacity_target` floors the device-derived target at
+   `ir::PARTITION_SIZE`), and
+2. **primed** with that many silent frames on the **initial build only**
+   (`ElasticBuffer::prime`, gated by `existing_blocks.is_none()`), so the
+   cushion exists from frame 0.
+
+A rebuild/edit is **not** primed — the producer is already warm, so it
+refills naturally; re-priming each knob turn would add a silence gap.
+Non-convolution chains are untouched (no extra latency). The cushion costs
+one partition (~10.7 ms @ 48 kHz) of added output latency on IR chains at
+small buffers — the deliberate "more buffer when using IR" trade, ranked
+below stream stability in the trade-off hierarchy.
