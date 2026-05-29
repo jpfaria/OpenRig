@@ -16,6 +16,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
+    in property <int> selected-chain-block-neighbor-index: -1;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -239,6 +240,7 @@ export component ProjectChainsPage inherits Rectangle {
                 fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
+                selected-block-neighbor-index: root.selected-chain-block-neighbor-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
                 chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
                 remove-chain(index) => { root.remove-chain(index); }

@@ -39,6 +39,33 @@ pub(crate) fn active_highlight_indices(project: &Project, sel: &SelectionState) 
     (chain_index as i32, block_ui_index)
 }
 
+/// UI block index of the block that `toggle_active_block_neighbor_enabled`
+/// would flip — the block immediately AFTER the active one in the chain's
+/// raw block list (wraps), mirroring the dispatcher handler exactly. `-1`
+/// when there is no active block, the chain has < 2 blocks, or the
+/// raw-next block is an Input/Output endpoint (no chip on the strip).
+pub(crate) fn active_neighbor_block_ui_index(project: &Project, sel: &SelectionState) -> i32 {
+    let Some(active_chain) = sel.active_chain.as_deref() else {
+        return -1;
+    };
+    let Some(chain) = project.chains.iter().find(|c| c.id.0 == active_chain) else {
+        return -1;
+    };
+    if chain.blocks.len() < 2 {
+        return -1;
+    }
+    let Some(active_block) = sel.active_block.as_deref() else {
+        return -1;
+    };
+    let Some(active_raw) = chain.blocks.iter().position(|b| b.id.0 == active_block) else {
+        return -1;
+    };
+    let neighbor_raw = (active_raw + 1) % chain.blocks.len();
+    real_block_index_to_ui(chain, neighbor_raw)
+        .map(|ui| ui as i32)
+        .unwrap_or(-1)
+}
+
 /// Push the active chain/block markers onto the Chains screen from the
 /// dispatcher-owned `SelectionState`. Called on every path that can change
 /// the selection — GUI clicks, taps, and (critically) the MIDI/footswitch
@@ -47,6 +74,7 @@ pub(crate) fn sync_selection_markers(window: &AppWindow, project: &Project, sel:
     let (chain_index, block_ui_index) = active_highlight_indices(project, sel);
     window.set_selected_chain_block_chain_index(chain_index);
     window.set_selected_chain_block_index(block_ui_index);
+    window.set_selected_chain_block_neighbor_index(active_neighbor_block_ui_index(project, sel));
 }
 
 #[cfg(test)]
@@ -151,5 +179,33 @@ mod tests {
         let mut sel = SelectionState::default();
         sel.active_chain = Some("rig:does-not-exist".to_string());
         assert_eq!(active_highlight_indices(&project(), &sel), (-1, -1));
+    }
+
+    // ── neighbor block (the block `toggle_active_block_neighbor_enabled` acts on) ──
+
+    #[test]
+    fn neighbor_is_the_next_ui_block() {
+        let mut sel = SelectionState::default();
+        sel.active_chain = Some("rig:input-1".to_string());
+        sel.active_block = Some("b0".to_string()); // UI 0
+        // neighbor = the block after the active one → b1 (UI 1)
+        assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 1);
+    }
+
+    #[test]
+    fn neighbor_is_minus_one_when_next_block_is_io() {
+        let mut sel = SelectionState::default();
+        sel.active_chain = Some("rig:input-1".to_string());
+        sel.active_block = Some("b1".to_string()); // last audio block; raw-next is Output
+        // The toggle-neighbor command targets the raw-next block (here the
+        // Output endpoint), which has no chip on the strip → not markable.
+        assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
+    }
+
+    #[test]
+    fn neighbor_is_none_without_active_block() {
+        let mut sel = SelectionState::default();
+        sel.active_chain = Some("rig:input-1".to_string());
+        assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
     }
 }

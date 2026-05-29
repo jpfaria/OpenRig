@@ -10,6 +10,9 @@ import { PowerSwitch } from "./power_switch.slint";
 export component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
     in property <bool> selected: false;
+    // #591: the block the footswitch's block-toggle (neighbor) would act
+    // on — marked lighter than the active block so the user sees the pair.
+    in property <bool> neighbor: false;
     in property <bool> dragging: false;
     // True while ANY block in the same chain row is being dragged. Drives
     // the type-label fade so the floating ghost has a clear path across
@@ -34,9 +37,14 @@ export component BlockChip inherits Rectangle {
 
     width: 100px;
     height: 100px;
-    background: transparent;
-    border-width: 0px;
+    background: root.selected ? #f0a02014 : transparent;
+    // #591: mark the active block (strong) and the neighbor the block
+    // footswitch toggle acts on (light). The chain row already outlines
+    // the active chain; this shows the selected block within it.
+    border-width: root.selected ? 2px : root.neighbor ? 1px : 0px;
+    border-color: root.selected ? #f0a020 : root.neighbor ? #f0a0207a : transparent;
     border-radius: 6px;
+    animate border-color { duration: 220ms; easing: ease-out; }
 
     // Type label on top — fades out while a drag is happening anywhere in
     // this chain row so it doesn't obscure the floating ghost or the chips
