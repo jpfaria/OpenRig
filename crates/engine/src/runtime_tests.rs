@@ -882,6 +882,7 @@ fn panicking_block_node() -> BlockRuntimeNode {
             }),
         },
         input_layout: block_core::AudioChannelLayout::Mono,
+        content_mono: true,
         output_layout: block_core::AudioChannelLayout::Mono,
         scratch: ProcessorScratch::Mono(Vec::new()),
         processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(PanickingProcessor))),
@@ -909,6 +910,7 @@ fn counting_block_node(
             }),
         },
         input_layout: block_core::AudioChannelLayout::Mono,
+        content_mono: true,
         output_layout: block_core::AudioChannelLayout::Mono,
         scratch: ProcessorScratch::Mono(Vec::new()),
         processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(CountingProcessor {
@@ -3033,7 +3035,7 @@ fn bypass_runtime_node_has_bypass_processor() {
             params: ParameterSet::default(),
         }),
     };
-    let node = bypass_runtime_node(&block, AudioChannelLayout::Mono);
+    let node = bypass_runtime_node(&block, AudioChannelLayout::Mono, true);
     assert!(matches!(node.processor, RuntimeProcessor::Bypass));
     assert_eq!(node.block_id.0, "test:bypass");
     assert_eq!(node.input_layout, AudioChannelLayout::Mono);
