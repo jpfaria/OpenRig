@@ -14,9 +14,32 @@ fn catalog_exposes_supported_types() {
     assert!(effect_types.contains(&"preamp"));
     assert!(effect_types.contains(&"delay"));
     assert!(effect_types.contains(&"wah"));
-    // `nam`, `ir`, `pitch` only appear when their native registries have
-    // entries OR when disk packages are loaded; in this test process the
-    // packages aren't discovered, so they may legitimately be absent.
+    // `pitch` only appears when its native registry has entries OR when
+    // disk packages are loaded; in this test process the packages aren't
+    // discovered, so it may legitimately be absent.
+}
+
+#[test]
+fn catalog_always_exposes_generic_ir_and_nam_loaders() {
+    // IR and NAM ship native generic file-loader models (load a local
+    // `.wav` IR / `.nam` model from disk). Unlike packaged catalog content,
+    // these loaders must appear in the add-block picker unconditionally —
+    // they do not depend on disk-package discovery. Regression guard for
+    // #603: the #287 plugin move swept up the two native loader sources,
+    // emptying `supported_models()` and dropping the tiles from the picker.
+    let effect_types = supported_block_types()
+        .into_iter()
+        .map(|entry| entry.effect_type)
+        .collect::<Vec<_>>();
+
+    assert!(
+        effect_types.contains(&"ir"),
+        "IR generic-loader tile must always be present in the add-block picker"
+    );
+    assert!(
+        effect_types.contains(&"nam"),
+        "NAM generic-loader tile must always be present in the add-block picker"
+    );
 }
 
 #[test]
