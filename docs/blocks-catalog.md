@@ -16,7 +16,7 @@
 | **Wah** | Wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + boutique (IR) |
 | **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — time-domain granular, low-latency); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
-| **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, generic_nam |
+| **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, neural_amp_modeler |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
 
 **Total: ~804 modelos em 16 tipos (5 backends: Native 34, NAM 215, IR 139, LV2 ~351, VST3 6).**
