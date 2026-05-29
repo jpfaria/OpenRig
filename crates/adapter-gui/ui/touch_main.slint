@@ -149,6 +149,7 @@ export component TouchMain inherits Rectangle {
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -338,6 +339,7 @@ export component TouchMain inherits Rectangle {
             probe-chain-latency(index) => { root.probe-chain-latency(index); }
             open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
             select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+            select-chain(chain-index) => { root.select-chain(chain-index); }
             clear-chain-block => { root.clear-chain-block(); }
             toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
             start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }

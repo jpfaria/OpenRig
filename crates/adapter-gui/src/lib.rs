@@ -61,6 +61,7 @@ mod project_settings_wiring;
 mod recent_projects_wiring;
 mod runtime_lifecycle;
 mod select_chain_block_callback;
+mod select_chain_callback;
 pub(crate) mod settings;
 pub mod spectrum_close;
 mod spectrum_session;

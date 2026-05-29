@@ -196,6 +196,7 @@ export component AppWindow inherits Window {
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -488,6 +489,7 @@ export component AppWindow inherits Window {
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
         toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
@@ -678,6 +680,7 @@ export component AppWindow inherits Window {
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
         toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }

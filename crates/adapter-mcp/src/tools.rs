@@ -83,7 +83,9 @@ mod tests {
     /// command bus so every transport adapter (MCP/gRPC/…) inherits it.
     /// #582 bumped to 60 with `SetEvaluationsPath` — third
     /// system-paths override alongside `SetPresetsPath`/`SetPluginsPath`.
-    const COMMAND_VARIANT_COUNT: usize = 60;
+    /// #591 bumped to 61 with `SelectActiveChain` — chain-level selection
+    /// so a footswitch follows the on-screen active chain.
+    const COMMAND_VARIANT_COUNT: usize = 61;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

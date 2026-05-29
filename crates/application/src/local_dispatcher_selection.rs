@@ -55,6 +55,39 @@ impl LocalDispatcher {
         Ok(vec![Event::ProjectMutated])
     }
 
+    /// `Command::SelectActiveChain { chain }`. Sets a specific chain as
+    /// the active one (the footswitch `toggle_active_chain_enabled`
+    /// target), snapshots its `enabled` flag, and clears `active_block`
+    /// — a block belongs to one chain (issue #591). Errors when the chain
+    /// id is not in the project so a stale id never silently no-ops.
+    pub(crate) fn handle_select_active_chain(&self, chain: ChainId) -> Result<Vec<Event>> {
+        let project = self.project.borrow();
+        let Some(target) = project.chains.iter().find(|c| c.id == chain) else {
+            anyhow::bail!("SelectActiveChain: chain not found: {}", chain.0);
+        };
+        let enabled = target.enabled;
+        {
+            let mut sel = self
+                .selection_state
+                .write()
+                .expect("selection state poisoned");
+            let changed = sel.active_chain.as_deref() != Some(chain.0.as_str());
+            sel.active_chain_enabled = enabled;
+            sel.active_chain = Some(chain.0.clone());
+            if changed {
+                sel.active_block = None;
+            }
+        }
+        drop(project);
+
+        // Seed the legacy per-chain block-selection map so the existing
+        // GUI lights up the chain on screen (same path the MIDI relative
+        // nav uses).
+        self.selection.borrow_mut().entry(chain).or_insert(0);
+
+        Ok(vec![Event::ProjectMutated])
+    }
+
     /// `Command::ToggleActiveBlockNeighborEnabled`. Flips the
     /// `enabled` flag of the block immediately AFTER `active_block` in
     /// the active chain (wraps to first). No-op when no chain/block is
