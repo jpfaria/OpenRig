@@ -65,6 +65,9 @@ export component AppWindow inherits Window {
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
     in property <int> selected-chain-block-neighbor-index: -1;
+    // #591: true while a MIDI command is recent (last 10s) — gates the
+    // chain/block selection markers so they only show on footswitch activity.
+    in property <bool> midi-selection-active: false;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -370,6 +373,7 @@ export component AppWindow inherits Window {
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
+        midi-selection-active: root.midi-selection-active;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
         filtered-block-model-options: root.filtered-block-model-options;
@@ -596,6 +600,7 @@ export component AppWindow inherits Window {
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
+        midi-selection-active: root.midi-selection-active;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
         filtered-block-model-options: root.filtered-block-model-options;
