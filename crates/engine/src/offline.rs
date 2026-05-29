@@ -73,8 +73,17 @@ pub fn render_chain(
     if block_size == 0 {
         anyhow::bail!("block_size must be > 0");
     }
-    let (mut nodes, _output_layout) =
-        build_runtime_block_nodes(chain, AudioChannelLayout::Stereo, sample_rate, None, None)?;
+    // Offline render is fed an explicit stereo buffer whose channels may
+    // differ; do not assume mono content (issue #588), so build the full
+    // per-channel processors — byte-identical to the historical behaviour.
+    let (mut nodes, _output_layout) = build_runtime_block_nodes(
+        chain,
+        AudioChannelLayout::Stereo,
+        false,
+        sample_rate,
+        None,
+        None,
+    )?;
 
     let faulted_blocks = collect_faulted_blocks(&nodes);
 

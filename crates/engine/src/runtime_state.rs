@@ -166,6 +166,14 @@ pub(crate) struct BlockRuntimeNode {
     pub(crate) block_id: BlockId,
     pub(crate) block_snapshot: AudioBlock,
     pub(crate) input_layout: AudioChannelLayout,
+    /// Whether the signal reaching this block is effectively mono — i.e. a
+    /// stereo bus whose two channels carry the identical sample (a mono
+    /// source broadcast to `Stereo([s, s])`, preserved by every preceding
+    /// block). Issue #588: a `DualMono` model under effective-mono content
+    /// is built as a single mono processor instead of one per channel
+    /// (bit-identical output, half the model footprint). Part of the reuse
+    /// identity: if this flips, the block must rebuild (mono ↔ dual).
+    pub(crate) content_mono: bool,
     pub(crate) output_layout: AudioChannelLayout,
     pub(crate) scratch: ProcessorScratch,
     pub(crate) processor: RuntimeProcessor,

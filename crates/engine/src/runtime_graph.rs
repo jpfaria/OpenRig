@@ -499,9 +499,15 @@ fn build_input_processing_state(
         input.mode,
     );
     let had_existing = existing_blocks.is_some();
+    // Issue #588: a mono source is broadcast to identical stereo channels
+    // (`Stereo([s, s])`), so the content entering the first block is
+    // effectively mono. A DualMono/Stereo source carries independent
+    // channels and is not.
+    let source_is_mono = matches!(input_read_layout, AudioChannelLayout::Mono);
     let (blocks, _output_layout) = build_runtime_block_nodes(
         chain,
         processing_layout_channel,
+        source_is_mono,
         sample_rate,
         existing_blocks,
         block_indices,

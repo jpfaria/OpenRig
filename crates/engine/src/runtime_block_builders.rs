@@ -28,15 +28,36 @@ use crate::runtime_state::{
 
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
+/// Whether the signal LEAVING `node` is effectively mono (L == R), given
+/// whether the signal entering it was. Issue #588: a mono processor always
+/// emits `Stereo([s, s])`, a bypass preserves whatever flowed in, and any
+/// genuinely stereo processor (dual-mono with independent channels, true
+/// stereo, mono→stereo) may decorrelate the channels. A `Select` is treated
+/// conservatively as decorrelating (its chosen branch is opaque here).
+fn node_emits_mono_content(node: &BlockRuntimeNode, input_content_mono: bool) -> bool {
+    match &node.processor {
+        RuntimeProcessor::Audio(AudioProcessor::Mono(_)) => true,
+        RuntimeProcessor::Audio(_) => false,
+        RuntimeProcessor::Bypass => input_content_mono,
+        RuntimeProcessor::Select(_) => false,
+    }
+}
+
 pub(crate) fn build_runtime_block_nodes(
     chain: &Chain,
     input_layout: AudioChannelLayout,
+    source_is_mono: bool,
     sample_rate: f32,
     existing: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
 ) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout)> {
     let mut blocks = Vec::new();
     let mut current_layout = input_layout;
+    // Issue #588: track whether the signal reaching the current position is
+    // still effectively mono (a mono source broadcast to identical stereo
+    // channels). Starts from the source layout and is cleared the moment a
+    // block produces genuine stereo.
+    let mut content_mono = source_is_mono;
     let mut reusable_nodes = existing
         .unwrap_or_default()
         .into_iter()
@@ -67,8 +88,9 @@ pub(crate) fn build_runtime_block_nodes(
                 }
                 blocks.push(node);
             } else {
-                blocks.push(bypass_runtime_node(block, current_layout));
+                blocks.push(bypass_runtime_node(block, current_layout, content_mono));
             }
+            content_mono = node_emits_mono_content(blocks.last().unwrap(), content_mono);
             continue;
         }
         // Input/Output/Insert blocks are routing metadata; skip them in the processing chain
@@ -87,15 +109,17 @@ pub(crate) fn build_runtime_block_nodes(
                 block,
                 select,
                 current_layout,
+                content_mono,
                 sample_rate,
                 existing_select_node,
             )?;
             current_layout = node.output_layout;
+            content_mono = node_emits_mono_content(&node, content_mono);
             blocks.push(node);
             continue;
         }
         if let Some(node) =
-            try_reuse_block_node(&mut reusable_nodes, block, current_layout, sample_rate)
+            try_reuse_block_node(&mut reusable_nodes, block, current_layout, content_mono, sample_rate)
         {
             log::info!(
                 "[engine] reuse block {:?} (id={})",
@@ -103,6 +127,7 @@ pub(crate) fn build_runtime_block_nodes(
                 block.id.0
             );
             current_layout = node.output_layout;
+            content_mono = node_emits_mono_content(&node, content_mono);
             blocks.push(node);
             continue;
         }
@@ -117,9 +142,10 @@ pub(crate) fn build_runtime_block_nodes(
                 log::info!("[engine]   {} = {:?}", path, value);
             }
         }
-        match build_block_runtime_node(chain, block, current_layout, sample_rate) {
+        match build_block_runtime_node(chain, block, current_layout, content_mono, sample_rate) {
             Ok(node) => {
                 current_layout = node.output_layout;
+                content_mono = node_emits_mono_content(&node, content_mono);
                 blocks.push(node);
             }
             Err(e) => {
@@ -134,9 +160,10 @@ pub(crate) fn build_runtime_block_nodes(
                     block.model_ref().map(|m| m.model.to_string()),
                     block.id.0
                 );
-                let mut node = bypass_runtime_node(block, current_layout);
+                let mut node = bypass_runtime_node(block, current_layout, content_mono);
                 node.faulted = true;
                 node.fault_reason = Some(reason);
+                // A faulted block is bypassed → passthrough preserves content.
                 blocks.push(node);
             }
         }
@@ -149,6 +176,7 @@ fn try_reuse_block_node(
     reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
     block: &project::block::AudioBlock,
     current_layout: AudioChannelLayout,
+    content_mono: bool,
     sample_rate: f32,
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
@@ -159,6 +187,12 @@ fn try_reuse_block_node(
             node.input_layout,
             current_layout
         );
+        return None;
+    }
+    // Issue #588: the mono ↔ dual-mono decision depends on whether the
+    // incoming signal is effectively mono. If that flipped (e.g. an upstream
+    // block now produces stereo), the processor shape is wrong — rebuild.
+    if node.content_mono != content_mono {
         return None;
     }
     // Exact match — reuse as-is
@@ -249,24 +283,32 @@ fn build_block_runtime_node(
     chain: &Chain,
     block: &project::block::AudioBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
     Ok(match &block.kind {
-        _ if !block.enabled => bypass_runtime_node(block, input_layout),
+        _ if !block.enabled => bypass_runtime_node(block, input_layout, content_mono),
         AudioBlockKind::Nam(stage) => audio_block_runtime_node(
             block,
             input_layout,
-            build_nam_audio_processor(chain, stage, input_layout, sample_rate)?,
+            content_mono,
+            build_nam_audio_processor(chain, stage, input_layout, content_mono, sample_rate)?,
         ),
         AudioBlockKind::Core(core) => {
-            build_core_block_runtime_node(chain, block, core, input_layout, sample_rate)?
+            build_core_block_runtime_node(chain, block, core, input_layout, content_mono, sample_rate)?
         }
-        AudioBlockKind::Select(select) => {
-            build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
-        }
+        AudioBlockKind::Select(select) => build_select_runtime_node(
+            chain,
+            block,
+            select,
+            input_layout,
+            content_mono,
+            sample_rate,
+            None,
+        )?,
         // Input/Output/Insert blocks are routing-only; they don't process audio in the block chain
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
-            bypass_runtime_node(block, input_layout)
+            bypass_runtime_node(block, input_layout, content_mono)
         }
     })
 }
@@ -276,6 +318,7 @@ fn build_select_runtime_node(
     block: &project::block::AudioBlock,
     select: &SelectBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     sample_rate: f32,
     existing: Option<BlockRuntimeNode>,
 ) -> Result<BlockRuntimeNode> {
@@ -303,11 +346,12 @@ fn build_select_runtime_node(
             &mut reusable_option_nodes,
             option,
             input_layout,
+            content_mono,
             sample_rate,
         ) {
             node
         } else {
-            build_block_runtime_node(chain, option, input_layout, sample_rate)?
+            build_block_runtime_node(chain, option, input_layout, content_mono, sample_rate)?
         };
         if let Some(existing_layout) = resolved_output_layout {
             if existing_layout != option_node.output_layout {
@@ -339,6 +383,7 @@ fn build_select_runtime_node(
         block_id: block.id.clone(),
         block_snapshot: block.clone(),
         input_layout,
+        content_mono,
         output_layout,
         scratch: ProcessorScratch::None,
         processor: RuntimeProcessor::Select(SelectRuntimeState {
@@ -362,12 +407,14 @@ fn build_select_runtime_node(
 pub(crate) fn bypass_runtime_node(
     block: &project::block::AudioBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
 ) -> BlockRuntimeNode {
     BlockRuntimeNode {
         instance_serial: next_block_instance_serial(),
         block_id: block.id.clone(),
         block_snapshot: block.clone(),
         input_layout,
+        content_mono,
         output_layout: input_layout,
         scratch: ProcessorScratch::None,
         processor: RuntimeProcessor::Bypass,
@@ -382,6 +429,7 @@ pub(crate) fn bypass_runtime_node(
 pub(crate) fn audio_block_runtime_node(
     block: &project::block::AudioBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     outcome: ProcessorBuildOutcome,
 ) -> BlockRuntimeNode {
     let scratch = processor_scratch(&outcome.processor);
@@ -390,6 +438,7 @@ pub(crate) fn audio_block_runtime_node(
         block_id: block.id.clone(),
         block_snapshot: block.clone(),
         input_layout,
+        content_mono,
         output_layout: outcome.output_layout,
         scratch,
         processor: RuntimeProcessor::Audio(outcome.processor),
@@ -421,6 +470,7 @@ pub(crate) fn build_audio_processor_for_model<F>(
     effect_type: &str,
     model: &str,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     mut builder: F,
 ) -> Result<ProcessorBuildOutcome>
 where
@@ -459,6 +509,19 @@ where
             model,
         )?),
         (ModelAudioMode::DualMono, AudioChannelLayout::Mono) => {
+            AudioProcessor::Mono(expect_mono_processor(
+                builder(AudioChannelLayout::Mono)?,
+                chain,
+                effect_type,
+                model,
+            )?)
+        }
+        // Issue #588: a mono source broadcast to stereo carries identical
+        // channels (L == R). A single mono processor on that signal yields
+        // bit-identical output to two instances (`mono_mix([s, s]) == s`),
+        // at half the model footprint and CPU. Only collapse when the
+        // content reaching this block is still effectively mono.
+        (ModelAudioMode::DualMono, AudioChannelLayout::Stereo) if content_mono => {
             AudioProcessor::Mono(expect_mono_processor(
                 builder(AudioChannelLayout::Mono)?,
                 chain,
@@ -527,6 +590,7 @@ fn build_nam_audio_processor(
     chain: &Chain,
     stage: &NamBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     sample_rate: f32,
 ) -> Result<ProcessorBuildOutcome> {
     build_audio_processor_for_model(
@@ -534,6 +598,7 @@ fn build_nam_audio_processor(
         block_core::EFFECT_TYPE_NAM,
         &stage.model,
         input_layout,
+        content_mono,
         |layout| build_nam_processor_via_dispatch(&stage.model, &stage.params, sample_rate, layout),
     )
 }
