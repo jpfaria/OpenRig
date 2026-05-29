@@ -2526,7 +2526,8 @@ fn save_audio_settings_writes_device_settings_and_emits_event() {
 
         let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
         let result = dispatcher.dispatch(Command::SaveAudioSettings {
-            device_settings: settings.clone(),
+            input_devices: settings.clone(),
+            output_devices: vec![],
         });
 
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -2557,7 +2558,8 @@ fn save_audio_settings_replaces_previous_settings() {
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
         let result = dispatcher.dispatch(Command::SaveAudioSettings {
-            device_settings: vec![make_device_settings("new_dev")],
+            input_devices: vec![make_device_settings("new_dev")],
+            output_devices: vec![],
         });
 
         assert!(result.is_ok());
@@ -2579,11 +2581,50 @@ fn save_audio_settings_empty_clears_settings() {
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
         let result = dispatcher.dispatch(Command::SaveAudioSettings {
-            device_settings: vec![],
+            input_devices: vec![],
+            output_devices: vec![],
         });
 
         assert!(result.is_ok());
         assert!(project.borrow().device_settings.is_empty());
+    });
+}
+
+// Regression: the same physical interface enumerates with a DIFFERENT id per
+// direction (e.g. CoreAudio input `dev:1` vs output `dev:2`). The command must
+// carry the input/output split so the handler persists each list into its own
+// `config.yaml` field — collapsing both into one flat list corrupts the saved
+// selection and the device fails to re-match on reopen (#581 follow-up).
+#[test]
+fn save_audio_settings_persists_input_and_output_separately() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-split", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            input_devices: vec![make_device_settings("dev:in")],
+            output_devices: vec![make_device_settings("dev:out")],
+        });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        let in_ids: Vec<&str> = config
+            .input_devices
+            .iter()
+            .map(|d| d.device_id.as_str())
+            .collect();
+        let out_ids: Vec<&str> = config
+            .output_devices
+            .iter()
+            .map(|d| d.device_id.as_str())
+            .collect();
+        assert_eq!(in_ids, vec!["dev:in"], "input devices must persist input ids only");
+        assert_eq!(out_ids, vec!["dev:out"], "output devices must persist output ids only");
     });
 }
 

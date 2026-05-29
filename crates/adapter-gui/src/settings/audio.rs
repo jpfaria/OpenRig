@@ -75,6 +75,38 @@ fn project_device_settings_from_rows(
         .collect()
 }
 
+/// Project mode exposes a single flat device list (it has one picker, not the
+/// separate input/output pickers of GUI mode). Classify each selected device by
+/// membership in the live input/output descriptor lists so the global config
+/// still records the correct per-direction ids — the same physical interface
+/// enumerates with a different id per direction. A device exposed in both
+/// directions (shared id) is recorded in both; an id that matches neither
+/// (stale/disconnected) is kept as an input so the selection is never silently
+/// dropped.
+fn split_device_settings_by_direction(
+    selected: &[DeviceSettings],
+    input_descriptors: &[AudioDeviceDescriptor],
+    output_descriptors: &[AudioDeviceDescriptor],
+) -> (Vec<DeviceSettings>, Vec<DeviceSettings>) {
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for device in selected {
+        let is_input = input_descriptors
+            .iter()
+            .any(|d| d.id == device.device_id.0);
+        let is_output = output_descriptors
+            .iter()
+            .any(|d| d.id == device.device_id.0);
+        if is_output {
+            outputs.push(device.clone());
+        }
+        if is_input || !is_output {
+            inputs.push(device.clone());
+        }
+    }
+    (inputs, outputs)
+}
+
 pub(crate) fn wire(
     window: &AppWindow,
     project_settings_window: &ProjectSettingsWindow,
@@ -160,8 +192,16 @@ pub(crate) fn wire(
                                 {
                                     log::warn!("apply_device_settings failed: {e}");
                                 }
+                                // GUI mode carries a proper input/output split
+                                // (two separate device models), so persist each
+                                // direction's ids into its own config field.
                                 let _ = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                                    device_settings: new_device_settings,
+                                    input_devices: project_device_settings_from_rows(
+                                        settings.input_devices.clone(),
+                                    ),
+                                    output_devices: project_device_settings_from_rows(
+                                        settings.output_devices.clone(),
+                                    ),
                                 });
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
@@ -183,16 +223,10 @@ pub(crate) fn wire(
                                 return;
                             }
                         };
-                    // Persist device settings to per-machine config
-                    let gui_settings = GuiSystemSettings {
-                        input_devices: project_device_settings.clone(),
-                        output_devices: project_device_settings.clone(),
-                        language: current_language(),
-                        midi_devices: vec![],
-                    };
-                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
-                        log::warn!("failed to persist gui audio settings: {e}");
-                    }
+                    // config.yaml persistence is owned by the dispatcher's
+                    // SaveAudioSettings handler below (#581 parity) — it writes
+                    // the per-direction split. No direct save_gui_audio_settings
+                    // here: that collapsed input==output and corrupted re-match.
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         set_status_error(
@@ -207,8 +241,15 @@ pub(crate) fn wire(
                     if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
                     }
+                    let (input_device_settings, output_device_settings) =
+                        split_device_settings_by_direction(
+                            &new_device_settings,
+                            &input_chain_devices.borrow(),
+                            &output_chain_devices.borrow(),
+                        );
                     if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                        device_settings: new_device_settings,
+                        input_devices: input_device_settings,
+                        output_devices: output_device_settings,
                     }) {
                         set_status_error(&window, &toast_timer, &e.to_string());
                         return;
@@ -302,15 +343,10 @@ pub(crate) fn wire(
                     }
                 }
                 AudioSettingsMode::Project => {
-                    let gui_settings = GuiSystemSettings {
-                        input_devices: project_device_settings.clone(),
-                        output_devices: project_device_settings.clone(),
-                        language: current_language(),
-                        midi_devices: vec![],
-                    };
-                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
-                        log::warn!("failed to persist gui audio settings: {e}");
-                    }
+                    // config.yaml persistence is owned by the dispatcher's
+                    // SaveAudioSettings handler below (#581 parity) — it writes
+                    // the per-direction split. No direct save_gui_audio_settings
+                    // here: that collapsed input==output and corrupted re-match.
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         settings_window.set_status_message(
@@ -323,8 +359,15 @@ pub(crate) fn wire(
                     if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
                     }
+                    let (input_device_settings, output_device_settings) =
+                        split_device_settings_by_direction(
+                            &new_device_settings,
+                            &input_chain_devices.borrow(),
+                            &output_chain_devices.borrow(),
+                        );
                     if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                        device_settings: new_device_settings,
+                        input_devices: input_device_settings,
+                        output_devices: output_device_settings,
                     }) {
                         settings_window.set_status_message(e.to_string().into());
                         return;
