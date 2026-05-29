@@ -2,42 +2,58 @@
 //!
 //! Order of precedence:
 //!   1. `OPENRIG_PLUGINS_ROOT` environment variable.
-//!   2. `plugins_root:` field in `config.yaml` (relative paths resolve
-//!      against the config file's directory; absolute paths pass through).
-//!   3. Last-resort default `<config dir>/plugins` — picks up whatever
+//!   2. `paths.plugins_path:` in `config.yaml` — the canonical location
+//!      written by the Settings -> Paths screen (#513).
+//!   3. Legacy top-level `plugins_root:` in `config.yaml` (#287), kept for
+//!      back-compat with configs that predate the Settings -> Paths screen.
+//!   4. Last-resort default `<config dir>/plugins` — picks up whatever
 //!      `plugins/` directory ships next to the config in the current
 //!      install layout. The cross-platform layout (.app bundle / .deb /
 //!      .msi) all place a `plugins/` directory next to the deployed
 //!      `config.yaml`, so this works without per-OS hardcoding.
 //!
-//! Issue: #287
+//! For (2) and (3): relative paths resolve against the config file's
+//! directory; absolute paths pass through unchanged.
+//!
+//! Issues: #287, #513, #599
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Subset of `config.yaml` the plugin loader cares about. Other fields
-/// (e.g. legacy `paths`) round-trip via `serde(flatten)` on the engine's
-/// own config struct, not here.
+/// The `paths:` section of `config.yaml`, narrowed to the one field the
+/// plugin loader reads. Mirrors the canonical owner in `infra-filesystem`'s
+/// `AssetPaths` (a layering-safe read-only view — the loader must not depend
+/// on `infra-filesystem`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PluginPathsSection {
+    /// Directory containing every plugin package
+    /// (`<plugins_path>/<backend>/<id>/manifest.yaml`). Written by the
+    /// Settings -> Paths screen (#513).
+    #[serde(default)]
+    pub plugins_path: Option<PathBuf>,
+}
+
+/// Subset of `config.yaml` the plugin loader cares about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct PluginPathsConfig {
-    /// Directory containing every bundled plugin package
-    /// (`<plugins_root>/<backend>/<id>/manifest.yaml`). Resolved relative
-    /// to the config file's directory when loaded via
-    /// [`plugins_root_from_config`]; absolute paths pass through.
+    /// Canonical plugins directory, under `paths.plugins_path` (#513).
+    #[serde(default)]
+    pub paths: PluginPathsSection,
+    /// Legacy top-level `plugins_root` (#287). Kept for back-compat with
+    /// configs written before the Settings -> Paths screen existed.
     #[serde(default)]
     pub plugins_root: Option<PathBuf>,
 }
 
 /// Resolve the plugin packages directory to use at runtime.
 ///
-/// `config_path` should point at the project's `config.yaml`. When
-/// `OPENRIG_PLUGINS_ROOT` is set in the environment, that wins outright.
-/// Otherwise the file's `plugins_root` field is honored. As a
-/// last-resort fallback, returns `<config_dir>/plugins` — install
-/// layouts (.app bundle, .deb, .msi) all place a `plugins/` directory
-/// next to the deployed `config.yaml`, so dev needs to override
-/// explicitly via the field or env var.
+/// `config_path` should point at the project's `config.yaml`. Precedence:
+/// `OPENRIG_PLUGINS_ROOT` env wins outright; then `paths.plugins_path`
+/// (canonical, #513); then the legacy top-level `plugins_root` (#287); then
+/// the `<config_dir>/plugins` install-layout fallback. Relative declared
+/// paths resolve against the config file's directory; absolute paths pass
+/// through.
 pub fn plugins_root_from_config(config_path: &Path) -> PathBuf {
     if let Ok(env_value) = std::env::var("OPENRIG_PLUGINS_ROOT") {
         let trimmed = env_value.trim();
@@ -51,13 +67,14 @@ pub fn plugins_root_from_config(config_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."));
     if let Ok(yaml) = std::fs::read_to_string(config_path) {
         if let Ok(parsed) = serde_yaml::from_str::<PluginPathsConfig>(&yaml) {
-            if let Some(declared) = parsed.plugins_root {
-                let candidate = if declared.is_absolute() {
+            // Canonical `paths.plugins_path` (#513) wins over the legacy
+            // top-level `plugins_root` (#287) when both are present.
+            if let Some(declared) = parsed.paths.plugins_path.or(parsed.plugins_root) {
+                return if declared.is_absolute() {
                     declared
                 } else {
                     config_dir.join(declared)
                 };
-                return candidate;
             }
         }
     }
