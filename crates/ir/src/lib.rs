@@ -243,7 +243,12 @@ struct FftBlockConvolver {
 /// Minimum partition size. Keeps the number of partitions low for
 /// real-time performance. With MAX_IR_SAMPLES=8192 and PARTITION_SIZE=512,
 /// we get at most 16 partitions — very manageable.
-const PARTITION_SIZE: usize = 512;
+///
+/// Exposed because the engine's output elastic buffer must carry at least
+/// this many frames of jitter cushion for an IR chain: the convolver runs
+/// one full FFT inline per partition, so at small device buffers that
+/// periodic spike would otherwise underrun the output (issue #592).
+pub const PARTITION_SIZE: usize = 512;
 
 impl FftBlockConvolver {
     fn new(ir: Vec<f32>) -> Result<Self> {

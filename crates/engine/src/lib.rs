@@ -8,6 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod elastic_prime;
 pub mod input_tap;
 pub mod native_registry;
 pub mod offline;
