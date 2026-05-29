@@ -76,10 +76,18 @@ pub(crate) fn populate_initial_window_state(
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
 
+    // Audio device selection is a SYSTEM concept (ADR 0003): repopulate the
+    // `selected` flags from the persisted per-machine config, not the project
+    // (which does not own the selection). Passing `&[]` here is what made the
+    // selection look empty on every reopen.
+    let persisted_device_settings = crate::project_ops::build_device_settings_from_gui(
+        &settings.input_devices,
+        &settings.output_devices,
+    );
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
         &*input_chain_devices.borrow(),
         &*output_chain_devices.borrow(),
-        &[],
+        &persisted_device_settings,
     )));
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));

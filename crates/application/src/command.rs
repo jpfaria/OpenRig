@@ -263,7 +263,15 @@ pub enum Command {
     /// `DeviceSettings` before dispatching. The dispatcher replaces the
     /// project's `device_settings` with the provided list.
     SaveAudioSettings {
-        device_settings: Vec<project::device::DeviceSettings>,
+        /// Devices selected as inputs. Persisted into `config.input_devices`.
+        input_devices: Vec<project::device::DeviceSettings>,
+        /// Devices selected as outputs. Persisted into `config.output_devices`.
+        ///
+        /// Kept separate from `input_devices` because the same physical
+        /// interface enumerates with a different `device_id` per direction
+        /// (CoreAudio/WASAPI); collapsing both into one flat list corrupts the
+        /// saved selection and breaks re-match on reopen (#581 follow-up).
+        output_devices: Vec<project::device::DeviceSettings>,
     },
 
     /// #513: persist the per-machine MIDI device selection (config.yaml).
