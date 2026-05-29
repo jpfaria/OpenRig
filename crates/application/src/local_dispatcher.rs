@@ -256,6 +256,8 @@ impl CommandDispatcher for LocalDispatcher {
                 Ok(vec![Event::ProjectMutated])
             }
 
+            Command::SelectActiveChain { chain } => self.handle_select_active_chain(chain),
+
             Command::SetLanguage { .. } => self.handle_set_language(cmd),
 
             Command::SetOutputMuted { .. } => self.handle_set_output_muted(cmd),

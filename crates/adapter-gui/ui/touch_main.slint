@@ -41,6 +41,7 @@ export component TouchMain inherits Rectangle {
     in property <int> selected-chain-output-device-index;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
+    in property <int> selected-chain-block-neighbor-index: -1;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -149,6 +150,7 @@ export component TouchMain inherits Rectangle {
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -298,6 +300,7 @@ export component TouchMain inherits Rectangle {
             rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;
+            selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;
             filtered-block-model-options: root.filtered-block-model-options;
@@ -338,6 +341,7 @@ export component TouchMain inherits Rectangle {
             probe-chain-latency(index) => { root.probe-chain-latency(index); }
             open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
             select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+            select-chain(chain-index) => { root.select-chain(chain-index); }
             clear-chain-block => { root.clear-chain-block(); }
             toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
             start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }

@@ -16,6 +16,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
+    in property <int> selected-chain-block-neighbor-index: -1;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -65,6 +66,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback probe-chain-latency(int);
     callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -238,6 +240,7 @@ export component ProjectChainsPage inherits Rectangle {
                 fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
+                selected-block-neighbor-index: root.selected-chain-block-neighbor-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
                 chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
                 remove-chain(index) => { root.remove-chain(index); }
@@ -251,6 +254,7 @@ export component ProjectChainsPage inherits Rectangle {
                 probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+                select-chain(chain-index) => { root.select-chain(chain-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
                 start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
                 reorder-chain-block(chain-index, from-index, before-index) => {

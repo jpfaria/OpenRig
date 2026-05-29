@@ -353,6 +353,24 @@ pub(crate) fn load_project_session(
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
     session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
     session.rig = Some(rig);
+
+    // #591: default the active chain to the first one. A footswitch bound
+    // to `toggle_active_chain_enabled` reads `SelectionState.active_chain`;
+    // with no prior navigation that was `None` and the press was a silent
+    // no-op. Seeding it here also gives the Chains screen a chain to mark
+    // the moment a project opens.
+    let first_chain = session
+        .project
+        .borrow()
+        .chains
+        .first()
+        .map(|c| c.id.clone());
+    if let Some(first_chain) = first_chain {
+        let _ = session
+            .dispatcher
+            .dispatch(application::command::Command::SelectActiveChain { chain: first_chain });
+    }
+
     Ok(session)
 }
 

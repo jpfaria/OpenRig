@@ -85,8 +85,17 @@ CC slots (`chain_volume`, `block_param_numeric`).
 
 "Active chain" / "active block" come from `SelectionState` —
 synchronised with what the user has selected on the Chains screen.
-Slots that need an active chain/block and there is none simply do
-nothing (a footswitch press on a not-yet-loaded project is a no-op).
+The active chain is set by **tapping a chain row** (anywhere on its
+header), by selecting one of its blocks, or by the `prev_chain` /
+`next_chain` slots; the selected chain is outlined on screen. A
+footswitch bound to `toggle_active_chain_enabled` therefore toggles
+the chain the user currently has selected (issue #591). The active chain —
+and, inside it, the active block plus the neighbor block a block-toggle
+acts on — is marked on screen; moving the selection briefly pulses the new
+marker, which then settles to a subtle outline so it stays visible without
+clutter. On project open the first chain is selected by default, so a
+footswitch press has a target immediately.
+Slots that still have no active chain/block simply do nothing.
 
 ## Architecture
 

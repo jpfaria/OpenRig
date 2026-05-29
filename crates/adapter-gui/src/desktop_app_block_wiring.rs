@@ -124,6 +124,12 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             auto_save: deps.auto_save,
         },
     );
+    // --- on_select_chain (#591: chain-level selection drives the footswitch's active chain) ---
+    crate::select_chain_callback::wire(
+        &deps.window,
+        deps.project_session.clone(),
+        deps.toast_timer.clone(),
+    );
     // --- Chain block CRUD callbacks (extracted to chain_block_crud_wiring) ---
     crate::chain_block_crud_wiring::wire(
         &deps.window,

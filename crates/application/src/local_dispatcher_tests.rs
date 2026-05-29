@@ -1368,6 +1368,61 @@ fn toggle_chain_enabled_non_existent_returns_err() {
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
 
+// ── SelectActiveChain tests (issue #591) ───────────────────────────────────────
+
+#[test]
+fn select_active_chain_sets_active_chain_clears_block_and_snapshots_enabled() {
+    // chain_0 (enabled), chain_1 (disabled). The footswitch slot
+    // `toggle_active_chain_enabled` resolves against `active_chain`, so
+    // selecting a chain on the Chains screen must set it as the active one
+    // — otherwise the footswitch stays frozen on whatever was selected last
+    // (the #591 bug: it always targeted `rig:input-3`).
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    // Seed selection on chain_0 with a block, as if the user had drilled in.
+    {
+        let sel = dispatcher.selection_state();
+        let mut s = sel.write().unwrap();
+        s.active_chain = Some("chain_0".to_string());
+        s.active_block = Some("input:0".to_string());
+        s.active_chain_enabled = true;
+    }
+
+    let result = dispatcher.dispatch(Command::SelectActiveChain {
+        chain: ChainId("chain_1".to_string()),
+    });
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+
+    let sel = dispatcher.selection_state();
+    let s = sel.read().unwrap();
+    assert_eq!(
+        s.active_chain.as_deref(),
+        Some("chain_1"),
+        "selecting a chain on screen must become the active chain the footswitch toggles"
+    );
+    assert!(
+        s.active_block.is_none(),
+        "changing the active chain must clear the stale active block (block lives in one chain)"
+    );
+    assert!(
+        !s.active_chain_enabled,
+        "active_chain_enabled must snapshot the newly-selected chain (chain_1 is disabled)"
+    );
+}
+
+#[test]
+fn select_active_chain_non_existent_returns_err() {
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SelectActiveChain {
+        chain: ChainId("chain_MISSING".to_string()),
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
 // ── AddChain tests ────────────────────────────────────────────────────────────
 
 #[test]

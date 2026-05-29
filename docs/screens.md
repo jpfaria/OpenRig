@@ -4,7 +4,7 @@ Pedalboard virtual: usuário monta cadeia de efeitos visualmente, ajusta parâme
 
 - **Launcher** — criar/abrir projetos
 - **Project Setup** — pede o nome ao criar novo projeto
-- **Chains** — visualização da cadeia de blocos, drag/reorder
+- **Chains** — visualização da cadeia de blocos, drag/reorder. Tapping a chain row's header selects it (outlined) as the active chain — the one a MIDI footswitch bound to `toggle_active_chain_enabled` acts on (#591).
 - **Block Editor** — edita parâmetros de um bloco
 - **Compact Chain View** — power switches e troca rápida de modelo
 - **Settings** — unified configuration screen, reached from the top bar. Two scope headers:

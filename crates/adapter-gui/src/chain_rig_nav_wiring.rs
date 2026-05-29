@@ -48,6 +48,12 @@ pub(crate) fn refresh_from_session(
 ) {
     if let Some(session) = project_session.borrow().as_ref() {
         refresh_chain_rig_nav(window, session);
+        // #591: show the active chain/block marker as soon as a project
+        // opens (every open path funnels through here).
+        let proj = session.project.borrow();
+        let sel_arc = session.dispatcher.selection_state();
+        let sel = sel_arc.read().expect("selection state poisoned");
+        crate::selection_highlight::sync_selection_markers(window, &proj, &sel);
     }
 }
 
@@ -182,6 +188,16 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         &ctx.output_chain_devices.borrow(),
     );
     refresh_chain_rig_nav(window, session);
+    // #591: keep the on-screen chain/block markers in lock-step with the
+    // dispatcher-owned selection. This is the path a footswitch press
+    // drains through, so moving the active chain/block via MIDI now shows
+    // on screen (before, it changed invisibly).
+    {
+        let proj = session.project.borrow();
+        let sel_arc = session.dispatcher.selection_state();
+        let sel = sel_arc.read().expect("selection state poisoned");
+        crate::selection_highlight::sync_selection_markers(window, &proj, &sel);
+    }
     sync_project_dirty(
         window,
         session,

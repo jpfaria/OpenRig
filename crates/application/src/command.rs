@@ -323,6 +323,14 @@ pub enum Command {
     /// Was GUI-only state; now dispatcher-owned so it is reachable.
     SelectChainBlock { chain: ChainId, block_index: usize },
 
+    /// #591: select a whole chain as the active one (no specific block).
+    /// Dispatched when the user taps a chain on the Chains screen so the
+    /// footswitch slot `toggle_active_chain_enabled` (which reads
+    /// `SelectionState.active_chain`) follows the on-screen selection.
+    /// Clears the active block — a block belongs to one chain. Errors if
+    /// the chain does not exist.
+    SelectActiveChain { chain: ChainId },
+
     /// #436: capture pending edits on the projected synthetic chains
     /// back into the rig. The GUI save path used to call
     /// `sync_synthetic_into_rig` by hand (model mutation in the UI);

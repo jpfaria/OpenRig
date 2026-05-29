@@ -23,6 +23,8 @@ export component ChainRow inherits Rectangle {
     in property <int> chain-count;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
+    // #591: UI index of the block the footswitch block-toggle acts on.
+    in property <int> selected-block-neighbor-index: -1;
     in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
@@ -36,6 +38,9 @@ export component ChainRow inherits Rectangle {
     callback save-chain-preset(int);
     callback probe-chain-latency(int);
     callback select-chain-block(int, int);
+    // #591: select the whole chain as the footswitch's active chain
+    // (no specific block). Fired by tapping empty header space.
+    callback select-chain(int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
@@ -73,6 +78,36 @@ export component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
+    // #591: highlight the row when this chain is the active selection
+    // (set by tapping the chain, by selecting one of its blocks, or by
+    // MIDI prev/next). This is the chain the footswitch toggles.
+    property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
+    // #591: transient emphasis when the selection MOVES to this chain —
+    // a strong border that fades back to the subtle persistent marker
+    // after a moment, so a footswitch step is visible without leaving
+    // permanent clutter. `pulse` is raised on the rising edge of
+    // `chain-selected` and cleared by the one-shot timer below.
+    property <bool> pulse: false;
+    border-width: root.chain-selected ? (root.pulse ? 3px : 1px) : 0px;
+    border-color: root.chain-selected
+        ? (root.pulse ? #ffc14d : #f0a02066)
+        : transparent;
+    animate border-width { duration: 1600ms; easing: ease-out; }
+    animate border-color { duration: 1600ms; easing: ease-out; }
+    changed chain-selected => {
+        if (root.chain-selected) {
+            root.pulse = true;
+            pulse-timer.running = true;
+        }
+    }
+    pulse-timer := Timer {
+        interval: 1800ms;
+        running: false;
+        triggered => {
+            root.pulse = false;
+            self.running = false;
+        }
+    }
     // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
     // which collided with the block grid (bottom at y = 62 + n*108).
     // Add 32px of breathing room so the meters sit clearly below the
@@ -91,6 +126,18 @@ export component ChainRow inherits Rectangle {
         width: parent.width;
         height: 58px;
         background: transparent;
+
+        // #591: tapping empty header space selects the chain as the
+        // footswitch's active chain. Declared first → lowest z-order, so
+        // the PowerSwitch / title / action controls on top still get their
+        // own clicks; only the gaps fall through to this selector.
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => { root.select-chain(root.chain-index); }
+        }
 
         PowerSwitch {
             x: 10px;
@@ -367,6 +414,7 @@ export component ChainRow inherits Rectangle {
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
+            neighbor: root.selected-block-chain-index == root.chain-index && root.selected-block-neighbor-index == block-index;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
             chain-dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             clicked => { root.select-chain-block(root.chain-index, block-index); }
