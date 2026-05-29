@@ -82,8 +82,32 @@ export component ChainRow inherits Rectangle {
     // (set by tapping the chain, by selecting one of its blocks, or by
     // MIDI prev/next). This is the chain the footswitch toggles.
     property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
-    border-width: root.chain-selected ? 2px : 0px;
-    border-color: #f0a020;
+    // #591: transient emphasis when the selection MOVES to this chain —
+    // a strong border that fades back to the subtle persistent marker
+    // after a moment, so a footswitch step is visible without leaving
+    // permanent clutter. `pulse` is raised on the rising edge of
+    // `chain-selected` and cleared by the one-shot timer below.
+    property <bool> pulse: false;
+    border-width: root.chain-selected ? (root.pulse ? 3px : 1px) : 0px;
+    border-color: root.chain-selected
+        ? (root.pulse ? #ffc14d : #f0a02066)
+        : transparent;
+    animate border-width { duration: 1600ms; easing: ease-out; }
+    animate border-color { duration: 1600ms; easing: ease-out; }
+    changed chain-selected => {
+        if (root.chain-selected) {
+            root.pulse = true;
+            pulse-timer.running = true;
+        }
+    }
+    pulse-timer := Timer {
+        interval: 1800ms;
+        running: false;
+        triggered => {
+            root.pulse = false;
+            self.running = false;
+        }
+    }
     // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
     // which collided with the block grid (bottom at y = 62 + n*108).
     // Add 32px of breathing room so the meters sit clearly below the

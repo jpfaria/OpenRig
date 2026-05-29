@@ -41,10 +41,30 @@ export component BlockChip inherits Rectangle {
     // #591: mark the active block (strong) and the neighbor the block
     // footswitch toggle acts on (light). The chain row already outlines
     // the active chain; this shows the selected block within it.
-    border-width: root.selected ? 2px : root.neighbor ? 1px : 0px;
-    border-color: root.selected ? #f0a020 : root.neighbor ? #f0a0207a : transparent;
+    // `pulse` adds a brief stronger emphasis when the selection MOVES to
+    // this chip (footswitch block step), fading back after a moment.
+    property <bool> pulse: false;
+    border-width: root.selected ? (root.pulse ? 3px : 2px) : root.neighbor ? 1px : 0px;
+    border-color: root.selected
+        ? (root.pulse ? #ffc14d : #f0a020)
+        : root.neighbor ? #f0a0207a : transparent;
     border-radius: 6px;
-    animate border-color { duration: 220ms; easing: ease-out; }
+    animate border-width { duration: 1500ms; easing: ease-out; }
+    animate border-color { duration: 1500ms; easing: ease-out; }
+    changed selected => {
+        if (root.selected) {
+            root.pulse = true;
+            chip-pulse-timer.running = true;
+        }
+    }
+    chip-pulse-timer := Timer {
+        interval: 1700ms;
+        running: false;
+        triggered => {
+            root.pulse = false;
+            self.running = false;
+        }
+    }
 
     // Type label on top — fades out while a drag is happening anywhere in
     // this chain row so it doesn't obscure the floating ghost or the chips
