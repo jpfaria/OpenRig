@@ -1,0 +1,124 @@
+version: 1
+id: OD
+name: guiTARRA - DEFAULT
+volume: 147.0
+blocks:
+- type: dynamics
+  enabled: true
+  model: compressor_studio_clean
+  params:
+    attack_ms: 10.0
+    makeup_gain: 50.0
+    mix: 100.0
+    ratio: 16.0
+    release_ms: 80.0
+    threshold: 70.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    high: 0.0
+    high_mid: 0.0
+    low: 0.0
+    low_mid: 0.0
+- type: dynamics
+  enabled: true
+  model: gate_basic
+  params:
+    attack_ms: 5.0
+    hold_ms: 150.0
+    hysteresis_db: 6.0
+    release_ms: 50.0
+    threshold: 24.0
+- type: gain
+  enabled: true
+  model: nam_big_muff
+  params:
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    nam_size: standard
+    noise_gate:
+      enabled: true
+      threshold_db: -50.0
+    output_db: 0.0
+    size: '0'
+    sustain: 0.0
+- type: gain
+  enabled: true
+  model: nam_nobels_odr_1
+  params:
+    eq:
+      bass: 5.0
+      enabled: false
+      middle: 5.0
+      treble: 5.0
+    gain: 28.0
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 0.0
+- type: amp
+  enabled: false
+  model: nam_dumble
+  params:
+    cabinet: 4x12_greenback
+    eq:
+      bass: 5.0
+      enabled: false
+      middle: 5.0
+      treble: 5.0
+    gain: drive
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: -2.0
+- type: preamp
+  enabled: true
+  model: nam_mesa_mark_iii
+  params:
+    eq:
+      bass: 5.0
+      enabled: false
+      middle: 5.0
+      treble: 5.0
+    gain: cranked
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 0.0
+- type: cab
+  enabled: true
+  model: ir_marshall_4x12_v30
+  params:
+    air: 26.0
+    capture: ev_mix_b
+    high_cut_hz: 7200.0
+    low_cut_hz: 78.0
+    mic_distance: 24.0
+    mic_position: 50.0
+    output: 50.0
+    resonance: 55.0
+    room_mix: 12.0
+- type: reverb
+  enabled: false
+  model: plate_foundation
+  params:
+    damping: 35.0
+    mix: 25.0
+    room_size: 100.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
+    release_ms: 100.0
+    threshold: -1.0

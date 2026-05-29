@@ -1,0 +1,97 @@
+version: 1
+id: Crunch
+name: guiTARRA - DEFAULT
+volume: 100.0
+blocks:
+- type: dynamics
+  enabled: true
+  model: compressor_studio_clean
+  params:
+    attack_ms: 10.0
+    makeup_gain: 50.0
+    mix: 100.0
+    ratio: 16.0
+    release_ms: 80.0
+    threshold: 70.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    high: 0.0
+    high_mid: 0.0
+    low: 0.0
+    low_mid: 0.0
+- type: dynamics
+  enabled: true
+  model: gate_basic
+  params:
+    attack_ms: 5.0
+    hold_ms: 150.0
+    hysteresis_db: 6.0
+    release_ms: 50.0
+    threshold: 35.0
+- type: gain
+  enabled: true
+  model: nam_ibanez_ts9
+  params:
+    drive: 6.0
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    level: 5.0
+    noise_gate:
+      enabled: true
+      threshold_db: -50.0
+    output_db: 0.0
+    tone: 5.0
+- type: amp
+  enabled: false
+  model: nam_marshall_jcm_800
+  params:
+    cabinet: 4x12_greenback
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    gain: crunch
+    input_db: 0.0
+    noise_gate:
+      enabled: true
+      threshold_db: -50.0
+    output_db: 6.5
+- type: amp
+  enabled: true
+  model: nam_dumble
+  params:
+    cabinet: 4x12_v30
+    eq:
+      bass: 5.0
+      enabled: false
+      middle: 5.0
+      treble: 5.0
+    gain: crunch
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 0.0
+- type: reverb
+  enabled: true
+  model: room
+  params:
+    damping: 50.0
+    mix: 25.0
+    room_size: 40.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
+    release_ms: 100.0
+    threshold: -1.0

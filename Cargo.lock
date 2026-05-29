@@ -1880,6 +1880,7 @@ dependencies = [
  "crossbeam-queue",
  "domain",
  "ebur128",
+ "infra-yaml",
  "ir",
  "log",
  "lv2",
