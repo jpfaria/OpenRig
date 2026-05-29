@@ -6,6 +6,30 @@ use block_core::param::{
 };
 use block_core::{db_to_lin, ModelAudioMode, MonoProcessor};
 use domain::value_objects::ParameterValue;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// Cumulative count of NAM models loaded via `CreateModelFromFile` over the
+/// process lifetime (never decremented). Memory-observability counter
+/// (issue #588): a chain edit that reuses a block must NOT grow this — a
+/// reload of an unchanged model is wasted work and a transient 2× footprint.
+static MODELS_CREATED: AtomicUsize = AtomicUsize::new(0);
+
+/// Number of NAM models currently resident in memory (incremented on load,
+/// decremented on `Drop`). Memory-observability counter (issue #588): after
+/// any chain edit this must equal the number of NAM blocks actually in the
+/// live chain — a higher value is an orphaned model that was not freed.
+static MODELS_LIVE: AtomicUsize = AtomicUsize::new(0);
+
+/// Total NAM models loaded since process start (monotonic). See
+/// [`MODELS_CREATED`].
+pub fn models_created() -> usize {
+    MODELS_CREATED.load(Ordering::Relaxed)
+}
+
+/// NAM models currently held in memory. See [`MODELS_LIVE`].
+pub fn live_models() -> usize {
+    MODELS_LIVE.load(Ordering::Relaxed)
+}
 
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
@@ -349,6 +373,9 @@ impl Drop for NamProcessor {
         if !self.model.is_null() {
             unsafe { DeleteModel(self.model) };
             self.model = std::ptr::null_mut();
+            // Memory-observability (issue #588): mirror the increment in
+            // `new`. Only decrement for a model that was actually loaded.
+            MODELS_LIVE.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
@@ -381,6 +408,10 @@ impl NamProcessor {
         if model.is_null() {
             bail!("failed to load NAM model '{}'", model_path);
         }
+        // Memory-observability (issue #588): a model was just loaded into
+        // memory. Mirror this decrement in `Drop`.
+        MODELS_CREATED.fetch_add(1, Ordering::Relaxed);
+        MODELS_LIVE.fetch_add(1, Ordering::Relaxed);
 
         let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
         let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };

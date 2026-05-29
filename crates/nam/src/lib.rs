@@ -5,6 +5,7 @@ pub mod loudness_probe;
 pub mod processor;
 
 pub use from_package::{build_from_package, register_builder};
+pub use processor::{live_models, models_created};
 
 use anyhow::{bail, Result};
 use block_core::param::{ModelParameterSchema, ParameterSet};
