@@ -4,7 +4,7 @@ use block_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
     ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
-use block_core::{db_to_lin, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
+use block_core::{db_to_lin, ModelAudioMode, MonoProcessor};
 use domain::value_objects::ParameterValue;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -337,68 +337,10 @@ unsafe extern "C" {
     fn GetRecommendedOutputDBAdjustment(model: *mut NeuralModel) -> f32;
 }
 
-/// Map a 0..10 tone knob (5 = flat) to a shelf/peak gain in dB. The
-/// usable range is ±12 dB at the extremes; 5.0 is exactly 0 dB so the
-/// default tone is transparent.
-#[inline]
-fn tone_knob_to_db(knob: f32) -> f32 {
-    (knob.clamp(0.0, 10.0) - 5.0) / 5.0 * 12.0
-}
-
-/// Post-model 3-band tone stack (issue #612): the `eq.bass`/`eq.middle`/
-/// `eq.treble` knobs were parsed into `NamPluginParams` but never applied
-/// to the signal — dead knobs. This wires them through the shared
-/// `block_core::BiquadFilter` (low shelf / mid peak / high shelf), placed
-/// after the neural model and before the output gain, like a real amp's
-/// tone stack. Built only when the EQ is enabled AND at least one band is
-/// off-center, so the default (5/5/5) stays byte-identical to no EQ.
-struct NamToneStack {
-    low_shelf: BiquadFilter,
-    mid_peak: BiquadFilter,
-    high_shelf: BiquadFilter,
-}
-
-impl NamToneStack {
-    fn from_params(params: &NamPluginParams, sample_rate: f32) -> Option<Self> {
-        if !params.eq_enabled {
-            return None;
-        }
-        let bass_db = tone_knob_to_db(params.bass);
-        let mid_db = tone_knob_to_db(params.middle);
-        let treble_db = tone_knob_to_db(params.treble);
-        // Flat tone stack = transparent: skip it entirely so the default
-        // 5/5/5 leaves the existing model output bit-for-bit unchanged
-        // (no filter ringing, no golden-sample drift).
-        if bass_db == 0.0 && mid_db == 0.0 && treble_db == 0.0 {
-            return None;
-        }
-        Some(Self {
-            low_shelf: BiquadFilter::new(BiquadKind::LowShelf, 120.0, bass_db, 0.707, sample_rate),
-            mid_peak: BiquadFilter::new(BiquadKind::Peak, 750.0, mid_db, 0.7, sample_rate),
-            high_shelf: BiquadFilter::new(
-                BiquadKind::HighShelf,
-                4_000.0,
-                treble_db,
-                0.707,
-                sample_rate,
-            ),
-        })
-    }
-
-    #[inline]
-    fn process(&mut self, x: f32) -> f32 {
-        let x = self.low_shelf.process(x);
-        let x = self.mid_peak.process(x);
-        self.high_shelf.process(x)
-    }
-}
-
 pub struct NamProcessor {
     model: *mut NeuralModel,
     input_gain: f32,
     output_gain: f32,
-    /// #612: post-model tone stack (None when EQ disabled or flat).
-    eq: Option<NamToneStack>,
     scratch_input: Vec<f32>,
     scratch_output: Vec<f32>,
     // Issue #496 chain audit: what the model itself recommends for
@@ -505,16 +447,12 @@ impl NamProcessor {
             params.audit_overrides_baked_output,
         );
 
-        // #612: wire the EQ knobs (low/mid/high) into a post-model tone
-        // stack. None when disabled or flat (default), so existing tones
-        // are untouched.
-        let eq = NamToneStack::from_params(&params, sample_rate);
+        let _ = sample_rate; // currently unused; staged for future per-SR DSP
 
         Ok(Self {
             model,
             input_gain,
             output_gain,
-            eq,
             scratch_input: Vec::new(),
             scratch_output: Vec::new(),
             recommended_input_db,
@@ -563,12 +501,7 @@ impl MonoProcessor for NamProcessor {
         unsafe {
             Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        // #612: post-model tone stack (no-op when EQ disabled / flat).
-        let mut y = output[0];
-        if let Some(eq) = self.eq.as_mut() {
-            y = eq.process(y);
-        }
-        soft_clip(y * self.output_gain)
+        soft_clip(output[0] * self.output_gain)
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -600,13 +533,6 @@ impl MonoProcessor for NamProcessor {
         // guitar dynamics it strangles weight ("brinquedo"). Per #496
         // measurements, sane calibration alone keeps decay < -60 dBFS
         // — hiss is the audit's responsibility, not the engine's.
-        // #612: post-model tone stack (no-op when EQ disabled / flat),
-        // applied before the output gain + clip, like an amp's tone stack.
-        if let Some(eq) = self.eq.as_mut() {
-            for s in self.scratch_output.iter_mut() {
-                *s = eq.process(*s);
-            }
-        }
         let output_gain = self.output_gain;
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = soft_clip(*src * output_gain);
