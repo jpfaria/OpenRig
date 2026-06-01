@@ -12,6 +12,14 @@
 //! When no project session is loaded the dispatch is skipped (mirrors
 //! `midi_devices::install`): persistence still happens so the choice
 //! survives even before a project is opened.
+//!
+//! #607: each Choose…/Reset also mirrors the override into the shared
+//! in-memory `AppConfig`, not only `config.yaml`. Lifecycle events
+//! (project-open / register-recent) re-persist the whole in-memory
+//! snapshot via `save_app_config(&app_config.borrow())`; without the
+//! mirror, that whole-config save would clobber a just-picked override
+//! back to its startup value (the user-visible bug: evaluations folder
+//! reverting to default after reopening the project).
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -23,7 +31,7 @@ use slint::ComponentHandle;
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
-use infra_filesystem::FilesystemStorage;
+use infra_filesystem::{AppConfig, FilesystemStorage};
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectSettingsWindow};
@@ -36,14 +44,45 @@ fn pick_folder_dialog() -> Option<PathBuf> {
     FileDialog::new().pick_folder()
 }
 
+/// #607: Apply a **presets** path override — persist it into `config.yaml`
+/// AND mirror it into the shared in-memory `AppConfig`. The mirror is the
+/// fix: lifecycle events (project-open / register-recent) re-persist the
+/// whole in-memory snapshot via `save_app_config(&app_config.borrow())`; if
+/// the picker only wrote to disk, that whole-config save would clobber the
+/// user's pick back to its startup value. Keeping the snapshot in lockstep
+/// makes the override the single source of truth.
+pub fn apply_presets_override(config: &mut AppConfig, path: Option<PathBuf>) -> anyhow::Result<()> {
+    FilesystemStorage::save_presets_path(path.clone())?;
+    config.paths.presets_path = path;
+    Ok(())
+}
+
+/// #607: same persist + in-memory mirror for the **plugins** override.
+pub fn apply_plugins_override(config: &mut AppConfig, path: Option<PathBuf>) -> anyhow::Result<()> {
+    FilesystemStorage::save_plugins_path(path.clone())?;
+    config.paths.plugins_path = path;
+    Ok(())
+}
+
+/// #607: same persist + in-memory mirror for the **evaluations** override.
+pub fn apply_evaluations_override(
+    config: &mut AppConfig,
+    path: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    FilesystemStorage::save_evaluations_path(path.clone())?;
+    config.paths.evaluations_path = path;
+    Ok(())
+}
+
 /// Persist the new presets-path override into `config.yaml` and, when
 /// a project session is loaded, dispatch `Command::SetPresetsPath` so
 /// the event fans out on the bus.
 fn apply_presets_path(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = FilesystemStorage::save_presets_path(path.clone()) {
+    if let Err(e) = apply_presets_override(&mut app_config.borrow_mut(), path.clone()) {
         log::warn!("[paths] failed to persist presets-path into config.yaml: {e}");
         return;
     }
@@ -62,9 +101,10 @@ fn apply_presets_path(
 /// Same as [`apply_presets_path`] but for the plugins override.
 fn apply_plugins_path(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = FilesystemStorage::save_plugins_path(path.clone()) {
+    if let Err(e) = apply_plugins_override(&mut app_config.borrow_mut(), path.clone()) {
         log::warn!("[paths] failed to persist plugins-path into config.yaml: {e}");
         return;
     }
@@ -83,9 +123,10 @@ fn apply_plugins_path(
 /// #582: same persist+dispatch pattern for the evaluations directory.
 fn apply_evaluations_path(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = FilesystemStorage::save_evaluations_path(path.clone()) {
+    if let Err(e) = apply_evaluations_override(&mut app_config.borrow_mut(), path.clone()) {
         log::warn!("[paths] failed to persist evaluations-path into config.yaml: {e}");
         return;
     }
@@ -161,15 +202,20 @@ fn run_reload_plugin_catalog(project_session: &Rc<RefCell<Option<ProjectSession>
 /// Each Choose… opens the native folder dialog, persists into
 /// `config.yaml`, and updates the Slint property so the UI reflects
 /// the new value immediately. Each Reset clears the override.
-pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSession>>>) {
+pub fn install(
+    win: &AppWindow,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    app_config: Rc<RefCell<AppConfig>>,
+) {
     // ── presets / Choose ────────────────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_presets_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_presets_path(&session, Some(path.clone()));
+        apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_presets_path(path.to_string_lossy().into_owned().into());
         }
@@ -178,8 +224,9 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
     // ── presets / Reset ─────────────────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_presets_path(move || {
-        apply_presets_path(&session, None);
+        apply_presets_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_presets_path(slint::SharedString::default());
         }
@@ -188,11 +235,12 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
     // ── plugins / Choose ────────────────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_plugins_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_plugins_path(&session, Some(path.clone()));
+        apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(path.to_string_lossy().into_owned().into());
         }
@@ -201,8 +249,9 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
     // ── plugins / Reset ─────────────────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_plugins_path(move || {
-        apply_plugins_path(&session, None);
+        apply_plugins_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(slint::SharedString::default());
         }
@@ -211,11 +260,12 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
     // ── evaluations / Choose (#582) ─────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_evaluations_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_evaluations_path(&session, Some(path.clone()));
+        apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
@@ -224,8 +274,9 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
     // ── evaluations / Reset (#582) ──────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_evaluations_path(move || {
-        apply_evaluations_path(&session, None);
+        apply_evaluations_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_evaluations_path(slint::SharedString::default());
         }
@@ -249,14 +300,16 @@ pub fn install(win: &AppWindow, project_session: Rc<RefCell<Option<ProjectSessio
 pub fn install_secondary(
     win: &ProjectSettingsWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
+    app_config: Rc<RefCell<AppConfig>>,
 ) {
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_presets_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_presets_path(&session, Some(path.clone()));
+        apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_presets_path(path.to_string_lossy().into_owned().into());
         }
@@ -264,8 +317,9 @@ pub fn install_secondary(
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_presets_path(move || {
-        apply_presets_path(&session, None);
+        apply_presets_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_presets_path(slint::SharedString::default());
         }
@@ -273,11 +327,12 @@ pub fn install_secondary(
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_plugins_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_plugins_path(&session, Some(path.clone()));
+        apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(path.to_string_lossy().into_owned().into());
         }
@@ -285,8 +340,9 @@ pub fn install_secondary(
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_plugins_path(move || {
-        apply_plugins_path(&session, None);
+        apply_plugins_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_plugins_path(slint::SharedString::default());
         }
@@ -295,11 +351,12 @@ pub fn install_secondary(
     // ── evaluations (#582) — secondary window ───────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_pick_evaluations_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
-        apply_evaluations_path(&session, Some(path.clone()));
+        apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
             w.set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
@@ -307,8 +364,9 @@ pub fn install_secondary(
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
+    let config = app_config.clone();
     win.on_reset_evaluations_path(move || {
-        apply_evaluations_path(&session, None);
+        apply_evaluations_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
             w.set_evaluations_path(slint::SharedString::default());
         }

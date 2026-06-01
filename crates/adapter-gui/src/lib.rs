@@ -64,6 +64,12 @@ mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod settings;
+/// #607: pure path-override helpers (persist + mirror into the in-memory
+/// `AppConfig`) exposed at the crate root for integration tests, without
+/// widening the whole `settings` module to `pub`.
+pub use settings::paths::{
+    apply_evaluations_override, apply_plugins_override, apply_presets_override,
+};
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
