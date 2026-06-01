@@ -933,3 +933,64 @@ fn issue_606_nam_backed_gain_block_survives_load() {
          catalog"
     );
 }
+
+// A gain block whose `nam_` pack is NOT installed in the catalog.
+fn uninstalled_nam_gain_block(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn issue_606_uninstalled_model_block_is_disabled_on_load() {
+    let plugins_root = PathBuf::from(
+        "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
+    );
+    assert!(
+        plugins_root.is_dir(),
+        "issue #606 repro requires OpenRig-plugins/plugins/source on disk"
+    );
+    // Catalog loaded, but the block's `nam_` pack is deliberately absent.
+    plugin_loader::registry::init_many(&[plugins_root.clone()]);
+
+    let s = Sandbox::new();
+    let session = s.new_session();
+    std::fs::write(
+        &s.cfg,
+        format!("plugins_root: {}\n", plugins_root.display()),
+    )
+    .expect("write config with plugins_root");
+
+    let chain_id = add_chain(&session, "X");
+    let pos = session.project.borrow().chains[0].blocks.len() - 1;
+    session
+        .dispatcher
+        .dispatch(Command::InsertPrebuiltBlock {
+            chain: chain_id.clone(),
+            block: uninstalled_nam_gain_block("ghost"),
+            position: pos,
+        })
+        .expect("InsertPrebuiltBlock");
+    s.save(&session);
+
+    let reloaded = s.reload();
+    let proj = reloaded.project.borrow();
+    let block = proj
+        .chains
+        .iter()
+        .flat_map(|c| c.blocks.iter())
+        .find(|b| b.id.0 == "ghost")
+        .expect("the block must be preserved on load, not dropped");
+    assert!(
+        !block.enabled,
+        "BUG #606: a block whose model is uninstalled must be DISABLED on load \
+         so the chain keeps playing instead of leaving a silently-faulted 'on' \
+         pedal"
+    );
+}

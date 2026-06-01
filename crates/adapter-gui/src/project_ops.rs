@@ -338,6 +338,19 @@ pub(crate) fn load_project_session(
         .unwrap_or_else(|| domain::ids::DeviceId(String::new()));
     project::project_ensure_io::ensure_chains_have_output(&mut project, &default_output_device);
 
+    // #606: the plugin catalog is loaded at startup, so by now we can tell
+    // which block models resolve. Disable any whose pack is not installed
+    // (or that is unsupported on this platform) — the chain keeps playing
+    // with the pedal visibly off instead of silently faulting an "on" block.
+    let disabled = project::project_disable_unavailable::disable_unavailable_blocks(&mut project);
+    if !disabled.is_empty() {
+        log::warn!(
+            "disabled {} block(s) with unavailable models on load: {:?}",
+            disabled.len(),
+            disabled.iter().map(|b| &b.0).collect::<Vec<_>>()
+        );
+    }
+
     let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),

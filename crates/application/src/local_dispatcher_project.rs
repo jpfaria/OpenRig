@@ -37,7 +37,16 @@ impl LocalDispatcher {
                 Ok(vec![Event::ProjectSaved])
             }
 
-            Command::LoadProject { project, path: _ } => {
+            Command::LoadProject {
+                mut project,
+                path: _,
+            } => {
+                // #606: disable blocks whose model is not installed (or is
+                // unsupported on this platform) so the chain plays without a
+                // silently-faulted "on" pedal. Parity with the GUI load path
+                // (`adapter-gui::project_ops::load_project_session`); MCP/gRPC
+                // that dispatch LoadProject get the same normalization.
+                project::project_disable_unavailable::disable_unavailable_blocks(&mut project);
                 // Replace the shared project data in-place so all Rc::clone
                 // holders (adapter-gui's ProjectSession) see the updated state.
                 *self.project.borrow_mut() = project;

@@ -1437,10 +1437,9 @@ fn set_compact_view_enabled_emits_event_so_the_gui_can_react() {
         .expect("dispatch ok");
 
     assert!(
-        events.iter().any(|e| matches!(
-            e,
-            Event::CompactViewEnabledChanged { enabled: true }
-        )),
+        events
+            .iter()
+            .any(|e| matches!(e, Event::CompactViewEnabledChanged { enabled: true })),
         "expected CompactViewEnabledChanged{{true}}, got {events:?}"
     );
 }
@@ -2645,8 +2644,16 @@ fn save_audio_settings_persists_input_and_output_separately() {
             .iter()
             .map(|d| d.device_id.as_str())
             .collect();
-        assert_eq!(in_ids, vec!["dev:in"], "input devices must persist input ids only");
-        assert_eq!(out_ids, vec!["dev:out"], "output devices must persist output ids only");
+        assert_eq!(
+            in_ids,
+            vec!["dev:in"],
+            "input devices must persist input ids only"
+        );
+        assert_eq!(
+            out_ids,
+            vec!["dev:out"],
+            "output devices must persist output ids only"
+        );
     });
 }
 
@@ -2772,6 +2779,56 @@ fn load_project_replaces_all_state() {
     assert!(proj.name.is_none());
     assert!(proj.device_settings.is_empty());
     assert!(proj.chains.is_empty());
+}
+
+#[test]
+fn load_project_disables_blocks_with_unavailable_models() {
+    // #606 parity: loading a project through the command bus (MCP/gRPC) must
+    // disable blocks whose model is not installed, exactly like the GUI load
+    // path — so the chain plays without a silently-faulted "on" pedal.
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let mut chain = make_empty_chain("c", true);
+    chain.blocks.push(AudioBlock {
+        id: BlockId("ghost".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            // No native gain model and no pack on disk → unavailable.
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    });
+    let new_proj = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    };
+
+    dispatcher
+        .dispatch(Command::LoadProject {
+            project: new_proj,
+            path: std::path::PathBuf::from("/p.yaml"),
+        })
+        .expect("LoadProject");
+
+    let proj = project.borrow();
+    let ghost = proj.chains[0]
+        .blocks
+        .iter()
+        .find(|b| b.id.0 == "ghost")
+        .expect("block must be preserved on load");
+    assert!(
+        !ghost.enabled,
+        "BUG #606: LoadProject must disable a block whose model is unavailable (MCP/gRPC parity)"
+    );
 }
 
 #[test]
