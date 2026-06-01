@@ -67,6 +67,11 @@ pub fn register_natives() {
 
 /// Returns true if the model has a usable backend on the current platform.
 pub fn is_model_available(model: &str) -> bool {
-    AVAILABLE_MODEL_IDS.iter().any(|id| *id == model)
-        || !MODEL_DEFINITIONS.iter().any(|d| d.id == model)
+    // Issue #606: a non-native id is only available when its disk package is
+    // actually in the catalog — see `plugin_loader::registry::model_available`.
+    plugin_loader::registry::model_available(
+        model,
+        |m| MODEL_DEFINITIONS.iter().any(|d| d.id == m),
+        |m| AVAILABLE_MODEL_IDS.contains(&m),
+    )
 }

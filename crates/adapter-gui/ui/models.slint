@@ -46,6 +46,11 @@ export struct ChainBlockItem {
     label: string,
     family: string,
     enabled: bool,
+    // #606: the model is not installed/loadable (uninstalled NAM/IR/LV2
+    // pack, or unsupported on this platform). The tile renders it as
+    // deactivated and its enable toggle is inert — the user cannot turn on
+    // a pedal that cannot build.
+    unavailable: bool,
     real_index: int,
     thumbnail: image,
     has_thumbnail: bool,

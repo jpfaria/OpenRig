@@ -60,8 +60,13 @@ pub(crate) fn build_core_block_runtime_node(
     // error and inserts a bypass node marked `faulted` — the chain stays
     // intact but the block emits silence/passthrough rather than crashing.
     if !is_model_available_for_effect_type(effect_type, model) {
+        // Either a native model unsupported on this platform (LV2 .so/.dll
+        // missing) OR a disk-package (NAM/IR/LV2) whose pack is not in the
+        // catalog. Honest message either way; the caller bypasses the block
+        // as faulted so the chain keeps playing (issue #574/#606).
         anyhow::bail!(
-            "model '{}' is not available on the current platform (effect_type={})",
+            "model '{}' (effect_type={}) is unavailable — its plugin package is \
+             not installed/loaded, or it is unsupported on this platform",
             model,
             effect_type
         );

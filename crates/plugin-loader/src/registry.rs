@@ -180,8 +180,7 @@ pub fn reload(plugins_roots: &[std::path::PathBuf]) -> ReloadStats {
     // shadows the user's calibrated copy → the convolver runs raw →
     // ~+18 dB hot → "estourado". Maps each disk id to its slot so a
     // later root replaces in place (keeping registration order stable).
-    let mut disk_slot: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut disk_slot: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for root in plugins_roots {
         if !root.is_dir() {
             continue;
@@ -246,6 +245,29 @@ pub fn packages_for(block_type: BlockType) -> Vec<&'static LoadedPackage> {
 /// Look up a single plugin by manifest id (`p.manifest.id`).
 pub fn find(model_id: &str) -> Option<&'static LoadedPackage> {
     packages().iter().find(|p| p.manifest.id == model_id)
+}
+
+/// True if `model_id` resolves to a buildable processor, mirroring the
+/// native-then-catalog resolution order every `build_*_processor_for_layout`
+/// uses: a native model of its family that is available on this platform,
+/// or a disk-package (NAM/IR/LV2/VST3) present in the catalog.
+///
+/// Issue #606: the per-family checks used to treat *any* non-native id as
+/// available, so an uninstalled disk package slipped through to the native
+/// registry and failed with a misleading "unsupported <family> model".
+/// Routing the disk case through the catalog makes the block report
+/// unavailable instead, so the caller can disable it and keep the chain
+/// playing.
+pub fn model_available(
+    model_id: &str,
+    is_native: impl Fn(&str) -> bool,
+    native_available_on_platform: impl Fn(&str) -> bool,
+) -> bool {
+    if is_native(model_id) {
+        native_available_on_platform(model_id)
+    } else {
+        find(model_id).is_some()
+    }
 }
 
 /// Count of natives + disk packages currently in the catalog.

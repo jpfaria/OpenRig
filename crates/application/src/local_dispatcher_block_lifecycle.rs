@@ -16,6 +16,15 @@ impl LocalDispatcher {
         match cmd {
             Command::ToggleBlockEnabled { chain, block } => {
                 let new_state = self.with_block(&chain, &block, |b| {
+                    // #606: never enable a block whose model is unavailable —
+                    // the user cannot activate a pedal whose pack is not
+                    // installed (or is unsupported on this platform). Disabling
+                    // an already-on block is always allowed.
+                    if !b.enabled
+                        && !project::project_disable_unavailable::block_model_is_available(&b.kind)
+                    {
+                        return Ok(false);
+                    }
                     b.enabled = !b.enabled;
                     Ok(b.enabled)
                 })?;

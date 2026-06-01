@@ -424,3 +424,17 @@ fn ibanez_ts9_level_changes_output_gain() {
         "level should raise output: quiet={quiet_output}, loud={loud_output}"
     );
 }
+
+#[test]
+fn is_gain_model_available_false_for_uncataloged_disk_model() {
+    // Issue #606: a `nam_`-namespaced model that is neither a native gain
+    // model nor present in the plugin catalog must report UNAVAILABLE.
+    // Previously the check optimistically returned true for any non-native
+    // id, so the build fell through to the native registry and emitted the
+    // misleading "unsupported gain model" instead of the block being
+    // disabled.
+    assert!(
+        !crate::is_gain_model_available("nam_lovepedal_eternity_burst_not_installed"),
+        "an uninstalled NAM gain pedal must be unavailable, not optimistically available"
+    );
+}

@@ -4,7 +4,7 @@ Pedalboard virtual: usuário monta cadeia de efeitos visualmente, ajusta parâme
 
 - **Launcher** — criar/abrir projetos
 - **Project Setup** — pede o nome ao criar novo projeto
-- **Chains** — visualização da cadeia de blocos, drag/reorder. Tapping a chain row's header selects it (outlined) as the active chain — the one a MIDI footswitch bound to `toggle_active_chain_enabled` acts on (#591).
+- **Chains** — visualização da cadeia de blocos, drag/reorder. Tapping a chain row's header selects it (outlined) as the active chain — the one a MIDI footswitch bound to `toggle_active_chain_enabled` acts on (#591). A block whose model is not installed (an uninstalled NAM/IR/LV2 pack, or one unsupported on this platform) loads **disabled** and is shown dimmed with an amber tint, distinct from a manually-switched-off block; the chain keeps playing without it and its enable toggle stays inert until the pack is installed and the catalog reloads (#606).
 - **Block Editor** — edita parâmetros de um bloco
 - **Compact Chain View** — power switches e troca rápida de modelo
 - **Settings** — unified configuration screen, reached from the top bar. Two scope headers:

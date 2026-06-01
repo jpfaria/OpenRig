@@ -1437,10 +1437,9 @@ fn set_compact_view_enabled_emits_event_so_the_gui_can_react() {
         .expect("dispatch ok");
 
     assert!(
-        events.iter().any(|e| matches!(
-            e,
-            Event::CompactViewEnabledChanged { enabled: true }
-        )),
+        events
+            .iter()
+            .any(|e| matches!(e, Event::CompactViewEnabledChanged { enabled: true })),
         "expected CompactViewEnabledChanged{{true}}, got {events:?}"
     );
 }
@@ -2645,8 +2644,16 @@ fn save_audio_settings_persists_input_and_output_separately() {
             .iter()
             .map(|d| d.device_id.as_str())
             .collect();
-        assert_eq!(in_ids, vec!["dev:in"], "input devices must persist input ids only");
-        assert_eq!(out_ids, vec!["dev:out"], "output devices must persist output ids only");
+        assert_eq!(
+            in_ids,
+            vec!["dev:in"],
+            "input devices must persist input ids only"
+        );
+        assert_eq!(
+            out_ids,
+            vec!["dev:out"],
+            "output devices must persist output ids only"
+        );
     });
 }
 
@@ -2772,6 +2779,125 @@ fn load_project_replaces_all_state() {
     assert!(proj.name.is_none());
     assert!(proj.device_settings.is_empty());
     assert!(proj.chains.is_empty());
+}
+
+#[test]
+fn load_project_disables_blocks_with_unavailable_models() {
+    // #606 parity: loading a project through the command bus (MCP/gRPC) must
+    // disable blocks whose model is not installed, exactly like the GUI load
+    // path — so the chain plays without a silently-faulted "on" pedal.
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let mut chain = make_empty_chain("c", true);
+    chain.blocks.push(AudioBlock {
+        id: BlockId("ghost".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            // No native gain model and no pack on disk → unavailable.
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    });
+    let new_proj = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    };
+
+    dispatcher
+        .dispatch(Command::LoadProject {
+            project: new_proj,
+            path: std::path::PathBuf::from("/p.yaml"),
+        })
+        .expect("LoadProject");
+
+    let proj = project.borrow();
+    let ghost = proj.chains[0]
+        .blocks
+        .iter()
+        .find(|b| b.id.0 == "ghost")
+        .expect("block must be preserved on load");
+    assert!(
+        !ghost.enabled,
+        "BUG #606: LoadProject must disable a block whose model is unavailable (MCP/gRPC parity)"
+    );
+}
+
+fn project_with_one_block(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
+    let mut chain = make_empty_chain(chain_id, true);
+    chain.blocks.push(block);
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    }))
+}
+
+fn unavailable_gain_block(id: &str, enabled: bool) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn toggle_block_enabled_refuses_to_enable_unavailable_model() {
+    // #606: a disabled block whose pack is not installed must NOT be
+    // enable-able — the user can't activate a pedal that cannot build.
+    let project = project_with_one_block("c", unavailable_gain_block("ghost", false));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::ToggleBlockEnabled {
+            chain: ChainId("c".into()),
+            block: BlockId("ghost".into()),
+        })
+        .expect("ToggleBlockEnabled");
+
+    assert!(
+        !project.borrow().chains[0].blocks[0].enabled,
+        "BUG #606: toggling an unavailable block must NOT enable it"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::BlockEnabledChanged { enabled: false, .. })),
+        "the emitted event must report the block stayed disabled, got {events:?}"
+    );
+}
+
+#[test]
+fn toggle_block_enabled_still_disables_an_unavailable_block_that_is_on() {
+    // Disabling is always allowed, even for an unavailable model (e.g. a
+    // pack uninstalled while the block was on) — only ENABLING is blocked.
+    let project = project_with_one_block("c", unavailable_gain_block("ghost", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::ToggleBlockEnabled {
+            chain: ChainId("c".into()),
+            block: BlockId("ghost".into()),
+        })
+        .expect("ToggleBlockEnabled");
+
+    assert!(
+        !project.borrow().chains[0].blocks[0].enabled,
+        "toggling an ON unavailable block must turn it OFF (disabling is allowed)"
+    );
 }
 
 #[test]
