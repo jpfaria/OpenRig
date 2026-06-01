@@ -371,6 +371,7 @@ pub(crate) fn chain_block_item_from_block(
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        unavailable: !project::project_disable_unavailable::block_model_is_available(&block.kind),
         real_index: 0,
         thumbnail,
         has_thumbnail,

@@ -1183,3 +1183,35 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
         "legacy .yaml transparently migrated to .openrig"
     );
 }
+
+#[test]
+fn chain_block_item_flags_unavailable_model_for_the_tile() {
+    use crate::project_view::chain_block_item_from_block;
+    use project::param::ParameterSet;
+
+    // The builder resolves thumbnail asset paths; init them (idempotent).
+    infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
+
+    let gain = |id: &str, model: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: false,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: model.into(),
+            params: ParameterSet::default(),
+        }),
+    };
+
+    // `ibanez_ts9` is a native gain model → resolvable. The `nam_` id has no
+    // pack on disk → unavailable. The tile uses this flag to show the block
+    // as deactivated and block its enable toggle (#606).
+    assert!(
+        !chain_block_item_from_block(&gain("a", "ibanez_ts9")).unavailable,
+        "a resolvable model must not be flagged unavailable"
+    );
+    assert!(
+        chain_block_item_from_block(&gain("u", "nam_uninstalled_pedal_for_issue_606")).unavailable,
+        "BUG #606: a block whose model is uninstalled must be flagged unavailable \
+         so the tile can show it and block its enable toggle"
+    );
+}

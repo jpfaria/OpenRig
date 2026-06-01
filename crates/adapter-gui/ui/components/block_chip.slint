@@ -23,6 +23,12 @@ export component BlockChip inherits Rectangle {
     in property <bool> chain-dragging: false;
     property <color> accent-color: root.block.accent-color;
     property <string> block-type-label: root.block.type_label;
+    // #606: a block whose model is not installed is shown muted with an
+    // amber tint (distinct from the grey of a manually-disabled block) so
+    // the user can tell the pedal is unavailable, not just switched off.
+    // The enable toggle is already inert at the command layer.
+    property <bool> unavailable: root.block.unavailable;
+    property <color> unavailable-tint: #b07a3c;
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
@@ -55,8 +61,11 @@ export component BlockChip inherits Rectangle {
                 : transparent)
         : transparent;
     border-radius: 6px;
+    // #606: dim the whole tile when its model is unavailable.
+    opacity: root.unavailable ? 0.5 : 1.0;
     animate border-width { duration: 350ms; easing: ease-out; }
     animate border-color { duration: 350ms; easing: ease-out; }
+    animate opacity { duration: 200ms; easing: ease-out; }
 
     // Type label on top — fades out while a drag is happening anywhere in
     // this chain row so it doesn't obscure the floating ghost or the chips
@@ -67,7 +76,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: 14px;
         text: root.block-type-label;
-        color: root.block.enabled ? root.accent-color : #5c6678;
+        color: root.unavailable ? root.unavailable-tint : root.block.enabled ? root.accent-color : #5c6678;
         font-size: 8px;
         font-weight: 700;
         letter-spacing: 1px;
@@ -98,7 +107,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: hover-area.has-hover ? 90px : 78px;
         icon-kind: root.block.icon-kind;
-        tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
+        tint: root.unavailable ? root.unavailable-tint : root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
         animate y { duration: 120ms; easing: ease-out; }
         animate height { duration: 120ms; easing: ease-out; }
     }
