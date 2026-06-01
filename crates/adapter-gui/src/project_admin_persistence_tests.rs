@@ -845,3 +845,91 @@ fn find_chain_helper_locates_added_chain() {
     add_chain(&session, "GUITAR");
     assert!(find_chain(&session, "GUITAR").is_some());
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Issue #606 — NAM-backed gain model survives load
+// ────────────────────────────────────────────────────────────────────
+//
+// User log: `[ERROR adapter_gui::helpers] block '…': unsupported gain
+// model 'nam_lovepedal_eternity_burst'`. The catalog files NAM gain
+// pedals (manifest `type: gain_pedal`, `backend: nam`) under the "gain"
+// family, so a slot holding one is a `Core { effect_type: "gain",
+// model: "nam_…" }`. The engine's offline `render_chain` builds such a
+// block fine (it consults the plugin catalog), but the GUI load path
+// validates "gain" blocks against the NATIVE block-gain registry only and
+// drops the model as unsupported — losing the user's block on reload.
+//
+// Repro uses `nam_maxon_od808` from OpenRig-plugins (same shape as the
+// user's `nam_lovepedal_eternity_burst`). The catalog is initialised from
+// the real plugin tree AND the config points at it, so the package is
+// unambiguously known — the only way the block disappears is the
+// native-only validation.
+fn nam_gain_block(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "nam_maxon_od808".into(),
+            params: ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn issue_606_nam_backed_gain_block_survives_load() {
+    let plugins_root = PathBuf::from(
+        "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
+    );
+    assert!(
+        plugins_root.is_dir(),
+        "issue #606 repro requires OpenRig-plugins/plugins/source on disk"
+    );
+    // Populate the process-global catalog so `nam_maxon_od808` is a known
+    // disk-package gain model — isolates the routing bug from any
+    // catalog-not-loaded effect.
+    plugin_loader::registry::init_many(&[plugins_root.clone()]);
+
+    let s = Sandbox::new();
+    let session = s.new_session();
+    // Point the config at the same real plugin tree (mirrors the user's
+    // configured setup) so the load path can resolve the package too.
+    std::fs::write(
+        &s.cfg,
+        format!("plugins_root: {}\n", plugins_root.display()),
+    )
+    .expect("write config with plugins_root");
+
+    let chain_id = add_chain(&session, "X");
+    let pos = session.project.borrow().chains[0].blocks.len() - 1;
+    session
+        .dispatcher
+        .dispatch(Command::InsertPrebuiltBlock {
+            chain: chain_id.clone(),
+            block: nam_gain_block("nam_od"),
+            position: pos,
+        })
+        .expect("InsertPrebuiltBlock");
+    s.save(&session);
+
+    let reloaded = s.reload();
+    let survived = reloaded
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .find(|c| c.description.as_deref() == Some("X"))
+        .map(|c| {
+            c.blocks.iter().any(
+                |b| matches!(&b.kind, AudioBlockKind::Core(cb) if cb.model == "nam_maxon_od808"),
+            )
+        })
+        .unwrap_or(false);
+    assert!(
+        survived,
+        "BUG #606: NAM-backed gain block 'nam_maxon_od808' was dropped on load \
+         (logged as 'unsupported gain model') — the load path validated the \
+         model against the native block-gain registry instead of the plugin \
+         catalog"
+    );
+}
