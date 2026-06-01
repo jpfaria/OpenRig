@@ -41,7 +41,11 @@ pub fn disable_unavailable_blocks(project: &mut Project) -> Vec<BlockId> {
 /// True if the block's model resolves to a buildable processor right now.
 /// Mirrors the runtime build's resolution: native registry or catalog for
 /// `Core`, the plugin catalog for the disk-backed `Nam` kind.
-fn block_model_is_available(kind: &AudioBlockKind) -> bool {
+///
+/// Shared single source of truth for "can this block be built": the load
+/// pass above uses it to disable unavailable blocks, and the
+/// `ToggleBlockEnabled` command uses it to refuse enabling one (#606).
+pub fn block_model_is_available(kind: &AudioBlockKind) -> bool {
     match kind {
         AudioBlockKind::Core(core) => {
             crate::catalog::is_model_available(&core.effect_type, &core.model)
