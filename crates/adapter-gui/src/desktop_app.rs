@@ -510,8 +510,12 @@ pub fn run_desktop_app(
         last_dispatched_name.clone(),
     );
     // --- System / Paths section (#513) ---
-    crate::settings::paths::install(&window, project_session.clone());
-    crate::settings::paths::install_secondary(&project_settings_window, project_session.clone());
+    crate::settings::paths::install(&window, project_session.clone(), app_config.clone());
+    crate::settings::paths::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+    );
     crate::settings::paths::seed_initial(&window);
     crate::settings::paths::seed_initial_secondary(&project_settings_window);
     // Seed the initial project-name and project-path-display from the session.
