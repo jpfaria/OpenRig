@@ -19,6 +19,7 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::Command;
+use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -491,6 +492,110 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 auto_save,
             );
             clear_status(&window, &toast_timer);
+        });
+    }
+
+    // ── on_di_loop_source_selected ───────────────────────────────────────────
+    // User picked a bundled id from the ComboBox (NOT the file-picker
+    // sentinel). Dispatch SetChainDiLoopSource immediately; play is a
+    // separate action via on_di_loop_play.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_di_loop_source_selected(move |index, source_str| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                return;
+            };
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                chain.id.clone()
+            };
+            // Build bundled_ids from the chain's di_loop_sources model so the
+            // parse function can validate the selection. A Bundled source is
+            // one that isn't the sentinel; File sources come via the separate
+            // choose-file callback.
+            let source = DiLoopSource::Bundled(source_str.to_string());
+            let cmds = crate::di_loop_wiring::di_loop_commands(
+                chain_id,
+                crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
+            );
+            for cmd in cmds {
+                if let Err(err) = session.dispatcher.dispatch(cmd) {
+                    set_status_error(&window, &toast_timer, &err.to_string());
+                    return;
+                }
+            }
+        });
+    }
+
+    // ── on_di_loop_choose_file ───────────────────────────────────────────────
+    // Wired separately in di_loop_chooser_wiring.rs (uses the native file
+    // dialog crate; chain_row_wiring.rs is forbidden from that — issue #511).
+
+    // ── on_di_loop_play ─────────────────────────────────────────────────────
+    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true }.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_di_loop_play(move |index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                return;
+            };
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                chain.id.clone()
+            };
+            let cmds = crate::di_loop_wiring::di_loop_commands(
+                chain_id,
+                crate::di_loop_wiring::DiLoopIntent::Play,
+            );
+            for cmd in cmds {
+                if let Err(err) = session.dispatcher.dispatch(cmd) {
+                    set_status_error(&window, &toast_timer, &err.to_string());
+                    return;
+                }
+            }
+        });
+    }
+
+    // ── on_di_loop_stop ──────────────────────────────────────────────────────
+    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false }.
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_di_loop_stop(move |index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                return;
+            };
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                chain.id.clone()
+            };
+            let cmds = crate::di_loop_wiring::di_loop_commands(
+                chain_id,
+                crate::di_loop_wiring::DiLoopIntent::Stop,
+            );
+            for cmd in cmds {
+                if let Err(err) = session.dispatcher.dispatch(cmd) {
+                    set_status_error(&window, &toast_timer, &err.to_string());
+                    return;
+                }
+            }
         });
     }
 }

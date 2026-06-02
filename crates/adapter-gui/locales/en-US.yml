@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "Input channel is already in use by another chain
 error-select-option-required-for: "Select an option for %{label}"
 error-select-invalid-for: "Invalid selection for %{label}"
 error-invalid-project: "Invalid project"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

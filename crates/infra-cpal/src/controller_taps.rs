@@ -278,4 +278,17 @@ impl ProjectRuntimeController {
             runtime.set_di_loop(di.clone());
         }
     }
+
+    /// Returns `true` when at least one `ChainRuntimeState` for `chain_id`
+    /// has an active DI loop armed (i.e. `has_di_loop() == true`).
+    ///
+    /// Called by the GUI meter timer (~30 Hz) to refresh the
+    /// `ProjectChainItem.di_loop_playing` flag in the VecModel row.
+    /// Read-only; no audio-thread interaction.
+    pub fn chain_has_di_loop(&self, chain_id: &ChainId) -> bool {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .any(|rt| rt.has_di_loop())
+    }
 }

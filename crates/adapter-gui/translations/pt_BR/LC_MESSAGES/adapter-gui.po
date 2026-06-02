@@ -635,3 +635,15 @@ msgstr "Recarregar"
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "status-plugin-catalog-idle"
 msgstr "Ainda não recarregado"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-button-label"
+msgstr "Loop DI"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-play-label"
+msgstr "Tocar loop DI"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-stop-label"
+msgstr "Parar loop DI"

@@ -797,6 +797,13 @@ pub fn run_desktop_app(
             pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
     );
+    // #614: DI loop file picker — separate module because chain_row_wiring
+    // is forbidden from using rfd:: (issue #511).
+    crate::di_loop_chooser_wiring::wire(
+        &window,
+        project_session.clone(),
+        toast_timer.clone(),
+    );
     crate::chain_rig_nav_wiring::wire(
         &window,
         crate::chain_rig_nav_wiring::ChainRigNavCtx {

@@ -102,6 +102,12 @@ export struct ProjectChainItem {
     /// bars instead of a single aggregate.
     stream_meters: [StreamMeter],
     blocks: [ChainBlockItem],
+    /// Issue #614: true while the DI loop is armed (playing) for this chain.
+    /// Refreshed by the meter timer at ~30 Hz via `ChainRuntimeState::has_di_loop`.
+    di_loop_playing: bool,
+    /// Issue #614: ordered list of available DI loop source names for the
+    /// chain-tile ComboBox. Bundled ids first, then "Choose file…" sentinel.
+    di_loop_sources: [string],
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
