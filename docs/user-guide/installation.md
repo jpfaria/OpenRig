@@ -196,10 +196,10 @@ works once the app is a valid bundle.
 
 ### "cannot open shared object file" on Linux
 
-Builds from `v0.1.0-dev.20` onward bundle `libNeuralAudioCAPI.so` (via
+Builds bundle the NAM wrapper shared object (`libnam_wrapper.so`, via
 RUNPATH) and the `.deb` declares `libseat1` as a dependency, so this is
 handled automatically. On older builds the app fails to start with
-`error while loading shared libraries: libNeuralAudioCAPI.so` or
+`error while loading shared libraries: libnam_wrapper.so` or
 `libseat.so.1`. Fix by upgrading, or for `libseat`:
 
 ```bash

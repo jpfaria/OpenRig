@@ -89,8 +89,21 @@ mkdir -p "$S/usr/lib/openrig/libs/nam"
 mkdir -p "$S/usr/share/openrig"
 
 cp target/release/adapter-gui              "$S/usr/bin/openrig"
-cp -r "libs/nam/linux-${ARCH}"             "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
 cp -r assets                               "$S/usr/share/openrig/assets"
+
+# ── NAM wrapper shared object ─────────────────────────────────────────────────
+# The nam crate's build.rs cmake-builds cpp/ (NeuralAmpModelerCore) into
+# libnam_wrapper.so and links the binary against it. No committed prebuilt
+# anymore — pick up the artifact cargo produced under
+# target/release/build/nam-*/ and stage it where the RUNPATH below points.
+NAM_WRAPPER="$(find target/release/build -path '*/nam-*/out/lib/libnam_wrapper.so' 2>/dev/null | head -1)"
+if [ -z "$NAM_WRAPPER" ]; then
+    echo "FATAL: libnam_wrapper.so not found under target/release/build — did cargo build run?" >&2
+    exit 1
+fi
+mkdir -p "$S/usr/lib/openrig/libs/nam/linux-${ARCH}"
+cp "$NAM_WRAPPER" "$S/usr/lib/openrig/libs/nam/linux-${ARCH}/libnam_wrapper.so"
+echo "    staged $NAM_WRAPPER -> libs/nam/linux-${ARCH}/libnam_wrapper.so"
 
 # Desktop integration — staged into $S so it ships in .deb/.rpm/.tar.gz
 # (and reused by the AppImage below). Without this the .deb installs no
@@ -121,7 +134,7 @@ rsvg-convert -w 256 -h 256 \
     crates/adapter-gui/ui/assets/openrig-logomark.svg \
     -o "$S/usr/share/icons/hicolor/256x256/apps/openrig.png"
 
-# The binary links libNeuralAudioCAPI.so with RUNPATH=$ORIGIN, but the lib
+# The binary links libnam_wrapper.so with RUNPATH=$ORIGIN, but the lib
 # is staged under usr/lib/openrig/libs/nam/, NOT next to the binary — so
 # ld.so can't find it and the app dies at startup with "cannot open
 # shared object file" (issue #461; macOS solves the equivalent via
@@ -135,11 +148,11 @@ patchelf --set-rpath "\$ORIGIN/../lib/openrig/libs/nam/linux-${ARCH}" \
 # the NAM lib actually resolves through the new RUNPATH before we wrap
 # it in a .deb/.AppImage (lesson from #459).
 if ldd "$S/usr/bin/openrig" 2>/dev/null \
-    | grep -q 'libNeuralAudioCAPI\.so .*not found'; then
-    echo "FATAL: libNeuralAudioCAPI.so still unresolved after RUNPATH patch" >&2
+    | grep -q 'libnam_wrapper\.so .*not found'; then
+    echo "FATAL: libnam_wrapper.so still unresolved after RUNPATH patch" >&2
     exit 1
 fi
-echo "    RUNPATH patched; libNeuralAudioCAPI.so resolves"
+echo "    RUNPATH patched; libnam_wrapper.so resolves"
 
 # Bundled preset library: the 21 default presets under presets/*.yaml ship
 # next to plugins/ and assets/ so the app finds them via
