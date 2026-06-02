@@ -29,6 +29,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
             use_panel_editor: item.use_panel_editor,
+            uses_model_catalog: block_core::effect_type_uses_model_catalog(item.effect_type),
             accent_color: crate::ui_state::accent_color_for_icon_kind(item.icon_kind),
             icon_source: slint::Image::default(),
         })
@@ -44,6 +45,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "input".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
         icon_source: slint::Image::default(),
     });
@@ -53,6 +55,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "output".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
         icon_source: slint::Image::default(),
     });
@@ -62,6 +65,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "insert".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("insert"),
         icon_source: slint::Image::default(),
     });
