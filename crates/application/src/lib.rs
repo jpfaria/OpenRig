@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod block_factory;
+pub mod di_loader;
 pub mod bridge;
 pub mod chain_factory;
 pub mod chain_validation;

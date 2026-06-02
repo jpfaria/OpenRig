@@ -346,6 +346,7 @@ dependencies = [
  "domain",
  "engine",
  "futures",
+ "hound",
  "infra-filesystem",
  "infra-yaml",
  "plugin-loader",
