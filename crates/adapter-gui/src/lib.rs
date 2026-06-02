@@ -48,7 +48,9 @@ mod chain_row_wiring;
 mod chain_save_cancel_callbacks;
 mod cli;
 mod compact_chain_block_handlers;
-mod compact_chain_callbacks;
+/// #614: compact chain view callbacks — also exposes public play/stop helpers
+/// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
+pub mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;

@@ -250,9 +250,18 @@ export component CompactChainViewWindow inherits Window {
     in property <[StreamMeter]> stream-meters;
     in property <int> volume: 100;
 
+    // #614: DI loop state for the focused chain.
+    in property <bool> di-loop-playing: false;
+    in property <[string]> di-loop-sources: [];
+
     // I/O device configuration
     callback configure-input(int); // chain_index
     callback configure-output(int); // chain_index
+    // #614: DI loop callbacks — forwarded from CompactChainViewPage.
+    callback di-loop-source-selected(string);
+    callback di-loop-choose-file();
+    callback di-loop-play();
+    callback di-loop-stop();
 
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
@@ -306,8 +315,14 @@ export component CompactChainViewWindow inherits Window {
         meter-out-dbfs: root.meter-out-dbfs;
         stream-meters: root.stream-meters;
         volume: root.volume;
+        di-loop-playing: root.di-loop-playing;
+        di-loop-sources: root.di-loop-sources;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
+        di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
+        di-loop-choose-file => { root.di-loop-choose-file(); }
+        di-loop-play => { root.di-loop-play(); }
+        di-loop-stop => { root.di-loop-stop(); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
