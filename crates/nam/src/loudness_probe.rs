@@ -7,12 +7,22 @@
 //! Cacheado em memória por `model_path` na sessão. NUNCA roda no audio
 //! thread (apenas em `NamProcessor::new`).
 
+#[cfg(test)]
 use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::{Mutex, OnceLock};
 
+#[cfg(test)]
 use block_core::lin_to_db;
 
-use crate::processor::{nam_process, NeuralModel};
+// Issue #612: the FFI-driven probe (`compute_or_lookup` / `probe_model`
+// / `diagnose_model`) was removed when the FFI moved to the official
+// `nam_wrapper` C entrypoints, which expose no per-model `Process`
+// handle for offline probing. Loudness alignment is metadata-driven now
+// (`manifest.output_gain_db`, populated offline by `tools/nam_loudness_audit`
+// and read via `baked_loudness`), so the runtime never probed the model
+// anyway. The pure measurement math below stays — it is the engine the
+// audit tooling uses and is covered by FFI-free tests.
 
 /// Loudness target — set to where the loudest hot captures sit
 /// naturally (Bogner Ecstasy & friends measure ~ -10 dBFS RMS on the
@@ -45,78 +55,23 @@ pub const PROBE_SAMPLES: usize = 96_000;
 pub const MIN_OFFSET_DB: f32 = 0.0;
 pub const MAX_OFFSET_DB: f32 = 24.0;
 
+// Issue #612: with the FFI-driven probe gone, the pink-noise generator
+// and dBFS measurement helpers are exercised only by the FFI-free unit
+// tests that pin their math (they remain the reference engine the
+// offline audit tooling reuses). Gate them to `test` so production
+// builds stay warning-free without deleting the measurement spec.
+#[cfg(test)]
 const PINK_OCTAVES: usize = 8;
-const PROBE_SEED: u64 = 0xC0FFEE;
+#[cfg(test)]
 const PEAK_FLOOR_DBFS: f32 = -120.0;
 
+#[cfg(test)]
 fn cache() -> &'static Mutex<HashMap<String, f32>> {
     static CACHE: OnceLock<Mutex<HashMap<String, f32>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Look up cached offset for `model_path`, probing the model on first use.
-///
-/// # Safety
-///
-/// `model` must be a live pointer returned by the NAM lib for the given
-/// `model_path` and not yet freed.
-pub unsafe fn compute_or_lookup(model_path: &str, model: *mut NeuralModel) -> f32 {
-    if let Some(cached) = lookup_cached(model_path) {
-        return cached;
-    }
-    let offset = probe_model(model);
-    cache()
-        .lock()
-        .unwrap()
-        .insert(model_path.to_string(), offset);
-    offset
-}
-
-unsafe fn probe_model(model: *mut NeuralModel) -> f32 {
-    let report = diagnose_model(model);
-    compute_offset_db(report.output_rms_dbfs, report.output_peak_dbfs)
-}
-
-/// Per-model probe diagnostics — every number that feeds
-/// `compute_offset_db`, returned for inspection (used by the
-/// `probe_dump` example to investigate level mismatches).
-#[derive(Debug, Clone, Copy)]
-pub struct ProbeReport {
-    pub input_peak_dbfs: f32,
-    pub input_rms_dbfs: f32,
-    pub output_peak_dbfs: f32,
-    pub output_rms_dbfs: f32,
-    pub want_for_loudness_db: f32,
-    pub allowed_by_peak_db: f32,
-    pub final_offset_db: f32,
-}
-
-/// # Safety
-///
-/// `model` must be a valid live pointer returned by the NAM lib and
-/// not yet freed.
-pub unsafe fn diagnose_model(model: *mut NeuralModel) -> ProbeReport {
-    let input = pink_noise_buffer(PROBE_SAMPLES, PROBE_SEED);
-    let input_peak_dbfs = peak_dbfs(&input);
-    let input_rms_dbfs = rms_dbfs(&input);
-    let mut output = vec![0.0_f32; PROBE_SAMPLES];
-    nam_process(model, &input, &mut output);
-    let output_peak_dbfs = peak_dbfs(&output);
-    let output_rms_dbfs = rms_dbfs(&output);
-    let want_for_loudness_db = TARGET_RMS_DBFS - output_rms_dbfs;
-    let allowed_by_peak_db = PEAK_CEILING_DBFS - output_peak_dbfs;
-    let final_offset_db = compute_offset_db(output_rms_dbfs, output_peak_dbfs);
-    ProbeReport {
-        input_peak_dbfs,
-        input_rms_dbfs,
-        output_peak_dbfs,
-        output_rms_dbfs,
-        want_for_loudness_db,
-        allowed_by_peak_db,
-        final_offset_db,
-    }
-}
-
+#[cfg(test)]
 fn pink_noise_buffer(samples: usize, seed: u64) -> Vec<f32> {
     let mut rng = XorShift64::new(seed);
     let mut rolls = [0.0_f32; PINK_OCTAVES];
@@ -137,6 +92,7 @@ fn pink_noise_buffer(samples: usize, seed: u64) -> Vec<f32> {
     buf
 }
 
+#[cfg(test)]
 fn normalize_to_peak_dbfs(buf: &mut [f32], target_dbfs: f32) {
     let peak = buf.iter().fold(0.0_f32, |acc, s| acc.max(s.abs()));
     if peak == 0.0 {
@@ -149,6 +105,7 @@ fn normalize_to_peak_dbfs(buf: &mut [f32], target_dbfs: f32) {
     }
 }
 
+#[cfg(test)]
 fn peak_dbfs(buf: &[f32]) -> f32 {
     let peak = buf.iter().fold(0.0_f32, |acc, s| acc.max(s.abs()));
     if peak == 0.0 {
@@ -158,6 +115,7 @@ fn peak_dbfs(buf: &[f32]) -> f32 {
     }
 }
 
+#[cfg(test)]
 fn rms_dbfs(buf: &[f32]) -> f32 {
     let mean_sq = buf.iter().map(|s| s * s).sum::<f32>() / buf.len() as f32;
     if mean_sq == 0.0 {
@@ -170,6 +128,7 @@ fn rms_dbfs(buf: &[f32]) -> f32 {
 /// Pick the smaller of (boost-to-loudness-target, boost-up-to-peak-ceiling).
 /// `measured_rms_dbfs` and `measured_peak_dbfs` come from the same probed
 /// output buffer.
+#[cfg(test)]
 fn compute_offset_db(measured_rms_dbfs: f32, measured_peak_dbfs: f32) -> f32 {
     let want_for_loudness = TARGET_RMS_DBFS - measured_rms_dbfs;
     let allowed_by_peak = PEAK_CEILING_DBFS - measured_peak_dbfs;
@@ -183,11 +142,6 @@ fn lookup_cached(model_path: &str) -> Option<f32> {
     cache().lock().unwrap().get(model_path).copied()
 }
 
-#[cfg(not(test))]
-fn lookup_cached(model_path: &str) -> Option<f32> {
-    cache().lock().unwrap().get(model_path).copied()
-}
-
 #[cfg(test)]
 fn insert_for_test(model_path: &str, offset_db: f32) {
     cache()
@@ -196,10 +150,12 @@ fn insert_for_test(model_path: &str, offset_db: f32) {
         .insert(model_path.to_string(), offset_db);
 }
 
+#[cfg(test)]
 struct XorShift64 {
     state: u64,
 }
 
+#[cfg(test)]
 impl XorShift64 {
     fn new(seed: u64) -> Self {
         Self {

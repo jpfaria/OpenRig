@@ -234,7 +234,9 @@ export component CompactChainViewWindow inherits Window {
 
     in property <string> chain-title;
     in property <int> chain-index;
-    in property <int> chain-count: 1;
+    // Measured DSP latency mirrored from the main chains row (#613) so the
+    // probe result shows inside the compact view, not only on the list.
+    in property <float> latency-ms: 0.0;
     in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
@@ -277,8 +279,6 @@ export component CompactChainViewWindow inherits Window {
     callback configure-chain(int);
     callback probe-chain-latency(int);
     callback chain-volume-changed(int, int);
-    callback move-chain-up(int);
-    callback move-chain-down(int);
     callback remove-chain(int);
 
     // Issue #360: in-window delete confirmations (replaces the previous
@@ -297,7 +297,7 @@ export component CompactChainViewWindow inherits Window {
         width: parent.width; height: parent.height;
         chain-title: root.chain-title;
         chain-index: root.chain-index;
-        chain-count: root.chain-count;
+        latency-ms: root.latency-ms;
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
@@ -331,8 +331,6 @@ export component CompactChainViewWindow inherits Window {
         configure-chain(ci) => { root.configure-chain(ci); }
         probe-chain-latency(ci) => { root.probe-chain-latency(ci); }
         chain-volume-changed(ci, v) => { root.chain-volume-changed(ci, v); }
-        move-chain-up(ci) => { root.move-chain-up(ci); }
-        move-chain-down(ci) => { root.move-chain-down(ci); }
         remove-chain(ci) => { root.remove-chain(ci); }
     }
 

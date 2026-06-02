@@ -76,16 +76,14 @@ echo "Platform: $PLATFORM"
 echo "Plugins:  ${PLUGINS[*]}"
 echo ""
 
-# Determine output directory for a plugin + platform
-# NAM goes to libs/nam/, everything else to libs/lv2/
+# Determine output directory for a plugin + platform.
+# All LV2 plugins go to libs/lv2/. NAM is NOT built here since #612 — the
+# official NeuralAmpModelerCore is compiled from cpp/ by the nam crate's
+# build.rs during `cargo build` and bundled directly by the package scripts.
 output_dir_for_platform() {
     local plugin="$1"
     local platform="$2"
-    if [ "$plugin" = "nam" ]; then
-        echo "$PROJECT_ROOT/libs/nam/$platform"
-    else
-        echo "$PROJECT_ROOT/libs/lv2/$platform"
-    fi
+    echo "$PROJECT_ROOT/libs/lv2/$platform"
 }
 
 # --- macOS: build natively ---

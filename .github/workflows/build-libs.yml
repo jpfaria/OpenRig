@@ -42,8 +42,10 @@ jobs:
           fi
 
           # Map submodule dirs to build-lib plugin names
+          # NOTE: NAM (deps/NeuralAmpModelerCore) is intentionally absent — since
+          # #612 it is compiled from cpp/ by the nam crate's build.rs at app
+          # build time, not as a committed prebuilt under libs/nam/.
           declare -A DIR_TO_PLUGIN=(
-            ["deps/neural-amp-modeler-lv2"]="nam"
             ["deps/dragonfly-reverb"]="dragonfly-reverb"
             ["deps/zam-plugins"]="zam-plugins"
             ["deps/mod-utilities"]="mod-utilities"
@@ -368,27 +370,24 @@ jobs:
 
       - name: Copy binaries to libs/
         run: |
+          # All artifacts here are LV2 plugin libs. NAM is no longer produced by
+          # this workflow (built from cpp/ by the nam crate's build.rs at app
+          # build time since #612), so there is no NeuralAudioCAPI branch.
           for platform in linux-x86_64 linux-aarch64 macos-universal windows-x64 windows-arm64; do
-            mkdir -p "libs/lv2/$platform" "libs/nam/$platform"
+            mkdir -p "libs/lv2/$platform"
             for dir in artifacts/${platform}-*/; do
               [ -d "$dir" ] || continue
               for f in "$dir"/*; do
                 [ -f "$f" ] || continue
-                fname=$(basename "$f")
-                if echo "$fname" | grep -q "NeuralAudioCAPI"; then
-                  cp "$f" "libs/nam/$platform/"
-                else
-                  cp "$f" "libs/lv2/$platform/"
-                fi
+                cp "$f" "libs/lv2/$platform/"
               done
             done
           done
 
           echo "=== Build summary ==="
           for platform in linux-x86_64 linux-aarch64 macos-universal windows-x64 windows-arm64; do
-            nam_count=$(ls "libs/nam/$platform/" 2>/dev/null | wc -l)
             lv2_count=$(ls "libs/lv2/$platform/" 2>/dev/null | wc -l)
-            echo "$platform: NAM=$nam_count, LV2=$lv2_count"
+            echo "$platform: LV2=$lv2_count"
           done
 
       - name: Setup Git LFS

@@ -1,4 +1,3 @@
-[submodule "deps/neural-amp-modeler-lv2"]
-	path = deps/neural-amp-modeler-lv2
-	url = https://github.com/mikeoliphant/neural-amp-modeler-lv2.git
-	ignore = dirty
+[submodule "deps/NeuralAmpModelerCore"]
+	path = deps/NeuralAmpModelerCore
+	url = https://github.com/sdatkinson/NeuralAmpModelerCore.git

@@ -138,3 +138,27 @@ Non-convolution chains are untouched (no extra latency). The cushion costs
 one partition (~10.7 ms @ 48 kHz) of added output latency on IR chains at
 small buffers — the deliberate "more buffer when using IR" trade, ranked
 below stream stability in the trade-off hierarchy.
+
+## Addendum — spike eliminated at the source (issue #617)
+
+The #592 cushion above treated the symptom: it gave the output buffer
+enough slack to ride out the convolver's periodic per-partition FFT burst.
+But the burst itself — running the whole partition's FFT + frequency-delay-
+line multiply-accumulate **inline** every `ir::PARTITION_SIZE` samples —
+still overran the *steady-state* 64-frame budget on tight/slow setups (the
+cushion only helps the cold start; once primed it is consumed and a
+recurring spike larger than the per-callback budget still underruns).
+
+#617 removes the burst at the source by shrinking `ir::PARTITION_SIZE` from
+512 to **64** (≤ the smallest supported device buffer). Each 64-frame
+callback now does exactly one partition's worth of work — the cost is
+**uniform across callbacks, with no spike** — and the convolver's added
+latency drops from ~10.7 ms to ~1.3 ms. The average per-callback cost rises
+(up to 128 partitions for an 8192-sample IR) but stays tiny in absolute
+terms; per the trade-off hierarchy (stability > CPU) this is the right call.
+
+Consequently the cold-start cushion is now **decoupled** from the partition
+size: `engine::elastic_prime::IR_COLD_START_CUSHION_FRAMES` (512) replaces
+the `ir::PARTITION_SIZE` floor, kept at the proven #592 magnitude solely to
+absorb generic first-callback producer warmup jitter — no longer the
+(now-eliminated) spike.

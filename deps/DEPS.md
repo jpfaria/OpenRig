@@ -7,7 +7,7 @@ Use `./scripts/add-dep.sh` to add new ones.
 
 | Name | Repository | Pinned Hash | Build System | Plugins |
 |------|-----------|-------------|--------------|---------|
-| neural-amp-modeler-lv2 | https://github.com/mikeoliphant/neural-amp-modeler-lv2 | `5a5865a` | CMake | NeuralAudioCAPI (NAM inference) |
+| NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | `263640f` | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
 | dragonfly-reverb | https://github.com/michaelwillis/dragonfly-reverb | `b3c15af` | DPF/Make | Hall, Plate, Room, EarlyReflections reverbs |
 | zam-plugins | https://github.com/zamaudio/zam-plugins | `6a7fd03` | DPF/Make | ZamComp, ZamDelay, ZamEQ2, ZamTube, ZamGate |
 | mod-utilities | https://github.com/mod-audio/mod-utilities | `b8a9d45` | Make | MOD gain, mixers, CV, switchboxes |

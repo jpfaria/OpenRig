@@ -152,11 +152,11 @@ do_meson() {
 
 # --- Plugin build recipes ---
 
-build_nam() {
-    local src="$DEPS_DIR/neural-amp-modeler-lv2/deps/NeuralAudio"
-    do_cmake "$src" NeuralAudioCAPI
-    collect_libs "$LAST_BUILD_DIR" "NeuralAudioCAPI" "libNeuralAudioCAPI"
-}
+# NOTE: NAM is no longer built here. Since #612 the official
+# NeuralAmpModelerCore (deps/NeuralAmpModelerCore) is compiled from cpp/ by the
+# `nam` crate's build.rs during `cargo build` and linked as libnam_wrapper.
+# The packaging scripts pick the artifact straight out of cargo's build dir;
+# there is no committed prebuilt under libs/nam/ anymore.
 
 build_dragonfly_reverb() {
     local src="$DEPS_DIR/dragonfly-reverb"
@@ -341,7 +341,6 @@ build_ojd() {
 # --- Registry ---
 
 PLUGINS=(
-    nam
     dragonfly-reverb
     zam-plugins
     mod-utilities
@@ -366,7 +365,6 @@ PLUGINS=(
 # Map plugin name to build function
 dispatch() {
     case "$1" in
-        nam)              build_nam ;;
         dragonfly-reverb) build_dragonfly_reverb ;;
         zam-plugins)      build_zam_plugins ;;
         mod-utilities)    build_mod_utilities ;;
