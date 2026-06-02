@@ -9,6 +9,7 @@ pub mod audio_types;
 pub mod brand_visual;
 pub mod constants;
 pub mod dsp;
+pub mod effect_type_caps;
 pub mod param;
 pub mod traits;
 pub mod visual;
@@ -32,6 +33,7 @@ pub use constants::{
     INST_ACOUSTIC_GUITAR, INST_BASS, INST_DRUMS, INST_ELECTRIC_GUITAR, INST_GENERIC, INST_KEYS,
     INST_VOICE,
 };
+pub use effect_type_caps::effect_type_uses_model_catalog;
 pub use dsp::{
     calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadFilter, BiquadKind,
     EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
