@@ -1,6 +1,9 @@
 //! Unit tests for the issue #592 convolution-cushion policy helpers.
 
-use super::{chain_has_convolution, elastic_capacity_target, elastic_prime_frames};
+use super::{
+    chain_has_convolution, elastic_capacity_target, elastic_prime_frames,
+    IR_COLD_START_CUSHION_FRAMES,
+};
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
@@ -98,10 +101,11 @@ fn nam_amp_is_not_convolution() {
 }
 
 #[test]
-fn capacity_floors_at_partition_for_convolution() {
-    // buffer 64 → base 128 < partition 512 ⇒ floored up.
-    assert_eq!(elastic_capacity_target(128, true), ir::PARTITION_SIZE);
-    // A base already above the partition is kept.
+fn capacity_floors_at_cold_start_cushion_for_convolution() {
+    // buffer 64 → base 128 < cushion 512 ⇒ floored up to the cold-start
+    // cushion (decoupled from the convolver partition size in #617).
+    assert_eq!(elastic_capacity_target(128, true), IR_COLD_START_CUSHION_FRAMES);
+    // A base already above the cushion is kept.
     assert_eq!(elastic_capacity_target(2048, true), 2048);
     // Non-convolution keeps the lean base unchanged.
     assert_eq!(elastic_capacity_target(128, false), 128);

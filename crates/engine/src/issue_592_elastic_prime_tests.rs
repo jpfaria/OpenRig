@@ -5,9 +5,13 @@
 //! of underrunning ("xiado"/distortion until a warm rebuild).
 //!
 //! Root cause (confirmed in code): the IR convolver
-//! (`ir::FftBlockConvolver`) runs a full FFT inline every
-//! `ir::PARTITION_SIZE` (512) samples, so at buffer 64 one callback in
-//! eight is far heavier than the rest. The elastic buffer that decouples
+//! (`ir::FftBlockConvolver`) ran a full FFT inline every
+//! `ir::PARTITION_SIZE` samples, so at buffer 64 one callback in
+//! eight was far heavier than the rest. (Issue #617 later eliminated that
+//! spike at the source by shrinking the partition to 64 so the work is
+//! uniform per callback; this cold-start cushion is now decoupled — see
+//! `IR_COLD_START_CUSHION_FRAMES` — and kept for producer warmup jitter.)
+//! The elastic buffer that decouples
 //! the DSP producer from the output consumer starts EMPTY
 //! (`ElasticBuffer::new` → len 0) and its `target_level` was dead code —
 //! there was no jitter cushion. Cold-start (slow first callbacks) drains

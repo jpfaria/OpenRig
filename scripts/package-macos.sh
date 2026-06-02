@@ -48,7 +48,6 @@ rm -rf "$APP" dist/dmg_contents dist/OpenRig-*.dmg
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Frameworks"
-mkdir -p "$APP/Contents/Resources/libs/nam"
 
 echo "==> Creating universal binary with lipo..."
 lipo -create \
@@ -57,8 +56,27 @@ lipo -create \
     -output "$APP/Contents/MacOS/openrig"
 chmod +x "$APP/Contents/MacOS/openrig"
 
-# Copy dylib into Frameworks (so the OS can find it at runtime)
-cp libs/nam/macos-universal/libNeuralAudioCAPI.dylib "$APP/Contents/Frameworks/"
+# ── NAM wrapper dylib ────────────────────────────────────────────────────────
+# The nam crate's build.rs cmake-builds cpp/ (NeuralAmpModelerCore) into
+# libnam_wrapper.dylib (install_name @rpath/libnam_wrapper.dylib) and links the
+# binary against it. There is no committed prebuilt anymore — locate the
+# per-arch artifact cargo produced under target/<triple>/release/build/nam-*/
+# and lipo the two arches into one universal dylib, mirroring the binary above.
+find_nam_wrapper() {
+    # newest matching artifact for the given target triple
+    find "target/$1/release/build" -path '*/nam-*/out/lib/libnam_wrapper.dylib' \
+        2>/dev/null | head -1
+}
+NAM_ARM="$(find_nam_wrapper aarch64-apple-darwin)"
+NAM_X64="$(find_nam_wrapper x86_64-apple-darwin)"
+if [ -z "$NAM_ARM" ] || [ -z "$NAM_X64" ]; then
+    echo "FATAL: libnam_wrapper.dylib not found for both arches — did cargo build run?" >&2
+    echo "  arm64:  ${NAM_ARM:-<missing>}" >&2
+    echo "  x86_64: ${NAM_X64:-<missing>}" >&2
+    exit 1
+fi
+lipo -create "$NAM_ARM" "$NAM_X64" -output "$APP/Contents/Frameworks/libnam_wrapper.dylib"
+echo "    bundled universal libnam_wrapper.dylib into Frameworks/"
 
 # Fix rpath so binary finds the dylib inside the bundle
 install_name_tool \
@@ -66,7 +84,6 @@ install_name_tool \
     "$APP/Contents/MacOS/openrig" 2>/dev/null || true
 
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
-cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
 cp -r assets                   "$APP/Contents/Resources/assets"
 
 # Bundled preset library: the 21 default presets under presets/*.yaml ship
@@ -156,7 +173,7 @@ echo "==> Signing app (ad-hoc, inside-out)..."
 # present). No per-file `-exec sh -c` subshell either (issue #463,
 # regression of #459 which only tested a tiny bundle).
 # Order matters: codesign of the main executable verifies that every
-# subcomponent it links (e.g. Frameworks/libNeuralAudioCAPI.dylib) is
+# subcomponent it links (e.g. Frameworks/libnam_wrapper.dylib) is
 # already signed, else it fails "code object is not signed at all / In
 # subcomponent: ...". `find` order is not inside-out, so sign every
 # nested Mach-O here but SKIP the main executable, then sign it after
