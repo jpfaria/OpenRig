@@ -121,30 +121,22 @@ fn req_width_is_invariant_across_panel_counts() {
 }
 
 #[test]
-fn req_height_grows_strictly_at_each_wrap_boundary_until_capped() {
+fn req_height_grows_strictly_at_each_wrap_boundary() {
     // Every additional *wrapped* row must produce a strictly taller
-    // window UNTIL the screen cap is reached (issue #622); past the cap
-    // the window holds at MAX_PANEL_HEIGHT_PX and the grid scrolls. The
-    // 0→1 transition is excluded (empty grid and single-row grid both use
-    // the baseline height by design). The full content keeps growing —
-    // `req_inner_panel_holds_last_row_with_clip_safe_margin` covers that.
+    // window — the panel window grows to fit all knobs (issue #500/#622),
+    // never capped (a cap would clip the lower rows; the window is locked
+    // min=max=preferred). The 0→1 transition is excluded (empty grid and
+    // single-row grid both use the baseline height by design).
     let mut last_rows = 1;
     let mut last_height = dims(1).window_height_px;
     for n in 2..=200 {
         let d = dims(n);
         if d.grid_rows > last_rows {
-            if d.window_height_px < MAX_PANEL_HEIGHT_PX {
-                assert!(
-                    d.window_height_px > last_height,
-                    "n={n}: rows went {last_rows}→{} but height stayed {last_height} (below the cap it must grow)",
-                    d.grid_rows
-                );
-            } else {
-                assert_eq!(
-                    d.window_height_px, MAX_PANEL_HEIGHT_PX,
-                    "n={n}: above the cap the window must hold at MAX_PANEL_HEIGHT_PX"
-                );
-            }
+            assert!(
+                d.window_height_px > last_height,
+                "n={n}: rows went {last_rows}→{} but height stayed {last_height}",
+                d.grid_rows
+            );
             last_rows = d.grid_rows;
             last_height = d.window_height_px;
         }
@@ -308,8 +300,44 @@ fn req_layout_does_not_depend_on_knob_origin() {
 // ── Requirement 8: special modes short-circuit cleanly ───────
 
 #[test]
-fn req_form_editor_uses_fixed_fallback_dimensions() {
-    // Native form blocks bypass the wrap math.
+fn req_form_window_grows_to_fit_all_params() {
+    // Issue #622 (corrected): a form-editor block (use_panel_editor=false)
+    // with many parameters must size its window to show ALL of them. The
+    // editor window is locked min=max=preferred, so a fixed height with an
+    // internal scroll hides the lower params — the window itself has to
+    // grow with the param count.
+    fn form(n: usize) -> PanelDimensions {
+        compute(PanelInputs {
+            knob_count: n,
+            use_panel_editor: false,
+            has_eq_widget: false,
+        })
+    }
+    assert!(
+        form(30).window_height_px > form(3).window_height_px,
+        "form window did not grow for more params: {}px (30) vs {}px (3)",
+        form(30).window_height_px,
+        form(3).window_height_px
+    );
+    // Tall enough to lay out every 96px param row — nothing left to scroll.
+    for n in [12usize, 30, 64] {
+        assert!(
+            form(n).window_height_px >= n as f32 * 96.0,
+            "n={n}: form window {}px cannot fit {n} rows of 96px",
+            form(n).window_height_px
+        );
+    }
+    // Small forms keep the baseline envelope (no shrinking below 820).
+    assert!(form(0).window_height_px >= FORM_EDITOR_HEIGHT_PX);
+    assert!(form(3).window_height_px >= FORM_EDITOR_HEIGHT_PX);
+}
+
+#[test]
+fn req_form_editor_bypasses_wrap_math_with_fixed_width() {
+    // Native form blocks bypass the knob-grid wrap math: no grid, fixed
+    // width. Height is the form envelope, growing with the param count so
+    // every row is visible (#622) — covered by
+    // `req_form_window_grows_to_fit_all_params`.
     for n in [0, 1, 27, 64, 1_000] {
         let d = compute(PanelInputs {
             knob_count: n,
@@ -317,8 +345,9 @@ fn req_form_editor_uses_fixed_fallback_dimensions() {
             has_eq_widget: false,
         });
         assert_eq!(d.grid_rows, 0, "n={n}");
+        assert_eq!(d.grid_cols, 0, "n={n}");
         assert_eq!(d.window_width_px, FORM_EDITOR_WIDTH_PX, "n={n}");
-        assert_eq!(d.window_height_px, FORM_EDITOR_HEIGHT_PX, "n={n}");
+        assert!(d.window_height_px >= FORM_EDITOR_HEIGHT_PX, "n={n}");
     }
 }
 
@@ -344,46 +373,6 @@ fn req_eq_mode_does_not_open_the_param_grid() {
 // User: "300000 se forem necessario.. com todos os tipos de prametros".
 // 1..=300 covers every realistic plugin and a 4× safety margin
 // (largest catalogued plugin: fat1_autotune at 64).
-
-// ── Requirement 10: window height must fit the screen (issue #622) ──
-// The #500 policy grew the window vertically without bound so wrapped
-// rows stayed visible. That breaks once the height passes the display:
-// the window is locked min=max=preferred to its computed height, so the
-// lower rows fall off-screen with no way to scroll or shrink. The window
-// height must now stay within a fixed cap; the grid scrolls past it (the
-// inner panel content keeps the full height for the scroll viewport).
-
-#[test]
-fn req_window_height_capped_to_fit_screen() {
-    for n in 0..=300 {
-        let h = dims(n).window_height_px;
-        assert!(
-            h <= MAX_PANEL_HEIGHT_PX,
-            "n={n}: window height {h}px exceeds cap {MAX_PANEL_HEIGHT_PX}px — with many \
-             params the window overflows the screen and the lower rows are unreachable \
-             (issue #622: scroll the grid, don't grow the window past the screen)"
-        );
-    }
-}
-
-#[test]
-fn req_grid_content_scrolls_when_taller_than_capped_window() {
-    // Past the cap the inner panel (the scroll viewport content) must still
-    // hold every row, so all params remain reachable by scrolling instead
-    // of being clipped off the bottom of the window.
-    let many = dims(120);
-    assert!(
-        many.window_height_px <= MAX_PANEL_HEIGHT_PX,
-        "120 knobs: window not capped ({}px)",
-        many.window_height_px
-    );
-    assert!(
-        many.inner_panel_height_px > many.window_height_px,
-        "120 knobs: inner content {}px must exceed the capped window {}px so the grid scrolls",
-        many.inner_panel_height_px,
-        many.window_height_px
-    );
-}
 
 #[test]
 fn req_every_count_zero_to_three_hundred_is_well_formed() {

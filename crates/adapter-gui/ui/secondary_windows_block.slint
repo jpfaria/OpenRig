@@ -87,14 +87,20 @@ export component BlockEditorWindow inherits Window {
     // with these values right after populating the param/overlay model
     // — Linux WMs ignore min/max/preferred-* without that explicit call
     // (#479).
+    // The form editor (`!use-panel-editor`) reads its window size from the
+    // same Rust-computed properties: width is fixed (520) and height grows
+    // with the parameter count so every row shows without scrolling — the
+    // window is locked min=max=preferred, so a fixed 820 hid the lower
+    // params (issue #622). `block_panel_dimensions::form_dimensions` is the
+    // single source for both.
     out property <length> panel-width:
         root.use-panel-editor ?
             (has-eq-widget ? eq-panel-width : panel-knob-window-width) :
-            520px;
+            panel-knob-window-width;
     out property <length> panel-height:
         root.use-panel-editor ?
             (has-eq-widget ? eq-extra-height : panel-knob-window-height) :
-            820px;
+            panel-knob-window-height;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
