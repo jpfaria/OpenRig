@@ -25,14 +25,21 @@ const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     top_end_hz: 10_500.0,
 };
 
+// Bright, chimey combo speaker: extended top with a strong upper-mid presence.
 const CAB_PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 126.0,
-    air_hz: 3_900.0,
+    rolloff_hz: 5_500.0,
+    rolloff_q: 0.7,
+    low_bump_hz: 100.0,
+    low_bump_db: 2.5,
+    low_bump_q: 1.0,
+    mid_dip_hz: 700.0,
+    mid_dip_db: -3.0,
+    mid_dip_q: 1.0,
+    presence_hz: 3_500.0,
+    presence_db: 5.0,
+    presence_q: 1.4,
     room_base_ms: 8.0,
     room_span_ms: 12.0,
-    resonance_gain: 0.34,
-    air_gain: 0.26,
-    high_cut_scale: 0.88,
 };
 
 const PROFILE: NativeAmpProfile = NativeAmpProfile {
