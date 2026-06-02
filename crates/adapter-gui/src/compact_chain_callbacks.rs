@@ -309,22 +309,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 }
             });
         }
-        {
-            let weak_main = window.as_weak();
-            compact_win.on_move_chain_up(move |ci| {
-                if let Some(m) = weak_main.upgrade() {
-                    m.invoke_move_chain_up(ci);
-                }
-            });
-        }
-        {
-            let weak_main = window.as_weak();
-            compact_win.on_move_chain_down(move |ci| {
-                if let Some(m) = weak_main.upgrade() {
-                    m.invoke_move_chain_down(ci);
-                }
-            });
-        }
         // Issue #360: chain delete renders its overlay INSIDE the
         // compact view (not the main window). Keeps the modal where the
         // user clicked. Pending state is per-window so cancel/confirm
@@ -449,7 +433,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     use slint::Model;
                     let chains = mw.get_project_chains();
                     let nav_model = mw.get_chain_rig_nav();
-                    cw.set_chain_count(chains.row_count() as i32);
                     if let Some(row) = chains.row_data(ci) {
                         cw.set_meter_in_dbfs(row.meter_in_dbfs);
                         cw.set_meter_out_dbfs(row.meter_out_dbfs);
@@ -457,6 +440,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         cw.set_volume(row.volume);
                         cw.set_chain_enabled(row.enabled);
                         cw.set_chain_title(row.title.clone());
+                        // #613: mirror the measured latency the sonar probe
+                        // wrote onto the main chains row, so the badge shows
+                        // inside the compact view (not only on the list).
+                        cw.set_latency_ms(row.latency_ms);
                     }
                     if let Some(nav) = nav_model.row_data(ci) {
                         cw.set_rig_nav(nav);
