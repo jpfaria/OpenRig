@@ -292,6 +292,28 @@ pub enum Event {
         sample_rate: u32,
         bit_depth: u8,
     },
+
+    // ── Per-chain virtual DI loop (#614) ──────────────────────────────────────
+    /// #614: a DI loop source was loaded and decoded for a chain.
+    ///
+    /// Ephemeral — not persisted. The adapter-gui reacts to this event
+    /// to update any UI indicator showing the active DI source.
+    ChainDiLoopSourceChanged {
+        chain: ChainId,
+    },
+
+    /// #614: the DI loop playback state changed for a chain.
+    ///
+    /// Ephemeral — not persisted. `enabled: true` means the pre-loaded
+    /// `Arc<DiLoop>` should be published to the chain's audio runtime via
+    /// `ChainRuntimeState::set_di_loop(Some(arc))`; the adapter-gui wiring
+    /// (Task 6) retrieves the arc via `LocalDispatcher::di_loop_for_chain`
+    /// and forwards it. `enabled: false` means the runtime should receive
+    /// `set_di_loop(None)`.
+    ChainDiLoopEnabledChanged {
+        chain: ChainId,
+        enabled: bool,
+    },
 }
 
 impl Event {
@@ -319,7 +341,9 @@ impl Event {
             | Event::InsertBlockSaved { chain, .. }
             | Event::ChainPresetLoaded { chain }
             | Event::ChainVolumeChanged { chain, .. }
-            | Event::BlockSelectionChanged { chain, .. } => Some(chain),
+            | Event::BlockSelectionChanged { chain, .. }
+            | Event::ChainDiLoopSourceChanged { chain }
+            | Event::ChainDiLoopEnabledChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

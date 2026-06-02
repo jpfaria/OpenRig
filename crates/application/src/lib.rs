@@ -22,6 +22,7 @@ mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
+mod local_dispatcher_di_loop;
 mod local_dispatcher_chain_io;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;

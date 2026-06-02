@@ -18,13 +18,19 @@ use std::sync::Arc;
 
 use adapter_render::wav::read_wav;
 use engine::DiLoop;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// The default seam crossfade length in frames (≈ 10 ms at 48 kHz).
 /// Passed to `DiLoop::from_samples` to hide the wrap click.
 pub const DI_LOOP_XFADE_FRAMES: usize = 480;
 
 /// Where a DI loop comes from.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Derives `Serialize + Deserialize + JsonSchema` so it can be embedded in a
+/// [`crate::command::Command`] variant and exposed as an MCP/gRPC tool
+/// argument via [`crate::command_schema`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum DiLoopSource {
     /// A bundled loop whose file stem lives under `<assets-dir>/di-loops/`.
     /// Example: `"stratocaster-bridge"` resolves to

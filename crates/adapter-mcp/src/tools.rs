@@ -85,7 +85,10 @@ mod tests {
     /// system-paths override alongside `SetPresetsPath`/`SetPluginsPath`.
     /// #591 bumped to 61 with `SelectActiveChain` — chain-level selection
     /// so a footswitch follows the on-screen active chain.
-    const COMMAND_VARIANT_COUNT: usize = 61;
+    /// #614 bumped to 63 with `SetChainDiLoopSource` and
+    /// `SetChainDiLoopEnabled` — per-chain virtual DI loop (ephemeral,
+    /// never persisted; distinct from #324 project-level DI config).
+    const COMMAND_VARIANT_COUNT: usize = 63;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
