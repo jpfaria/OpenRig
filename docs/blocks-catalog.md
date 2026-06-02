@@ -50,7 +50,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 
 - **Native** — DSP em Rust, mais rápido
 - **NAM** — Neural Amp Modeler
-- **IR** — Impulse Response (cabs, corpos)
+- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617).
 - **LV2** — Plugins externos open-source
 
 ## Instrumentos suportados
