@@ -11,9 +11,21 @@
 //! These are pure helpers so the policy is testable in isolation from the
 //! runtime assembly.
 
-use ir::PARTITION_SIZE;
 use project::block::AudioBlockKind;
 use project::chain::Chain;
+
+/// Output elastic-buffer cushion (frames) primed for IR/convolution chains
+/// on a cold start.
+///
+/// Historically this equalled the convolver's partition size: the old
+/// convolver ran its whole per-partition FFT as one burst every
+/// `ir::PARTITION_SIZE` samples, and the cushion had to cover that spike.
+/// Issue #617 made the convolver spread that work evenly across callbacks
+/// (`ir::PARTITION_SIZE` dropped to 64), removing the spike at the source.
+/// The cushion is now decoupled from the partition size and kept at the
+/// proven #592 magnitude purely to absorb generic first-callback producer
+/// warmup jitter at small device buffers — not the (now eliminated) spike.
+pub(crate) const IR_COLD_START_CUSHION_FRAMES: usize = 512;
 
 /// Whether `chain` has an enabled convolution (IR / cab) block — the only
 /// block kind whose per-partition FFT spike warrants the cushion.
@@ -37,7 +49,7 @@ pub(crate) fn chain_has_convolution(chain: &Chain) -> bool {
 /// partition of headroom; everyone else keeps the device-derived `base`.
 pub(crate) fn elastic_capacity_target(base: usize, has_convolution: bool) -> usize {
     if has_convolution {
-        base.max(PARTITION_SIZE)
+        base.max(IR_COLD_START_CUSHION_FRAMES)
     } else {
         base
     }
