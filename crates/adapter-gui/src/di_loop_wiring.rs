@@ -114,3 +114,43 @@ pub fn handle_chain_di_loop_enabled_changed(
         rt.set_chain_di_loop(chain, if enabled { arc_opt } else { None });
     }
 }
+
+// ── Combined play / stop helpers (called from Slint callbacks) ──────────────
+//
+// Mirror the `wire_mute_inline` pattern in `tuner_wiring.rs` (lines 231-238):
+// dispatch the command (so the event bus records the state change) and
+// immediately apply the effect to the audio runtime — no polling loop needed.
+
+/// Dispatch `SetChainDiLoopEnabled { enabled: true }` and apply the
+/// `Arc<DiLoop>` stored in `dispatcher` to the chain's runtime.
+///
+/// If no source has been loaded yet (`di_loop_for_chain` returns `None`) the
+/// apply is a no-op — the UI must guard the Play button until a source is
+/// confirmed.  Dispatch still fires so the event bus stays in sync.
+pub fn play_chain_di_loop(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    chain: &ChainId,
+) {
+    use application::dispatcher::CommandDispatcher;
+    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopEnabled {
+        chain: chain.clone(),
+        enabled: true,
+    });
+    handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, true);
+}
+
+/// Dispatch `SetChainDiLoopEnabled { enabled: false }` and clear the chain's
+/// runtime immediately.
+pub fn stop_chain_di_loop(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    chain: &ChainId,
+) {
+    use application::dispatcher::CommandDispatcher;
+    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopEnabled {
+        chain: chain.clone(),
+        enabled: false,
+    });
+    handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
+}

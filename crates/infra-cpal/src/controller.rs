@@ -63,6 +63,21 @@ pub struct ProjectRuntimeController {
 }
 
 impl ProjectRuntimeController {
+    /// Construct a controller that owns a pre-built [`RuntimeGraph`] but has
+    /// no live audio streams.  Intended for integration tests that need a real
+    /// `ProjectRuntimeController` without opening audio devices (e.g. to verify
+    /// that `set_chain_di_loop` / `chain_has_di_loop` work without cpal I/O).
+    pub fn for_testing(graph: RuntimeGraph) -> Self {
+        Self {
+            runtime_graph: graph,
+            active_chains: HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: jack_supervisor::JackSupervisor::new(
+                jack_supervisor::LiveJackBackend::new(),
+            ),
+        }
+    }
+
     pub fn start(project: &Project) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {

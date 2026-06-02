@@ -538,64 +538,47 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     // dialog crate; chain_row_wiring.rs is forbidden from that — issue #511).
 
     // ── on_di_loop_play ─────────────────────────────────────────────────────
-    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true }.
+    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true } AND
+    // apply the arc to the chain runtime immediately (mirrors wire_mute_inline
+    // in tuner_wiring.rs — dispatch + apply in the same callback, no polling).
     {
-        let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let toast_timer = toast_timer.clone();
+        let project_runtime = project_runtime.clone();
         window.on_di_loop_play(move |index| {
-            let Some(window) = weak_window.upgrade() else { return; };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
-                return;
-            };
+            let Some(session) = session_borrow.as_ref() else { return; };
             let chain_id = {
                 let proj = session.project.borrow();
                 let Some(chain) = proj.chains.get(index as usize) else { return; };
                 chain.id.clone()
             };
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::Play,
+            crate::di_loop_wiring::play_chain_di_loop(
+                &project_runtime,
+                &session.dispatcher,
+                &chain_id,
             );
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
-            }
         });
     }
 
     // ── on_di_loop_stop ──────────────────────────────────────────────────────
-    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false }.
+    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false } AND
+    // clear the chain runtime immediately.
     {
-        let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let toast_timer = toast_timer.clone();
+        let project_runtime = project_runtime.clone();
         window.on_di_loop_stop(move |index| {
-            let Some(window) = weak_window.upgrade() else { return; };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
-                return;
-            };
+            let Some(session) = session_borrow.as_ref() else { return; };
             let chain_id = {
                 let proj = session.project.borrow();
                 let Some(chain) = proj.chains.get(index as usize) else { return; };
                 chain.id.clone()
             };
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::Stop,
+            crate::di_loop_wiring::stop_chain_di_loop(
+                &project_runtime,
+                &session.dispatcher,
+                &chain_id,
             );
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
-            }
         });
     }
 }

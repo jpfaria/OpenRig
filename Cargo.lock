@@ -66,6 +66,7 @@ dependencies = [
  "env_logger",
  "feature-dsp",
  "gettext-rs",
+ "hound",
  "image",
  "infra-cpal",
  "infra-filesystem",
