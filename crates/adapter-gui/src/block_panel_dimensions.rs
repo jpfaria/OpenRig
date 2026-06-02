@@ -45,16 +45,17 @@ pub const BASE_PANEL_HEIGHT_PX: f32 = 275.0;
 pub const FORM_EDITOR_WIDTH_PX: f32 = 520.0;
 pub const FORM_EDITOR_HEIGHT_PX: f32 = 820.0;
 
-/// Maximum outer-window height (issue #622). The #500 policy grew the
-/// window vertically without bound so wrapped rows stayed visible — but
-/// the editor window is locked `min = max = preferred = height`, so once
-/// the computed height passed the display the lower rows fell off-screen
-/// with no way to scroll or shrink. Past this cap the window height stops
-/// growing and the param grid scrolls inside the panel instead
-/// (`inner_panel_height_px` keeps the full content height as the scroll
-/// viewport). Matches the form-editor envelope so both editors fit the
-/// same screen budget.
-pub const MAX_PANEL_HEIGHT_PX: f32 = 820.0;
+/// Per-parameter row height in the FORM editor — `BlockParameterRow` is
+/// 96px tall (`block_editor_panel.slint`). The form window grows by this
+/// much per parameter so every row is visible without scrolling: the
+/// editor window is locked `min = max = preferred`, so a fixed height left
+/// the lower params unreachable (issue #622).
+pub const FORM_ROW_PX: f32 = 96.0;
+
+/// Fixed vertical chrome above + below the form editor's parameter list
+/// (model picker, header, margins). The form window must be at least this
+/// tall plus `param_count * FORM_ROW_PX` to show every parameter.
+pub const FORM_CHROME_PX: f32 = 164.0;
 
 /// Inputs to the dimension solver. Every flag that can shift the
 /// resulting window size sits here so the test matrix can enumerate
@@ -95,21 +96,25 @@ pub struct PanelDimensions {
     pub grid_cols: usize,
     /// Rows occupied by the grid (0 when no grid renders).
     pub grid_rows: usize,
-    /// Inner Rectangle height inside `BlockPanelEditor` — the full
-    /// content height of the wrapped knob grid. Grows past
-    /// `window_width / 4` with every wrapped row and is NOT capped, so
-    /// when it exceeds the (capped) window it doubles as the scroll
-    /// viewport content height (issue #622).
+    /// Inner Rectangle height inside `BlockPanelEditor`. Grows past
+    /// `window_width / 4` so wrapped rows stay inside the clipped
+    /// panel rectangle.
     pub inner_panel_height_px: f32,
 }
 
-const FORM_FALLBACK: PanelDimensions = PanelDimensions {
-    window_width_px: FORM_EDITOR_WIDTH_PX,
-    window_height_px: FORM_EDITOR_HEIGHT_PX,
-    grid_cols: 0,
-    grid_rows: 0,
-    inner_panel_height_px: 0.0,
-};
+/// Form-editor (non-panel) window dimensions. Width is fixed; height grows
+/// with the parameter count so every row shows without scrolling, floored
+/// at `FORM_EDITOR_HEIGHT_PX` so small forms keep the baseline envelope.
+fn form_dimensions(param_count: usize) -> PanelDimensions {
+    let needed_height = FORM_CHROME_PX + param_count as f32 * FORM_ROW_PX;
+    PanelDimensions {
+        window_width_px: FORM_EDITOR_WIDTH_PX,
+        window_height_px: FORM_EDITOR_HEIGHT_PX.max(needed_height),
+        grid_cols: 0,
+        grid_rows: 0,
+        inner_panel_height_px: 0.0,
+    }
+}
 
 /// Number of columns the wrapped grid will occupy for `knob_count`.
 pub fn grid_cols(knob_count: usize) -> usize {
@@ -131,7 +136,7 @@ pub fn grid_rows(knob_count: usize) -> usize {
 /// branch maps to a path here, every path is unit-tested below.
 pub fn compute(inputs: PanelInputs) -> PanelDimensions {
     if !inputs.use_panel_editor {
-        return FORM_FALLBACK;
+        return form_dimensions(inputs.knob_count);
     }
     if inputs.has_eq_widget {
         return PanelDimensions {
@@ -152,12 +157,10 @@ pub fn compute(inputs: PanelInputs) -> PanelDimensions {
     };
     let window_width = needed_width.max(MIN_PANEL_WIDTH_PX);
     let extra_rows = rows.saturating_sub(1) as f32;
-    // The window height is capped (issue #622): once the grid is taller
-    // than the screen budget the window stops growing and the grid scrolls
-    // inside it. `inner_panel_height` is NOT capped — it stays the full
-    // content height so it can serve as the scroll viewport.
-    let content_height = BASE_PANEL_HEIGHT_PX + extra_rows * ROW_STRIDE_PX;
-    let window_height = content_height.min(MAX_PANEL_HEIGHT_PX);
+    // Grow the window vertically to fit every wrapped row (issue #500 / #622):
+    // the editor window is locked min=max=preferred, so it must be sized to
+    // show all knobs — never capped (a cap would clip the lower rows).
+    let window_height = BASE_PANEL_HEIGHT_PX + extra_rows * ROW_STRIDE_PX;
     let base_inner = window_width / 4.0;
     let inner_panel_height = base_inner + extra_rows * ROW_STRIDE_PX;
 
