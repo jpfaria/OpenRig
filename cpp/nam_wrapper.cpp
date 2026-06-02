@@ -44,6 +44,16 @@ double db_to_amp(const double db)
   return std::pow(10.0, db / 20.0);
 }
 
+// Issue #612: output loudness reference, in dB, for normalizing a model
+// toward its calibrated level. NAM models carry their own measured
+// loudness in metadata (nam::DSP::GetLoudness, in dB). Normalizing the
+// output by `kLoudnessTargetDb - GetLoudness()` drives a nonlinear amp
+// at the level it was trained at and matches the official
+// NeuralAmpModeler plugin's output-normalization reference. Mirrors the
+// per-model `recommended_output_db` the old neural-amp-modeler-lv2
+// engine applied. Single source of truth for the reference.
+constexpr double kLoudnessTargetDb = -18.0;
+
 // Maximum frames passed to `nam::DSP::process` (and every other stage)
 // in a single call. The model's internal buffers are sized by
 // `Reset(sample_rate, kMaxBlock)`, so feeding more than this in one
@@ -70,6 +80,34 @@ void* nam_create(const NamPluginConfig* config) {
     h->sample_rate = sample_rate;
     h->input_gain = db_to_amp(config->input_db);
     h->output_gain = db_to_amp(config->output_db);
+
+    // Issue #612: fold the model's own calibration into the gain
+    // staging so a nonlinear NAM is driven at the level it was trained
+    // at, not raw unity (the "abafado / sem vida" fix). The user
+    // input_db/output_db knobs stay additive on top (already applied
+    // above). Suppressed when the catalog audit already owns the output
+    // level (audit_overrides_baked_output), so the two never
+    // double-count — this mirrors the old engine's gain_offsets
+    // contract where the trainer recommendations were ignored once the
+    // audit had run.
+    if (config->audit_overrides_baked_output == 0) {
+      // Output loudness normalization toward the reference. GetLoudness()
+      // is in dB; the model is typically baked quiet (e.g. -23.98 dB), so
+      // this is a boost up toward kLoudnessTargetDb.
+      if (h->dsp->HasLoudness()) {
+        const double output_norm_db = kLoudnessTargetDb - h->dsp->GetLoudness();
+        h->output_gain *= db_to_amp(output_norm_db);
+      }
+      // Input calibration. GetInputLevel() is the dBu RMS the model
+      // expects at 0 dBFS; SetInputLevel marks it present. The official
+      // plugin drives the model at GetInputLevel() relative to the same
+      // reference its output loudness was measured against, so the net
+      // input-vs-output staging reproduces the trained operating point.
+      if (h->dsp->HasInputLevel()) {
+        const double input_cal_db = h->dsp->GetInputLevel() - kLoudnessTargetDb;
+        h->input_gain *= db_to_amp(input_cal_db);
+      }
+    }
     h->noise_gate_threshold_db = config->noise_gate_threshold_db;
     h->noise_gate_enabled = config->noise_gate_enabled != 0;
     h->eq_enabled = config->eq_enabled != 0;

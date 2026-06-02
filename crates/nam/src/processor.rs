@@ -250,6 +250,7 @@ struct NamPluginConfig {
     noise_gate_enabled: u8,
     eq_enabled: u8,
     ir_enabled: u8,
+    audit_overrides_baked_output: u8,
 }
 
 // Loudness alignment lives in `manifest.output_gain_db`, populated
@@ -316,13 +317,17 @@ impl NamProcessor {
         sample_rate: f32,
     ) -> Result<Self> {
         // Single source of truth for stacking trainer recommendations on
-        // top of user knobs lives in `gain_offsets`. The official wrapper
-        // does not expose the trainer's `recommended_*_db`, so they are
-        // zero here; with `audit_overrides_baked_output == true` (the
-        // `from_package` runtime path) they are ignored anyway, and a UI
-        // knob of `0` plays back at unity. The resolved dB values cross
-        // the FFI as `input_db` / `output_db`; the wrapper applies BOTH
-        // gains internally, so Rust does not re-apply them.
+        // top of user knobs lives in `gain_offsets`. The user knobs cross
+        // the FFI as `input_db` / `output_db`; `recommended_*_db` are zero
+        // here because the per-model calibration is now applied INSIDE the
+        // wrapper from the official core's own `GetLoudness()` /
+        // `GetInputLevel()` (issue #612), driving a nonlinear NAM at the
+        // level it was trained at instead of raw unity (the "abafado"
+        // fix). That wrapper-side calibration is gated by
+        // `audit_overrides_baked_output`, which crosses the FFI below:
+        // when the catalog audit already owns the output level (the
+        // `from_package` runtime path) the model normalization is
+        // suppressed so the two never double-count.
         let (resolved_input_db, resolved_output_db) =
             crate::gain_offsets::resolve_gain_offsets(crate::gain_offsets::GainOffsetInputs {
                 input_level_db: params.input_level_db,
@@ -351,6 +356,7 @@ impl NamProcessor {
             noise_gate_enabled: params.noise_gate_enabled as u8,
             eq_enabled: params.eq_enabled as u8,
             ir_enabled: ir_path_c.is_some() as u8,
+            audit_overrides_baked_output: params.audit_overrides_baked_output as u8,
         };
         let handle = unsafe { nam_create(&config) };
         if handle.is_null() {
