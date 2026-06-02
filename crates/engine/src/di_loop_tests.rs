@@ -53,3 +53,33 @@ fn loop_crossfade_makes_seam_continuous() {
     let seam_step = (first - last).abs();
     assert!(seam_step < 0.5, "seam step {seam_step} not reduced by crossfade");
 }
+
+#[test]
+fn loop_wrap_step_is_no_worse_than_the_body() {
+    // #614 clipping report: a sine that does NOT complete whole cycles over `n`
+    // has mismatched ends (head[0] != tail[n-1]) AND head[0] != head[xfade], so
+    // a crossfade that merely pulls the tail toward head[xfade-1] leaves a step
+    // at the actual wrap point (last -> first). Through a high-gain chain that
+    // step becomes an audible click that sounds like clipping on every loop.
+    // A correct loop crossfade makes the wrap as smooth as the body.
+    let n = 4096;
+    let cycles = 9.37_f32; // non-integer ⇒ mismatched ends
+    let samples: Vec<f32> = (0..n)
+        .map(|i| (2.0 * std::f32::consts::PI * cycles * i as f32 / n as f32).sin() * 0.5)
+        .collect();
+    let xfade = 256;
+    let di = DiLoop::from_samples(&samples, 48_000, 1, 48_000, xfade);
+    let m = di.len();
+    let s = |i: usize| match di.frame_at(i) {
+        DiFrame::Mono(v) => v,
+        _ => unreachable!(),
+    };
+    let mut steps: Vec<f32> = (1..m).map(|i| (s(i) - s(i - 1)).abs()).collect();
+    steps.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let median = steps[steps.len() / 2];
+    let wrap = (s(0) - s(m - 1)).abs();
+    assert!(
+        wrap <= median * 3.0 + 1e-6,
+        "loop wrap step {wrap} >> body median step {median} — seam discontinuity (click/clip on restart)"
+    );
+}

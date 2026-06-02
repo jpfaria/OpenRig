@@ -24,6 +24,8 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use application::dispatcher::CommandDispatcher;
 
+use application::di_loader::DiLoopSource;
+
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
@@ -32,6 +34,36 @@ use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,
 };
+
+// ── #614: public play/stop entry points for the compact chain view ──────────
+//
+// These are thin wrappers around `di_loop_wiring::play_chain_di_loop` /
+// `stop_chain_di_loop`. Exposed as `pub` so integration tests can call them
+// directly without going through `AppWindow` (same pattern the chain-row
+// wiring uses via `di_loop_wiring::*`).
+
+/// Arm the DI loop for `chain` from the compact chain view.
+///
+/// Delegates to `di_loop_wiring::play_chain_di_loop` — same dispatch +
+/// runtime-apply path the main chains screen uses.
+pub fn compact_chain_di_loop_play(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    chain: &domain::ids::ChainId,
+) {
+    crate::di_loop_wiring::play_chain_di_loop(project_runtime, dispatcher, chain);
+}
+
+/// Disarm the DI loop for `chain` from the compact chain view.
+///
+/// Delegates to `di_loop_wiring::stop_chain_di_loop`.
+pub fn compact_chain_di_loop_stop(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    chain: &domain::ids::ChainId,
+) {
+    crate::di_loop_wiring::stop_chain_di_loop(project_runtime, dispatcher, chain);
+}
 
 pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
@@ -444,6 +476,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         // wrote onto the main chains row, so the badge shows
                         // inside the compact view (not only on the list).
                         cw.set_latency_ms(row.latency_ms);
+                        // #614: mirror DI loop playing state and source list.
+                        cw.set_di_loop_playing(row.di_loop_playing);
+                        cw.set_di_loop_sources(row.di_loop_sources.clone());
                     }
                     if let Some(nav) = nav_model.row_data(ci) {
                         cw.set_rig_nav(nav);
@@ -616,6 +651,117 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     }
                 },
             );
+        }
+
+        // ── #614: DI loop callbacks (compact view) ───────────────────────────
+        // The compact view exposes a ChainDiLoopButton next to the volume
+        // control. Its 4 callbacks target the focused chain (`chain_index`
+        // captured from the outer closure).  All delegate to the same helpers
+        // the chains-screen tile wiring uses — no duplicate dispatch path.
+
+        // on_di_loop_source_selected: user picked a bundled source.
+        {
+            let project_session = project_session.clone();
+            let weak_window = window.as_weak();
+            let toast_timer = toast_timer.clone();
+            compact_win.on_di_loop_source_selected(move |source_str| {
+                let chain_id = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    chain.id.clone()
+                };
+                let source = DiLoopSource::Bundled(source_str.to_string());
+                let cmds = crate::di_loop_wiring::di_loop_commands(
+                    chain_id,
+                    crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
+                );
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                for cmd in cmds {
+                    if let Err(err) = session.dispatcher.dispatch(cmd) {
+                        if let Some(main_win) = weak_window.upgrade() {
+                            set_status_error(&main_win, &toast_timer, &err.to_string());
+                        }
+                        return;
+                    }
+                }
+            });
+        }
+
+        // on_di_loop_choose_file: user picked "Choose file…" — open native dialog.
+        {
+            let project_session = project_session.clone();
+            let weak_window = window.as_weak();
+            let toast_timer = toast_timer.clone();
+            compact_win.on_di_loop_choose_file(move || {
+                let chain_id = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    chain.id.clone()
+                };
+                let Some(path) = rfd::FileDialog::new()
+                    .add_filter("WAV audio", &["wav"])
+                    .pick_file()
+                else {
+                    return; // user cancelled
+                };
+                let cmds = crate::di_loop_wiring::di_loop_commands(
+                    chain_id,
+                    crate::di_loop_wiring::DiLoopIntent::SelectSource {
+                        source: DiLoopSource::File(path),
+                    },
+                );
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                for cmd in cmds {
+                    if let Err(err) = session.dispatcher.dispatch(cmd) {
+                        if let Some(main_win) = weak_window.upgrade() {
+                            set_status_error(&main_win, &toast_timer, &err.to_string());
+                        }
+                        return;
+                    }
+                }
+            });
+        }
+
+        // on_di_loop_play: user pressed ▶ in the compact view.
+        {
+            let project_session = project_session.clone();
+            let project_runtime = project_runtime.clone();
+            compact_win.on_di_loop_play(move || {
+                let chain_id = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    chain.id.clone()
+                };
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                compact_chain_di_loop_play(&project_runtime, &session.dispatcher, &chain_id);
+            });
+        }
+
+        // on_di_loop_stop: user pressed ■ in the compact view.
+        {
+            let project_session = project_session.clone();
+            let project_runtime = project_runtime.clone();
+            compact_win.on_di_loop_stop(move || {
+                let chain_id = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    chain.id.clone()
+                };
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                compact_chain_di_loop_stop(&project_runtime, &session.dispatcher, &chain_id);
+            });
         }
 
         show_child_window(window.window(), compact_win.window());
