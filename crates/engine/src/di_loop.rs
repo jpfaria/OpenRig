@@ -50,8 +50,8 @@ impl DiLoop {
             })
             .collect();
 
-        let mut frames = resample_frames(&src_frames, src_sr, engine_sr, layout);
-        apply_loop_crossfade(&mut frames, xfade_frames, layout);
+        let resampled = resample_frames(&src_frames, src_sr, engine_sr, layout);
+        let frames = apply_loop_crossfade(resampled, xfade_frames, layout);
 
         Self {
             frames: frames.into_boxed_slice(),
@@ -129,24 +129,44 @@ fn lerp_frame(a: DiFrame, b: DiFrame, t: f32, layout: AudioChannelLayout) -> DiF
     }
 }
 
-/// Equal-power crossfade of the loop's tail into its head over `xfade` frames,
-/// so the wrap from last->first sample has no click. No-op if `xfade == 0` or
-/// the buffer is too short.
-fn apply_loop_crossfade(frames: &mut [DiFrame], xfade: usize, layout: AudioChannelLayout) {
+/// Seamless-loop crossfade via overlap-add. Returns a buffer of length
+/// `n - xfade`: the dropped last `xfade` frames (the tail) are blended — fading
+/// out — into the head (fading in) at the start, with equal-gain (linear)
+/// weights.
+///
+/// Why this shape (issue #614 clipping report): the previous version only
+/// pulled the tail toward `head[xfade-1]`, but playback wraps `last -> first`,
+/// so a step of `|head[0] - head[xfade-1]|` survived at the actual seam. On a
+/// high-gain chain that step is an audible click that sounds like clipping every
+/// time the loop restarts. With overlap-add, the new first frame is ~the source
+/// frame that followed the new last frame, so the wrap is continuous with the
+/// body. Equal-gain (not equal-power) weights sum to 1, so the seam never
+/// overshoots the source peak — no added clipping.
+///
+/// No-op if `xfade == 0` or the buffer is too short to spare the overlap.
+fn apply_loop_crossfade(
+    frames: Vec<DiFrame>,
+    xfade: usize,
+    layout: AudioChannelLayout,
+) -> Vec<DiFrame> {
     let n = frames.len();
-    if xfade == 0 || n < xfade * 2 {
-        return;
+    if xfade == 0 || n < xfade * 2 + 1 {
+        return frames;
     }
+    let m = n - xfade;
+    let mut out = Vec::with_capacity(m);
+    // First `xfade` frames: head[i] fades in while the dropped tail frames[m+i]
+    // fade out. At i≈0 the output ≈ frames[m] (adjacent in the source to the new
+    // last frame frames[m-1] ⇒ continuous wrap); at i=xfade-1 the output
+    // ≈ frames[xfade-1] (adjacent to frames[xfade], the first body frame).
     for i in 0..xfade {
-        let p = (i + 1) as f32 / (xfade + 1) as f32;
-        let tail_g = (0.5 * std::f32::consts::PI * p).cos();
-        let head_g = (0.5 * std::f32::consts::PI * p).sin();
-        let tail_idx = n - xfade + i;
-        let head_idx = i;
-        let tail = frames[tail_idx];
-        let head = frames[head_idx];
-        frames[tail_idx] = mix_frame(tail, tail_g, head, head_g, layout);
+        let head_w = (i + 1) as f32 / (xfade + 1) as f32; // 0 -> 1
+        let head = frames[i];
+        let tail = frames[m + i];
+        out.push(mix_frame(head, head_w, tail, 1.0 - head_w, layout));
     }
+    out.extend_from_slice(&frames[xfade..m]);
+    out
 }
 
 #[inline]
