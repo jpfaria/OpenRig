@@ -52,6 +52,14 @@ mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;
+/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod di_loop_wiring;
+/// #614: pure source-list builder + string→DiLoopSource mapper for the
+/// chain-tile DI loop ComboBox (Task 7).
+pub mod di_loop_ui_sources;
+/// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
+/// which is forbidden from importing rfd by issue #511).
+mod di_loop_chooser_wiring;
 mod insert_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;

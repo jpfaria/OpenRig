@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "입력 채널이 이미 다른 체인에서 사�
 error-select-option-required-for: "%{label}의 옵션을 선택하세요"
 error-select-invalid-for: "%{label}에 대한 잘못된 선택"
 error-invalid-project: "유효하지 않은 프로젝트"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

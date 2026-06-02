@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "输入通道已被另一个链使用。"
 error-select-option-required-for: "为 %{label} 选择一个选项"
 error-select-invalid-for: "%{label} 的选择无效"
 error-invalid-project: "无效的项目"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

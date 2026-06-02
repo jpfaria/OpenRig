@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "El canal de entrada ya está en uso por otra cad
 error-select-option-required-for: "Selecciona una opción para %{label}"
 error-select-invalid-for: "Selección inválida para %{label}"
 error-invalid-project: "Proyecto inválido"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

@@ -134,6 +134,11 @@ export component TouchMain inherits Rectangle {
     callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
+    // #614: DI loop callbacks
+    callback di-loop-source-selected(int, string);
+    callback di-loop-choose-file(int);
+    callback di-loop-play(int);
+    callback di-loop-stop(int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -333,6 +338,10 @@ export component TouchMain inherits Rectangle {
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
+            di-loop-source-selected(index, src) => { root.di-loop-source-selected(index, src); }
+            di-loop-choose-file(index) => { root.di-loop-choose-file(index); }
+            di-loop-play(index) => { root.di-loop-play(index); }
+            di-loop-stop(index) => { root.di-loop-stop(index); }
             move-chain-up(index) => { root.move-chain-up(index); }
             move-chain-down(index) => { root.move-chain-down(index); }
             configure-chain(index) => { root.configure-chain(index); }

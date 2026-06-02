@@ -9,6 +9,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
@@ -31,6 +32,11 @@ export component ChainRow inherits Rectangle {
     in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
+    // #614: DI loop callbacks (chain-index, …)
+    callback di-loop-source-selected(int, string);
+    callback di-loop-choose-file(int);
+    callback di-loop-play(int);
+    callback di-loop-stop(int);
     callback remove-chain(int);
     callback move-chain-up(int);
     callback move-chain-down(int);
@@ -184,6 +190,27 @@ export component ChainRow inherits Rectangle {
             y: 12px;
             volume: root.chain.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
+        }
+
+        // #614: DI loop control — headphones icon, next to the volume icon.
+        // Click reveals a ComboBox (source select) + play/stop toggle.
+        ChainDiLoopButton {
+            x: parent.width - 308px;
+            y: 12px;
+            playing: root.chain.di_loop_playing;
+            sources: root.chain.di_loop_sources;
+            di-loop-source-selected(src) => {
+                root.di-loop-source-selected(root.chain-index, src);
+            }
+            di-loop-choose-file => {
+                root.di-loop-choose-file(root.chain-index);
+            }
+            di-loop-play => {
+                root.di-loop-play(root.chain-index);
+            }
+            di-loop-stop => {
+                root.di-loop-stop(root.chain-index);
+            }
         }
 
         if !root.fullscreen : ChainActionIcon {

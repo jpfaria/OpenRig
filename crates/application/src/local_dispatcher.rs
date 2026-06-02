@@ -20,6 +20,7 @@
 //! `unimplemented!()` on arms that live callers can reach.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -27,10 +28,12 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
+use engine::DiLoop;
 use project::project::Project;
 use project::rig::RigProject;
 
 use crate::command::Command;
+use crate::di_loader::DiLoopSource;
 use crate::dispatcher::{CommandDispatcher, EventStream};
 use crate::event::Event;
 use crate::selection_state::SelectionState;
@@ -52,7 +55,7 @@ pub struct LocalDispatcher {
     /// could not "click a block". It now lives here, set by
     /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
     /// `rig:<input>` and real ids); absent ⇒ nothing selected.
-    pub(crate) selection: RefCell<std::collections::HashMap<ChainId, usize>>,
+    pub(crate) selection: RefCell<HashMap<ChainId, usize>>,
     /// #555: filesystem directory where preset YAMLs live. Used by
     /// `Command::SaveChainPreset` / `DeleteChainPreset` so the
     /// dispatcher (not the GUI) owns the `fs::write` / `fs::remove_file`
@@ -78,6 +81,19 @@ pub struct LocalDispatcher {
     /// exposes it to MCP / gRPC. `Arc<RwLock<…>>` because the MIDI
     /// daemon thread reads it cross-thread.
     pub(crate) selection_state: Arc<RwLock<SelectionState>>,
+
+    /// #614: ephemeral per-chain DI loop state — NEVER serialized into the
+    /// project (persisting a DI source is a project-level concern tracked
+    /// separately in #324). Each entry holds the original source enum and
+    /// the decoded `Arc<DiLoop>` ready for lock-free audio-thread reads.
+    /// The adapter-gui wiring (Task 6) calls `di_loop_for_chain` to
+    /// retrieve the arc when `Event::ChainDiLoopEnabledChanged` fires.
+    pub(crate) di_loop_state: RefCell<HashMap<ChainId, (DiLoopSource, Arc<DiLoop>)>>,
+
+    /// #614: sample rate used for DI loop decoding + resampling.
+    /// Defaults to 48 000 Hz; the adapter sets the real value via
+    /// `attach_engine_sr` once the audio stream is running.
+    pub(crate) engine_sr: RefCell<u32>,
 }
 
 impl LocalDispatcher {
@@ -90,11 +106,13 @@ impl LocalDispatcher {
         Self {
             project,
             rig: RefCell::new(None),
-            selection: RefCell::new(std::collections::HashMap::new()),
+            selection: RefCell::new(HashMap::new()),
             presets_path: RefCell::new(None),
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
+            di_loop_state: RefCell::new(HashMap::new()),
+            engine_sr: RefCell::new(48_000),
         }
     }
 
@@ -139,6 +157,26 @@ impl LocalDispatcher {
     /// behaviour). Idempotent.
     pub fn attach_config_path(&self, path: Option<PathBuf>) {
         *self.config_path.borrow_mut() = path;
+    }
+
+    /// #614: inform the dispatcher of the engine sample rate so DI loop
+    /// decoding resamples to the correct target. Call this once the audio
+    /// stream is running (or when the device changes). Defaults to 48 000 Hz.
+    pub fn attach_engine_sr(&self, sr: u32) {
+        *self.engine_sr.borrow_mut() = sr;
+    }
+
+    /// #614: retrieve the pre-loaded DI loop arc for `chain`, if any.
+    ///
+    /// The adapter-gui wiring (Task 6) calls this from the
+    /// `ChainDiLoopEnabledChanged { enabled: true }` event handler to
+    /// forward the arc to the chain's audio runtime. Returns `None` when
+    /// no source has been loaded for this chain yet.
+    pub fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiLoop>> {
+        self.di_loop_state
+            .borrow()
+            .get(chain)
+            .map(|(_, arc)| Arc::clone(arc))
     }
 }
 
@@ -310,6 +348,11 @@ impl CommandDispatcher for LocalDispatcher {
             }
             Command::ToggleActiveBlockNeighborEnabled => {
                 self.handle_toggle_active_block_neighbor_enabled()
+            }
+
+            // #614: per-chain virtual DI loop (ephemeral, never persisted).
+            Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
+                self.handle_di_loop(cmd)
             }
         }
     }

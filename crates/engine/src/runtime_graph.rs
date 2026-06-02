@@ -436,6 +436,8 @@ fn assemble_chain_runtime_state(
         // audible click on every block on/off at small buffer sizes.
         pending_block_toggles: ArrayQueue::new(64),
         bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
+        di_loop: arc_swap::ArcSwapOption::empty(),
+        di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
     })
 }
 

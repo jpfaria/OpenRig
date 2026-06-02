@@ -614,3 +614,15 @@ msgstr "Reload"
 #: crates/adapter-gui/ui/pages/settings/section_system_paths.slint
 msgid "status-plugin-catalog-idle"
 msgstr "Not reloaded yet"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-button-label"
+msgstr "DI Loop"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-play-label"
+msgstr "Play DI loop"
+
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint
+msgid "di-loop-stop-label"
+msgstr "Stop DI loop"

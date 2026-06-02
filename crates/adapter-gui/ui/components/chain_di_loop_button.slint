@@ -1,0 +1,134 @@
+// #614 — per-chain virtual DI loop control (icon + popup with source
+// selector + play/stop). Visually paired with ChainVolumeButton: same
+// 28×28 px touch target, same icon-hover colouring, same PopupWindow
+// close-on-click-outside behaviour so it doesn't block chain interaction.
+//
+// ## Callbacks (all forwarded up to ChainRow / project_chains / AppWindow)
+//   di-loop-source-selected(source: string) — user picked an entry from the
+//       ComboBox that is NOT the "Choose file…" sentinel. Rust resolves it
+//       via `parse_di_loop_source` and dispatches `SetChainDiLoopSource`.
+//   di-loop-choose-file                     — user picked "Choose file…".
+//       Rust opens the file picker and, on a result, dispatches the command.
+//   di-loop-play                            — user pressed ▶. Rust dispatches
+//       `SetChainDiLoopEnabled { enabled: true }`.
+//   di-loop-stop                            — user pressed ■. Rust dispatches
+//       `SetChainDiLoopEnabled { enabled: false }`.
+
+import { Theme } from "../theme.slint";
+import { ComboBox } from "std-widgets.slint";
+
+export component ChainDiLoopButton inherits Rectangle {
+    in property <bool> playing: false;
+    in property <[string]> sources: [];
+
+    callback di-loop-source-selected(string);
+    callback di-loop-choose-file();
+    callback di-loop-play();
+    callback di-loop-stop();
+
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    // Highlight the icon in blue when the loop is playing so the user can
+    // glance at the chain tile and know the DI is active.
+    background: root.playing ? #6e8aff28
+                : ta.has-hover ? #ffffff10
+                : transparent;
+    animate background { duration: 150ms; }
+
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/headphones.svg");
+        image-fit: contain;
+        colorize: root.playing ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { pop.show(); }
+    }
+
+    accessible-role: button;
+    accessible-label: @tr("di-loop-button-label");
+
+    pop := PopupWindow {
+        // Opens below and slightly left of the button so it stays within
+        // the chain header row and does not overlap the volume popup.
+        x: -168px;
+        y: 32px;
+        width: 196px;
+        height: 44px;
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            width: 196px;
+            height: 44px;
+            border-radius: 8px;
+            background: #11141af2;
+            border-width: 1px;
+            border-color: #3b4250;
+
+            // Source ComboBox — fills most of the popup
+            ComboBox {
+                x: 8px;
+                y: 8px;
+                width: 148px;
+                height: 28px;
+                model: root.sources;
+                current-index: -1;
+                selected(value) => {
+                    if value == "Choose file…" {
+                        root.di-loop-choose-file();
+                    } else {
+                        root.di-loop-source-selected(value);
+                    }
+                }
+            }
+
+            // Play / Stop toggle button
+            Rectangle {
+                x: 160px;
+                y: 8px;
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                background: play-ta.has-hover ? #ffffff18 : transparent;
+                animate background { duration: 150ms; }
+
+                Image {
+                    x: 4px;
+                    y: 4px;
+                    width: 20px;
+                    height: 20px;
+                    source: root.playing
+                        ? @image-url("../assets/stop.svg")
+                        : @image-url("../assets/play.svg");
+                    image-fit: contain;
+                    colorize: root.playing
+                        ? #f87171
+                        : play-ta.has-hover ? #ffffff : #8a94a2;
+                    animate colorize { duration: 100ms; }
+                }
+
+                play-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        if root.playing {
+                            root.di-loop-stop();
+                        } else {
+                            root.di-loop-play();
+                        }
+                    }
+                }
+                accessible-role: button;
+                accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
+            }
+        }
+    }
+}

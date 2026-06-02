@@ -549,6 +549,26 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
+                // #614: starts false; the meter timer updates it at ~30 Hz
+                // via `ChainRuntimeState::has_di_loop`. Populated here so
+                // the struct is complete on first render.
+                di_loop_playing: false,
+                // #614: enumerate bundled loop ids (stems under
+                // <data-root>/assets/di-loops/) then append the
+                // "Choose file…" sentinel. If the directory is missing or
+                // empty (Task 8 ships the first loops), only the sentinel
+                // appears so the user can still pick a WAV file.
+                di_loop_sources: {
+                    let bundled_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
+                    let refs: Vec<&str> = bundled_ids.iter().map(|s| s.as_str()).collect();
+                    let entries = crate::di_loop_ui_sources::build_di_loop_sources(&refs);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        entries
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
             }
         })
         .collect::<Vec<_>>();

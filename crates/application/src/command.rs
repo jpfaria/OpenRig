@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, InsertEndpoint};
 use project::chain::Chain;
+pub use crate::di_loader::DiLoopSource;
 
 /// Every state change the UI or any controller can request.
 ///
@@ -486,6 +487,45 @@ pub enum Command {
         block_size: Option<u32>,
         bit_depth: Option<u8>,
         tail_ms: Option<u32>,
+    },
+
+    // ── Per-chain virtual DI loop (#614) ──────────────────────────────────────
+    /// #614: load and pre-decode a DI loop source for a chain.
+    ///
+    /// **EPHEMERAL — never serialized into the project** (distinct from any
+    /// project-level DI configuration in #324). The dispatcher decodes the
+    /// source off the audio thread, stores the resulting `Arc<DiLoop>` keyed
+    /// by `chain` in an in-memory map, and emits
+    /// `Event::ChainDiLoopSourceChanged`. The chain's audio thread is NOT
+    /// touched here — call `SetChainDiLoopEnabled { enabled: true }` to start
+    /// playback.
+    ///
+    /// Returns `Err` if the file cannot be decoded (never silently swallows
+    /// a decode failure). Returns `Err` if `chain` is not found.
+    SetChainDiLoopSource {
+        chain: ChainId,
+        source: DiLoopSource,
+    },
+
+    /// #614: start or stop DI loop playback on a chain.
+    ///
+    /// **EPHEMERAL — never serialized into the project**.
+    ///
+    /// `enabled: true` — publishes the pre-loaded `Arc<DiLoop>` via
+    /// `Event::ChainDiLoopEnabledChanged { chain, enabled: true }`.
+    /// The adapter-gui wiring (Task 6) reacts to this event and calls
+    /// `runtime.set_di_loop(Some(arc))`. If no DI loop has been loaded for
+    /// `chain` yet this is a no-op (emits the event with `enabled: true`
+    /// so the adapter can decide).
+    ///
+    /// `enabled: false` — emits `Event::ChainDiLoopEnabledChanged { chain,
+    /// enabled: false }`. The adapter-gui wiring calls
+    /// `runtime.set_di_loop(None)`.
+    ///
+    /// Returns `Err` if `chain` is not found.
+    SetChainDiLoopEnabled {
+        chain: ChainId,
+        enabled: bool,
     },
 }
 

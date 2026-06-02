@@ -494,9 +494,16 @@ pub fn start_meter_polling(
             };
             let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
                 || (row.meter_out_dbfs - out_db).abs() > 0.05;
-            if aggregate_changed || stream_meters_changed {
+            // #614: poll DI loop playing state so the chain-tile icon
+            // reflects the engine's current armed/disarmed state.
+            let di_playing_now = controller.chain_has_di_loop(&cid);
+            let di_changed = row.di_loop_playing != di_playing_now;
+            if aggregate_changed || stream_meters_changed || di_changed {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
+                if di_changed {
+                    row.di_loop_playing = di_playing_now;
+                }
                 if stream_meters_changed {
                     let model = std::rc::Rc::new(slint::VecModel::default());
                     for r in &per_stream_rows {

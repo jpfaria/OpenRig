@@ -19,7 +19,9 @@ plugin-loader = { path = "../plugin-loader" }
 adapter-render = { path = "../adapter-render" }
 
 [dev-dependencies]
+block-core = { path = "../block-core" }
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }
+hound = "3.5"
 serde_yaml.workspace = true
 tempfile = "3"
