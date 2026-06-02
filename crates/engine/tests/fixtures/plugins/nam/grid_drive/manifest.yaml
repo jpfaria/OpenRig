@@ -1,0 +1,22 @@
+manifest_version: 1
+id: nam_grid_drive
+display_name: Grid Drive
+brand: nam
+sources:
+- https://www.tone3000.com/
+output_gain_db: 0.0
+type: gain_pedal
+backend: nam
+parameters:
+- name: drive
+  display_name: Drive
+  values:
+  - 0
+  - 5
+captures:
+- values:
+    drive: 0
+  file: captures/drive_min.nam
+- values:
+    drive: 5
+  file: captures/drive_hi.nam

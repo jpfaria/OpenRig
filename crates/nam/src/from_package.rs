@@ -4,35 +4,32 @@
 //! declared in the manifest) and hands it to the existing
 //! [`crate::build_processor_with_assets_for_layout`].
 //!
-//! Issues: #287 (loader) + #402 (NAM gain pedal passthrough at zero).
+//! Issues: #287 (loader), #630 (grid knobs always select the nearest
+//! capture — see below).
 
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
-use plugin_loader::manifest::{Backend, GridParameter};
+use block_core::{AudioChannelLayout, BlockProcessor};
+use plugin_loader::manifest::Backend;
 use plugin_loader::LoadedPackage;
 
 use crate::build_processor_with_assets_for_layout;
 use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
 
-/// Knob names a NAM gain pedal exposes that, when set to the lower bound
-/// of the declared range, should make the block behave as a true
-/// passthrough (not load or run the model). Issue #402 / #400.
-const ZERO_PASSTHROUGH_KNOBS: &[&str] = &["drive", "level"];
-
 /// Build a [`BlockProcessor`] from a disk-backed NAM package.
 ///
-/// When a NAM gain pedal exposes a `drive` or `level` knob and the user
-/// sets EITHER to the bottom of the declared range (e.g. `level: 0`),
-/// returns a true passthrough — the model does not load, the block is
-/// equivalent to being disabled. This is the only configuration the
-/// user validated as microphonics-free for cases like `TS9 → Bogner
-/// drive_red`, where the captured residual signal at "knob zero" was
-/// loud enough downstream to sustain a feedback loop.
+/// A grid pedal's knobs map to the NEAREST declared `.nam` capture, and the
+/// model is ALWAYS loaded — including when a knob sits at the axis minimum.
+/// A capture declared at `drive: 0` (or `level: 0`) is a real capture, not
+/// "off", so the block produces sound there. On/off is exclusively the
+/// engine's block enable toggle (`set_block_enabled` →
+/// `RuntimeProcessor::Bypass`), never a value of a parameter knob.
 ///
-/// For non-zero knob values the block runs normally — `resolve_capture`
-/// picks the closest grid point and the model processes input at unity.
-/// No artificial dB derivation, no soft-clip, no offline normalization.
+/// `resolve_capture` picks the closest grid point and the model processes
+/// input at unity. No artificial dB derivation, no soft-clip, no offline
+/// normalization. (Issue #630 removed the legacy #402 "knob at zero ==
+/// passthrough" rule, which silently unloaded the model and could not be
+/// recovered via the enable toggle.)
 pub fn build_from_package(
     package: &LoadedPackage,
     params: &ParameterSet,
@@ -49,10 +46,6 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-
-    if any_zero_knob(params, parameters) {
-        return Ok(passthrough(layout));
-    }
 
     let capture = plugin_loader::dispatch::resolve_capture(parameters, captures, params)
         .ok_or_else(|| {
@@ -77,60 +70,6 @@ pub fn build_from_package(
     );
     plugin_params.audit_overrides_baked_output = true;
     build_processor_with_assets_for_layout(model_path_str, None, plugin_params, sample_rate, layout)
-}
-
-/// Returns true if any of the [`ZERO_PASSTHROUGH_KNOBS`] is declared in
-/// the manifest schema AND the user set it to the lower bound (or below)
-/// of the declared numeric values.
-fn any_zero_knob(params: &ParameterSet, parameters: &[GridParameter]) -> bool {
-    for knob in ZERO_PASSTHROUGH_KNOBS {
-        let Some(user_value) = params.get_f32(knob) else {
-            continue;
-        };
-        let Some(min_declared) = manifest_min(parameters, knob) else {
-            continue;
-        };
-        if (user_value as f64) <= min_declared {
-            return true;
-        }
-    }
-    false
-}
-
-fn manifest_min(parameters: &[GridParameter], name: &str) -> Option<f64> {
-    parameters
-        .iter()
-        .find(|p| p.name == name)?
-        .values
-        .iter()
-        .filter_map(|v| match v {
-            plugin_loader::manifest::ParameterValue::Number(n) => Some(*n),
-            _ => None,
-        })
-        .fold(None, |acc: Option<f64>, n| {
-            Some(acc.map_or(n, |min| min.min(n)))
-        })
-}
-
-fn passthrough(layout: AudioChannelLayout) -> BlockProcessor {
-    match layout {
-        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(MonoPassthrough)),
-        AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(StereoPassthrough)),
-    }
-}
-
-struct MonoPassthrough;
-impl MonoProcessor for MonoPassthrough {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        input
-    }
-}
-
-struct StereoPassthrough;
-impl StereoProcessor for StereoPassthrough {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        input
-    }
 }
 
 /// Pure resolver for the runtime output-level offset. The audit
