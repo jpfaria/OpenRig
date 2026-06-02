@@ -3,8 +3,8 @@ use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{
-    db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
-    OnePoleLowPass, StereoProcessor,
+    db_to_lin, AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, ModelAudioMode,
+    MonoProcessor, OnePoleLowPass, StereoProcessor,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -19,15 +19,35 @@ pub struct NativeCabSettings {
     pub output: f32,
 }
 
+/// Per-model magnitude-response fingerprint, approximating the measured response
+/// of a reference cabinet with a biquad cascade. These are *descriptive targets*
+/// (a 4x12 with Celestion-style speakers, a small warm 1x12, a bright scooped
+/// 2x12) — never a named/branded model (zero-coupling rule). The biquad cascade
+/// matches the magnitude curve; it does not reproduce the comb-filtering or
+/// complex phase of a real cabinet — that only comes from a measured IR.
 #[derive(Debug, Clone, Copy)]
 pub struct NativeCabProfile {
-    pub resonance_hz: f32,
-    pub air_hz: f32,
+    /// Speaker high-frequency rolloff corner — the dominant cabinet trait.
+    /// Applied as two cascaded low-passes (~24 dB/oct), the steep skirt a real
+    /// cone has above its top end.
+    pub rolloff_hz: f32,
+    pub rolloff_q: f32,
+    /// Low-end cone/cabinet resonance bump.
+    pub low_bump_hz: f32,
+    pub low_bump_db: f32,
+    pub low_bump_q: f32,
+    /// Mid scoop — the guitar-cab "honk" notch; its centre and depth strongly
+    /// separate one cabinet from another.
+    pub mid_dip_hz: f32,
+    pub mid_dip_db: f32,
+    pub mid_dip_q: f32,
+    /// Presence/bite peak in the upper mids.
+    pub presence_hz: f32,
+    pub presence_db: f32,
+    pub presence_q: f32,
+    /// Room reflection tap (kept from the previous engine).
     pub room_base_ms: f32,
     pub room_span_ms: f32,
-    pub resonance_gain: f32,
-    pub air_gain: f32,
-    pub high_cut_scale: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,15 +72,18 @@ struct DelayTap {
     delay_samples: usize,
 }
 
+/// Biquad cascade voicing a single native cabinet. Every filter is built once in
+/// `new` (setup); `process_sample` is allocation-/lock-free and adds no latency.
 struct NativeCabProcessor {
     settings: NativeCabSettings,
-    profile: NativeCabProfile,
     output_gain: f32,
-    low_cut: OnePoleHighPass,
-    core_low_pass: OnePoleLowPass,
-    resonance_high_pass: OnePoleHighPass,
-    resonance_low_pass: OnePoleLowPass,
-    air_high_pass: OnePoleHighPass,
+    body_hp: BiquadFilter,
+    low_bump: BiquadFilter,
+    mid_dip: BiquadFilter,
+    presence: BiquadFilter,
+    speaker_lp1: BiquadFilter,
+    speaker_lp2: BiquadFilter,
+    brightness_lp: BiquadFilter,
     room_low_pass: OnePoleLowPass,
     room_delay: DelayTap,
 }
@@ -108,22 +131,70 @@ impl NativeCabProcessor {
     fn new(profile: NativeCabProfile, settings: NativeCabSettings, sample_rate: f32) -> Self {
         let mic_position = (settings.mic_position / 100.0).clamp(0.0, 1.0);
         let mic_distance = (settings.mic_distance / 100.0).clamp(0.0, 1.0);
-        let effective_high_cut =
-            (settings.high_cut_hz * profile.high_cut_scale * (0.8 + mic_position * 0.4))
-                .clamp(1_800.0, sample_rate * 0.45);
+        let nyquist_guard = sample_rate * 0.45;
+
+        // On-axis (high mic_position) brightens: pushes the rolloff up and the
+        // presence peak slightly higher, the way moving a mic toward the cone
+        // centre does. Off-axis darkens.
+        let rolloff_hz = (profile.rolloff_hz * (0.85 + mic_position * 0.3)).clamp(1_500.0, nyquist_guard);
+        let presence_hz = (profile.presence_hz * (0.9 + mic_position * 0.2)).clamp(800.0, nyquist_guard);
+
+        // Knobs scale the intrinsic profile stages, monotonic around the
+        // defaults: Resonance drives the low bump, Air the presence.
+        let low_bump_db = profile.low_bump_db * (settings.resonance / 100.0 * 1.8).clamp(0.0, 2.0);
+        let presence_db = profile.presence_db * (0.6 + (settings.air / 100.0) * 0.8).clamp(0.0, 2.0);
+
+        let body_hz = settings.low_cut_hz.clamp(20.0, 400.0);
+        let brightness_hz = settings.high_cut_hz.clamp(1_500.0, nyquist_guard);
+
         let room_delay_ms = profile.room_base_ms + mic_distance * profile.room_span_ms;
         let mut room_delay = DelayTap::new(40.0, sample_rate);
         room_delay.set_delay_ms(room_delay_ms, sample_rate);
 
         Self {
             settings,
-            profile,
             output_gain: db_to_lin(percent_to_gain_db(settings.output)),
-            low_cut: OnePoleHighPass::new(settings.low_cut_hz, sample_rate),
-            core_low_pass: OnePoleLowPass::new(effective_high_cut, sample_rate),
-            resonance_high_pass: OnePoleHighPass::new(profile.resonance_hz * 0.75, sample_rate),
-            resonance_low_pass: OnePoleLowPass::new(profile.resonance_hz * 1.8, sample_rate),
-            air_high_pass: OnePoleHighPass::new(profile.air_hz, sample_rate),
+            body_hp: BiquadFilter::new(BiquadKind::HighPass, body_hz, 0.0, 0.707, sample_rate),
+            low_bump: BiquadFilter::new(
+                BiquadKind::Peak,
+                profile.low_bump_hz,
+                low_bump_db,
+                profile.low_bump_q,
+                sample_rate,
+            ),
+            mid_dip: BiquadFilter::new(
+                BiquadKind::Peak,
+                profile.mid_dip_hz,
+                profile.mid_dip_db,
+                profile.mid_dip_q,
+                sample_rate,
+            ),
+            presence: BiquadFilter::new(
+                BiquadKind::Peak,
+                presence_hz,
+                presence_db,
+                profile.presence_q,
+                sample_rate,
+            ),
+            // Two cascaded low-passes → ~24 dB/oct skirt, the steep top-end
+            // rolloff that makes a cabinet sound like a speaker, not a wire.
+            speaker_lp1: BiquadFilter::new(
+                BiquadKind::LowPass,
+                rolloff_hz,
+                0.0,
+                profile.rolloff_q,
+                sample_rate,
+            ),
+            speaker_lp2: BiquadFilter::new(BiquadKind::LowPass, rolloff_hz, 0.0, 0.707, sample_rate),
+            // The High Cut knob, a gentle extra low-pass on top of the speaker
+            // rolloff so the user can darken without redefining the cabinet.
+            brightness_lp: BiquadFilter::new(
+                BiquadKind::LowPass,
+                brightness_hz,
+                0.0,
+                0.707,
+                sample_rate,
+            ),
             room_low_pass: OnePoleLowPass::new(2_200.0 - mic_distance * 600.0, sample_rate),
             room_delay,
         }
@@ -132,24 +203,15 @@ impl NativeCabProcessor {
 
 impl MonoProcessor for NativeCabProcessor {
     fn process_sample(&mut self, input: f32) -> f32 {
-        let mut sample = self.low_cut.process(input);
-        sample = self.core_low_pass.process(sample);
+        let mut sample = self.body_hp.process(input);
+        sample = self.low_bump.process(sample);
+        sample = self.mid_dip.process(sample);
+        sample = self.presence.process(sample);
+        sample = self.speaker_lp1.process(sample);
+        sample = self.speaker_lp2.process(sample);
+        sample = self.brightness_lp.process(sample);
 
-        let resonance_band = self
-            .resonance_low_pass
-            .process(self.resonance_high_pass.process(sample));
-        let resonance_amount = (self.settings.resonance / 100.0).clamp(0.0, 1.0);
-        sample += resonance_band * resonance_amount * self.profile.resonance_gain;
-
-        let mic_position = (self.settings.mic_position / 100.0).clamp(0.0, 1.0);
         let mic_distance = (self.settings.mic_distance / 100.0).clamp(0.0, 1.0);
-        let air = self.air_high_pass.process(sample)
-            * (self.settings.air / 100.0).clamp(0.0, 1.0)
-            * self.profile.air_gain
-            * (0.35 + mic_position * 0.85)
-            * (1.0 - mic_distance * 0.35);
-        sample += air;
-
         let room_mix = (self.settings.room_mix / 100.0).clamp(0.0, 1.0);
         let room_source = self.room_low_pass.process(sample);
         let room = self.room_delay.process(room_source) * room_mix * (0.25 + mic_distance * 0.65);

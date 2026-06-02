@@ -251,17 +251,14 @@ export component BlockPanelEditor inherits Rectangle {
             root.effective-grid-cols > 0 ? self.grid-area-w / root.effective-grid-cols : 64px;
         property <length> grid-base-y: root.base-panel-height * 0.54;
 
-        // Wrapped knob/param grid, scrollable when taller than the capped
-        // window (issue #622). Visible height is bounded by the window;
-        // `content-height` carries the full grid height for the viewport.
+        // Wrapped knob/param grid. The panel window grows to fit every row
+        // (issue #500/#622), so the grid is laid out at its full content
+        // height and never needs to scroll.
         BlockParamGrid {
             x: 0;
             y: 0;
             width: parent.width;
-            height: min(
-                root.height - root.header-height - root.brand-strip-height - root.footer-height,
-                root.panel-knob-inner-height,
-            );
+            height: root.panel-knob-inner-height;
             knob-overlays: root.block-knob-overlays;
             param-items: root.block-parameter-items;
             show-overlays: parent.show-overlays;

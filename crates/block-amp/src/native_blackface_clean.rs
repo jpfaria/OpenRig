@@ -25,14 +25,21 @@ const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     top_end_hz: 10_500.0,
 };
 
+// Scooped, bright blackface combo speaker: clean, deep mid scoop, airy top.
 const CAB_PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 102.0,
-    air_hz: 4_600.0,
+    rolloff_hz: 5_500.0,
+    rolloff_q: 0.7,
+    low_bump_hz: 95.0,
+    low_bump_db: 2.0,
+    low_bump_q: 1.0,
+    mid_dip_hz: 750.0,
+    mid_dip_db: -4.5,
+    mid_dip_q: 1.2,
+    presence_hz: 4_000.0,
+    presence_db: 4.0,
+    presence_q: 1.2,
     room_base_ms: 10.0,
     room_span_ms: 14.0,
-    resonance_gain: 0.26,
-    air_gain: 0.32,
-    high_cut_scale: 1.0,
 };
 
 const PROFILE: NativeAmpProfile = NativeAmpProfile {

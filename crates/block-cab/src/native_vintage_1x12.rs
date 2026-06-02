@@ -9,14 +9,22 @@ use crate::CabBackendKind;
 pub const MODEL_ID: &str = "vintage_1x12";
 pub const DISPLAY_NAME: &str = "Vintage 1x12";
 
+// Small open-back 1x12: warm, boxy, soft top end, mid-forward (shallow scoop).
+// Descriptive target — not a branded model.
 const PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 92.0,
-    air_hz: 3_200.0,
+    rolloff_hz: 4_000.0,
+    rolloff_q: 0.7,
+    low_bump_hz: 130.0,
+    low_bump_db: 2.5,
+    low_bump_q: 1.0,
+    mid_dip_hz: 1_400.0,
+    mid_dip_db: -2.0,
+    mid_dip_q: 0.9,
+    presence_hz: 2_800.0,
+    presence_db: 2.5,
+    presence_q: 1.0,
     room_base_ms: 12.0,
     room_span_ms: 16.0,
-    resonance_gain: 0.30,
-    air_gain: 0.22,
-    high_cut_scale: 0.78,
 };
 
 const DEFAULTS: NativeCabSchemaDefaults = NativeCabSchemaDefaults {
