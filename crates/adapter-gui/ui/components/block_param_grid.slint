@@ -1,0 +1,81 @@
+import { PanelKnob } from "panel_knob.slint";
+import { BlockPanelParameterItem } from "block_panel_parameter_item.slint";
+import { BlockKnobOverlay, BlockParameterItem } from "../models.slint";
+import { ScrollView } from "std-widgets.slint";
+
+// Scrollable wrapped knob/param grid for the block panel editor.
+//
+// When a plugin has many parameters the wrapped grid is taller than the
+// (capped) editor window (issue #622): the window no longer grows past the
+// screen, so the grid scrolls instead. `content-height` is the full grid
+// height (the scroll viewport); the component's own height is the visible
+// area bounded by the window. Knob/param coordinates are unchanged from
+// the inline grid this replaced — only the surrounding scroll is new.
+//
+// Universal across block kinds: `knob-overlays` (curated NAM/native
+// layouts) and `param-items` (LV2-synthesized control ports) feed the same
+// grid; exactly one renders, gated by `show-overlays` / `show-params`.
+export component BlockParamGrid inherits ScrollView {
+    in property <[BlockKnobOverlay]> knob-overlays;
+    in property <[BlockParameterItem]> param-items;
+    in property <bool> show-overlays;
+    in property <bool> show-params;
+    in property <length> grid-area-x;
+    in property <length> grid-cell-w;
+    in property <int> grid-cols;
+    in property <length> grid-base-y;
+    in property <length> grid-row-stride;
+    in property <length> content-height;
+    in property <color> panel-text;
+    callback update-number(string, float);
+    callback select-option(string, int);
+    callback pick-file(string);
+    callback update-bool(string, bool);
+
+    viewport-width: self.visible-width;
+    viewport-height: root.content-height;
+
+    for knob[ki] in root.knob-overlays : Rectangle {
+        visible: root.show-overlays;
+        x: root.grid-area-x + mod(ki, root.grid-cols) * root.grid-cell-w;
+        y: root.grid-base-y + Math.floor(ki / root.grid-cols) * root.grid-row-stride;
+        width: root.grid-cell-w;
+        height: 90px;
+
+        Text {
+            x: 0; y: 0; width: parent.width; height: 14px;
+            text: knob.label;
+            color: root.panel-text;
+            font-family: "Bebas Neue";
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        PanelKnob {
+            x: (parent.width - 36px) / 2; y: 28px;
+            width: 36px;
+            height: 56px;
+            value: knob.value;
+            min-val: knob.min_val;
+            max-val: knob.max_val;
+            step: knob.step;
+            path: knob.path;
+            changed(p, v) => { root.update-number(p, v); }
+        }
+    }
+
+    for param[pi] in root.param-items : BlockPanelParameterItem {
+        visible: root.show-params;
+        x: root.grid-area-x + mod(pi, root.grid-cols) * root.grid-cell-w;
+        y: root.grid-base-y + Math.floor(pi / root.grid-cols) * root.grid-row-stride;
+        width: root.grid-cell-w;
+        height: 90px;
+        param: param;
+        panel-text: root.panel-text;
+        update-number(p, v) => { root.update-number(p, v); }
+        select-option(p, i) => { root.select-option(p, i); }
+        pick-file(p) => { root.pick-file(p); }
+        update-bool(p, v) => { root.update-bool(p, v); }
+    }
+}

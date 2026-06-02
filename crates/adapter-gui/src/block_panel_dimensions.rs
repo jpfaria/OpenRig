@@ -45,6 +45,17 @@ pub const BASE_PANEL_HEIGHT_PX: f32 = 275.0;
 pub const FORM_EDITOR_WIDTH_PX: f32 = 520.0;
 pub const FORM_EDITOR_HEIGHT_PX: f32 = 820.0;
 
+/// Maximum outer-window height (issue #622). The #500 policy grew the
+/// window vertically without bound so wrapped rows stayed visible — but
+/// the editor window is locked `min = max = preferred = height`, so once
+/// the computed height passed the display the lower rows fell off-screen
+/// with no way to scroll or shrink. Past this cap the window height stops
+/// growing and the param grid scrolls inside the panel instead
+/// (`inner_panel_height_px` keeps the full content height as the scroll
+/// viewport). Matches the form-editor envelope so both editors fit the
+/// same screen budget.
+pub const MAX_PANEL_HEIGHT_PX: f32 = 820.0;
+
 /// Inputs to the dimension solver. Every flag that can shift the
 /// resulting window size sits here so the test matrix can enumerate
 /// combinations explicitly.
@@ -84,9 +95,11 @@ pub struct PanelDimensions {
     pub grid_cols: usize,
     /// Rows occupied by the grid (0 when no grid renders).
     pub grid_rows: usize,
-    /// Inner Rectangle height inside `BlockPanelEditor`. Grows past
-    /// `window_width / 4` so wrapped rows stay inside the clipped
-    /// panel rectangle.
+    /// Inner Rectangle height inside `BlockPanelEditor` — the full
+    /// content height of the wrapped knob grid. Grows past
+    /// `window_width / 4` with every wrapped row and is NOT capped, so
+    /// when it exceeds the (capped) window it doubles as the scroll
+    /// viewport content height (issue #622).
     pub inner_panel_height_px: f32,
 }
 
@@ -139,7 +152,12 @@ pub fn compute(inputs: PanelInputs) -> PanelDimensions {
     };
     let window_width = needed_width.max(MIN_PANEL_WIDTH_PX);
     let extra_rows = rows.saturating_sub(1) as f32;
-    let window_height = BASE_PANEL_HEIGHT_PX + extra_rows * ROW_STRIDE_PX;
+    // The window height is capped (issue #622): once the grid is taller
+    // than the screen budget the window stops growing and the grid scrolls
+    // inside it. `inner_panel_height` is NOT capped — it stays the full
+    // content height so it can serve as the scroll viewport.
+    let content_height = BASE_PANEL_HEIGHT_PX + extra_rows * ROW_STRIDE_PX;
+    let window_height = content_height.min(MAX_PANEL_HEIGHT_PX);
     let base_inner = window_width / 4.0;
     let inner_panel_height = base_inner + extra_rows * ROW_STRIDE_PX;
 
