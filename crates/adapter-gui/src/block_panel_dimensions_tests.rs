@@ -121,21 +121,30 @@ fn req_width_is_invariant_across_panel_counts() {
 }
 
 #[test]
-fn req_height_grows_strictly_at_each_wrap_boundary() {
+fn req_height_grows_strictly_at_each_wrap_boundary_until_capped() {
     // Every additional *wrapped* row must produce a strictly taller
-    // window. The 0→1 transition is excluded (empty grid and single-
-    // row grid both use the baseline height by design — the single
-    // row fits inside the amp-head base aspect).
+    // window UNTIL the screen cap is reached (issue #622); past the cap
+    // the window holds at MAX_PANEL_HEIGHT_PX and the grid scrolls. The
+    // 0→1 transition is excluded (empty grid and single-row grid both use
+    // the baseline height by design). The full content keeps growing —
+    // `req_inner_panel_holds_last_row_with_clip_safe_margin` covers that.
     let mut last_rows = 1;
     let mut last_height = dims(1).window_height_px;
     for n in 2..=200 {
         let d = dims(n);
         if d.grid_rows > last_rows {
-            assert!(
-                d.window_height_px > last_height,
-                "n={n}: rows went {last_rows}→{} but height stayed {last_height}",
-                d.grid_rows
-            );
+            if d.window_height_px < MAX_PANEL_HEIGHT_PX {
+                assert!(
+                    d.window_height_px > last_height,
+                    "n={n}: rows went {last_rows}→{} but height stayed {last_height} (below the cap it must grow)",
+                    d.grid_rows
+                );
+            } else {
+                assert_eq!(
+                    d.window_height_px, MAX_PANEL_HEIGHT_PX,
+                    "n={n}: above the cap the window must hold at MAX_PANEL_HEIGHT_PX"
+                );
+            }
             last_rows = d.grid_rows;
             last_height = d.window_height_px;
         }
@@ -335,6 +344,46 @@ fn req_eq_mode_does_not_open_the_param_grid() {
 // User: "300000 se forem necessario.. com todos os tipos de prametros".
 // 1..=300 covers every realistic plugin and a 4× safety margin
 // (largest catalogued plugin: fat1_autotune at 64).
+
+// ── Requirement 10: window height must fit the screen (issue #622) ──
+// The #500 policy grew the window vertically without bound so wrapped
+// rows stayed visible. That breaks once the height passes the display:
+// the window is locked min=max=preferred to its computed height, so the
+// lower rows fall off-screen with no way to scroll or shrink. The window
+// height must now stay within a fixed cap; the grid scrolls past it (the
+// inner panel content keeps the full height for the scroll viewport).
+
+#[test]
+fn req_window_height_capped_to_fit_screen() {
+    for n in 0..=300 {
+        let h = dims(n).window_height_px;
+        assert!(
+            h <= MAX_PANEL_HEIGHT_PX,
+            "n={n}: window height {h}px exceeds cap {MAX_PANEL_HEIGHT_PX}px — with many \
+             params the window overflows the screen and the lower rows are unreachable \
+             (issue #622: scroll the grid, don't grow the window past the screen)"
+        );
+    }
+}
+
+#[test]
+fn req_grid_content_scrolls_when_taller_than_capped_window() {
+    // Past the cap the inner panel (the scroll viewport content) must still
+    // hold every row, so all params remain reachable by scrolling instead
+    // of being clipped off the bottom of the window.
+    let many = dims(120);
+    assert!(
+        many.window_height_px <= MAX_PANEL_HEIGHT_PX,
+        "120 knobs: window not capped ({}px)",
+        many.window_height_px
+    );
+    assert!(
+        many.inner_panel_height_px > many.window_height_px,
+        "120 knobs: inner content {}px must exceed the capped window {}px so the grid scrolls",
+        many.inner_panel_height_px,
+        many.window_height_px
+    );
+}
 
 #[test]
 fn req_every_count_zero_to_three_hundred_is_well_formed() {
