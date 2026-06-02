@@ -148,6 +148,21 @@ pub fn process_input_f32(
         None => data,
     };
 
+    // ── Virtual DI loop (issue #614) ─────────────────────────────────────
+    // If a DI loop is published for this chain, every segment reads the loop
+    // instead of the device frame. Lock-free (ArcSwapOption load) and
+    // zero-alloc: we pass a borrow + a shared start cursor into the segments,
+    // and advance the cursor once per callback below. `None` ⇒ one branch,
+    // then identical to today's device path. Input taps below intentionally
+    // keep reading the device `data` (the tuner tracks the real input).
+    let di_guard = runtime.di_loop.load();
+    let di_ref: Option<&crate::di_loop::DiLoop> = di_guard.as_deref();
+    let di_start = match di_ref {
+        Some(_) => runtime.di_loop_pos.load(Ordering::Relaxed),
+        None => 0,
+    };
+    let di_for_seg = di_ref.map(|d| (d, di_start));
+
     // ── Per-channel sample taps (pre-FX) ─────────────────────────────────
     // Top-level features (Tuner / Spectrum windows) subscribe to raw input
     // samples here. Empty Vec = zero subscribers; the early continue keeps
@@ -209,7 +224,20 @@ pub fn process_input_f32(
             num_frames,
             &runtime.error_queue,
             &stream_taps,
+            di_for_seg,
         );
+    }
+
+    // Advance the DI loop playback cursor once per callback (after all
+    // segments have consumed frames starting at `di_start`). Wraps modulo
+    // loop length. The cursor is advanced here — not inside the segment
+    // loop — so that parallel segments sharing the same input callback all
+    // read the same window of the loop (consistent with SPSC single-producer
+    // invariant and stream isolation).
+    if let Some(d) = di_ref {
+        let len = d.len().max(1);
+        let next = di_start.wrapping_add(num_frames) % len;
+        runtime.di_loop_pos.store(next, Ordering::Relaxed);
     }
 
     // Snapshot current output routes via ArcSwap — no lock.
@@ -305,6 +333,7 @@ fn process_single_segment(
     num_frames: usize,
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
+    di: Option<(&crate::di_loop::DiLoop, usize)>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -328,19 +357,39 @@ fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
-    for frame in data.chunks(input_total_channels).take(num_frames) {
-        let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
-        let chain_frame = match (*input_read_layout, *processing_layout) {
-            (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
-                let sample = match raw_frame {
-                    AudioFrame::Mono(s) => s,
-                    _ => unreachable!(),
+    match di {
+        Some((di_loop, start_pos)) => {
+            use crate::di_loop::DiFrame;
+            for i in 0..num_frames {
+                let f = di_loop.frame_at(start_pos.wrapping_add(i));
+                let chain_frame = match (*processing_layout, f) {
+                    (AudioChannelLayout::Stereo, DiFrame::Mono(s)) => AudioFrame::Stereo([s, s]),
+                    (AudioChannelLayout::Stereo, DiFrame::Stereo(lr)) => AudioFrame::Stereo(lr),
+                    (AudioChannelLayout::Mono, DiFrame::Mono(s)) => AudioFrame::Mono(s),
+                    (AudioChannelLayout::Mono, DiFrame::Stereo([l, r])) => {
+                        AudioFrame::Mono((l + r) * 0.5)
+                    }
                 };
-                AudioFrame::Stereo([sample, sample])
+                frame_buffer.push(chain_frame);
             }
-            _ => raw_frame,
-        };
-        frame_buffer.push(chain_frame);
+            let _ = (input_read_layout, input_channels);
+        }
+        None => {
+            for frame in data.chunks(input_total_channels).take(num_frames) {
+                let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
+                let chain_frame = match (*input_read_layout, *processing_layout) {
+                    (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
+                        let sample = match raw_frame {
+                            AudioFrame::Mono(s) => s,
+                            _ => unreachable!(),
+                        };
+                        AudioFrame::Stereo([sample, sample])
+                    }
+                    _ => raw_frame,
+                };
+                frame_buffer.push(chain_frame);
+            }
+        }
     }
 
     for block in blocks.iter_mut() {
@@ -786,3 +835,7 @@ mod block_enabled_fast_path;
 #[cfg(test)]
 #[path = "di_loop_state_tests.rs"]
 mod di_loop_state;
+
+#[cfg(test)]
+#[path = "di_loop_injection_tests.rs"]
+mod di_loop_injection;
