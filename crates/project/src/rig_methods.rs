@@ -245,8 +245,18 @@ impl RigProject {
         let Some(preset) = self.presets.get_mut(&preset_name) else {
             return false;
         };
+        // "Same structure" requires both the same id AND the same model
+        // identity. A `ReplaceBlockModel` keeps the id but changes the model
+        // (#627); comparing ids alone classified that as a non-structural
+        // per-scene diff, so the swapped model was never written into the
+        // preset base and reverted on reload. Model identity excludes params,
+        // so genuine param/bypass edits still take the diff-only path below.
         let same_structure = preset.blocks.len() == blocks.len()
-            && preset.blocks.iter().zip(blocks).all(|(a, b)| a.id == b.id);
+            && preset
+                .blocks
+                .iter()
+                .zip(blocks)
+                .all(|(a, b)| a.id == b.id && a.kind.model_identity() == b.kind.model_identity());
         if same_structure {
             return false;
         }

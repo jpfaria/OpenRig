@@ -373,6 +373,45 @@ fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
     assert_eq!(preset.apply_scene(1), blocks);
 }
 
+// #627 — replacing a block's MODEL (ReplaceBlockModel) keeps the block id but
+// changes effect_type/model. The structural check compared only ids, so the
+// swap was treated as a non-structural per-scene diff and the new model was
+// never written into the preset base — the pedal reverted on reload.
+#[test]
+fn replace_preset_blocks_detects_same_id_model_swap_as_structural() {
+    fn core_model_block(id: &str, effect_type: &str, model: &str) -> AudioBlock {
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: effect_type.into(),
+                model: model.into(),
+                params: ParameterSet::default(),
+            }),
+        }
+    }
+
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![core_model_block("b1", "gain", "ts9")];
+
+    // Same id "b1", new model — exactly what ReplaceBlockModel produces.
+    let swapped = core_model_block("b1", "gain", "klon");
+    let structural = p.replace_preset_blocks_if_structural("input-1", &[swapped]);
+
+    assert!(
+        structural,
+        "a same-id model swap must count as structural so the preset base is replaced"
+    );
+    let base_model = match &p.presets.get("p").unwrap().blocks[0].kind {
+        AudioBlockKind::Core(c) => c.model.clone(),
+        _ => "??".into(),
+    };
+    assert_eq!(
+        base_model, "klon",
+        "model swap must be written into the preset base block, not dropped"
+    );
+}
+
 // #436 #1 — write-back: editing a rig chain's processing blocks must
 // persist into the active preset and survive re-projection.
 

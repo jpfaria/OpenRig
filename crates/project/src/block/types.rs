@@ -81,6 +81,23 @@ impl AudioBlockKind {
             Self::Insert(_) => "insert",
         }
     }
+
+    /// A params-free signature of the block's MODEL identity (variant + model
+    /// name). Used to tell whether two same-id blocks still occupy the same
+    /// slot or whether the model was swapped (`ReplaceBlockModel`). Excludes
+    /// params, entries, and scene state — those are per-scene diffs, not
+    /// structure (#627: a same-id model swap must count as structural so the
+    /// preset base is rewritten instead of being treated as a param diff).
+    pub fn model_identity(&self) -> String {
+        match self {
+            Self::Nam(b) => format!("nam:{}", b.model),
+            Self::Core(b) => format!("core:{}/{}", b.effect_type, b.model),
+            Self::Select(b) => format!("select:{}", b.selected_block_id.0),
+            Self::Input(b) => format!("input:{}", b.model),
+            Self::Output(b) => format!("output:{}", b.model),
+            Self::Insert(b) => format!("insert:{}", b.model),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
