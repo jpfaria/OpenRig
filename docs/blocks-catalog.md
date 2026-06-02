@@ -53,6 +53,19 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617).
 - **LV2** — Plugins externos open-source
 
+### Native cab voicing (#620)
+
+The native cabinets (`brit_4x12`, `vintage_1x12`, `american_2x12`) are a
+per-model biquad cascade — body high-pass + a ~24 dB/oct resonant speaker
+rolloff + low-end bump + mid scoop + presence peak — each tuned to the magnitude
+response of a reference cabinet (a 4x12 with Celestion-style speakers, a warm
+1x12, a bright scooped 2x12). Zero added latency (no convolution). It matches the
+magnitude curve, not the comb-filtering/phase of a measured IR — for that, use an
+IR cab. The same engine voices the embedded cab of the native amps (`chime`,
+`tweed_breakup`, `blackface_clean`). Knobs: Low/High Cut, Resonance (low bump),
+Air (presence), Mic Position (on/off-axis brightness), Mic Distance + Room Mix
+(room tap).
+
 ## Instrumentos suportados
 
 `electric_guitar`, `acoustic_guitar`, `bass`, `voice`, `keys`, `drums`, `generic`. Constantes em `crates/block-core/src/lib.rs` (`INST_*`, `ALL_INSTRUMENTS`, `GUITAR_BASS`, `GUITAR_ACOUSTIC_BASS`).

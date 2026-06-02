@@ -25,14 +25,21 @@ const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     top_end_hz: 8_400.0,
 };
 
+// Warm, woody tweed combo speaker: soft top, boxy mids.
 const CAB_PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 92.0,
-    air_hz: 3_200.0,
+    rolloff_hz: 4_200.0,
+    rolloff_q: 0.7,
+    low_bump_hz: 120.0,
+    low_bump_db: 3.0,
+    low_bump_q: 1.0,
+    mid_dip_hz: 1_200.0,
+    mid_dip_db: -2.0,
+    mid_dip_q: 0.9,
+    presence_hz: 2_600.0,
+    presence_db: 2.5,
+    presence_q: 1.0,
     room_base_ms: 12.0,
     room_span_ms: 16.0,
-    resonance_gain: 0.30,
-    air_gain: 0.22,
-    high_cut_scale: 0.78,
 };
 
 const PROFILE: NativeAmpProfile = NativeAmpProfile {
