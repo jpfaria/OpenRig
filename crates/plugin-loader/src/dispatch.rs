@@ -26,6 +26,39 @@ use crate::manifest::{GridCapture, GridParameter, ParameterValue};
 ///
 /// Returns `None` if `captures` is empty or no capture matches all
 /// declared text axes.
+/// Seed the born-default grid-axis values for a freshly created block from
+/// the FIRST declared capture (issue #630).
+///
+/// A grid pedal must NOT be born at the per-axis-minimum combination: that is
+/// computed by defaulting each axis independently to its first declared value
+/// and, for a multi-axis grid, can produce a cell that does NOT exist in the
+/// capture list (and historically defaulted to `drive=0`/`level=0`, which the
+/// removed #402 rule then treated as "off"). The manifest lists its captures
+/// in order, so the first capture is a deterministic, REAL grid point — the
+/// block is born there and is audible immediately.
+///
+/// Returns the `(axis_name, ParameterValue)` pairs of the first capture,
+/// restricted to the declared `parameters` axes (capture-only keys that aren't
+/// real axes are ignored). Returns an empty vec when there are no captures or
+/// no declared axes — callers then fall back to the per-axis spec defaults.
+pub fn first_capture_axis_values(
+    parameters: &[GridParameter],
+    captures: &[GridCapture],
+) -> Vec<(String, ParameterValue)> {
+    let Some(first) = captures.first() else {
+        return Vec::new();
+    };
+    parameters
+        .iter()
+        .filter_map(|parameter| {
+            first
+                .values
+                .get(&parameter.name)
+                .map(|value| (parameter.name.clone(), value.clone()))
+        })
+        .collect()
+}
+
 pub fn resolve_capture<'a>(
     parameters: &[GridParameter],
     captures: &'a [GridCapture],
