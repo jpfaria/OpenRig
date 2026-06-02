@@ -28,7 +28,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, ArcSwapOption};
+use crate::di_loop::DiLoop;
 use block_core::{AudioChannelLayout, StreamHandle};
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
@@ -351,6 +352,22 @@ pub struct ChainRuntimeState {
     /// Swapped at the same build/rebuild sites that update `stream_count`,
     /// so it always reflects the current set of live nodes.
     pub(crate) bypass_block_ids: ArcSwap<HashSet<BlockId>>,
+    /// Ephemeral per-chain virtual DI loop source (issue #614). `None` means
+    /// use the live device input; `Some` means feed samples from the
+    /// pre-decoded buffer instead. Published off the audio thread via
+    /// `ArcSwapOption` so the audio thread reads it lock-free on every
+    /// `process_input_f32` callback. `set_di_loop` also resets
+    /// `di_loop_pos` to 0 so playback always starts from the beginning.
+    pub(crate) di_loop: ArcSwapOption<DiLoop>,
+    /// Playback cursor into the active `di_loop` buffer (frame index).
+    /// Advanced once per input frame in `process_input_f32` by the
+    /// single audio-thread writer; wrapped modulo `DiLoop::len()`.
+    /// Relaxed ordering is sufficient: there is exactly one writer (the
+    /// audio thread) and one reader (also the audio thread), so no
+    /// cross-thread synchronisation is needed. `set_di_loop` resets this
+    /// to 0 from the off-thread caller; the audio thread will read the
+    /// new value on its next callback.
+    pub(crate) di_loop_pos: AtomicUsize,
 }
 
 impl ChainRuntimeState {
@@ -583,6 +600,22 @@ impl ChainRuntimeState {
             out.push(err);
         }
         out
+    }
+
+    /// Publish a new DI loop (or clear it) and reset the playback cursor
+    /// to 0. Safe to call from any thread. The audio thread will pick up
+    /// the change on its next `process_input_f32` callback (lock-free
+    /// ArcSwapOption load).
+    pub fn set_di_loop(&self, di: Option<Arc<DiLoop>>) {
+        self.di_loop.store(di);
+        self.di_loop_pos.store(0, Ordering::Relaxed);
+    }
+
+    /// Returns `true` if a virtual DI loop is currently active for this
+    /// chain (i.e. `process_input_f32` will read from the buffer rather
+    /// than the live device input). Lock-free (single ArcSwapOption load).
+    pub fn has_di_loop(&self) -> bool {
+        self.di_loop.load().is_some()
     }
 }
 

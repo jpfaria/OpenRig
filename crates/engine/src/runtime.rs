@@ -782,3 +782,7 @@ mod runtime_lock_recovery;
 #[cfg(test)]
 #[path = "block_enabled_fast_path_tests.rs"]
 mod block_enabled_fast_path;
+
+#[cfg(test)]
+#[path = "di_loop_state_tests.rs"]
+mod di_loop_state;
