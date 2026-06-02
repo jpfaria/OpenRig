@@ -173,7 +173,11 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     // normal playing — it collapses the decay hiss without touching
     // played notes. Overridable per-model via `noise_gate.threshold_db`.
     noise_gate_threshold_db: -50.0,
-    noise_gate_enabled: true,
+    // Issue #612: the gate defaults OFF. The old `neural-amp-modeler-lv2`
+    // engine had NO gate; a default-on downward expander ate the
+    // decay/sustain and made the tone "sem vida" (lifeless). The gate
+    // still works when the user enables it via `noise_gate.enabled`.
+    noise_gate_enabled: false,
     eq_enabled: true,
     audit_overrides_baked_output: false,
     bass: 5.0,
