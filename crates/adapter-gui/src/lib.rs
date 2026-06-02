@@ -52,6 +52,8 @@ mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;
+/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod di_loop_wiring;
 mod insert_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;

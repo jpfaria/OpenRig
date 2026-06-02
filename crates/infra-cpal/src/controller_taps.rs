@@ -259,4 +259,23 @@ impl ProjectRuntimeController {
             runtime.set_output_muted(mute);
         }
     }
+
+    /// Publish (or clear) the DI loop for a single chain.
+    ///
+    /// `Some(arc)` arms every `ChainRuntimeState` associated with `chain_id`
+    /// so the audio thread picks it up on the next callback. `None` disarms
+    /// them — audio returns to live input immediately.
+    ///
+    /// Called from the adapter-gui wiring after
+    /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
+    /// retrieved from the dispatcher's ephemeral store (not persisted).
+    pub fn set_chain_di_loop(
+        &self,
+        chain_id: &ChainId,
+        di: Option<Arc<engine::DiLoop>>,
+    ) {
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            runtime.set_di_loop(di.clone());
+        }
+    }
 }
