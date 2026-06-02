@@ -286,7 +286,90 @@ fn soft_clip(x: f32) -> f32 {
 unsafe extern "C" {
     fn nam_create(config: *const NamPluginConfig) -> *mut c_void;
     fn nam_destroy(handle: *mut c_void);
-    fn nam_process(handle: *mut c_void, input: *const f32, output: *mut f32, nframes: c_int);
+    // The C symbol is `nam_process`; the Rust ident is renamed so the
+    // public, slice-based `nam_process` diagnostics wrapper below can keep
+    // the historical name (issue #623 req #2). Same FFI, no ABI change.
+    #[link_name = "nam_process"]
+    fn nam_process_ffi(handle: *mut c_void, input: *const f32, output: *mut f32, nframes: c_int);
+}
+
+// -----------------------------------------------------------------------
+// Offline diagnostics API (issue #623 req #2).
+//
+// `open_model_diag` / `nam_process` / `close_model_diag` are the stable,
+// public, slice-based entry points used by offline tooling (the
+// OpenRig-plugins catalog audit / LUFS measurement gate) to push audio
+// through a NAM model OUTSIDE the realtime `NamProcessor`. They wrap the
+// same `cpp/nam_wrapper` FFI the runtime uses, so they exercise the
+// identical signal chain. NEVER call these on the audio thread — they
+// allocate (model load) and are offline-only.
+//
+// The #612 FFI rewrite (commit a9874a18) dropped these helpers and left
+// only the private `nam_process` extern, which broke the OpenRig-plugins
+// gate (E0603/E0432). They are restored here over the current wrapper FFI.
+// -----------------------------------------------------------------------
+
+/// Open a NAM model file for offline diagnostics. The returned handle
+/// must be released with [`close_model_diag`]. Uses the model's own
+/// baked calibration (same as the runtime defaults), gate/EQ/IR off so
+/// the raw model response is measured.
+///
+/// Returns an opaque wrapper handle (`*mut c_void`), the same type the
+/// runtime FFI uses.
+pub fn open_model_diag(model_path: &str) -> Result<*mut c_void> {
+    let model_path_c = CString::new(model_path)?;
+    let config = NamPluginConfig {
+        model_path_utf8: model_path_c.as_ptr(),
+        ir_path_utf8: std::ptr::null(),
+        input_db: 0.0,
+        output_db: 0.0,
+        noise_gate_threshold_db: DEFAULT_PLUGIN_PARAMS.noise_gate_threshold_db,
+        bass: DEFAULT_PLUGIN_PARAMS.bass,
+        middle: DEFAULT_PLUGIN_PARAMS.middle,
+        treble: DEFAULT_PLUGIN_PARAMS.treble,
+        noise_gate_enabled: 0,
+        eq_enabled: 0,
+        ir_enabled: 0,
+        audit_overrides_baked_output: 0,
+    };
+    let handle = unsafe { nam_create(&config) };
+    drop(model_path_c);
+    if handle.is_null() {
+        bail!("failed to load NAM model '{}'", model_path);
+    }
+    Ok(handle)
+}
+
+/// Push a buffer through a model opened with [`open_model_diag`]. Offline
+/// only. `input` and `output` must have the same length.
+///
+/// # Safety
+///
+/// `handle` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed.
+pub unsafe fn nam_process(handle: *mut c_void, input: &[f32], output: &mut [f32]) {
+    debug_assert_eq!(input.len(), output.len());
+    if handle.is_null() || input.is_empty() {
+        return;
+    }
+    nam_process_ffi(
+        handle,
+        input.as_ptr(),
+        output.as_mut_ptr(),
+        input.len() as c_int,
+    );
+}
+
+/// Release a handle returned by [`open_model_diag`].
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`open_model_diag`] and
+/// not yet freed; the caller must not use it after this call returns.
+pub unsafe fn close_model_diag(handle: *mut c_void) {
+    if !handle.is_null() {
+        nam_destroy(handle);
+    }
 }
 
 pub struct NamProcessor {
@@ -404,7 +487,7 @@ impl MonoProcessor for NamProcessor {
         let input = [sample];
         let mut output = [0.0f32];
         unsafe {
-            nam_process(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
+            nam_process_ffi(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
         }
         soft_clip(output[0])
     }
@@ -423,7 +506,7 @@ impl MonoProcessor for NamProcessor {
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let t0 = std::time::Instant::now();
         unsafe {
-            nam_process(
+            nam_process_ffi(
                 self.handle,
                 buffer.as_ptr(),
                 self.scratch_output.as_mut_ptr(),
