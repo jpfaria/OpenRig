@@ -1,5 +1,6 @@
 #include "nam_wrapper.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <cmath>
 #include <memory>
@@ -42,6 +43,16 @@ double db_to_amp(const double db)
 {
   return std::pow(10.0, db / 20.0);
 }
+
+// Maximum frames passed to `nam::DSP::process` (and every other stage)
+// in a single call. The model's internal buffers are sized by
+// `Reset(sample_rate, kMaxBlock)`, so feeding more than this in one
+// `process` call overruns them (SIGSEGV). Real-time callbacks are well
+// under this, but offline harnesses (loudness/clip measurement) feed
+// multi-second buffers in one shot, so `nam_process` chunks any input
+// into slices of at most this many frames. Single source of truth for
+// the create-time `Reset` and the process-time chunking.
+constexpr int kMaxBlock = 4096;
 }
 
 void* nam_create(const NamPluginConfig* config) {
@@ -67,7 +78,7 @@ void* nam_create(const NamPluginConfig* config) {
       std::abs(config->middle - 5.0f) < 1.0e-6f &&
       std::abs(config->treble - 5.0f) < 1.0e-6f;
     h->ir_enabled = config->ir_enabled != 0;
-    h->dsp->Reset(sample_rate, 4096);
+    h->dsp->Reset(sample_rate, kMaxBlock);
     h->noise_gate_trigger.AddListener(&h->noise_gate_gain);
     if (h->noise_gate_enabled) {
       const double time = 0.01;
@@ -110,12 +121,14 @@ void nam_destroy(void* handle) {
   delete h;
 }
 
-void nam_process(void* handle, const float* input, float* output, int nframes) {
-  auto* h = reinterpret_cast<NamHandle*>(handle);
-  if (!h || !h->dsp || !input || !output || nframes <= 0) {
-    return;
-  }
-
+namespace
+{
+// Process a single block of at most `kMaxBlock` frames through the full
+// chain: input gain → noise gate → model → gate → tone stack (EQ) → IR
+// → output gain. `nam_process` slices oversized inputs and calls this
+// per slice so the model's `Reset`-sized internal buffers are never
+// overrun.
+void nam_process_block(NamHandle* h, const float* input, float* output, int nframes) {
   h->input_buffer.resize(nframes);
   h->model_input_buffer.resize(nframes);
   h->model_raw_output_buffer.resize(nframes);
@@ -169,5 +182,23 @@ void nam_process(void* handle, const float* input, float* output, int nframes) {
     for (int i = 0; i < nframes; ++i) {
       output[i] = static_cast<float>(eq_output[0][i] * h->output_gain);
     }
+  }
+}
+} // namespace
+
+void nam_process(void* handle, const float* input, float* output, int nframes) {
+  auto* h = reinterpret_cast<NamHandle*>(handle);
+  if (!h || !h->dsp || !input || !output || nframes <= 0) {
+    return;
+  }
+
+  // Slice into blocks of at most kMaxBlock so the model's internal
+  // buffers (sized by Reset(sr, kMaxBlock)) are never overrun. The gate
+  // / EQ / IR are streaming and stateful, so processing the slices in
+  // order is sample-for-sample equivalent to one big call (and is how a
+  // real-time host already drives the chain, callback by callback).
+  for (int offset = 0; offset < nframes; offset += kMaxBlock) {
+    const int block = std::min(kMaxBlock, nframes - offset);
+    nam_process_block(h, input + offset, output + offset, block);
   }
 }
