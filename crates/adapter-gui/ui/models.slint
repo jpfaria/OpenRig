@@ -124,6 +124,11 @@ export struct BlockTypePickerItem {
     subtitle: string,
     icon_kind: string,
     use_panel_editor: bool,
+    // Issue #608: false for the generic NAM/IR file-loader blocks, which
+    // have no catalog model to choose — the Block Editor hides the model
+    // select/search picker for them. Computed in Rust via
+    // `block_core::effect_type_uses_model_catalog`.
+    uses_model_catalog: bool,
     accent_color: color,
     icon_source: image,
 }

@@ -9,6 +9,9 @@ export component BlockPanelHeader inherits Rectangle {
     in property <string> block-type-label;
     in property <length> badge-width;
     in property <bool> edit-mode;
+    // Issue #608: false for generic NAM/IR file-loader blocks → hide the
+    // catalog model select/search picker (they load a file, not a model).
+    in property <bool> show-model-picker: true;
     in property <[BlockModelPickerItem]> filtered-models;
     in property <BlockModelPickerItem> selected-model;
     in-out property <string> search-text;
@@ -48,8 +51,10 @@ export component BlockPanelHeader inherits Rectangle {
         letter-spacing: 1.5px;
     }
 
-    // Model selector with embedded search (fills middle)
-    ModelSelectWithSearch {
+    // Model selector with embedded search (fills middle). Hidden for the
+    // generic NAM/IR file-loader blocks (#608) — they have no catalog
+    // model to pick; the loaded model name is shown as a static label.
+    if root.show-model-picker : ModelSelectWithSearch {
         x: 100px;
         y: (parent.height - 40px) / 2;
         width: parent.width - 100px - root.badge-width - (root.edit-mode ? 80px : 48px);
@@ -58,6 +63,20 @@ export component BlockPanelHeader inherits Rectangle {
         search-text <=> root.search-text;
         select(model-id) => { root.choose-model-by-id(model-id); }
         search-text-changed(text) => { root.search-model(text); }
+    }
+
+    if !root.show-model-picker : Text {
+        x: 100px;
+        y: 0;
+        width: parent.width - 100px - root.badge-width - (root.edit-mode ? 80px : 48px);
+        height: parent.height;
+        text: root.selected-model.display_name;
+        color: #f1f4f8;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        horizontal-alignment: left;
+        overflow: elide;
     }
 
     // Type badge

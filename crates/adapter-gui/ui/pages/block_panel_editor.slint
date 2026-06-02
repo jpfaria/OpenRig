@@ -162,6 +162,12 @@ export component BlockPanelEditor inherits Rectangle {
         block-type-label: root.block-type-label;
         badge-width: root.badge-width;
         edit-mode: root.block-drawer-edit-mode;
+        // #608: hide the catalog picker for generic NAM/IR file-loaders;
+        // the decision is computed in Rust and carried on the type item.
+        show-model-picker: root.block-drawer-selected-type-index >= 0
+            && root.block-drawer-selected-type-index < root.block-type-options.length
+            ? root.block-type-options[root.block-drawer-selected-type-index].uses_model_catalog
+            : true;
         filtered-models: root.filtered-block-model-options;
         selected-model: root.block-drawer-selected-model-index >= 0
             && root.block-drawer-selected-model-index < root.block-model-options.length
