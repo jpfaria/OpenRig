@@ -156,7 +156,7 @@ fn load_package(root: &Path, manifest_path: &Path) -> Result<LoadedPackage, Disc
             root: root.to_path_buf(),
             source,
         })?;
-    let manifest: PluginManifest =
+    let mut manifest: PluginManifest =
         serde_yaml::from_str(&yaml).map_err(|source| DiscoveryError::ManifestParse {
             root: root.to_path_buf(),
             source,
@@ -165,6 +165,12 @@ fn load_package(root: &Path, manifest_path: &Path) -> Result<LoadedPackage, Disc
         root: root.to_path_buf(),
         source,
     })?;
+    // Load-time guard (issue #649): a declared capture-selection value with
+    // no backing capture maps to no model, so drop it here — the loaded
+    // manifest is the single source of truth and never hands a dead value to
+    // any consumer. Runs after validation (which checks the authored grid),
+    // on the runtime view only; the file on disk is untouched.
+    crate::grid_axes::prune_unbacked_grid_values(&mut manifest.backend);
     Ok(LoadedPackage {
         root: root.to_path_buf(),
         manifest,

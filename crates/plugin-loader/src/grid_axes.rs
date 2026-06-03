@@ -8,7 +8,53 @@
 //!
 //! Issue: #649
 
-use crate::manifest::{GridCapture, GridParameter, ParameterValue};
+use crate::manifest::{Backend, GridCapture, GridParameter, ParameterValue};
+
+/// The declared values of `parameter` that actually appear in at least one
+/// `captures[].values` entry, preserving declared order. Values with no
+/// backing capture map to no model and are dropped.
+fn capture_backed_values(
+    parameter: &GridParameter,
+    captures: &[GridCapture],
+) -> Vec<ParameterValue> {
+    parameter
+        .values
+        .iter()
+        .filter(|value| {
+            captures
+                .iter()
+                .any(|capture| capture.values.get(&parameter.name) == Some(*value))
+        })
+        .cloned()
+        .collect()
+}
+
+/// Prune every declared grid value that has no backing capture, in place, so
+/// a loaded manifest never exposes a selectable value that maps to no model.
+///
+/// This is the load-time guard (issue #649): applied once when a package is
+/// discovered, it makes the in-memory `Backend` the single source of truth
+/// for capture-selection axes — every consumer (GUI, MCP, future gRPC) sees
+/// only capture-backed values, not just the GUI parameter path. The axis
+/// itself is kept even if pruning leaves it with a single value; deciding
+/// whether such a dead axis is rendered is [`effective_grid_axes`]'s job.
+/// No-op for backends without a capture grid.
+pub fn prune_unbacked_grid_values(backend: &mut Backend) {
+    let (parameters, captures) = match backend {
+        Backend::Nam {
+            parameters,
+            captures,
+        }
+        | Backend::Ir {
+            parameters,
+            captures,
+        } => (parameters, &*captures),
+        _ => return,
+    };
+    for parameter in parameters.iter_mut() {
+        parameter.values = capture_backed_values(parameter, captures);
+    }
+}
 
 /// Restrict the declared grid axes to the values actually backed by a
 /// capture, dropping axes that end up with fewer than two backed values.
@@ -27,16 +73,7 @@ pub fn effective_grid_axes(
     parameters
         .iter()
         .filter_map(|parameter| {
-            let backed: Vec<ParameterValue> = parameter
-                .values
-                .iter()
-                .filter(|value| {
-                    captures
-                        .iter()
-                        .any(|capture| capture.values.get(&parameter.name) == Some(*value))
-                })
-                .cloned()
-                .collect();
+            let backed = capture_backed_values(parameter, captures);
             (backed.len() >= 2).then(|| GridParameter {
                 name: parameter.name.clone(),
                 display_name: parameter.display_name.clone(),

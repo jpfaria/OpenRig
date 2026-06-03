@@ -1,6 +1,57 @@
 use super::*;
+use crate::manifest::Backend;
 use crate::manifest::ParameterValue as V;
 use std::collections::BTreeMap;
+
+#[test]
+fn prune_unbacked_values_drops_values_without_a_capture() {
+    // analog_man_sun_face shape: `compression` declares 0..=5 but only 3 and
+    // 5 have a backing capture. After load-time pruning the axis must expose
+    // ONLY 3 and 5 — no consumer (GUI, MCP, future gRPC) should ever read a
+    // declared value that maps to no capture.
+    let mut backend = Backend::Nam {
+        parameters: vec![axis(
+            "compression",
+            (0..=5).map(|n| V::Number(f64::from(n))).collect(),
+        )],
+        captures: vec![
+            ncap(&[("compression", 3.0)], "c3.nam"),
+            ncap(&[("compression", 5.0)], "c5.nam"),
+        ],
+    };
+    prune_unbacked_grid_values(&mut backend);
+    let Backend::Nam { parameters, .. } = &backend else {
+        panic!("backend must stay Nam");
+    };
+    assert_eq!(
+        parameters[0].values,
+        vec![V::Number(3.0), V::Number(5.0)],
+        "pruned axis must keep only capture-backed values"
+    );
+}
+
+#[test]
+fn prune_unbacked_values_leaves_fully_backed_axis_unchanged() {
+    // Every declared value is captured → nothing is pruned.
+    let mut backend = Backend::Ir {
+        parameters: vec![axis(
+            "mic",
+            vec![V::Text("sm57".into()), V::Text("r121".into())],
+        )],
+        captures: vec![
+            tcap(&[("mic", "sm57")], "a.wav"),
+            tcap(&[("mic", "r121")], "b.wav"),
+        ],
+    };
+    prune_unbacked_grid_values(&mut backend);
+    let Backend::Ir { parameters, .. } = &backend else {
+        panic!("backend must stay Ir");
+    };
+    assert_eq!(
+        parameters[0].values,
+        vec![V::Text("sm57".into()), V::Text("r121".into())]
+    );
+}
 
 /// Capture with numeric axis values.
 fn ncap(values: &[(&str, f64)], file: &str) -> GridCapture {
