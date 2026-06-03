@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  Latest: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.23</a> · <a href="CHANGELOG.md">CHANGELOG</a>
+  Latest: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.24</a> · <a href="CHANGELOG.md">CHANGELOG</a>
 </p>
 
 <p align="center">
@@ -59,6 +59,7 @@ The foundation that makes the bigger vision possible already runs on every deskt
 - **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
+- **Practice with a virtual DI.** Loop a dry guitar DI through any chain to shape your tone hands-free — pick a bundled CC0 loop or load your own WAV and hit play; the whole chain (amp, cab, pedals) processes it exactly like a live signal. Per-chain and ephemeral.
 - **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) Claude Code skill builds full tones from a song name by researching the original signal chain in public sources and driving the running rig via MCP.
 
 > 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)**. Start with the [Model ID Quick Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
@@ -216,10 +217,11 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **AI-assisted tone building** — the [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) Claude Code skill (shipped in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds full tones on the running rig from a song or artist name, via MCP
+- [x] **Per-chain preset banks + scenes** — switch presets and scenes live per chain; scenes store only parameter diffs (Helix-Snapshot style) for instant switching without reloading blocks ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [x] **Per-chain virtual DI loop** — loop a dry DI through a chain to shape tone without playing (bundled CC0 loops or your own WAV); per-chain, ephemeral, never saved into the project ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 
 ### Stage features
 
-- [ ] Snapshots / scenes ([#321](https://github.com/jpfaria/OpenRig/issues/321))
 - [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
 - [ ] Looper, multi-layer ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
