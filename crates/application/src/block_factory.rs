@@ -62,7 +62,32 @@ pub fn build_default_block(
             e
         )
     })?;
-    let mut params = ParameterSet::default()
+    // Issue #630: a grid pedal (NAM/IR capture grid) must be born at a REAL
+    // capture, never at the per-axis-minimum combination. `normalized_against`
+    // fills each axis independently with its first declared value, which for a
+    // multi-axis grid can yield a cell that does NOT exist (and historically
+    // defaulted drive/level to 0, which the removed #402 rule treated as
+    // "off"). Seed the FIRST declared capture's axis values up front so the
+    // born default is a deterministic, audible grid point; `normalized_against`
+    // then only fills the non-grid knobs (output_db, EQ, gate) with defaults.
+    let mut seed = ParameterSet::default();
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        let grid = match &pkg.manifest.backend {
+            plugin_loader::manifest::Backend::Nam {
+                parameters,
+                captures,
+            }
+            | plugin_loader::manifest::Backend::Ir {
+                parameters,
+                captures,
+            } => plugin_loader::dispatch::first_capture_axis_values(parameters, captures),
+            _ => Vec::new(),
+        };
+        for (name, value) in grid {
+            seed.insert(name, manifest_value_to_param(value));
+        }
+    }
+    let mut params = seed
         .normalized_against(&schema)
         .map_err(|e| anyhow!("param normalisation failed for '{}': {}", model_id, e))?;
     // Seed `output_db` from the plugin manifest's audit baseline so
@@ -85,6 +110,22 @@ pub fn build_default_block(
         enabled: true,
         kind,
     })
+}
+
+/// Convert a manifest grid `ParameterValue` into the block `ParameterValue`
+/// stored in a `ParameterSet`. Numeric axes become `Float` (the grid stores
+/// `f64`; the runtime resolves captures with `get_f32`), text axes become
+/// `String`, bool axes become `Bool`.
+fn manifest_value_to_param(
+    value: plugin_loader::manifest::ParameterValue,
+) -> domain::value_objects::ParameterValue {
+    use domain::value_objects::ParameterValue as Param;
+    use plugin_loader::manifest::ParameterValue as Manifest;
+    match value {
+        Manifest::Number(n) => Param::Float(n as f32),
+        Manifest::Text(t) => Param::String(t),
+        Manifest::Bool(b) => Param::Bool(b),
+    }
 }
 
 /// Determine which effect_type owns the given model_id.
