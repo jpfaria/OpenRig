@@ -15,17 +15,7 @@ fn main() {
     let dst = cmake_cfg.build();
     let install_lib = dst.join("lib");
     println!("cargo:rustc-link-search=native={}", install_lib.display());
-    // Static-link the wrapper: the official NeuralAmpModelerCore is compiled
-    // from source INTO this archive, so a bare binary (e.g. the qa_audit gate
-    // spawned by pack_plugins, or a shipped app) has no runtime .so/.dylib to
-    // locate. Linking it as a dylib without an rpath made bare binaries fail
-    // with "libnam_wrapper.{so,dylib} not found" (#639).
-    //
-    // +whole-archive is REQUIRED: the core registers its version-support checker
-    // (and architecture support) via C++ static initializers in translation units
-    // the linker would otherwise dead-strip — dropping them makes get_dsp reject
-    // EVERY model with "failed to load" (both WaveNet A1 and SlimmableContainer A2).
-    println!("cargo:rustc-link-lib=static:+whole-archive=nam_wrapper");
+    println!("cargo:rustc-link-lib=dylib=nam_wrapper");
 
     // C++ standard library + platform frameworks needed by the wrapper.
     if cfg!(target_os = "macos") {
