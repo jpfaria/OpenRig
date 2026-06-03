@@ -116,7 +116,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                     .or_else(|| preset.name.clone())
                     .unwrap_or_else(|| project::rig::humanize_preset_label(preset_name)),
             ),
-            instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+            instrument: input.instrument.clone(),
             enabled: true,
             // Invariant #10: carry the preset's volume (legacy migration
             // preserved Chain.volume → RigPreset.volume). Hardcoding 100
@@ -404,3 +404,7 @@ mod tests;
 #[cfg(test)]
 #[path = "rig_runtime_chain_order_tests.rs"]
 mod chain_order_tests;
+
+#[cfg(test)]
+#[path = "rig_instrument_roundtrip_tests.rs"]
+mod instrument_roundtrip_tests;

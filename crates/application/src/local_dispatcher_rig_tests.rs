@@ -54,6 +54,7 @@ fn rig() -> RigProject {
             active_preset: 1,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
@@ -199,6 +200,7 @@ fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
             active_preset: 1,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     let rig = Rc::new(RefCell::new(r));
@@ -346,6 +348,7 @@ fn two_input_rig() -> RigProject {
                 active_preset: 1,
                 active_scene: 1,
                 routing: vec![],
+                instrument: "electric_guitar".to_string(),
             },
         );
     }

@@ -64,8 +64,35 @@ impl LocalDispatcher {
             // ── Chain presets ─────────────────────────────────────────────────
             Command::LoadChainPreset {
                 chain,
+                preset_instrument,
                 preset_blocks,
             } => {
+                // Guard: reject the load if the preset's instrument tag differs
+                // from the target chain's instrument (#627). This is the hard
+                // gate that applies regardless of transport (GUI / MCP / gRPC).
+                // Untagged legacy presets default to "electric_guitar" (same as
+                // the serde default on ChainBlocksPreset.instrument).
+                {
+                    let project = self.project.borrow();
+                    let chain_instrument = project
+                        .chains
+                        .iter()
+                        .find(|c| c.id == chain)
+                        .map(|c| c.instrument.as_str())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Command::LoadChainPreset: chain {:?} not found",
+                                chain
+                            )
+                        })?;
+                    if preset_instrument != chain_instrument {
+                        anyhow::bail!(
+                            "preset is for {preset_instrument}, chain is {chain_instrument}: \
+                             cannot load a {preset_instrument} preset into a \
+                             {chain_instrument} chain"
+                        );
+                    }
+                }
                 // Preset files are intentionally I/O-stripped (the adapter
                 // parses the file and drops the I/O blocks before
                 // dispatching, since I/O routing is per-machine). Preserve

@@ -181,6 +181,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                     // it is the dispatcher's job to preserve the chain's
                     // existing Input/Output across the swap. Wrapping I/O
                     // here too would land two of each on the chain.
+                    let preset_instrument = preset.instrument.clone();
                     let dispatch_result = {
                         let proj = session.project.borrow();
                         if let Some(chain) = proj.chains.get(chain_index as usize) {
@@ -204,6 +205,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                     if let Some((chain_id, preset_blocks)) = dispatch_result {
                         if let Err(error) = session.dispatcher.dispatch(Command::LoadChainPreset {
                             chain: chain_id.clone(),
+                            preset_instrument,
                             preset_blocks,
                         }) {
                             set_status_error(&window, &toast_timer, &error.to_string());

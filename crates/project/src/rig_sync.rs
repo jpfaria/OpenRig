@@ -40,6 +40,10 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             rig.write_back_processing_blocks(input, processing);
         }
         rig.write_back_chain_volume(input, chain.volume);
+        // Capture the instrument type so it survives save+reload (#627).
+        if let Some(rig_input) = rig.inputs.get_mut(input) {
+            rig_input.instrument = chain.instrument.clone();
+        }
         // The synthetic Input block carries `RigInput.sources`; an edit
         // there (added device/channel) was being dropped because the
         // loop only wrote processing blocks back. Persist it too.
@@ -98,6 +102,7 @@ mod tests {
                     active_preset: 1,
                     active_scene: 1,
                     routing: Vec::new(),
+                    instrument: "electric_guitar".to_string(),
                 },
             );
             presets.insert(

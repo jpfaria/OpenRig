@@ -133,6 +133,7 @@ fn load_chain_preset_with_io_less_payload_preserves_user_output() {
     let preset_blocks = vec![core("preset:1"), core("preset:2")];
     let _ = d.dispatch(Command::LoadChainPreset {
         chain: ChainId(CHAIN_ID.into()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks,
     });
 

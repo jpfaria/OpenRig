@@ -17,6 +17,7 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
         active_preset,
         active_scene: 1,
         routing: Vec::new(),
+        instrument: "electric_guitar".to_string(),
     };
     for (idx, name) in bank {
         input.bank.insert(idx, name.to_string());

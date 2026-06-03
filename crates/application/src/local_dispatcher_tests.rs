@@ -3031,6 +3031,7 @@ fn load_chain_preset_replaces_blocks_and_emits_event() {
 
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: preset_blocks.clone(),
     });
 
@@ -3062,6 +3063,7 @@ fn load_chain_preset_non_existent_chain_returns_err() {
 
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_MISSING".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![make_core_block("new_blk", true)],
     });
 
@@ -3081,6 +3083,7 @@ fn load_chain_preset_empty_blocks_succeeds() {
     // A zero-block preset is valid — the chain becomes empty.
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![],
     });
 

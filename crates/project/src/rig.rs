@@ -16,6 +16,10 @@ fn default_scene() -> usize {
     1
 }
 
+fn default_instrument() -> String {
+    block_core::DEFAULT_INSTRUMENT.to_string()
+}
+
 /// Root of a `project.openrig` document (under the top-level `project:` key).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigProject {
@@ -63,6 +67,11 @@ pub struct RigInput {
     /// Nomes de `outputs` para onde este input roteia.
     #[serde(default)]
     pub routing: Vec<String>,
+    /// The instrument type for this input chain (e.g. "electric_guitar",
+    /// "acoustic_guitar"). Defaults to "electric_guitar" for backward
+    /// compatibility with pre-#627 `.openrig` files that have no field.
+    #[serde(default = "default_instrument")]
+    pub instrument: String,
 }
 
 /// One project output. Maps 1:1 onto the existing [`OutputEntry`].

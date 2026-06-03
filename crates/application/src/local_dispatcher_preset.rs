@@ -47,6 +47,7 @@ impl LocalDispatcher {
                         id: preset_id_from_path(&path),
                         name: target.description.clone(),
                         volume: target.volume,
+                        instrument: target.instrument.clone(),
                         blocks: strip_io_blocks(&target.blocks),
                     };
                     save_chain_preset_file(&path, &preset).map_err(|e| {

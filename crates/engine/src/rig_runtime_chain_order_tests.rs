@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use project::block::AudioBlock;
 use project::rig::{RigInput, RigPreset, RigProject};
+use block_core;
 
 use super::rig_to_chains;
 
@@ -18,6 +19,7 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         active_preset: 1,
         active_scene: 1,
         routing: Vec::new(),
+        instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
     }
 }
 

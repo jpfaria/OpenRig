@@ -7,6 +7,16 @@
 //! settings to hardware (`infra_cpal::apply_device_settings`), and resync the
 //! audio runtime — which on Linux/JACK restarts jackd if sample rate or buffer
 //! size changed.
+//!
+//! # Issue #627 — buffer size must survive a whole-config re-save
+//!
+//! After `Aplicar` writes device settings to disk, the in-memory `AppConfig`
+//! snapshot (held by the GUI since startup) must be mirrored immediately.
+//! Lifecycle events (project-open, register-recent) re-persist the WHOLE
+//! in-memory snapshot via `save_app_config(&app_config.borrow())`; without the
+//! mirror those events clobber the buffer the user just applied.
+//! `apply_audio_override` (see below) is the seam that keeps them in sync —
+//! the same pattern as `settings::paths::{apply_presets_override, …}` for #607.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -15,7 +25,7 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::ids::DeviceId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use infra_filesystem::{FilesystemStorage, GuiSystemSettings};
+use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiSystemSettings};
 use project::device::DeviceSettings;
 
 use application::command::Command;
@@ -30,6 +40,24 @@ use crate::project_view::replace_project_chains;
 use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::sync_project_runtime;
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
+
+/// Mirror the applied device lists into the shared in-memory `AppConfig` so
+/// that a subsequent whole-config re-save (e.g. on project-open /
+/// register-recent) does not clobber the user's choice with the stale
+/// startup values.
+///
+/// Pure function (no disk I/O): the `SaveAudioSettings` dispatch already
+/// persists to `config.yaml`. This call only keeps the in-memory snapshot in
+/// sync — the same responsibility `apply_presets_override` / `apply_plugins_override`
+/// / `apply_evaluations_override` fulfil for path overrides (#607).
+pub fn apply_audio_override(
+    config: &mut AppConfig,
+    input_devices: &[GuiAudioDeviceSettings],
+    output_devices: &[GuiAudioDeviceSettings],
+) {
+    config.input_devices = input_devices.to_vec();
+    config.output_devices = output_devices.to_vec();
+}
 
 /// Read the persisted `language` field so audio-device saves don't clobber it.
 /// Returns None when settings file is absent or has no language override.
@@ -54,6 +82,9 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
     pub auto_save: bool,
+    /// Shared in-memory `AppConfig` snapshot — kept in sync with disk so that
+    /// lifecycle whole-config re-saves do not clobber applied device settings (#627).
+    pub app_config: Rc<RefCell<AppConfig>>,
 }
 
 fn project_device_settings_from_rows(
@@ -126,6 +157,7 @@ pub(crate) fn wire(
         output_chain_devices,
         toast_timer,
         auto_save,
+        app_config,
     } = ctx;
 
     {
@@ -142,6 +174,7 @@ pub(crate) fn wire(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -178,6 +211,14 @@ pub(crate) fn wire(
                     }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
+                            // #627: mirror the applied device lists into the shared
+                            // in-memory AppConfig so a subsequent whole-config re-save
+                            // (project-open / register-recent) does not clobber them.
+                            apply_audio_override(
+                                &mut app_config.borrow_mut(),
+                                &settings.input_devices,
+                                &settings.output_devices,
+                            );
                             // Update in-memory device settings and resync the
                             // audio runtime so changes take effect immediately.
                             // On Linux/JACK this will restart jackd if sample
@@ -237,15 +278,17 @@ pub(crate) fn wire(
                         return;
                     };
                     let new_device_settings =
-                        project_device_settings_from_rows(project_device_settings);
+                        project_device_settings_from_rows(project_device_settings.clone());
                     if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
                     }
+                    let input_descriptors = input_chain_devices.borrow();
+                    let output_descriptors = output_chain_devices.borrow();
                     let (input_device_settings, output_device_settings) =
                         split_device_settings_by_direction(
                             &new_device_settings,
-                            &input_chain_devices.borrow(),
-                            &output_chain_devices.borrow(),
+                            &input_descriptors,
+                            &output_descriptors,
                         );
                     if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
                         input_devices: input_device_settings,
@@ -254,6 +297,26 @@ pub(crate) fn wire(
                         set_status_error(&window, &toast_timer, &e.to_string());
                         return;
                     }
+                    // #627: mirror the applied device lists into the shared in-memory
+                    // AppConfig using the same direction-split logic, so a subsequent
+                    // whole-config re-save does not clobber the user's pick.
+                    {
+                        // Mirrors split_device_settings_by_direction but for GuiAudioDeviceSettings.
+                        let gui_inputs: Vec<GuiAudioDeviceSettings> = project_device_settings
+                            .iter()
+                            .filter(|d| {
+                                input_descriptors.iter().any(|id| id.id == d.device_id)
+                                    || !output_descriptors.iter().any(|od| od.id == d.device_id)
+                            })
+                            .cloned()
+                            .collect();
+                        let gui_outputs: Vec<GuiAudioDeviceSettings> = project_device_settings
+                            .iter()
+                            .filter(|d| output_descriptors.iter().any(|od| od.id == d.device_id))
+                            .cloned()
+                            .collect();
+                        apply_audio_override(&mut app_config.borrow_mut(), &gui_inputs, &gui_outputs);
+                    }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         set_status_error(&window, &toast_timer, &error.to_string());
                         return;
@@ -261,8 +324,8 @@ pub(crate) fn wire(
                     replace_project_chains(
                         &project_chains,
                         &*session.project.borrow(),
-                        &input_chain_devices.borrow(),
-                        &output_chain_devices.borrow(),
+                        &input_descriptors,
+                        &output_descriptors,
                     );
                     window.set_project_title(
                         project_title_for_path(
@@ -289,6 +352,7 @@ pub(crate) fn wire(
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
+        let app_config = app_config.clone();
         project_settings_window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -334,6 +398,12 @@ pub(crate) fn wire(
                     }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
+                            // #627: mirror into the shared in-memory AppConfig.
+                            apply_audio_override(
+                                &mut app_config.borrow_mut(),
+                                &settings.input_devices,
+                                &settings.output_devices,
+                            );
                             // #513: Apply restarts the audio runtime but keeps
                             // the Settings window open. User dismisses via FECHAR.
                             settings_window.set_status_message("".into());
@@ -355,15 +425,17 @@ pub(crate) fn wire(
                         return;
                     };
                     let new_device_settings =
-                        project_device_settings_from_rows(project_device_settings);
+                        project_device_settings_from_rows(project_device_settings.clone());
                     if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
                     }
+                    let input_descriptors = input_chain_devices.borrow();
+                    let output_descriptors = output_chain_devices.borrow();
                     let (input_device_settings, output_device_settings) =
                         split_device_settings_by_direction(
                             &new_device_settings,
-                            &input_chain_devices.borrow(),
-                            &output_chain_devices.borrow(),
+                            &input_descriptors,
+                            &output_descriptors,
                         );
                     if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
                         input_devices: input_device_settings,
@@ -372,6 +444,23 @@ pub(crate) fn wire(
                         settings_window.set_status_message(e.to_string().into());
                         return;
                     }
+                    // #627: mirror into the shared in-memory AppConfig.
+                    {
+                        let gui_inputs: Vec<GuiAudioDeviceSettings> = project_device_settings
+                            .iter()
+                            .filter(|d| {
+                                input_descriptors.iter().any(|id| id.id == d.device_id)
+                                    || !output_descriptors.iter().any(|od| od.id == d.device_id)
+                            })
+                            .cloned()
+                            .collect();
+                        let gui_outputs: Vec<GuiAudioDeviceSettings> = project_device_settings
+                            .iter()
+                            .filter(|d| output_descriptors.iter().any(|od| od.id == d.device_id))
+                            .cloned()
+                            .collect();
+                        apply_audio_override(&mut app_config.borrow_mut(), &gui_inputs, &gui_outputs);
+                    }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
                         return;
@@ -379,8 +468,8 @@ pub(crate) fn wire(
                     replace_project_chains(
                         &project_chains,
                         &*session.project.borrow(),
-                        &input_chain_devices.borrow(),
-                        &output_chain_devices.borrow(),
+                        &input_descriptors,
+                        &output_descriptors,
                     );
                     window.set_project_title(
                         project_title_for_path(

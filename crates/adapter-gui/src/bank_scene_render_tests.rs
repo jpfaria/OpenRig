@@ -16,6 +16,7 @@ fn rig() -> RigProject {
             active_preset: 4,
             active_scene: 3,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     inputs.insert(
@@ -27,6 +28,7 @@ fn rig() -> RigProject {
             active_preset: 2,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
