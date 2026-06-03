@@ -10,6 +10,7 @@ pub mod config;
 pub mod discover;
 pub mod dispatch;
 pub mod dispatch_infer;
+pub mod grid_axes;
 pub mod install;
 pub mod manifest;
 pub mod native_runtimes;
