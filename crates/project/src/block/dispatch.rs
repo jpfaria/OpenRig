@@ -110,7 +110,10 @@ pub(crate) fn synthesize_parameters_from_manifest(
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam { parameters, .. } => {
+        Backend::Nam {
+            parameters,
+            captures,
+        } => {
             // Pre-#287 (when NAM amps lived in `block-preamp/src/nam_*.rs`),
             // every NAM model exposed two layers of knobs: the per-capture
             // grid (e.g. `mode`, `character` for nam_boss_ds_2) AND the 8
@@ -120,8 +123,12 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // every NAM in the GUI lost its standard knobs (~96 packages —
             // 21 with empty grids ended up with zero knobs at all). Merge
             // the standard set back in. Issue #401.
+            //
+            // `effective_grid_axes` first drops dead capture-selector axes
+            // (single-value or over-declared dropdowns) — issue #649.
+            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
             let mut specs: Vec<block_core::param::ParameterSpec> =
-                parameters.iter().map(grid_parameter_to_spec).collect();
+                axes.iter().map(grid_parameter_to_spec).collect();
             // Issue #496 reverses #402's "drop output_db". With the
             // audit-side `output_gain_db` cleared in the manifests,
             // there was no automatic compensation AND no user-facing
@@ -132,7 +139,14 @@ pub(crate) fn synthesize_parameters_from_manifest(
             specs.extend(nam::processor::plugin_parameter_specs());
             specs
         }
-        Backend::Ir { parameters, .. } => parameters.iter().map(grid_parameter_to_spec).collect(),
+        Backend::Ir {
+            parameters,
+            captures,
+        } => {
+            // Same dead-axis filter as NAM (issue #649).
+            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
+            axes.iter().map(grid_parameter_to_spec).collect()
+        }
         Backend::Lv2 {
             plugin_uri,
             binaries,
@@ -492,7 +506,7 @@ pub(super) fn describe_block_audio(
 mod tests {
     use super::*;
     use plugin_loader::manifest::{
-        Backend, BlockType, GridParameter, ParameterValue, PluginManifest,
+        Backend, BlockType, GridCapture, GridParameter, ParameterValue, PluginManifest,
     };
     use plugin_loader::LoadedPackage;
     use std::path::PathBuf;
@@ -587,7 +601,31 @@ mod tests {
                             ParameterValue::Text("🔥 2X12".into()),
                         ],
                     }],
-                    captures: vec![],
+                    // Both cabinet values are capture-backed so the axis
+                    // survives the #649 dead-axis filter and the emoji
+                    // stripping is exercised on a rendered control.
+                    captures: vec![
+                        GridCapture {
+                            values: [(
+                                "cabinet".to_string(),
+                                ParameterValue::Text("✋ 4X12".into()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            file: "4x12.nam".into(),
+                            output_gain_db: None,
+                        },
+                        GridCapture {
+                            values: [(
+                                "cabinet".to_string(),
+                                ParameterValue::Text("🔥 2X12".into()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            file: "2x12.nam".into(),
+                            output_gain_db: None,
+                        },
+                    ],
                 },
             },
         }

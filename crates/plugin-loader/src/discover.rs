@@ -156,7 +156,7 @@ fn load_package(root: &Path, manifest_path: &Path) -> Result<LoadedPackage, Disc
             root: root.to_path_buf(),
             source,
         })?;
-    let manifest: PluginManifest =
+    let mut manifest: PluginManifest =
         serde_yaml::from_str(&yaml).map_err(|source| DiscoveryError::ManifestParse {
             root: root.to_path_buf(),
             source,
@@ -165,6 +165,23 @@ fn load_package(root: &Path, manifest_path: &Path) -> Result<LoadedPackage, Disc
         root: root.to_path_buf(),
         source,
     })?;
+    // Load-time guard (issue #649). First a non-fatal validation: a declared
+    // capture-selection value with no backing capture is a malformed manifest,
+    // so warn (naming the plugin + axis + values) but do NOT reject — the
+    // package still loads.
+    for axis in crate::grid_axes::unbacked_grid_values(&manifest.backend) {
+        eprintln!(
+            "plugin `{}`: capture axis `{}` declares {} value(s) with no backing capture; they will not be shown: {:?}",
+            manifest.id,
+            axis.name,
+            axis.values.len(),
+            axis.values,
+        );
+    }
+    // Then drop those values from the runtime view so the loaded manifest is
+    // the single source of truth and never hands a dead value to any consumer
+    // (GUI, MCP, future gRPC). On-disk YAML is untouched.
+    crate::grid_axes::prune_unbacked_grid_values(&mut manifest.backend);
     Ok(LoadedPackage {
         root: root.to_path_buf(),
         manifest,
