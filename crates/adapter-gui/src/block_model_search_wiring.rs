@@ -86,6 +86,11 @@ pub(crate) fn wire(
             if let Some(win) = weak_block_editor_window.upgrade() {
                 win.set_block_drawer_selected_model_index(idx);
                 win.invoke_choose_block_model(idx);
+                // Picking a plugin must resize the window to fit the new
+                // model's params — the same recalc the parameter-update path
+                // runs. Without it, a plugin with more params overflows a
+                // window left at the previous size (issue #622).
+                crate::block_editor_window_lifecycle::apply_panel_dimensions(&win);
             }
         });
     }
