@@ -26,7 +26,7 @@ set(AUDIO_DSP_TOOLS_SOURCES
   ${NAM_DEPS_DIR}/AudioDSPTools/dsp/RecursiveLinearFilter.cpp
 )
 
-add_library(nam_wrapper SHARED
+add_library(nam_wrapper STATIC
   nam_wrapper.cpp
   nam_tone_stack.cpp
   ${NAM_SOURCES}
