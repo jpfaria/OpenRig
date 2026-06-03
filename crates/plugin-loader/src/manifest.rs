@@ -110,6 +110,19 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_gain_db: Option<f32>,
 
+    /// NAM model architecture summary for the whole plugin (issue #650).
+    ///
+    /// Every NAM plugin is uniform — all its captures share one architecture
+    /// — so a single per-plugin value is enough for the catalog to label and
+    /// filter NAM/A1 vs NAM/A2 **without opening any `.nam`**. The `.nam`
+    /// itself still carries the ground-truth architecture; this is a cached
+    /// summary written by OpenRig-plugins.
+    ///
+    /// Absent for IR plugins and any pre-#650 (legacy) NAM manifest, both of
+    /// which deserialize to `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub architecture: Option<NamArchitecture>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,
@@ -118,6 +131,32 @@ pub struct PluginManifest {
     /// discriminated by the `backend` tag.
     #[serde(flatten)]
     pub backend: Backend,
+}
+
+/// NAM model architecture family (issue #650).
+///
+/// - [`A1`](NamArchitecture::A1) — NAM "v1": WaveNet / LSTM / ConvNet
+///   (any `.nam` whose architecture is *not* `SlimmableContainer`).
+/// - [`A2`](NamArchitecture::A2) — NAM "v2": `SlimmableContainer`
+///   (`.nam` version `0.7.0`).
+///
+/// Serialized UPPERCASE (`A1` / `A2`) to match the manifest wire format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NamArchitecture {
+    A1,
+    A2,
+}
+
+impl NamArchitecture {
+    /// Short uppercase tag (`"A1"` / `"A2"`), matching the manifest wire
+    /// format. Single source for the catalog badge and any mismatch warning.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::A1 => "A1",
+            Self::A2 => "A2",
+        }
+    }
 }
 
 /// Block category. Mirrors the `block-*` crates in the workspace.

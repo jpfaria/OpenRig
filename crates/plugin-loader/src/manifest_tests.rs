@@ -182,6 +182,7 @@ fn round_trip_nam_preserves_data() {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        architecture: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
@@ -362,4 +363,116 @@ captures:
         }
         other => panic!("expected IR backend, got {other:?}"),
     }
+}
+
+// Issue #650 — per-plugin NAM architecture (A1/A2) declared on the manifest.
+// Every NAM plugin is uniform: all captures share one architecture. The field
+// is a summary so the catalog can label/filter without parsing every .nam.
+
+#[test]
+fn parses_nam_manifest_with_architecture_a2() {
+    let yaml = r#"
+manifest_version: 1
+id: slimmable_amp
+display_name: Slimmable Amp
+type: amp
+backend: nam
+architecture: A2
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, Some(NamArchitecture::A2));
+}
+
+#[test]
+fn parses_nam_manifest_with_architecture_a1() {
+    let yaml = r#"
+manifest_version: 1
+id: wavenet_amp
+display_name: WaveNet Amp
+type: amp
+backend: nam
+architecture: A1
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, Some(NamArchitecture::A1));
+}
+
+#[test]
+fn ir_manifest_without_architecture_is_none() {
+    let yaml = r#"
+manifest_version: 1
+id: my_cab
+display_name: My Cab
+type: cab
+backend: ir
+captures:
+  - values: {}
+    file: ir/cab.wav
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, None, "IR plugins never carry architecture");
+}
+
+#[test]
+fn legacy_nam_manifest_without_architecture_is_none() {
+    // A pre-#650 NAM manifest has no `architecture` key — it must still parse,
+    // deserializing the field to None (no error).
+    let yaml = r#"
+manifest_version: 1
+id: legacy_amp
+display_name: Legacy Amp
+type: amp
+backend: nam
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, None);
+}
+
+#[test]
+fn architecture_round_trips_through_serde() {
+    let yaml = r#"
+manifest_version: 1
+id: rt_arch
+display_name: Round Trip Arch
+type: amp
+backend: nam
+architecture: A2
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+    let m = parse(yaml);
+    let serialized = serde_yaml::to_string(&m).expect("manifest serializes");
+    let reparsed: PluginManifest = serde_yaml::from_str(&serialized).expect("re-parse");
+
+    assert_eq!(reparsed.architecture, Some(NamArchitecture::A2));
 }

@@ -511,13 +511,18 @@ mod tests {
     use plugin_loader::LoadedPackage;
     use std::path::PathBuf;
 
-    fn nam_package_with_axes() -> LoadedPackage {
+    fn nam_amp_package(
+        id: &str,
+        display_name: &str,
+        axes: Vec<GridParameter>,
+        captures: Vec<GridCapture>,
+    ) -> LoadedPackage {
         LoadedPackage {
             root: PathBuf::from("/fake"),
             manifest: PluginManifest {
                 manifest_version: 1,
-                id: "nam_test_amp".into(),
-                display_name: "Test NAM Amp".into(),
+                id: id.into(),
+                display_name: display_name.into(),
                 author: None,
                 description: None,
                 inspired_by: None,
@@ -530,20 +535,30 @@ mod tests {
                 homepage: None,
                 sources: None,
                 output_gain_db: None,
+                architecture: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
-                    parameters: vec![GridParameter {
-                        name: "channel".into(),
-                        display_name: None,
-                        values: vec![
-                            ParameterValue::Text("a".into()),
-                            ParameterValue::Text("b".into()),
-                        ],
-                    }],
-                    captures: vec![],
+                    parameters: axes,
+                    captures,
                 },
             },
         }
+    }
+
+    fn nam_package_with_axes() -> LoadedPackage {
+        nam_amp_package(
+            "nam_test_amp",
+            "Test NAM Amp",
+            vec![GridParameter {
+                name: "channel".into(),
+                display_name: None,
+                values: vec![
+                    ParameterValue::Text("a".into()),
+                    ParameterValue::Text("b".into()),
+                ],
+            }],
+            vec![],
+        )
     }
 
     #[test]
@@ -573,62 +588,37 @@ mod tests {
         // Real-world Bogner Ecstasy capture grid — `display_name` and
         // every `Text` value carry a leading emoji. Reproduces the
         // tofu/black-square symptom from issue #424.
-        LoadedPackage {
-            root: PathBuf::from("/fake"),
-            manifest: PluginManifest {
-                manifest_version: 1,
-                id: "nam_bogner_ecstasy".into(),
-                display_name: "Bogner Ecstasy".into(),
-                author: None,
-                description: None,
-                inspired_by: None,
-                brand: None,
-                thumbnail: None,
-                photo: None,
-                screenshot: None,
-                brand_logo: None,
-                license: None,
-                homepage: None,
-                sources: None,
-                output_gain_db: None,
-                block_type: BlockType::Amp,
-                backend: Backend::Nam {
-                    parameters: vec![GridParameter {
-                        name: "cabinet".into(),
-                        display_name: Some("📦 Cabinet".into()),
-                        values: vec![
-                            ParameterValue::Text("✋ 4X12".into()),
-                            ParameterValue::Text("🔥 2X12".into()),
-                        ],
-                    }],
-                    // Both cabinet values are capture-backed so the axis
-                    // survives the #649 dead-axis filter and the emoji
-                    // stripping is exercised on a rendered control.
-                    captures: vec![
-                        GridCapture {
-                            values: [(
-                                "cabinet".to_string(),
-                                ParameterValue::Text("✋ 4X12".into()),
-                            )]
-                            .into_iter()
-                            .collect(),
-                            file: "4x12.nam".into(),
-                            output_gain_db: None,
-                        },
-                        GridCapture {
-                            values: [(
-                                "cabinet".to_string(),
-                                ParameterValue::Text("🔥 2X12".into()),
-                            )]
-                            .into_iter()
-                            .collect(),
-                            file: "2x12.nam".into(),
-                            output_gain_db: None,
-                        },
-                    ],
+        // Both cabinet values are capture-backed so the axis survives the
+        // #649 dead-axis filter and the emoji stripping is exercised on a
+        // rendered control.
+        nam_amp_package(
+            "nam_bogner_ecstasy",
+            "Bogner Ecstasy",
+            vec![GridParameter {
+                name: "cabinet".into(),
+                display_name: Some("📦 Cabinet".into()),
+                values: vec![
+                    ParameterValue::Text("✋ 4X12".into()),
+                    ParameterValue::Text("🔥 2X12".into()),
+                ],
+            }],
+            vec![
+                GridCapture {
+                    values: [("cabinet".to_string(), ParameterValue::Text("✋ 4X12".into()))]
+                        .into_iter()
+                        .collect(),
+                    file: "4x12.nam".into(),
+                    output_gain_db: None,
                 },
-            },
-        }
+                GridCapture {
+                    values: [("cabinet".to_string(), ParameterValue::Text("🔥 2X12".into()))]
+                        .into_iter()
+                        .collect(),
+                    file: "2x12.nam".into(),
+                    output_gain_db: None,
+                },
+            ],
+        )
     }
 
     #[test]
