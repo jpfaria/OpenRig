@@ -51,9 +51,10 @@ target_compile_definitions(nam_wrapper PRIVATE
   EIGEN_DONT_VECTORIZE
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  target_compile_options(nam_wrapper PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
-else()
+# GCC/Clang warning flags only — MSVC's cl rejects -Wextra/-Wpedantic
+# (error D8021), which broke the Windows release build (#643). MSVC needs
+# none here (cmake-rs already passes -W0).
+if (NOT MSVC)
   target_compile_options(nam_wrapper PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
 
