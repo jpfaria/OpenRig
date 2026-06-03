@@ -466,6 +466,7 @@ pub fn run_desktop_app(
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
             auto_save,
+            app_config: app_config.clone(),
         },
     );
     // --- System / MIDI devices section (#513) ---

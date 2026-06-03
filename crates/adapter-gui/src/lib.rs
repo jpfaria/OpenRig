@@ -80,6 +80,10 @@ pub(crate) mod settings;
 pub use settings::paths::{
     apply_evaluations_override, apply_plugins_override, apply_presets_override,
 };
+/// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
+/// in sync with a `SaveAudioSettings` disk write so that a subsequent
+/// whole-config re-save does not clobber the user's buffer-size pick.
+pub use settings::audio::apply_audio_override;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
