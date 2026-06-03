@@ -10,6 +10,7 @@
 
 pub mod block;
 pub mod catalog;
+mod catalog_label;
 pub mod chain;
 pub mod device;
 pub mod midi;
