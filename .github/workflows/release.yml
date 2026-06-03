@@ -87,7 +87,18 @@ jobs:
         # failure. We discard the produced per-package zips — installers
         # ship the validated source tree directly so the runtime doesn't
         # need an extraction step.
-        run: cargo run --release --bin pack_plugins
+        #
+        # #639: pack_plugins spawns the bare qa_audit binary, which links the
+        # SHARED libnam_wrapper.so (cmake-built under target/release/build/nam-*/
+        # out/lib). `cargo run` sets the lib path for pack_plugins itself but the
+        # spawned qa_audit child does not inherit it, so it died at startup with
+        # "libnam_wrapper.so: cannot open shared object file". Export the lib dir
+        # so the child resolves it. (Shipped apps are unaffected — packaging
+        # patchelfs an $ORIGIN RUNPATH; only this unpackaged gate binary needs it.)
+        run: |
+          NAM_LIB_DIR="$(dirname "$(find target/release/build -name libnam_wrapper.so | head -1)")"
+          export LD_LIBRARY_PATH="${NAM_LIB_DIR}:${LD_LIBRARY_PATH:-}"
+          cargo run --release --bin pack_plugins
 
       - uses: actions/upload-artifact@v4
         with:

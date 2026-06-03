@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  Última: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.23</a> · <a href="CHANGELOG.md">CHANGELOG</a>
+  Última: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.24</a> · <a href="CHANGELOG.md">CHANGELOG</a>
 </p>
 
 <p align="center">
@@ -59,6 +59,7 @@ A base que torna a visão maior possível já roda em todas as plataformas deskt
 - **Quatro backends de áudio no mesmo grafo.** DSP nativo em Rust para utility, EQ, dynamics, modulation e reverb. NAM (Neural Amp Modeler) com capturas neurais de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff e mais 540+. Convolução por IR para cabinets e bodies acústicos. 100+ plugins LV2 já embutidos (Guitarix, MDA, TAP, ZAM, Dragonfly e outros). Qualquer bloco em uma chain pode vir de qualquer backend.
 - **Visualização em tempo real embutida.** Um afinador cromático e um analisador de espectro ao vivo entram na chain como qualquer outro bloco — veja o que você ouve.
 - **Controlável por IA (MCP).** Qualquer cliente MCP (Claude Desktop/Code, Cursor) dirige a rig *viva* pelo servidor MCP embutido do OpenRig — monta timbres, ajusta a chain, troca preset por conversa, com a GUI aberta. Veja **[Servidor MCP & plugin](docs/mcp.md)**.
+- **Pratique com um DI virtual.** Faça loop de um DI seco de guitarra em qualquer chain para moldar o seu timbre sem tocar — escolha um loop CC0 incluso ou carregue seu próprio WAV e aperte play; toda a chain (amp, cab, pedais) processa exatamente como um sinal ao vivo. Por chain e efêmero.
 - **Formato de preset YAML aberto.** Presets são texto puro — diffáveis, compartilháveis por gist, scriptáveis. A skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) do Claude Code monta timbres completos a partir de uma música, pesquisando o signal chain original em fontes públicas e dirigindo a rig viva via MCP.
 
 > 📚 **Procurando um amp, pedal ou cab específico?** O catálogo completo — todo modelo, todo parâmetro, toda variante de voicing, com strings canônicas de `MODEL_ID` para usar no preset YAML — está documentado em **[Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)**. Comece pelo [Model ID Quick Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md#model-id-quick-reference), uma busca alfabética agrupada por tipo de bloco.
@@ -216,10 +217,11 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] **Loaders de IR e NAM do usuário** — solta qualquer arquivo `.wav` de impulso ou captura `.nam` na chain em runtime
 - [x] **Formato de preset YAML aberto** — diffável, compartilhável por gist, scriptável; registry canônico de `MODEL_ID` documentado em [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **Construção de timbre assistida por IA** — a skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) do Claude Code (entregue em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta timbres completos na rig viva a partir de uma música ou artista, via MCP
+- [x] **Bancos de presets + cenas por chain** — troque presets e cenas ao vivo por chain; cenas guardam apenas as diferenças de parâmetro (estilo Helix-Snapshot) para troca instantânea sem recarregar blocos ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [x] **Loop de DI virtual por chain** — faça loop de um DI seco em qualquer chain para moldar o timbre sem tocar (loops CC0 inclusos ou seu próprio WAV); por chain, efêmero, nunca salvo no projeto ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 
 ### Features de palco
 
-- [ ] Snapshots / cenas ([#321](https://github.com/jpfaria/OpenRig/issues/321))
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
 - [ ] Looper, multi-camada ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / player de áudio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
