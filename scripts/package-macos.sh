@@ -48,6 +48,7 @@ rm -rf "$APP" dist/dmg_contents dist/OpenRig-*.dmg
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Frameworks"
+mkdir -p "$APP/Contents/Resources"
 
 echo "==> Creating universal binary with lipo..."
 lipo -create \
