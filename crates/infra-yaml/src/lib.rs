@@ -40,6 +40,9 @@ pub struct ChainBlocksPreset {
     /// Output volume do preset em percentual. 100 = unity. Default ao
     /// carregar quando o campo `volume:` está ausente do YAML.
     pub volume: f32,
+    /// Instrument this preset was saved for. Defaults to "electric_guitar"
+    /// for back-compat with untagged legacy preset files.
+    pub instrument: String,
     pub blocks: Vec<project::block::AudioBlock>,
 }
 
@@ -179,6 +182,10 @@ struct PresetYaml {
     /// ausente do YAML. Multiplicado no master output do engine.
     #[serde(default = "default_preset_volume")]
     volume: f32,
+    /// Instrument tag added in #627. Missing in legacy files ⇒ defaults to
+    /// "electric_guitar" for back-compat.
+    #[serde(default = "default_preset_instrument")]
+    instrument: String,
     #[serde(default)]
     blocks: Vec<Value>,
 }
@@ -191,6 +198,10 @@ fn default_preset_doc_version() -> u32 {
     1
 }
 
+fn default_preset_instrument() -> String {
+    block_core::INST_ELECTRIC_GUITAR.to_string()
+}
+
 impl PresetYaml {
     fn into_preset(self) -> Result<ChainBlocksPreset> {
         let preset_chain_id = generated_preset_chain_id(&self.id);
@@ -198,6 +209,7 @@ impl PresetYaml {
             id: self.id.clone(),
             name: self.name,
             volume: self.volume,
+            instrument: self.instrument,
             blocks: self
                 .blocks
                 .into_iter()
@@ -213,6 +225,7 @@ impl PresetYaml {
             id: preset.id.clone(),
             name: preset.name.clone(),
             volume: preset.volume,
+            instrument: preset.instrument.clone(),
             blocks: preset
                 .blocks
                 .iter()

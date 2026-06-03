@@ -215,8 +215,16 @@ pub enum Command {
     /// File I/O (YAML parsing) is done in the adapter before dispatching. The
     /// adapter passes the fully-parsed, I/O-stripped list of blocks. The
     /// dispatcher replaces `chain.blocks` and emits `ChainPresetLoaded`.
+    ///
+    /// `preset_instrument` is the instrument tag read from the preset file
+    /// (defaults to "electric_guitar" for untagged legacy files). The
+    /// dispatcher rejects the load if it differs from the target chain's
+    /// instrument.
     LoadChainPreset {
         chain: ChainId,
+        /// Instrument tag from the preset file. Use "electric_guitar" for
+        /// untagged legacy presets.
+        preset_instrument: String,
         preset_blocks: Vec<project::block::AudioBlock>,
     },
 
