@@ -1,0 +1,241 @@
+use super::*;
+use crate::manifest::Backend;
+use crate::manifest::ParameterValue as V;
+use std::collections::BTreeMap;
+
+#[test]
+fn prune_unbacked_values_drops_values_without_a_capture() {
+    // analog_man_sun_face shape: `compression` declares 0..=5 but only 3 and
+    // 5 have a backing capture. After load-time pruning the axis must expose
+    // ONLY 3 and 5 — no consumer (GUI, MCP, future gRPC) should ever read a
+    // declared value that maps to no capture.
+    let mut backend = Backend::Nam {
+        parameters: vec![axis(
+            "compression",
+            (0..=5).map(|n| V::Number(f64::from(n))).collect(),
+        )],
+        captures: vec![
+            ncap(&[("compression", 3.0)], "c3.nam"),
+            ncap(&[("compression", 5.0)], "c5.nam"),
+        ],
+    };
+    prune_unbacked_grid_values(&mut backend);
+    let Backend::Nam { parameters, .. } = &backend else {
+        panic!("backend must stay Nam");
+    };
+    assert_eq!(
+        parameters[0].values,
+        vec![V::Number(3.0), V::Number(5.0)],
+        "pruned axis must keep only capture-backed values"
+    );
+}
+
+#[test]
+fn prune_unbacked_values_leaves_fully_backed_axis_unchanged() {
+    // Every declared value is captured → nothing is pruned.
+    let mut backend = Backend::Ir {
+        parameters: vec![axis(
+            "mic",
+            vec![V::Text("sm57".into()), V::Text("r121".into())],
+        )],
+        captures: vec![
+            tcap(&[("mic", "sm57")], "a.wav"),
+            tcap(&[("mic", "r121")], "b.wav"),
+        ],
+    };
+    prune_unbacked_grid_values(&mut backend);
+    let Backend::Ir { parameters, .. } = &backend else {
+        panic!("backend must stay Ir");
+    };
+    assert_eq!(
+        parameters[0].values,
+        vec![V::Text("sm57".into()), V::Text("r121".into())]
+    );
+}
+
+#[test]
+fn unbacked_grid_values_reports_declared_values_without_a_capture() {
+    // analog_man_sun_face shape: compression declares 0..=5, only 3 and 5 are
+    // captured. The load-time validation must flag 0,1,2,4 as unbacked so the
+    // system can warn about the manifest (issue #649) — without rejecting it.
+    let backend = Backend::Nam {
+        parameters: vec![axis(
+            "compression",
+            (0..=5).map(|n| V::Number(f64::from(n))).collect(),
+        )],
+        captures: vec![
+            ncap(&[("compression", 3.0)], "c3.nam"),
+            ncap(&[("compression", 5.0)], "c5.nam"),
+        ],
+    };
+    let reported = unbacked_grid_values(&backend);
+    assert_eq!(
+        reported,
+        vec![UnbackedAxis {
+            name: "compression".into(),
+            values: vec![
+                V::Number(0.0),
+                V::Number(1.0),
+                V::Number(2.0),
+                V::Number(4.0),
+            ],
+        }]
+    );
+}
+
+#[test]
+fn unbacked_grid_values_is_empty_for_fully_backed_grid() {
+    // Every declared value is captured → nothing to warn about.
+    let backend = Backend::Ir {
+        parameters: vec![axis(
+            "mic",
+            vec![V::Text("sm57".into()), V::Text("r121".into())],
+        )],
+        captures: vec![
+            tcap(&[("mic", "sm57")], "a.wav"),
+            tcap(&[("mic", "r121")], "b.wav"),
+        ],
+    };
+    assert!(unbacked_grid_values(&backend).is_empty());
+}
+
+/// Capture with numeric axis values.
+fn ncap(values: &[(&str, f64)], file: &str) -> GridCapture {
+    GridCapture {
+        values: values
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), V::Number(*v)))
+            .collect(),
+        file: file.into(),
+        output_gain_db: None,
+    }
+}
+
+/// Capture with text axis values.
+fn tcap(values: &[(&str, &str)], file: &str) -> GridCapture {
+    GridCapture {
+        values: values
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), V::Text((*v).to_string())))
+            .collect(),
+        file: file.into(),
+        output_gain_db: None,
+    }
+}
+
+fn axis(name: &str, values: Vec<V>) -> GridParameter {
+    GridParameter {
+        name: name.into(),
+        display_name: None,
+        values,
+    }
+}
+
+#[test]
+fn drops_single_value_axis() {
+    // mesa_boogie_dc_5: one `preset` axis with a single declared value and a
+    // single capture — nothing to choose. The axis must not be rendered.
+    let parameters = vec![axis("preset", vec![V::Text("black_shadow_sm57".into())])];
+    let captures = vec![tcap(&[("preset", "black_shadow_sm57")], "bs.nam")];
+    assert!(effective_grid_axes(&parameters, &captures).is_empty());
+}
+
+#[test]
+fn keeps_only_capture_backed_values() {
+    // analog_man_sun_face: `compression` declares 0..=5 but only 3 and 5 have
+    // a backing capture. The rendered axis keeps just those two, in declared
+    // order; the unbacked declared values are dropped.
+    let parameters = vec![axis(
+        "compression",
+        (0..=5).map(|n| V::Number(f64::from(n))).collect(),
+    )];
+    let captures = vec![
+        ncap(&[("compression", 3.0)], "c3.nam"),
+        ncap(&[("compression", 5.0)], "c5.nam"),
+    ];
+    let axes = effective_grid_axes(&parameters, &captures);
+    assert_eq!(axes.len(), 1);
+    assert_eq!(
+        axes[0].values,
+        vec![V::Number(3.0), V::Number(5.0)],
+        "axis must keep only capture-backed values, in declared order"
+    );
+}
+
+#[test]
+fn drops_overdeclared_axis_with_single_backed_value() {
+    // An over-declared axis where only ONE declared value is captured is still
+    // a dead control — drop it like the single-value case.
+    let parameters = vec![axis(
+        "volume",
+        (0..=10).map(|n| V::Number(f64::from(n))).collect(),
+    )];
+    let captures = vec![ncap(&[("volume", 7.0)], "v7.nam")];
+    assert!(effective_grid_axes(&parameters, &captures).is_empty());
+}
+
+#[test]
+fn keeps_full_multi_value_axis() {
+    // A genuine multi-value axis: 4 mic positions, all captured. All four must
+    // survive.
+    let parameters = vec![axis(
+        "mic",
+        vec![
+            V::Text("sm57".into()),
+            V::Text("md421".into()),
+            V::Text("r121".into()),
+            V::Text("u87".into()),
+        ],
+    )];
+    let captures = vec![
+        tcap(&[("mic", "sm57")], "a.nam"),
+        tcap(&[("mic", "md421")], "b.nam"),
+        tcap(&[("mic", "r121")], "c.nam"),
+        tcap(&[("mic", "u87")], "d.nam"),
+    ];
+    let axes = effective_grid_axes(&parameters, &captures);
+    assert_eq!(axes.len(), 1);
+    assert_eq!(axes[0].values.len(), 4);
+}
+
+#[test]
+fn keeps_live_axis_and_drops_dead_one_in_multi_axis() {
+    // Multi-axis plugin: `gain` has 2 backed values (kept), `preset` has 1
+    // (dropped). Only the live axis survives.
+    let parameters = vec![
+        axis("gain", vec![V::Number(10.0), V::Number(20.0)]),
+        axis("preset", vec![V::Text("only".into())]),
+    ];
+    let captures = vec![
+        cell(
+            &[
+                ("gain", V::Number(10.0)),
+                ("preset", V::Text("only".into())),
+            ],
+            "g10.nam",
+        ),
+        cell(
+            &[
+                ("gain", V::Number(20.0)),
+                ("preset", V::Text("only".into())),
+            ],
+            "g20.nam",
+        ),
+    ];
+    let axes = effective_grid_axes(&parameters, &captures);
+    assert_eq!(axes.len(), 1);
+    assert_eq!(axes[0].name, "gain");
+}
+
+/// Multi-axis capture cell with mixed value types.
+fn cell(values: &[(&str, V)], file: &str) -> GridCapture {
+    let map: BTreeMap<String, V> = values
+        .iter()
+        .map(|(k, v)| ((*k).to_string(), v.clone()))
+        .collect();
+    GridCapture {
+        values: map,
+        file: file.into(),
+        output_gain_db: None,
+    }
+}
