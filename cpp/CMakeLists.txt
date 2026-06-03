@@ -33,6 +33,12 @@ add_library(nam_wrapper SHARED
   ${AUDIO_DSP_TOOLS_SOURCES}
 )
 
+# On MSVC a SHARED lib exports nothing without __declspec(dllexport), so no
+# import library (nam_wrapper.lib) is produced and the Rust link fails with
+# LNK1181. Export all symbols on Windows so cmake generates the import lib
+# (#647). No-op on GCC/Clang, which export all symbols by default.
+set_target_properties(nam_wrapper PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 target_include_directories(nam_wrapper PUBLIC
   ${CMAKE_SOURCE_DIR}
 )
