@@ -74,31 +74,21 @@ jobs:
             git -C "$dir" config lfs.url https://github.com/jpfaria/OpenRig.git/info/lfs
             git -C "$dir" lfs pull
           done
-      - name: Build qa_audit (required by pack_plugins)
-        working-directory: openrig-plugins
-        env:
-          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-        run: cargo build --release -p loudness-audit --bin qa_audit
-
       - name: Validate plugins
         working-directory: openrig-plugins
-        # pack_plugins iterates plugins/source/, validates every package's
-        # manifest schema and asset references, and exits non-zero on any
-        # failure. We discard the produced per-package zips — installers
-        # ship the validated source tree directly so the runtime doesn't
-        # need an extraction step.
+        # pack_plugins validates every package's manifest schema and asset
+        # references and exits non-zero on any failure. We discard the produced
+        # per-package zips — installers ship the validated source tree directly.
         #
-        # #639: pack_plugins spawns the bare qa_audit binary, which links the
-        # SHARED libnam_wrapper.so (cmake-built under target/release/build/nam-*/
-        # out/lib). `cargo run` sets the lib path for pack_plugins itself but the
-        # spawned qa_audit child does not inherit it, so it died at startup with
-        # "libnam_wrapper.so: cannot open shared object file". Export the lib dir
-        # so the child resolves it. (Shipped apps are unaffected — packaging
-        # patchelfs an $ORIGIN RUNPATH; only this unpackaged gate binary needs it.)
-        run: |
-          NAM_LIB_DIR="$(dirname "$(find target/release/build -name libnam_wrapper.so | head -1)")"
-          export LD_LIBRARY_PATH="${NAM_LIB_DIR}:${LD_LIBRARY_PATH:-}"
-          cargo run --release --bin pack_plugins
+        # #641: QA_AUDIT_SKIP=1 skips the per-capture loudness audit (the slow
+        # ~22-min qa_audit subprocess). Plugin audio-quality is the OpenRig-plugins
+        # repo's concern and runs in its own CI on capture changes; the app release
+        # only needs the structural (schema/asset) validation. This also drops the
+        # qa_audit build step and the #639 libnam_wrapper lib-path workaround —
+        # qa_audit no longer runs here.
+        env:
+          QA_AUDIT_SKIP: "1"
+        run: cargo run --release --bin pack_plugins
 
       - uses: actions/upload-artifact@v4
         with:
