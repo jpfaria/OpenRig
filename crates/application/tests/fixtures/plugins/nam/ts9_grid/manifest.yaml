@@ -1,0 +1,39 @@
+manifest_version: 1
+id: nam_ts9_grid
+display_name: TS9 Grid
+brand: nam
+sources:
+- https://www.tone3000.com/
+output_gain_db: 0.0
+type: gain_pedal
+backend: nam
+# Multi-axis grid where the per-axis-first combination (drive=0, tone=6,
+# level=6) is NOT one of the declared captures. Issue #630: a freshly added
+# grid pedal must be born at a REAL capture (the FIRST declared capture:
+# drive=0, tone=3, level=6), never at an invalid per-axis-min combination.
+parameters:
+- name: drive
+  display_name: Drive
+  values:
+  - 0
+  - 5
+- name: tone
+  display_name: Tone
+  values:
+  - 6
+  - 3
+- name: level
+  display_name: Level
+  values:
+  - 6
+captures:
+- values:
+    drive: 0
+    tone: 3
+    level: 6
+  file: captures/d0_t3_l6.nam
+- values:
+    drive: 5
+    tone: 6
+    level: 6
+  file: captures/d5_t6_l6.nam

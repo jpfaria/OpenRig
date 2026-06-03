@@ -1,87 +1,70 @@
-//! Tests for `from_package` (issue #402 — NAM gain pedal passthrough at zero).
+//! Tests for `from_package`.
+//!
+//! Issue #630: a NAM grid pedal (knobs → nearest `.nam` capture) always
+//! selects the nearest capture, regardless of knob position. The legacy
+//! #402 "knob at 0 == passthrough" rule has been REMOVED — a capture at
+//! drive=0 is a real capture, not "off". On/off is the engine enable toggle.
 
 use super::*;
 use domain::value_objects::ParameterValue as BlockParameterValue;
-use plugin_loader::manifest::ParameterValue;
+use plugin_loader::manifest::{GridCapture, GridParameter, ParameterValue};
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 
-fn ts9_like_parameters() -> Vec<GridParameter> {
-    let values: Vec<ParameterValue> = (0..=10).map(|n| ParameterValue::Number(n as f64)).collect();
-    vec![
-        GridParameter {
-            name: "drive".to_string(),
-            display_name: None,
-            values: values.clone(),
-        },
-        GridParameter {
-            name: "tone".to_string(),
-            display_name: None,
-            values: values.clone(),
-        },
-        GridParameter {
-            name: "level".to_string(),
-            display_name: None,
+fn drive_grid_parameters() -> Vec<GridParameter> {
+    vec![GridParameter {
+        name: "drive".to_string(),
+        display_name: None,
+        values: vec![ParameterValue::Number(0.0), ParameterValue::Number(5.0)],
+    }]
+}
+
+fn drive_captures() -> Vec<GridCapture> {
+    fn cell(drive: f64, file: &str) -> GridCapture {
+        let mut values = BTreeMap::new();
+        values.insert("drive".to_string(), ParameterValue::Number(drive));
+        GridCapture {
             values,
-        },
-    ]
+            file: PathBuf::from(file),
+            output_gain_db: None,
+        }
+    }
+    vec![cell(0.0, "captures/drive_min.nam"), cell(5.0, "captures/drive_hi.nam")]
 }
 
+/// Issue #630: a grid pedal at the axis minimum (drive=0) must resolve to the
+/// REAL drive=0 capture — not bail out to passthrough / no model. The OLD
+/// `any_zero_knob` rule made `build_from_package` short-circuit before
+/// `resolve_capture` ever ran, silently unloading the model. With the rule
+/// removed, drive=0 selects the drive=0 capture's file.
 #[test]
-fn knob_at_min_triggers_passthrough() {
-    let parameters = ts9_like_parameters();
-    let mut ps = ParameterSet::default();
-    ps.insert("level", BlockParameterValue::Float(0.0));
-    assert!(any_zero_knob(&ps, &parameters));
-}
-
-#[test]
-fn drive_at_min_triggers_passthrough() {
-    let parameters = ts9_like_parameters();
+fn grid_knob_at_zero_selects_the_zero_capture_not_passthrough() {
+    let parameters = drive_grid_parameters();
+    let captures = drive_captures();
     let mut ps = ParameterSet::default();
     ps.insert("drive", BlockParameterValue::Float(0.0));
-    assert!(any_zero_knob(&ps, &parameters));
+
+    let resolved = plugin_loader::dispatch::resolve_capture(&parameters, &captures, &ps)
+        .expect("drive=0 must resolve to a real capture, not None/passthrough");
+    assert_eq!(
+        resolved.file,
+        PathBuf::from("captures/drive_min.nam"),
+        "issue #630: drive=0 must select the drive=0 capture; 0 is a real \
+         capture, not off"
+    );
 }
 
+/// Sanity: a non-zero knob still selects the matching high capture.
 #[test]
-fn knob_above_min_does_not_trigger_passthrough() {
-    let parameters = ts9_like_parameters();
+fn grid_knob_above_zero_selects_the_high_capture() {
+    let parameters = drive_grid_parameters();
+    let captures = drive_captures();
     let mut ps = ParameterSet::default();
-    ps.insert("level", BlockParameterValue::Float(1.0));
     ps.insert("drive", BlockParameterValue::Float(5.0));
-    assert!(!any_zero_knob(&ps, &parameters));
-}
 
-#[test]
-fn user_omits_knob_does_not_trigger_passthrough() {
-    let parameters = ts9_like_parameters();
-    let ps = ParameterSet::default();
-    assert!(!any_zero_knob(&ps, &parameters));
-}
-
-#[test]
-fn schema_without_zero_knob_does_not_trigger() {
-    // Tone-only knob (no drive/level) — passthrough check must skip it.
-    let parameters = vec![GridParameter {
-        name: "tone".to_string(),
-        display_name: None,
-        values: vec![ParameterValue::Number(0.0), ParameterValue::Number(10.0)],
-    }];
-    let mut ps = ParameterSet::default();
-    ps.insert("tone", BlockParameterValue::Float(0.0));
-    assert!(!any_zero_knob(&ps, &parameters));
-}
-
-#[test]
-fn manifest_min_picks_lowest_declared_value() {
-    let parameters = vec![GridParameter {
-        name: "level".to_string(),
-        display_name: None,
-        values: vec![
-            ParameterValue::Number(5.0),
-            ParameterValue::Number(0.0),
-            ParameterValue::Number(10.0),
-        ],
-    }];
-    assert_eq!(manifest_min(&parameters, "level"), Some(0.0));
+    let resolved = plugin_loader::dispatch::resolve_capture(&parameters, &captures, &ps)
+        .expect("drive=5 must resolve to a capture");
+    assert_eq!(resolved.file, PathBuf::from("captures/drive_hi.nam"));
 }
 
 /// New contract: the audit's `manifest.output_gain_db` is NOT added
@@ -112,17 +95,4 @@ fn user_output_param_is_passed_through_when_no_audit_in_manifest() {
 fn user_output_param_is_passed_through_even_when_audit_is_present() {
     let resolved = crate::from_package::resolve_user_output_level_db(-3.0, Some(-10.0));
     assert_eq!(resolved, -3.0);
-}
-
-#[test]
-fn passthrough_mono_returns_input_unchanged() {
-    let mut p = MonoPassthrough;
-    assert_eq!(p.process_sample(0.5), 0.5);
-    assert_eq!(p.process_sample(-0.3), -0.3);
-}
-
-#[test]
-fn passthrough_stereo_returns_input_unchanged() {
-    let mut p = StereoPassthrough;
-    assert_eq!(p.process_frame([0.5, -0.3]), [0.5, -0.3]);
 }
