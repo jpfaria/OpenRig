@@ -53,6 +53,52 @@ fn prune_unbacked_values_leaves_fully_backed_axis_unchanged() {
     );
 }
 
+#[test]
+fn unbacked_grid_values_reports_declared_values_without_a_capture() {
+    // analog_man_sun_face shape: compression declares 0..=5, only 3 and 5 are
+    // captured. The load-time validation must flag 0,1,2,4 as unbacked so the
+    // system can warn about the manifest (issue #649) — without rejecting it.
+    let backend = Backend::Nam {
+        parameters: vec![axis(
+            "compression",
+            (0..=5).map(|n| V::Number(f64::from(n))).collect(),
+        )],
+        captures: vec![
+            ncap(&[("compression", 3.0)], "c3.nam"),
+            ncap(&[("compression", 5.0)], "c5.nam"),
+        ],
+    };
+    let reported = unbacked_grid_values(&backend);
+    assert_eq!(
+        reported,
+        vec![UnbackedAxis {
+            name: "compression".into(),
+            values: vec![
+                V::Number(0.0),
+                V::Number(1.0),
+                V::Number(2.0),
+                V::Number(4.0),
+            ],
+        }]
+    );
+}
+
+#[test]
+fn unbacked_grid_values_is_empty_for_fully_backed_grid() {
+    // Every declared value is captured → nothing to warn about.
+    let backend = Backend::Ir {
+        parameters: vec![axis(
+            "mic",
+            vec![V::Text("sm57".into()), V::Text("r121".into())],
+        )],
+        captures: vec![
+            tcap(&[("mic", "sm57")], "a.wav"),
+            tcap(&[("mic", "r121")], "b.wav"),
+        ],
+    };
+    assert!(unbacked_grid_values(&backend).is_empty());
+}
+
 /// Capture with numeric axis values.
 fn ncap(values: &[(&str, f64)], file: &str) -> GridCapture {
     GridCapture {

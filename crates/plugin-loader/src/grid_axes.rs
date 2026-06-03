@@ -29,6 +29,51 @@ fn capture_backed_values(
         .collect()
 }
 
+/// One grid axis carrying declared values that no capture references.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnbackedAxis {
+    pub name: String,
+    pub values: Vec<ParameterValue>,
+}
+
+/// Declared capture-selection values that no capture references, grouped by
+/// axis (declared order). Empty when the grid is fully backed, or for a
+/// backend without a capture grid.
+///
+/// This is the system-level validation read at load time (issue #649): the
+/// loader logs a warning naming these values so a malformed manifest is
+/// visible, but the package still loads — [`prune_unbacked_grid_values`]
+/// cleans the runtime view. It is a diagnostic, never a hard rejection.
+pub fn unbacked_grid_values(backend: &Backend) -> Vec<UnbackedAxis> {
+    let (parameters, captures) = match backend {
+        Backend::Nam {
+            parameters,
+            captures,
+        }
+        | Backend::Ir {
+            parameters,
+            captures,
+        } => (parameters, &**captures),
+        _ => return Vec::new(),
+    };
+    parameters
+        .iter()
+        .filter_map(|parameter| {
+            let backed = capture_backed_values(parameter, captures);
+            let unbacked: Vec<ParameterValue> = parameter
+                .values
+                .iter()
+                .filter(|value| !backed.contains(*value))
+                .cloned()
+                .collect();
+            (!unbacked.is_empty()).then(|| UnbackedAxis {
+                name: parameter.name.clone(),
+                values: unbacked,
+            })
+        })
+        .collect()
+}
+
 /// Prune every declared grid value that has no backing capture, in place, so
 /// a loaded manifest never exposes a selectable value that maps to no model.
 ///
