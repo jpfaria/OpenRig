@@ -26,15 +26,49 @@ follow-up.
 
 - **Tools** — one per `Command` variant (JSON schema auto-derived from
   `application::command`; no hand-written schema). The agent adds blocks,
-  changes parameters, switches presets, saves the project, etc.
-- **Resources** (read-only): `openrig://project` (current project as YAML),
-  `openrig://devices` (audio devices).
+  changes parameters, switches presets, saves the project, etc. Includes
+  `render_chain` (`Command::RenderChain`, #576) — an offline render that
+  applies a chain/preset YAML to a WAV and writes the processed output
+  WAV via the same `adapter-render` call site as `openrig-render`. Paths
+  are local to the host; live capture stays in the binary. See
+  `docs/render.md`.
+- **Resources** (read-only):
+  - `openrig://project` — current project as YAML.
+  - `openrig://devices` — available audio devices.
+  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`).
+  - `openrig://meters` — per-chain peak meters (dBFS).
+  - `openrig://presets` — project preset pool (JSON).
+  - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
+  - `openrig://plugins` — full plugin catalog (JSON).
+  - `openrig://plugins/{id}` — single plugin entry by manifest id (JSON).
+  - `openrig://plugins/search/{query}` — case-insensitive substring
+    search across `id` / `display_name` / `brand` (JSON).
+  - `openrig://plugins/{id}/params` — catalog-level parameter schema
+    for one plugin: kind, range, options, default, unit, widget (JSON).
+    Unknown id → `{"params": null}`.
+  - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
+    parameter snapshot: schema **plus** `current_value` per parameter
+    (JSON, wrapped under a `params` envelope). Unknown chain / block
+    → error from the bridge.
+  - `openrig://paths` (#582) — effective resolved system paths
+    (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
+    as a JSON object. Every value is an absolute path: when the user
+    has not set an override in `config.yaml`, the resource returns the
+    OS default a consumer would compute itself. Skills (e.g.
+    `openrig-tone-analyzer`) read this instead of hard-coding
+    `~/Library/Application Support/OpenRig/…`.
+
+  All reads return JSON unless the type is documented as YAML or
+  newline-delimited text.
 - **Prompts**: `tune_tone`, `diagnose_chain`, `build_preset`,
   `analyze_reference`.
 
 ## Install the OpenRig plugin (recommended)
 
-The repository **is** the Claude plugin. Root layout:
+The end-user Claude Code plugin lives in a dedicated repository:
+**[jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)**.
+
+Layout there:
 
 ```
 .claude-plugin/plugin.json        # plugin manifest
@@ -49,14 +83,14 @@ the `openrig-tone-builder` skill — no manual client config.
 ### Claude Code
 
 ```
-/plugin marketplace add jpfaria/OpenRig
+/plugin marketplace add jpfaria/OpenRig-claude
 /plugin install openrig@openrig
 ```
 
 Then start OpenRig with the server on: `openrig --mcp`. The plugin's
 `.mcp.json` points the client at `http://127.0.0.1:4123`; the client lists one
-tool per `Command`, the `openrig://project` / `openrig://devices` resources,
-and the prompts. The `openrig-tone-builder` skill activates when you ask for an
+tool per `Command`, the `openrig://*` resources listed in the
+[Surface](#surface) section, and the prompts. The `openrig-tone-builder` skill activates when you ask for an
 artist/song tone and drives the rig through the tools.
 
 ### Claude Desktop
@@ -66,9 +100,10 @@ Settings → **Connectors** → Add custom connector → URL
 (The classic `command`-based config entry is stdio-only, which v1 does not
 use.)
 
-> `.claude/skills/` in the repo holds **developer** skills only
+> `.claude/skills/` in this repo holds **developer** skills only
 > (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`).
-> End-user skills live in the plugin (`skills/`).
+> End-user skills live in the
+> [OpenRig-claude](https://github.com/jpfaria/OpenRig-claude) plugin.
 
 ## Configure a client manually (without the plugin)
 

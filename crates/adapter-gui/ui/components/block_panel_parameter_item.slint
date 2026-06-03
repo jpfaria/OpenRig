@@ -301,15 +301,16 @@ export component BlockPanelParameterItem inherits Rectangle {
     }
 
     // ── Boolean toggle (sprite) ──
-    // The toggle sprite is 33:45 (W:H ratio). Picking width=26 gives
-    // sprite-h ≈ 35, matching the 36×36 PanelKnob sprite. y=28 lines up
-    // the sprite top with the knob top so all 3 widget kinds (knob,
-    // toggle, selector) share the same vertical baseline.
+    // The toggle sprite is 33:45 (W:H ratio). width=32 gives a
+    // sprite-h ≈ 44 (closer to the 56px PanelKnob without dominating
+    // the cell). y=24 keeps the sprite top a few pixels above the knob
+    // top so the bigger switch reads as a deliberate stompbox stomp
+    // instead of a clipped knob.
     if root.param.widget_kind == "bool" : ToggleSwitch {
-        x: (parent.width - 26px) / 2;
-        y: 28px;
-        width: 26px;
-        height: 50px;
+        x: (parent.width - 32px) / 2;
+        y: 24px;
+        width: 32px;
+        height: 62px;
         checked: root.param.bool_value;
         toggled => { root.update-bool(root.param.path, !root.param.bool_value); }
     }

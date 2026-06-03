@@ -60,12 +60,24 @@ pub fn command_variant_names() -> &'static [&'static str] {
 
 /// Object schema for a single variant's arguments (the value side of the
 /// externally-tagged pair). Unit variants get an empty object schema.
+///
+/// The root schema's `definitions` map is copied into the returned subschema so
+/// `$ref`s emitted by `schemars` (e.g. `#/definitions/Chain`, `ChainId`) resolve
+/// against the same document. Without this copy, MCP/gRPC clients see dangling
+/// refs and fall back to opaque/stringified payloads — which the server-side
+/// `serde` deserializer then rejects with `"expected struct X, got string"`.
+/// See issue #489.
 pub fn command_variant_schema(variant: &str) -> Value {
     let root = command_root_schema();
+    let definitions = root.get("definitions").cloned();
     for entry in variant_entries(&root) {
         if entry_variant_name(&entry).as_deref() == Some(variant) {
             if let Some(args) = entry["properties"].get(variant) {
-                return args.clone();
+                let mut args = args.clone();
+                if let (Some(obj), Some(defs)) = (args.as_object_mut(), definitions) {
+                    obj.insert("definitions".to_string(), defs);
+                }
+                return args;
             }
             break;
         }

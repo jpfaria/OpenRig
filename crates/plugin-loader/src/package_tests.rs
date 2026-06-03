@@ -83,6 +83,7 @@ fn capture(values: &[(&str, f64)], file: &str) -> GridCapture {
             .map(|(name, value)| ((*name).to_string(), ParameterValue::Number(*value)))
             .collect(),
         file: PathBuf::from(file),
+        output_gain_db: None,
     }
 }
 

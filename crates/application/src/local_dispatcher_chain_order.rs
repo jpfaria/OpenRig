@@ -76,6 +76,15 @@ impl LocalDispatcher {
                     let target = proj.chains.iter_mut().find(|c| c.id == chain).unwrap();
                     target.enabled = will_enable;
                 }
+                // #548: if this is the active chain, mirror the new
+                // enabled state into the SelectionState snapshot so MIDI
+                // slot `toggle_active_chain_enabled` reads the truth on
+                // the next press.
+                if let Ok(mut s) = self.selection_state.write() {
+                    if s.active_chain.as_deref() == Some(chain.0.as_str()) {
+                        s.active_chain_enabled = will_enable;
+                    }
+                }
                 Ok(vec![Event::ChainEnabledChanged {
                     chain,
                     enabled: will_enable,

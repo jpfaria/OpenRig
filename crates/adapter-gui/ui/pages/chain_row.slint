@@ -9,6 +9,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
@@ -18,13 +19,24 @@ export component ChainRow inherits Rectangle {
     in property <ChainRigNav> rig-nav;
     callback switch-chain-preset(int);
     callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
     in property <int> chain-index;
     in property <int> chain-count;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
+    // #591: UI index of the block the footswitch block-toggle acts on.
+    in property <int> selected-block-neighbor-index: -1;
+    // #591: gates the selection markers — they only show while a MIDI
+    // command is recent (last 10s).
+    in property <bool> midi-selection-active: false;
     in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
+    // #614: DI loop callbacks (chain-index, …)
+    callback di-loop-source-selected(int, string);
+    callback di-loop-choose-file(int);
+    callback di-loop-play(int);
+    callback di-loop-stop(int);
     callback remove-chain(int);
     callback move-chain-up(int);
     callback move-chain-down(int);
@@ -35,6 +47,9 @@ export component ChainRow inherits Rectangle {
     callback save-chain-preset(int);
     callback probe-chain-latency(int);
     callback select-chain-block(int, int);
+    // #591: select the whole chain as the footswitch's active chain
+    // (no specific block). Fired by tapping empty header space.
+    callback select-chain(int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
@@ -72,7 +87,27 @@ export component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
-    height: 74px + (root.block-row-count * 108px);
+    // #591: outline the row when this chain is the active selection AND a
+    // MIDI command is recent (last 10s). The marker is MIDI-activity
+    // feedback — it appears on a footswitch command and fades out after
+    // 10s of no stimulus (`midi-selection-active` flips false). Lit when
+    // the chain is enabled, dimmer when disabled.
+    property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
+    border-width: (root.chain-selected && root.midi-selection-active) ? 2px : 0px;
+    border-color: root.chain.enabled ? #f0a020 : #f0a02055;
+    animate border-width { duration: 350ms; easing: ease-out; }
+    animate border-color { duration: 350ms; easing: ease-out; }
+    // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
+    // which collided with the block grid (bottom at y = 62 + n*108).
+    // Add 32px of breathing room so the meters sit clearly below the
+    // last row of blocks. Per-stream meter rows (one per stream) stack
+    // downward from the base meter `y`: every extra stream beyond the
+    // first adds 22 px so the card grows and the rows don't bleed into
+    // the next chain card (user feedback: "tem que dar espaço").
+    height: 106px + (root.block-row-count * 108px)
+        + (root.chain.stream_meters.length > 1
+            ? (root.chain.stream_meters.length - 1) * 22px
+            : 0px);
 
     Rectangle {
         x: 0px;
@@ -80,6 +115,18 @@ export component ChainRow inherits Rectangle {
         width: parent.width;
         height: 58px;
         background: transparent;
+
+        // #591: tapping empty header space selects the chain as the
+        // footswitch's active chain. Declared first → lowest z-order, so
+        // the PowerSwitch / title / action controls on top still get their
+        // own clicks; only the gaps fall through to this selector.
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => { root.select-chain(root.chain-index); }
+        }
 
         PowerSwitch {
             x: 10px;
@@ -108,7 +155,10 @@ export component ChainRow inherits Rectangle {
         ChainTitlePreset {
             x: 72px;
             y: 9px;
-            width: parent.width - 72px - 332px;
+            // Preset open/save moved into this component, so the
+            // chain-action cluster on the right needs ~80px less.
+            // Title area now reaches further across the row.
+            width: parent.width - 72px - 252px;
             height: 40px;
             title: root.chain.title;
             nav: root.rig-nav;
@@ -122,19 +172,49 @@ export component ChainRow inherits Rectangle {
             scene-picked(s) => {
                 root.switch-chain-scene(s);
             }
+            rename-preset(name) => {
+                root.rename-chain-preset(name);
+            }
+            load-preset => {
+                root.configure-chain-preset(root.chain-index);
+            }
+            save-preset => {
+                root.save-chain-preset(root.chain-index);
+            }
         }
 
         // Volume da chain (#440) atrás de ícone (#436): clica no alto-
         // falante e o slider aparece; fica junto ao cluster de ações.
         ChainVolumeButton {
-            x: parent.width - 356px;
+            x: parent.width - 276px;
             y: 12px;
             volume: root.chain.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
+        // #614: DI loop control — headphones icon, next to the volume icon.
+        // Click reveals a ComboBox (source select) + play/stop toggle.
+        ChainDiLoopButton {
+            x: parent.width - 308px;
+            y: 12px;
+            playing: root.chain.di_loop_playing;
+            sources: root.chain.di_loop_sources;
+            di-loop-source-selected(src) => {
+                root.di-loop-source-selected(root.chain-index, src);
+            }
+            di-loop-choose-file => {
+                root.di-loop-choose-file(root.chain-index);
+            }
+            di-loop-play => {
+                root.di-loop-play(root.chain-index);
+            }
+            di-loop-stop => {
+                root.di-loop-stop(root.chain-index);
+            }
+        }
+
         if !root.fullscreen : ChainActionIcon {
-            x: parent.width - 196px;
+            x: parent.width - 116px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
             tooltip: @tr("tooltip-expand-blocks");
@@ -142,7 +222,7 @@ export component ChainRow inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 236px;
+            x: parent.width - 156px;
             y: 14px;
             icon: @image-url("../assets/sonar.svg");
             tooltip: @tr("tooltip-measure-latency");
@@ -153,7 +233,7 @@ export component ChainRow inherits Rectangle {
         // boundary icon (first/last) renders dimmed and the wiring side
         // ignores no-op clicks. Issue #246.
         if root.chain-count > 1 : ChainActionIcon {
-            x: parent.width - 316px;
+            x: parent.width - 236px;
             y: 14px;
             opacity: root.chain-index == 0 ? 0.35 : 1.0;
             icon: @image-url("../assets/arrow-up.svg");
@@ -162,7 +242,7 @@ export component ChainRow inherits Rectangle {
         }
 
         if root.chain-count > 1 : ChainActionIcon {
-            x: parent.width - 276px;
+            x: parent.width - 196px;
             y: 14px;
             opacity: root.chain-index >= root.chain-count - 1 ? 0.35 : 1.0;
             icon: @image-url("../assets/arrow-down.svg");
@@ -171,27 +251,11 @@ export component ChainRow inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 156px;
+            x: parent.width - 76px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: @tr("tooltip-configure");
             clicked => { root.configure-chain(root.chain-index); }
-        }
-
-        ChainActionIcon {
-            x: parent.width - 116px;
-            y: 14px;
-            icon: @image-url("../assets/open-file.svg");
-            tooltip: @tr("tooltip-open-preset");
-            clicked => { root.configure-chain-preset(root.chain-index); }
-        }
-
-        ChainActionIcon {
-            x: parent.width - 76px;
-            y: 14px;
-            icon: @image-url("../assets/save.svg");
-            tooltip: @tr("tooltip-save-preset");
-            clicked => { root.save-chain-preset(root.chain-index); }
         }
 
         ChainActionIcon {
@@ -360,6 +424,8 @@ export component ChainRow inherits Rectangle {
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
+            neighbor: root.selected-block-chain-index == root.chain-index && root.selected-block-neighbor-index == block-index;
+            markers-visible: root.midi-selection-active;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
             chain-dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             clicked => { root.select-chain-block(root.chain-index, block-index); }
@@ -588,5 +654,134 @@ export component ChainRow inherits Rectangle {
         }
     }
 
+    // Issue #496 / #32 / #36: per-chain IN/OUT peak-meter bars,
+    // placed at the FOOTER of the chain card — outside the inner
+    // routing rectangle so `root.height` (ChainRow height) lands at
+    // Per-stream INPUT + OUTPUT bars: one full row per stream the
+    // chain runs (label + bar + dB text on left for INPUT and on
+    // right for OUTPUT), stacked vertically. User ask 24 May 2026:
+    // "eh so ter uma linha dessa para cada guitarra porra". Single-
+    // stream chains render one row at the original position; N-stream
+    // chains stack UPWARD from there — the LAST stream lands at the
+    // original meter slot (y = root.height - 22px), earlier streams
+    // above it. Combined with the `(N-1)*22px` height bump above,
+    // every row stays inside the card and the rows don't bleed into
+    // the next chain card.
+    for stream[i] in root.chain.stream_meters: Rectangle {
+        x: 0px;
+        y: root.height - 22px - (root.chain.stream_meters.length - 1 - i) * 22px;
+        width: root.width;
+        height: 16px;
+
+        // ── INPUT (left): label + bar + dB text ──
+        Rectangle {
+            x: 60px; y: 0px;
+            width: 220px; height: 16px;
+            Text {
+                x: 0px; y: 0px;
+                width: 44px; height: parent.height;
+                text: "INPUT";
+                font-size: 8px;
+                font-weight: 700;
+                color: #9ca3af;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                x: 48px; y: 2px;
+                width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-radius: 2px;
+                background: @linear-gradient(90deg,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
+                    #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0,
+                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0));
+                    y: 0px;
+                    width: parent.width * (1.0 - Math.max(0.0,
+                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 182px; y: 0px;
+                width: 36px; height: parent.height;
+                text: stream.in_dbfs <= -119.0
+                    ? "—"
+                    : Math.round(stream.in_dbfs) + " dB";
+                font-size: 9px;
+                font-weight: 700;
+                color: stream.in_dbfs <= -119.0 ? #6b7280
+                     : stream.in_dbfs > -3.0     ? #f87171
+                     : stream.in_dbfs >= -30.0   ? #4ade80
+                     :                              #facc15;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+
+        // ── OUTPUT (right): label + bar + dB text ──
+        Rectangle {
+            x: parent.width - 240px; y: 0px;
+            width: 230px; height: 16px;
+            Text {
+                x: 0px; y: 0px;
+                width: 50px; height: parent.height;
+                text: "OUTPUT";
+                font-size: 8px;
+                font-weight: 700;
+                color: #9ca3af;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                x: 54px; y: 2px;
+                width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-radius: 2px;
+                background: @linear-gradient(90deg,
+                    #facc1560 0%,
+                    #facc15 6%,
+                    #facc15 35%,
+                    #4ade80 50%,
+                    #4ade80 88%,
+                    #f87171 95%,
+                    #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0,
+                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0));
+                    y: 0px;
+                    width: parent.width * (1.0 - Math.max(0.0,
+                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 188px; y: 0px;
+                width: 40px; height: parent.height;
+                text: stream.out_dbfs <= -119.0
+                    ? "—"
+                    : Math.round(stream.out_dbfs) + " dB";
+                font-size: 9px;
+                font-weight: 700;
+                color: stream.out_dbfs <= -119.0 ? #6b7280
+                     : stream.out_dbfs > -3.0     ? #f87171
+                     : stream.out_dbfs >= -30.0   ? #4ade80
+                     :                               #facc15;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+    }
 }
 

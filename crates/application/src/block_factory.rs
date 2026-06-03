@@ -62,9 +62,47 @@ pub fn build_default_block(
             e
         )
     })?;
-    let params = ParameterSet::default()
+    // Issue #630: a grid pedal (NAM/IR capture grid) must be born at a REAL
+    // capture, never at the per-axis-minimum combination. `normalized_against`
+    // fills each axis independently with its first declared value, which for a
+    // multi-axis grid can yield a cell that does NOT exist (and historically
+    // defaulted drive/level to 0, which the removed #402 rule treated as
+    // "off"). Seed the FIRST declared capture's axis values up front so the
+    // born default is a deterministic, audible grid point; `normalized_against`
+    // then only fills the non-grid knobs (output_db, EQ, gate) with defaults.
+    let mut seed = ParameterSet::default();
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        let grid = match &pkg.manifest.backend {
+            plugin_loader::manifest::Backend::Nam {
+                parameters,
+                captures,
+            }
+            | plugin_loader::manifest::Backend::Ir {
+                parameters,
+                captures,
+            } => plugin_loader::dispatch::first_capture_axis_values(parameters, captures),
+            _ => Vec::new(),
+        };
+        for (name, value) in grid {
+            seed.insert(name, manifest_value_to_param(value));
+        }
+    }
+    let mut params = seed
         .normalized_against(&schema)
         .map_err(|e| anyhow!("param normalisation failed for '{}': {}", model_id, e))?;
+    // Seed `output_db` from the plugin manifest's audit baseline so
+    // the user-visible knob mirrors the engine's actual offset from
+    // day one. The previous design added the audit silently at load
+    // time (in `nam::from_package`) — that hid the offset under a
+    // UI knob that read 0 even though the signal was being attenuated.
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        if let Some(audit_db) = pkg.manifest.output_gain_db {
+            params.insert(
+                "output_db",
+                domain::value_objects::ParameterValue::Float(audit_db),
+            );
+        }
+    }
     let kind = build_audio_block_kind(effect_type, model_id, params)
         .map_err(|e| anyhow!("build_audio_block_kind failed for '{}': {}", model_id, e))?;
     Ok(AudioBlock {
@@ -74,16 +112,48 @@ pub fn build_default_block(
     })
 }
 
-/// Determine which effect_type owns the given model_id by attempting a schema
-/// lookup across the known effect_type values.
+/// Convert a manifest grid `ParameterValue` into the block `ParameterValue`
+/// stored in a `ParameterSet`. Numeric axes become `Float` (the grid stores
+/// `f64`; the runtime resolves captures with `get_f32`), text axes become
+/// `String`, bool axes become `Bool`.
+fn manifest_value_to_param(
+    value: plugin_loader::manifest::ParameterValue,
+) -> domain::value_objects::ParameterValue {
+    use domain::value_objects::ParameterValue as Param;
+    use plugin_loader::manifest::ParameterValue as Manifest;
+    match value {
+        Manifest::Number(n) => Param::Float(n as f32),
+        Manifest::Text(t) => Param::String(t),
+        Manifest::Bool(b) => Param::Bool(b),
+    }
+}
+
+/// Determine which effect_type owns the given model_id.
 ///
-/// This is only needed for `ReplaceBlockModel` when we want to let the caller
-/// specify just the model_id without the effect_type. In this project the
-/// model_id is unique within the registry, so we can resolve it by trial.
+/// Disk-package models (NAM, IR, LV2, VST3) declare a single `type` in
+/// their manifest; the `plugin_loader` registry holds it. Reading it
+/// there is the authoritative resolution and is tried first.
 ///
-/// Returns the effect_type string that resolves the model, or `Err` if none
-/// does.
+/// Issue #537 — the trial loop below used to be the only path: it
+/// scanned effect_types in declaration order and returned the first one
+/// whose `schema_for_block_model` lookup succeeded. The disk-package
+/// schema lookup does not filter by effect_type, so any cab IR
+/// (`ir_v30_4x12`) matched `EFFECT_TYPE_PREAMP` first (because preamp
+/// leads the list) and the slot morphed cab→preamp on swap, sending the
+/// IR convolver through a preamp slot at runtime — broadband noise.
+///
+/// Native models still fall through to the trial loop; natives register
+/// under a single effect_type per `MODEL_DEFINITION`, so the first
+/// successful match is correct for them.
+///
+/// # Errors
+///
+/// Returns `Err` when the model is neither a registered disk package nor
+/// resolvable through any native effect_type registry.
 pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
+    if let Some(pkg) = plugin_loader::registry::find(model_id) {
+        return Ok(block_type_to_effect_type(pkg.manifest.block_type).to_string());
+    }
     use block_core::*;
     let candidate_types = [
         EFFECT_TYPE_PREAMP,
@@ -113,4 +183,30 @@ pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
         "model_id '{}' not found in any known effect_type registry",
         model_id
     ))
+}
+
+/// Map a manifest's `BlockType` to the canonical effect_type string
+/// defined in `block-core`. Counterpart to the private mapper in
+/// `project::catalog::block_type_for_effect_type` (kept private there
+/// because it's only consulted from the catalog). Lives here so this
+/// crate can resolve disk-package types without growing `catalog.rs`
+/// (already past the 600-line cap).
+fn block_type_to_effect_type(block_type: plugin_loader::manifest::BlockType) -> &'static str {
+    use block_core::*;
+    use plugin_loader::manifest::BlockType;
+    match block_type {
+        BlockType::Preamp => EFFECT_TYPE_PREAMP,
+        BlockType::Amp => EFFECT_TYPE_AMP,
+        BlockType::Cab => EFFECT_TYPE_CAB,
+        BlockType::Body => EFFECT_TYPE_BODY,
+        BlockType::GainPedal => EFFECT_TYPE_GAIN,
+        BlockType::Delay => EFFECT_TYPE_DELAY,
+        BlockType::Reverb => EFFECT_TYPE_REVERB,
+        BlockType::Mod => EFFECT_TYPE_MODULATION,
+        BlockType::Dyn => EFFECT_TYPE_DYNAMICS,
+        BlockType::Filter => EFFECT_TYPE_FILTER,
+        BlockType::Wah => EFFECT_TYPE_WAH,
+        BlockType::Pitch => EFFECT_TYPE_PITCH,
+        BlockType::Util => EFFECT_TYPE_UTILITY,
+    }
 }

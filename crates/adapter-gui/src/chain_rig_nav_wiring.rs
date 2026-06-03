@@ -48,6 +48,12 @@ pub(crate) fn refresh_from_session(
 ) {
     if let Some(session) = project_session.borrow().as_ref() {
         refresh_chain_rig_nav(window, session);
+        // #591: show the active chain/block marker as soon as a project
+        // opens (every open path funnels through here).
+        let proj = session.project.borrow();
+        let sel_arc = session.dispatcher.selection_state();
+        let sel = sel_arc.read().expect("selection state poisoned");
+        crate::selection_highlight::sync_selection_markers(window, &proj, &sel);
     }
 }
 
@@ -59,6 +65,22 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
         Some(rig) => rig_nav_rows(&rig.borrow(), &session.project.borrow()),
         None => Vec::new(),
     };
+    log::info!(
+        "refresh_chain_rig_nav: session.rig={}, project.chains={}, rows={}",
+        session.rig.is_some(),
+        session.project.borrow().chains.len(),
+        rows.len(),
+    );
+    for (i, r) in rows.iter().enumerate() {
+        log::info!(
+            "  row[{i}] input={:?} preset_labels={:?} active={} scene={}/{}",
+            r.input,
+            r.preset_labels,
+            r.active_index,
+            r.scene,
+            r.scene_count,
+        );
+    }
     let items: Vec<ChainRigNav> = rows
         .into_iter()
         .map(|r| ChainRigNav {
@@ -130,10 +152,31 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     if events.is_empty() {
         return;
     }
+
+    // #513 / #493: forward learn-mode toggles to the MIDI daemon's
+    // process-wide flag. Safe whether or not the daemon thread is
+    // running — the `Arc<LearnState>` exists per-process and the daemon
+    // only consults it on incoming events.
+    for ev in events {
+        match ev {
+            Event::MidiLearnStarted => adapter_midi::learn_state().start(),
+            Event::MidiLearnStopped => adapter_midi::learn_state().stop(),
+            _ => {}
+        }
+    }
+
+    // #591: a footswitch `toggle_compact_view` → SetCompactViewEnabled emits
+    // this. The compact view is a per-chain window opened via the same
+    // callback the expand button uses — open it for the active chain.
+    let open_compact_view = events
+        .iter()
+        .any(|e| matches!(e, Event::CompactViewEnabledChanged { enabled: true }));
+
     let session_borrow = ctx.project_session.borrow();
     let Some(session) = session_borrow.as_ref() else {
         return;
     };
+    let mut compact_open_idx: Option<i32> = None;
 
     // Re-sync the live runtime for each chain a command touched (once).
     let mut synced: Vec<ChainId> = Vec::new();
@@ -153,6 +196,23 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         &ctx.output_chain_devices.borrow(),
     );
     refresh_chain_rig_nav(window, session);
+    // #591: keep the on-screen chain/block markers in lock-step with the
+    // dispatcher-owned selection. This is the path a footswitch press
+    // drains through, so moving the active chain/block via MIDI now shows
+    // on screen (before, it changed invisibly).
+    {
+        let proj = session.project.borrow();
+        let sel_arc = session.dispatcher.selection_state();
+        let sel = sel_arc.read().expect("selection state poisoned");
+        crate::selection_highlight::sync_selection_markers(window, &proj, &sel);
+        if open_compact_view {
+            compact_open_idx = sel
+                .active_chain
+                .as_deref()
+                .and_then(|id| proj.chains.iter().position(|c| c.id.0 == id))
+                .map(|i| i as i32);
+        }
+    }
     sync_project_dirty(
         window,
         session,
@@ -160,6 +220,14 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         &ctx.project_dirty,
         ctx.auto_save,
     );
+
+    // #591: open the active chain's compact view AFTER dropping the session
+    // borrow — the callback re-borrows `project_session`, so invoking it
+    // while still borrowed would panic.
+    drop(session_borrow);
+    if let Some(idx) = compact_open_idx {
+        window.invoke_open_compact_chain_view(idx);
+    }
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
@@ -182,4 +250,54 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
             }
         });
     }
+    {
+        let weak = window.as_weak();
+        let ctx = ctx.clone();
+        window.on_rename_chain_preset(move |chain_index, new_name| {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            let session_borrow = ctx.project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            if let Err(e) =
+                apply_rename_rig_preset(session, chain_index as usize, new_name.to_string())
+            {
+                log::warn!("rename_chain_preset dispatch failed: {e}");
+                return;
+            }
+            refresh_chain_rig_nav(&window, session);
+        });
+    }
+}
+
+/// Dispatches `Command::RenameRigPreset` for the chain at
+/// `chain_index`. Empty `new_name` is a no-op (the user pressed OK
+/// with no text). Surfaces an error only if the chain index is out
+/// of range; non-`rig:` chains silently succeed because the
+/// dispatcher treats them as no-ops by design.
+pub(crate) fn apply_rename_rig_preset(
+    session: &ProjectSession,
+    chain_index: usize,
+    new_name: String,
+) -> anyhow::Result<()> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    let chain_id = session
+        .project
+        .borrow()
+        .chains
+        .get(chain_index)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| anyhow::anyhow!("chain index {chain_index} out of range"))?;
+    session
+        .dispatcher
+        .dispatch(application::command::Command::RenameRigPreset {
+            chain: chain_id,
+            name: trimmed.to_string(),
+        })?;
+    Ok(())
 }

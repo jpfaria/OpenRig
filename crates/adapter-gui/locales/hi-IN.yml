@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "इनपुट चैनल पहले से
 error-select-option-required-for: "%{label} के लिए एक विकल्प चुनें"
 error-select-invalid-for: "%{label} के लिए अमान्य चयन"
 error-invalid-project: "अमान्य प्रोजेक्ट"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

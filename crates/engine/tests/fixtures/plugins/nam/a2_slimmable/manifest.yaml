@@ -1,0 +1,17 @@
+manifest_version: 1
+id: nam_a2_slimmable
+display_name: A2 Slimmable
+brand: nam
+type: amp
+backend: nam
+sources:
+- https://www.tone3000.com/
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - a2
+captures:
+- values:
+    preset: a2
+  file: captures/r7hqwhd3s2_a2.nam

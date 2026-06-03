@@ -24,11 +24,12 @@
 //!     used only from `runtime.rs`, `stream_tap.rs`, and the test
 //!     modules.
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, ArcSwapOption};
+use crate::di_loop::DiLoop;
 use block_core::{AudioChannelLayout, StreamHandle};
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
@@ -166,6 +167,14 @@ pub(crate) struct BlockRuntimeNode {
     pub(crate) block_id: BlockId,
     pub(crate) block_snapshot: AudioBlock,
     pub(crate) input_layout: AudioChannelLayout,
+    /// Whether the signal reaching this block is effectively mono — i.e. a
+    /// stereo bus whose two channels carry the identical sample (a mono
+    /// source broadcast to `Stereo([s, s])`, preserved by every preceding
+    /// block). Issue #588: a `DualMono` model under effective-mono content
+    /// is built as a single mono processor instead of one per channel
+    /// (bit-identical output, half the model footprint). Part of the reuse
+    /// identity: if this flips, the block must rebuild (mono ↔ dual).
+    pub(crate) content_mono: bool,
     pub(crate) output_layout: AudioChannelLayout,
     pub(crate) scratch: ProcessorScratch,
     pub(crate) processor: RuntimeProcessor,
@@ -178,9 +187,17 @@ pub(crate) struct BlockRuntimeNode {
     /// extends only realloc if capacity is exceeded — which after the
     /// first frame is no longer the case for fixed-buffer audio backends.
     pub(crate) fade_dry_buffer: Vec<AudioFrame>,
-    /// Set to true if this block panicked during audio processing.
-    /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
+    /// Set to true if this block panicked during audio processing OR if
+    /// its runtime build failed at setup time. Once faulted, the block is
+    /// permanently bypassed to prevent repeated crashes.
     pub(crate) faulted: bool,
+    /// Human-readable explanation when [`Self::faulted`] is set due to a
+    /// build-time failure. `None` for runtime panics (the panic site logs
+    /// separately) and for healthy blocks. Surfaced via
+    /// `engine::offline::RenderOutcome::faulted_blocks` so offline-render
+    /// callers can refuse to claim success when a block was silently
+    /// bypassed. Issue #574.
+    pub(crate) fault_reason: Option<String>,
 }
 
 pub(crate) struct SelectRuntimeState {
@@ -291,6 +308,66 @@ pub struct ChainRuntimeState {
     /// f32 armazenado como u32 bits (Relaxed ordering é suficiente — não há
     /// sincronização com outras escritas).
     pub(crate) volume_pct_bits: AtomicU32,
+    /// Lock-free mirror of `processing.input_states.len()` (issue #580).
+    /// The meter polling timer calls `stream_count` at 30 Hz on the GUI
+    /// thread — reading it through the `processing` Mutex contends with
+    /// the audio thread's `process_input_f32 → try_lock`, and a failed
+    /// try_lock there means the callback emits silence (audible click at
+    /// small buffer sizes). `input_states.len()` only changes on runtime
+    /// build / rebuild in `runtime_graph`, so a single `AtomicUsize`
+    /// updated at those two sites is sufficient — readers never block
+    /// the audio thread. Relaxed ordering: the value is purely
+    /// informational for the GUI's subscription loop; a reader briefly
+    /// seeing the old count just defers an extra subscription to the
+    /// next tick. No synchronisation with audio-thread state needed.
+    pub(crate) stream_count: AtomicUsize,
+    /// Lock-free producer/consumer queue for pending block-toggle
+    /// requests (issue #580 follow-up). The GUI's
+    /// `Command::ToggleBlockEnabled` handler calls `set_block_enabled`,
+    /// which pushes `(block_id, enabled)` here without taking any lock.
+    /// The audio thread drains and applies the toggle inside its
+    /// `process_input_f32` `try_lock`'d section (one cheap walk over
+    /// `input_states.blocks`, in place). Result: the GUI thread NEVER
+    /// holds `processing`, so the audio thread's `try_lock` never fails
+    /// because of a user toggle — the click the user heard on every
+    /// block on/off is gone. Capacity 64 is far above the user's
+    /// per-frame click rate (the audio drain runs at hundreds of Hz),
+    /// so a queue overflow in practice would mean the audio thread has
+    /// stalled — which is a louder bug than a dropped toggle. The
+    /// `set_block_enabled` API still surfaces such overflows as `Err`.
+    pub(crate) pending_block_toggles: ArrayQueue<(BlockId, bool)>,
+    /// Lock-free mirror of the block ids whose live node is a
+    /// `RuntimeProcessor::Bypass` — blocks built while disabled (or whose
+    /// build faulted) carry no real DSP. Re-enabling such a block CANNOT
+    /// be served by the queued in-place fade fast path (there is no
+    /// processor to fade in), so `set_block_enabled` declines synchronously
+    /// and the caller falls back to a full `upsert_chain` rebuild.
+    ///
+    /// Issue #580 regression: once the fast path started *queueing* every
+    /// toggle and always returning `Ok`, the synchronous decline that used
+    /// to trigger that rebuild was lost — re-enabling a born-disabled block
+    /// only spammed "has no live processor" to `error_queue` and the block
+    /// never came back. This mirror restores the decline without taking the
+    /// `processing` lock on the GUI thread (`ArcSwap::load` is wait-free).
+    /// Swapped at the same build/rebuild sites that update `stream_count`,
+    /// so it always reflects the current set of live nodes.
+    pub(crate) bypass_block_ids: ArcSwap<HashSet<BlockId>>,
+    /// Ephemeral per-chain virtual DI loop source (issue #614). `None` means
+    /// use the live device input; `Some` means feed samples from the
+    /// pre-decoded buffer instead. Published off the audio thread via
+    /// `ArcSwapOption` so the audio thread reads it lock-free on every
+    /// `process_input_f32` callback. `set_di_loop` also resets
+    /// `di_loop_pos` to 0 so playback always starts from the beginning.
+    pub(crate) di_loop: ArcSwapOption<DiLoop>,
+    /// Playback cursor into the active `di_loop` buffer (frame index).
+    /// Advanced once per input frame in `process_input_f32` by the
+    /// single audio-thread writer; wrapped modulo `DiLoop::len()`.
+    /// Relaxed ordering is sufficient: there is exactly one writer (the
+    /// audio thread) and one reader (also the audio thread), so no
+    /// cross-thread synchronisation is needed. `set_di_loop` resets this
+    /// to 0 from the off-thread caller; the audio thread will read the
+    /// new value on its next callback.
+    pub(crate) di_loop_pos: AtomicUsize,
 }
 
 impl ChainRuntimeState {
@@ -445,11 +522,56 @@ impl ChainRuntimeState {
     /// How many streams this chain currently runs (one per
     /// `InputProcessingState`). Used by the UI to know how many
     /// per-stream taps to subscribe.
+    ///
+    /// Reads a lock-free atomic mirror updated by `runtime_graph` on
+    /// build / rebuild (issue #580). Never blocks — the meter polling
+    /// timer calls this at 30 Hz on the GUI thread, and any lock taken
+    /// here contends with the audio thread's `try_lock` on
+    /// `processing`, silencing callbacks at small buffer sizes.
     pub fn stream_count(&self) -> usize {
-        self.processing
-            .lock()
-            .map(|p| p.input_states.len())
-            .unwrap_or(0)
+        self.stream_count.load(Ordering::Relaxed)
+    }
+
+    /// For a given LOCAL stream index in this runtime
+    /// (`0..stream_count()`), return the input routing metadata needed
+    /// to subscribe its per-stream INPUT meter tap:
+    /// `(cpal_input_index, total_channels, device_channels)` where:
+    ///
+    /// - `cpal_input_index` is the runtime's cpal-callback group index
+    ///   the tap must filter on (the value `process_input_f32` is
+    ///   called with by the cpal stream that owns this segment).
+    /// - `total_channels` is `max(device_channels) + 1`, sized so the
+    ///   `InputTap`'s `channel_rings` Vec covers every subscribed
+    ///   channel. Higher cpal-side counts are tolerated by the tap
+    ///   dispatch loop (it skips channels past its own length).
+    /// - `device_channels` is the set of interleaved-frame channels
+    ///   this segment reads from (one entry for mono / split-mono /
+    ///   single-channel mono, two for stereo / dual-mono). Issue #557:
+    ///   the UI must subscribe THESE channels, not a default `[0]`,
+    ///   so a chain wired to device channel 1 actually sees channel
+    ///   1's signal in its meter ring.
+    ///
+    /// Returns `None` if `local_stream_index >= stream_count()` or no
+    /// cpal group hosts that segment (degenerate, only happens during
+    /// a teardown-rebuild race).
+    pub fn input_routing_for_stream(
+        &self,
+        local_stream_index: usize,
+    ) -> Option<(usize, usize, Vec<usize>)> {
+        let processing = self.processing.lock().ok()?;
+        let input_state = processing.input_states.get(local_stream_index)?;
+        let cpal_input_index = processing
+            .input_to_segments
+            .iter()
+            .position(|seg_idxs| seg_idxs.contains(&local_stream_index))?;
+        let device_channels = input_state.input_channels.clone();
+        let total_channels = device_channels
+            .iter()
+            .copied()
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
+        Some((cpal_input_index, total_channels, device_channels))
     }
 
     /// Returns stream data for a block by ID, or None if not found or empty.
@@ -478,6 +600,22 @@ impl ChainRuntimeState {
             out.push(err);
         }
         out
+    }
+
+    /// Publish a new DI loop (or clear it) and reset the playback cursor
+    /// to 0. Safe to call from any thread. The audio thread will pick up
+    /// the change on its next `process_input_f32` callback (lock-free
+    /// ArcSwapOption load).
+    pub fn set_di_loop(&self, di: Option<Arc<DiLoop>>) {
+        self.di_loop.store(di);
+        self.di_loop_pos.store(0, Ordering::Relaxed);
+    }
+
+    /// Returns `true` if a virtual DI loop is currently active for this
+    /// chain (i.e. `process_input_f32` will read from the buffer rather
+    /// than the live device input). Lock-free (single ArcSwapOption load).
+    pub fn has_di_loop(&self) -> bool {
+        self.di_loop.load().is_some()
     }
 }
 

@@ -83,6 +83,7 @@ fn make_project(chains: Vec<Chain>) -> Project {
         name: Some("Test Project".to_string()),
         device_settings: vec![],
         chains,
+        midi: None,
     }
 }
 

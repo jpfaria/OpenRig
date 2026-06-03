@@ -15,7 +15,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use infra_cpal::AudioDeviceDescriptor;
-use infra_filesystem::{AppConfig, GuiAudioSettings};
+use infra_filesystem::{AppConfig, GuiSystemSettings};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use ui_openrig::UiRuntimeContext;
 
@@ -41,7 +41,7 @@ pub(crate) fn populate_initial_window_state(
     window: &AppWindow,
     project_settings_window: &ProjectSettingsWindow,
     context: &UiRuntimeContext,
-    settings: &GuiAudioSettings,
+    settings: &GuiSystemSettings,
     auto_save: bool,
     fullscreen: bool,
     needs_audio_settings: bool,
@@ -56,7 +56,7 @@ pub(crate) fn populate_initial_window_state(
     window.set_show_project_setup(false);
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
-    window.set_show_project_settings(false);
+    window.set_show_settings(false);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
     window.set_project_title(rust_i18n::t!("default-project-title").as_ref().into());
@@ -76,10 +76,18 @@ pub(crate) fn populate_initial_window_state(
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
 
+    // Audio device selection is a SYSTEM concept (ADR 0003): repopulate the
+    // `selected` flags from the persisted per-machine config, not the project
+    // (which does not own the selection). Passing `&[]` here is what made the
+    // selection look empty on every reopen.
+    let persisted_device_settings = crate::project_ops::build_device_settings_from_gui(
+        &settings.input_devices,
+        &settings.output_devices,
+    );
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
         &*input_chain_devices.borrow(),
         &*output_chain_devices.borrow(),
-        &[],
+        &persisted_device_settings,
     )));
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));

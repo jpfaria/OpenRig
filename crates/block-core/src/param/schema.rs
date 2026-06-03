@@ -205,19 +205,19 @@ fn validate_int_range(value: i64, min: i64, max: i64, step: i64) -> Result<(), S
     Ok(())
 }
 
-fn validate_float_range(value: f32, min: f32, max: f32, step: f32) -> Result<(), String> {
+fn validate_float_range(value: f32, min: f32, max: f32, _step: f32) -> Result<(), String> {
     if value < min || value > max {
         return Err(format!(
             "value {} is outside range [{}..={}]",
             value, min, max
         ));
     }
-    if step > 0.0 {
-        let steps = (value - min) / step;
-        let nearest = steps.round();
-        if (steps - nearest).abs() > 1e-4 {
-            return Err(format!("value {} does not align with step {}", value, step));
-        }
-    }
+    // `step` is a UI hint (slider tick resolution). It is intentionally
+    // not enforced as a constraint: continuous sliders, MCP-supplied
+    // floats and scene snapshots routinely land between grid points and
+    // are still valid signal-wise. Enforcing it broke the runtime on
+    // every scene change because validate_project would then refuse the
+    // chain ("output meter freezes at -120 dBFS" -- user screenshot
+    // 21 May 2026). Range bounds remain enforced above.
     Ok(())
 }

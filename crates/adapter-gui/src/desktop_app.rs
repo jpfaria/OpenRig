@@ -212,7 +212,7 @@ pub fn run_desktop_app(
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
 
-    // language_wiring needs to know how to push the new font to every Window
+    // settings::language needs to know how to push the new font to every Window
     // (each Slint Window is a separate root with its own Locale global, so a
     // single set on AppWindow doesn't reach the secondary windows).
     {
@@ -268,7 +268,12 @@ pub fn run_desktop_app(
                 crate::Locale::get(w).set_font_family(f());
             }
         };
-        crate::language_wiring::wire(&window, project_session.clone(), apply_font_to_all);
+        crate::settings::language::wire(
+            &window,
+            &project_settings_window,
+            project_session.clone(),
+            apply_font_to_all,
+        );
     }
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
@@ -339,6 +344,15 @@ pub fn run_desktop_app(
         &window,
         toast_timer.clone(),
         project_runtime.clone(),
+        project_session.clone(),
+    );
+
+    // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
+    // ~30 Hz timer that subscribes new chains' input + stream taps
+    // and writes peak dBFS into the matching ProjectChainItem rows.
+    crate::meter_wiring::start_meter_polling(
+        project_runtime.clone(),
+        project_chains.clone(),
         project_session.clone(),
     );
 
@@ -434,11 +448,11 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    // --- Audio settings save callbacks (extracted to audio_settings_save_wiring) ---
-    crate::audio_settings_save_wiring::wire(
+    // --- Audio settings save callbacks (extracted to settings::audio) ---
+    crate::settings::audio::wire(
         &window,
         &project_settings_window,
-        crate::audio_settings_save_wiring::AudioSettingsSaveCtx {
+        crate::settings::audio::AudioSettingsSaveCtx {
             input_devices: input_devices.clone(),
             output_devices: output_devices.clone(),
             project_devices: project_devices.clone(),
@@ -452,8 +466,80 @@ pub fn run_desktop_app(
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
             auto_save,
+            app_config: app_config.clone(),
         },
     );
+    // --- System / MIDI devices section (#513) ---
+    // Seed the in-memory row list from the persisted AppConfig and bind
+    // it to the Slint model the section reads from. Each user edit
+    // dispatches `SaveMidiDevices` (when a session is loaded) and
+    // persists into config.yaml in the same callback — see
+    // `crate::settings::midi_devices` for the rationale.
+    let midi_device_rows: Rc<RefCell<Vec<infra_filesystem::MidiDeviceSelection>>> =
+        Rc::new(RefCell::new(
+            infra_filesystem::FilesystemStorage::load_app_config()
+                .ok()
+                .map(|c| c.midi_devices)
+                .unwrap_or_default(),
+        ));
+    let midi_device_model: Rc<VecModel<crate::MidiDeviceRow>> = Rc::new(VecModel::default());
+    crate::settings::midi_devices::replace_model(&midi_device_model, &midi_device_rows.borrow());
+    crate::settings::midi_devices::install(
+        &window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
+    crate::settings::midi_devices::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        midi_device_rows.clone(),
+        midi_device_model.clone(),
+    );
+    window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    project_settings_window.set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    // --- Project / Metadata section (#513) ---
+    let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    crate::settings::project_meta::install(
+        &window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    crate::settings::project_meta::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        last_dispatched_name.clone(),
+    );
+    // --- System / Paths section (#513) ---
+    crate::settings::paths::install(&window, project_session.clone(), app_config.clone());
+    crate::settings::paths::install_secondary(
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+    );
+    crate::settings::paths::seed_initial(&window);
+    crate::settings::paths::seed_initial_secondary(&project_settings_window);
+    // Seed the initial project-name and project-path-display from the session.
+    {
+        let sess = project_session.borrow();
+        let name: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project.borrow().name.clone())
+            .unwrap_or_default()
+            .into();
+        let path: slint::SharedString = sess
+            .as_ref()
+            .and_then(|s| s.project_path.as_ref().map(|p| p.display().to_string()))
+            .unwrap_or_else(|| "(unsaved)".into())
+            .into();
+        window.set_project_name(name.clone());
+        window.set_project_path_display(path.clone());
+        // Mirror onto the standalone settings window (#513): SettingsPage
+        // reads project-name from project-name-draft, but the path is a
+        // separate property that must be pushed independently.
+        project_settings_window.set_project_name_draft(name);
+        project_settings_window.set_project_path_display(path);
+    }
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(
         &window,
@@ -709,7 +795,15 @@ pub fn run_desktop_app(
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
             auto_save,
+            pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
+    );
+    // #614: DI loop file picker — separate module because chain_row_wiring
+    // is forbidden from using rfd:: (issue #511).
+    crate::di_loop_chooser_wiring::wire(
+        &window,
+        project_session.clone(),
+        toast_timer.clone(),
     );
     crate::chain_rig_nav_wiring::wire(
         &window,
@@ -775,6 +869,9 @@ pub fn run_desktop_app(
             auto_save,
         };
         let mcp_window = window.as_weak();
+        // Cloned for the meter resolver closure (the moves above
+        // consumed `project_chains` for the rig-nav ctx).
+        let chains_for_meters = mcp_ctx.project_chains.clone();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
@@ -801,6 +898,88 @@ pub fn run_desktop_app(
                             application::bridge::QueryKind::Ids => {
                                 Ok(application::query::list_ids(&project.borrow()))
                             }
+                            application::bridge::QueryKind::ChainMeters => {
+                                use slint::Model;
+                                let proj_borrow = project.borrow();
+                                let mut out = String::new();
+                                for (idx, chain) in proj_borrow.chains.iter().enumerate() {
+                                    let row = chains_for_meters.row_data(idx);
+                                    let (in_db, out_db) = row
+                                        .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
+                                        .unwrap_or((
+                                            engine::output_meter::SILENT_DBFS,
+                                            engine::output_meter::SILENT_DBFS,
+                                        ));
+                                    out.push_str(&format!(
+                                        "{}\t{:.1}\t{:.1}\n",
+                                        chain.id.0, in_db, out_db
+                                    ));
+                                }
+                                Ok(out)
+                            }
+                            application::bridge::QueryKind::ListChainPresets { chain } => {
+                                // #554: the chain's preset bank, served
+                                // from the in-memory RigProject so MCP /
+                                // gRPC see the same list the GUI shows
+                                // in the chain-title combobox.
+                                match session.rig.as_ref() {
+                                    Some(rig) => {
+                                        application::query::list_chain_presets(&rig.borrow(), chain)
+                                    }
+                                    None => Err("no rig attached to the session".to_string()),
+                                }
+                            }
+                            application::bridge::QueryKind::ListProjectPresets => {
+                                // #554 follow-up: project-level preset
+                                // pool (RigProject.presets in memory).
+                                // A preset can sit here without being
+                                // wired to any input bank yet.
+                                match session.rig.as_ref() {
+                                    Some(rig) => {
+                                        Ok(application::query::list_project_presets(&rig.borrow()))
+                                    }
+                                    None => Err("no rig attached to the session".to_string()),
+                                }
+                            }
+                            // #561 (expanded scope): plugin catalog
+                            // reads — same pure helpers MCP would call
+                            // (process-wide registry, no project state).
+                            application::bridge::QueryKind::ListPluginCatalog => {
+                                Ok(application::query::list_plugin_catalog())
+                            }
+                            application::bridge::QueryKind::GetPlugin { id } => {
+                                Ok(application::query::get_plugin(id))
+                            }
+                            application::bridge::QueryKind::FindPlugins { query } => {
+                                Ok(application::query::find_plugins(query))
+                            }
+                            // #572: per-plugin parameter schema
+                            // (catalog-level). No project state needed —
+                            // resolves against the process-wide plugin
+                            // registry, same as the catalog reads above.
+                            application::bridge::QueryKind::GetPluginParams { plugin_id } => {
+                                Ok(application::query::get_plugin_params(plugin_id))
+                            }
+                            // #572: per-block-instance descriptors
+                            // (schema + current value). Reads from the
+                            // live project the GUI session owns.
+                            application::bridge::QueryKind::GetBlockParams { chain, block } => {
+                                application::query::get_block_params(
+                                    &project.borrow(),
+                                    chain,
+                                    block,
+                                )
+                            }
+                            // #582: effective resolved system paths
+                            // (data root + every configurable directory)
+                            // for the `openrig://paths` MCP resource.
+                            // Loads from `config.yaml` on each call so
+                            // path overrides written via
+                            // `Command::Set*Path` are visible immediately
+                            // without restarting the process.
+                            application::bridge::QueryKind::Paths => {
+                                Ok(application::query::resolved_paths_json())
+                            }
                         },
                         32,
                     );
@@ -823,27 +1002,21 @@ pub fn run_desktop_app(
     // Same complementary-input pattern as MCP; wiring extracted to keep this
     // file within the size cap. Bound for the whole `window.run()`.
     let _midi_drain_timer = match midi_map {
-        Some(arg) => {
-            let map_path = match arg {
-                crate::cli::MidiMapArg::Default => FilesystemStorage::midi_map_path()?,
-                crate::cli::MidiMapArg::Path(p) => p,
-            };
-            Some(crate::midi_adapter_wiring::wire(
-                window.as_weak(),
-                crate::chain_rig_nav_wiring::ChainRigNavCtx {
-                    project_session: project_session.clone(),
-                    project_chains: project_chains.clone(),
-                    project_runtime: project_runtime.clone(),
-                    input_chain_devices: input_chain_devices.clone(),
-                    output_chain_devices: output_chain_devices.clone(),
-                    toast_timer: toast_timer.clone(),
-                    saved_project_snapshot: saved_project_snapshot.clone(),
-                    project_dirty: project_dirty.clone(),
-                    auto_save,
-                },
-                map_path,
-            )?)
-        }
+        Some(arg) => Some(crate::midi_adapter_wiring::wire(
+            window.as_weak(),
+            crate::chain_rig_nav_wiring::ChainRigNavCtx {
+                project_session: project_session.clone(),
+                project_chains: project_chains.clone(),
+                project_runtime: project_runtime.clone(),
+                input_chain_devices: input_chain_devices.clone(),
+                output_chain_devices: output_chain_devices.clone(),
+                toast_timer: toast_timer.clone(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+                auto_save,
+            },
+            arg,
+        )?),
         None => None,
     };
 

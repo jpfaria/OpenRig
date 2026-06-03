@@ -46,6 +46,40 @@ jobs:
           key: bundle-plugins-cargo-${{ hashFiles('openrig-plugins/Cargo.lock') }}
           restore-keys: bundle-plugins-cargo-
 
+      # Issue #525 / #612: pack_plugins shells out to qa_audit (loudness-audit)
+      # to verify per-capture loudness budgets. qa_audit links against `nam`
+      # from the OpenRig git dep. Since #612 `nam` no longer links a prebuilt
+      # NeuralAudioCAPI LFS asset — its build.rs cmake-builds libnam_wrapper
+      # from cpp/ (NeuralAmpModelerCore submodule). The LFS materialisation
+      # below is kept for any other LFS-backed asset the git checkout still
+      # carries; it is a no-op for NAM now that nothing links an LFS binary.
+      - name: Configure git-lfs system filters
+        run: git lfs install --system --skip-repo
+      - name: Drop stale OpenRig cargo-git checkout (LFS pointers in cache)
+        run: rm -rf ~/.cargo/git/checkouts/openrig-* ~/.cargo/git/db/openrig-*
+      - name: Fetch cargo deps (materialise OpenRig checkout)
+        working-directory: openrig-plugins
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo fetch
+      - name: Pull LFS files inside the OpenRig cargo checkout
+        # Cargo's git db is a bare clone that does NOT carry LFS objects, so
+        # an unmodified `git lfs pull` from the checkout would try the file://
+        # origin and exit with "remote missing object". Point `lfs.url` at
+        # github.com directly so the pull fetches from the real LFS server.
+        run: |
+          for dir in ~/.cargo/git/checkouts/openrig-*/*/; do
+            echo "Pulling LFS in $dir"
+            git -C "$dir" lfs install --local
+            git -C "$dir" config lfs.url https://github.com/jpfaria/OpenRig.git/info/lfs
+            git -C "$dir" lfs pull
+          done
+      - name: Build qa_audit (required by pack_plugins)
+        working-directory: openrig-plugins
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo build --release -p loudness-audit --bin qa_audit
+
       - name: Validate plugins
         working-directory: openrig-plugins
         # pack_plugins iterates plugins/source/, validates every package's
@@ -73,6 +107,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # nam crate's build.rs cmake-builds cpp/ which #includes
+          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
+          submodules: recursive
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -122,6 +159,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # nam crate's build.rs cmake-builds cpp/ which #includes
+          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
+          submodules: recursive
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -137,7 +177,7 @@ jobs:
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
-            fakeroot rpm ruby-dev build-essential \
+            fakeroot rpm ruby-dev build-essential cmake \
             librsvg2-bin imagemagick \
             gettext patchelf squashfs-tools
 
@@ -190,6 +230,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # nam crate's build.rs cmake-builds cpp/ which #includes
+          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
+          submodules: recursive
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -205,7 +248,7 @@ jobs:
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev \
-            fakeroot rpm ruby-dev build-essential \
+            fakeroot rpm ruby-dev build-essential cmake \
             librsvg2-bin imagemagick \
             gettext patchelf squashfs-tools
 
@@ -258,6 +301,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # nam crate's build.rs cmake-builds cpp/ which #includes
+          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
+          submodules: recursive
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -306,7 +352,7 @@ jobs:
       - name: Install WiX Toolset v3
         run: choco install wixtoolset -y --no-progress
 
-      - name: Install MinGW runtime DLLs (needed by libNeuralAudioCAPI.dll)
+      - name: Install MinGW runtime DLLs (needed by the MinGW-built nam_wrapper DLL)
         shell: cmd
         run: C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-winpthreads-git
 

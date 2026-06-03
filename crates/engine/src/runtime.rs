@@ -57,6 +57,7 @@ pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_
 pub(crate) use crate::runtime_block_builders::{
     bypass_runtime_node, next_block_instance_serial, processor_scratch,
 };
+pub use crate::runtime_block_toggle::set_block_enabled;
 #[cfg(test)]
 pub(crate) use crate::runtime_endpoints::{
     effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
@@ -103,6 +104,15 @@ pub fn process_input_f32(
         Err(_) => return,
     };
 
+    // Issue #580 follow-up: drain queued block-toggle requests inside
+    // the same lock we already hold. The GUI thread's
+    // `set_block_enabled` is now lock-free (push to ArrayQueue) so it
+    // never contends with this `try_lock` — the click the user heard
+    // on every UI block on/off is gone. Cheap: the queue is empty in
+    // steady state, a `pop` is two atomic ops, and a non-empty drain
+    // does one in-place walk over `input_states.blocks` per toggle.
+    crate::runtime_block_toggle::drain_pending_block_toggles(runtime, &mut processing_guard);
+
     // If a latency probe is armed, replace the first portion of this
     // callback's input with a short sine beep and record the injection
     // time. Only the primary input (index 0) probes so we measure the
@@ -137,6 +147,21 @@ pub fn process_input_f32(
         Some(b) => b.as_slice(),
         None => data,
     };
+
+    // ── Virtual DI loop (issue #614) ─────────────────────────────────────
+    // If a DI loop is published for this chain, every segment reads the loop
+    // instead of the device frame. Lock-free (ArcSwapOption load) and
+    // zero-alloc: we pass a borrow + a shared start cursor into the segments,
+    // and advance the cursor once per callback below. `None` ⇒ one branch,
+    // then identical to today's device path. Input taps below intentionally
+    // keep reading the device `data` (the tuner tracks the real input).
+    let di_guard = runtime.di_loop.load();
+    let di_ref: Option<&crate::di_loop::DiLoop> = di_guard.as_deref();
+    let di_start = match di_ref {
+        Some(_) => runtime.di_loop_pos.load(Ordering::Relaxed),
+        None => 0,
+    };
+    let di_for_seg = di_ref.map(|d| (d, di_start));
 
     // ── Per-channel sample taps (pre-FX) ─────────────────────────────────
     // Top-level features (Tuner / Spectrum windows) subscribe to raw input
@@ -199,7 +224,20 @@ pub fn process_input_f32(
             num_frames,
             &runtime.error_queue,
             &stream_taps,
+            di_for_seg,
         );
+    }
+
+    // Advance the DI loop playback cursor once per callback (after all
+    // segments have consumed frames starting at `di_start`). Wraps modulo
+    // loop length. The cursor is advanced here — not inside the segment
+    // loop — so that parallel segments sharing the same input callback all
+    // read the same window of the loop (consistent with SPSC single-producer
+    // invariant and stream isolation).
+    if let Some(d) = di_ref {
+        let len = d.len().max(1);
+        let next = di_start.wrapping_add(num_frames) % len;
+        runtime.di_loop_pos.store(next, Ordering::Relaxed);
     }
 
     // Snapshot current output routes via ArcSwap — no lock.
@@ -295,6 +333,7 @@ fn process_single_segment(
     num_frames: usize,
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
+    di: Option<(&crate::di_loop::DiLoop, usize)>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -318,19 +357,39 @@ fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
-    for frame in data.chunks(input_total_channels).take(num_frames) {
-        let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
-        let chain_frame = match (*input_read_layout, *processing_layout) {
-            (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
-                let sample = match raw_frame {
-                    AudioFrame::Mono(s) => s,
-                    _ => unreachable!(),
+    match di {
+        Some((di_loop, start_pos)) => {
+            use crate::di_loop::DiFrame;
+            for i in 0..num_frames {
+                let f = di_loop.frame_at(start_pos.wrapping_add(i));
+                let chain_frame = match (*processing_layout, f) {
+                    (AudioChannelLayout::Stereo, DiFrame::Mono(s)) => AudioFrame::Stereo([s, s]),
+                    (AudioChannelLayout::Stereo, DiFrame::Stereo(lr)) => AudioFrame::Stereo(lr),
+                    (AudioChannelLayout::Mono, DiFrame::Mono(s)) => AudioFrame::Mono(s),
+                    (AudioChannelLayout::Mono, DiFrame::Stereo([l, r])) => {
+                        AudioFrame::Mono((l + r) * 0.5)
+                    }
                 };
-                AudioFrame::Stereo([sample, sample])
+                frame_buffer.push(chain_frame);
             }
-            _ => raw_frame,
-        };
-        frame_buffer.push(chain_frame);
+            let _ = (input_read_layout, input_channels);
+        }
+        None => {
+            for frame in data.chunks(input_total_channels).take(num_frames) {
+                let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
+                let chain_frame = match (*input_read_layout, *processing_layout) {
+                    (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
+                        let sample = match raw_frame {
+                            AudioFrame::Mono(s) => s,
+                            _ => unreachable!(),
+                        };
+                        AudioFrame::Stereo([sample, sample])
+                    }
+                    _ => raw_frame,
+                };
+                frame_buffer.push(chain_frame);
+            }
+        }
     }
 
     for block in blocks.iter_mut() {
@@ -742,6 +801,22 @@ mod rig_spillover;
 mod audio_deadline;
 
 #[cfg(test)]
+#[path = "stream_count_contention_tests.rs"]
+mod stream_count_contention;
+
+#[cfg(test)]
+#[path = "audio_under_gui_pressure_tests.rs"]
+mod audio_under_gui_pressure;
+
+#[cfg(test)]
+#[path = "audio_alloc_invariant_tests.rs"]
+mod audio_alloc_invariant;
+
+#[cfg(test)]
+#[path = "audio_under_block_toggle_tests.rs"]
+mod audio_under_block_toggle;
+
+#[cfg(test)]
 #[path = "audio_signal_integrity_tests.rs"]
 mod audio_signal_integrity;
 
@@ -752,3 +827,15 @@ mod stereo_image;
 #[cfg(test)]
 #[path = "runtime_lock_recovery_tests.rs"]
 mod runtime_lock_recovery;
+
+#[cfg(test)]
+#[path = "block_enabled_fast_path_tests.rs"]
+mod block_enabled_fast_path;
+
+#[cfg(test)]
+#[path = "di_loop_state_tests.rs"]
+mod di_loop_state;
+
+#[cfg(test)]
+#[path = "di_loop_injection_tests.rs"]
+mod di_loop_injection;

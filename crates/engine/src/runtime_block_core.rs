@@ -45,6 +45,7 @@ pub(crate) fn build_core_block_runtime_node(
     block: &project::block::AudioBlock,
     core: &CoreBlock,
     input_layout: AudioChannelLayout,
+    content_mono: bool,
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
     let effect_type = core.effect_type.as_str();
@@ -59,8 +60,13 @@ pub(crate) fn build_core_block_runtime_node(
     // error and inserts a bypass node marked `faulted` — the chain stays
     // intact but the block emits silence/passthrough rather than crashing.
     if !is_model_available_for_effect_type(effect_type, model) {
+        // Either a native model unsupported on this platform (LV2 .so/.dll
+        // missing) OR a disk-package (NAM/IR/LV2) whose pack is not in the
+        // catalog. Honest message either way; the caller bypasses the block
+        // as faulted so the chain keeps playing (issue #574/#606).
         anyhow::bail!(
-            "model '{}' is not available on the current platform (effect_type={})",
+            "model '{}' (effect_type={}) is unavailable — its plugin package is \
+             not installed/loaded, or it is unsupported on this platform",
             model,
             effect_type
         );
@@ -69,99 +75,117 @@ pub(crate) fn build_core_block_runtime_node(
         EFFECT_TYPE_PREAMP => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_PREAMP,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_preamp_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_AMP => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_AMP,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_amp_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_FULL_RIG => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_FULL_RIG,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_full_rig_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_CAB => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_CAB,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_cab_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_BODY => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_BODY,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_body_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_IR => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_IR,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_ir_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_GAIN => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_GAIN,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_gain_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_DELAY => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_DELAY,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_delay_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_REVERB => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_REVERB,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_reverb_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
@@ -172,6 +196,7 @@ pub(crate) fn build_core_block_runtime_node(
                 EFFECT_TYPE_UTILITY,
                 model,
                 input_layout,
+                content_mono,
                 |layout| {
                     let (bp, sh) = build_utility_processor_for_layout(
                         model,
@@ -186,60 +211,75 @@ pub(crate) fn build_core_block_runtime_node(
                 },
             )?;
             outcome.stream_handle = captured_stream;
-            Ok(audio_block_runtime_node(block, input_layout, outcome))
+            Ok(audio_block_runtime_node(
+                block,
+                input_layout,
+                content_mono,
+                outcome,
+            ))
         }
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_DYNAMICS,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_dynamics_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_FILTER => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_FILTER,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_filter_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_WAH => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_WAH,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_wah_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_MODULATION => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_MODULATION,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_modulation_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
         EFFECT_TYPE_PITCH => Ok(audio_block_runtime_node(
             block,
             input_layout,
+            content_mono,
             build_audio_processor_for_model(
                 chain,
                 EFFECT_TYPE_PITCH,
                 model,
                 input_layout,
+                content_mono,
                 |layout| build_pitch_processor_for_layout(model, params, sample_rate, layout),
             )?,
         )),
@@ -287,11 +327,13 @@ pub(crate) fn build_core_block_runtime_node(
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
+                content_mono,
                 build_audio_processor_for_model(
                     chain,
                     block_core::EFFECT_TYPE_VST3,
                     model,
                     input_layout,
+                    content_mono,
                     |layout| {
                         let p = plugin_opt
                             .take()

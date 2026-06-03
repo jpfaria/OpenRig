@@ -20,6 +20,7 @@ fn rig() -> RigProject {
             active_preset: 3,
             active_scene: 2,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     inputs.insert(
@@ -31,6 +32,7 @@ fn rig() -> RigProject {
             active_preset: 1,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
@@ -38,6 +40,8 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -176,6 +180,8 @@ fn no_project_state_has_no_inputs() {
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
     };
     let s = BankSceneState::from_project(&empty);
     assert!(s.inputs.is_empty());

@@ -45,6 +45,7 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         active_preset: active,
         active_scene: 1,
         routing: vec![],
+        instrument: "electric_guitar".to_string(),
     }
 }
 
@@ -56,6 +57,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
             .map(|(k, v)| (k.to_string(), v))
             .collect(),
         outputs: BTreeMap::new(),
+        chain_order: Vec::new(),
         presets: presets
             .iter()
             .map(|p| {
@@ -72,6 +74,7 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                 )
             })
             .collect(),
+        midi: None,
     }
 }
 
@@ -371,6 +374,45 @@ fn from_legacy_blocks_preserves_blocks_and_volume_no_scenes() {
     assert_eq!(preset.apply_scene(1), blocks);
 }
 
+// #627 — replacing a block's MODEL (ReplaceBlockModel) keeps the block id but
+// changes effect_type/model. The structural check compared only ids, so the
+// swap was treated as a non-structural per-scene diff and the new model was
+// never written into the preset base — the pedal reverted on reload.
+#[test]
+fn replace_preset_blocks_detects_same_id_model_swap_as_structural() {
+    fn core_model_block(id: &str, effect_type: &str, model: &str) -> AudioBlock {
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: effect_type.into(),
+                model: model.into(),
+                params: ParameterSet::default(),
+            }),
+        }
+    }
+
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![core_model_block("b1", "gain", "ts9")];
+
+    // Same id "b1", new model — exactly what ReplaceBlockModel produces.
+    let swapped = core_model_block("b1", "gain", "klon");
+    let structural = p.replace_preset_blocks_if_structural("input-1", &[swapped]);
+
+    assert!(
+        structural,
+        "a same-id model swap must count as structural so the preset base is replaced"
+    );
+    let base_model = match &p.presets.get("p").unwrap().blocks[0].kind {
+        AudioBlockKind::Core(c) => c.model.clone(),
+        _ => "??".into(),
+    };
+    assert_eq!(
+        base_model, "klon",
+        "model swap must be written into the preset base block, not dropped"
+    );
+}
+
 // #436 #1 — write-back: editing a rig chain's processing blocks must
 // persist into the active preset and survive re-projection.
 
@@ -450,11 +492,17 @@ fn editing_on_scene_2_does_not_change_scene_1() {
 }
 
 // #436 — "como adiciono um preset?" Adding a preset to an input's bank
-// must: take the next free slot, clone the currently active preset as a
-// starting point (independent snapshot), get a unique name, and make the
-// new slot active. No collision with existing preset names.
+// User-reported contract change: a brand-new preset must start
+// FRESH. Cloning the currently active preset's blocks / volume was
+// confusing — switching to the new slot looked identical to the
+// previous one, so the "+" button felt broken. New shape: empty
+// blocks, default volume (100.0), one default scene, becomes active.
 #[test]
-fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
+fn add_preset_to_input_creates_fresh_preset_with_no_blocks_or_volume_clone() {
+    use crate::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use crate::param::ParameterSet;
+    use domain::ids::BlockId;
+
     let mut p = project_with(
         vec![(
             "input-1",
@@ -462,8 +510,19 @@ fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
         )],
         &["clean", "drive", "lead"],
     );
-    // Make the active preset ("drive") distinguishable.
+    // Make the active preset ("drive") distinguishable: pump volume
+    // and add a Core block so we can prove neither leaks into the
+    // freshly-added preset.
     p.presets.get_mut("drive").unwrap().volume = 137.0;
+    p.presets.get_mut("drive").unwrap().blocks.push(AudioBlock {
+        id: BlockId("gain:1".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "ibanez_ts9".into(),
+            params: ParameterSet::default(),
+        }),
+    });
     let presets_before = p.presets.len();
 
     let slot = p
@@ -479,9 +538,15 @@ fn add_preset_to_input_clones_active_into_next_slot_and_activates_it() {
         "unique name, no collision: {name}"
     );
     assert_eq!(p.presets.len(), presets_before + 1, "one new preset");
+    let new_preset = &p.presets[name];
+    assert!(
+        new_preset.blocks.is_empty(),
+        "fresh preset: no blocks copied from the active source (got {} blocks)",
+        new_preset.blocks.len()
+    );
     assert_eq!(
-        p.presets[name].volume, 137.0,
-        "cloned from the previously active preset (drive)"
+        new_preset.volume, 100.0,
+        "fresh preset: default volume, not cloned from the source's 137"
     );
 }
 
@@ -599,4 +664,42 @@ fn step_scene_wraps_within_scene_count() {
     p.inputs.get_mut("in").unwrap().active_scene = 3;
     assert_eq!(p.step_scene("in", 1), Some(1), "next wraps to first scene");
     assert_eq!(p.step_scene("missing", 1), None, "unknown input → None");
+}
+
+/// A `.openrig` YAML without the `instrument` field must deserialize to the default
+/// ("electric_guitar") so projects saved before #627 open without error.
+#[test]
+fn rig_input_missing_instrument_defaults_to_electric_guitar() {
+    let yaml = r#"
+inputs:
+  guitar:
+    sources: []
+    active-preset: 1
+presets: {}
+"#;
+    let rig: RigProject = serde_yaml::from_str(yaml).unwrap();
+    let input = rig.inputs.get("guitar").unwrap();
+    assert_eq!(
+        input.instrument,
+        block_core::DEFAULT_INSTRUMENT,
+        "absent instrument field must default to electric_guitar"
+    );
+}
+
+/// Serialize a `RigProject` with acoustic_guitar, deserialize it; the instrument
+/// must survive the full YAML round-trip.
+#[test]
+fn rig_input_instrument_serde_roundtrip() {
+    let mut p = project_with(vec![("guitar", input(&[(1, "a")], 1))], &["a"]);
+    p.inputs.get_mut("guitar").unwrap().instrument =
+        block_core::INST_ACOUSTIC_GUITAR.to_string();
+
+    let yaml = serde_yaml::to_string(&p).unwrap();
+    let restored: RigProject = serde_yaml::from_str(&yaml).unwrap();
+
+    assert_eq!(
+        restored.inputs.get("guitar").unwrap().instrument,
+        block_core::INST_ACOUSTIC_GUITAR,
+        "instrument must survive YAML serialize→deserialize"
+    );
 }

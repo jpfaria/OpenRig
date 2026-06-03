@@ -1,7 +1,9 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
+import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -32,6 +34,14 @@ export component BlockEditorWindow inherits Window {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    // Issue #360: in-window delete confirmation (no `rfd::MessageDialog`).
+    // The Rust side flips `show-confirm-delete-block` from
+    // `delete-block-drawer` and dispatches the actual removal only on
+    // `confirm-delete-block`. `cancel-delete-block` just hides it.
+    in property <bool> show-confirm-delete-block: false;
+    in property <string> confirm-delete-block-name;
+    callback confirm-delete-block();
+    callback cancel-delete-block();
     callback show-plugin-info(string, string);
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
@@ -51,33 +61,46 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
-    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
-    property <int> param-count: root.block-parameter-items.length;
-    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+    // Knob-grid dimensions come from Rust (`block_panel_dimensions::compute`).
+    // The wrap policy is universal: NAM, native, IR, LV2 — every block
+    // kind that uses the panel editor goes through the same Rust formula
+    // and reads back the result via these `in` properties. The math is
+    // covered by `block_panel_dimensions_tests`; do not re-derive it here.
+    in property <length> panel-knob-window-width: 900px;
+    in property <length> panel-knob-window-height: 275px;
+    in property <length> panel-knob-inner-height: 225px;
+    in property <int> panel-grid-cols: 0;
+    in property <int> panel-grid-rows: 0;
+
     private property <bool> has-eq-widget:
         root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
     // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
-    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
     private property <length> eq-panel-width:
         multi-slider-points.length > 0 ?
             Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
         curve-editor-points.length > 0 ?
             Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
             600px;
-    // `out` so the Rust side can read the computed size and call
-    // window().set_size() explicitly. Without an explicit set_size some
-    // Linux WMs ignore min/max/preferred-* and open the window huge
-    // (issue #479); the main AppWindow already sets its size in Rust.
+    // Outer-window dimensions. EQ branch keeps its dedicated widget
+    // formula; everything else reads the Rust-computed knob-grid sizes
+    // (single source of truth for #500). Rust calls `window().set_size()`
+    // with these values right after populating the param/overlay model
+    // — Linux WMs ignore min/max/preferred-* without that explicit call
+    // (#479).
+    // The form editor (`!use-panel-editor`) reads its window size from the
+    // same Rust-computed properties: width is fixed (520) and height grows
+    // with the parameter count so every row shows without scrolling — the
+    // window is locked min=max=preferred, so a fixed 820 hid the lower
+    // params (issue #622). `block_panel_dimensions::form_dimensions` is the
+    // single source for both.
     out property <length> panel-width:
         root.use-panel-editor ?
-            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
-            520px;
-    // Non-panel editor (form/knob blocks): 640px clipped the lower
-    // controls once the size was applied explicitly (#479) — the Linux
-    // WM used to over-size the window and hid the shortfall. 820px
-    // fits the model picker + parameter grid + drawer with margin.
+            (has-eq-widget ? eq-panel-width : panel-knob-window-width) :
+            panel-knob-window-width;
     out property <length> panel-height:
-        root.use-panel-editor ? eq-extra-height : 820px;
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-extra-height : panel-knob-window-height) :
+            panel-knob-window-height;
     // EQ widget heights: CurveEditor = 280px, MultiSlider = 240px.
     // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
     // 200px / 180px were too tight for the full -24..+24 dB range — the cap of
@@ -126,6 +149,9 @@ export component BlockEditorWindow inherits Window {
         eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
+        panel-knob-inner-height: root.panel-knob-inner-height;
+        panel-grid-cols: root.panel-grid-cols;
+        panel-grid-rows: root.panel-grid-rows;
         choose-block-model(i) => { root.choose-block-model(i); }
         choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
         search-block-model(text) => { root.search-block-model(text); }
@@ -186,6 +212,16 @@ export component BlockEditorWindow inherits Window {
         container-width: root.width;
         container-height: root.height;
     }
+
+    // Issue #360: in-window delete confirmation overlay (replaces the
+    // native `rfd::MessageDialog` that used to gate `delete-block-drawer`).
+    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+        width: root.width;
+        height: root.height;
+        block-name: root.confirm-delete-block-name;
+        confirm => { root.confirm-delete-block(); }
+        cancel => { root.cancel-delete-block(); }
+    }
 }
 
 export component CompactChainViewWindow inherits Window {
@@ -193,21 +229,45 @@ export component CompactChainViewWindow inherits Window {
     default-font-family: Locale.font-family;
     default-font-size: 13px;
     title: @tr("title-window-chain-view");
-    min-width: 800px;
-    min-height: 260px;
-    preferred-width: 1000px;
-    preferred-height: 460px;
+    // Defaults pinned to the screenshot the user attached in #559:
+    // 1305×840. `min-width` keeps the row layout legible; below
+    // ~1000 px the per-block knobs collide with the brand logo.
+    min-width: 1000px;
+    min-height: 480px;
+    preferred-width: 1305px;
+    preferred-height: 840px;
     background: #0a0c10;
 
     in property <string> chain-title;
     in property <int> chain-index;
+    // Measured DSP latency mirrored from the main chains row (#613) so the
+    // probe result shows inside the compact view, not only on the list.
+    in property <float> latency-ms: 0.0;
     in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
+    // Preset/scene model + meters + volume — parity with the main row.
+    in property <ChainRigNav> rig-nav;
+    in property <float> meter-in-dbfs: -120.0;
+    in property <float> meter-out-dbfs: -120.0;
+    // Per-stream meter rows — mirrors `ProjectChainItem.stream_meters`.
+    // Multi-input chain (e.g. 3 inputs) ⇒ 3 entries ⇒ 3 IN/OUT bars at
+    // the footer (parity with the main `ChainRow`).
+    in property <[StreamMeter]> stream-meters;
+    in property <int> volume: 100;
+
+    // #614: DI loop state for the focused chain.
+    in property <bool> di-loop-playing: false;
+    in property <[string]> di-loop-sources: [];
 
     // I/O device configuration
     callback configure-input(int); // chain_index
     callback configure-output(int); // chain_index
+    // #614: DI loop callbacks — forwarded from CompactChainViewPage.
+    callback di-loop-source-selected(string);
+    callback di-loop-choose-file();
+    callback di-loop-play();
+    callback di-loop-stop();
 
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
@@ -224,16 +284,51 @@ export component CompactChainViewWindow inherits Window {
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
     callback open-plugin(string); // model-id, for VST3 blocks
+    // Preset / chain admin callbacks — same shape `chain_row` exposes
+    // so the same wiring on the Rust side serves both views.
+    callback switch-chain-preset(int);
+    callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
+    callback load-chain-preset();
+    callback save-chain-preset-as();
+    callback configure-chain(int);
+    callback probe-chain-latency(int);
+    callback chain-volume-changed(int, int);
+    callback remove-chain(int);
+
+    // Issue #360: in-window delete confirmations (replaces the previous
+    // implicit delegation to AppWindow's overlay, which used to surface
+    // the modal on the wrong window).
+    in property <bool> show-confirm-delete-block: false;
+    in property <string> confirm-delete-block-name;
+    callback confirm-delete-block();
+    callback cancel-delete-block();
+    in property <bool> show-confirm-delete-chain: false;
+    in property <string> confirm-delete-chain-name;
+    callback confirm-delete-chain();
+    callback cancel-delete-chain();
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
         chain-title: root.chain-title;
         chain-index: root.chain-index;
+        latency-ms: root.latency-ms;
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
+        rig-nav: root.rig-nav;
+        meter-in-dbfs: root.meter-in-dbfs;
+        meter-out-dbfs: root.meter-out-dbfs;
+        stream-meters: root.stream-meters;
+        volume: root.volume;
+        di-loop-playing: root.di-loop-playing;
+        di-loop-sources: root.di-loop-sources;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
+        di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
+        di-loop-choose-file => { root.di-loop-choose-file(); }
+        di-loop-play => { root.di-loop-play(); }
+        di-loop-stop => { root.di-loop-stop(); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
@@ -249,5 +344,33 @@ export component CompactChainViewWindow inherits Window {
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
         open-plugin(model-id) => { root.open-plugin(model-id); }
+        switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
+        switch-chain-scene(s) => { root.switch-chain-scene(s); }
+        rename-chain-preset(name) => { root.rename-chain-preset(name); }
+        load-chain-preset => { root.load-chain-preset(); }
+        save-chain-preset-as => { root.save-chain-preset-as(); }
+        configure-chain(ci) => { root.configure-chain(ci); }
+        probe-chain-latency(ci) => { root.probe-chain-latency(ci); }
+        chain-volume-changed(ci, v) => { root.chain-volume-changed(ci, v); }
+        remove-chain(ci) => { root.remove-chain(ci); }
+    }
+
+    // Issue #360: in-window delete-block + delete-chain confirmation
+    // overlays. The Rust side flips show-confirm-delete-* from the
+    // remove handlers and dispatches the actual removal only on
+    // confirm-delete-*. cancel-delete-* hides without side effect.
+    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+        width: root.width;
+        height: root.height;
+        block-name: root.confirm-delete-block-name;
+        confirm => { root.confirm-delete-block(); }
+        cancel => { root.cancel-delete-block(); }
+    }
+    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+        width: root.width;
+        height: root.height;
+        chain-name: root.confirm-delete-chain-name;
+        confirm => { root.confirm-delete-chain(); }
+        cancel => { root.cancel-delete-chain(); }
     }
 }

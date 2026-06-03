@@ -240,10 +240,31 @@ struct FftBlockConvolver {
     state: Option<PartitionedState>,
 }
 
-/// Minimum partition size. Keeps the number of partitions low for
-/// real-time performance. With MAX_IR_SAMPLES=8192 and PARTITION_SIZE=512,
-/// we get at most 16 partitions — very manageable.
-const PARTITION_SIZE: usize = 512;
+/// Convolution partition size, in samples.
+///
+/// This is the granularity at which the convolver runs its inline FFT +
+/// frequency-delay-line multiply-accumulate: that work happens once per
+/// `PARTITION_SIZE` input samples. It MUST stay at or below the smallest
+/// real-time device buffer we support (64) so the work is spread evenly
+/// across callbacks. When `PARTITION_SIZE` is larger than the device
+/// buffer the whole convolution burst lands inside a single callback —
+/// a periodic spike that overruns small buffers and crackles/clips
+/// (issue #617; the symptom that 128-frame buffers masked because their
+/// larger per-callback budget could absorb the burst). Keeping it at 64
+/// makes each 64-frame callback do exactly one partition's worth of work
+/// (uniform cost, no spike) and also bounds the convolver's added latency
+/// to one partition (~1.3 ms at 48 kHz) instead of ~10.7 ms.
+///
+/// Trade-off (per the audio invariant hierarchy: stability > CPU): more
+/// partitions for a long IR (up to 128 for MAX_IR_SAMPLES=8192) raise the
+/// *average* per-callback cost, but it stays tiny in absolute terms and,
+/// crucially, uniform — no callback misses its deadline.
+///
+/// Still exposed because the engine's output elastic buffer floors its
+/// jitter cushion at one partition for IR chains (issue #592). With the
+/// per-partition spike removed at the source, that cushion is now only a
+/// warmup belt-and-suspenders rather than the primary defence.
+pub const PARTITION_SIZE: usize = 64;
 
 impl FftBlockConvolver {
     fn new(ir: Vec<f32>) -> Result<Self> {
@@ -312,6 +333,16 @@ impl FftBlockConvolver {
                 state.accum[i] += state.fdl[fdl_off + i] * state.ir_partitions[ir_off + i];
             }
         }
+
+        // The DC (bin 0) and Nyquist (last bin) components of a real signal's
+        // spectrum are purely real. Multiplying and accumulating per-partition
+        // spectra leaves tiny imaginary residues there from f32 round-off,
+        // which `realfft`'s strict inverse rejects ("imaginary parts of first
+        // and last values were non-zero"). They are mathematically zero, so
+        // clamp them — this is round-off cleanup, not a signal change.
+        let nyquist = spectrum_len - 1;
+        state.accum[0].im = 0.0;
+        state.accum[nyquist].im = 0.0;
 
         // Inverse FFT
         state

@@ -10,6 +10,12 @@ import { PowerSwitch } from "./power_switch.slint";
 export component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
     in property <bool> selected: false;
+    // #591: the block the footswitch's block-toggle (neighbor) would act
+    // on — marked lighter than the active block so the user sees the pair.
+    in property <bool> neighbor: false;
+    // #591: gates the selected/neighbor markers — they only show while a
+    // MIDI command is recent (last 10s), then fade out.
+    in property <bool> markers-visible: false;
     in property <bool> dragging: false;
     // True while ANY block in the same chain row is being dragged. Drives
     // the type-label fade so the floating ghost has a clear path across
@@ -17,6 +23,12 @@ export component BlockChip inherits Rectangle {
     in property <bool> chain-dragging: false;
     property <color> accent-color: root.block.accent-color;
     property <string> block-type-label: root.block.type_label;
+    // #606: a block whose model is not installed is shown muted with an
+    // amber tint (distinct from the grey of a manually-disabled block) so
+    // the user can tell the pedal is unavailable, not just switched off.
+    // The enable toggle is already inert at the command layer.
+    property <bool> unavailable: root.block.unavailable;
+    property <color> unavailable-tint: #b07a3c;
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
@@ -34,9 +46,26 @@ export component BlockChip inherits Rectangle {
 
     width: 100px;
     height: 100px;
-    background: transparent;
-    border-width: 0px;
+    // #591: the active-block (strong) and neighbor (light) markers only
+    // show while a MIDI command is recent (`markers-visible`), then fade
+    // out after 10s. Lit when the block is enabled, dimmer when disabled.
+    background: (root.markers-visible && root.selected) ? #f0a02014 : transparent;
+    border-width: root.markers-visible
+        ? (root.selected ? 2px : root.neighbor ? 1px : 0px)
+        : 0px;
+    border-color: root.markers-visible
+        ? (root.selected
+            ? (root.block.enabled ? #f0a020 : #f0a02066)
+            : root.neighbor
+                ? (root.block.enabled ? #f0a0207a : #f0a02040)
+                : transparent)
+        : transparent;
     border-radius: 6px;
+    // #606: dim the whole tile when its model is unavailable.
+    opacity: root.unavailable ? 0.5 : 1.0;
+    animate border-width { duration: 350ms; easing: ease-out; }
+    animate border-color { duration: 350ms; easing: ease-out; }
+    animate opacity { duration: 200ms; easing: ease-out; }
 
     // Type label on top — fades out while a drag is happening anywhere in
     // this chain row so it doesn't obscure the floating ghost or the chips
@@ -47,7 +76,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: 14px;
         text: root.block-type-label;
-        color: root.block.enabled ? root.accent-color : #5c6678;
+        color: root.unavailable ? root.unavailable-tint : root.block.enabled ? root.accent-color : #5c6678;
         font-size: 8px;
         font-weight: 700;
         letter-spacing: 1px;
@@ -78,7 +107,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: hover-area.has-hover ? 90px : 78px;
         icon-kind: root.block.icon-kind;
-        tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
+        tint: root.unavailable ? root.unavailable-tint : root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
         animate y { duration: 120ms; easing: ease-out; }
         animate height { duration: 120ms; easing: ease-out; }
     }

@@ -66,6 +66,8 @@ fn rig(
             .into_iter()
             .map(|(k, b)| (k.to_string(), RigPreset::from_legacy_blocks(b, 100.0)))
             .collect(),
+        midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -82,6 +84,7 @@ fn input(
         active_preset: active,
         active_scene: 1,
         routing: routing.into_iter().map(String::from).collect(),
+        instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
     }
 }
 

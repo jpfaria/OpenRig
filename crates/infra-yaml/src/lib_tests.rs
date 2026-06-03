@@ -63,6 +63,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                 },
             ],
         }],
+        midi: None,
     };
 
     repository
@@ -319,6 +320,7 @@ fn preset_roundtrips_generic_select_options() {
         id: "select".into(),
         name: Some("Delay Select".into()),
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: vec![AudioBlock {
             id: BlockId("preset:select:block:0".into()),
             enabled: true,
@@ -617,6 +619,7 @@ fn serialize_empty_project_roundtrips() {
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     };
     let yaml_str = super::serialize_project(&project).expect("serialize should succeed");
     let dto: super::ProjectYaml = serde_yaml::from_str(&yaml_str).expect("should parse back");
@@ -669,6 +672,7 @@ fn chain_with_only_io_blocks_roundtrips() {
                 },
             ],
         }],
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     let loaded = repo.load_current_project().expect("load");
@@ -980,6 +984,7 @@ fn serialize_project_produces_valid_yaml_string() {
                 },
             ],
         }],
+        midi: None,
     };
     let yaml_str = super::serialize_project(&project).expect("serialize");
     assert!(yaml_str.contains("name: Direct Serialize"));
@@ -1012,6 +1017,7 @@ fn preset_roundtrips_with_core_blocks() {
         id: "multi".into(),
         name: Some("Multi Block Preset".into()),
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: vec![
             core_block("preset:multi:block:0", "delay", delay_model, Vec::new()),
             core_block("preset:multi:block:1", "reverb", reverb_model, Vec::new()),
@@ -1034,6 +1040,7 @@ fn preset_roundtrips_with_no_blocks() {
         id: "empty".into(),
         name: None,
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: Vec::new(),
     };
     save_chain_preset_file(&path, &preset).expect("save");
@@ -1051,6 +1058,7 @@ fn preset_roundtrips_with_input_output_blocks() {
         id: "io_preset".into(),
         name: Some("IO Preset".into()),
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: vec![
             AudioBlock {
                 id: BlockId("preset:io_preset:block:0".into()),
@@ -1176,6 +1184,7 @@ fn device_settings_not_persisted_in_yaml() {
             nperiods: 3,
         }],
         chains: Vec::new(),
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     // device_settings are no longer written to YAML (per-machine config)
@@ -1416,6 +1425,7 @@ fn project_with_multiple_chains_roundtrips() {
                 ],
             },
         ],
+        midi: None,
     };
     repo.save_project(&project).expect("save");
     let loaded = repo.load_current_project().expect("load");
@@ -1602,6 +1612,7 @@ fn chain_volume_150_roundtrips_through_yaml() {
             volume: 150.0,
             blocks: Vec::new(),
         }],
+        midi: None,
     };
     repo.save_project(&project).expect("save should succeed");
     let loaded = repo.load_current_project().expect("load should succeed");
@@ -1717,6 +1728,7 @@ fn preset_save_writes_version() {
         id: "p".into(),
         name: None,
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: Vec::new(),
     };
     save_chain_preset_file(&path, &preset).expect("save");
@@ -1748,6 +1760,7 @@ fn legacy_preset_loads_as_rig_preset_blocks_and_volume_preserved() {
         id: "lead".into(),
         name: Some("Lead Tone".into()),
         volume: 142.0,
+        instrument: "electric_guitar".to_string(),
         blocks: vec![core_block(
             "preset:lead:block:0",
             "delay",
@@ -1775,6 +1788,7 @@ fn legacy_preset_without_name_uses_id() {
         id: "raw-id".into(),
         name: None,
         volume: 100.0,
+        instrument: "electric_guitar".to_string(),
         blocks: Vec::new(),
     };
     save_chain_preset_file(&path, &preset).expect("save");

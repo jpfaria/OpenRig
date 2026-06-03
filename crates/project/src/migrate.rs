@@ -120,6 +120,7 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
                         active_preset: 1,
                         active_scene: 1,
                         routing: chain_routing,
+                        instrument: chain.instrument.clone(),
                     },
                 );
             }
@@ -131,6 +132,8 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
         inputs,
         outputs,
         presets,
+        midi: None,
+        chain_order: Vec::new(),
     }
 }
 

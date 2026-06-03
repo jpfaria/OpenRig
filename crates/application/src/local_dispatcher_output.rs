@@ -16,7 +16,14 @@ impl LocalDispatcher {
     /// áudio é do adapter (precedente `SaveProject`).
     pub(crate) fn handle_set_output_muted(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetOutputMuted { muted } => Ok(vec![Event::OutputMutedChanged { muted }]),
+            Command::SetOutputMuted { muted } => {
+                // #548: mirror into SelectionState so MIDI slot
+                // `toggle_output_mute` reads the current state.
+                if let Ok(mut s) = self.selection_state.write() {
+                    s.output_muted = muted;
+                }
+                Ok(vec![Event::OutputMutedChanged { muted }])
+            }
             other => {
                 unreachable!("handle_set_output_muted received non-mute command: {other:?}")
             }

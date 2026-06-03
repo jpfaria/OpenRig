@@ -189,7 +189,16 @@ fn validate_float_step_alignment_ok() {
 }
 
 #[test]
-fn validate_float_step_misalignment_fails() {
+fn validate_float_step_misalignment_is_tolerated() {
+    // Per `validate_float_range` in
+    // `crates/block-core/src/param/schema.rs`, `step` is a UI hint
+    // (slider tick resolution), NOT a validation constraint.
+    // Continuous sliders, MCP-supplied floats and scene snapshots
+    // routinely land between grid points and are still valid
+    // signal-wise. Enforcing step alignment broke the runtime on
+    // every scene change (user screenshot 21 May 2026). Range
+    // bounds remain enforced — `validate_float_range_rejects`
+    // covers that.
     let spec = float_parameter(
         "gain",
         "Gain",
@@ -200,7 +209,7 @@ fn validate_float_step_misalignment_fails() {
         10.0,
         ParameterUnit::Percent,
     );
-    assert!(spec.validate_value(&ParameterValue::Float(35.0)).is_err());
+    assert!(spec.validate_value(&ParameterValue::Float(35.0)).is_ok());
 }
 
 #[test]

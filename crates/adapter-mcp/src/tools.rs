@@ -68,7 +68,27 @@ mod tests {
     /// `Command` has exactly this many variants. If you add/remove one,
     /// update this AND ensure its payload types derive `JsonSchema`
     /// (otherwise the variant silently drops from the schema → no tool).
-    const COMMAND_VARIANT_COUNT: usize = 44;
+    ///
+    /// #513 / #493 bumped this from 44 → 49 with `SaveMidiDevices`,
+    /// `SaveMidiMapping`, `StartMidiLearn`, `StopMidiLearn`, and
+    /// `PublishMidiEvent`. Each adds one MCP tool automatically via
+    /// `command_schema` (single source of truth — the `Command` enum).
+    /// #513 (paths overrides) bumped to 51 with `SetPresetsPath` and
+    /// `SetPluginsPath`. #561 bumped to 52 with `ReloadPluginCatalog`,
+    /// then to 54 with `LoadPlugin` and `UnloadPlugin` (expanded scope:
+    /// per-plugin load / unload). #548 bumped to 58 with
+    /// `SelectActiveChainRelative`, `SelectActiveBlockRelative`,
+    /// `SetCompactViewEnabled`, `ToggleActiveBlockNeighborEnabled`.
+    /// #576 bumped to 59 with `RenderChain` — offline render via the
+    /// command bus so every transport adapter (MCP/gRPC/…) inherits it.
+    /// #582 bumped to 60 with `SetEvaluationsPath` — third
+    /// system-paths override alongside `SetPresetsPath`/`SetPluginsPath`.
+    /// #591 bumped to 61 with `SelectActiveChain` — chain-level selection
+    /// so a footswitch follows the on-screen active chain.
+    /// #614 bumped to 63 with `SetChainDiLoopSource` and
+    /// `SetChainDiLoopEnabled` — per-chain virtual DI loop (ephemeral,
+    /// never persisted; distinct from #324 project-level DI config).
+    const COMMAND_VARIANT_COUNT: usize = 63;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

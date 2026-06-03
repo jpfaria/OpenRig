@@ -54,13 +54,21 @@ fn tap_conflict(
 /// Project each input of a `RigProject` onto one synthetic legacy `Chain`:
 /// `Input(sources)` → active-preset processing blocks → `Output(routing)`.
 ///
-/// Deterministic, ordered by input name. Each chain gets a distinct
-/// `ChainId` (`rig:<input-name>`) so the existing runtime graph keeps the
-/// inputs in fully isolated runtimes (invariant #4). Inputs whose active
-/// preset is absent are skipped (a validated `RigProject` never hits this).
+/// Deterministic. By default ordered alphabetically by input name; when
+/// `rig.chain_order` is non-empty (set by [`project::rig_sync::sync_synthetic_into_rig`]
+/// to persist a user reorder, issue #502) the projection honours that
+/// order, with any inputs missing from `chain_order` appended in
+/// alphabetical order so a freshly-added input still shows up.
+/// Each chain gets a distinct `ChainId` (`rig:<input-name>`) so the
+/// existing runtime graph keeps the inputs in fully isolated runtimes
+/// (invariant #4). Inputs whose active preset is absent are skipped
+/// (a validated `RigProject` never hits this).
 pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
     let mut chains = Vec::with_capacity(rig.inputs.len());
-    for (name, input) in &rig.inputs {
+    for name in ordered_input_names(rig) {
+        let Some(input) = rig.inputs.get(&name) else {
+            continue;
+        };
         let Some(preset_name) = input.bank.get(&input.active_preset) else {
             continue;
         };
@@ -97,18 +105,18 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
 
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
-            // #436: the title shows this. Prefer the active preset's
-            // human name; for legacy presets without one, humanize the
-            // pool key (de-slug) instead of showing the raw slug or the
-            // input id — same source the select uses.
+            // The chain title is the *input* label (the chain's own
+            // name); the preset name lives next to the preset combobox
+            // and must not bleed into the chain title — otherwise
+            // switching preset visibly renames the chain.
             description: Some(
-                preset
-                    .name
+                input
+                    .label
                     .clone()
-                    .or_else(|| input.label.clone())
+                    .or_else(|| preset.name.clone())
                     .unwrap_or_else(|| project::rig::humanize_preset_label(preset_name)),
             ),
-            instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+            instrument: input.instrument.clone(),
             enabled: true,
             // Invariant #10: carry the preset's volume (legacy migration
             // preserved Chain.volume → RigPreset.volume). Hardcoding 100
@@ -121,6 +129,28 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
         });
     }
     chains
+}
+
+/// Build the iteration order for [`rig_to_chains`]: honour
+/// `rig.chain_order` first (filtering to names that actually exist in
+/// `rig.inputs`, dropping duplicates), then append any remaining inputs
+/// in alphabetical order so a newly-added input still surfaces even when
+/// the persisted order pre-dates it.
+fn ordered_input_names(rig: &RigProject) -> Vec<String> {
+    use std::collections::BTreeSet;
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut out: Vec<String> = Vec::with_capacity(rig.inputs.len());
+    for name in &rig.chain_order {
+        if rig.inputs.contains_key(name) && seen.insert(name.clone()) {
+            out.push(name.clone());
+        }
+    }
+    for name in rig.inputs.keys() {
+        if seen.insert(name.clone()) {
+            out.push(name.clone());
+        }
+    }
+    out
 }
 
 /// Project a `RigProject` onto a synthetic **legacy** [`Project`]: **every**
@@ -149,6 +179,10 @@ pub fn rig_to_legacy_project(
         name: rig.name.clone(),
         device_settings: Vec::new(),
         chains,
+        // #513: project-owned MIDI bindings travel with `.openrig`. A rig-
+        // projected `Project` is a synthetic view — bindings live on the
+        // source RigProject if needed, so the projection starts with none.
+        midi: None,
     }
 }
 
@@ -366,3 +400,11 @@ impl RigRuntime {
 #[cfg(test)]
 #[path = "rig_runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "rig_runtime_chain_order_tests.rs"]
+mod chain_order_tests;
+
+#[cfg(test)]
+#[path = "rig_instrument_roundtrip_tests.rs"]
+mod instrument_roundtrip_tests;

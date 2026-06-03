@@ -53,6 +53,56 @@ pub enum QueryKind {
     /// Human-readable chain/block ID listing (for `midi-map.yaml` authors
     /// and the MCP `openrig://ids` resource). See [`crate::query::list_ids`].
     Ids,
+    /// Per-chain input/output peak meters (`(chain_id, in_dbfs, out_dbfs)`,
+    /// one record per line). Same numbers the GUI's IN/OUT bars read —
+    /// every transport gets the same view (`openrig-code-quality` lei).
+    ChainMeters,
+    /// #554: the named preset bank of one chain (`rig:<input>`) as JSON.
+    /// Resolved from the in-memory `RigProject.inputs[input].bank` — the
+    /// disk-side preset library is a separate concept (different
+    /// follow-up). Lets MCP / gRPC clients see the same preset list the
+    /// GUI shows in the chain title combobox.
+    ListChainPresets { chain: domain::ids::ChainId },
+    /// #554 follow-up: every preset name in the project's in-memory
+    /// `RigProject.presets` pool as JSON. A preset can sit in the pool
+    /// without being bound to any input bank; tone-builder Step 0
+    /// reads this to avoid silently overwriting an existing preset.
+    ListProjectPresets,
+    /// #561 (expanded scope): full plugin catalog as a JSON listing.
+    /// See [`crate::query::list_plugin_catalog`]. Read parity for the
+    /// reload / load / unload Commands so any transport can show the
+    /// agent / user what is currently addressable.
+    ListPluginCatalog,
+    /// #561 (expanded scope): single plugin by manifest id, or
+    /// `{"plugin": null}` when absent. See [`crate::query::get_plugin`].
+    GetPlugin { id: String },
+    /// #561 (expanded scope): text search across the catalog
+    /// (case-insensitive substring on id / display_name / brand).
+    /// Empty query = all entries. See [`crate::query::find_plugins`].
+    FindPlugins { query: String },
+    /// #572: full parameter schema for one plugin (catalog-level). No
+    /// placed instance required. Resolved via
+    /// `project::block::schema_for_block_model` and wrapped under a
+    /// `params` envelope by [`crate::query::get_plugin_params`].
+    /// Unknown id → `{"params": null}`.
+    GetPluginParams { plugin_id: String },
+    /// #572: list of materialised `BlockParameterDescriptor` for one
+    /// placed block instance (schema + `current_value` per parameter).
+    /// Resolved by [`crate::query::get_block_params`], which delegates
+    /// to `AudioBlock::parameter_descriptors()` (same helper the GUI
+    /// uses). Unknown chain / block → `Err`.
+    GetBlockParams {
+        chain: domain::ids::ChainId,
+        block: domain::ids::BlockId,
+    },
+    /// #582: effective resolved system paths (data root + every
+    /// configurable directory) as a JSON envelope. Resolved by
+    /// [`crate::query::paths::resolved_paths_json`] over
+    /// `AppConfig.paths` from `FilesystemStorage::load_app_config`.
+    /// Every field reports the absolute resolved path — `None`
+    /// overrides fall back to the OS default (consumers don't
+    /// re-implement the fallback). MCP serves this as `openrig://paths`.
+    Paths,
 }
 
 struct QueryRequest {
@@ -179,6 +229,7 @@ mod tests {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         }))
     }
 
@@ -232,6 +283,39 @@ mod tests {
         // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.
         assert_eq!(drain.drain(&dispatcher, 2).len(), 2);
         assert_eq!(drain.drain(&dispatcher, 10).len(), 3);
+    }
+
+    #[test]
+    fn query_chain_meters_variant_round_trips_through_bridge() {
+        // Pin the contract: a transport (MCP/gRPC/...) submits
+        // `QueryKind::ChainMeters` and the frontend resolver replies
+        // with a TSV-shaped payload. The resolver in the running app
+        // is what actually fills the values; the bridge's contract is
+        // just that the variant is plumbed through and the reply is
+        // delivered to the caller.
+        let (bridge, drain) = channel();
+        let mut rx = bridge.query(QueryKind::ChainMeters);
+        let served = drain.serve_queries(
+            |kind| match kind {
+                QueryKind::ChainMeters => {
+                    Ok("rig:input-1\t-12.3\t-9.8\nrig:input-2\t-30.0\t-25.5\n".to_string())
+                }
+                _ => Err("unexpected".into()),
+            },
+            8,
+        );
+        assert_eq!(served, 1, "the meters query was actually served");
+        let payload: String = rx
+            .try_recv()
+            .expect("channel alive")
+            .expect("reply delivered")
+            .expect("ok payload");
+        for line in payload.trim_end().split('\n') {
+            let cols: Vec<&str> = line.split('\t').collect();
+            assert_eq!(cols.len(), 3, "tsv shape: chain_id, in_dbfs, out_dbfs");
+            cols[1].parse::<f32>().expect("in_dbfs is a finite float");
+            cols[2].parse::<f32>().expect("out_dbfs is a finite float");
+        }
     }
 
     #[test]

@@ -175,6 +175,7 @@ fn validate_device_settings_empty_device_id_fails() {
         name: Some("test".to_string()),
         device_settings: settings,
         chains: vec![valid_chain("chain:0")],
+        midi: None,
     };
     let map: HashMap<_, _> = project
         .device_settings
@@ -192,6 +193,7 @@ fn validate_device_settings_duplicate_device_id_fails() {
         name: Some("test".to_string()),
         device_settings: settings.clone(),
         chains: vec![valid_chain("chain:0")],
+        midi: None,
     };
     // HashMap will deduplicate, so len != original len
     let map: HashMap<_, _> = project

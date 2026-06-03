@@ -4,6 +4,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+pub mod midi_device;
+pub mod midi_migrate;
+pub mod midi_profile;
+pub use midi_device::{MidiDeviceSelection, MidiPortKey};
+
+#[cfg(test)]
+#[path = "midi_profile_tests.rs"]
+mod midi_profile_tests;
+
+#[cfg(test)]
+#[path = "midi_migrate_tests.rs"]
+mod midi_migrate_tests;
+
 /// Central configuration for asset directories used by the engine and GUI.
 ///
 /// Each field holds a path (absolute or relative to the executable) where
@@ -27,6 +40,24 @@ pub struct AssetPaths {
     /// Root directory for plugin metadata YAML files (per-language).
     #[serde(default = "default_metadata")]
     pub metadata: String,
+    /// #513: user-chosen directory holding project preset libraries. `None`
+    /// keeps the historical OS default (the launcher resolves it). When set,
+    /// this override wins for preset discovery / save dialogs.
+    #[serde(default)]
+    pub presets_path: Option<PathBuf>,
+    /// #513: user-chosen directory holding plugin packs (NAM/IR/LV2). `None`
+    /// keeps the historical OS default resolved by
+    /// `plugin_loader::config::plugins_root_from_config`. When set, this
+    /// override wins for plugin scanning.
+    #[serde(default)]
+    pub plugins_path: Option<PathBuf>,
+    /// #582: user-chosen directory where tone analyzers and other tools
+    /// write evaluation artifacts (spectrograms, fingerprints, comparison
+    /// reports). `None` keeps the OS default resolved by
+    /// [`default_evaluations_path`]. Machine-local concern per ADR 0003 —
+    /// lives in `config.yaml`, not the project YAML.
+    #[serde(default)]
+    pub evaluations_path: Option<PathBuf>,
 }
 
 impl Default for AssetPaths {
@@ -35,6 +66,9 @@ impl Default for AssetPaths {
             thumbnails: default_thumbnails(),
             screenshots: default_screenshots(),
             metadata: default_metadata(),
+            presets_path: None,
+            plugins_path: None,
+            evaluations_path: None,
         }
     }
 }
@@ -113,6 +147,58 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         thumbnails: resolve(&root, paths.thumbnails),
         screenshots: resolve(&root, paths.screenshots),
         metadata: resolve(&root, paths.metadata),
+        // #513: user overrides are stored absolute (file picker resolves them).
+        // No data-root rebase — `None` means "use the OS default" and is the
+        // signal the resolvers look for. Same applies to #582's
+        // `evaluations_path`.
+        presets_path: paths.presets_path,
+        plugins_path: paths.plugins_path,
+        evaluations_path: paths.evaluations_path,
+    }
+}
+
+/// #582: OS default for the evaluations directory (tone analyzer outputs,
+/// fingerprint snapshots, A/B comparison reports). Per CLAUDE.md
+/// cross-platform rule:
+///
+/// - macOS: `~/Library/Application Support/OpenRig/evaluations/`
+/// - Windows: `%APPDATA%\OpenRig\evaluations\`
+/// - Linux: `~/.local/share/openrig/evaluations/`
+///
+/// Used when [`AssetPaths::evaluations_path`] is `None`. Returns the path
+/// without creating it — callers materialize the directory only when they
+/// actually write into it.
+pub fn default_evaluations_path() -> PathBuf {
+    user_data_root().join("evaluations")
+}
+
+/// #582: OS-specific user data root for OpenRig
+/// (`~/Library/Application Support/OpenRig` on macOS,
+/// `%APPDATA%\OpenRig` on Windows,
+/// `~/.local/share/openrig` on Linux). Mirrors the same convention
+/// `FilesystemStorage::app_config_path` uses, kept as a shared helper so
+/// every `default_*_path` derived from it stays consistent.
+pub fn user_data_root() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        home.join("Library/Application Support/OpenRig")
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        appdata.join("OpenRig")
+    }
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        home.join(".local/share/openrig")
     }
 }
 
@@ -164,6 +250,10 @@ pub struct AppConfig {
     /// locale.
     #[serde(default)]
     pub language: Option<String>,
+    /// Per-machine MIDI device selection (#513). Empty list = none seen
+    /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -192,19 +282,21 @@ pub struct GuiAudioDeviceSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct GuiAudioSettings {
+pub struct GuiSystemSettings {
     #[serde(default)]
     pub input_devices: Vec<GuiAudioDeviceSettings>,
     #[serde(default)]
     pub output_devices: Vec<GuiAudioDeviceSettings>,
-    // The struct name is historical (originally audio-only); the file lives
-    // at gui-settings.yaml and now hosts every per-machine GUI preference.
+    // Renamed from GuiAudioSettings (#513) to reflect that it holds every
+    // per-machine GUI preference, not just audio.
     // None / "auto" follows the OS locale; "pt-BR" / "en-US" override it.
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub midi_devices: Vec<MidiDeviceSelection>,
 }
 
-impl GuiAudioSettings {
+impl GuiSystemSettings {
     pub fn is_complete(&self) -> bool {
         !self.input_devices.is_empty() && !self.output_devices.is_empty()
     }
@@ -253,7 +345,7 @@ struct LegacyGuiAudioSettings {
     buffer_size_frames: u32,
 }
 
-impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
+impl From<LegacyGuiAudioSettings> for GuiSystemSettings {
     fn from(value: LegacyGuiAudioSettings) -> Self {
         let input_devices = value
             .input_device_names
@@ -293,6 +385,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
             input_devices,
             output_devices,
             language: None,
+            midi_devices: vec![],
         }
     }
 }
@@ -320,11 +413,13 @@ impl FilesystemStorage {
         Ok(base_dir.join("OpenRig").join("config.yaml"))
     }
 
-    /// Per-OS path of the global MIDI mapping file (`adapter-midi`, issue
-    /// #22). macOS `~/Library/Application Support/OpenRig/midi-map.yaml`,
+    /// Per-OS path of the **legacy** single-file MIDI mapping (`adapter-midi`,
+    /// issue #22). macOS `~/Library/Application Support/OpenRig/midi-map.yaml`,
     /// Windows `%APPDATA%\OpenRig\midi-map.yaml`, Linux
-    /// `~/.config/OpenRig/midi-map.yaml`. Never hardcoded — resolved like
-    /// every other OpenRig config file.
+    /// `~/.config/OpenRig/midi-map.yaml`. Never hardcoded — resolved like every
+    /// other OpenRig config file. After #499 this file is migrated on first
+    /// load into the system [`midi_profile_path`] + system [`midi_bindings_path`]
+    /// and then deleted; this getter survives only for the migration path.
     pub fn midi_map_path() -> Result<PathBuf> {
         let base_dir = dirs::config_dir()
             .or_else(|| {
@@ -336,31 +431,66 @@ impl FilesystemStorage {
         Ok(base_dir.join("OpenRig").join("midi-map.yaml"))
     }
 
+    /// Per-OS path of the **MIDI device profile** (ADR 0003 / #499): which
+    /// controller to listen to. System layer; never overridden by the project.
+    /// macOS `~/Library/Application Support/OpenRig/midi-profile.yaml`,
+    /// Windows `%APPDATA%\OpenRig\midi-profile.yaml`, Linux
+    /// `~/.config/OpenRig/midi-profile.yaml`.
+    pub fn midi_profile_path() -> Result<PathBuf> {
+        let base_dir = dirs::config_dir()
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".config"))
+            })
+            .context("failed to resolve user config directory")?;
+        Ok(base_dir.join("OpenRig").join("midi-profile.yaml"))
+    }
+
+    /// Per-OS path of the **system-wide MIDI bindings fallback** (ADR 0003 /
+    /// #499). Used at resolve time when a project carries no `midi:` field;
+    /// the shipped default ships as `examples/midi-map.default.yaml` and the
+    /// system fallback overrides it when present. Same per-OS layout as the
+    /// other config files.
+    pub fn midi_bindings_path() -> Result<PathBuf> {
+        let base_dir = dirs::config_dir()
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".config"))
+            })
+            .context("failed to resolve user config directory")?;
+        Ok(base_dir.join("OpenRig").join("midi-bindings.yaml"))
+    }
+
     /// Read GUI audio settings (input/output devices + language) from
     /// the unified `config.yaml`. Issue #287: previously these lived in
     /// a separate `gui-settings.yaml`, now folded into `AppConfig`.
-    pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
+    pub fn load_gui_audio_settings() -> Result<Option<GuiSystemSettings>> {
         let config = Self::load_app_config()?;
         if config.input_devices.is_empty()
             && config.output_devices.is_empty()
             && config.language.is_none()
+            && config.midi_devices.is_empty()
         {
             return Ok(None);
         }
-        Ok(Some(GuiAudioSettings {
+        Ok(Some(GuiSystemSettings {
             input_devices: config.input_devices,
             output_devices: config.output_devices,
             language: config.language,
+            midi_devices: config.midi_devices,
         }))
     }
 
     /// Persist GUI audio settings into `config.yaml`, preserving the
     /// other AppConfig fields (recent_projects, paths).
-    pub fn save_gui_audio_settings(settings: &GuiAudioSettings) -> Result<()> {
+    pub fn save_gui_audio_settings(settings: &GuiSystemSettings) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.input_devices = settings.input_devices.clone();
         config.output_devices = settings.output_devices.clone();
         config.language = settings.language.clone();
+        config.midi_devices = settings.midi_devices.clone();
         Self::save_app_config(&config)
     }
 
@@ -370,6 +500,34 @@ impl FilesystemStorage {
     pub fn save_gui_language(language: Option<String>) -> Result<()> {
         let mut config = Self::load_app_config().unwrap_or_default();
         config.language = language;
+        Self::save_app_config(&config)
+    }
+
+    /// #513: update only the user's preset directory override (under
+    /// `AppConfig.paths.presets_path`), preserving every other config
+    /// field. `None` resets the override so the OS default wins again.
+    pub fn save_presets_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.presets_path = path;
+        Self::save_app_config(&config)
+    }
+
+    /// #513: update only the user's plugin directory override (under
+    /// `AppConfig.paths.plugins_path`), preserving every other config
+    /// field. `None` resets the override so the OS default wins again.
+    pub fn save_plugins_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.plugins_path = path;
+        Self::save_app_config(&config)
+    }
+
+    /// #582: update only the user's evaluations directory override
+    /// (under `AppConfig.paths.evaluations_path`), preserving every other
+    /// config field. `None` resets the override so the OS default
+    /// ([`default_evaluations_path`]) wins again.
+    pub fn save_evaluations_path(path: Option<PathBuf>) -> Result<()> {
+        let mut config = Self::load_app_config().unwrap_or_default();
+        config.paths.evaluations_path = path;
         Self::save_app_config(&config)
     }
 
@@ -413,7 +571,7 @@ impl FilesystemStorage {
                 return Ok(());
             }
         };
-        let legacy: GuiAudioSettings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
+        let legacy: GuiSystemSettings = match serde_yaml::from_str::<GuiSystemSettings>(&raw) {
             Ok(value) => value,
             Err(_) => match serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw) {
                 Ok(legacy) => legacy.into(),

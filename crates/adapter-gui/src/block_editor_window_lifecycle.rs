@@ -45,12 +45,67 @@ use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_picker_items, load_screenshot_image, replace_project_chains, set_selected_block,
 };
-use crate::runtime_lifecycle::{sync_live_chain_runtime, system_language};
+use crate::runtime_lifecycle::{sync_block_toggle, sync_live_chain_runtime, system_language};
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
     MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
+
+/// Compute the knob-grid window dimensions in Rust and push them into
+/// the Slint `BlockEditorWindow` via its `in` properties. Must be
+/// called whenever the knob source changes (initial editor setup OR
+/// model switch inside the editor). The pure policy lives in
+/// `block_panel_dimensions` and is gated by unit tests — Slint never
+/// re-derives the wrap math. Issue #500.
+pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
+    use slint::Model;
+    let overlay_count = win.get_block_knob_overlays().row_count();
+    let param_count = win.get_block_parameter_items().row_count();
+    // Slint hides the param grid when overlays are present
+    // (`block-knob-overlays.length == 0` gates `params-visible`), so
+    // the count that drives layout is whichever source actually renders.
+    let knob_count = if overlay_count > 0 {
+        overlay_count
+    } else {
+        param_count
+    };
+    let has_eq_widget = win.get_multi_slider_points().row_count() > 0
+        || win.get_curve_editor_points().row_count() > 0;
+    let type_idx = win.get_block_drawer_selected_type_index();
+    let types = win.get_block_type_options();
+    let use_panel_editor = if type_idx >= 0 {
+        types
+            .row_data(type_idx as usize)
+            .map(|t| t.use_panel_editor)
+            .unwrap_or(false)
+    } else {
+        // No selection yet — default to the panel editor so the window
+        // sizes for the upcoming knob grid instead of the form-editor
+        // fallback (which would briefly flash a 520x820 window).
+        true
+    };
+
+    let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
+        knob_count,
+        use_panel_editor,
+        has_eq_widget,
+    });
+    win.set_panel_knob_window_width(dims.window_width_px);
+    win.set_panel_knob_window_height(dims.window_height_px);
+    win.set_panel_knob_inner_height(dims.inner_panel_height_px);
+    win.set_panel_grid_cols(dims.grid_cols as i32);
+    win.set_panel_grid_rows(dims.grid_rows as i32);
+
+    // Resize the OS window so the new dimensions take effect immediately
+    // — Linux WMs ignore Slint min/max/preferred-* without this (#479).
+    let pw = win.get_panel_width();
+    let ph = win.get_panel_height();
+    if pw.is_finite() && ph.is_finite() && pw > 0.0 && ph > 0.0 {
+        win.window()
+            .set_size(slint::WindowSize::Logical(slint::LogicalSize::new(pw, ph)));
+    }
+}
 
 pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -167,6 +222,9 @@ pub(crate) fn wire(
                     .collect::<Vec<_>>(),
             );
             win.set_eq_total_curve(eq_total.into());
+            // Re-size the window for the new knob count / EQ state
+            // (issue #500: model switch inside the editor must resize).
+            apply_panel_dimensions(&win);
             drop(draft_borrow);
             if win_draft
                 .borrow()
@@ -246,7 +304,7 @@ pub(crate) fn wire(
                 };
                 match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                     chain: chain_id.clone(),
-                    block: block_id,
+                    block: block_id.clone(),
                 }) {
                     Ok(events) => events.into_iter().find_map(|e| {
                         if let Event::BlockEnabledChanged { enabled, .. } = e {
@@ -277,7 +335,9 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) =
+                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
+            {
                 log::error!("[adapter-gui] block-window.toggle-enabled runtime sync: {e}");
                 main.set_block_drawer_status_message(e.to_string().into());
                 return;
@@ -355,10 +415,43 @@ pub(crate) fn wire(
         });
     }
 
-    // on_delete_block_drawer
+    // on_delete_block_drawer (trash icon) — opens the in-window overlay.
+    // Issue #360: the actual delete moved to on_confirm_delete_block below;
+    // the previous native-dialog path is gone (native popup did not suit
+    // Orange Pi touch sessions and stole focus on macOS).
     {
         let win_draft = win_draft.clone();
         let win_timer = win_timer.clone();
+        let weak_win = win.as_weak();
+        win.on_delete_block_drawer(move || {
+            let Some(win) = weak_win.upgrade() else {
+                return;
+            };
+            win_timer.stop();
+            let Some(draft) = win_draft.borrow().clone() else {
+                return;
+            };
+            if draft.block_index.is_none() {
+                return;
+            }
+            win.set_confirm_delete_block_name(draft.model_id.into());
+            win.set_show_confirm_delete_block(true);
+        });
+    }
+
+    // on_cancel_delete_block — just hide the overlay.
+    {
+        let weak_win = win.as_weak();
+        win.on_cancel_delete_block(move || {
+            if let Some(win) = weak_win.upgrade() {
+                win.set_show_confirm_delete_block(false);
+            }
+        });
+    }
+
+    // on_confirm_delete_block — execute the deletion the overlay just gated.
+    {
+        let win_draft = win_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -370,31 +463,22 @@ pub(crate) fn wire(
         let open_block_windows_delete = open_block_windows.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_delete_block_drawer(move || {
+        win.on_confirm_delete_block(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
+            // Hide overlay first so any error toast renders on the
+            // window, not behind the modal backdrop.
+            win.set_show_confirm_delete_block(false);
             let Some(main) = weak_main.upgrade() else {
                 return;
             };
-            win_timer.stop();
             let Some(draft) = win_draft.borrow().clone() else {
                 return;
             };
             let Some(block_index) = draft.block_index else {
                 return;
             };
-            let confirmed = rfd::MessageDialog::new()
-                .set_title(rust_i18n::t!("dialog-delete-block").as_ref())
-                .set_description(
-                    rust_i18n::t!("dialog-confirm-delete-block", name = draft.model_id).to_string(),
-                )
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .set_level(rfd::MessageLevel::Warning)
-                .show();
-            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
-                return;
-            }
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;

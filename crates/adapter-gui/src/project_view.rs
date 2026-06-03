@@ -29,6 +29,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
             use_panel_editor: item.use_panel_editor,
+            uses_model_catalog: block_core::effect_type_uses_model_catalog(item.effect_type),
             accent_color: crate::ui_state::accent_color_for_icon_kind(item.icon_kind),
             icon_source: slint::Image::default(),
         })
@@ -44,6 +45,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "input".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
         icon_source: slint::Image::default(),
     });
@@ -53,6 +55,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "output".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
         icon_source: slint::Image::default(),
     });
@@ -62,6 +65,7 @@ pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerIt
         subtitle: "".into(),
         icon_kind: "insert".into(),
         use_panel_editor: false,
+        uses_model_catalog: false,
         accent_color: crate::ui_state::accent_color_for_icon_kind("insert"),
         icon_source: slint::Image::default(),
     });
@@ -371,6 +375,7 @@ pub(crate) fn chain_block_item_from_block(
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        unavailable: !project::project_disable_unavailable::block_model_is_available(&block.kind),
         real_index: 0,
         thumbnail,
         has_thumbnail,
@@ -473,6 +478,34 @@ pub(crate) fn replace_project_chains(
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
                 latency_ms,
                 volume: chain.volume.round() as i32,
+                // Issue #496: meters default to SILENT until the GUI
+                // timer subscribes & polls (engine::output_meter).
+                meter_in_dbfs: engine::output_meter::SILENT_DBFS,
+                meter_out_dbfs: engine::output_meter::SILENT_DBFS,
+                // Per-stream meter slots. Length matches the number of
+                // input entries on the chain (one stream per input runtime
+                // in the engine, per invariant #4). Timer fills the live
+                // values; defaults to SILENT here so the UI renders the
+                // right number of (silent) bars on first paint.
+                stream_meters: {
+                    let stream_count: usize = chain
+                        .blocks
+                        .iter()
+                        .filter_map(|b| match &b.kind {
+                            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+                            _ => None,
+                        })
+                        .sum::<usize>()
+                        .max(1);
+                    let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
+                    for _ in 0..stream_count {
+                        model.push(crate::StreamMeter {
+                            in_dbfs: engine::output_meter::SILENT_DBFS,
+                            out_dbfs: engine::output_meter::SILENT_DBFS,
+                        });
+                    }
+                    ModelRc::from(model)
+                },
                 blocks: {
                     let first_input_idx = chain
                         .blocks
@@ -513,6 +546,26 @@ pub(crate) fn replace_project_chains(
                                 item.real_index = real_idx as i32;
                                 item
                             })
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                // #614: starts false; the meter timer updates it at ~30 Hz
+                // via `ChainRuntimeState::has_di_loop`. Populated here so
+                // the struct is complete on first render.
+                di_loop_playing: false,
+                // #614: enumerate bundled loop ids (stems under
+                // <data-root>/assets/di-loops/) then append the
+                // "Choose file…" sentinel. If the directory is missing or
+                // empty (Task 8 ships the first loops), only the sentinel
+                // appears so the user can still pick a WAV file.
+                di_loop_sources: {
+                    let bundled_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
+                    let refs: Vec<&str> = bundled_ids.iter().map(|s| s.as_str()).collect();
+                    let entries = crate::di_loop_ui_sources::build_di_loop_sources(&refs);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        entries
+                            .into_iter()
+                            .map(SharedString::from)
                             .collect::<Vec<_>>(),
                     )))
                 },

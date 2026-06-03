@@ -16,6 +16,7 @@ impl LocalDispatcher {
                 input_block,
                 output_block,
             } => {
+                let cloned_output = output_block.clone();
                 self.with_chain(&chain, |c| {
                     let in_pos = c
                         .blocks
@@ -41,6 +42,17 @@ impl LocalDispatcher {
                     c.blocks[out_idx] = output_block;
                     Ok(())
                 })?;
+                // Same rig-persistence sync as SaveChainOutputEndpoints --
+                // the edit must survive a rig→legacy re-projection.
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        crate::local_dispatcher_chain_save::propagate_outputs_to_rig(
+                            &mut rig.borrow_mut(),
+                            input_name,
+                            std::slice::from_ref(&cloned_output),
+                        );
+                    }
+                }
                 Ok(vec![
                     Event::ChainIoSaved {
                         chain: chain.clone(),
@@ -52,10 +64,58 @@ impl LocalDispatcher {
             // ── Chain presets ─────────────────────────────────────────────────
             Command::LoadChainPreset {
                 chain,
+                preset_instrument,
                 preset_blocks,
             } => {
+                // Guard: reject the load if the preset's instrument tag differs
+                // from the target chain's instrument (#627). This is the hard
+                // gate that applies regardless of transport (GUI / MCP / gRPC).
+                // Untagged legacy presets default to "electric_guitar" (same as
+                // the serde default on ChainBlocksPreset.instrument).
+                {
+                    let project = self.project.borrow();
+                    let chain_instrument = project
+                        .chains
+                        .iter()
+                        .find(|c| c.id == chain)
+                        .map(|c| c.instrument.as_str())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Command::LoadChainPreset: chain {:?} not found",
+                                chain
+                            )
+                        })?;
+                    if preset_instrument != chain_instrument {
+                        anyhow::bail!(
+                            "preset is for {preset_instrument}, chain is {chain_instrument}: \
+                             cannot load a {preset_instrument} preset into a \
+                             {chain_instrument} chain"
+                        );
+                    }
+                }
+                // Preset files are intentionally I/O-stripped (the adapter
+                // parses the file and drops the I/O blocks before
+                // dispatching, since I/O routing is per-machine). Preserve
+                // the chain's existing I/O endpoints across the swap so
+                // loading a preset doesn't leave the chain without an
+                // output sink (which would fail validation with
+                // "chain '...' has no output blocks").
                 self.with_chain(&chain, |c| {
-                    c.blocks = preset_blocks;
+                    let mut inputs: Vec<project::block::AudioBlock> = Vec::new();
+                    let mut outputs: Vec<project::block::AudioBlock> = Vec::new();
+                    for b in &c.blocks {
+                        match &b.kind {
+                            project::block::AudioBlockKind::Input(_) => inputs.push(b.clone()),
+                            project::block::AudioBlockKind::Output(_) => outputs.push(b.clone()),
+                            _ => {}
+                        }
+                    }
+                    let mut merged: Vec<project::block::AudioBlock> =
+                        Vec::with_capacity(inputs.len() + preset_blocks.len() + outputs.len());
+                    merged.extend(inputs);
+                    merged.extend(preset_blocks);
+                    merged.extend(outputs);
+                    c.blocks = merged;
                     Ok(())
                 })?;
                 Ok(vec![Event::ChainPresetLoaded { chain }])

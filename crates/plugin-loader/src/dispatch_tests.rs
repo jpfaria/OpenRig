@@ -9,6 +9,7 @@ fn cap(values: &[(&str, f64)], file: &str) -> GridCapture {
             .map(|(k, v)| ((*k).to_string(), ManifestParameterValue::Number(*v)))
             .collect(),
         file: file.into(),
+        output_gain_db: None,
     }
 }
 
@@ -63,6 +64,54 @@ fn resolve_capture_returns_first_when_no_parameters() {
     let captures = vec![cap(&[], "only.wav"), cap(&[], "other.wav")];
     let chosen = resolve_capture(&[], &captures, &ParameterSet::default()).unwrap();
     assert_eq!(chosen.file.to_str(), Some("only.wav"));
+}
+
+#[test]
+fn first_capture_axis_values_returns_first_capture_for_each_axis() {
+    // Issue #630: a multi-axis grid whose per-axis-first combination
+    // (drive=0, tone=6) is NOT a declared capture. The born default must be
+    // the FIRST capture (drive=0, tone=3), not the per-axis-min.
+    let parameters = vec![
+        GridParameter {
+            name: "drive".into(),
+            display_name: None,
+            values: vec![
+                ManifestParameterValue::Number(0.0),
+                ManifestParameterValue::Number(5.0),
+            ],
+        },
+        GridParameter {
+            name: "tone".into(),
+            display_name: None,
+            values: vec![
+                ManifestParameterValue::Number(6.0),
+                ManifestParameterValue::Number(3.0),
+            ],
+        },
+    ];
+    let captures = vec![
+        cap(&[("drive", 0.0), ("tone", 3.0)], "first.nam"),
+        cap(&[("drive", 5.0), ("tone", 6.0)], "second.nam"),
+    ];
+    let seeded = first_capture_axis_values(&parameters, &captures);
+    assert_eq!(
+        seeded,
+        vec![
+            ("drive".to_string(), ManifestParameterValue::Number(0.0)),
+            ("tone".to_string(), ManifestParameterValue::Number(3.0)),
+        ],
+        "born default must be the first capture's axis values, not per-axis-min"
+    );
+}
+
+#[test]
+fn first_capture_axis_values_is_empty_without_captures() {
+    let parameters = vec![GridParameter {
+        name: "drive".into(),
+        display_name: None,
+        values: vec![ManifestParameterValue::Number(0.0)],
+    }];
+    assert!(first_capture_axis_values(&parameters, &[]).is_empty());
 }
 
 #[test]

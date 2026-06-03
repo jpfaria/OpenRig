@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 application = { path = "../application" }
+domain = { path = "../domain" }
 project = { path = "../project" }
 infra-yaml = { path = "../infra-yaml" }
 infra-cpal = { path = "../infra-cpal" }
@@ -19,3 +20,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "ti
 # need a plain HTTP/1 server to host the rmcp tower service.
 axum = { version = "0.8", default-features = false, features = ["tokio", "http1"] }
 schemars.workspace = true
+
+[dev-dependencies]
+infra-filesystem = { path = "../infra-filesystem" }

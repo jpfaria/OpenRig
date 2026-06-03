@@ -24,7 +24,7 @@ use crate::io_groups::{apply_chain_input_window_state, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::{ChainDraft, InputGroupDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
+use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{
     AppWindow, ChainInputGroupsWindow, ChainInputWindow, ChannelOptionItem, ProjectChainItem,
 };
@@ -376,7 +376,7 @@ pub(crate) fn wire(
             };
             if let Err(e) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
                 chain: chain_id.clone(),
-                block: block_id,
+                block: block_id.clone(),
             }) {
                 log::error!("toggle I/O block enabled: {e}");
                 return;
@@ -390,7 +390,13 @@ pub(crate) fn wire(
                     .unwrap_or(false)
             };
             gw.set_block_enabled(block_enabled);
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = sync_block_toggle(
+                &project_runtime,
+                session,
+                &chain_id,
+                &block_id,
+                block_enabled,
+            ) {
                 log::error!("toggle I/O block enabled: {e}");
             }
             replace_project_chains(

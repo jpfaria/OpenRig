@@ -377,21 +377,10 @@ fn normalized_chain_description_empty_returns_none() {
     assert_eq!(normalized_chain_description("   "), None);
 }
 
-// --- preset_id_from_path ---
-
-use super::project_ops::preset_id_from_path;
-
-#[test]
-fn preset_id_from_path_extracts_stem() {
-    let path = std::path::Path::new("/some/dir/my_preset.yaml");
-    assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
-}
-
-#[test]
-fn preset_id_from_path_no_extension_uses_filename() {
-    let path = std::path::Path::new("/some/dir/my_preset");
-    assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
-}
+// `preset_id_from_path` moved to
+// `application::local_dispatcher_preset` in #555. The behaviour is
+// covered there alongside the dispatcher tests; the GUI no longer
+// owns the helper.
 
 // --- project_title_for_path ---
 
@@ -404,6 +393,7 @@ fn project_title_uses_name_when_present() {
         name: Some("My Rig".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     assert_eq!(project_title_for_path(None, &project), "My Rig");
 }
@@ -414,6 +404,7 @@ fn project_title_falls_back_to_path_stem() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let path = std::path::PathBuf::from("/home/user/my_project.yaml");
     assert_eq!(project_title_for_path(Some(&path), &project), "my_project");
@@ -425,6 +416,7 @@ fn project_title_empty_name_treated_as_absent() {
         name: Some("  ".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let path = std::path::PathBuf::from("/home/user/fallback.yaml");
     assert_eq!(project_title_for_path(Some(&path), &project), "fallback");
@@ -436,6 +428,7 @@ fn project_title_no_name_no_path_empty_chains_is_novo_projeto() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     assert_eq!(project_title_for_path(None, &project), "Novo Projeto");
 }
@@ -454,6 +447,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         name: None,
         device_settings: vec![],
         chains: vec![chain],
+        midi: None,
     };
     assert_eq!(project_title_for_path(None, &project), "Projeto");
 }
@@ -564,6 +558,7 @@ fn project_display_name_returns_trimmed_name() {
         name: Some("  My Project  ".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     assert_eq!(project_display_name(&project), "My Project");
 }
@@ -574,6 +569,7 @@ fn project_display_name_no_name_returns_untitled() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     assert_eq!(project_display_name(&project), UNTITLED_PROJECT_NAME);
 }
@@ -584,6 +580,7 @@ fn project_display_name_empty_name_returns_untitled() {
         name: Some("".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     assert_eq!(project_display_name(&project), UNTITLED_PROJECT_NAME);
 }
@@ -913,6 +910,7 @@ fn chain_inputs_tooltip_shows_device_name_and_channels() {
         name: None,
         device_settings: vec![],
         chains: vec![chain.clone()],
+        midi: None,
     };
     let devices = vec![AudioDeviceDescriptor {
         id: "dev".into(),
@@ -944,6 +942,7 @@ fn chain_inputs_tooltip_no_input_block() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
     assert_eq!(tooltip, "No input configured");
@@ -956,6 +955,7 @@ fn chain_inputs_tooltip_unknown_device_shows_id() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     // No devices → falls back to device_id
     let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
@@ -977,6 +977,7 @@ fn chain_outputs_tooltip_shows_device_and_channels() {
         name: None,
         device_settings: vec![],
         chains: vec![chain.clone()],
+        midi: None,
     };
     let devices = vec![AudioDeviceDescriptor {
         id: "dev".into(),
@@ -1003,6 +1004,7 @@ fn chain_outputs_tooltip_no_output_block() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let tooltip = chain_outputs_tooltip(&chain, &project, &[]);
     assert_eq!(tooltip, "No output configured");
@@ -1179,5 +1181,37 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
     assert!(
         path.with_extension("openrig").exists(),
         "legacy .yaml transparently migrated to .openrig"
+    );
+}
+
+#[test]
+fn chain_block_item_flags_unavailable_model_for_the_tile() {
+    use crate::project_view::chain_block_item_from_block;
+    use project::param::ParameterSet;
+
+    // The builder resolves thumbnail asset paths; init them (idempotent).
+    infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
+
+    let gain = |id: &str, model: &str| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: false,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: model.into(),
+            params: ParameterSet::default(),
+        }),
+    };
+
+    // `ibanez_ts9` is a native gain model → resolvable. The `nam_` id has no
+    // pack on disk → unavailable. The tile uses this flag to show the block
+    // as deactivated and block its enable toggle (#606).
+    assert!(
+        !chain_block_item_from_block(&gain("a", "ibanez_ts9")).unavailable,
+        "a resolvable model must not be flagged unavailable"
+    );
+    assert!(
+        chain_block_item_from_block(&gain("u", "nam_uninstalled_pedal_for_issue_606")).unavailable,
+        "BUG #606: a block whose model is uninstalled must be flagged unavailable \
+         so the tile can show it and block its enable toggle"
     );
 }

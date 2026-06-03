@@ -94,6 +94,40 @@ fn parse_rejects_invalid() {
 }
 
 #[test]
+fn chain_order_round_trips_via_yaml() {
+    // Issue #502: a user reorder must survive save+reload. The kebab-case
+    // `chain-order:` key keeps the convention used by `active-preset` etc.
+    let mut p = parse_rig_project(MINIMAL).unwrap();
+    p.chain_order = vec!["input-1".to_string()];
+
+    let yaml = serialize_rig_project(&p).expect("serialize ok");
+    assert!(
+        yaml.contains("chain-order:"),
+        "chain-order must appear in YAML when non-empty, got:\n{yaml}"
+    );
+
+    let reloaded = parse_rig_project(&yaml).expect("parse ok");
+    assert_eq!(
+        reloaded.chain_order,
+        vec!["input-1".to_string()],
+        "chain_order must survive the YAML round-trip"
+    );
+}
+
+#[test]
+fn empty_chain_order_is_omitted_from_yaml() {
+    // Back-compat: legacy `.openrig` files have no `chain-order:` key.
+    // We must keep the field out of fresh serialisations too so the
+    // wire shape doesn't grow without reason.
+    let p = parse_rig_project(MINIMAL).unwrap();
+    let yaml = serialize_rig_project(&p).unwrap();
+    assert!(
+        !yaml.contains("chain-order"),
+        "an empty chain_order must be skipped from YAML, got:\n{yaml}"
+    );
+}
+
+#[test]
 fn save_then_load_file_round_trips() {
     let p = parse_rig_project(MINIMAL).unwrap();
     let dir = tempfile::tempdir().unwrap();
@@ -224,6 +258,7 @@ fn write_legacy(dir: &std::path::Path, chains: Vec<Chain>) -> std::path::PathBuf
         name: Some("Studio".into()),
         device_settings: vec![],
         chains,
+        midi: None,
     };
     let path = dir.join("project.yaml");
     std::fs::write(&path, crate::serialize_project(&project).unwrap()).unwrap();
@@ -322,4 +357,72 @@ fn load_project_any_rejects_future_version() {
     std::fs::write(&path, format!("version: 999\n{MINIMAL}")).unwrap();
     let err = load_project_any(&path).unwrap_err().to_string();
     assert!(err.contains("999"), "got: {err}");
+}
+
+// Issue #535 — save + reopen of a 2-preset bank must keep scenes per preset.
+// Repro: chain has presets A (slot 1, 2 scenes) and B (slot 2, 1 scene).
+// Round-tripping through serialize_rig_project + parse_rig_project must
+// leave B with exactly its own 1 scene — no leak from A.
+#[test]
+fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
+    use project::rig::{RigInput, RigPreset, RigProject, RigScene};
+    use std::collections::BTreeMap;
+
+    let mut preset_a = RigPreset {
+        id: "a".into(),
+        name: Some("A".into()),
+        blocks: Vec::new(),
+        scene_params: Vec::new(),
+        scenes: BTreeMap::from([(1, RigScene::default()), (2, RigScene::default())]),
+        volume: 100.0,
+    };
+    preset_a.scenes.entry(1).or_insert_with(RigScene::default);
+    let preset_b = RigPreset {
+        id: "b".into(),
+        name: Some("B".into()),
+        blocks: Vec::new(),
+        scene_params: Vec::new(),
+        scenes: BTreeMap::from([(1, RigScene::default())]),
+        volume: 100.0,
+    };
+
+    let mut presets = BTreeMap::new();
+    presets.insert("a".into(), preset_a);
+    presets.insert("b".into(), preset_b);
+
+    let mut inputs = BTreeMap::new();
+    inputs.insert(
+        "input-1".into(),
+        RigInput {
+            label: None,
+            sources: Vec::new(),
+            bank: BTreeMap::from([(1, "a".into()), (2, "b".into())]),
+            active_preset: 1,
+            active_scene: 1,
+            routing: Vec::new(),
+            instrument: "electric_guitar".to_string(),
+        },
+    );
+    let rig = RigProject {
+        name: None,
+        inputs,
+        outputs: BTreeMap::new(),
+        presets,
+        midi: None,
+        chain_order: Vec::new(),
+    };
+
+    let yaml = serialize_rig_project(&rig).expect("serialize");
+    let restored = parse_rig_project(&yaml).expect("parse");
+
+    assert_eq!(
+        restored.presets["a"].scene_count(),
+        2,
+        "preset A round-trips with 2 scenes",
+    );
+    assert_eq!(
+        restored.presets["b"].scene_count(),
+        1,
+        "preset B must round-trip with exactly 1 scene — no leak from A",
+    );
 }

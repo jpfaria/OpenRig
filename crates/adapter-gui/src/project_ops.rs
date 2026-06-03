@@ -1,15 +1,13 @@
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
-use crate::state::{AppConfigYaml, ConfigYaml, ProjectPaths, ProjectSession};
+use crate::state::{AppConfigYaml, ProjectPaths, ProjectSession};
 use crate::RecentProjectItem;
 use crate::{AppWindow, UNTITLED_PROJECT_NAME};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use domain::ids::DeviceId;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry};
-use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset};
-use project::block::AudioBlockKind;
-use project::chain::Chain;
+use infra_yaml::{load_chain_preset_file, ChainBlocksPreset};
 use project::device::DeviceSettings;
 use project::project::Project;
 use std::env;
@@ -211,13 +209,30 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         name: None,
         device_settings: Vec::new(),
         chains: Vec::new(),
+        midi: None,
     };
-    ProjectSession::new(
+    let mut session = ProjectSession::new(
         project,
         None,
         None,
         config.presets_path.unwrap_or_else(default_presets_path),
-    )
+    );
+    // Attach an empty rig from the start so `Command::AddChain` can
+    // mirror new chains into it (input + "Preset 1" + scene 1) without
+    // waiting for a save/reload cycle. The GUI's preset combobox binds
+    // against `session.rig`, so missing this leaves the combobox empty
+    // until the project is saved and reopened.
+    let rig = std::rc::Rc::new(std::cell::RefCell::new(project::rig::RigProject {
+        name: None,
+        inputs: std::collections::BTreeMap::new(),
+        outputs: std::collections::BTreeMap::new(),
+        presets: std::collections::BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
+    }));
+    session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
+    session.rig = Some(rig);
+    session
 }
 
 pub(crate) fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
@@ -308,6 +323,34 @@ pub(crate) fn load_project_session(
     project.device_settings =
         build_device_settings_from_gui(&gui_settings.input_devices, &gui_settings.output_devices);
 
+    // Migration safety net (#511 / output-persistence fix follow-up):
+    // a rig-backed project saved before `SaveChainOutputEndpoints` started
+    // writing into `rig.outputs` reopens with no Output blocks on its
+    // chains. `validate_project` would then refuse to start the runtime
+    // and the user would have no sound AND no way to enable the chain.
+    // Synthesize a default Output routed to the first configured output
+    // device so old projects self-heal forward; the user can later
+    // customise via the I/O editor.
+    let default_output_device = gui_settings
+        .output_devices
+        .first()
+        .map(|d| domain::ids::DeviceId(d.device_id.clone()))
+        .unwrap_or_else(|| domain::ids::DeviceId(String::new()));
+    project::project_ensure_io::ensure_chains_have_output(&mut project, &default_output_device);
+
+    // #606: the plugin catalog is loaded at startup, so by now we can tell
+    // which block models resolve. Disable any whose pack is not installed
+    // (or that is unsupported on this platform) — the chain keeps playing
+    // with the pedal visibly off instead of silently faulting an "on" block.
+    let disabled = project::project_disable_unavailable::disable_unavailable_blocks(&mut project);
+    if !disabled.is_empty() {
+        log::warn!(
+            "disabled {} block(s) with unavailable models on load: {:?}",
+            disabled.len(),
+            disabled.iter().map(|b| &b.0).collect::<Vec<_>>()
+        );
+    }
+
     let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),
@@ -323,6 +366,24 @@ pub(crate) fn load_project_session(
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
     session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
     session.rig = Some(rig);
+
+    // #591: default the active chain to the first one. A footswitch bound
+    // to `toggle_active_chain_enabled` reads `SelectionState.active_chain`;
+    // with no prior navigation that was `None` and the press was a silent
+    // no-op. Seeding it here also gives the Chains screen a chain to mark
+    // the moment a project opens.
+    let first_chain = session
+        .project
+        .borrow()
+        .chains
+        .first()
+        .map(|c| c.id.clone());
+    if let Some(first_chain) = first_chain {
+        let _ = session
+            .dispatcher
+            .dispatch(application::command::Command::SelectActiveChain { chain: first_chain });
+    }
+
     Ok(session)
 }
 
@@ -370,8 +431,12 @@ pub(crate) fn sync_project_dirty(
 ) {
     if auto_save {
         if let Some(ref path) = session.project_path {
-            match save_project_session(session, path) {
-                Ok(()) => {
+            // #555: auto-save goes through the dispatcher too — the
+            // file writes live inside `Command::SaveProject`. Keep the
+            // local snapshot fingerprint up to date so the next
+            // dirty-check is accurate.
+            match session.dispatcher.dispatch(Command::SaveProject) {
+                Ok(_) => {
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(window, project_dirty, false);
                     log::debug!("auto-save: saved to {:?}", path);
@@ -390,72 +455,42 @@ pub(crate) fn sync_project_dirty(
     set_project_dirty(window, project_dirty, dirty);
 }
 
-pub(crate) fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
-    log::info!("saving project session to {:?}", project_path);
-    let parent_dir = project_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
-    fs::create_dir_all(&parent_dir)?;
-    // #436 #1: rig session → the source of truth is the RigProject.
-    // Write the synthetic chains' edits back into it and save the
-    // `project.openrig` (load_project_any reloads it idempotently).
-    // Non-rig session keeps the legacy serialize. Config + presets-dir
-    // steps below run either way.
-    match &session.rig {
-        Some(rig) => {
-            // #436: capturing synthetic edits is model mutation — it
-            // goes through the Command now, not by hand in the UI.
-            let _ = session.dispatcher.dispatch(Command::CaptureRigEdits);
-            let openrig = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
-                project_path.clone()
-            } else {
-                project_path.with_extension("openrig")
-            };
-            infra_yaml::save_rig_project_file(&openrig, &rig.borrow())?;
-        }
-        None => {
-            fs::write(project_path, project_session_snapshot(session)?)?;
-        }
-    }
-    let config_path = session
-        .config_path
-        .clone()
-        .unwrap_or_else(|| resolve_project_config_path(project_path));
-    let config = ConfigYaml {
-        presets_path: "./presets".to_string(),
-    };
-    fs::write(config_path, serde_yaml::to_string(&config)?)?;
-    fs::create_dir_all(parent_dir.join("presets"))?;
-    Ok(())
+/// #555: test-only shim that dispatches `Command::SaveProject` after
+/// attaching the session's paths. Production callers go through
+/// `session.dispatcher.dispatch(Command::SaveProject)` directly —
+/// this shim exists so the existing `project_ops_persistence_tests`
+/// suite keeps exercising the end-to-end save path without each
+/// test repeating the four attach + dispatch lines.
+#[cfg(test)]
+pub(crate) fn save_project_session(
+    session: &ProjectSession,
+    project_path: &std::path::PathBuf,
+) -> Result<()> {
+    session.dispatcher.attach_project_path(project_path.clone());
+    session
+        .dispatcher
+        .attach_presets_path(session.presets_path.clone());
+    session
+        .dispatcher
+        .attach_config_path(session.config_path.clone());
+    session
+        .dispatcher
+        .dispatch(Command::SaveProject)
+        .map(|_| ())
 }
 
-pub(crate) fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
-    let effect_blocks = chain
-        .blocks
-        .iter()
-        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-        .cloned()
-        .collect();
-    let preset = ChainBlocksPreset {
-        id: preset_id_from_path(path)?,
-        name: chain.description.clone(),
-        volume: chain.volume,
-        blocks: effect_blocks,
-    };
-    save_chain_preset_file(path, &preset)
-}
+// `save_chain_blocks_to_preset` was moved to
+// `application::local_dispatcher_preset::handle_chain_preset` in #555.
+// The GUI now dispatches `Command::SaveChainPreset { chain, name }`
+// and the dispatcher does the file write.
 
 pub(crate) fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     load_chain_preset_file(path)
 }
 
-pub(crate) fn preset_id_from_path(path: &Path) -> Result<String> {
-    path.file_stem()
-        .and_then(|value| value.to_str())
-        .map(|value| value.to_string())
-        .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-preset-file")))
-}
+// `preset_id_from_path` lives inside `local_dispatcher_preset` now —
+// the file id is derived at write time from the path the dispatcher
+// resolves, not from a GUI helper.
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
     if let Some(name) = project
@@ -478,3 +513,35 @@ pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &P
             }
         })
 }
+
+#[cfg(test)]
+#[path = "project_ops_persistence_tests.rs"]
+mod project_ops_persistence_tests;
+
+#[cfg(test)]
+#[path = "project_admin_persistence_tests.rs"]
+mod project_admin_persistence_tests;
+
+#[cfg(test)]
+#[path = "project_rig_persistence_tests.rs"]
+mod project_rig_persistence_tests;
+
+#[cfg(test)]
+#[path = "project_chain_defaults_persistence_tests.rs"]
+mod project_chain_defaults_persistence_tests;
+
+#[cfg(test)]
+#[path = "project_chain_inmemory_tests.rs"]
+mod project_chain_inmemory_tests;
+
+#[cfg(test)]
+#[path = "chain_rename_persistence_tests.rs"]
+mod chain_rename_persistence_tests;
+
+#[cfg(test)]
+#[path = "scene_param_persistence_tests.rs"]
+mod scene_param_persistence_tests;
+
+#[cfg(test)]
+#[path = "chain_reorder_refresh_tests.rs"]
+mod chain_reorder_refresh_tests;

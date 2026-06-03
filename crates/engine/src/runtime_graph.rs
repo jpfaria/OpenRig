@@ -33,7 +33,7 @@
 //!     so the existing `engine::runtime::*` paths used by infra-cpal /
 //!     adapter-console keep working unchanged.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
@@ -55,7 +55,7 @@ use crate::runtime_endpoints::{effective_inputs, effective_outputs};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
-    InputProcessingState, OutgoingTail, OutputRoutingState, SPILLOVER_FRAMES,
+    InputProcessingState, OutgoingTail, OutputRoutingState, RuntimeProcessor, SPILLOVER_FRAMES,
 };
 
 /// Bounded capacity for the per-chain SPSC error queue. Audio-thread
@@ -191,6 +191,29 @@ fn build_per_input_runtimes(
     Ok(out)
 }
 
+/// The per-input group ids a chain would produce, WITHOUT instantiating any
+/// block processor. Issue #588: the in-place `upsert_chain` fast path used to
+/// call `build_per_input_runtimes` purely to read these ids for a topology
+/// comparison — which loaded every NAM/IR model in the chain from disk on
+/// each edit, only to throw the runtime away. The grouping depends solely on
+/// the chain's input/output endpoints and segment split, never on the built
+/// processors, so it can be derived directly.
+fn input_group_ids(chain: &Chain) -> Vec<usize> {
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let eff_outputs = effective_outputs(chain);
+    let all_segments = split_chain_into_segments(
+        chain,
+        &eff_inputs,
+        &eff_input_cpal_indices,
+        &eff_split_positions,
+        &eff_outputs,
+    );
+    group_segments_by_input(chain, all_segments)
+        .into_iter()
+        .map(|(group, _segments)| group)
+        .collect()
+}
+
 /// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
 /// if the caller did not provide a value for this route index.
 fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> usize {
@@ -299,6 +322,11 @@ fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> Result<ChainRuntimeState> {
+    // Issue #592: prime the output elastic cushion only on the INITIAL
+    // build (existing_blocks == None). A rebuild/edit runs warm and refills
+    // naturally — re-priming on every knob turn would add a silence gap.
+    let is_initial_build = existing_blocks.is_none();
+    let has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -344,8 +372,15 @@ fn assemble_chain_runtime_state(
 
     let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
     for (route_idx, output) in eff_outputs.iter().enumerate() {
-        let target = target_for_route(elastic_targets, route_idx);
-        output_routes.push(Arc::new(build_output_routing_state(output, target)));
+        let base = target_for_route(elastic_targets, route_idx);
+        let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
+        let prime_frames =
+            crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
+        output_routes.push(Arc::new(build_output_routing_state(
+            output,
+            target,
+            prime_frames,
+        )));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -361,6 +396,17 @@ fn assemble_chain_runtime_state(
     let input_scratches = (0..input_to_segments.len())
         .map(|_| InputCallbackScratch::default())
         .collect();
+
+    // Issue #580: lock-free mirror of `input_states.len()` for the meter
+    // polling timer to read at 30 Hz without contending with the audio
+    // thread's `processing` try_lock. Captured before the Vec moves into
+    // the Mutex.
+    let initial_stream_count = input_states.len();
+    // Issue #580 follow-up: capture the set of bypass (no live processor)
+    // nodes so the GUI block-toggle fast path can decline re-enabling them
+    // and fall back to a rebuild. Computed before `input_states` moves into
+    // the Mutex, mirroring `initial_stream_count`.
+    let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
 
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
@@ -383,7 +429,33 @@ fn assemble_chain_runtime_state(
         // de unity isolado (probe runtimes de latência) sobrescrevem com
         // `set_volume_pct(100.0)` depois.
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
+        stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
+        // Issue #580 follow-up: GUI block-toggle is queued and drained
+        // on the audio thread inside its own `processing` lock,
+        // removing the GUI/audio Mutex contention that caused an
+        // audible click on every block on/off at small buffer sizes.
+        pending_block_toggles: ArrayQueue::new(64),
+        bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
+        di_loop: arc_swap::ArcSwapOption::empty(),
+        di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
     })
+}
+
+/// Collect the ids of every block whose live node is a
+/// `RuntimeProcessor::Bypass` (built while disabled, or build-faulted).
+/// These nodes have no real DSP, so re-enabling them needs a full rebuild
+/// rather than the in-place fade fast path. See `ChainRuntimeState::
+/// bypass_block_ids`.
+fn collect_bypass_block_ids(input_states: &[InputProcessingState]) -> HashSet<BlockId> {
+    let mut ids = HashSet::new();
+    for input_state in input_states {
+        for node in &input_state.blocks {
+            if matches!(node.processor, RuntimeProcessor::Bypass) {
+                ids.insert(node.block_id.clone());
+            }
+        }
+    }
+    ids
 }
 
 /// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
@@ -441,9 +513,15 @@ fn build_input_processing_state(
         input.mode,
     );
     let had_existing = existing_blocks.is_some();
+    // Issue #588: a mono source is broadcast to identical stereo channels
+    // (`Stereo([s, s])`), so the content entering the first block is
+    // effectively mono. A DualMono/Stereo source carries independent
+    // channels and is not.
+    let source_is_mono = matches!(input_read_layout, AudioChannelLayout::Mono);
     let (blocks, _output_layout) = build_runtime_block_nodes(
         chain,
         processing_layout_channel,
+        source_is_mono,
         sample_rate,
         existing_blocks,
         block_indices,
@@ -465,6 +543,7 @@ fn build_input_processing_state(
 pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
+    prime_frames: usize,
 ) -> OutputRoutingState {
     let output_layout = if output.channels.len() >= 2 {
         match output.mode {
@@ -474,10 +553,17 @@ pub(crate) fn build_output_routing_state(
     } else {
         AudioChannelLayout::Mono
     };
+    let buffer = ElasticBuffer::new(elastic_target, output_layout);
+    // Issue #592: prime the cushion (silence) only when the caller asks —
+    // a cold-start IR chain at a small device buffer would otherwise
+    // underrun on the convolver's per-partition FFT spike.
+    if prime_frames > 0 {
+        buffer.prime(prime_frames);
+    }
     OutputRoutingState {
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        buffer: ElasticBuffer::new(elastic_target, output_layout),
+        buffer,
     }
 }
 
@@ -617,12 +703,18 @@ fn update_chain_runtime_state_impl(
     }
 
     // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
+    // Keep the IR capacity floor consistent with the initial build, but do
+    // NOT prime on a rebuild — the producer is already warm, so it refills
+    // naturally (issue #592).
+    let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
         .map(|(route_idx, o)| {
-            let target = target_for_route(elastic_targets, route_idx);
-            Arc::new(build_output_routing_state(o, target))
+            let base = target_for_route(elastic_targets, route_idx);
+            let target =
+                crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
+            Arc::new(build_output_routing_state(o, target, 0))
         })
         .collect();
 
@@ -644,6 +736,23 @@ fn update_chain_runtime_state_impl(
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
         processing.input_states = new_input_states;
+        // Issue #580: keep the lock-free `stream_count` mirror in sync
+        // with the new Vec length. Updated INSIDE the same critical
+        // section that swaps the Vec so any concurrent reader sees a
+        // consistent (new Vec length, new count) pair after the lock
+        // releases. Relaxed ordering — the value is purely advisory for
+        // the meter timer's subscription loop.
+        runtime.stream_count.store(
+            processing.input_states.len(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        // Issue #580 follow-up: refresh the lock-free bypass mirror from the
+        // new nodes so re-enabling a (still) born-disabled block keeps
+        // declining the fast path. Swapped inside the same critical section
+        // as the Vec so a reader never sees a stale (nodes, bypass-set) pair.
+        runtime
+            .bypass_block_ids
+            .store(Arc::new(collect_bypass_block_ids(&processing.input_states)));
 
         // Rebuild input_to_segments mapping from current segments
         let max_input_idx = segments
@@ -786,8 +895,11 @@ impl RuntimeGraph {
         // cpal streams, so the callbacks kept the OLD Arcs and the edit
         // never reached the audio thread (slider did nothing).
         if !existing_groups.is_empty() {
-            let new_runtimes = build_per_input_runtimes(chain, sample_rate, elastic_targets)?;
-            let mut new_groups: Vec<usize> = new_runtimes.iter().map(|(g, _)| *g).collect();
+            // Issue #588: derive the new group ids WITHOUT building runtimes —
+            // building here reloaded every NAM/IR model in the chain from disk
+            // on each edit (volume, knob, toggle), only to discard them and
+            // update the existing runtime in place.
+            let mut new_groups: Vec<usize> = input_group_ids(chain);
             let mut existing_sorted = existing_groups.clone();
             new_groups.sort_unstable();
             existing_sorted.sort_unstable();
@@ -860,3 +972,7 @@ impl RuntimeGraph {
 // Slice 4 of Phase 2: block-level builders moved to runtime_block_builders.rs.
 // `runtime_graph.rs` only needs `build_runtime_block_nodes` for chain assembly.
 pub(crate) use crate::runtime_block_builders::build_runtime_block_nodes;
+
+#[cfg(test)]
+#[path = "issue_592_elastic_prime_tests.rs"]
+mod issue_592_elastic_prime_tests;

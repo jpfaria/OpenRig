@@ -188,7 +188,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     window.set_show_project_launcher(false);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
+                    window.set_show_settings(false);
                 }
                 Err(error) => {
                     let reason = error.to_string();
@@ -216,30 +216,77 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             }
         });
     }
+    // Issue #360: remove-recent now opens an in-window overlay before
+    // touching app_config. The dispatch + filesystem persist live in
+    // confirm-delete-recent-project below; cancel just hides the modal.
+    let pending_remove_recent: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
+    {
+        let weak_window = window.as_weak();
+        let app_config = app_config.clone();
+        let pending = pending_remove_recent.clone();
+        window.on_remove_recent_project(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let config = app_config.borrow();
+            let idx = index as usize;
+            let Some(entry) = config.recent_projects.get(idx) else {
+                return;
+            };
+            let display_name = if entry.project_name.is_empty() {
+                std::path::Path::new(&entry.project_path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| entry.project_path.clone())
+            } else {
+                entry.project_name.clone()
+            };
+            *pending.borrow_mut() = Some(idx);
+            window.set_confirm_delete_recent_project_name(display_name.into());
+            window.set_show_confirm_delete_recent_project(true);
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let pending = pending_remove_recent.clone();
+        window.on_cancel_delete_recent_project(move || {
+            *pending.borrow_mut() = None;
+            if let Some(window) = weak_window.upgrade() {
+                window.set_show_confirm_delete_recent_project(false);
+            }
+        });
+    }
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let recent_projects = recent_projects.clone();
         let project_session = project_session.clone();
-        window.on_remove_recent_project(move |index| {
+        let pending = pending_remove_recent.clone();
+        window.on_confirm_delete_recent_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            window.set_show_confirm_delete_recent_project(false);
+            let Some(index) = pending.borrow_mut().take() else {
+                return;
+            };
             let mut config = app_config.borrow_mut();
-            if (index as usize) < config.recent_projects.len() {
+            if index < config.recent_projects.len() {
                 // #436 F: remover recente é negócio → Command no
                 // dispatcher compartilhado (MCP/MIDI, observável via
                 // Event::RecentProjectRemoved) quando há sessão. A
                 // mutação/persistência do app-config + render abaixo é
                 // adapter-side (precedente SaveProject).
                 if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) = session.dispatcher.dispatch(Command::RemoveRecentProject {
-                        index: index as usize,
-                    }) {
+                    if let Err(e) = session
+                        .dispatcher
+                        .dispatch(Command::RemoveRecentProject { index })
+                    {
                         log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
                     }
                 }
-                config.recent_projects.remove(index as usize);
+                config.recent_projects.remove(index);
                 let _ = FilesystemStorage::save_app_config(&config);
                 recent_projects.set_vec(recent_project_items(
                     &config.recent_projects,

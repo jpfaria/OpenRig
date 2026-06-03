@@ -4,8 +4,34 @@ use block_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
     ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
-use block_core::{db_to_lin, ModelAudioMode, MonoProcessor};
+use block_core::{ModelAudioMode, MonoProcessor};
 use domain::value_objects::ParameterValue;
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int, c_void};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// Cumulative count of NAM models loaded via `nam_create` over the
+/// process lifetime (never decremented). Memory-observability counter
+/// (issue #588): a chain edit that reuses a block must NOT grow this — a
+/// reload of an unchanged model is wasted work and a transient 2× footprint.
+static MODELS_CREATED: AtomicUsize = AtomicUsize::new(0);
+
+/// Number of NAM models currently resident in memory (incremented on load,
+/// decremented on `Drop`). Memory-observability counter (issue #588): after
+/// any chain edit this must equal the number of NAM blocks actually in the
+/// live chain — a higher value is an orphaned model that was not freed.
+static MODELS_LIVE: AtomicUsize = AtomicUsize::new(0);
+
+/// Total NAM models loaded since process start (monotonic). See
+/// [`MODELS_CREATED`].
+pub fn models_created() -> usize {
+    MODELS_CREATED.load(Ordering::Relaxed)
+}
+
+/// NAM models currently held in memory. See [`MODELS_LIVE`].
+pub fn live_models() -> usize {
+    MODELS_LIVE.load(Ordering::Relaxed)
+}
 
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
@@ -141,8 +167,17 @@ pub struct NamPluginParams {
 pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
     output_level_db: 0.0,
-    noise_gate_threshold_db: -80.0,
-    noise_gate_enabled: true,
+    // Issue #496: was -80 dB while the gate was unwired (a no-op). Now
+    // that the expander is applied, -50 dBFS sits above the amplified
+    // model noise floor (worst hot case ≈ -53 dBFS) yet ~45 dB below
+    // normal playing — it collapses the decay hiss without touching
+    // played notes. Overridable per-model via `noise_gate.threshold_db`.
+    noise_gate_threshold_db: -50.0,
+    // Issue #612: the gate defaults OFF. The old `neural-amp-modeler-lv2`
+    // engine had NO gate; a default-on downward expander ate the
+    // decay/sustain and made the tone "sem vida" (lifeless). The gate
+    // still works when the user enables it via `noise_gate.enabled`.
+    noise_gate_enabled: false,
     eq_enabled: true,
     audit_overrides_baked_output: false,
     bass: 5.0,
@@ -189,77 +224,33 @@ pub fn plugin_params_from_set_with_defaults(
     })
 }
 
-// --- NeuralAudioCAPI FFI (from neural-amp-modeler-lv2) ---
+// --- Official NeuralAmpModelerCore C wrapper FFI (cpp/nam_wrapper.h) ---
+//
+// The C++ wrapper owns the whole signal chain: input gain → noise gate
+// → model → gate → tone stack (EQ) → IR → output gain. Issue #612: the
+// EQ (`bass/middle/treble`) is now applied by the official tone stack
+// inside the wrapper instead of being parsed and dropped on the Rust
+// side. ALL params cross the FFI here; Rust no longer re-applies input
+// or output gain (the wrapper does), and only adds the memoryless
+// `soft_clip` peak safety (issue #496) on the wrapper output — the
+// wrapper does NOT clip.
 
-/// Opaque model handle from NeuralAudioCAPI
+/// Mirror of `NamPluginConfig` in `cpp/nam_wrapper.h`. Field order and
+/// types MUST match the C struct exactly.
 #[repr(C)]
-pub struct NeuralModel {
-    _opaque: [u8; 0],
-}
-
-/// Safe-ish wrapper around the FFI `Process`. Used internally by the
-/// loudness probe and exposed for offline diagnostics tools (audit /
-/// catalog LUFS measurement) — same FFI semantics as the runtime
-/// processor. NEVER call from the audio thread; this is offline-only.
-///
-/// # Safety
-///
-/// `model` must be a live pointer returned by [`open_model_diag`] and
-/// not yet freed. `input` and `output` must have the same length.
-pub unsafe fn nam_process(model: *mut NeuralModel, input: &[f32], output: &mut [f32]) {
-    debug_assert_eq!(input.len(), output.len());
-    Process(model, input.as_ptr(), output.as_mut_ptr(), input.len());
-}
-
-/// Open a NAM model file for diagnostics (loudness probe example).
-/// Caller is responsible for calling [`close_model_diag`] when done
-/// to release the underlying NAM lib model.
-pub fn open_model_diag(model_path: &str) -> Result<*mut NeuralModel> {
-    #[cfg(not(target_os = "windows"))]
-    let model = {
-        let wide_path: Vec<u32> = model_path
-            .chars()
-            .map(|c| c as u32)
-            .chain(std::iter::once(0))
-            .collect();
-        unsafe { CreateModelFromFile(wide_path.as_ptr()) }
-    };
-    #[cfg(target_os = "windows")]
-    let model = {
-        let wide_path: Vec<u16> = model_path
-            .encode_utf16()
-            .chain(std::iter::once(0))
-            .collect();
-        unsafe { CreateModelFromFile(wide_path.as_ptr()) }
-    };
-    if model.is_null() {
-        bail!("failed to load NAM model '{}'", model_path);
-    }
-    Ok(model)
-}
-
-/// # Safety
-///
-/// `model` must be a valid pointer returned by [`open_model_diag`] and
-/// not yet freed; the caller must not use it after this call returns.
-pub unsafe fn close_model_diag(model: *mut NeuralModel) {
-    if !model.is_null() {
-        DeleteModel(model);
-    }
-}
-
-/// Recommended baked dB adjustments — exposed for the loudness probe
-/// diagnostics example.
-///
-/// # Safety
-///
-/// `model` must be a live pointer returned by [`open_model_diag`] and
-/// not yet freed.
-pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
-    (
-        GetRecommendedInputDBAdjustment(model),
-        GetRecommendedOutputDBAdjustment(model),
-    )
+struct NamPluginConfig {
+    model_path_utf8: *const c_char,
+    ir_path_utf8: *const c_char,
+    input_db: f32,
+    output_db: f32,
+    noise_gate_threshold_db: f32,
+    bass: f32,
+    middle: f32,
+    treble: f32,
+    noise_gate_enabled: u8,
+    eq_enabled: u8,
+    ir_enabled: u8,
+    audit_overrides_baked_output: u8,
 }
 
 // Loudness alignment lives in `manifest.output_gain_db`, populated
@@ -267,30 +258,122 @@ pub unsafe fn recommended_adjustments(model: *mut NeuralModel) -> (f32, f32) {
 // `loudness_probe` module is kept around as the measurement engine
 // the tool uses; it does not drive gain at runtime.
 
-// On Windows use raw-dylib so no .lib import library is required — the DLL is
-// found by name at runtime.  On other platforms the build script emits the
-// standard dylib link directive.
-#[cfg_attr(
-    target_os = "windows",
-    link(name = "libNeuralAudioCAPI", kind = "raw-dylib")
-)]
+/// Memoryless output saturator (issue #496).
+///
+/// A loud loudness calibration must not be allowed to clip on the
+/// converter (harsh digital distortion) or amplify the model noise
+/// floor into a hard wall on the decay. This rounds only the peaks
+/// that would exceed full-scale: transparent below `THRESHOLD` (a
+/// normally-played, well-calibrated model never reaches it, so tone
+/// and loudness are untouched), then smoothly asymptotic to ±1.0 —
+/// musical saturation instead of a ±1.0 brickwall. Memoryless: zero
+/// latency, zero state, deterministic, safe on the audio thread.
+#[inline]
+fn soft_clip(x: f32) -> f32 {
+    const THRESHOLD: f32 = 0.8;
+    let a = x.abs();
+    if a <= THRESHOLD {
+        x
+    } else {
+        let over = a - THRESHOLD;
+        x.signum() * (THRESHOLD + (1.0 - THRESHOLD) * (over / ((1.0 - THRESHOLD) + over)))
+    }
+}
+
+// The build script (`crates/nam/build.rs`) links the cmake-built
+// `libnam_wrapper` on every platform, so a plain `extern "C"` is enough
+// — no per-OS `raw-dylib`/import-library handling is required.
 unsafe extern "C" {
-    // wchar_t is u32 on macOS/Linux, u16 on Windows
-    #[cfg(not(target_os = "windows"))]
-    fn CreateModelFromFile(model_path: *const u32) -> *mut NeuralModel;
-    #[cfg(target_os = "windows")]
-    fn CreateModelFromFile(model_path: *const u16) -> *mut NeuralModel;
-    fn DeleteModel(model: *mut NeuralModel);
-    fn Process(model: *mut NeuralModel, input: *const f32, output: *mut f32, num_samples: usize);
-    fn GetRecommendedInputDBAdjustment(model: *mut NeuralModel) -> f32;
-    fn GetRecommendedOutputDBAdjustment(model: *mut NeuralModel) -> f32;
+    fn nam_create(config: *const NamPluginConfig) -> *mut c_void;
+    fn nam_destroy(handle: *mut c_void);
+    // The C symbol is `nam_process`; the Rust ident is renamed so the
+    // public, slice-based `nam_process` diagnostics wrapper below can keep
+    // the historical name (issue #623 req #2). Same FFI, no ABI change.
+    #[link_name = "nam_process"]
+    fn nam_process_ffi(handle: *mut c_void, input: *const f32, output: *mut f32, nframes: c_int);
+}
+
+// -----------------------------------------------------------------------
+// Offline diagnostics API (issue #623 req #2).
+//
+// `open_model_diag` / `nam_process` / `close_model_diag` are the stable,
+// public, slice-based entry points used by offline tooling (the
+// OpenRig-plugins catalog audit / LUFS measurement gate) to push audio
+// through a NAM model OUTSIDE the realtime `NamProcessor`. They wrap the
+// same `cpp/nam_wrapper` FFI the runtime uses, so they exercise the
+// identical signal chain. NEVER call these on the audio thread — they
+// allocate (model load) and are offline-only.
+//
+// The #612 FFI rewrite (commit a9874a18) dropped these helpers and left
+// only the private `nam_process` extern, which broke the OpenRig-plugins
+// gate (E0603/E0432). They are restored here over the current wrapper FFI.
+// -----------------------------------------------------------------------
+
+/// Open a NAM model file for offline diagnostics. The returned handle
+/// must be released with [`close_model_diag`]. Uses the model's own
+/// baked calibration (same as the runtime defaults), gate/EQ/IR off so
+/// the raw model response is measured.
+///
+/// Returns an opaque wrapper handle (`*mut c_void`), the same type the
+/// runtime FFI uses.
+pub fn open_model_diag(model_path: &str) -> Result<*mut c_void> {
+    let model_path_c = CString::new(model_path)?;
+    let config = NamPluginConfig {
+        model_path_utf8: model_path_c.as_ptr(),
+        ir_path_utf8: std::ptr::null(),
+        input_db: 0.0,
+        output_db: 0.0,
+        noise_gate_threshold_db: DEFAULT_PLUGIN_PARAMS.noise_gate_threshold_db,
+        bass: DEFAULT_PLUGIN_PARAMS.bass,
+        middle: DEFAULT_PLUGIN_PARAMS.middle,
+        treble: DEFAULT_PLUGIN_PARAMS.treble,
+        noise_gate_enabled: 0,
+        eq_enabled: 0,
+        ir_enabled: 0,
+        audit_overrides_baked_output: 0,
+    };
+    let handle = unsafe { nam_create(&config) };
+    drop(model_path_c);
+    if handle.is_null() {
+        bail!("failed to load NAM model '{}'", model_path);
+    }
+    Ok(handle)
+}
+
+/// Push a buffer through a model opened with [`open_model_diag`]. Offline
+/// only. `input` and `output` must have the same length.
+///
+/// # Safety
+///
+/// `handle` must be a live pointer returned by [`open_model_diag`] and
+/// not yet freed.
+pub unsafe fn nam_process(handle: *mut c_void, input: &[f32], output: &mut [f32]) {
+    debug_assert_eq!(input.len(), output.len());
+    if handle.is_null() || input.is_empty() {
+        return;
+    }
+    nam_process_ffi(
+        handle,
+        input.as_ptr(),
+        output.as_mut_ptr(),
+        input.len() as c_int,
+    );
+}
+
+/// Release a handle returned by [`open_model_diag`].
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`open_model_diag`] and
+/// not yet freed; the caller must not use it after this call returns.
+pub unsafe fn close_model_diag(handle: *mut c_void) {
+    if !handle.is_null() {
+        nam_destroy(handle);
+    }
 }
 
 pub struct NamProcessor {
-    model: *mut NeuralModel,
-    input_gain: f32,
-    output_gain: f32,
-    scratch_input: Vec<f32>,
+    handle: *mut c_void,
     scratch_output: Vec<f32>,
 }
 
@@ -299,71 +382,93 @@ unsafe impl Sync for NamProcessor {}
 
 impl Drop for NamProcessor {
     fn drop(&mut self) {
-        if !self.model.is_null() {
-            unsafe { DeleteModel(self.model) };
-            self.model = std::ptr::null_mut();
+        if !self.handle.is_null() {
+            unsafe { nam_destroy(self.handle) };
+            self.handle = std::ptr::null_mut();
+            // Memory-observability (issue #588): mirror the increment in
+            // `new`. Only decrement for a model that was actually loaded.
+            MODELS_LIVE.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
 
 impl NamProcessor {
-    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
-        // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
-        #[cfg(not(target_os = "windows"))]
-        let model = {
-            let wide_path: Vec<u32> = model_path
-                .chars()
-                .map(|c| c as u32)
-                .chain(std::iter::once(0))
-                .collect();
-            unsafe { CreateModelFromFile(wide_path.as_ptr()) }
+    pub fn new(
+        model_path: &str,
+        ir_path: Option<&str>,
+        params: NamPluginParams,
+        sample_rate: f32,
+    ) -> Result<Self> {
+        // Single source of truth for stacking trainer recommendations on
+        // top of user knobs lives in `gain_offsets`. The user knobs cross
+        // the FFI as `input_db` / `output_db`; `recommended_*_db` are zero
+        // here because the per-model calibration is now applied INSIDE the
+        // wrapper from the official core's own `GetLoudness()` /
+        // `GetInputLevel()` (issue #612), driving a nonlinear NAM at the
+        // level it was trained at instead of raw unity (the "abafado"
+        // fix). That wrapper-side calibration is gated by
+        // `audit_overrides_baked_output`, which crosses the FFI below:
+        // when the catalog audit already owns the output level (the
+        // `from_package` runtime path) the model normalization is
+        // suppressed so the two never double-count.
+        let (resolved_input_db, resolved_output_db) =
+            crate::gain_offsets::resolve_gain_offsets(crate::gain_offsets::GainOffsetInputs {
+                input_level_db: params.input_level_db,
+                output_level_db: params.output_level_db,
+                recommended_input_db: 0.0,
+                recommended_output_db: 0.0,
+                audit_overrides_baked_output: params.audit_overrides_baked_output,
+            });
+
+        // CStrings must outlive `nam_create` — the wrapper copies the
+        // path bytes during construction, but the pointers stored in the
+        // config must be valid for the duration of that call.
+        let model_path_c = CString::new(model_path)?;
+        let ir_path_c = ir_path.map(CString::new).transpose()?;
+        let config = NamPluginConfig {
+            model_path_utf8: model_path_c.as_ptr(),
+            ir_path_utf8: ir_path_c
+                .as_ref()
+                .map_or(std::ptr::null(), |value| value.as_ptr()),
+            input_db: resolved_input_db,
+            output_db: resolved_output_db,
+            noise_gate_threshold_db: params.noise_gate_threshold_db,
+            bass: params.bass,
+            middle: params.middle,
+            treble: params.treble,
+            noise_gate_enabled: params.noise_gate_enabled as u8,
+            eq_enabled: params.eq_enabled as u8,
+            ir_enabled: ir_path_c.is_some() as u8,
+            audit_overrides_baked_output: params.audit_overrides_baked_output as u8,
         };
-        #[cfg(target_os = "windows")]
-        let model = {
-            let wide_path: Vec<u16> = model_path
-                .encode_utf16()
-                .chain(std::iter::once(0))
-                .collect();
-            unsafe { CreateModelFromFile(wide_path.as_ptr()) }
-        };
-        if model.is_null() {
+        let handle = unsafe { nam_create(&config) };
+        if handle.is_null() {
             bail!("failed to load NAM model '{}'", model_path);
         }
+        // Keep the CStrings alive until after the FFI call above.
+        drop(model_path_c);
+        drop(ir_path_c);
 
-        let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
-        let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
-
-        // Loudness alignment do catalog vai por dentro do
-        // `params.input_level_db` (somado pelo `from_package` a
-        // partir de `manifest.output_gain_db`). Aplicar mais signal
-        // pelo MODELO do NAM faz o amp responder com sua própria
-        // curva — sem clip digital, sem virar gain linear pós-amp.
-        //
-        // Quando o audit setou o offset, o `recommended_output_db`
-        // baked do trainer é IGNORADO: o audit é a fonte de verdade
-        // pro nivelamento, e o baked típico (-7 a -8 dB) atenuaria
-        // tudo de novo (regressão "tudo baixo" do issue #413).
-        let baked_output_db = if params.audit_overrides_baked_output {
-            0.0
-        } else {
-            recommended_output_db
-        };
-        let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
-        let output_gain = db_to_lin(params.output_level_db + baked_output_db);
+        // Memory-observability (issue #588): a model was just loaded into
+        // memory. Mirror this decrement in `Drop`.
+        MODELS_CREATED.fetch_add(1, Ordering::Relaxed);
+        MODELS_LIVE.fetch_add(1, Ordering::Relaxed);
 
         log::info!(
-            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB (audit_override={})",
+            "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB \
+             (audit_override={}, eq={}, ir={})",
             model_path,
-            params.input_level_db + recommended_input_db,
-            baked_output_db,
+            resolved_input_db,
+            resolved_output_db,
             params.audit_overrides_baked_output,
+            params.eq_enabled,
+            ir_path.is_some(),
         );
 
+        let _ = sample_rate; // currently unused; staged for future per-SR DSP
+
         Ok(Self {
-            model,
-            input_gain,
-            output_gain,
-            scratch_input: Vec::new(),
+            handle,
             scratch_output: Vec::new(),
         })
     }
@@ -376,40 +481,42 @@ static NAM_DIAG_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 
 impl MonoProcessor for NamProcessor {
     fn process_sample(&mut self, sample: f32) -> f32 {
-        let input = [sample * self.input_gain];
+        // The wrapper applies input gain → gate → model → gate → EQ →
+        // IR → output gain. Rust only adds the memoryless peak safety
+        // (issue #496), since the wrapper does not clip.
+        let input = [sample];
         let mut output = [0.0f32];
         unsafe {
-            Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
+            nam_process_ffi(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        output[0] * self.output_gain
+        soft_clip(output[0])
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
         if buffer.is_empty() {
             return;
         }
-        // Apply input gain
-        self.scratch_input.resize(buffer.len(), 0.0);
-        for (dst, src) in self.scratch_input.iter_mut().zip(buffer.iter()) {
-            *dst = *src * self.input_gain;
-        }
-        // Process through neural model
+        // The wrapper owns the whole signal chain (input gain → gate →
+        // model → gate → EQ → IR → output gain), reading from `buffer`
+        // and writing into the scratch buffer. Rust then applies only
+        // the memoryless `soft_clip` peak safety (issue #496) — the
+        // wrapper does NOT clip. The noise gate / EQ / IR are all
+        // handled inside the official core wrapper (issue #612).
         self.scratch_output.resize(buffer.len(), 0.0);
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let t0 = std::time::Instant::now();
         unsafe {
-            Process(
-                self.model,
-                self.scratch_input.as_ptr(),
+            nam_process_ffi(
+                self.handle,
+                buffer.as_ptr(),
                 self.scratch_output.as_mut_ptr(),
-                buffer.len(),
+                buffer.len() as c_int,
             );
         }
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let elapsed = t0.elapsed();
-        // Apply output gain
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
-            *dst = *src * self.output_gain;
+            *dst = soft_clip(*src);
         }
 
         // Periodic diagnostic logging on aarch64 to investigate NAM audio quality

@@ -1,0 +1,167 @@
+// System / Paths section (#513). Rows for each configurable
+// directory — presets, plugins, evaluations (#582) — each a label +
+// current path + Choose…/Reset. Empty path means "use OS default"
+// (the resolver handles it). All rows share a fixed-width label
+// column so they line up vertically.
+//
+// #561 adds a row for the plugin catalog: a "Reload" button that
+// dispatches `Command::ReloadPluginCatalog`, plus a status text
+// showing the post-reload counts. Lives in the same section because
+// the action is bound to the plugins directory above it.
+
+import { Button } from "std-widgets.slint";
+
+export component SectionSystemPaths inherits Rectangle {
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    // #582: directory where tone analyzers / evaluation tools write
+    // their artifacts. Same Optional contract as the other two —
+    // empty string ⇒ OS default.
+    in property <string> evaluations-path;
+    // #561: status string filled by the wiring after the reload
+    // completes — "12 plugins loaded (8 native, 4 disk)" etc. Empty
+    // when no reload has run yet.
+    in property <string> plugin-catalog-status;
+
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+    // #582: pick / reset the evaluations directory.
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
+    // #561: re-scan the plugin packages directories without
+    // restarting the process.
+    callback reload-plugin-catalog();
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 16px;
+        alignment: start;
+
+        // ── Presets directory row ─────────────────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-presets-path");
+                color: #cfd5e0;
+                font-size: 16px;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.presets-path == ""
+                    ? @tr("placeholder-default-path")
+                    : root.presets-path;
+                color: root.presets-path == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Button {
+                text: @tr("btn-choose-path");
+                clicked => { root.pick-presets-path(); }
+            }
+            Button {
+                text: @tr("btn-reset-path");
+                clicked => { root.reset-presets-path(); }
+            }
+        }
+
+        // ── Plugins directory row ─────────────────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-plugins-path");
+                color: #cfd5e0;
+                font-size: 16px;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.plugins-path == ""
+                    ? @tr("placeholder-default-path")
+                    : root.plugins-path;
+                color: root.plugins-path == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Button {
+                text: @tr("btn-choose-path");
+                clicked => { root.pick-plugins-path(); }
+            }
+            Button {
+                text: @tr("btn-reset-path");
+                clicked => { root.reset-plugins-path(); }
+            }
+        }
+
+        // ── Evaluations directory row (#582) ──────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-evaluations-path");
+                color: #cfd5e0;
+                font-size: 16px;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.evaluations-path == ""
+                    ? @tr("placeholder-default-path")
+                    : root.evaluations-path;
+                color: root.evaluations-path == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Button {
+                text: @tr("btn-choose-path");
+                clicked => { root.pick-evaluations-path(); }
+            }
+            Button {
+                text: @tr("btn-reset-path");
+                clicked => { root.reset-evaluations-path(); }
+            }
+        }
+
+        // ── Plugin catalog reload row (#561) ──────────────────────
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            height: 32px;
+            Text {
+                text: @tr("label-plugin-catalog");
+                color: #cfd5e0;
+                font-size: 16px;
+                width: 140px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.plugin-catalog-status == ""
+                    ? @tr("status-plugin-catalog-idle")
+                    : root.plugin-catalog-status;
+                color: root.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
+                font-size: 14px;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Button {
+                text: @tr("btn-reload-plugin-catalog");
+                clicked => { root.reload-plugin-catalog(); }
+            }
+        }
+    }
+}

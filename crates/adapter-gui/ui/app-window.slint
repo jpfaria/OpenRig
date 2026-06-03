@@ -1,13 +1,16 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
+import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
+import { ConfirmDeleteRecentProjectDialog } from "components/confirm_delete_recent_project_dialog.slint";
 import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
+import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChainInputGroupsWindow, ChainOutputGroupsWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
@@ -31,7 +34,7 @@ export component AppWindow inherits Window {
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
-    in property <bool> show-project-settings;
+    in property <bool> show-settings;
     in property <bool> project-dirty;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -61,6 +64,10 @@ export component AppWindow inherits Window {
     in property <int> selected-chain-output-device-index;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
+    in property <int> selected-chain-block-neighbor-index: -1;
+    // #591: true while a MIDI command is recent (last 10s) — gates the
+    // chain/block selection markers so they only show on footswitch activity.
+    in property <bool> midi-selection-active: false;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -92,6 +99,28 @@ export component AppWindow inherits Window {
     in property <[string]> bit-depth-options: ["16", "24", "32"];
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
+    // System / MIDI devices section rows (#513). Built by Rust by merging
+    // `adapter_midi::list_input_ports()` with the persisted selection.
+    in property <[MidiDeviceRow]> midi-devices;
+    // Project / Metadata section (#513). Name is editable (dispatches
+    // UpdateProjectName on each change); path is read-only display.
+    // Default expressions point at the existing draft/path so the
+    // Settings → Metadata section sees the current project values
+    // without a dedicated Rust setter.
+    in property <string> project-name: root.project-name-draft;
+    in property <string> project-path-display: root.project-path-label;
+    // Project / MIDI mapping editor (#513, #493). Bindings list +
+    // available `Command` variant names for the dropdown. Drafts and
+    // finalized bindings share a single row list — `learning = true`
+    // marks a draft awaiting MIDI Learn capture.
+    in property <[MidiBindingRow]> midi-bindings;
+    in property <[string]> available-commands;
+    // System / Paths section (#513 + #582). Empty string = use OS default.
+    in property <string> presets-path;
+    in property <string> plugins-path;
+    in property <string> evaluations-path;
+    // #561: status text for the plugin catalog reload row.
+    in property <string> plugin-catalog-status;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -118,7 +147,7 @@ export component AppWindow inherits Window {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
-    callback close-project-settings();
+    callback close-settings();
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -147,12 +176,19 @@ export component AppWindow inherits Window {
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
+    callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     /// Slider de volume da chain mudou (issue #440). Args: chain-index na
     /// ordem de project-chains, volume no range 0-200 (100 = unity). Rust
     /// atualiza `Chain.volume` e propaga via `RuntimeGraph::upsert_chain`
     /// (engine vê o novo valor na próxima callback de áudio).
     callback chain-volume-changed(int, int);
+    /// #614: DI loop control callbacks. Args: chain-index (same conv. as
+    /// chain-volume-changed), then the source string or nothing.
+    callback di-loop-source-selected(int, string);
+    callback di-loop-choose-file(int);
+    callback di-loop-play(int);
+    callback di-loop-stop(int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -170,6 +206,7 @@ export component AppWindow inherits Window {
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -199,6 +236,26 @@ export component AppWindow inherits Window {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
+    // System / MIDI devices section callbacks (#513)
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+    // Project / MIDI mapping editor callbacks (#513, #493)
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
+    // Project / Metadata section callbacks (#513)
+    callback edit-project-name(string);
+    // System / Paths section callbacks (#513 + #582)
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
+    // #561: re-scan the plugin packages directories without restart.
+    callback reload-plugin-catalog();
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -240,10 +297,33 @@ export component AppWindow inherits Window {
     callback preset-picker-confirm(int);
     callback preset-picker-delete(int);
     callback preset-picker-cancel();
+    in-out property <string> preset-picker-search-query;
+    callback preset-picker-query-changed(string);
+    in property <bool> show-preset-save: false;
+    in property <string> preset-save-default-name: "";
+    in-out property <string> preset-save-name-input: "";
+    in property <bool> show-preset-save-overwrite: false;
+    in property <string> preset-save-overwrite-name: "";
+    callback preset-save-request(string);
+    callback preset-save-cancel();
+    callback preset-save-overwrite-confirm();
+    callback preset-save-overwrite-cancel();
     in property <bool> show-confirm-delete-block: false;
     in property <string> confirm-delete-block-name: "";
     callback confirm-delete-block();
     callback cancel-delete-block();
+    // Chain-delete confirmation (issue #511 — replaces the native
+    // rfd::MessageDialog the previous chain_row_wiring used).
+    in property <bool> show-confirm-delete-chain: false;
+    in property <string> confirm-delete-chain-name: "";
+    callback confirm-delete-chain();
+    callback cancel-delete-chain();
+    // Recent-project removal confirmation (issue #360 — the launcher
+    // used to drop entries with no confirmation at all).
+    in property <bool> show-confirm-delete-recent-project: false;
+    in property <string> confirm-delete-recent-project-name: "";
+    callback confirm-delete-recent-project();
+    callback cancel-delete-recent-project();
     // Inline plugin info overlay — used in fullscreen / touch where the secondary
     // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
     in property <bool> plugin-info-visible: false;
@@ -264,7 +344,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
-        show-project-settings: root.show-project-settings;
+        show-settings: root.show-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
@@ -280,6 +360,7 @@ export component AppWindow inherits Window {
         chain-rig-nav: root.chain-rig-nav;
         switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
         switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
+        rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;
@@ -297,6 +378,8 @@ export component AppWindow inherits Window {
         selected-chain-output-device-index: root.selected-chain-output-device-index;
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
+        selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
+        midi-selection-active: root.midi-selection-active;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
         filtered-block-model-options: root.filtered-block-model-options;
@@ -327,6 +410,9 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
+        midi-bindings: root.midi-bindings;
+        available-commands: root.available-commands;
         chain-editor-input-groups: root.chain-editor-input-groups;
         chain-editor-output-groups: root.chain-editor-output-groups;
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
@@ -369,7 +455,7 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }
@@ -398,6 +484,10 @@ export component AppWindow inherits Window {
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
+        di-loop-source-selected(index, src) => { root.di-loop-source-selected(index, src); }
+        di-loop-choose-file(index) => { root.di-loop-choose-file(index); }
+        di-loop-play(index) => { root.di-loop-play(index); }
+        di-loop-stop(index) => { root.di-loop-stop(index); }
         move-chain-up(index) => { root.move-chain-up(index); }
         move-chain-down(index) => { root.move-chain-down(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -415,6 +505,7 @@ export component AppWindow inherits Window {
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
         toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
@@ -443,6 +534,27 @@ export component AppWindow inherits Window {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        add-midi-binding => { root.add-midi-binding(); }
+        delete-midi-binding(i) => { root.delete-midi-binding(i); }
+        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
+        presets-path: root.presets-path;
+        plugins-path: root.plugins-path;
+        evaluations-path: root.evaluations-path;
+        plugin-catalog-status: root.plugin-catalog-status;
+        pick-presets-path => { root.pick-presets-path(); }
+        reset-presets-path => { root.reset-presets-path(); }
+        pick-plugins-path => { root.pick-plugins-path(); }
+        reset-plugins-path => { root.reset-plugins-path(); }
+        pick-evaluations-path => { root.pick-evaluations-path(); }
+        reset-evaluations-path => { root.reset-evaluations-path(); }
+        reload-plugin-catalog => { root.reload-plugin-catalog(); }
         edit-chain-input(index) => { root.edit-chain-input(index); }
         remove-chain-input(index) => { root.remove-chain-input(index); }
         add-chain-input => { root.add-chain-input(); }
@@ -463,7 +575,7 @@ export component AppWindow inherits Window {
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
-        show-project-settings: root.show-project-settings;
+        show-settings: root.show-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
         fullscreen: root.fullscreen;
@@ -479,6 +591,7 @@ export component AppWindow inherits Window {
         chain-rig-nav: root.chain-rig-nav;
         switch-chain-preset(i, s) => { root.switch-chain-preset(i, s); }
         switch-chain-scene(i, s) => { root.switch-chain-scene(i, s); }
+        rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         language-options: root.language-options;
@@ -496,6 +609,8 @@ export component AppWindow inherits Window {
         selected-chain-output-device-index: root.selected-chain-output-device-index;
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
+        selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
+        midi-selection-active: root.midi-selection-active;
         block-type-options: root.block-type-options;
         block-model-options: root.block-model-options;
         filtered-block-model-options: root.filtered-block-model-options;
@@ -524,6 +639,9 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        midi-devices: root.midi-devices;
+        midi-bindings: root.midi-bindings;
+        available-commands: root.available-commands;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -534,7 +652,7 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
-        close-project-settings => { root.close-project-settings(); }
+        close-settings => { root.close-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }
@@ -563,6 +681,10 @@ export component AppWindow inherits Window {
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
+        di-loop-source-selected(index, src) => { root.di-loop-source-selected(index, src); }
+        di-loop-choose-file(index) => { root.di-loop-choose-file(index); }
+        di-loop-play(index) => { root.di-loop-play(index); }
+        di-loop-stop(index) => { root.di-loop-stop(index); }
         move-chain-up(index) => { root.move-chain-up(index); }
         move-chain-down(index) => { root.move-chain-down(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -580,6 +702,7 @@ export component AppWindow inherits Window {
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
         toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
@@ -608,6 +731,27 @@ export component AppWindow inherits Window {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
+        refresh-midi-devices => { root.refresh-midi-devices(); }
+        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
+        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        add-midi-binding => { root.add-midi-binding(); }
+        delete-midi-binding(i) => { root.delete-midi-binding(i); }
+        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
+        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
+        project-name: root.project-name;
+        project-path-display: root.project-path-display;
+        edit-project-name(t) => { root.edit-project-name(t); }
+        presets-path: root.presets-path;
+        plugins-path: root.plugins-path;
+        evaluations-path: root.evaluations-path;
+        plugin-catalog-status: root.plugin-catalog-status;
+        pick-presets-path => { root.pick-presets-path(); }
+        reset-presets-path => { root.reset-presets-path(); }
+        pick-plugins-path => { root.pick-plugins-path(); }
+        reset-plugins-path => { root.reset-plugins-path(); }
+        pick-evaluations-path => { root.pick-evaluations-path(); }
+        reset-evaluations-path => { root.reset-evaluations-path(); }
+        reload-plugin-catalog => { root.reload-plugin-catalog(); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
         preset-picker-items: root.preset-picker-items;
@@ -671,6 +815,22 @@ export component AppWindow inherits Window {
         confirm => { root.confirm-delete-block(); }
     }
 
+    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        chain-name: root.confirm-delete-chain-name;
+        cancel => { root.cancel-delete-chain(); }
+        confirm => { root.confirm-delete-chain(); }
+    }
+
+    if root.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        project-name: root.confirm-delete-recent-project-name;
+        cancel => { root.cancel-delete-recent-project(); }
+        confirm => { root.confirm-delete-recent-project(); }
+    }
+
     in-out property <string> toast-message;
 
     in-out property <string> toast-level: "info";
@@ -690,8 +850,29 @@ export component AppWindow inherits Window {
         height: root.height;
         visible-overlay: root.show-preset-picker;
         items: root.preset-picker-items;
+        search-query <=> root.preset-picker-search-query;
         confirm(i) => { root.preset-picker-confirm(i); }
         cancel() => { root.preset-picker-cancel(); }
         delete(i) => { root.preset-picker-delete(i); }
+        query-changed(t) => { root.preset-picker-query-changed(t); }
+    }
+
+    PresetSaveOverlay {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        visible-overlay: root.show-preset-save;
+        default-name: root.preset-save-default-name;
+        name-input <=> root.preset-save-name-input;
+        request-save(n) => { root.preset-save-request(n); }
+        cancel() => { root.preset-save-cancel(); }
+    }
+
+    PresetOverwriteOverlay {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        visible-overlay: root.show-preset-save-overwrite;
+        preset-name: root.preset-save-overwrite-name;
+        confirm() => { root.preset-save-overwrite-confirm(); }
+        cancel() => { root.preset-save-overwrite-cancel(); }
     }
 }

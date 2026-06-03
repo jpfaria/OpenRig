@@ -161,6 +161,12 @@ pub(crate) fn wire(
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
+            // The chains screen has its own model behind the preset and
+            // scene comboboxes (chain_rig_nav). Without refreshing it
+            // here, a new chain shows up but its combobox stays blank
+            // until something else refreshes it. Same call the sibling
+            // `chain_save_cancel_callbacks` makes after AppWindow saves.
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(
                 &window,

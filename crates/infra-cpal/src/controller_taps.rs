@@ -88,7 +88,21 @@ impl ProjectRuntimeController {
 
     /// Subscribe to raw pre-FX samples from a chain's input. See
     /// [`engine::runtime::ChainRuntimeState::subscribe_input_tap`] for the
-    /// full contract. Returns an empty `Vec` if the chain has no runtime.
+    /// full contract. Returns an empty `Vec` if the chain has no runtime
+    /// or `input_index` is out of range.
+    ///
+    /// `input_index` is the GLOBAL stream index across the chain's
+    /// per-input runtimes (same convention as
+    /// [`Self::subscribe_stream_tap`] and [`Self::stream_count`]); the
+    /// dispatch walks `runtimes_for(chain_id)`, subtracts each runtime's
+    /// local stream count, and forwards to the runtime hosting the
+    /// segment using its real cpal-callback group index. Issue #557:
+    /// before this translation existed, an input_index of 1 on a chain
+    /// that hosts both streams in one runtime (e.g. two mono guitars on
+    /// the same device) fell back to the first runtime and passed `1`
+    /// as the runtime-side filter, which the runtime's group-0 callback
+    /// never matched — silencing every consumer (meter, tuner) for the
+    /// secondary streams.
     ///
     /// `total_channels` should be at least `max(subscribed_channels) + 1`;
     /// any extra slots are unused. Pass the actual device-side channel
@@ -101,24 +115,80 @@ impl ProjectRuntimeController {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> Vec<Arc<engine::spsc::SpscRing<f32>>> {
-        // Issue #350: the per-input runtime that owns this cpal input is
-        // keyed (chain_id, input_index). Fall back to the first runtime
-        // for single-input chains where the tap subscribes input 0.
-        let runtime = self
-            .runtime_graph
-            .chains
-            .get(&(chain_id.clone(), input_index))
-            .cloned()
-            .or_else(|| self.runtime_graph.runtime_for_chain(chain_id));
-        match runtime {
-            Some(runtime) => runtime.subscribe_input_tap(
-                input_index,
-                total_channels,
-                subscribed_channels,
-                capacity_per_channel,
-            ),
-            None => Vec::new(),
+        let mut remaining = input_index;
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            let local_count = runtime.stream_count();
+            if remaining < local_count {
+                let cpal_input_index = runtime
+                    .input_routing_for_stream(remaining)
+                    .map(|(cpal_idx, _, _)| cpal_idx)
+                    .unwrap_or(remaining);
+                return runtime.subscribe_input_tap(
+                    cpal_input_index,
+                    total_channels,
+                    subscribed_channels,
+                    capacity_per_channel,
+                );
+            }
+            remaining -= local_count;
         }
+        Vec::new()
+    }
+
+    /// Subscribe to a per-stream INPUT meter tap. Mirrors
+    /// [`Self::subscribe_stream_tap`] in shape: takes a GLOBAL
+    /// `stream_index` in `0..stream_count(cid)` and returns a single
+    /// ring containing the device-side audio that this stream's
+    /// segment actually reads — honouring the chain's input endpoint
+    /// channels.
+    ///
+    /// Issue #557: replaces the meter's old call pattern of
+    /// `subscribe_input_tap(cid, i, 1, &[0], cap)`. That pattern is
+    /// wrong on two counts:
+    ///
+    /// 1. When several streams share one per-input runtime (e.g. two
+    ///    mono guitars on one device), each stream's segment lives at
+    ///    the SAME local cpal-callback group index (always 0 for a
+    ///    one-device chain). Passing the global stream index as the
+    ///    tap's `input_index` filter makes every tap past index 0
+    ///    silent because the runtime's callback only fires with the
+    ///    cpal group index.
+    /// 2. The hardcoded `&[0]` ignores the chain's input endpoint
+    ///    channels: a chain wired to device channel 1 still ends up
+    ///    sampling channel 0 of the interleaved frame.
+    ///
+    /// This method translates the global `stream_index` to the
+    /// `(per-input runtime, local segment)` pair (same walk
+    /// `subscribe_stream_tap` already uses) and then asks the runtime
+    /// for the segment's real cpal-callback index and device channels
+    /// before subscribing the tap. For the meter we surface the first
+    /// device channel only; multi-channel inputs keep their full
+    /// `subscribe_input_tap` access for advanced consumers (tuner /
+    /// spectrum / analyzers) that still want every channel separately.
+    pub fn subscribe_stream_input_tap(
+        &self,
+        chain_id: &ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<Arc<engine::spsc::SpscRing<f32>>> {
+        let mut remaining = stream_index;
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            let local_count = runtime.stream_count();
+            if remaining < local_count {
+                let (cpal_input_index, total_channels, device_channels) =
+                    runtime.input_routing_for_stream(remaining)?;
+                let first_channel = *device_channels.first()?;
+                let mut rings = runtime.subscribe_input_tap(
+                    cpal_input_index,
+                    total_channels,
+                    &[first_channel],
+                    capacity_per_channel,
+                );
+                return rings.pop();
+            }
+            remaining -= local_count;
+        }
+        None
     }
 
     /// Drop input taps with no surviving consumer handles across all
@@ -188,5 +258,37 @@ impl ProjectRuntimeController {
         for runtime in self.runtime_graph.chains.values() {
             runtime.set_output_muted(mute);
         }
+    }
+
+    /// Publish (or clear) the DI loop for a single chain.
+    ///
+    /// `Some(arc)` arms every `ChainRuntimeState` associated with `chain_id`
+    /// so the audio thread picks it up on the next callback. `None` disarms
+    /// them — audio returns to live input immediately.
+    ///
+    /// Called from the adapter-gui wiring after
+    /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
+    /// retrieved from the dispatcher's ephemeral store (not persisted).
+    pub fn set_chain_di_loop(
+        &self,
+        chain_id: &ChainId,
+        di: Option<Arc<engine::DiLoop>>,
+    ) {
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
+            runtime.set_di_loop(di.clone());
+        }
+    }
+
+    /// Returns `true` when at least one `ChainRuntimeState` for `chain_id`
+    /// has an active DI loop armed (i.e. `has_di_loop() == true`).
+    ///
+    /// Called by the GUI meter timer (~30 Hz) to refresh the
+    /// `ProjectChainItem.di_loop_playing` flag in the VecModel row.
+    /// Read-only; no audio-thread interaction.
+    pub fn chain_has_di_loop(&self, chain_id: &ChainId) -> bool {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .any(|rt| rt.has_di_loop())
     }
 }

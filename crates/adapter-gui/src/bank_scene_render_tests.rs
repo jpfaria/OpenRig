@@ -16,6 +16,7 @@ fn rig() -> RigProject {
             active_preset: 4,
             active_scene: 3,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     inputs.insert(
@@ -27,6 +28,7 @@ fn rig() -> RigProject {
             active_preset: 2,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
@@ -34,6 +36,8 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -76,6 +80,8 @@ fn render_empty_project_is_empty() {
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
         presets: BTreeMap::new(),
+        midi: None,
+        chain_order: Vec::new(),
     });
     assert!(render(&state).is_empty());
 }

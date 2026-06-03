@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "入力チャンネルは既に別のチェーン
 error-select-option-required-for: "%{label} のオプションを選択してください"
 error-select-invalid-for: "%{label} の選択が無効です"
 error-invalid-project: "無効なプロジェクト"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

@@ -7,10 +7,36 @@ export struct DeviceSelectionItem {
     bit_depth_text: string,
 }
 
+// Per-row payload for the System / MIDI devices section (#513). The
+// pair (name, instance) is the stable key so the Rust side can pair
+// edits back with the persisted `MidiDeviceSelection`.
+export struct MidiDeviceRow {
+    name: string,
+    instance: int,
+    alias: string,
+    enabled: bool,
+}
+
+// Per-row payload for the Project / MIDI mapping editor (#513, #493).
+// `learning = true` marks a draft row whose trigger is being captured
+// in MIDI Learn mode; the trigger label then reads "(listening...)"
+// until the daemon emits `Event::MidiEventReceived`. `command-label`
+// is empty for drafts that haven't picked a Command yet.
+export struct MidiBindingRow {
+    trigger-label: string,
+    command-label: string,
+    learning: bool,
+}
+
 export struct BlockParamSummaryEntry {
     label: string,    // parameter name in uppercase (e.g. "GAIN")
     value: string,    // formatted current value (e.g. "65")
     unit: string,     // optional unit suffix (e.g. "%", "ms", "dB")
+}
+
+export struct StreamMeter {
+    in_dbfs: float,
+    out_dbfs: float,
 }
 
 export struct ChainBlockItem {
@@ -20,6 +46,11 @@ export struct ChainBlockItem {
     label: string,
     family: string,
     enabled: bool,
+    // #606: the model is not installed/loadable (uninstalled NAM/IR/LV2
+    // pack, or unsupported on this platform). The tile renders it as
+    // deactivated and its enable toggle is inert — the user cannot turn on
+    // a pedal that cannot build.
+    unavailable: bool,
     real_index: int,
     thumbnail: image,
     has_thumbnail: bool,
@@ -55,7 +86,28 @@ export struct ProjectChainItem {
     /// Output volume da chain em percentual (issue #440). 100 = unity.
     /// Slider expõe range 0-200. Bind ao `Chain.volume` no Rust.
     volume: int,
+    /// Issue #496 / #32 / #36: per-chain peak-meter readings (dBFS).
+    /// Refreshed by the GUI timer polling `engine::output_meter`.
+    /// Value -120.0 = silent (no signal). > 0 = clipping (red).
+    /// Mapped to colour in `chain_row.slint`:
+    ///   >  0     → red
+    ///   -6..0   → green (sweet spot)
+    ///   -18..-6 → yellow
+    ///   < -18   → grey/orange (low)
+    meter_in_dbfs: float,
+    meter_out_dbfs: float,
+    /// Per-stream meter readings. One entry per stream the runtime
+    /// exposes for this chain. A multi-input chain (3 entries on its
+    /// Input block) gets 3 pairs here so the GUI can draw 3 in/out
+    /// bars instead of a single aggregate.
+    stream_meters: [StreamMeter],
     blocks: [ChainBlockItem],
+    /// Issue #614: true while the DI loop is armed (playing) for this chain.
+    /// Refreshed by the meter timer at ~30 Hz via `ChainRuntimeState::has_di_loop`.
+    di_loop_playing: bool,
+    /// Issue #614: ordered list of available DI loop source names for the
+    /// chain-tile ComboBox. Bundled ids first, then "Choose file…" sentinel.
+    di_loop_sources: [string],
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
@@ -78,6 +130,11 @@ export struct BlockTypePickerItem {
     subtitle: string,
     icon_kind: string,
     use_panel_editor: bool,
+    // Issue #608: false for the generic NAM/IR file-loader blocks, which
+    // have no catalog model to choose — the Block Editor hides the model
+    // select/search picker for them. Computed in Rust via
+    // `block_core::effect_type_uses_model_catalog`.
+    uses_model_catalog: bool,
     accent_color: color,
     icon_source: image,
 }

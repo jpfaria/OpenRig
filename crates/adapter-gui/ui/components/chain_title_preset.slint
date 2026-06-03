@@ -217,38 +217,76 @@ export component ChainTitlePreset inherits Rectangle {
     // over-cap shells.
     callback preset-picked(int);
     callback scene-picked(int);
+    // Issue: rename the currently active preset. Carries the new
+    // name typed in the rename popup. Empty string ⇒ user pressed
+    // OK with no text; the Rust wiring treats it as a no-op.
+    callback rename-preset(string);
+    // Issue: open the load-preset file picker. Routed to the
+    // existing `configure-chain-preset` callback on chain_row.
+    callback load-preset();
+    // Issue: save the chain's processing chain as a preset file.
+    // Routed to the existing `save-chain-preset` callback.
+    callback save-preset();
 
-    // ── Non-rig chain: the plain clickable title (unchanged behaviour).
-    if !root.nav.has-rig : Rectangle {
-        Text {
-            width: parent.width;
-            height: parent.height;
-            text: root.title;
-            color: title-ta.has-hover ? #ffffff : #f1f4f8;
-            font-size: 14px;
-            font-weight: 600;
-            vertical-alignment: center;
-        }
-        title-ta := TouchArea {
-            mouse-cursor: root.fullscreen ? default : pointer;
-            clicked => {
-                if !root.fullscreen {
-                    root.open-compact();
+    // Active-preset label, used to pre-fill the rename popup.
+    property <string> active-preset-label:
+        root.nav.active-preset-index >= 0
+            && root.nav.active-preset-index < root.nav.preset-labels.length
+        ? root.nav.preset-labels[root.nav.active-preset-index]
+        : "";
+    // Working copy the popup's TextInput edits.
+    property <string> rename-draft: "";
+
+    // Issue #496: preset select + scene bar + "+" buttons are shown
+    // ALWAYS (rig or not). Without a rig, the select is empty and the
+    // "+" creates the rig + first preset on click; same for scenes.
+    HorizontalLayout {
+        spacing: Theme.spaces.small;
+        alignment: start;
+
+        // Title — still clickable to open the compact view.
+        Rectangle {
+            width: 220px;
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.title;
+                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            title-ta := TouchArea {
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact();
+                    }
                 }
             }
         }
-    }
 
-    // ── Rig chain: preset select + add button + dynamic scene bar.
-    if root.nav.has-rig : HorizontalLayout {
-        spacing: Theme.spaces.small;
-        alignment: start;
-        PresetSelect {
-            width: 280px;
-            labels: root.nav.preset-labels;
-            active-index: root.nav.active-preset-index;
-            picked(i) => {
-                root.preset-picked(i);
+        // Preset action cluster BEFORE the select — open, save, add,
+        // rename, delete. Grouping them with the combobox so it's
+        // unambiguous that they act on the *preset* (not the chain).
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/open-file.svg");
+                a11y: @tr("tooltip-open-preset");
+                clicked => {
+                    root.load-preset();
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/save.svg");
+                a11y: @tr("tooltip-save-preset");
+                clicked => {
+                    root.save-preset();
+                }
             }
         }
         VerticalLayout {
@@ -261,8 +299,17 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
-        // Remove the active preset. Hidden when only one exists — a
-        // bank must keep at least one preset.
+        if root.nav.preset-labels.length > 0 : VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: @image-url("../assets/pencil.svg");
+                a11y: @tr("Rename preset");
+                clicked => {
+                    root.rename-draft = root.active-preset-label;
+                    rename-pop.show();
+                }
+            }
+        }
         if root.nav.preset-labels.length > 1 : VerticalLayout {
             alignment: center;
             IconButton {
@@ -273,6 +320,19 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
+
+        // Preset select — empty placeholder when no rig yet.
+        PresetSelect {
+            width: 220px;
+            labels: root.nav.preset-labels;
+            active-index: root.nav.active-preset-index;
+            picked(i) => {
+                root.preset-picked(i);
+            }
+        }
+
+        // Scene bar — also always visible. Scene-count == 0 ⇒ shows
+        // only the "+ add scene" affordance the bar itself renders.
         VerticalLayout {
             alignment: center;
             SceneBar {
@@ -283,8 +343,107 @@ export component ChainTitlePreset inherits Rectangle {
                 }
             }
         }
+
         Rectangle {
             horizontal-stretch: 1;
+        }
+    }
+
+    // Rename-preset popup. Opened by the pencil icon; pre-fills with
+    // the active preset name. Enter (or OK) fires `rename-preset`;
+    // Esc / click-outside / Cancel just close.
+    rename-pop := PopupWindow {
+        x: 240px;
+        y: 44px;
+        width: 280px;
+        height: 116px;
+        close-policy: close-on-click-outside;
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
+            border-width: 1px;
+            border-color: #2b3340;
+            border-radius: 6px;
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
+                Text {
+                    text: @tr("Rename preset");
+                    color: #8a94a2;
+                    font-size: 12px;
+                }
+                Rectangle {
+                    height: 32px;
+                    background: #15191f;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: #2b3340;
+                    name-input := TextInput {
+                        x: 8px;
+                        y: 0;
+                        width: parent.width - 16px;
+                        height: parent.height;
+                        text <=> root.rename-draft;
+                        single-line: true;
+                        font-size: 14px;
+                        color: #f1f4f8;
+                        vertical-alignment: center;
+                        accepted => {
+                            root.rename-preset(self.text);
+                            rename-pop.close();
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Rectangle {
+                        width: 70px;
+                        height: 26px;
+                        background: cancel-ta.has-hover ? #1f242c : transparent;
+                        border-width: 1px;
+                        border-color: #2b3340;
+                        border-radius: 4px;
+                        Text {
+                            text: @tr("Cancel");
+                            color: #c5cbd6;
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        cancel-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                rename-pop.close();
+                            }
+                        }
+                    }
+                    Rectangle {
+                        width: 70px;
+                        height: 26px;
+                        background: ok-ta.has-hover
+                            ? Theme.palette.accent-end
+                            : Theme.palette.accent-start;
+                        border-radius: 4px;
+                        Text {
+                            text: @tr("OK");
+                            color: #ffffff;
+                            font-size: 12px;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        ok-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.rename-preset(root.rename-draft);
+                                rename-pop.close();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

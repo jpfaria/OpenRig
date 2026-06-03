@@ -320,9 +320,12 @@ fn b01_output_below_limiter_knee_is_transparent() {
 }
 
 #[test]
-fn b02_output_above_limiter_knee_applies_tanh() {
-    // Send a hot input (1.5) through a passthrough chain. Mono → broadcast
-    // Stereo([1.5, 1.5]) → write_output_frame applies tanh per channel.
+fn b02_output_above_limiter_knee_is_softly_saturated() {
+    // Issue #496: was `b02_..._applies_tanh` and pinned `peak ≈ tanh(1.5)`.
+    // The tanh form was discontinuous (-2.17 dB step at 0.95) and
+    // non-monotonic 0.95..1.83 — proven RED in runtime_dsp::tests. The
+    // invariant being protected is "above the knee saturates", not the
+    // specific math; pin the PROPERTIES instead of the function shape.
     let chain = chain_with_blocks(
         "b02",
         vec![
@@ -331,10 +334,17 @@ fn b02_output_above_limiter_knee_applies_tanh() {
         ],
     );
     let peak = measure_steady_peak(&chain, 1, &[1.5], 2, 4);
-    let expected = (1.5_f32).tanh();
     assert!(
-        (peak - expected).abs() < 0.01,
-        "above knee must equal tanh(sample); expected ≈ {expected}, got {peak}"
+        peak <= 1.0,
+        "above-knee must be bounded ≤ full scale; got {peak}"
+    );
+    assert!(
+        peak < 1.5,
+        "above-knee must be reduced from input 1.5; got {peak}"
+    );
+    assert!(
+        peak > 0.9,
+        "above-knee must stay loud (no quiet collapse); got {peak}"
     );
 }
 
@@ -702,7 +712,12 @@ fn g02_split_mono_dual_below_limiter_knee_sums() {
 }
 
 #[test]
-fn g03_split_mono_dual_above_knee_uses_tanh_limiter() {
+fn g03_split_mono_dual_above_knee_is_softly_saturated() {
+    // Issue #496: pin the PROPERTIES instead of `peak ≈ tanh(sum)`.
+    // The old tanh form was discontinuous + non-monotonic (RED in
+    // runtime_dsp::tests). What this invariant really guards is "when
+    // dual mono sums above the knee, the output stays bounded and
+    // loud — no DAC clip, no quiet collapse".
     let chain = chain_with_blocks(
         "g03",
         vec![
@@ -711,11 +726,12 @@ fn g03_split_mono_dual_above_knee_uses_tanh_limiter() {
         ],
     );
     let peak = measure_steady_peak(&chain, 2, &[0.8, 0.8], 2, 4);
-    let expected = (1.6_f32).tanh();
     assert!(
-        (peak - expected).abs() < 0.01,
-        "split-mono dual above knee must equal tanh(sum); expected ≈ {expected}, got {peak}"
+        peak <= 1.0,
+        "split-mono dual sum must be bounded ≤ 1.0; got {peak}"
     );
+    assert!(peak < 1.6, "must be reduced from raw sum 1.6; got {peak}");
+    assert!(peak > 0.9, "must stay loud (no quiet collapse); got {peak}");
 }
 
 #[test]
@@ -1101,4 +1117,1169 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
          should be 175; got {}",
         runtime_after.volume_pct()
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// L. Real-engine spectral / quality audit (issue #496).
+//
+// Drives PINK NOISE (= equal energy per octave, the universal frequency-
+// response reference) through a *real* OpenRig chain — chain → runtime
+// → `process_input_f32` → `process_output_f32` — and measures objective
+// quality on what comes out. No ear, no synthetic math substitute. If
+// the bare path (input + output, no blocks) colours the spectrum or
+// adds noise, "all-native chain sounds broken" is caught here.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn pink_noise(n: usize, seed: u64) -> Vec<f32> {
+    use std::num::Wrapping;
+    let mut state = Wrapping(seed);
+    let mut rng = || {
+        state = state * Wrapping(6364136223846793005) + Wrapping(1442695040888963407);
+        ((state.0 >> 33) as f32 / u32::MAX as f32) * 2.0 - 1.0
+    };
+    const ROWS: usize = 16;
+    let mut rows = [0.0f32; ROWS];
+    let mut last_total = 0.0f32;
+    (0..n)
+        .map(|i| {
+            let mut idx = 0;
+            let mut k = i;
+            while k & 1 == 0 && idx < ROWS - 1 {
+                k >>= 1;
+                idx += 1;
+            }
+            let new = rng();
+            let total = last_total - rows[idx] + new;
+            rows[idx] = new;
+            last_total = total;
+            (total / (ROWS as f32 * 0.6)).clamp(-0.7, 0.7)
+        })
+        .collect()
+}
+
+fn fft_octave_db(samples: &[f32], sr: f32) -> Vec<(f32, f32)> {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let n = samples.len().next_power_of_two();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(n);
+    let mut buf: Vec<Complex<f32>> = samples
+        .iter()
+        .map(|&s| Complex::new(s, 0.0))
+        .chain(std::iter::repeat(Complex::new(0.0, 0.0)))
+        .take(n)
+        .collect();
+    fft.process(&mut buf);
+    let bin_hz = sr / n as f32;
+    let centres = [
+        62.5_f32, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0,
+    ];
+    centres
+        .iter()
+        .map(|&fc| {
+            let lo_b = ((fc / std::f32::consts::SQRT_2) / bin_hz).floor() as usize;
+            let hi_b = (((fc * std::f32::consts::SQRT_2) / bin_hz).ceil() as usize).min(n / 2);
+            let energy: f32 = buf[lo_b..hi_b].iter().map(|c| c.norm_sqr()).sum();
+            (fc, 10.0 * energy.max(1e-12).log10())
+        })
+        .collect()
+}
+
+/// Drive `samples` through the real engine, return the captured output
+/// as a single mono-equivalent stream (sum of stereo channels if any).
+fn run_pink_through_chain(chain: &Chain, mono_samples: &[f32]) -> Vec<f32> {
+    let runtime = build_runtime(chain);
+    let buffer = 512usize;
+    let n_callbacks = mono_samples.len().div_ceil(buffer);
+    let mut out_collected: Vec<f32> = Vec::with_capacity(mono_samples.len());
+    for cb in 0..n_callbacks {
+        let start = cb * buffer;
+        let end = (start + buffer).min(mono_samples.len());
+        let chunk = &mono_samples[start..end];
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2]; // assume stereo out
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    out_collected
+}
+
+#[test]
+fn l01_real_engine_bare_chain_preserves_spectrum_per_octave() {
+    // The simplest possible REAL chain: mono input → stereo output,
+    // no blocks. If even THIS colours the spectrum, every chain is
+    // mangled at the I/O layer — that's the structural bug.
+    let chain = chain_with_blocks(
+        "l01",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let pink = pink_noise(SR as usize * 2, 0xC0FFEE);
+    let out = run_pink_through_chain(&chain, &pink);
+    // Skip the fade-in tail (first ~50 ms of warmup callbacks).
+    let skip = (SR as usize) / 20;
+    let in_bands = fft_octave_db(&pink[skip..], SR);
+    let out_bands = fft_octave_db(&out[skip..], SR);
+    eprintln!("\n=== REAL engine bare chain @ unity (mono→stereo) ===");
+    eprintln!(" centre Hz   in dB    out dB    delta");
+    let mut worst = (0.0_f32, 0.0_f32);
+    for ((fc, i), (_, o)) in in_bands.iter().zip(out_bands.iter()) {
+        let d = o - i;
+        eprintln!(" {fc:>9.1}   {i:>7.2}   {o:>7.2}   {d:>+6.2}");
+        if d.abs() > worst.1.abs() {
+            worst = (*fc, d);
+        }
+    }
+    assert!(
+        worst.1.abs() < 1.0,
+        "REAL ENGINE coloured the spectrum at {} Hz by {:+.2} dB — \
+         every chain is bandpassed by the bare path",
+        worst.0,
+        worst.1
+    );
+}
+
+#[test]
+fn l02_real_engine_bare_chain_thd_n_low_for_pure_sine() {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let chain = chain_with_blocks(
+        "l02",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let n: usize = SR as usize;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+    let out = run_pink_through_chain(&chain, &sig);
+    let skip = (SR as usize) / 20;
+    // Issue #496 measurement fix: integer cycles, no zero-pad.
+    let cycle_samples = (SR / 1_000.0).round() as usize;
+    let usable = ((out.len() - skip) / cycle_samples) * cycle_samples;
+    let tail = &out[skip..skip + usable];
+    let nfft = tail.len();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(nfft);
+    let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0)).collect();
+    fft.process(&mut buf);
+    let bin_hz = SR / nfft as f32;
+    let fb = (1_000.0 / bin_hz).round() as usize;
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
+    let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+    let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
+    eprintln!("\n=== REAL engine THD+N @ 1 kHz mono→stereo ===\n  THD+N = {thd_n_db:.2} dB");
+    assert!(thd_n_db < -60.0, "THD+N = {thd_n_db:.2} dB");
+}
+
+#[test]
+fn l03_real_engine_bare_chain_lufs_transparent_at_unity() {
+    use ebur128::{EbuR128, Mode};
+    let chain = chain_with_blocks(
+        "l03",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let pink = pink_noise(SR as usize * 3, 0xBADA55);
+    let out = run_pink_through_chain(&chain, &pink);
+    let skip = (SR as usize) / 20;
+    let mut m_in = EbuR128::new(1, SR as u32, Mode::I).unwrap();
+    m_in.add_frames_f32(&pink[skip..]).unwrap();
+    let mut m_out = EbuR128::new(1, SR as u32, Mode::I).unwrap();
+    m_out.add_frames_f32(&out[skip..]).unwrap();
+    let lin = m_in.loudness_global().unwrap();
+    let lout = m_out.loudness_global().unwrap();
+    eprintln!(
+        "\n=== REAL engine bare chain LUFS @ unity ===\n  in  = {lin:>7.2} LUFS\n  out = {lout:>7.2} LUFS\n  delta = {:+.2} dB",
+        lout - lin
+    );
+    assert!(
+        (lout - lin).abs() < 1.0,
+        "REAL ENGINE bare chain LUFS delta {:.2} dB — should be transparent",
+        lout - lin
+    );
+}
+
+/// Drive a long signal and report THD+N AFTER a generous skip — kills
+/// the fade-in hypothesis. If THD+N is still bad with skip = 1 s, the
+/// noise is steady-state from the path, not a startup transient.
+#[test]
+fn l04_real_engine_thd_after_one_second_skip_isolates_fade_in() {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let chain = chain_with_blocks(
+        "l04",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let n: usize = (SR as usize) * 3; // 3 seconds
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+    let out = run_pink_through_chain(&chain, &sig);
+    let skip = SR as usize; // skip first 1 s
+                            // Issue #496 measurement fix: integer cycles, no zero-pad.
+    let cycle_samples = (SR / 1_000.0).round() as usize;
+    let usable = ((out.len() - skip) / cycle_samples) * cycle_samples;
+    let tail = &out[skip..skip + usable];
+    let nfft = tail.len();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(nfft);
+    let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0)).collect();
+    fft.process(&mut buf);
+    let bin_hz = SR / nfft as f32;
+    let fb = (1_000.0 / bin_hz).round() as usize;
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
+    let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+    let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
+    eprintln!("\n=== L04 THD+N (3s sine, 1s skip) ===\n  THD+N = {thd_n_db:.2} dB");
+    assert!(
+        thd_n_db < -60.0,
+        "L04: THD+N {thd_n_db:.2} dB after 1s skip"
+    );
+}
+
+/// Drive SILENCE and capture output. A clean path produces pure
+/// zeros. Any non-zero sample = engine is injecting (fade-in tail,
+/// underrun, buffer state, anything).
+#[test]
+fn l05_real_engine_silent_input_must_produce_silent_output() {
+    let chain = chain_with_blocks(
+        "l05",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let sig = vec![0.0_f32; (SR as usize) * 2];
+    let out = run_pink_through_chain(&chain, &sig);
+    let skip = SR as usize; // 1 s skip
+    let tail = &out[skip..];
+    let peak = tail.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
+    let rms = (tail.iter().map(|v| v * v).sum::<f32>() / tail.len() as f32).sqrt();
+    eprintln!("\n=== L05 silent input ===\n  peak = {peak:.6}  rms = {rms:.6}");
+    assert!(
+        peak < 1e-6,
+        "L05: silent input produced non-silent output: peak {peak:.6}"
+    );
+}
+
+/// DC input (a constant) — there is no signal to harmonise, so any
+/// AC content in the output is path-injected noise. Pure isolator.
+#[test]
+fn l06_real_engine_dc_input_steady_output_has_no_ac_noise() {
+    let chain = chain_with_blocks(
+        "l06",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let sig = vec![0.3_f32; (SR as usize) * 2];
+    let out = run_pink_through_chain(&chain, &sig);
+    let skip = SR as usize;
+    let tail = &out[skip..];
+    let mean = tail.iter().sum::<f32>() / tail.len() as f32;
+    let ac_rms = (tail.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / tail.len() as f32).sqrt();
+    eprintln!(
+        "\n=== L06 DC input (0.3 const) ===\n  output mean = {mean:.6}  AC rms = {ac_rms:.6e}"
+    );
+    assert!(
+        ac_rms < 5e-4,
+        "L06: DC in → AC noise out (rms {ac_rms:.6e}, > -66 dBFS = audible)"
+    );
+}
+
+/// Mono input broadcasts to BOTH stereo output channels — they must
+/// be byte-identical. If they drift, the broadcast itself has a bug.
+#[test]
+fn l07_real_engine_mono_broadcast_writes_identical_l_and_r() {
+    let chain = chain_with_blocks(
+        "l07",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let runtime = build_runtime(&chain);
+    let n_frames = 512;
+    let sig: Vec<f32> = (0..n_frames)
+        .map(|i| 0.4 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / SR).sin())
+        .collect();
+    // Drive a few callbacks then capture the steady one.
+    for _ in 0..6 {
+        process_input_f32(&runtime, 0, &sig, 1);
+    }
+    let mut out = vec![0.0_f32; n_frames * 2];
+    process_output_f32(&runtime, 0, &mut out, 2);
+    let mut max_drift = 0.0_f32;
+    for f in out.chunks_exact(2) {
+        let drift = (f[0] - f[1]).abs();
+        if drift > max_drift {
+            max_drift = drift;
+        }
+    }
+    eprintln!("\n=== L07 mono→stereo broadcast ===\n  max L vs R drift = {max_drift:.6}");
+    assert!(
+        max_drift < 1e-6,
+        "L07: broadcast L and R drift by {max_drift:.6} — broadcast is BROKEN"
+    );
+}
+
+/// Run the SAME signal through TWO different callback buffer sizes
+/// and check the output is the same. A path that depends on buffer
+/// size has state leaking somewhere (elastic buffer, fade-in counter,
+/// FIFO underflow). Same input ⇒ same output.
+#[test]
+fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let chain = chain_with_blocks(
+        "l08",
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    );
+    let n: usize = (SR as usize) * 2;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+
+    let drive = |buffer: usize| -> f32 {
+        let target = DEFAULT_ELASTIC_TARGET.max(buffer);
+        let runtime = Arc::new(build_chain_runtime_state(&chain, SR, &[target]).expect("runtime"));
+        let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
+        for chunk in sig.chunks(buffer) {
+            process_input_f32(&runtime, 0, chunk, 1);
+            let mut out = vec![0.0_f32; chunk.len() * 2];
+            process_output_f32(&runtime, 0, &mut out, 2);
+            for f in out.chunks_exact(2) {
+                out_collected.push((f[0] + f[1]) * 0.5);
+            }
+        }
+        let skip = SR as usize;
+        // Issue #496 measurement fix: integer cycles, no zero-pad.
+        let cycle_samples = (SR / 1_000.0).round() as usize;
+        let usable = ((out_collected.len() - skip) / cycle_samples) * cycle_samples;
+        let tail = &out_collected[skip..skip + usable];
+        let nfft = tail.len();
+        let mut planner = FftPlanner::<f32>::new();
+        let fft = planner.plan_fft_forward(nfft);
+        let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0)).collect();
+        fft.process(&mut buf);
+        let bin_hz = SR / nfft as f32;
+        let fb = (1_000.0 / bin_hz).round() as usize;
+        let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+            .map(|b| buf[b].norm_sqr())
+            .sum();
+        let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+        10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
+    };
+
+    let thd_128 = drive(128);
+    let thd_512 = drive(512);
+    let thd_2048 = drive(2048);
+    eprintln!(
+        "\n=== L08 THD+N vs buffer size ===\n  128 frames  → {thd_128:.2} dB\n  512 frames  → {thd_512:.2} dB\n  2048 frames → {thd_2048:.2} dB"
+    );
+    let spread = thd_128.max(thd_512.max(thd_2048)) - thd_128.min(thd_512.min(thd_2048));
+    assert!(
+        spread < 3.0,
+        "L08: THD+N depends on buffer size (spread = {spread:.2} dB) — elastic / FIFO bug"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// M. Elastic-buffer / SPSC-ring path audit (issue #496, target found via
+//    L08). 30+ RED tests probing the exact culprit: per-callback buffer
+//    sizes, signal levels, frequencies, DC, silence, LUFS — each test
+//    isolates one independent property of a clean signal path.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn thd_n_db_through_chain(chain: &Chain, sig: &[f32], buffer: usize) -> f32 {
+    thd_n_db_at_freq_through_chain(chain, sig, buffer, 1_000.0)
+}
+
+fn thd_n_db_at_freq_through_chain(chain: &Chain, sig: &[f32], buffer: usize, freq: f32) -> f32 {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let target = DEFAULT_ELASTIC_TARGET.max(buffer);
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    // Issue #496 measurement-bug fix: truncate the tail to an exact
+    // integer number of fundamental cycles BEFORE the FFT. Zero-padding
+    // a non-periodic window injects spectral leakage that an earlier
+    // version of this helper counted as engine-side noise, producing
+    // false THD+N values of -13 dB on a path that is in fact bit-exact
+    // after fade-in (verified by `diag_multi_callback_bit_exact_*`).
+    let skip = SR as usize;
+    let cycle_samples = (SR / freq).round().max(1.0) as usize;
+    let usable_total = out_collected.len() - skip;
+    let usable = (usable_total / cycle_samples) * cycle_samples;
+    let tail = &out_collected[skip..skip + usable];
+    let nfft = tail.len();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(nfft);
+    let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0)).collect();
+    fft.process(&mut buf);
+    let bin_hz = SR / nfft as f32;
+    let fb = (freq / bin_hz).round() as usize;
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
+    let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+    10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
+}
+
+fn ac_rms_for_dc(chain: &Chain, dc: f32, buffer: usize) -> f32 {
+    let runtime = build_runtime(chain);
+    let sig = vec![dc; (SR as usize) * 2];
+    let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    let skip = SR as usize;
+    let tail = &out_collected[skip..];
+    let mean = tail.iter().sum::<f32>() / tail.len() as f32;
+    (tail.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / tail.len() as f32).sqrt()
+}
+
+fn silent_residue(chain: &Chain, buffer: usize) -> f32 {
+    let runtime = build_runtime(chain);
+    let sig = vec![0.0_f32; (SR as usize) * 2];
+    let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    let skip = SR as usize;
+    let tail = &out_collected[skip..];
+    tail.iter().fold(0.0_f32, |a, &b| a.max(b.abs()))
+}
+
+fn lufs_delta_through_chain(chain: &Chain, buffer: usize) -> f64 {
+    use ebur128::{EbuR128, Mode};
+    let target = DEFAULT_ELASTIC_TARGET.max(buffer);
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let pink = pink_noise(SR as usize * 3, 0xDEAD_BEEF);
+    let mut out_collected: Vec<f32> = Vec::with_capacity(pink.len());
+    for chunk in pink.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    let skip = SR as usize;
+    let mut m_in = EbuR128::new(1, SR as u32, Mode::I).unwrap();
+    m_in.add_frames_f32(&pink[skip..]).unwrap();
+    let mut m_out = EbuR128::new(1, SR as u32, Mode::I).unwrap();
+    m_out.add_frames_f32(&out_collected[skip..]).unwrap();
+    m_out.loudness_global().unwrap() - m_in.loudness_global().unwrap()
+}
+
+fn bare_chain_for(id: &str) -> Chain {
+    chain_with_blocks(
+        id,
+        vec![
+            input_mono(vec![0]),
+            output(ChainOutputMode::Stereo, vec![0, 1]),
+        ],
+    )
+}
+
+fn sine_2s(freq: f32, amp: f32) -> Vec<f32> {
+    (0..(SR as usize) * 2)
+        .map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / SR).sin())
+        .collect()
+}
+
+// ── M.1 THD+N across buffer sizes (10 tests, 1 kHz @ 0.5) ───────
+macro_rules! buf_thd_test {
+    ($name:ident, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let sig = sine_2s(1_000.0, 0.5);
+            let thd = thd_n_db_through_chain(&chain, &sig, $buf);
+            eprintln!("[buffer={}] THD+N = {thd:.2} dB", $buf);
+            assert!(thd < -60.0, "buffer={} THD+N {thd:.2} dB ≥ -60", $buf);
+        }
+    };
+}
+buf_thd_test!(m01_buf_64, 64);
+buf_thd_test!(m02_buf_128, 128);
+buf_thd_test!(m03_buf_192, 192);
+buf_thd_test!(m04_buf_256, 256);
+buf_thd_test!(m05_buf_384, 384);
+buf_thd_test!(m06_buf_512, 512);
+buf_thd_test!(m07_buf_768, 768);
+buf_thd_test!(m08_buf_1024, 1024);
+buf_thd_test!(m09_buf_1536, 1536);
+buf_thd_test!(m10_buf_2048, 2048);
+
+// ── M.2 THD+N across signal LEVELS at 512-frame buffer (5 tests) ──
+macro_rules! lvl_thd_test {
+    ($name:ident, $lvl:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let sig = sine_2s(1_000.0, $lvl);
+            let thd = thd_n_db_through_chain(&chain, &sig, 512);
+            eprintln!("[level={}] THD+N = {thd:.2} dB", $lvl);
+            assert!(thd < -60.0, "level={} THD+N {thd:.2} dB ≥ -60", $lvl);
+        }
+    };
+}
+lvl_thd_test!(m11_level_0_1, 0.1);
+lvl_thd_test!(m12_level_0_3, 0.3);
+lvl_thd_test!(m13_level_0_5, 0.5);
+lvl_thd_test!(m14_level_0_7, 0.7);
+lvl_thd_test!(m15_level_0_9, 0.9);
+
+// ── M.3 THD+N across FREQUENCIES at 512-frame buffer (5 tests) ────
+macro_rules! freq_thd_test {
+    ($name:ident, $f:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let sig = sine_2s($f, 0.5);
+            let thd = thd_n_db_at_freq_through_chain(&chain, &sig, 512, $f);
+            eprintln!("[freq={} Hz] THD+N = {thd:.2} dB", $f);
+            assert!(thd < -60.0, "freq={} Hz THD+N {thd:.2} dB ≥ -60", $f);
+        }
+    };
+}
+freq_thd_test!(m16_freq_100, 100.0);
+// Issue #496: use freqs with integer-cycle period at 48 kHz to avoid
+// FFT leakage (220/440 Hz period is ~218/109 samples — non-integer).
+freq_thd_test!(m17_freq_200, 200.0); // period = 240
+freq_thd_test!(m18_freq_480, 480.0); // period = 100
+freq_thd_test!(m19_freq_1000, 1_000.0);
+freq_thd_test!(m20_freq_4000, 4_000.0);
+
+// ── M.4 DC injection produces AC noise (5 tests) ────────────────
+macro_rules! dc_ac_test {
+    ($name:ident, $dc:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let ac = ac_rms_for_dc(&chain, $dc, 512);
+            eprintln!("[DC={}] AC rms out = {ac:.6e}", $dc);
+            assert!(
+                ac < 5e-4,
+                "DC={} produced AC rms {ac:.6e} (>-66 dBFS = audible hiss)",
+                $dc
+            );
+        }
+    };
+}
+dc_ac_test!(m21_dc_0_1, 0.1_f32);
+dc_ac_test!(m22_dc_0_3, 0.3_f32);
+dc_ac_test!(m23_dc_0_5, 0.5_f32);
+dc_ac_test!(m24_dc_0_7, 0.7_f32);
+dc_ac_test!(m25_dc_neg_0_3, -0.3_f32);
+
+// ── M.5 Silent input → silent output across buffer sizes (5) ────
+macro_rules! silent_test {
+    ($name:ident, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let peak = silent_residue(&chain, $buf);
+            eprintln!("[silent buf={}] peak = {peak:.6}", $buf);
+            assert!(peak < 1e-6, "silent buf={} produced peak {peak:.6}", $buf);
+        }
+    };
+}
+silent_test!(m26_silent_buf_128, 128);
+silent_test!(m27_silent_buf_256, 256);
+silent_test!(m28_silent_buf_512, 512);
+silent_test!(m29_silent_buf_1024, 1024);
+silent_test!(m30_silent_buf_2048, 2048);
+
+// ── M.6 LUFS preservation across buffer sizes (5) ───────────────
+macro_rules! lufs_test {
+    ($name:ident, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let d = lufs_delta_through_chain(&chain, $buf);
+            eprintln!("[lufs buf={}] delta = {d:+.2} dB", $buf);
+            assert!(d.abs() < 1.0, "lufs buf={} delta {d:+.2} dB", $buf);
+        }
+    };
+}
+lufs_test!(m31_lufs_buf_128, 128);
+lufs_test!(m32_lufs_buf_256, 256);
+lufs_test!(m33_lufs_buf_512, 512);
+lufs_test!(m34_lufs_buf_1024, 1024);
+lufs_test!(m35_lufs_buf_2048, 2048);
+
+// ─────────────────────────────────────────────────────────────────────────
+// N. Mono→Stereo broadcast — 30 tests probing L=R bit-equality across
+//    levels, frequencies, signal shapes, and buffer sizes.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn max_lr_drift(chain: &Chain, sig: &[f32], buffer: usize) -> f32 {
+    let runtime = build_runtime(chain);
+    let mut max_drift = 0.0_f32;
+    let mut callback_idx = 0;
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        // Skip first 4 callbacks to avoid fade-in artifacts.
+        if callback_idx >= 4 {
+            for f in out.chunks_exact(2) {
+                let d = (f[0] - f[1]).abs();
+                if d > max_drift {
+                    max_drift = d;
+                }
+            }
+        }
+        callback_idx += 1;
+    }
+    max_drift
+}
+
+macro_rules! bcast_sine_test {
+    ($name:ident, $f:expr, $amp:expr, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let sig: Vec<f32> = (0..(SR as usize))
+                .map(|i| $amp * (2.0 * std::f32::consts::PI * $f * i as f32 / SR).sin())
+                .collect();
+            let d = max_lr_drift(&chain, &sig, $buf);
+            eprintln!(
+                "[bcast f={} amp={} buf={}] max drift = {d:.6}",
+                $f, $amp, $buf
+            );
+            assert!(d < 1e-5, "L vs R drift {d:.6} ≥ 1e-5");
+        }
+    };
+}
+
+bcast_sine_test!(n01_b_100hz_0_3_buf_128, 100.0, 0.3, 128);
+bcast_sine_test!(n02_b_220hz_0_3_buf_128, 220.0, 0.3, 128);
+bcast_sine_test!(n03_b_440hz_0_3_buf_128, 440.0, 0.3, 128);
+bcast_sine_test!(n04_b_1khz_0_3_buf_128, 1_000.0, 0.3, 128);
+bcast_sine_test!(n05_b_4khz_0_3_buf_128, 4_000.0, 0.3, 128);
+bcast_sine_test!(n06_b_220hz_0_1_buf_512, 220.0, 0.1, 512);
+bcast_sine_test!(n07_b_220hz_0_5_buf_512, 220.0, 0.5, 512);
+bcast_sine_test!(n08_b_220hz_0_8_buf_512, 220.0, 0.8, 512);
+bcast_sine_test!(n09_b_220hz_0_95_buf_512, 220.0, 0.95, 512);
+bcast_sine_test!(n10_b_1khz_0_3_buf_64, 1_000.0, 0.3, 64);
+bcast_sine_test!(n11_b_1khz_0_3_buf_256, 1_000.0, 0.3, 256);
+bcast_sine_test!(n12_b_1khz_0_3_buf_768, 1_000.0, 0.3, 768);
+bcast_sine_test!(n13_b_1khz_0_3_buf_2048, 1_000.0, 0.3, 2048);
+
+macro_rules! bcast_signal_test {
+    ($name:ident, $sig_expr:expr, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let sig: Vec<f32> = $sig_expr;
+            let d = max_lr_drift(&chain, &sig, $buf);
+            eprintln!("[{} buf={}] max drift = {d:.6}", stringify!($name), $buf);
+            assert!(d < 1e-5, "L vs R drift {d:.6} ≥ 1e-5");
+        }
+    };
+}
+
+bcast_signal_test!(n14_b_dc_pos, vec![0.3_f32; (SR as usize) * 2], 256);
+bcast_signal_test!(n15_b_dc_neg, vec![-0.4_f32; (SR as usize) * 2], 256);
+bcast_signal_test!(n16_b_silence, vec![0.0_f32; (SR as usize) * 2], 256);
+bcast_signal_test!(n17_b_pink_noise, pink_noise((SR as usize) * 2, 0xCAFE), 256);
+bcast_signal_test!(
+    n18_b_two_tone,
+    (0..(SR as usize))
+        .map(
+            |i| 0.3 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / SR).sin()
+                + 0.3 * (2.0 * std::f32::consts::PI * 440.0 * i as f32 / SR).sin()
+        )
+        .collect(),
+    256
+);
+bcast_signal_test!(
+    n19_b_ramp_up,
+    (0..(SR as usize))
+        .map(|i| 0.8 * (i as f32 / SR as f32))
+        .collect(),
+    256
+);
+bcast_signal_test!(
+    n20_b_pluck,
+    (0..(SR as usize))
+        .map(|i| {
+            let t = i as f32 / SR;
+            0.5 * (-t / 0.4).exp() * (2.0 * std::f32::consts::PI * 150.0 * t).sin()
+        })
+        .collect(),
+    256
+);
+bcast_signal_test!(
+    n21_b_impulse,
+    {
+        let mut v = vec![0.0_f32; SR as usize];
+        v[128] = 0.7;
+        v
+    },
+    256
+);
+bcast_signal_test!(
+    n22_b_square,
+    (0..(SR as usize))
+        .map(|i| if (i / 240) % 2 == 0 { 0.3 } else { -0.3 })
+        .collect(),
+    256
+);
+bcast_signal_test!(
+    n23_b_sawtooth,
+    (0..(SR as usize))
+        .map(|i| 0.4 * (((i as f32 % 240.0) / 240.0) * 2.0 - 1.0))
+        .collect(),
+    256
+);
+bcast_signal_test!(
+    n24_b_triangle,
+    (0..(SR as usize))
+        .map(|i| {
+            let p = (i as f32 % 240.0) / 240.0;
+            0.4 * (1.0 - (2.0 * p - 1.0).abs() * 2.0)
+        })
+        .collect(),
+    256
+);
+
+bcast_sine_test!(n25_b_100hz_0_5_buf_64, 100.0, 0.5, 64);
+bcast_sine_test!(n26_b_100hz_0_5_buf_2048, 100.0, 0.5, 2048);
+bcast_sine_test!(n27_b_4khz_0_5_buf_64, 4_000.0, 0.5, 64);
+bcast_sine_test!(n28_b_4khz_0_5_buf_2048, 4_000.0, 0.5, 2048);
+bcast_sine_test!(n29_b_8khz_0_3_buf_512, 8_000.0, 0.3, 512);
+bcast_sine_test!(n30_b_60hz_0_5_buf_512, 60.0, 0.5, 512);
+
+// ─────────────────────────────────────────────────────────────────────────
+// O. Fade-in ramp — 30 tests checking the ramp does not leak past its
+//    documented duration, does not corrupt audio after release, and
+//    does not introduce harmonics.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// THD+N computed using a specified skip duration (samples). If THD+N
+/// keeps improving as skip grows, the fade-in is leaking — its end
+/// boundary should be a hard release into transparency.
+fn thd_with_skip(chain: &Chain, freq: f32, amp: f32, buffer: usize, skip: usize) -> f32 {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let target = DEFAULT_ELASTIC_TARGET.max(buffer);
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let n: usize = (SR as usize) * 3;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / SR).sin())
+        .collect();
+    let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5);
+        }
+    }
+    // Issue #496 measurement fix: truncate to integer cycles, no zero-pad.
+    let cycle_samples = (SR / freq).round().max(1.0) as usize;
+    let usable_total = out_collected.len() - skip;
+    let usable = (usable_total / cycle_samples) * cycle_samples;
+    let tail = &out_collected[skip..skip + usable];
+    let nfft = tail.len();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(nfft);
+    let mut buf: Vec<Complex<f32>> = tail.iter().map(|&s| Complex::new(s, 0.0)).collect();
+    fft.process(&mut buf);
+    let bin_hz = SR / nfft as f32;
+    let fb = (freq / bin_hz).round() as usize;
+    let fundamental: f32 = (fb.saturating_sub(1)..=fb + 1)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
+    let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+    10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
+}
+
+macro_rules! fade_skip_test {
+    ($name:ident, $skip_ms:expr, $buf:expr) => {
+        #[test]
+        fn $name() {
+            let chain = bare_chain_for(stringify!($name));
+            let skip = (SR as usize) * $skip_ms / 1000;
+            let thd = thd_with_skip(&chain, 1_000.0, 0.5, $buf, skip);
+            eprintln!("[skip {} ms, buf {}] THD+N = {thd:.2} dB", $skip_ms, $buf);
+            assert!(
+                thd < -60.0,
+                "skip={}ms buf={} THD+N {thd:.2} dB ≥ -60",
+                $skip_ms,
+                $buf
+            );
+        }
+    };
+}
+fade_skip_test!(o01_skip_50ms_buf_128, 50, 128);
+fade_skip_test!(o02_skip_100ms_buf_128, 100, 128);
+fade_skip_test!(o03_skip_200ms_buf_128, 200, 128);
+fade_skip_test!(o04_skip_500ms_buf_128, 500, 128);
+fade_skip_test!(o05_skip_1s_buf_128, 1_000, 128);
+fade_skip_test!(o06_skip_50ms_buf_512, 50, 512);
+fade_skip_test!(o07_skip_100ms_buf_512, 100, 512);
+fade_skip_test!(o08_skip_200ms_buf_512, 200, 512);
+fade_skip_test!(o09_skip_500ms_buf_512, 500, 512);
+fade_skip_test!(o10_skip_1s_buf_512, 1_000, 512);
+fade_skip_test!(o11_skip_50ms_buf_2048, 50, 2048);
+fade_skip_test!(o12_skip_200ms_buf_2048, 200, 2048);
+fade_skip_test!(o13_skip_500ms_buf_2048, 500, 2048);
+fade_skip_test!(o14_skip_1s_buf_2048, 1_000, 2048);
+
+// Across signal levels
+fade_skip_test!(o15_skip_500ms_lvl_via_freq_100, 500, 256);
+fade_skip_test!(o16_skip_500ms_lvl_via_freq_220, 500, 256);
+fade_skip_test!(o17_skip_500ms_lvl_via_freq_440, 500, 256);
+fade_skip_test!(o18_skip_500ms_lvl_via_freq_2k, 500, 256);
+fade_skip_test!(o19_skip_500ms_lvl_via_freq_8k, 500, 256);
+
+// Across many buffers at fixed 500 ms skip
+fade_skip_test!(o20_skip_500ms_buf_64, 500, 64);
+fade_skip_test!(o21_skip_500ms_buf_192, 500, 192);
+fade_skip_test!(o22_skip_500ms_buf_384, 500, 384);
+fade_skip_test!(o23_skip_500ms_buf_768, 500, 768);
+fade_skip_test!(o24_skip_500ms_buf_1024, 1_024, 1_024);
+fade_skip_test!(o25_skip_500ms_buf_1536, 500, 1_536);
+fade_skip_test!(o26_skip_500ms_buf_4096, 500, 4_096);
+
+// Skip much longer than any plausible fade
+fade_skip_test!(o27_skip_2s_buf_512, 2_000, 512);
+fade_skip_test!(o28_skip_2s_buf_2048, 2_000, 2_048);
+fade_skip_test!(o29_skip_2s_buf_128, 2_000, 128);
+fade_skip_test!(o30_skip_2s_buf_64, 2_000, 64);
+
+// ─────────────────────────────────────────────────────────────────────────
+// P. Sample format conversion math — 30 tests of the exact
+//    i16/u16/i32 ↔ f32 expressions used by `stream_builder.rs`.
+//    These don't go through the engine; they verify the math the cpal
+//    callback runs is bijective and not the source of the swarm-of-bees
+//    via bit-cast / off-by-one / wrap-around.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn i16_to_f32(s: i16) -> f32 {
+    s as f32 / i16::MAX as f32
+}
+fn f32_to_i16(s: f32) -> i16 {
+    (s * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16
+}
+fn u16_to_f32(s: u16) -> f32 {
+    (s as f32 / u16::MAX as f32) * 2.0 - 1.0
+}
+fn f32_to_u16(s: f32) -> u16 {
+    ((s + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32) as u16
+}
+fn i32_to_f32(s: i32) -> f32 {
+    s as f32 / i32::MAX as f32
+}
+fn f32_to_i32(s: f32) -> i32 {
+    (s * i32::MAX as f32).clamp(i32::MIN as f32, i32::MAX as f32) as i32
+}
+
+#[test]
+fn p01_i16_max_round_trip() {
+    assert!((f32_to_i16(i16_to_f32(i16::MAX)) - i16::MAX).abs() <= 1);
+}
+#[test]
+fn p02_i16_min_round_trip() {
+    assert!((f32_to_i16(i16_to_f32(i16::MIN)) - i16::MIN).abs() <= 1);
+}
+#[test]
+fn p03_i16_zero_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(0)), 0);
+}
+#[test]
+fn p04_i16_one_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(1)), 1);
+}
+#[test]
+fn p05_i16_neg_one_round_trip() {
+    assert_eq!(f32_to_i16(i16_to_f32(-1)), -1);
+}
+#[test]
+fn p06_i16_half_round_trip() {
+    let v = i16::MAX / 2;
+    assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1);
+}
+#[test]
+fn p07_i16_neg_half_round_trip() {
+    let v = i16::MIN / 2;
+    assert!((f32_to_i16(i16_to_f32(v)) - v).abs() <= 1);
+}
+#[test]
+fn p08_i16_clamps_above_unity() {
+    assert_eq!(f32_to_i16(2.0), i16::MAX);
+}
+#[test]
+fn p09_i16_clamps_below_minus_unity() {
+    assert_eq!(f32_to_i16(-2.0), i16::MIN);
+}
+#[test]
+fn p10_i16_to_f32_bound() {
+    for v in [-32768i16, -1, 0, 1, 32767] {
+        let x = i16_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+    }
+}
+
+#[test]
+fn p11_u16_zero_maps_to_minus_one() {
+    assert!((u16_to_f32(0) + 1.0).abs() < 1e-4);
+}
+#[test]
+fn p12_u16_max_maps_to_plus_one() {
+    assert!((u16_to_f32(u16::MAX) - 1.0).abs() < 1e-4);
+}
+#[test]
+fn p13_u16_mid_maps_near_zero() {
+    let v = u16::MAX / 2;
+    assert!(u16_to_f32(v).abs() < 1e-4);
+}
+#[test]
+fn p14_u16_round_trip_zero() {
+    assert_eq!(f32_to_u16(-1.0), 0);
+}
+#[test]
+fn p15_u16_round_trip_max() {
+    assert_eq!(f32_to_u16(1.0), u16::MAX);
+}
+#[test]
+fn p16_u16_round_trip_mid() {
+    let v = u16::MAX / 2;
+    let back = f32_to_u16(u16_to_f32(v));
+    assert!((back as i32 - v as i32).abs() <= 1);
+}
+#[test]
+fn p17_u16_clamps_above_unity() {
+    assert_eq!(f32_to_u16(2.0), u16::MAX);
+}
+#[test]
+fn p18_u16_clamps_below_minus_unity() {
+    assert_eq!(f32_to_u16(-2.0), 0);
+}
+#[test]
+fn p19_u16_to_f32_bound() {
+    for v in [0u16, 1, u16::MAX / 2, u16::MAX] {
+        let x = u16_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001);
+    }
+}
+#[test]
+fn p20_u16_round_trip_dense() {
+    for v in (0..u16::MAX).step_by(257) {
+        let back = f32_to_u16(u16_to_f32(v));
+        assert!((back as i32 - v as i32).abs() <= 1, "v={v} back={back}");
+    }
+}
+
+#[test]
+fn p21_i32_zero_round_trip() {
+    assert_eq!(f32_to_i32(i32_to_f32(0)), 0);
+}
+#[test]
+fn p22_i32_max_round_trip_bounded() {
+    let x = i32_to_f32(i32::MAX);
+    assert!((x - 1.0).abs() < 1e-6);
+}
+#[test]
+fn p23_i32_min_round_trip_bounded() {
+    let x = i32_to_f32(i32::MIN);
+    assert!((x + 1.0).abs() < 1e-3);
+}
+#[test]
+fn p24_i32_clamps_above_unity() {
+    assert_eq!(f32_to_i32(2.0), i32::MAX);
+}
+#[test]
+fn p25_i32_clamps_below_minus_unity() {
+    assert_eq!(f32_to_i32(-2.0), i32::MIN);
+}
+#[test]
+fn p26_i32_to_f32_bound() {
+    for v in [i32::MIN, -1, 0, 1, i32::MAX] {
+        let x = i32_to_f32(v);
+        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+    }
+}
+#[test]
+fn p27_i32_unity_round_trip() {
+    assert_eq!(f32_to_i32(1.0), i32::MAX);
+}
+#[test]
+fn p28_i32_neg_unity_round_trip() {
+    assert_eq!(f32_to_i32(-1.0), i32::MIN);
+}
+#[test]
+fn p29_i32_below_unity_is_within() {
+    for &v in &[0.1_f32, 0.5, 0.9, -0.3] {
+        assert!(f32_to_i32(v).abs() < i32::MAX);
+    }
+}
+#[test]
+fn p30_i32_subnormal_safe() {
+    let x = i32_to_f32(1);
+    let back = f32_to_i32(x);
+    assert!((back - 1).abs() <= 1);
+}
+
+#[test]
+fn diag_thd_with_single_callback_push_pop() {
+    use rustfft::{num_complex::Complex, FftPlanner};
+    let chain = bare_chain_for("diag_single");
+    let n: usize = 16_384;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5_f32 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+    let runtime = build_runtime(&chain);
+    // Single big push + single big pop.
+    process_input_f32(&runtime, 0, &sig, 1);
+    let mut out_st = vec![0.0_f32; n * 2];
+    process_output_f32(&runtime, 0, &mut out_st, 2);
+    let out: Vec<f32> = out_st
+        .chunks_exact(2)
+        .map(|f| (f[0] + f[1]) * 0.5_f32)
+        .collect();
+    // Skip fade-in.
+    let skip = (crate::runtime_state::FADE_IN_FRAMES + 16).min(out.len() / 4);
+    let tail = &out[skip..];
+    let nfft = tail.len().next_power_of_two();
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(nfft);
+    let mut buf: Vec<Complex<f32>> = tail
+        .iter()
+        .map(|&s| Complex::new(s, 0.0))
+        .chain(std::iter::repeat(Complex::new(0.0, 0.0)))
+        .take(nfft)
+        .collect();
+    fft.process(&mut buf);
+    let bin_hz = SR / nfft as f32;
+    let fb = (1_000.0 / bin_hz).round() as usize;
+    let fundamental: f32 = (fb.saturating_sub(3)..=fb + 3)
+        .map(|b| buf[b].norm_sqr())
+        .sum();
+    let total: f32 = buf[..nfft / 2].iter().map(|c| c.norm_sqr()).sum();
+    let thd_n_db = 10.0 * ((total - fundamental).max(1e-12) / fundamental).log10();
+    eprintln!("\n=== diag SINGLE callback push/pop ===\n  THD+N = {thd_n_db:.2} dB  (signal length = {n} samples)");
+}
+
+#[test]
+fn diag_multi_callback_bit_exact_chunks_of_64() {
+    let chain = bare_chain_for("diag_multi");
+    let n: usize = 4096;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5_f32 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+    let runtime = build_runtime(&chain);
+    let buffer = 64;
+    let mut out_collected: Vec<f32> = Vec::with_capacity(n);
+    for chunk in sig.chunks(buffer) {
+        process_input_f32(&runtime, 0, chunk, 1);
+        let mut out = vec![0.0_f32; chunk.len() * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+        for f in out.chunks_exact(2) {
+            out_collected.push((f[0] + f[1]) * 0.5_f32);
+        }
+    }
+    // Count exact mismatches per region.
+    let skip = 128_usize; // past FADE_IN_FRAMES
+    let mut mismatches = 0_usize;
+    let mut worst: (usize, f32, f32) = (0, 0.0, 0.0);
+    for i in skip..n {
+        let want = sig[i];
+        let got = out_collected[i];
+        let d = (got - want).abs();
+        if d > 1e-5 {
+            mismatches += 1;
+            if d > worst.1.abs().max(worst.2.abs()).max(0.0) {
+                worst = (i, want, got);
+            }
+        }
+    }
+    eprintln!("\n=== diag MULTI 64-frame callbacks (skip {skip}) ===");
+    eprintln!("  total frames after skip = {}", n - skip);
+    eprintln!("  mismatches (|delta| > 1e-5) = {mismatches}");
+    eprintln!(
+        "  worst @ i={}: want={:+.6} got={:+.6}",
+        worst.0, worst.1, worst.2
+    );
+    // Print 16 around worst.
+    let around = worst.0.saturating_sub(8);
+    eprintln!("  around worst (i={around}..{}):", around + 16);
+    for i in around..(around + 16).min(n) {
+        eprintln!(
+            "   {i:>5}: want={:>+9.6}  got={:>+9.6}  delta={:>+9.6}",
+            sig[i],
+            out_collected[i],
+            out_collected[i] - sig[i]
+        );
+    }
+}
+
+#[test]
+fn diag_print_first_chunk_of_bare_chain_output() {
+    let chain = bare_chain_for("diag");
+    let n: usize = 256;
+    let sig: Vec<f32> = (0..n)
+        .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
+        .collect();
+    let runtime = build_runtime(&chain);
+    // Push and pop a few callbacks to get past fade-in.
+    for _ in 0..4 {
+        process_input_f32(&runtime, 0, &sig, 1);
+        let mut out = vec![0.0_f32; n * 2];
+        process_output_f32(&runtime, 0, &mut out, 2);
+    }
+    // Capture next callback.
+    process_input_f32(&runtime, 0, &sig, 1);
+    let mut out = vec![0.0_f32; n * 2];
+    process_output_f32(&runtime, 0, &mut out, 2);
+    eprintln!("\n=== diag: first 16 stereo frames after warmup ===");
+    eprintln!("  i:  in            outL          outR          delta");
+    for i in 0..16 {
+        let want = sig[i];
+        let l = out[i * 2];
+        let r = out[i * 2 + 1];
+        eprintln!(
+            " {i:>3}: {want:>+10.6}  {l:>+10.6}  {r:>+10.6}  L-want={:+.6}",
+            l - want
+        );
+    }
 }

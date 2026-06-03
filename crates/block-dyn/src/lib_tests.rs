@@ -430,3 +430,13 @@ fn dyn_model_visual_returns_some_for_native() {
 fn dyn_model_visual_returns_none_for_unknown() {
     assert!(dyn_model_visual("nonexistent_model").is_none());
 }
+
+#[test]
+fn is_dyn_model_available_false_for_uncataloged_disk_model() {
+    // Issue #606 (sibling family): an uninstalled disk-package dynamics
+    // model must report UNAVAILABLE rather than optimistically true.
+    assert!(
+        !crate::is_dyn_model_available("lv2_some_compressor_not_installed"),
+        "an uninstalled disk-package dynamics model must be unavailable"
+    );
+}

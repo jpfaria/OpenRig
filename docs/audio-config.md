@@ -60,6 +60,14 @@ Hardware → InputBlock { device_id, mode, channels }
     Right   →  R
 ```
 
+> **Device opens at its NATIVE channel count** (issue #516). When `mode = mono`
+> with `channels = [a]` selects a single physical output on a hardware-stereo
+> interface (Scarlett 2i2 etc.), the CPAL stream is still opened at the
+> device's `default_output_config().channels()`. Opening such a device as
+> 1-channel mono silences it on macOS / CoreAudio — the routing is the
+> engine's job (`write_output_frame` writes the mixdown into `ch_a` of the
+> interleaved buffer; other channels stay at zero).
+
 ### Exemplos
 
 **1. Mono in + bloco MonoOnly + stereo out**
@@ -137,6 +145,10 @@ Acceptance pinned (`volume_invariants_tests` g01..g04):
 **MUST stay at 1.0** até feature opt-in de auto-mix existir com aprovação
 explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
+### Virtual DI loop (per-chain, ephemeral)
+
+A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma
@@ -175,7 +187,7 @@ Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit dep
 
 ## Per-machine device settings (config.yaml)
 
-Sample rate, buffer size, bit depth, language são **per-machine**, não per-project. Vivem no `config.yaml` unificado (#287):
+To change audio device settings in the UI, open the **Settings screen** (top bar) and select the **System / Audio interface** section. Sample rate, buffer size, bit depth, and language are **per-machine**, not per-project. They persist to `config.yaml` (#287):
 
 - macOS: `~/Library/Application Support/OpenRig/config.yaml`
 - Windows: `%APPDATA%\OpenRig\config.yaml`

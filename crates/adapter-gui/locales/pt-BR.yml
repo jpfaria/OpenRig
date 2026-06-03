@@ -83,3 +83,8 @@ error-channel-in-use-by-other: "Canal de entrada já está em uso por outra chai
 error-select-option-required-for: "Selecione uma opção para %{label}"
 error-select-invalid-for: "Seleção inválida para %{label}"
 error-invalid-project: "Projeto inválido"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

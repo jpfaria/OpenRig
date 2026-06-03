@@ -305,12 +305,31 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .find(|entry| entry.effect_type == effect_type)
         .ok_or_else(|| format!("unsupported effect type '{}'", effect_type))?;
 
+    // Build the per-model catalog entry, skipping (and logging) any
+    // model whose schema lookup fails. Pre-fix this was a `?`
+    // propagation that turned a single bad model into an Err for the
+    // whole effect_type — `block_model_picker_items` then did
+    // `unwrap_or_default()` and the GUI dropdown went **completely
+    // empty** for every chain using that effect_type (e.g. "every NAM"
+    // — user report 21 May 2026). One bad disk-package manifest must
+    // not silence the entire list.
     let mut result: Vec<BlockModelCatalogEntry> = (entry.supported_models)()
         .iter()
-        .map(|model_id| {
-            let schema = schema_for_block_model(effect_type, model_id)?;
+        .filter_map(|model_id| {
+            let schema = match schema_for_block_model(effect_type, model_id) {
+                Ok(s) => s,
+                Err(err) => {
+                    log::warn!(
+                        "[catalog] skipping model '{}' (effect_type='{}'): {}",
+                        model_id,
+                        effect_type,
+                        err
+                    );
+                    return None;
+                }
+            };
             let visual = (entry.model_visual)(model_id);
-            Ok(BlockModelCatalogEntry {
+            Some(Ok::<_, String>(BlockModelCatalogEntry {
                 effect_type: effect_type.to_string(),
                 model_id: (*model_id).to_string(),
                 display_name: schema.display_name,
@@ -337,7 +356,7 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                             .collect()
                     }),
                 knob_layout: visual.as_ref().map(|v| v.knob_layout).unwrap_or(&[]),
-            })
+            }))
         })
         .collect::<Result<Vec<_>, String>>()?;
 

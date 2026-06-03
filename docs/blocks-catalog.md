@@ -16,7 +16,7 @@
 | **Wah** | Wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + boutique (IR) |
 | **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — time-domain granular, low-latency); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
-| **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, generic_nam |
+| **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, neural_amp_modeler |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
 
 **Total: ~804 modelos em 16 tipos (5 backends: Native 34, NAM 215, IR 139, LV2 ~351, VST3 6).**
@@ -38,7 +38,8 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **Guitar HPF/LPF** (`native_guitar_hpf_lpf`): cleanup filter pair — `low_cut` 0–100% sweeps HPF 20→100 Hz, `high_cut` 0–100% sweeps LPF 20 kHz→7 kHz. (Used to be called "Guitar EQ" before the actual tone-shaper took that name in #303.)
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled`, `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz.
 - **Gain pedals**: drive, tone, level
-- **NAM gain pedals com grid**: knobs reais por modelo (`tone`, `sustain`, `drive`, `volume`, `gain`...) mapeiam para captura `.nam` mais próxima na grid. Sufixo `_feather`/`_lite`/`_nano` vira enum `size`. Pedais com nomes nominais (`chainsaw`, `medium`) ou `preset_N` mantêm enum dropdown. Codegen: `tools/gen_pedal_models.py`.
+- **NAM gain pedals com grid**: knobs reais por modelo (`tone`, `sustain`, `drive`, `volume`, `gain`...) mapeiam para captura `.nam` mais próxima na grid. Sufixo `_feather`/`_lite`/`_nano` vira enum `size`. Pedais com nomes nominais (`chainsaw`, `medium`) ou `preset_N` mantêm enum dropdown. Codegen: `tools/gen_pedal_models.py`. **A grid knob ALWAYS selects the nearest declared capture and keeps a real model loaded — including at the axis minimum (#630).** A capture declared at `drive: 0` (or `level: 0`) is a real capture, not "off": the block produces sound there. On/off is exclusively the engine's block enable toggle (`set_block_enabled` → `RuntimeProcessor::Bypass`), never a value of a parameter knob. (This removed the legacy #402 "knob at zero == passthrough" rule, which silently unloaded the model and could not be recovered via the enable toggle.) **Born-default (#630): a freshly added grid pedal is born at the FIRST declared capture's values, never at the per-axis-minimum combination.** The manifest lists captures in order, so the first capture is a deterministic, real grid point (e.g. a TS9 at drive 0 / tone 6 / level 6 — a capture that exists), so the pedal is audible immediately instead of landing on an invalid 0/0/0 cell that maps to no capture. Seeded in `block_factory::build_default_block` via `plugin_loader::dispatch::first_capture_axis_values`.
+- **NAM block plugin params (`neural_amp_modeler`)** (#612): `input_db`/`output_db`, `noise_gate.enabled`/`noise_gate.threshold_db`, `eq.enabled`/`eq.bass`/`eq.middle`/`eq.treble` (0–10, 5 = flat), `ir_path` (cab). **All applied** by the official `NeuralAmpModelerCore` via the `cpp/nam_wrapper` C++ shim (`dsp::noise_gate` + tone stack + `dsp::ImpulseResponse`), built from the `deps/NeuralAmpModelerCore` submodule. The chain runs input gain → model → gate → EQ → IR → output gain → soft-clip (#496). The wrapper folds the model's own calibration (`nam::DSP::GetLoudness()`/`GetInputLevel()`) into the gain staging so a nonlinear NAM is driven at its trained level (output normalized toward a -18 dB reference) instead of raw unity — without this the migration sounded "abafado / sem vida". That model normalization is suppressed when the catalog loudness audit already owns the output level (`audit_overrides_baked_output`, the `from_package` runtime path) so the two never double-count. `noise_gate.enabled` **defaults OFF** (#612): the old lv2 engine had no gate, and a default-on expander strangled the decay/sustain. This replaces the inference-only `NeuralAudio`/lv2 engine (which exposed only input/output level), restoring the pre-`ece3a1474` design. ⚠️ The official core is ~2.2× the inference cost of the lv2 engine — re-validate real-time headroom on Orange Pi/aarch64. **A2 / `SlimmableContainer` captures** (version 0.7.0, `config.submodels` array of WaveNet submodels at increasing `max_value`, e.g. 0.5 Lite / 1.0 Full) are supported since the `deps/NeuralAmpModelerCore` bump to upstream `main` `9c7b185`, which pulls the slimmable runtime fixes (#258 model mgmt, #259 container slimmable prewarming, #260 thread-safe `SetSlimmableSize`, #267 reset behavior) — before that bump an A2 `.nam` failed to load / crashed on inference (#623). The offline diagnostics API (`nam::processor::{open_model_diag, nam_process, close_model_diag}`) wraps the same `cpp/nam_wrapper` FFI and stays public for the OpenRig-plugins catalog-audit gate.
 - **Volume**: volume (0–100%), mute
 - **Vibrato**: rate_hz (0.1–8), depth (0–100%), 100% wet
 - **Autotune Chromatic**: speed (0–100ms), mix, detune (±50 cents), sensitivity
@@ -49,8 +50,21 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 
 - **Native** — DSP em Rust, mais rápido
 - **NAM** — Neural Amp Modeler
-- **IR** — Impulse Response (cabs, corpos)
+- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617).
 - **LV2** — Plugins externos open-source
+
+### Native cab voicing (#620)
+
+The native cabinets (`brit_4x12`, `vintage_1x12`, `american_2x12`) are a
+per-model biquad cascade — body high-pass + a ~24 dB/oct resonant speaker
+rolloff + low-end bump + mid scoop + presence peak — each tuned to the magnitude
+response of a reference cabinet (a 4x12 with Celestion-style speakers, a warm
+1x12, a bright scooped 2x12). Zero added latency (no convolution). It matches the
+magnitude curve, not the comb-filtering/phase of a measured IR — for that, use an
+IR cab. The same engine voices the embedded cab of the native amps (`chime`,
+`tweed_breakup`, `blackface_clean`). Knobs: Low/High Cut, Resonance (low bump),
+Air (presence), Mic Position (on/off-axis brightness), Mic Distance + Room Mix
+(room tap).
 
 ## Instrumentos suportados
 

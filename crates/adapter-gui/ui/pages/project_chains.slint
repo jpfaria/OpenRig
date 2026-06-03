@@ -16,6 +16,8 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
+    in property <int> selected-chain-block-neighbor-index: -1;
+    in property <bool> midi-selection-active: false;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[BlockModelPickerItem]> filtered-block-model-options;
@@ -52,8 +54,14 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[ChainRigNav]> chain-rig-nav;
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
+    callback rename-chain-preset(int, string);
     callback toggle-chain-enabled(int);
     callback chain-volume-changed(int, int);
+    // #614: DI loop callbacks
+    callback di-loop-source-selected(int, string);
+    callback di-loop-choose-file(int);
+    callback di-loop-play(int);
+    callback di-loop-stop(int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -64,6 +72,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback probe-chain-latency(int);
     callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
+    callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -229,13 +238,22 @@ export component ProjectChainsPage inherits Rectangle {
                 switch-chain-scene(s) => {
                     root.switch-chain-scene(index, s);
                 }
+                rename-chain-preset(name) => {
+                    root.rename-chain-preset(index, name);
+                }
                 chain-index: index;
                 chain-count: root.project-chains.length;
                 fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
+                selected-block-neighbor-index: root.selected-chain-block-neighbor-index;
+                midi-selection-active: root.midi-selection-active;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
                 chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
+                di-loop-source-selected(index, src) => { root.di-loop-source-selected(index, src); }
+                di-loop-choose-file(index) => { root.di-loop-choose-file(index); }
+                di-loop-play(index) => { root.di-loop-play(index); }
+                di-loop-stop(index) => { root.di-loop-stop(index); }
                 remove-chain(index) => { root.remove-chain(index); }
                 move-chain-up(index) => { root.move-chain-up(index); }
                 move-chain-down(index) => { root.move-chain-down(index); }
@@ -247,6 +265,7 @@ export component ProjectChainsPage inherits Rectangle {
                 probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+                select-chain(chain-index) => { root.select-chain(chain-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
                 start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
                 reorder-chain-block(chain-index, from-index, before-index) => {

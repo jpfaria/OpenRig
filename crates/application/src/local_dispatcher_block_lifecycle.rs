@@ -16,9 +16,28 @@ impl LocalDispatcher {
         match cmd {
             Command::ToggleBlockEnabled { chain, block } => {
                 let new_state = self.with_block(&chain, &block, |b| {
+                    // #606: never enable a block whose model is unavailable —
+                    // the user cannot activate a pedal whose pack is not
+                    // installed (or is unsupported on this platform). Disabling
+                    // an already-on block is always allowed.
+                    if !b.enabled
+                        && !project::project_disable_unavailable::block_model_is_available(&b.kind)
+                    {
+                        return Ok(false);
+                    }
                     b.enabled = !b.enabled;
                     Ok(b.enabled)
                 })?;
+                // #548: mirror into SelectionState when this is the
+                // active block so MIDI slot `toggle_active_block_enabled`
+                // sees the truth on the next press.
+                if let Ok(mut s) = self.selection_state.write() {
+                    let is_active_chain = s.active_chain.as_deref() == Some(chain.0.as_str());
+                    let is_active_block = s.active_block.as_deref() == Some(block.0.as_str());
+                    if is_active_chain && is_active_block {
+                        s.active_block_enabled = new_state;
+                    }
+                }
                 Ok(vec![Event::BlockEnabledChanged {
                     chain,
                     block,

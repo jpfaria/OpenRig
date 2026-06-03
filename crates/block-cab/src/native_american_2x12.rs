@@ -9,14 +9,22 @@ use crate::CabBackendKind;
 pub const MODEL_ID: &str = "american_2x12";
 pub const DISPLAY_NAME: &str = "American 2x12";
 
+// Bright scooped 2x12: clean, deep mid scoop, extended top before rolloff.
+// Descriptive target — not a branded model.
 const PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 102.0,
-    air_hz: 4_600.0,
+    rolloff_hz: 5_500.0,
+    rolloff_q: 0.7,
+    low_bump_hz: 90.0,
+    low_bump_db: 2.0,
+    low_bump_q: 1.0,
+    mid_dip_hz: 750.0,
+    mid_dip_db: -5.0,
+    mid_dip_q: 1.2,
+    presence_hz: 4_000.0,
+    presence_db: 4.5,
+    presence_q: 1.2,
     room_base_ms: 10.0,
     room_span_ms: 14.0,
-    resonance_gain: 0.26,
-    air_gain: 0.32,
-    high_cut_scale: 1.0,
 };
 
 const DEFAULTS: NativeCabSchemaDefaults = NativeCabSchemaDefaults {

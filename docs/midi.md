@@ -80,26 +80,121 @@ ids on the Chains screen (`rig:<input>` for rig chains).
 
 ## Turn it on
 
-1. Copy the standard map into OpenRig's config folder:
+Bindings can live in two places after #499 (see ADR 0003 for the rule):
 
-   | OS | Copy `examples/midi-map.default.yaml` to |
-   |---|---|
-   | macOS | `~/Library/Application Support/OpenRig/midi-map.yaml` |
-   | Windows | `%APPDATA%\OpenRig\midi-map.yaml` |
-   | Linux | `~/.config/OpenRig/midi-map.yaml` |
+- **Inside your project** (`project.openrig`, under `midi.bindings`) —
+  travels with the rig: the same setlist behaves identically on every
+  machine. Edit via the in-app editor (#493) or by hand.
+- **System-wide fallback** (`midi-bindings.yaml`) — used when the open
+  project has no `midi:` field.
 
-2. In that file, change the one line `chain: "rig:guitar"` to your rig
-   input's name (the input shown on the Chains screen) — once.
+The **controller** to listen to is a system-only setting — it never
+travels with the project; that's your hardware. Configure it in the
+Settings screen (see *Choosing which MIDI device to listen to* below).
 
-3. Start OpenRig with MIDI on:
+### First-time setup (in-app editor)
 
-   ```
-   openrig --midi
-   ```
+The recommended way to create project bindings is the **Settings screen**:
 
-   (or `openrig --midi=/path/to/your-map.yaml` to point at a specific
-   file). If the map is missing or a line is wrong, OpenRig refuses to
-   start and logs exactly why — it never silently ignores a binding.
+1. Open Settings (top bar) → **Project / MIDI mapping**.
+2. Click **+ Add**. OpenRig enters MIDI Learn mode.
+3. Press the control on your MIDI device you want to bind (footswitch,
+   knob, expression pedal…). The message type, channel, and number are
+   captured automatically.
+4. Pick a Command from the list and fill in any required arguments.
+5. Repeat for each binding. Bindings are saved to `midi.bindings` inside
+   your `.openrig` project file.
+
+Start OpenRig with MIDI enabled:
+
+```
+openrig --midi
+```
+
+(or `openrig --midi=/path/to/your-map.yaml` to load a single legacy-format
+file directly — useful for testing without touching the system files).
+If a binding is wrong, OpenRig refuses to start and logs why — it never
+silently ignores a binding.
+
+> **System-wide fallback.** If you prefer to hand-edit bindings that apply
+> to every project, copy the shipped default to your config folder and edit
+> it there — this is the *system-wide fallback* (`midi-bindings.yaml`), used
+> when the open project has no `midi:` field:
+>
+> | OS | Path |
+> |---|---|
+> | macOS | `~/Library/Application Support/OpenRig/midi-bindings.yaml` |
+> | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
+> | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
+
+### Upgrading from a pre-#499 `midi-map.yaml`
+
+If you already had `midi-map.yaml` in your config folder, **OpenRig
+migrates it on first launch**: the `input:` field moves to
+`midi-profile.yaml` and the `bindings:` block moves to
+`midi-bindings.yaml`; the original `midi-map.yaml` is deleted. No user
+action needed — just launch with `--midi` once. After migration, use the
+**Settings screen → System / MIDI devices** to manage device selection
+going forward.
+
+### Per-project bindings
+
+To override the system fallback for a specific rig, add a `midi:` block
+to your `project.openrig`:
+
+```yaml
+midi:
+  bindings:
+    - source: { kind: note_on, channel: 1, note: 60 }
+      command: ApplyRigNav
+      args: { chain: "rig:guitar", kind: { StepPreset: -1 } }
+    # …more bindings
+```
+
+At resolve time the project bindings replace the system fallback in
+full (it's not a merge — see ADR 0003). The controller selection still
+comes from the Settings screen (System / MIDI devices).
+
+### Choosing which MIDI device to listen to
+
+Open **Settings** (top bar) → **System / MIDI devices**. Every MIDI input
+port discovered on the machine is listed. Toggle a port on or off to
+include it in the MIDI daemon's listener set. You can also set a
+human-readable **alias** for each port (e.g. rename "Chocolate MIDI 1" to
+"Lead guitar board") — the alias appears in the MIDI mapping editor when
+you pick a binding source, making it easy to tell devices apart. Aliases
+and enable/disable state are per-machine; they persist to `config.yaml`
+and do not travel with the `.openrig`.
+
+### MIDI device identity and the alias system
+
+OpenRig identifies each MIDI port by a `MidiPortKey { name, instance }`
+pair. Two physical controllers with the same OS-reported name (e.g. two
+M-Vave Chocolates) are distinguished by an *instance counter* assigned in
+discovery order — the first one seen is instance 0, the second is instance 1.
+The user-editable alias makes them visually unambiguous: name both devices
+with short labels ("Chocolate — guitar", "Chocolate — vocals") so every
+screen and log message refers to the alias, never the raw OS port string.
+Because instance assignment is discovery-order-based, aliases are
+per-machine and stored in `config.yaml`. See the full identity model in
+`docs/superpowers/specs/2026-05-21-issue-513-settings-design.md`.
+
+### Known limitations (v1)
+
+- **Startup snapshot.** The resolver runs once when `--midi` spawns the
+  daemon; it reads `project.midi.bindings` at that moment. Switching to
+  a different project at runtime does **not** re-resolve — the daemon
+  keeps the bindings from whichever project was active at start (or
+  the system fallback if the launcher was open). To pick up new
+  project bindings, restart OpenRig with `--midi`. Re-resolution on
+  project switch is tracked as a follow-up.
+- **Shipped default path in packaged builds.** The shipped
+  `examples/midi-map.default.yaml` is found by `detect_data_root()`,
+  which works in development (the repo's CWD has `examples/`) and in
+  installed layouts that ship the same path. If neither the system
+  fallback (`midi-bindings.yaml`) nor the shipped default exists, the
+  daemon starts with **zero bindings** — it listens but does nothing
+  until you create one of the two files.
 
 ---
 
@@ -183,7 +278,7 @@ below is bindable.
 | 27 | `CreateProject` | Create a new project | `{ project: object }` |
 | 28 ★ | `SetChainVolume` | Set chain volume (% — knob via `scale`, or fixed `value`) | `{ chain: id, value: num }` |
 | 29 | `UpdateProjectName` | Rename the project | `{ name: text }` |
-| 30 | `SaveAudioSettings` | Save audio device settings | `{ device_settings: [object] }` |
+| 30 | `SaveAudioSettings` | Save audio device settings (input/output persisted separately into per-machine `config.yaml`) | `{ input_devices: [object], output_devices: [object] }` |
 | 31 ★ | `ApplyRigNav` | Preset/scene: step (footswitch) or jump (fixed) | `{ chain: id, kind: <see below> }` |
 | 32 ★ | `SelectChainBlock` | Select a block by index (dispatcher-owned; MIDI/MCP/GUI) | `{ chain: id, block_index: uint }` |
 | 33 | `RenameRigPreset` | Rename the chain's active preset | `{ chain: id, name: text }` |

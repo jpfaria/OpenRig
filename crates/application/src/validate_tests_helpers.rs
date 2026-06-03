@@ -113,6 +113,7 @@ pub(super) fn test_project(chains: Vec<Chain>) -> Project {
             .map(|id| test_device_settings(id))
             .collect(),
         chains,
+        midi: None,
     }
 }
 

@@ -177,6 +177,37 @@ fn select_supported_stream_config_picks_minimum_channels_matching() {
     assert_eq!(resolved.channels(), 2);
 }
 
+/// Issue #516 repro at the selector layer. A user picks `ChainOutputMode::Mono`
+/// with `channels: [0]` on a hardware-stereo USB interface (Scarlett 2i2,
+/// default config = 2 channels). The selector must NOT downsize the device
+/// below its default config: opening a hardware-stereo interface as 1-channel
+/// mono on macOS / CoreAudio silently routes audio nowhere. The device must
+/// always open at AT LEAST its default channel count; channel routing inside
+/// the interleaved buffer is the engine's job (`write_output_frame`).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[test]
+fn select_supported_stream_config_never_opens_below_device_default() {
+    let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+    let supported = vec![
+        // CoreAudio reports both mono and stereo configs for Scarlett-class
+        // USB interfaces. The selector must skip the 1-channel one.
+        supported_range(1, 44_100, 96_000),
+        supported_range(2, 44_100, 96_000),
+    ];
+
+    let resolved =
+        select_supported_stream_config(&default_config, &supported, Some(48_000), 1, "test-device")
+            .expect("must resolve to the default-or-larger config");
+
+    assert_eq!(
+        resolved.channels(),
+        2,
+        "issue #516: selector must keep the device at its default config (2 ch) \
+         even when the user picks a single output channel — opening below the \
+         default silences hardware-stereo interfaces on macOS"
+    );
+}
+
 // ── resolve_chain_runtime_sample_rate ────────────────────────────
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

@@ -1,21 +1,11 @@
 {
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "clangd-lsp@claude-plugins-official": false,
-    "gopls-lsp@claude-plugins-official": false,
-    "frontend-design@claude-plugins-official": false,
-    "andrej-karpathy-skills@karpathy-skills": false,
-    "hookify@claude-plugins-official": false,
-    "claude-md-management@claude-plugins-official": false,
-    "security-guidance@claude-plugins-official": false
-  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills openrig-code-quality, rust-best-practices, slint-best-practices quando tocar código Rust/Slint.\"}}'"
+            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig: invoque skills dev-rules, openrig-code-quality, rust-best-practices, slint-best-practices quando tocar código Rust/Slint (openrig-code-quality COMPLEMENTA dev-rules — LAW 1/2/3/5 vivem lá).\"}}'"
           }
         ]
       }
@@ -40,6 +30,26 @@
         ]
       }
     ],
-    "PostToolUse": []
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/clear-red-first-after-commit.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": false,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "hookify@claude-plugins-official": false,
+    "claude-md-management@claude-plugins-official": false,
+    "security-guidance@claude-plugins-official": false
   }
 }

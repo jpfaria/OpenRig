@@ -18,7 +18,7 @@ pub mod package_builders;
 pub mod registry;
 pub mod validate;
 
-pub use config::{plugins_root_from_config, PluginPathsConfig};
+pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};
 pub use discover::{discover, DiscoveryError, LoadedPackage};
 pub use install::{extract_bundle_if_needed, has_extracted_packages};
 pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};

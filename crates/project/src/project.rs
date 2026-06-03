@@ -6,13 +6,19 @@ use crate::chain::Chain;
 use crate::device::DeviceSettings;
 use crate::param::BlockParameterDescriptor;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Project {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default)]
     pub device_settings: Vec<DeviceSettings>,
     pub chains: Vec<Chain>,
+    /// #513 / #493: project-owned MIDI bindings (ADR 0003). Travels with the
+    /// `.openrig` file so the same setlist behaves the same on every machine.
+    /// Absent on pre-#513 projects — `#[serde(default)]` keeps them parsing
+    /// unchanged. The dispatcher's `SaveMidiMapping` handler writes here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub midi: Option<crate::midi::RigProjectMidi>,
 }
 
 impl Project {

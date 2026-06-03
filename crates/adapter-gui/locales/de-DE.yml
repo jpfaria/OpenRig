@@ -71,3 +71,8 @@ error-channel-in-use-by-other: "Eingangskanal wird bereits von einer anderen Ket
 error-select-option-required-for: "Wählen Sie eine Option für %{label}"
 error-select-invalid-for: "Ungültige Auswahl für %{label}"
 error-invalid-project: "Ungültiges Projekt"
+
+# #614 DI loop control
+di-loop-button-label: "DI Loop"
+di-loop-play-label: "Play DI loop"
+di-loop-stop-label: "Stop DI loop"

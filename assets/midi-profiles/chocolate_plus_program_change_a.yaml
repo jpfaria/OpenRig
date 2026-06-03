@@ -1,0 +1,67 @@
+# M-Vave Chocolate Plus — CubeSuite "Program change A" mode (factory)
+#
+# Default layout when the CubeSuite app is set to "Program change A":
+# - 4 footswitches A/B/C/D + E/F = bank up/down
+# - Up to 32 banks × 4 switches = 128 distinct Program Change values
+# - Channel 1
+# - Bank N: A = PC 4(n-1), B = 4(n-1)+1, C = 4(n-1)+2, D = 4(n-1)+3
+#
+# Hierarchy (banks 1-4 bound, banks 5-32 unbound for the user's own
+# custom mappings via [Customize]):
+#
+#   Bank 1: chain navigation     (between rigs)
+#   Bank 2: preset / scene       (inside the active chain)
+#   Bank 3: block navigation     (pair-step + toggle the visible pair)
+#   Bank 4: global toggles       (tuner / mute / spectrum)
+#
+# The block bank lines up with the compact view's 2-block window:
+# A/D step the window by 2, B/C toggle the two visible blocks.
+
+name: "Chocolate Plus — Program Change A (factory)"
+source: "FootCtrlPlus"
+description: |
+  M-Vave Chocolate Plus in CubeSuite "Program change A" mode.
+  Banks 1-4 bound (PCs 0-15). Bank 3 wires the 4-switch layout for
+  compact view: A/D step the block pair, B/C toggle the two blocks of
+  the pair.
+
+bindings:
+  # Bank 1 — chain navigation
+  - when: { kind: ProgramChange, channel: 1, program: 0 }
+    do: prev_chain
+  - when: { kind: ProgramChange, channel: 1, program: 1 }
+    do: toggle_active_chain_enabled
+  - when: { kind: ProgramChange, channel: 1, program: 2 }
+    do: toggle_compact_view
+  - when: { kind: ProgramChange, channel: 1, program: 3 }
+    do: next_chain
+
+  # Bank 2 — preset / scene navigation (inside active chain)
+  - when: { kind: ProgramChange, channel: 1, program: 4 }
+    do: prev_preset
+  - when: { kind: ProgramChange, channel: 1, program: 5 }
+    do: next_preset
+  - when: { kind: ProgramChange, channel: 1, program: 6 }
+    do: prev_scene
+  - when: { kind: ProgramChange, channel: 1, program: 7 }
+    do: next_scene
+
+  # Bank 3 — block navigation (compact-view pair)
+  - when: { kind: ProgramChange, channel: 1, program: 8 }
+    do: prev_block_2
+  - when: { kind: ProgramChange, channel: 1, program: 9 }
+    do: toggle_active_block_enabled
+  - when: { kind: ProgramChange, channel: 1, program: 10 }
+    do: toggle_active_block_neighbor_enabled
+  - when: { kind: ProgramChange, channel: 1, program: 11 }
+    do: next_block_2
+
+  # Bank 4 — global toggles
+  - when: { kind: ProgramChange, channel: 1, program: 12 }
+    do: toggle_tuner
+  - when: { kind: ProgramChange, channel: 1, program: 13 }
+    do: toggle_output_mute
+  - when: { kind: ProgramChange, channel: 1, program: 14 }
+    do: toggle_spectrum
+  # PC 15 (Bank 4 switch D) intentionally unbound — pick what makes
+  # sense for your live workflow and add it via [Customize].

@@ -68,3 +68,7 @@ pub fn build_nam_processor_for_layout(
 ) -> Result<BlockProcessor> {
     (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

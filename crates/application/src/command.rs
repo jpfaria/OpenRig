@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, InsertEndpoint};
 use project::chain::Chain;
+pub use crate::di_loader::DiLoopSource;
 
 /// Every state change the UI or any controller can request.
 ///
@@ -214,8 +215,16 @@ pub enum Command {
     /// File I/O (YAML parsing) is done in the adapter before dispatching. The
     /// adapter passes the fully-parsed, I/O-stripped list of blocks. The
     /// dispatcher replaces `chain.blocks` and emits `ChainPresetLoaded`.
+    ///
+    /// `preset_instrument` is the instrument tag read from the preset file
+    /// (defaults to "electric_guitar" for untagged legacy files). The
+    /// dispatcher rejects the load if it differs from the target chain's
+    /// instrument.
     LoadChainPreset {
         chain: ChainId,
+        /// Instrument tag from the preset file. Use "electric_guitar" for
+        /// untagged legacy presets.
+        preset_instrument: String,
         preset_blocks: Vec<project::block::AudioBlock>,
     },
 
@@ -263,8 +272,48 @@ pub enum Command {
     /// `DeviceSettings` before dispatching. The dispatcher replaces the
     /// project's `device_settings` with the provided list.
     SaveAudioSettings {
-        device_settings: Vec<project::device::DeviceSettings>,
+        /// Devices selected as inputs. Persisted into `config.input_devices`.
+        input_devices: Vec<project::device::DeviceSettings>,
+        /// Devices selected as outputs. Persisted into `config.output_devices`.
+        ///
+        /// Kept separate from `input_devices` because the same physical
+        /// interface enumerates with a different `device_id` per direction
+        /// (CoreAudio/WASAPI); collapsing both into one flat list corrupts the
+        /// saved selection and breaks re-match on reopen (#581 follow-up).
+        output_devices: Vec<project::device::DeviceSettings>,
     },
+
+    /// #513: persist the per-machine MIDI device selection (config.yaml).
+    /// The dispatcher emits `MidiDevicesSaved` only; persistence happens
+    /// in the adapter wiring, identical to `SaveAudioSettings`'s system-
+    /// side counterpart (no project mutation here — MIDI devices are a
+    /// system-level concept per ADR 0003).
+    SaveMidiDevices {
+        devices: Vec<infra_filesystem::MidiDeviceSelection>,
+    },
+
+    /// #513 / #493: replace the project's MIDI binding list. Writes
+    /// `project.midi.bindings`. The adapter persists the project file
+    /// after `Event::MidiMappingSaved` fans out.
+    SaveMidiMapping {
+        bindings: Vec<project::midi::Binding>,
+    },
+
+    /// #513 / #493: put the MIDI daemon into single-shot learn mode. The
+    /// next received MIDI event is published as `MidiEventReceived` and
+    /// the daemon returns to normal mode automatically.
+    StartMidiLearn,
+
+    /// #513 / #493: cancel an outstanding learn request (the user closed
+    /// the editor or pressed Cancel before any event arrived).
+    StopMidiLearn,
+
+    /// #513 / #493: emitted by the MIDI daemon while learn-mode is active.
+    /// The daemon submits this through the existing command bridge (#165
+    /// / #22) instead of routing the event itself, so the event still
+    /// reaches the GUI through `PublishingDispatcher`'s fan-out — one
+    /// transport, one ordering invariant. The handler is a pure passthrough.
+    PublishMidiEvent { source: project::midi::Source },
 
     /// #436: per-chain rig navigation (preset/scene switch/add/remove).
     /// The GUI used to mutate `RigProject` by hand in a wiring closure —
@@ -282,6 +331,14 @@ pub enum Command {
     /// #436: select a block on a chain (the cursor MIDI/MCP can move).
     /// Was GUI-only state; now dispatcher-owned so it is reachable.
     SelectChainBlock { chain: ChainId, block_index: usize },
+
+    /// #591: select a whole chain as the active one (no specific block).
+    /// Dispatched when the user taps a chain on the Chains screen so the
+    /// footswitch slot `toggle_active_chain_enabled` (which reads
+    /// `SelectionState.active_chain`) follows the on-screen selection.
+    /// Clears the active block — a block belongs to one chain. Errors if
+    /// the chain does not exist.
+    SelectActiveChain { chain: ChainId },
 
     /// #436: capture pending edits on the projected synthetic chains
     /// back into the rig. The GUI save path used to call
@@ -312,11 +369,13 @@ pub enum Command {
     /// `Event::RecentProjectRemoved`.
     RemoveRecentProject { index: usize },
 
-    /// #436 F: save the active chain as a named preset file. Was
-    /// GUI-only (direct file write in a wiring closure). `SaveProject`
-    /// precedent: the adapter writes the file; the dispatcher records
-    /// the intent and signals `Event::ChainPresetSaved`.
-    SaveChainPreset { name: String },
+    /// #555: save a chain's current FX blocks as a named preset file.
+    /// The dispatcher snapshots `project.chains[chain]`, strips
+    /// input/output blocks (I/O wiring isn't part of a preset), and
+    /// writes the YAML under the configured `presets_path`. Every
+    /// transport (GUI / MCP / gRPC) dispatches the same Command and
+    /// gets the same on-disk effect.
+    SaveChainPreset { chain: ChainId, name: String },
 
     /// #436 F: delete a named chain preset file. Was GUI-only
     /// (`std::fs::remove_file` in a wiring closure). `SaveProject`
@@ -353,6 +412,129 @@ pub enum Command {
     /// #436 (sweep): mark a recent-projects entry invalid (failed open).
     /// Same precedent; signals `Event::RecentProjectInvalidated`.
     MarkRecentProjectInvalid { path: PathBuf, reason: String },
+
+    /// #513: persist the user's preferred directory for project preset
+    /// libraries. `None` resets to the OS default (the existing resolver
+    /// wins again). System-level setting per ADR 0003 — the adapter
+    /// writes it into `config.yaml` on `Event::PathsSaved`.
+    SetPresetsPath { path: Option<PathBuf> },
+
+    /// #513: persist the user's preferred directory for plugin scanning
+    /// (NAM/IR/LV2 packs). `None` resets to the OS default. System-level
+    /// setting per ADR 0003 — the adapter writes it into `config.yaml`
+    /// on `Event::PathsSaved`.
+    SetPluginsPath { path: Option<PathBuf> },
+
+    /// #582: persist the user's preferred directory for evaluation
+    /// artifacts (tone-analyzer outputs, fingerprints, comparison
+    /// reports). `None` resets to the OS default
+    /// ([`infra_filesystem::default_evaluations_path`]). System-level
+    /// setting per ADR 0003 — the adapter writes it into `config.yaml`
+    /// on `Event::PathsSaved`.
+    SetEvaluationsPath { path: Option<PathBuf> },
+
+    /// #561: re-scan the plugin packages directories without restarting
+    /// the process. Same path resolution as boot
+    /// (`detect_data_root().join("plugins")` + `plugins_root_from_config`),
+    /// natives are preserved. The dispatcher emits
+    /// `Event::PluginCatalogReloaded { native_count, disk_count,
+    /// total_count }` so adapters can surface the new totals to the
+    /// user (GUI toast, MCP tool response). Closes the gap between
+    /// "import a new NAM" and "build a preset that uses it" without a
+    /// session break.
+    ReloadPluginCatalog,
+
+    /// #561 (expanded scope): bring a single disk plugin into the
+    /// in-memory catalog by manifest id. Re-scans the known plugin
+    /// roots and adds the one whose id matches. Errors when no disk
+    /// package with that id is discoverable; no-op when the plugin
+    /// is already loaded. Emits `Event::PluginLoaded { id }`.
+    LoadPlugin { id: String },
+
+    /// #561 (expanded scope): remove a single disk plugin from the
+    /// in-memory catalog by manifest id. Refuses natives — they are
+    /// compiled-in and cannot be dropped without restarting the
+    /// process. Emits `Event::PluginUnloaded { id }`.
+    UnloadPlugin { id: String },
+
+    /// #548: move the GUI's active chain selection by `delta` positions
+    /// (wraps). Backs MIDI slots `prev_chain` / `next_chain`. Mutates
+    /// `SelectionState::active_chain` and clears `active_block` (block
+    /// belongs to chain).
+    SelectActiveChainRelative { delta: i32 },
+
+    /// #548: move the GUI's active block selection by `delta` positions
+    /// inside the active chain (wraps, skipping Input/Output blocks).
+    SelectActiveBlockRelative { delta: i32 },
+
+    /// #548: toggle the compact-view UI mode for the active chain.
+    SetCompactViewEnabled { enabled: bool },
+
+    /// #548: toggle the block immediately AFTER the active block in
+    /// the active chain (wraps to first). Backs MIDI slot
+    /// `toggle_active_block_neighbor_enabled`.
+    ToggleActiveBlockNeighborEnabled,
+
+    /// #576: headless offline render — apply a chain/preset YAML to an
+    /// input WAV and write the processed output WAV. File mode only;
+    /// the `openrig-render` binary owns the live-capture convenience
+    /// (cpal-driven) so `application` stays free of audio-device deps.
+    ///
+    /// Does NOT mutate the project's State. It lives on the Command
+    /// bus so MCP/gRPC/any future transport adapter inherits the tool
+    /// through `command_schema` instead of each adapter wiring it
+    /// manually (LEI: every user operation is a Command, transports
+    /// inherit parity automatically).
+    RenderChain {
+        chain_path: String,
+        input_path: String,
+        output_path: String,
+        start_s: Option<f32>,
+        end_s: Option<f32>,
+        sample_rate_hz: Option<u32>,
+        block_size: Option<u32>,
+        bit_depth: Option<u8>,
+        tail_ms: Option<u32>,
+    },
+
+    // ── Per-chain virtual DI loop (#614) ──────────────────────────────────────
+    /// #614: load and pre-decode a DI loop source for a chain.
+    ///
+    /// **EPHEMERAL — never serialized into the project** (distinct from any
+    /// project-level DI configuration in #324). The dispatcher decodes the
+    /// source off the audio thread, stores the resulting `Arc<DiLoop>` keyed
+    /// by `chain` in an in-memory map, and emits
+    /// `Event::ChainDiLoopSourceChanged`. The chain's audio thread is NOT
+    /// touched here — call `SetChainDiLoopEnabled { enabled: true }` to start
+    /// playback.
+    ///
+    /// Returns `Err` if the file cannot be decoded (never silently swallows
+    /// a decode failure). Returns `Err` if `chain` is not found.
+    SetChainDiLoopSource {
+        chain: ChainId,
+        source: DiLoopSource,
+    },
+
+    /// #614: start or stop DI loop playback on a chain.
+    ///
+    /// **EPHEMERAL — never serialized into the project**.
+    ///
+    /// `enabled: true` — publishes the pre-loaded `Arc<DiLoop>` via
+    /// `Event::ChainDiLoopEnabledChanged { chain, enabled: true }`.
+    /// The adapter-gui wiring (Task 6) reacts to this event and calls
+    /// `runtime.set_di_loop(Some(arc))`. If no DI loop has been loaded for
+    /// `chain` yet this is a no-op (emits the event with `enabled: true`
+    /// so the adapter can decide).
+    ///
+    /// `enabled: false` — emits `Event::ChainDiLoopEnabledChanged { chain,
+    /// enabled: false }`. The adapter-gui wiring calls
+    /// `runtime.set_di_loop(None)`.
+    ///
+    /// Returns `Err` if `chain` is not found.
+    SetChainDiLoopEnabled {
+        chain: ChainId,
+        enabled: bool,
+    },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

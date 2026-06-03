@@ -86,10 +86,23 @@ try {
     New-Item -ItemType Directory -Force $stageDir | Out-Null
 
     Copy-Item "target\release\adapter-gui.exe"              "$stageDir\openrig.exe"
-    Copy-Item "libs\nam\windows-x64\libNeuralAudioCAPI.dll" "$stageDir\"
 
-    New-Item -ItemType Directory -Force "$stageDir\libs\nam" | Out-Null
-    Copy-Item -Recurse "libs\nam\windows-x64" "$stageDir\libs\nam\windows-x64"
+    # ── NAM wrapper DLL ───────────────────────────────────────────────────────
+    # The nam crate's build.rs cmake-builds cpp\ (NeuralAmpModelerCore) into the
+    # NAM wrapper DLL and links the binary against it. No committed prebuilt
+    # anymore — locate the artifact cargo produced under
+    # target\release\build\nam-*\ (MinGW emits libnam_wrapper.dll, MSVC emits
+    # nam_wrapper.dll) and drop it next to openrig.exe so it resolves at launch.
+    $namWrapper = Get-ChildItem -Path "target\release\build" -Recurse -ErrorAction SilentlyContinue `
+        -Include "libnam_wrapper.dll", "nam_wrapper.dll" |
+        Where-Object { $_.FullName -match '\\nam-[^\\]+\\out\\lib\\' } |
+        Select-Object -First 1
+    if (-not $namWrapper) {
+        throw "nam_wrapper DLL not found under target\release\build — did cargo build run?"
+    }
+    Copy-Item $namWrapper.FullName "$stageDir\"
+    Write-Host "    staged $($namWrapper.Name) next to openrig.exe"
+
     Copy-Item -Recurse "assets"               "$stageDir\assets"
 
     # Bundled preset library: the 21 default presets under presets\*.yaml ship
@@ -144,7 +157,7 @@ try {
         }
     }
 
-    # ── Copy MinGW runtime DLLs (required by libNeuralAudioCAPI.dll) ────────────
+    # ── Copy MinGW runtime DLLs (required by the MinGW-built nam_wrapper DLL) ───
     Write-Host "==> Copying MinGW runtime DLLs..."
     $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
     $mingwSearchPaths = @(

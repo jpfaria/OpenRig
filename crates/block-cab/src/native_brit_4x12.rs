@@ -9,14 +9,22 @@ use crate::CabBackendKind;
 pub const MODEL_ID: &str = "brit_4x12";
 pub const DISPLAY_NAME: &str = "Brit 4x12";
 
+// 4x12 with Celestion-style speakers: tight, aggressive, hard top-end rolloff,
+// pronounced upper-mid bite. Descriptive target — not a branded model.
 const PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 126.0,
-    air_hz: 3_900.0,
+    rolloff_hz: 5_000.0,
+    rolloff_q: 0.8,
+    low_bump_hz: 105.0,
+    low_bump_db: 4.0,
+    low_bump_q: 1.1,
+    mid_dip_hz: 500.0,
+    mid_dip_db: -3.0,
+    mid_dip_q: 1.0,
+    presence_hz: 2_200.0,
+    presence_db: 5.0,
+    presence_q: 1.6,
     room_base_ms: 8.0,
     room_span_ms: 12.0,
-    resonance_gain: 0.34,
-    air_gain: 0.26,
-    high_cut_scale: 0.88,
 };
 
 const DEFAULTS: NativeCabSchemaDefaults = NativeCabSchemaDefaults {

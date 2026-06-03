@@ -38,6 +38,7 @@ fn rig() -> RigProject {
             active_preset: 2,
             active_scene: 4,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
@@ -45,6 +46,8 @@ fn rig() -> RigProject {
         inputs,
         outputs: BTreeMap::new(),
         presets,
+        midi: None,
+        chain_order: Vec::new(),
     }
 }
 
@@ -337,8 +340,12 @@ fn switching_preset_select_changes_projected_chain_blocks() {
 // Adding a preset must give an INDEPENDENT copy: editing the new
 // (active) preset and syncing back must not mutate the source preset —
 // otherwise saving "the new preset" would corrupt the old one.
+// A new preset is born FRESH (no blocks). When the user adds blocks
+// to it and edits them, the source preset must stay untouched — the
+// two presets must be fully independent snapshots even when both end
+// up holding similar content.
 #[test]
-fn add_preset_then_edit_keeps_source_preset_independent() {
+fn editing_new_preset_leaves_source_preset_untouched() {
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
@@ -360,7 +367,11 @@ fn add_preset_then_edit_keeps_source_preset_independent() {
     r.presets.get_mut("clean").unwrap().blocks = vec![src.clone()];
 
     let slot = r.add_preset_to_input("input-1").expect("added");
-    // Project the new preset, edit gain on the synthetic chain, sync back.
+    let new_name = r.inputs["input-1"].bank[&slot].clone();
+    // New preset is empty by design. Push a block manually so we can
+    // edit it via the synthetic chain.
+    r.presets.get_mut(&new_name).unwrap().blocks = vec![src.clone()];
+
     let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
     for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
         for b in c.blocks.iter_mut() {
@@ -371,7 +382,6 @@ fn add_preset_then_edit_keeps_source_preset_independent() {
     }
     super::sync_synthetic_into_rig(&mut r, &proj);
 
-    let new_name = r.inputs["input-1"].bank[&slot].clone();
     let read_gain = |p: &project::rig::RigPreset, scene: usize| match &p.apply_scene(scene)[0].kind
     {
         AudioBlockKind::Core(c) => c.params.get_f32("gain"),
@@ -425,6 +435,34 @@ fn switching_scene_projects_that_scenes_volume() {
     assert_eq!(
         back1.volume, 80.0,
         "scene 1 still 80 — per-scene, not bled to all"
+    );
+}
+
+// Issue #535: the SceneBar reads `scene_count` per chain row from the
+// ACTIVE preset only. Adding a scene to A must not change the count the
+// row exposes once the user switches the combobox to a sibling preset B.
+#[test]
+fn nav_row_scene_count_follows_active_preset_after_a_sibling_grew() {
+    // Bank {1:clean, 2:drive, 3:lead}; start active=clean (slot 1), scene 1.
+    let mut r = rig();
+    r.inputs.get_mut("input-1").unwrap().active_preset = 1;
+    r.inputs.get_mut("input-1").unwrap().active_scene = 1;
+
+    // 1. + scene on "clean" (active). Row must now read 2.
+    r.add_scene_to_input("input-1")
+        .expect("scene added on clean");
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].scene_count, 2, "active preset 'clean' has 2 scenes");
+
+    // 2. Combobox switch to "drive" (slot 2 — never touched).
+    switch_and_project_input(&mut r, "input-1", Some(2), None).expect("switched");
+
+    // 3. Row's scene_count MUST reflect drive's pool entry (= 1), NOT a
+    //    stale 2 from clean nor a leaked sibling.
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(
+        rows[0].scene_count, 1,
+        "after switching to a sibling preset that never had a scene added, the row must show 1 scene"
     );
 }
 

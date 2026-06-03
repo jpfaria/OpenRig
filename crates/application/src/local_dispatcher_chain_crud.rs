@@ -13,16 +13,21 @@ impl LocalDispatcher {
     pub(crate) fn handle_chain_crud(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
-            Command::AddChain { chain } => {
-                // Validate that enabling this chain (enabled=true) would not
-                // conflict with existing enabled chains.
-                // Note: new chains start with enabled=false, so no conflict
-                // is possible. We still run the check in case the caller
-                // sets enabled=true on the supplied chain.
+            Command::AddChain { mut chain } => {
                 if chain.enabled {
                     let proj = self.project.borrow();
                     chain_validation::validate_no_channel_conflict(&proj, &chain, None)
                         .map_err(|e| anyhow::anyhow!("{}", e))?;
+                }
+                // Mirror the new chain into the attached rig (if any),
+                // and re-tag the chain's id to `rig:<input>` so the
+                // chains-screen rig nav can locate it. Without the
+                // `rig:` prefix `rig_nav_rows` falls back to an empty
+                // `RigNavRow`, leaving the preset combobox blank.
+                if let Some(rig) = self.rig.borrow().clone() {
+                    if let Some(input_name) = add_chain_to_rig(&mut rig.borrow_mut(), &chain) {
+                        chain.id = domain::ids::ChainId(format!("rig:{input_name}"));
+                    }
                 }
                 let chain_id = chain.id.clone();
                 self.project.borrow_mut().chains.push(chain);
@@ -79,4 +84,68 @@ impl LocalDispatcher {
             other => unreachable!("handle_chain_crud received non-crud command: {other:?}"),
         }
     }
+}
+
+/// Add a single legacy [`Chain`] into the given [`RigProject`] as its
+/// own input + preset (no auto-grouping by source). The preset gets
+/// the visible default name `"Preset 1"` and an explicit scene 1 slot
+/// so the GUI's combobox is populated immediately after `AddChain`
+/// runs — no save/reload required.
+pub(crate) fn add_chain_to_rig(
+    rig: &mut project::rig::RigProject,
+    chain: &project::chain::Chain,
+) -> Option<String> {
+    let temp = project::project::Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    let mut migrated = project::migrate::migrate_legacy_project(&temp);
+
+    let (_old_name, mut input) = migrated
+        .inputs
+        .iter()
+        .next()
+        .map(|(k, v)| (k.clone(), v.clone()))?;
+
+    let next_n = rig
+        .inputs
+        .keys()
+        .filter_map(|k| {
+            k.strip_prefix("input-")
+                .and_then(|n| n.parse::<usize>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1;
+    let new_input_name = format!("input-{next_n}");
+
+    let old_preset_key = input.bank.get(&1).cloned()?;
+    let mut preset = migrated.presets.remove(&old_preset_key)?;
+
+    // Ensure a unique preset key inside `rig.presets`.
+    let mut final_preset_key = old_preset_key.clone();
+    let mut suffix = 2;
+    while rig.presets.contains_key(&final_preset_key) {
+        final_preset_key = format!("{old_preset_key}-{suffix}");
+        suffix += 1;
+    }
+    if final_preset_key != old_preset_key {
+        input.bank.insert(1, final_preset_key.clone());
+    }
+    preset.id = final_preset_key.clone();
+    preset.name = Some("Preset 1".to_string());
+    preset
+        .scenes
+        .entry(1)
+        .or_insert_with(project::rig::RigScene::default);
+
+    rig.inputs.insert(new_input_name.clone(), input);
+    rig.presets.insert(final_preset_key, preset);
+
+    for (name, output) in migrated.outputs {
+        rig.outputs.entry(name).or_insert(output);
+    }
+    Some(new_input_name)
 }

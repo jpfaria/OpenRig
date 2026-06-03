@@ -95,6 +95,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             volume: 100.0,
             blocks: vec![block],
         }],
+        midi: None,
     }))
 }
 
@@ -236,7 +237,14 @@ fn set_block_parameter_number_non_existent_block_returns_err() {
 }
 
 #[test]
-fn set_block_parameter_number_non_existent_path_returns_err() {
+fn set_block_parameter_number_unknown_path_inserts_without_touching_other_params() {
+    // Post-#496: `set_parameter_number` no longer rejects unknown paths;
+    // a NAM block saved before #496 (when `output_db` was filtered out
+    // of the schema) has no entry for it yet, and the dispatch layer
+    // only emits paths drawn from the active schema. So writing a new
+    // path is a valid insert. What this test still pins is the
+    // ISOLATION contract: setting one path must not corrupt the value
+    // of another, existing parameter on the same block.
     let block = make_core_block_with_param("blk_0", "gain", 0.5);
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
@@ -244,17 +252,15 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-        path: "no_such_param".to_string(),
+        path: "newly_exposed_param".to_string(),
         value: 0.8,
     });
 
-    assert!(result.is_err(), "expected Err for missing path, got Ok");
-    let err_msg = result.unwrap_err().to_string();
     assert!(
-        err_msg.contains("no_such_param"),
-        "error message must mention the missing path, got: {err_msg}"
+        result.is_ok(),
+        "unknown path must insert (post-#496), got: {:?}",
+        result.err()
     );
-    // Original value must be unchanged
     let proj = project.borrow();
     let AudioBlockKind::Core(ref core) = proj.chains[0].blocks[0].kind else {
         panic!("expected CoreBlock");
@@ -262,7 +268,12 @@ fn set_block_parameter_number_non_existent_path_returns_err() {
     assert_eq!(
         core.params.get_f32("gain"),
         Some(0.5_f32),
-        "gain must not be mutated when path is not found"
+        "writing newly_exposed_param must not touch the gain value"
+    );
+    assert_eq!(
+        core.params.get_f32("newly_exposed_param"),
+        Some(0.8_f32),
+        "the newly-exposed path must now be set to the dispatched value"
     );
 }
 
@@ -661,6 +672,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_1", true),
             ],
         }],
+        midi: None,
     }))
 }
 
@@ -752,6 +764,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_2", true),
             ],
         }],
+        midi: None,
     }))
 }
 
@@ -1018,6 +1031,11 @@ fn replace_block_model_unknown_model_returns_err() {
     );
 }
 
+// Issue #537 native-cab swap positive contract lives in
+// `tests/issue_537_replace_block_model_native_cab.rs` (sibling to the
+// disk-package fixture test). Kept out of this file because the file is
+// already past the 600-line cap.
+
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
@@ -1064,6 +1082,7 @@ fn make_project_two_chains() -> Rc<RefCell<Project>> {
             make_chain_with_input("chain_0", "dev_a", 0, true),
             make_chain_with_input("chain_1", "dev_a", 0, false),
         ],
+        midi: None,
     }))
 }
 
@@ -1077,6 +1096,7 @@ fn make_project_three_chains() -> Rc<RefCell<Project>> {
             make_empty_chain("chain_b", false),
             make_empty_chain("chain_c", false),
         ],
+        midi: None,
     }))
 }
 
@@ -1265,6 +1285,7 @@ fn toggle_chain_enabled_enables_disabled_chain() {
             make_chain_with_input("chain_0", "dev_a", 0, true),
             make_chain_with_input("chain_1", "dev_b", 0, false), // different device
         ],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_no_conflict));
 
@@ -1345,6 +1366,82 @@ fn toggle_chain_enabled_non_existent_returns_err() {
     });
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
+// ── SelectActiveChain tests (issue #591) ───────────────────────────────────────
+
+#[test]
+fn select_active_chain_sets_active_chain_clears_block_and_snapshots_enabled() {
+    // chain_0 (enabled), chain_1 (disabled). The footswitch slot
+    // `toggle_active_chain_enabled` resolves against `active_chain`, so
+    // selecting a chain on the Chains screen must set it as the active one
+    // — otherwise the footswitch stays frozen on whatever was selected last
+    // (the #591 bug: it always targeted `rig:input-3`).
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    // Seed selection on chain_0 with a block, as if the user had drilled in.
+    {
+        let sel = dispatcher.selection_state();
+        let mut s = sel.write().unwrap();
+        s.active_chain = Some("chain_0".to_string());
+        s.active_block = Some("input:0".to_string());
+        s.active_chain_enabled = true;
+    }
+
+    let result = dispatcher.dispatch(Command::SelectActiveChain {
+        chain: ChainId("chain_1".to_string()),
+    });
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+
+    let sel = dispatcher.selection_state();
+    let s = sel.read().unwrap();
+    assert_eq!(
+        s.active_chain.as_deref(),
+        Some("chain_1"),
+        "selecting a chain on screen must become the active chain the footswitch toggles"
+    );
+    assert!(
+        s.active_block.is_none(),
+        "changing the active chain must clear the stale active block (block lives in one chain)"
+    );
+    assert!(
+        !s.active_chain_enabled,
+        "active_chain_enabled must snapshot the newly-selected chain (chain_1 is disabled)"
+    );
+}
+
+#[test]
+fn select_active_chain_non_existent_returns_err() {
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SelectActiveChain {
+        chain: ChainId("chain_MISSING".to_string()),
+    });
+
+    assert!(result.is_err(), "expected Err for missing chain, got Ok");
+}
+
+#[test]
+fn set_compact_view_enabled_emits_event_so_the_gui_can_react() {
+    // #591: a footswitch bound to `toggle_compact_view` dispatches
+    // SetCompactViewEnabled. The handler only flipped a SelectionState
+    // snapshot and returned no events, so the MIDI drain had nothing to
+    // act on and the compact view never opened ("isso não faz nada").
+    let project = make_project_two_chains();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SetCompactViewEnabled { enabled: true })
+        .expect("dispatch ok");
+
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::CompactViewEnabledChanged { enabled: true })),
+        "expected CompactViewEnabledChanged{{true}}, got {events:?}"
+    );
 }
 
 // ── AddChain tests ────────────────────────────────────────────────────────────
@@ -1581,6 +1678,7 @@ fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
         name: None,
         device_settings: vec![],
         chains: vec![chain],
+        midi: None,
     }));
     (project, chain_id)
 }
@@ -1672,6 +1770,7 @@ fn save_chain_input_endpoints_multi_block_replaces_all_and_emits_event() {
                 make_core_block("blk_mid", true),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1766,6 +1865,7 @@ fn save_chain_input_endpoints_preserves_non_input_block_order() {
                 make_output_block("dev_out", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1805,6 +1905,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             volume: 100.0,
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
+        midi: None,
     }));
     (project, chain_id)
 }
@@ -1868,6 +1969,7 @@ fn save_chain_output_endpoints_multi_block_replaces_all_and_emits_event() {
                 make_output_block("dev_out_old", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -1963,6 +2065,7 @@ fn save_chain_output_endpoints_preserves_non_output_block_order() {
                 make_output_block("dev_out_old", 1),
             ],
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2193,6 +2296,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             volume: 100.0,
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2242,6 +2346,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             volume: 100.0,
             blocks: vec![insert],
         }],
+        midi: None,
     }));
     (project, chain_id, block_id)
 }
@@ -2347,6 +2452,7 @@ fn make_named_project(name: &str) -> Rc<RefCell<Project>> {
         name: Some(name.to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }))
 }
 
@@ -2424,69 +2530,131 @@ fn make_device_settings(device_id: &str) -> project::device::DeviceSettings {
     }
 }
 
+// #581: SaveAudioSettings now persists into the per-machine
+// `config.yaml`. Each test redirects `$HOME` to a unique tempdir so the
+// FS write stays out of the developer's real `~/Library/Application
+// Support/OpenRig/`.
 #[test]
 fn save_audio_settings_writes_device_settings_and_emits_event() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-emit", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: settings.clone(),
+        let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            input_devices: settings.clone(),
+            output_devices: vec![],
+        });
+
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        let events = result.unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, Event::AudioSettingsSaved)),
+            "expected AudioSettingsSaved event, got {:?}",
+            events
+        );
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 2);
+        assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
+        assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
     });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let events = result.unwrap();
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, Event::AudioSettingsSaved)),
-        "expected AudioSettingsSaved event, got {:?}",
-        events
-    );
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 2);
-    assert_eq!(proj.device_settings[0].device_id.0, "dev_a");
-    assert_eq!(proj.device_settings[1].device_id.0, "dev_b");
 }
 
 #[test]
 fn save_audio_settings_replaces_previous_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("old_dev")],
-        chains: vec![],
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-replace", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("old_dev")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![make_device_settings("new_dev")],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            input_devices: vec![make_device_settings("new_dev")],
+            output_devices: vec![],
+        });
+
+        assert!(result.is_ok());
+        let proj = project.borrow();
+        assert_eq!(proj.device_settings.len(), 1);
+        assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
     });
-
-    assert!(result.is_ok());
-    let proj = project.borrow();
-    assert_eq!(proj.device_settings.len(), 1);
-    assert_eq!(proj.device_settings[0].device_id.0, "new_dev");
 }
 
 #[test]
 fn save_audio_settings_empty_clears_settings() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![make_device_settings("dev_a")],
-        chains: vec![],
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-empty", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![make_device_settings("dev_a")],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveAudioSettings {
-        device_settings: vec![],
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            input_devices: vec![],
+            output_devices: vec![],
+        });
+
+        assert!(result.is_ok());
+        assert!(project.borrow().device_settings.is_empty());
     });
+}
 
-    assert!(result.is_ok());
-    assert!(project.borrow().device_settings.is_empty());
+// Regression: the same physical interface enumerates with a DIFFERENT id per
+// direction (e.g. CoreAudio input `dev:1` vs output `dev:2`). The command must
+// carry the input/output split so the handler persists each list into its own
+// `config.yaml` field — collapsing both into one flat list corrupts the saved
+// selection and the device fails to re-match on reopen (#581 follow-up).
+#[test]
+fn save_audio_settings_persists_input_and_output_separately() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("save-audio-split", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+            input_devices: vec![make_device_settings("dev:in")],
+            output_devices: vec![make_device_settings("dev:out")],
+        });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        let in_ids: Vec<&str> = config
+            .input_devices
+            .iter()
+            .map(|d| d.device_id.as_str())
+            .collect();
+        let out_ids: Vec<&str> = config
+            .output_devices
+            .iter()
+            .map(|d| d.device_id.as_str())
+            .collect();
+        assert_eq!(
+            in_ids,
+            vec!["dev:in"],
+            "input devices must persist input ids only"
+        );
+        assert_eq!(
+            out_ids,
+            vec!["dev:out"],
+            "output devices must persist output ids only"
+        );
+    });
 }
 
 // ── SaveProject tests ─────────────────────────────────────────────────────────
@@ -2499,6 +2667,7 @@ fn save_project_emits_project_saved_event() {
         name: Some("my project".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2520,6 +2689,7 @@ fn save_project_does_not_mutate_project() {
         name: Some("stable".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2538,6 +2708,7 @@ fn save_project_is_ok_with_empty_project() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let result = dispatcher.dispatch(Command::SaveProject);
@@ -2552,6 +2723,7 @@ fn load_project_replaces_project_and_emits_event() {
         name: Some("old".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2559,6 +2731,7 @@ fn load_project_replaces_project_and_emits_event() {
         name: Some("loaded".to_string()),
         device_settings: vec![],
         chains: vec![make_empty_chain("chain_loaded", false)],
+        midi: None,
     };
 
     let result = dispatcher.dispatch(Command::LoadProject {
@@ -2586,6 +2759,7 @@ fn load_project_replaces_all_state() {
         name: Some("old".to_string()),
         device_settings: vec![make_device_settings("old_dev")],
         chains: vec![make_empty_chain("old_chain", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2593,6 +2767,7 @@ fn load_project_replaces_all_state() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
 
     let _ = dispatcher.dispatch(Command::LoadProject {
@@ -2607,11 +2782,131 @@ fn load_project_replaces_all_state() {
 }
 
 #[test]
+fn load_project_disables_blocks_with_unavailable_models() {
+    // #606 parity: loading a project through the command bus (MCP/gRPC) must
+    // disable blocks whose model is not installed, exactly like the GUI load
+    // path — so the chain plays without a silently-faulted "on" pedal.
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let mut chain = make_empty_chain("c", true);
+    chain.blocks.push(AudioBlock {
+        id: BlockId("ghost".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            // No native gain model and no pack on disk → unavailable.
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    });
+    let new_proj = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    };
+
+    dispatcher
+        .dispatch(Command::LoadProject {
+            project: new_proj,
+            path: std::path::PathBuf::from("/p.yaml"),
+        })
+        .expect("LoadProject");
+
+    let proj = project.borrow();
+    let ghost = proj.chains[0]
+        .blocks
+        .iter()
+        .find(|b| b.id.0 == "ghost")
+        .expect("block must be preserved on load");
+    assert!(
+        !ghost.enabled,
+        "BUG #606: LoadProject must disable a block whose model is unavailable (MCP/gRPC parity)"
+    );
+}
+
+fn project_with_one_block(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
+    let mut chain = make_empty_chain(chain_id, true);
+    chain.blocks.push(block);
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    }))
+}
+
+fn unavailable_gain_block(id: &str, enabled: bool) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "nam_uninstalled_pedal_for_issue_606".into(),
+            params: ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn toggle_block_enabled_refuses_to_enable_unavailable_model() {
+    // #606: a disabled block whose pack is not installed must NOT be
+    // enable-able — the user can't activate a pedal that cannot build.
+    let project = project_with_one_block("c", unavailable_gain_block("ghost", false));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::ToggleBlockEnabled {
+            chain: ChainId("c".into()),
+            block: BlockId("ghost".into()),
+        })
+        .expect("ToggleBlockEnabled");
+
+    assert!(
+        !project.borrow().chains[0].blocks[0].enabled,
+        "BUG #606: toggling an unavailable block must NOT enable it"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::BlockEnabledChanged { enabled: false, .. })),
+        "the emitted event must report the block stayed disabled, got {events:?}"
+    );
+}
+
+#[test]
+fn toggle_block_enabled_still_disables_an_unavailable_block_that_is_on() {
+    // Disabling is always allowed, even for an unavailable model (e.g. a
+    // pack uninstalled while the block was on) — only ENABLING is blocked.
+    let project = project_with_one_block("c", unavailable_gain_block("ghost", true));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::ToggleBlockEnabled {
+            chain: ChainId("c".into()),
+            block: BlockId("ghost".into()),
+        })
+        .expect("ToggleBlockEnabled");
+
+    assert!(
+        !project.borrow().chains[0].blocks[0].enabled,
+        "toggling an ON unavailable block must turn it OFF (disabling is allowed)"
+    );
+}
+
+#[test]
 fn load_project_emits_project_mutated() {
     let project = Rc::new(RefCell::new(Project {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2620,6 +2915,7 @@ fn load_project_emits_project_mutated() {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
         path: std::path::PathBuf::from("/p.yaml"),
     });
@@ -2642,6 +2938,7 @@ fn create_project_replaces_project_and_emits_event() {
         name: Some("old".to_string()),
         device_settings: vec![],
         chains: vec![make_empty_chain("old_chain", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2649,6 +2946,7 @@ fn create_project_replaces_project_and_emits_event() {
         name: Some("brand new".to_string()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
 
     let result = dispatcher.dispatch(Command::CreateProject { project: new_proj });
@@ -2671,6 +2969,7 @@ fn create_project_emits_project_mutated() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2679,6 +2978,7 @@ fn create_project_emits_project_mutated() {
             name: Some("new".to_string()),
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
     });
 
@@ -2698,6 +2998,7 @@ fn create_project_replaces_all_prior_state() {
         name: Some("old".to_string()),
         device_settings: vec![make_device_settings("dev_old")],
         chains: vec![make_empty_chain("c", false)],
+        midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
@@ -2706,6 +3007,7 @@ fn create_project_replaces_all_prior_state() {
             name: None,
             device_settings: vec![],
             chains: vec![],
+            midi: None,
         },
     });
 
@@ -2729,6 +3031,7 @@ fn load_chain_preset_replaces_blocks_and_emits_event() {
 
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: preset_blocks.clone(),
     });
 
@@ -2760,6 +3063,7 @@ fn load_chain_preset_non_existent_chain_returns_err() {
 
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_MISSING".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![make_core_block("new_blk", true)],
     });
 
@@ -2779,6 +3083,7 @@ fn load_chain_preset_empty_blocks_succeeds() {
     // A zero-block preset is valid — the chain becomes empty.
     let result = dispatcher.dispatch(Command::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
+        preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![],
     });
 
@@ -2824,6 +3129,7 @@ fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let project_rc = Rc::new(RefCell::new(project));
     let dispatcher = LocalDispatcher::new(project_rc.clone());
@@ -2834,6 +3140,7 @@ fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
         name: Some("loaded".into()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         dispatcher.dispatch(Command::LoadProject {
@@ -2855,6 +3162,7 @@ fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
         name: None,
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let project_rc = Rc::new(RefCell::new(project));
     let dispatcher = LocalDispatcher::new(project_rc.clone());
@@ -2867,6 +3175,7 @@ fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
         name: Some("loaded".into()),
         device_settings: vec![],
         chains: vec![],
+        midi: None,
     };
     let result = dispatcher.dispatch(Command::LoadProject {
         project: new_project,
@@ -2898,6 +3207,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             volume,
             blocks: vec![],
         }],
+        midi: None,
     }))
 }
 
@@ -2982,3 +3292,105 @@ fn set_chain_volume_passes_extreme_values_verbatim() {
         "volume=250.0 should be stored verbatim"
     );
 }
+
+// ── #513 / #493: MIDI device + mapping + learn commands ──────────────────────
+
+pub(super) fn empty_project_rc() -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }))
+}
+
+#[test]
+fn save_midi_devices_emits_event_without_mutating_project() {
+    let project = empty_project_rc();
+    let before = project.borrow().clone();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatcher
+        .dispatch(Command::SaveMidiDevices { devices: vec![] })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::MidiDevicesSaved]);
+    assert_eq!(
+        project.borrow().chains.len(),
+        before.chains.len(),
+        "system command must not touch project chains"
+    );
+    assert_eq!(
+        project.borrow().device_settings.len(),
+        before.device_settings.len(),
+        "system command must not touch project device_settings"
+    );
+    assert_eq!(
+        project.borrow().name,
+        before.name,
+        "system command must not touch project name"
+    );
+}
+
+#[test]
+fn save_midi_mapping_writes_bindings_into_project_midi() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let bindings = vec![project::midi::Binding {
+        source: project::midi::Source::ProgramChange { program: 7 },
+        command: "SaveProject".to_string(),
+        args: serde_json::Value::Null,
+        scale: None,
+    }];
+
+    let events = dispatcher
+        .dispatch(Command::SaveMidiMapping {
+            bindings: bindings.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(events, vec![Event::MidiMappingSaved, Event::ProjectMutated]);
+    let stored = project
+        .borrow()
+        .midi
+        .clone()
+        .unwrap_or_default()
+        .bindings
+        .clone();
+    assert_eq!(stored, bindings);
+}
+
+#[test]
+fn start_and_stop_midi_learn_emit_events() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    assert_eq!(
+        dispatcher.dispatch(Command::StartMidiLearn).unwrap(),
+        vec![Event::MidiLearnStarted]
+    );
+    assert_eq!(
+        dispatcher.dispatch(Command::StopMidiLearn).unwrap(),
+        vec![Event::MidiLearnStopped]
+    );
+}
+
+#[test]
+fn publish_midi_event_passthrough_emits_midi_event_received() {
+    let project = empty_project_rc();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let source = project::midi::Source::Cc {
+        channel: 1,
+        controller: 7,
+    };
+    let events = dispatcher
+        .dispatch(Command::PublishMidiEvent {
+            source: source.clone(),
+        })
+        .unwrap();
+    assert_eq!(events, vec![Event::MidiEventReceived { source }]);
+}
+
+// #513 / #540: System / Paths (presets + plugins) tests moved to
+// `local_dispatcher_paths_tests.rs` so this file does not grow further
+// (already over the per-file size cap) and so the FS-sandboxing helper
+// (`$HOME` redirect) stays scoped to the tests that need it.

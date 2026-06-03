@@ -63,6 +63,21 @@ pub struct ProjectRuntimeController {
 }
 
 impl ProjectRuntimeController {
+    /// Construct a controller that owns a pre-built [`RuntimeGraph`] but has
+    /// no live audio streams.  Intended for integration tests that need a real
+    /// `ProjectRuntimeController` without opening audio devices (e.g. to verify
+    /// that `set_chain_di_loop` / `chain_has_di_loop` work without cpal I/O).
+    pub fn for_testing(graph: RuntimeGraph) -> Self {
+        Self {
+            runtime_graph: graph,
+            active_chains: HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: jack_supervisor::JackSupervisor::new(
+                jack_supervisor::LiveJackBackend::new(),
+            ),
+        }
+    }
+
     pub fn start(project: &Project) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {
@@ -340,8 +355,34 @@ impl ProjectRuntimeController {
             chain.enabled
         );
         if !chain.enabled {
-            self.remove_chain(&chain.id);
+            // Issue #522: pause instead of teardown. Keeps CPAL streams +
+            // every block processor alive so re-enable resumes in O(1).
+            self.pause_chain(&chain.id);
             return Ok(());
+        }
+        // Issue #522: fast-path resume of a paused chain — clear draining
+        // and return; no CPAL queries, no NAM reload, no graph rebuild.
+        //
+        // Issue #545: fan over every input-group runtime, not just the
+        // first. The previous `runtime_for_chain` call only touched
+        // group 0, so chains with multiple physical input devices
+        // stayed half-muted after toggle-on. Mirrors the fan-out in
+        // `pause_chain`.
+        if self.active_chains.contains_key(&chain.id) {
+            let runtimes = self.runtime_graph.runtimes_for(&chain.id);
+            if let Some(first) = runtimes.first() {
+                if first.is_draining() {
+                    log::info!(
+                        "resuming paused chain '{}' across {} input group(s) (fast path)",
+                        chain.id.0,
+                        runtimes.len(),
+                    );
+                    for runtime in &runtimes {
+                        runtime.clear_draining();
+                    }
+                    return Ok(());
+                }
+            }
         }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]

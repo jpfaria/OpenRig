@@ -1,9 +1,11 @@
 pub mod baked_loudness;
 pub mod from_package;
+pub mod gain_offsets;
 pub mod loudness_probe;
 pub mod processor;
 
 pub use from_package::{build_from_package, register_builder};
+pub use processor::{live_models, models_created};
 
 use anyhow::{bail, Result};
 use block_core::param::{ModelParameterSchema, ParameterSet};
@@ -48,7 +50,7 @@ pub fn build_processor_with_assets_for_layout(
     model_path: &str,
     ir_path: Option<&str>,
     plugin_params: NamPluginParams,
-    _sample_rate: f32,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     // Loudness alignment is now metadata — `output_gain_db` baked into
@@ -61,6 +63,7 @@ pub fn build_processor_with_assets_for_layout(
             model_path,
             ir_path,
             plugin_params,
+            sample_rate,
         )?))),
         AudioChannelLayout::Stereo => {
             bail!("the NAM processor is mono-native and cannot build native stereo processing")
