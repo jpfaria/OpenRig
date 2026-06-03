@@ -58,9 +58,16 @@ if (NOT MSVC)
   target_compile_options(nam_wrapper PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
 
-# Igual ao projeto original: esses arquivos podem gerar warnings chatos
-set_source_files_properties(${NAM_CORE_DIR}/NAM/dsp.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
-set_source_files_properties(${NAM_CORE_DIR}/NAM/conv1d.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
+# MSVC needs /EHsc for the core's C++ exceptions (otherwise C4530 + broken
+# unwinding); the per-file -Wno-error is GCC/Clang-only and MSVC's cl rejects it
+# (error D8021, #645).
+if (MSVC)
+  target_compile_options(nam_wrapper PRIVATE /EHsc)
+else()
+  # These core files can emit noisy warnings — keep them non-fatal on GCC/Clang.
+  set_source_files_properties(${NAM_CORE_DIR}/NAM/dsp.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
+  set_source_files_properties(${NAM_CORE_DIR}/NAM/conv1d.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
+endif()
 
 install(TARGETS nam_wrapper
   LIBRARY DESTINATION lib
