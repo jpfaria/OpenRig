@@ -45,6 +45,7 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         active_preset: active,
         active_scene: 1,
         routing: vec![],
+        instrument: "electric_guitar".to_string(),
     }
 }
 
@@ -663,4 +664,42 @@ fn step_scene_wraps_within_scene_count() {
     p.inputs.get_mut("in").unwrap().active_scene = 3;
     assert_eq!(p.step_scene("in", 1), Some(1), "next wraps to first scene");
     assert_eq!(p.step_scene("missing", 1), None, "unknown input → None");
+}
+
+/// A `.openrig` YAML without the `instrument` field must deserialize to the default
+/// ("electric_guitar") so projects saved before #627 open without error.
+#[test]
+fn rig_input_missing_instrument_defaults_to_electric_guitar() {
+    let yaml = r#"
+inputs:
+  guitar:
+    sources: []
+    active-preset: 1
+presets: {}
+"#;
+    let rig: RigProject = serde_yaml::from_str(yaml).unwrap();
+    let input = rig.inputs.get("guitar").unwrap();
+    assert_eq!(
+        input.instrument,
+        block_core::DEFAULT_INSTRUMENT,
+        "absent instrument field must default to electric_guitar"
+    );
+}
+
+/// Serialize a `RigProject` with acoustic_guitar, deserialize it; the instrument
+/// must survive the full YAML round-trip.
+#[test]
+fn rig_input_instrument_serde_roundtrip() {
+    let mut p = project_with(vec![("guitar", input(&[(1, "a")], 1))], &["a"]);
+    p.inputs.get_mut("guitar").unwrap().instrument =
+        block_core::INST_ACOUSTIC_GUITAR.to_string();
+
+    let yaml = serde_yaml::to_string(&p).unwrap();
+    let restored: RigProject = serde_yaml::from_str(&yaml).unwrap();
+
+    assert_eq!(
+        restored.inputs.get("guitar").unwrap().instrument,
+        block_core::INST_ACOUSTIC_GUITAR,
+        "instrument must survive YAML serialize→deserialize"
+    );
 }

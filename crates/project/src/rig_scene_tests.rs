@@ -24,6 +24,7 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         active_preset: active,
         active_scene: 1,
         routing: vec![],
+        instrument: "electric_guitar".to_string(),
     }
 }
 

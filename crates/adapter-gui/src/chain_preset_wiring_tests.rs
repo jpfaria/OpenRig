@@ -130,6 +130,7 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
             active_preset: 1,
             active_scene: 1,
             routing: Vec::new(),
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {

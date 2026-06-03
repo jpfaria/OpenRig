@@ -400,6 +400,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
             active_preset: 1,
             active_scene: 1,
             routing: Vec::new(),
+            instrument: "electric_guitar".to_string(),
         },
     );
     let rig = RigProject {

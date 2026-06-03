@@ -81,6 +81,7 @@ fn rig_with_two_presets() -> RigProject {
             active_preset: 1,
             active_scene: 1,
             routing: vec![],
+            instrument: "electric_guitar".to_string(),
         },
     );
     RigProject {
