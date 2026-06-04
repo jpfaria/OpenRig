@@ -57,13 +57,15 @@ export component ModelSelectWithSearch inherits Rectangle {
         height: 22px;
         border-radius: 3px;
         background: root.selected-model.type_label == "NATIVE" ? #0d2a0d
-            : root.selected-model.type_label == "NAM" ? #0d1a2e
+            : root.selected-model.type_label == "NAM/A2" ? #2e260d
+            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #0d1a2e
             : root.selected-model.type_label == "IR" ? #1a0d2e
             : root.selected-model.type_label == "LV2" ? #0d2e2a
             : #2e1a0d;
         border-width: 1px;
         border-color: root.selected-model.type_label == "NATIVE" ? #1a6b1a
-            : root.selected-model.type_label == "NAM" ? #1a4488
+            : root.selected-model.type_label == "NAM/A2" ? #8a6a1a
+            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #1a4488
             : root.selected-model.type_label == "IR" ? #6b1a88
             : root.selected-model.type_label == "LV2" ? #1a886b
             : #883300;
@@ -73,7 +75,8 @@ export component ModelSelectWithSearch inherits Rectangle {
             height: parent.height;
             text: root.selected-model.type_label;
             color: root.selected-model.type_label == "NATIVE" ? #33bb33
-                : root.selected-model.type_label == "NAM" ? #4499ff
+                : root.selected-model.type_label == "NAM/A2" ? #ffcc44
+                : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #4499ff
                 : root.selected-model.type_label == "IR" ? #aa44ff
                 : root.selected-model.type_label == "LV2" ? #44ddaa
                 : #ff8833;
@@ -262,13 +265,15 @@ export component ModelSelectWithSearch inherits Rectangle {
                         height: 22px;
                         border-radius: 3px;
                         background: model.type_label == "NATIVE" ? #0d2a0d
-                            : model.type_label == "NAM" ? #0d1a2e
+                            : model.type_label == "NAM/A2" ? #2e260d
+                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #0d1a2e
                             : model.type_label == "IR" ? #1a0d2e
                             : model.type_label == "LV2" ? #0d2e2a
                             : #2e1a0d;
                         border-width: 1px;
                         border-color: model.type_label == "NATIVE" ? #1a6b1a
-                            : model.type_label == "NAM" ? #1a4488
+                            : model.type_label == "NAM/A2" ? #8a6a1a
+                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #1a4488
                             : model.type_label == "IR" ? #6b1a88
                             : model.type_label == "LV2" ? #1a886b
                             : #883300;
@@ -278,7 +283,8 @@ export component ModelSelectWithSearch inherits Rectangle {
                             height: parent.height;
                             text: model.type_label;
                             color: model.type_label == "NATIVE" ? #33bb33
-                                : model.type_label == "NAM" ? #4499ff
+                                : model.type_label == "NAM/A2" ? #ffcc44
+                                : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #4499ff
                                 : model.type_label == "IR" ? #aa44ff
                                 : model.type_label == "LV2" ? #44ddaa
                                 : #ff8833;

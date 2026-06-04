@@ -54,9 +54,10 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   `A2` = NAM "v2" (`SlimmableContainer`, `.nam` version 0.7.0). Every NAM plugin
   is uniform (all captures share one architecture — mixed plugins are split into
   `<name>_a1` / `<name>_a2`), so the catalog renders a **NAM/A1** vs **NAM/A2**
-  badge straight from this field, without opening any `.nam`. The field is
-  optional: IR plugins and legacy NAM manifests omit it and show a plain **NAM**
-  badge.
+  badge straight from this field, without opening any `.nam`. `NAM/A2` uses a
+  distinct amber badge color (text `#ffcc44`) to set it apart from the blue
+  `NAM/A1`. The field is optional: IR plugins and legacy NAM manifests omit it
+  and show a plain **NAM** badge (blue, same as A1).
 - **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617).
 - **LV2** — Plugins externos open-source
 

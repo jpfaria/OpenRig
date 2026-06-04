@@ -95,7 +95,8 @@ export component PluginInfoPanel inherits Rectangle {
                     width: type-badge-text.preferred-width + 12px;
                     border-radius: 4px;
                     background: root.type-label == "LV2" ? #1a2a1a
-                        : root.type-label == "NAM" ? #1a1a2a
+                        : root.type-label == "NAM/A2" ? #2e260d
+                        : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a1a2a
                         : root.type-label == "IR" ? #2a1a1a
                         : #1e1e2a;
 
@@ -105,7 +106,8 @@ export component PluginInfoPanel inherits Rectangle {
                         font-size: 10px;
                         font-weight: 600;
                         color: root.type-label == "LV2" ? #44cc44
-                            : root.type-label == "NAM" ? #4488ff
+                            : root.type-label == "NAM/A2" ? #ffcc44
+                            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4488ff
                             : root.type-label == "IR" ? #ff8844
                             : #aaaacc;
                         vertical-alignment: center;
