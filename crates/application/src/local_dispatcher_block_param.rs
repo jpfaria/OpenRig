@@ -6,6 +6,7 @@ use anyhow::Result;
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::local_dispatcher_ir_reseed::reseed_ir_output_db;
 
 impl LocalDispatcher {
     /// Block-parameter commands: set/select a single parameter on a block.
@@ -18,7 +19,9 @@ impl LocalDispatcher {
                 value,
             } => {
                 self.with_block(&chain, &block, |b| {
-                    project::block::param_writer::set_parameter_number(b, &path, value)
+                    project::block::param_writer::set_parameter_number(b, &path, value)?;
+                    reseed_ir_output_db(b, &path);
+                    Ok(())
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
@@ -40,7 +43,9 @@ impl LocalDispatcher {
                 value,
             } => {
                 self.with_block(&chain, &block, |b| {
-                    project::block::param_writer::set_parameter_text(b, &path, &value)
+                    project::block::param_writer::set_parameter_text(b, &path, &value)?;
+                    reseed_ir_output_db(b, &path);
+                    Ok(())
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
@@ -52,7 +57,9 @@ impl LocalDispatcher {
                 index: _,
             } => {
                 self.with_block(&chain, &block, |b| {
-                    project::block::param_writer::set_parameter_option(b, &path, &value)
+                    project::block::param_writer::set_parameter_option(b, &path, &value)?;
+                    reseed_ir_output_db(b, &path);
+                    Ok(())
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }

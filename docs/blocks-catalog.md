@@ -58,7 +58,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   distinct amber badge color (text `#ffcc44`) to set it apart from the blue
   `NAM/A1`. The field is optional: IR plugins and legacy NAM manifests omit it
   and show a plain **NAM** badge (blue, same as A1).
-- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617).
+- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617). Exposes a user-adjustable **Output** knob (dB, −24..+24) mirroring NAM (#655): it is the absolute applied output level and defaults to the selected capture's `output_gain_db` audit baseline, re-seeding to the new capture's baseline when the user switches mic/position. Presets saved before the knob keep their audit loudness (the audio path resolves the per-capture baseline from the raw params; volume invariant #10).
 - **LV2** — Plugins externos open-source
 
 ### Native cab voicing (#620)

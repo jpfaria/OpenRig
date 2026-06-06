@@ -69,21 +69,40 @@ pub fn build_from_package(
             package.manifest.id
         ),
     };
-    // Issue #491 + #514: aplica o baseline do audit (em dB) como
-    // wrapper estático pós-convolução. IR pura é gain-passive, mas o
-    // ganho efetivo perceptual varia bastante (cab/body shapers
-    // atenuam graves diferente). Capturas IR carregam um valor por
-    // arquivo (`capture.output_gain_db`); o top-level
-    // `manifest.output_gain_db` é fallback pra plugins de baseline
-    // único.
-    let audit_db = select_audit_db(capture.output_gain_db, package.manifest.output_gain_db);
-    Ok(wrap_with_output_gain_db(processor, audit_db))
+    // Issue #491 + #514 + #655: post-convolution output gain (dB). A pure
+    // IR is gain-passive, but the perceived level varies a lot (cab/body
+    // shapers attenuate lows differently), so each capture ships an audit
+    // baseline (`capture.output_gain_db`, manifest-level as fallback).
+    // Since #655 the user-facing `output_db` knob is the absolute applied
+    // level and overrides the baseline when present; legacy presets without
+    // the param keep their audit loudness (volume invariant #10).
+    let user_output_db = params.get_f32("output_db");
+    let applied_db = resolve_output_db(
+        user_output_db,
+        capture.output_gain_db,
+        package.manifest.output_gain_db,
+    );
+    Ok(wrap_with_output_gain_db(processor, applied_db))
 }
 
 /// Choose the audit-baseline dB to apply, preferring the per-capture
 /// value over the manifest-level fallback. Issue #514.
 pub(crate) fn select_audit_db(capture_db: Option<f32>, manifest_db: Option<f32>) -> Option<f32> {
     capture_db.or(manifest_db)
+}
+
+/// Resolve the output gain (dB) the IR processor applies. Mirrors NAM's
+/// absolute-knob model (issue #655): the user `output_db` param IS the
+/// applied output level and wins when present (even `0.0`); when absent —
+/// legacy presets saved before the knob existed — it falls back to the
+/// audit baseline (per-capture, then manifest) so loudness is unchanged
+/// (volume invariant #10).
+pub(crate) fn resolve_output_db(
+    user_param_db: Option<f32>,
+    capture_audit_db: Option<f32>,
+    manifest_audit_db: Option<f32>,
+) -> Option<f32> {
+    user_param_db.or_else(|| select_audit_db(capture_audit_db, manifest_audit_db))
 }
 
 #[cfg(test)]
