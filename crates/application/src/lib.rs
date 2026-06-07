@@ -21,6 +21,7 @@ pub mod local_dispatcher;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
+mod local_dispatcher_ir_reseed;
 mod local_dispatcher_chain_crud;
 mod local_dispatcher_di_loop;
 mod local_dispatcher_chain_io;

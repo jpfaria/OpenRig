@@ -145,7 +145,32 @@ pub(crate) fn synthesize_parameters_from_manifest(
         } => {
             // Same dead-axis filter as NAM (issue #649).
             let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
-            axes.iter().map(grid_parameter_to_spec).collect()
+            let mut specs: Vec<block_core::param::ParameterSpec> =
+                axes.iter().map(grid_parameter_to_spec).collect();
+            // Issue #655: user-adjustable Output Level knob (mirrors NAM).
+            // The default mirrors the engine baseline — the first capture's
+            // audit (manifest-level fallback, 0 dB if neither) — so the knob
+            // shows the real applied offset and a fresh block born at the
+            // first capture stays unchanged (volume invariant #10). The
+            // audio path resolves the offset per-capture from the raw saved
+            // params (see `ir::from_package::resolve_output_db`); this
+            // default only drives the UI and the new-block seed.
+            let default_db = captures
+                .first()
+                .and_then(|c| c.output_gain_db)
+                .or(package.manifest.output_gain_db)
+                .unwrap_or(0.0);
+            specs.push(block_core::param::float_parameter(
+                "output_db",
+                "Output",
+                None,
+                Some(default_db),
+                -24.0,
+                24.0,
+                0.1,
+                block_core::param::ParameterUnit::Decibels,
+            ));
+            specs
         }
         Backend::Lv2 {
             plugin_uri,
@@ -584,6 +609,90 @@ mod tests {
         );
     }
 
+    fn ir_package_with_capture_audit(first_audit_db: Option<f32>) -> LoadedPackage {
+        LoadedPackage {
+            root: PathBuf::from("/fake"),
+            manifest: PluginManifest {
+                manifest_version: 1,
+                id: "ir_test_body".into(),
+                display_name: "Test IR".into(),
+                author: None,
+                description: None,
+                inspired_by: None,
+                brand: None,
+                thumbnail: None,
+                photo: None,
+                screenshot: None,
+                brand_logo: None,
+                license: None,
+                homepage: None,
+                sources: None,
+                output_gain_db: None,
+                architecture: None,
+                block_type: BlockType::Cab,
+                backend: Backend::Ir {
+                    parameters: vec![GridParameter {
+                        name: "position".into(),
+                        display_name: None,
+                        values: vec![
+                            ParameterValue::Text("a".into()),
+                            ParameterValue::Text("b".into()),
+                        ],
+                    }],
+                    captures: vec![
+                        GridCapture {
+                            values: [("position".to_string(), ParameterValue::Text("a".into()))]
+                                .into_iter()
+                                .collect(),
+                            file: "a.wav".into(),
+                            output_gain_db: first_audit_db,
+                        },
+                        GridCapture {
+                            values: [("position".to_string(), ParameterValue::Text("b".into()))]
+                                .into_iter()
+                                .collect(),
+                            file: "b.wav".into(),
+                            output_gain_db: Some(-10.0),
+                        },
+                    ],
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn ir_synthesized_schema_exposes_output_db_knob_in_decibels() {
+        // Issue #655: IR blocks need a user-adjustable Output Level knob
+        // (mirroring NAM) so resonant body IRs whose audit baseline cut
+        // them far down can be brought back up. It must be a dB control.
+        let pkg = ir_package_with_capture_audit(Some(-22.9));
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        let output_db = specs
+            .iter()
+            .find(|s| s.path == "output_db")
+            .expect("IR schema must include `output_db` so the user can adjust output level");
+        assert_eq!(
+            output_db.unit,
+            block_core::param::ParameterUnit::Decibels,
+            "output_db must be a decibel control"
+        );
+    }
+
+    #[test]
+    fn ir_output_db_default_seeds_from_first_capture_audit() {
+        // The knob's default mirrors the engine's actual baseline so a
+        // freshly created IR block (born at the first capture) shows the
+        // real applied offset, not 0 dB. Volume invariant #10.
+        let pkg = ir_package_with_capture_audit(Some(-22.9));
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        let output_db = specs.iter().find(|s| s.path == "output_db").unwrap();
+        assert_eq!(
+            output_db.default_value,
+            Some(domain::value_objects::ParameterValue::Float(-22.9)),
+            "output_db default must be the first capture's audit baseline"
+        );
+    }
+
     fn nam_package_with_emoji_labels() -> LoadedPackage {
         // Real-world Bogner Ecstasy capture grid — `display_name` and
         // every `Text` value carry a leading emoji. Reproduces the
@@ -604,16 +713,22 @@ mod tests {
             }],
             vec![
                 GridCapture {
-                    values: [("cabinet".to_string(), ParameterValue::Text("✋ 4X12".into()))]
-                        .into_iter()
-                        .collect(),
+                    values: [(
+                        "cabinet".to_string(),
+                        ParameterValue::Text("✋ 4X12".into()),
+                    )]
+                    .into_iter()
+                    .collect(),
                     file: "4x12.nam".into(),
                     output_gain_db: None,
                 },
                 GridCapture {
-                    values: [("cabinet".to_string(), ParameterValue::Text("🔥 2X12".into()))]
-                        .into_iter()
-                        .collect(),
+                    values: [(
+                        "cabinet".to_string(),
+                        ParameterValue::Text("🔥 2X12".into()),
+                    )]
+                    .into_iter()
+                    .collect(),
                     file: "2x12.nam".into(),
                     output_gain_db: None,
                 },
