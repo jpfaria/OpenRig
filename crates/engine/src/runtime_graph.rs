@@ -438,6 +438,9 @@ fn assemble_chain_runtime_state(
         bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
         di_loop: arc_swap::ArcSwapOption::empty(),
         di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
+        // Issue #670 — audio-thread deadline accounting, zeroed at build.
+        xrun_count: AtomicU64::new(0),
+        peak_load_ppm: AtomicU64::new(0),
     })
 }
 

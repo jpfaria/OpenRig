@@ -25,6 +25,7 @@ pub mod runtime_endpoints;
 pub mod runtime_graph;
 pub mod runtime_io;
 pub mod runtime_layout;
+pub mod runtime_load;
 pub mod runtime_probe;
 pub mod runtime_segments;
 pub mod runtime_state;
