@@ -19,7 +19,6 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::Command;
-use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -504,22 +503,35 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let project_session = project_session.clone();
         let toast_timer = toast_timer.clone();
         window.on_di_loop_source_selected(move |index, source_str| {
-            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
+                );
                 return;
             };
             let chain_id = {
                 let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
                 chain.id.clone()
             };
-            // Build bundled_ids from the chain's di_loop_sources model so the
-            // parse function can validate the selection. A Bundled source is
-            // one that isn't the sentinel; File sources come via the separate
-            // choose-file callback.
-            let source = DiLoopSource::Bundled(source_str.to_string());
+            // Bundled id → Bundled source; the file label of an already-loaded
+            // File (#661) → no-op (dispatcher already holds it). Sentinel is
+            // routed to choose-file by the ComboBox, never here.
+            let bundled_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
+            let bundled_refs: Vec<&str> = bundled_ids.iter().map(|s| s.as_str()).collect();
+            let Some(source) =
+                crate::di_loop_ui_sources::parse_di_loop_source(&source_str, &bundled_refs)
+            else {
+                return;
+            };
             let cmds = crate::di_loop_wiring::di_loop_commands(
                 chain_id,
                 crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
@@ -546,10 +558,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let project_runtime = project_runtime.clone();
         window.on_di_loop_play(move |index| {
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
             let chain_id = {
                 let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
                 chain.id.clone()
             };
             crate::di_loop_wiring::play_chain_di_loop(
@@ -568,10 +584,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let project_runtime = project_runtime.clone();
         window.on_di_loop_stop(move |index| {
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
             let chain_id = {
                 let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else { return; };
+                let Some(chain) = proj.chains.get(index as usize) else {
+                    return;
+                };
                 chain.id.clone()
             };
             crate::di_loop_wiring::stop_chain_di_loop(

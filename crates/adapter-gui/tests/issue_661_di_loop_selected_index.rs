@@ -40,5 +40,8 @@ fn selected_index_file_source_returns_minus_one() {
         &sources,
         &DiLoopSource::File(std::path::PathBuf::from("/tmp/whatever.wav")),
     );
-    assert_eq!(idx, -1, "a File source is not represented in the bundled list");
+    assert_eq!(
+        idx, -1,
+        "a File source is not represented in the bundled list"
+    );
 }
