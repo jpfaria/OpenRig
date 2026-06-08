@@ -318,13 +318,14 @@ where
     W: ComponentHandle,
     for<'a> PresetPicker<'a>: slint::Global<'a, W>,
 {
-    let options: Vec<PresetOption> = crate::preset_search::filter_preset_labels_indexed(labels, query)
-        .into_iter()
-        .map(|(slot, label)| PresetOption {
-            label: SharedString::from(label),
-            slot: slot as i32,
-        })
-        .collect();
+    let options: Vec<PresetOption> =
+        crate::preset_search::filter_preset_labels_indexed(labels, query)
+            .into_iter()
+            .map(|(slot, label)| PresetOption {
+                label: SharedString::from(label),
+                slot: slot as i32,
+            })
+            .collect();
     PresetPicker::get(window).set_options(ModelRc::new(VecModel::from(options)));
 }
 
