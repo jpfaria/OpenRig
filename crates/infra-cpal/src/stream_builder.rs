@@ -41,6 +41,8 @@ use engine::runtime::{process_input_f32, process_output_f32_mixed};
 use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::callback_load_timing::record_callback_deadline;
 use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -143,9 +145,19 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
+                    // Issue #670: time the block DSP (the heavy work runs here,
+                    // not on the output pop) so a buffer-64 deadline miss is
+                    // counted and surfaced instead of crackling silently.
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&runtime_for_data, input_index, data, channels);
                     }));
+                    record_callback_deadline(
+                        &runtime_for_data,
+                        callback_start.elapsed(),
+                        data.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -163,9 +175,16 @@ pub(crate) fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&runtime_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &runtime_for_data,
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -183,9 +202,16 @@ pub(crate) fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&runtime_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &runtime_for_data,
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -203,9 +229,16 @@ pub(crate) fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i32::MAX as f32;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&runtime_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &runtime_for_data,
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
