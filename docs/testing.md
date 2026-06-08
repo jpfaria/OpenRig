@@ -49,6 +49,14 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`
 - **DSP nativos**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
 - **NAM/LV2/IR builds**: `#[ignore]` (assets externos)
 - **Registry tests** em block-* crates: iterar TODOS os modelos via registry
+- **Deadline / xrun (timing)**: `#[cfg_attr(debug_assertions, ignore)]` — só
+  fazem sentido em release. `engine/src/audio_deadline_tests.rs` (pipe chains)
+  e `engine/tests/issue_670_heavy_rig_deadline.rs` (rig pesado, breakdown
+  por-bloco) medem o custo por-buffer do audio thread. O custo é dominado
+  pela inferência NAM; empilhar vários NAM amps satura o orçamento de 64
+  frames → overrun de deadline (xrun) → crackle. O overrun é contado em
+  runtime por `ChainRuntimeState::record_callback_load` (#670), alimentado
+  pelo callback de input via `infra-cpal::callback_load_timing`.
 
 ## Workspace
 
