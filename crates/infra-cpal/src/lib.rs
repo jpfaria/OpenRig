@@ -51,6 +51,9 @@ mod resolved;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
 
+mod control_worker;
+pub use control_worker::ControlWorker;
+
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
