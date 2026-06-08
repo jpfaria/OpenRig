@@ -1,60 +1,89 @@
+version: 1
 id: radiohead_-_creep_-_solo
-name: Radiohead - Creep (Solo)
+name: Radiohead - Creep - Solo
+volume: 100.0
+instrument: electric_guitar
 blocks:
-- type: utility
-  enabled: false
-  model: tuner_chromatic
-  params:
-    reference_hz: 440.0
 - type: filter
   enabled: true
   model: native_guitar_eq
   params:
+    high: 0.0
+    high_mid: 0.0
     low: 0.0
     low_mid: 0.0
-    high_mid: 0.0
-    high: 0.0
 - type: dynamics
   enabled: true
   model: gate_basic
   params:
-    threshold: 40.0
-    attack_ms: 0.1
+    attack_ms: 0.10000000149011612
+    hold_ms: 150.0
+    hysteresis_db: 6.0
     release_ms: 90.0
+    threshold: 40.0
 - type: gain
   enabled: true
-  model: nam_proco_rat
-  params: {}
+  model: nam_proco_rat_a1
+  params:
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 1.399999976158142
 - type: gain
   enabled: false
-  model: nam_fuzz_face
-  params: {}
+  model: nam_fuzz_face_a1
+  params:
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    fuzz: 1.0
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: -22.354814529418945
 - type: amp
   enabled: true
-  model: nam_vox_ac30
+  model: nam_vox_ac30_a1
   params:
-    character: standard
+    preset: standard
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 3.1000003814697266
 - type: reverb
   enabled: true
   model: room
   params:
-    room_size: 28.0
     damping: 70.0
     mix: 12.0
+    room_size: 28.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall
   params:
-    threshold: -1.0
-    ceiling: -0.1
+    ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
     release_ms: 50.0
+    threshold: -1.0
 - type: gain
-  enabled: true
+  enabled: false
   model: volume
   params:
-    volume: 85.0
     mute: false
-- type: utility
-  enabled: true
-  model: spectrum_analyzer
-  params: {}
+    volume: 85.0

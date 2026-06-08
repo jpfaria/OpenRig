@@ -23,8 +23,9 @@ blocks:
     release_ms: 80.0
 - type: amp
   enabled: true
-  model: nam_marshall_super_100_1966
-  params: {}
+  model: nam_marshall_super_100_1966_a1
+  params:
+    output_db: -10.3479176
 - type: reverb
   enabled: true
   model: room

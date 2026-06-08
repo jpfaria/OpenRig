@@ -33,13 +33,14 @@ blocks:
     mix: 60.0
 - type: gain
   enabled: true
-  model: nam_klon_centaur
+  model: nam_klon_centaur_a1
   params:
-    setting: john_mayer
+    output_db: -0.2008171
 - type: amp
   enabled: true
-  model: nam_two_rock_studio_signature
-  params: {}
+  model: nam_two_rock_studio_signature_a1
+  params:
+    output_db: -14.0950661
 - type: modulation
   enabled: true
   model: classic_chorus

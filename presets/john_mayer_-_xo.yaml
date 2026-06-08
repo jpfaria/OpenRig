@@ -17,8 +17,7 @@ blocks:
 - type: body
   enabled: true
   model: ir_gibson_j45
-  params:
-    voicing: j45_akg_cs1000
+  params: {}
 - type: delay
   enabled: true
   model: digital_clean

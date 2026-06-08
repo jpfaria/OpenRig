@@ -1,62 +1,92 @@
+version: 1
 id: barão_vermelho_-_beth_balanço
-name: Barão Vermelho - Bete Balanço
+name: Barão Vermelho - Beth Balanço
+volume: 151.0
+instrument: electric_guitar
 blocks:
-- type: utility
-  enabled: false
-  model: tuner_chromatic
-  params:
-    reference_hz: 440.0
 - type: filter
   enabled: true
   model: native_guitar_eq
   params:
+    high: 0.0
+    high_mid: 0.0
     low: 0.0
     low_mid: 0.0
-    high_mid: 0.0
-    high: 0.0
 - type: dynamics
   enabled: true
   model: gate_basic
   params:
-    threshold: 30.0
     attack_ms: 0.5
+    hold_ms: 150.0
+    hysteresis_db: 6.0
     release_ms: 120.0
+    threshold: 30.0
 - type: gain
   enabled: true
-  model: nam_ibanez_ts9
-  params: {}
+  model: nam_ibanez_ts808_a2
+  params:
+    drive: 3.0
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    level: 10.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 0.0
+    slim: 100.0
+    tone: 5.0
 - type: amp
   enabled: true
-  model: nam_marshall_jtm45
-  params: {}
+  model: nam_dumble_ods_john_mayer_a2
+  params:
+    character: normal
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: -1.0
+    noise_gate:
+      enabled: true
+      threshold_db: -50.0
+    output_db: 0.6000003814697266
+    slim: 100.0
 - type: delay
   enabled: false
-  model: analog_warm
+  model: digital_clean
   params:
-    time_ms: 200.0
-    feedback: 22.0
-    mix: 12.0
+    feedback: 16.0
+    mix: 30.0
+    time_ms: 538.0
 - type: reverb
   enabled: true
-  model: room
+  model: lv2_dragonfly_plate
   params:
-    room_size: 28.0
-    damping: 65.0
-    mix: 12.0
+    algorithm: '0'
+    decay: 0.4000000059604645
+    dry_level: 80.0
+    early_damp: 13000.0
+    early_level: 20.0
+    high_cut: 16000.0
+    low_cut: 200.0
+    predelay: 0.0
+    width: 100.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall
   params:
-    threshold: -1.0
-    ceiling: -0.1
+    ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
     release_ms: 50.0
+    threshold: -1.0
 - type: gain
-  enabled: true
+  enabled: false
   model: volume
   params:
-    volume: 80.0
     mute: false
-- type: utility
-  enabled: true
-  model: spectrum_analyzer
-  params: {}
+    volume: 80.0
