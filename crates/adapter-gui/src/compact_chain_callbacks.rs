@@ -279,9 +279,26 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // dispatch path to keep in sync.
         {
             let weak_main = window.as_weak();
+            let weak_compact = compact_win.as_weak();
+            let project_session = project_session.clone();
             compact_win.on_switch_chain_preset(move |slot| {
-                if let Some(m) = weak_main.upgrade() {
-                    m.invoke_switch_chain_preset(chain_index, slot);
+                let Some(m) = weak_main.upgrade() else {
+                    return;
+                };
+                m.invoke_switch_chain_preset(chain_index, slot);
+                // #667: the switch mutates the project via the main window,
+                // but the compact view owns a separate `compact_blocks` model
+                // the main path never touches — re-project it here (same as
+                // the block-CRUD handlers do after every mutation), or the
+                // tone changes while the block list stays on the old preset.
+                let Some(cw) = weak_compact.upgrade() else {
+                    return;
+                };
+                let session_borrow = project_session.borrow();
+                if let Some(session) = session_borrow.as_ref() {
+                    let blocks =
+                        build_compact_blocks(&session.project.borrow(), chain_index as usize);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                 }
             });
         }
