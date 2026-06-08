@@ -137,6 +137,15 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // can add makeup gain; the manifest `output_gain_db` is
             // still summed on top when present.
             specs.extend(nam::processor::plugin_parameter_specs());
+            // Issue #657: NAM/A2 (SlimmableContainer) models expose a
+            // runtime size lever (SetSlimmableSize). A1 models are not
+            // slimmable, so the knob is appended only for A2 — driven by
+            // the manifest's declared architecture (issue #650).
+            if package.manifest.architecture
+                == Some(plugin_loader::manifest::NamArchitecture::A2)
+            {
+                specs.push(nam::processor::slim_parameter_spec());
+            }
             specs
         }
         Backend::Ir {
@@ -606,6 +615,43 @@ mod tests {
         assert!(
             specs.iter().any(|s| s.path == "input_db"),
             "NAM schema must include `input_db` (always was)"
+        );
+    }
+
+    #[test]
+    fn nam_a2_synthesized_schema_exposes_slim_knob() {
+        // Issue #657: A2 (SlimmableContainer) models expose a runtime
+        // `slim` size knob wired to SetSlimmableSize.
+        use plugin_loader::manifest::NamArchitecture;
+        let mut pkg = nam_package_with_axes();
+        pkg.manifest.architecture = Some(NamArchitecture::A2);
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        assert!(
+            specs.iter().any(|s| s.path == "slim"),
+            "NAM/A2 schema must expose the `slim` knob; got: {:?}",
+            specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn nam_a1_and_legacy_synthesized_schema_have_no_slim_knob() {
+        // A1 models are not slimmable, and pre-#650 manifests have no
+        // architecture at all — neither exposes the slim knob (issue #657).
+        use plugin_loader::manifest::NamArchitecture;
+        let mut a1 = nam_package_with_axes();
+        a1.manifest.architecture = Some(NamArchitecture::A1);
+        assert!(
+            !synthesize_parameters_from_manifest(&a1)
+                .iter()
+                .any(|s| s.path == "slim"),
+            "A1 NAM must NOT expose the slim knob (not slimmable)"
+        );
+        let legacy = nam_package_with_axes(); // architecture: None
+        assert!(
+            !synthesize_parameters_from_manifest(&legacy)
+                .iter()
+                .any(|s| s.path == "slim"),
+            "legacy NAM (no architecture) must NOT expose the slim knob"
         );
     }
 

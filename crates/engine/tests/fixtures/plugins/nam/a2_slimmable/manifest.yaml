@@ -4,6 +4,7 @@ display_name: A2 Slimmable
 brand: nam
 type: amp
 backend: nam
+architecture: A2
 sources:
 - https://www.tone3000.com/
 parameters:

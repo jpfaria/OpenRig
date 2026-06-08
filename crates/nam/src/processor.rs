@@ -74,6 +74,26 @@ pub fn plugin_parameter_specs() -> Vec<ParameterSpec> {
     plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS)
 }
 
+/// User-facing `slim` knob for A2 SlimmableContainer models (issue #657):
+/// a 0..100 % size, where 100 % is the full model and lower values pick a
+/// smaller submodel via `SetSlimmableSize` (trading fidelity for CPU).
+///
+/// Exposed ONLY for NAM/A2 packages — A1 models are not slimmable, so the
+/// knob would be inert. The caller (`synthesize_parameters_from_manifest`)
+/// appends it based on the manifest's declared architecture.
+pub fn slim_parameter_spec() -> ParameterSpec {
+    float_parameter(
+        "slim",
+        "Slim",
+        None,
+        Some(SLIM_PERCENT_FULL),
+        0.0,
+        SLIM_PERCENT_FULL,
+        1.0,
+        ParameterUnit::Percent,
+    )
+}
+
 pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<ParameterSpec> {
     vec![
         float_parameter(
@@ -156,6 +176,12 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
+    /// A2 SlimmableContainer size, 0.0 (smallest submodel) .. 1.0 (full),
+    /// forwarded to `SetSlimmableSize` through the FFI (issue #657). The
+    /// user-facing `slim` knob is a 0..100 % percentage; this is its 0..1
+    /// ratio. Inert for A1 models (not slimmable). 1.0 = historical
+    /// full-size behavior.
+    pub slim_size: f32,
     /// True quando o `output_gain_db` do manifest (audit-populated)
     /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
     /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
@@ -183,7 +209,18 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
+    // Issue #657: full size by default — A2 models keep their historical
+    // full-fidelity behavior and A1 models ignore it. `SLIM_PERCENT_FULL`
+    // / 100.
+    slim_size: 1.0,
 };
+
+/// Full-size value of the user-facing `slim` knob, as a percentage. The
+/// knob is 0..100 % (0 = smallest submodel, 100 = full); the FFI /
+/// `SetSlimmableSize` want a 0.0..1.0 ratio, so the param value is divided
+/// by this. Single source of truth for the percent ⇄ ratio mapping
+/// (issue #657).
+pub const SLIM_PERCENT_FULL: f32 = 100.0;
 
 pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>, NamPluginParams)> {
     Ok((
@@ -218,6 +255,19 @@ pub fn plugin_params_from_set_with_defaults(
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
+        // Issue #657: the `slim` knob is a 0..100 % percentage; the FFI
+        // wants a 0..1 ratio. Read it as percent and convert, clamping to
+        // the valid range. Absent → the caller's ratio default (already
+        // 0..1), so this never double-divides.
+        slim_size: match params.get("slim") {
+            Some(value) => {
+                let percent = value
+                    .as_f32()
+                    .ok_or_else(|| anyhow::anyhow!("invalid float parameter 'slim'"))?;
+                (percent / SLIM_PERCENT_FULL).clamp(0.0, 1.0)
+            }
+            None => defaults.slim_size,
+        },
         // Não vem de `params` — é setado pelo `from_package` quando
         // o manifest tem `output_gain_db`. Defaults inherit do caller.
         audit_overrides_baked_output: defaults.audit_overrides_baked_output,
@@ -247,6 +297,7 @@ struct NamPluginConfig {
     bass: f32,
     middle: f32,
     treble: f32,
+    slim_size: f32,
     noise_gate_enabled: u8,
     eq_enabled: u8,
     ir_enabled: u8,
@@ -327,6 +378,8 @@ pub fn open_model_diag(model_path: &str) -> Result<*mut c_void> {
         bass: DEFAULT_PLUGIN_PARAMS.bass,
         middle: DEFAULT_PLUGIN_PARAMS.middle,
         treble: DEFAULT_PLUGIN_PARAMS.treble,
+        // Diagnostics measure the raw model at full size (issue #657).
+        slim_size: 1.0,
         noise_gate_enabled: 0,
         eq_enabled: 0,
         ir_enabled: 0,
@@ -436,6 +489,7 @@ impl NamProcessor {
             bass: params.bass,
             middle: params.middle,
             treble: params.treble,
+            slim_size: params.slim_size,
             noise_gate_enabled: params.noise_gate_enabled as u8,
             eq_enabled: params.eq_enabled as u8,
             ir_enabled: ir_path_c.is_some() as u8,
