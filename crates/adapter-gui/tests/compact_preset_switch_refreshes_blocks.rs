@@ -28,8 +28,7 @@ use std::path::PathBuf;
 /// the file (which legitimately uses `set_compact_blocks`). A whole-file
 /// `contains` would therefore pass falsely.
 fn on_switch_chain_preset_closure() -> String {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
     let src =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let needle = "on_switch_chain_preset";
