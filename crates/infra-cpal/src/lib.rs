@@ -54,6 +54,9 @@ mod jack_direct;
 mod control_worker;
 pub use control_worker::ControlWorker;
 
+mod live_runtime;
+pub use live_runtime::LiveRuntimeSlot;
+
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
