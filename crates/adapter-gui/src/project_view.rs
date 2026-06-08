@@ -569,6 +569,7 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
+                di_loop_selected_index: -1, // #661: refreshed by meter timer
             }
         })
         .collect::<Vec<_>>();
