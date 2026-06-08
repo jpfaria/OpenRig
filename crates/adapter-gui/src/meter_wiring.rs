@@ -394,6 +394,11 @@ pub fn start_meter_polling(
     let last_signature: std::rc::Rc<
         std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    // #661: bundled DI loop ids are static for the session (the di-loops
+    // directory is scanned once on project load by `replace_project_chains`);
+    // cache them here so the per-tick source-list refresh never hits the
+    // filesystem.
+    let bundled_di_loop_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
         let session_borrow = project_session.borrow();
@@ -498,23 +503,44 @@ pub fn start_meter_polling(
             // reflects the engine's current armed/disarmed state.
             let di_playing_now = controller.chain_has_di_loop(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
-            // #661: re-derive the loaded source's row index from the
-            // dispatcher so the popup ComboBox highlights the active source
-            // when reopened (the popup is re-instantiated on each show).
-            let di_selected_now = match session.dispatcher.di_loop_source_for_chain(&cid) {
-                Some(source) => {
-                    let sources: Vec<String> =
-                        row.di_loop_sources.iter().map(|s| s.to_string()).collect();
-                    crate::di_loop_ui_sources::di_loop_selected_index(&sources, &source)
-                }
-                None => -1,
-            };
+            // #661: re-derive the loaded source from the dispatcher so the
+            // popup ComboBox (a) lists a user-chosen File as a labelled entry
+            // and (b) highlights the active source when reopened (the popup is
+            // re-instantiated on each show).
+            let loaded_source = session.dispatcher.di_loop_source_for_chain(&cid);
+            let bundled_refs: Vec<&str> = bundled_di_loop_ids.iter().map(|s| s.as_str()).collect();
+            let desired_sources = crate::di_loop_ui_sources::build_di_loop_sources_with_loaded(
+                &bundled_refs,
+                loaded_source.as_ref(),
+            );
+            let di_selected_now = loaded_source.as_ref().map_or(-1, |s| {
+                crate::di_loop_ui_sources::di_loop_selected_index(&desired_sources, s)
+            });
             let di_selected_changed = row.di_loop_selected_index != di_selected_now;
-            if aggregate_changed || stream_meters_changed || di_changed || di_selected_changed {
+            let di_sources_changed = {
+                let current: Vec<String> =
+                    row.di_loop_sources.iter().map(|s| s.to_string()).collect();
+                current != desired_sources
+            };
+            if aggregate_changed
+                || stream_meters_changed
+                || di_changed
+                || di_selected_changed
+                || di_sources_changed
+            {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
+                }
+                if di_sources_changed {
+                    row.di_loop_sources =
+                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+                            desired_sources
+                                .into_iter()
+                                .map(slint::SharedString::from)
+                                .collect::<Vec<_>>(),
+                        )));
                 }
                 if di_selected_changed {
                     row.di_loop_selected_index = di_selected_now;

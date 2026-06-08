@@ -15,6 +15,8 @@
 //! Both functions are pure (no I/O, no Slint). Tested in
 //! `tests/issue_614_di_loop_ui_sources.rs`.
 
+use std::path::Path;
+
 use application::di_loader::DiLoopSource;
 
 /// The last entry in the ComboBox — signals "open the file picker".
@@ -62,20 +64,52 @@ pub fn build_di_loop_sources(bundled_ids: &[&str]) -> Vec<String> {
     result
 }
 
+/// Display label for a user-chosen [`DiLoopSource::File`] in the ComboBox —
+/// the file name with extension (e.g. `/x/ambience.wav` → `ambience.wav`),
+/// falling back to the full path string when there is no file name (#661).
+pub fn di_loop_file_label(path: &Path) -> String {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map_or_else(|| path.to_string_lossy().into_owned(), |n| n.to_string())
+}
+
+/// Build the ComboBox source list including the currently loaded source.
+///
+/// Bundled ids first; then, when `loaded` is a [`DiLoopSource::File`], its
+/// [`di_loop_file_label`] (so the chosen file is visible and selectable);
+/// then [`CHOOSE_FILE_SENTINEL`] last. A `Bundled`/`None` `loaded` adds no
+/// extra entry (issue #661).
+pub fn build_di_loop_sources_with_loaded(
+    bundled_ids: &[&str],
+    loaded: Option<&DiLoopSource>,
+) -> Vec<String> {
+    let mut result: Vec<String> = bundled_ids.iter().map(|id| id.to_string()).collect();
+    if let Some(DiLoopSource::File(path)) = loaded {
+        let label = di_loop_file_label(path);
+        if !result.iter().any(|s| *s == label) {
+            result.push(label);
+        }
+    }
+    result.push(CHOOSE_FILE_SENTINEL.to_string());
+    result
+}
+
 /// Index of the currently selected `source` within the ComboBox `sources`
 /// list, or `-1` when it has no row to highlight (issue #661).
 ///
-/// A [`DiLoopSource::Bundled`] maps to the position of its id; an id not in
-/// the list (or a [`DiLoopSource::File`], which is never a bundled entry)
-/// yields `-1`. The `-1` sentinel matches Slint's `ComboBox.current-index`
-/// "nothing selected" convention.
+/// A [`DiLoopSource::Bundled`] maps to the position of its id; a
+/// [`DiLoopSource::File`] maps to the position of its [`di_loop_file_label`]
+/// (present only when the list was built via
+/// [`build_di_loop_sources_with_loaded`]). Anything not in the list yields
+/// `-1`, matching Slint's `ComboBox.current-index` "nothing selected" value.
 pub fn di_loop_selected_index(sources: &[String], source: &DiLoopSource) -> i32 {
-    let DiLoopSource::Bundled(id) = source else {
-        return -1;
+    let needle = match source {
+        DiLoopSource::Bundled(id) => id.clone(),
+        DiLoopSource::File(path) => di_loop_file_label(path),
     };
     sources
         .iter()
-        .position(|s| s == id)
+        .position(|s| *s == needle)
         .map_or(-1, |pos| pos as i32)
 }
 
