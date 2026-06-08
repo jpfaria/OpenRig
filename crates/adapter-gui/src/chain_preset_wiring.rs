@@ -383,13 +383,12 @@ pub(crate) fn preset_rename_target_from_path(path: &std::path::Path) -> Option<S
 /// Case-insensitive substring filter for the load picker's search
 /// field. Empty query passes everything through. Issue #510.
 pub(crate) fn filter_preset_names<'a>(names: &'a [String], query: &str) -> Vec<&'a String> {
+    // Share the matching predicate with the bank dropdown's search
+    // (`preset_search`) so both fields behave identically. Issue #659.
     let q = query.trim().to_lowercase();
-    if q.is_empty() {
-        return names.iter().collect();
-    }
     names
         .iter()
-        .filter(|n| n.to_lowercase().contains(&q))
+        .filter(|n| crate::preset_search::preset_label_matches(n, &q))
         .collect()
 }
 

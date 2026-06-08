@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, Timer, VecModel};
+use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -22,7 +22,7 @@ use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
-use crate::{AppWindow, ChainRigNav, ProjectChainItem};
+use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
@@ -270,6 +270,62 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
             refresh_chain_rig_nav(&window, session);
         });
     }
+    wire_preset_picker_search(window);
+}
+
+/// #659: search-as-you-type for the preset bank dropdown (`PresetSelect`).
+/// Only one dropdown popup is open at a time, so a single cached label list
+/// backs whichever picker is open — no per-chain-row filtered model (which
+/// would hit the in-place mutation dance of #537). `open` caches the
+/// picker's full label list and publishes every row; each keystroke
+/// republishes the filtered view. Every published `PresetOption` keeps its
+/// ORIGINAL bank slot, so selection (via `switch-chain-preset`) is unaffected
+/// by filtering. Filtering lives here because Slint has no string `contains`.
+pub(crate) fn wire_preset_picker_search<W>(window: &W)
+where
+    W: ComponentHandle + 'static,
+    for<'a> PresetPicker<'a>: slint::Global<'a, W>,
+{
+    let full_labels: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    {
+        let weak = window.as_weak();
+        let full_labels = full_labels.clone();
+        PresetPicker::get(window).on_open(move |labels| {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            let labels: Vec<String> = labels.iter().map(|s| s.to_string()).collect();
+            publish_preset_options(&window, &labels, "");
+            *full_labels.borrow_mut() = labels;
+        });
+    }
+    {
+        let weak = window.as_weak();
+        let full_labels = full_labels.clone();
+        PresetPicker::get(window).on_query_changed(move |query| {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            publish_preset_options(&window, &full_labels.borrow(), query.as_str());
+        });
+    }
+}
+
+/// Publish the filtered preset rows onto the `PresetPicker` global. Each row
+/// carries its original bank slot (see `preset_search`).
+fn publish_preset_options<W>(window: &W, labels: &[String], query: &str)
+where
+    W: ComponentHandle,
+    for<'a> PresetPicker<'a>: slint::Global<'a, W>,
+{
+    let options: Vec<PresetOption> = crate::preset_search::filter_preset_labels_indexed(labels, query)
+        .into_iter()
+        .map(|(slot, label)| PresetOption {
+            label: SharedString::from(label),
+            slot: slot as i32,
+        })
+        .collect();
+    PresetPicker::get(window).set_options(ModelRc::new(VecModel::from(options)));
 }
 
 /// Dispatches `Command::RenameRigPreset` for the chain at

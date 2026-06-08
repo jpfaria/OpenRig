@@ -1,0 +1,223 @@
+// The chain preset bank dropdown. Dark/near-black field with big bold type
+// (matches the chain title) and a caret. The popup is a search-as-you-type
+// finder with a bounded, scrolling list — mirrors the block model picker
+// (`ModelSelectWithSearch`) so a large bank no longer overflows the screen
+// (issue #659). Extracted from chain_title_preset.slint to keep that file
+// under the 500-line cap.
+//
+// Filtering lives in Rust (Slint has no string `contains`): on open we hand
+// the full label list to `PresetPicker.open`; each keystroke fires
+// `PresetPicker.query-changed`; Rust republishes `PresetPicker.options`
+// (each row carrying its original bank slot). `picked` reports that slot, so
+// selection stays correct regardless of the filtered order.
+
+import { Theme } from "../theme.slint";
+import { PresetOption } from "../models.slint";
+import { PresetPicker } from "../preset_picker_globals.slint";
+
+export component PresetSelect inherits Rectangle {
+    in property <[string]> labels;
+    in property <int> active-index;
+    // Caps the popup so it never runs past the screen; it shrinks for short
+    // banks and scrolls for long ones.
+    in property <length> max-popup-height: 380px;
+    callback picked(int);
+    height: 38px;
+    border-radius: 6px;
+    background: #0a0d12;
+    border-width: 1px;
+    border-color: ta.has-hover ? #4d5868 : #2b3340;
+    animate border-color { duration: 150ms; }
+
+    private property <length> header-height: 54px;
+    private property <length> row-height: 34px;
+    private property <length> list-height:
+        PresetPicker.options.length > 0
+            ? PresetPicker.options.length * root.row-height
+            : root.row-height;
+
+    Text {
+        x: 14px;
+        width: parent.width - 44px;
+        height: parent.height;
+        text: root.active-index >= 0 && root.active-index < root.labels.length
+            ? root.labels[root.active-index]
+            : "";
+        color: #f1f4f8;
+        font-size: 18px;
+        font-weight: 800;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Image {
+        x: parent.width - 30px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/arrow-down.svg");
+        image-fit: contain;
+        colorize: ta.has-hover ? #ffffff : #8a94a2;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            // Reset the filter on every open so a stale query never hides
+            // half the bank, then hand the full list to Rust to publish.
+            PresetPicker.search = "";
+            PresetPicker.open(root.labels);
+            pop.show();
+        }
+    }
+    accessible-role: button;
+    accessible-label: @tr("Preset selector");
+
+    pop := PopupWindow {
+        x: 0px;
+        y: root.height + 4px;
+        // PopupWindow has no intrinsic size — size it explicitly or it
+        // collapses to 0. Cap to `max-popup-height` so it fits the screen.
+        width: root.width;
+        height: min(
+            root.header-height + root.list-height + 8px,
+            root.max-popup-height);
+        close-policy: close-on-click-outside;
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
+            border-width: 1px;
+            border-color: #2b3340;
+            border-radius: 6px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-y: 6px;
+            clip: true;
+
+            // Sticky search header.
+            Rectangle {
+                x: 6px;
+                y: 6px;
+                width: parent.width - 12px;
+                height: 40px;
+                background: #15191f;
+                border-width: 1px;
+                border-color: #2b3340;
+                border-radius: 6px;
+
+                Image {
+                    x: 10px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
+                }
+
+                input := TextInput {
+                    x: 30px;
+                    y: 0;
+                    width: parent.width - 30px - (PresetPicker.search == "" ? 8px : 28px);
+                    height: parent.height;
+                    text <=> PresetPicker.search;
+                    color: #d8e0ff;
+                    font-size: 16px;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => {
+                        PresetPicker.query-changed(self.text);
+                    }
+                }
+
+                if PresetPicker.search == "" : Text {
+                    x: 30px;
+                    y: 0;
+                    width: parent.width - 38px;
+                    height: parent.height;
+                    text: @tr("preset-search-placeholder");
+                    color: #6a6a82;
+                    font-size: 16px;
+                    vertical-alignment: center;
+                }
+
+                if PresetPicker.search != "" : TouchArea {
+                    x: parent.width - 28px;
+                    y: 0;
+                    width: 24px;
+                    height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => {
+                        PresetPicker.search = "";
+                        PresetPicker.query-changed("");
+                    }
+                    Image {
+                        x: (parent.width - 12px) / 2;
+                        y: (parent.height - 12px) / 2;
+                        width: 12px;
+                        height: 12px;
+                        source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                        colorize: #8a8aa2;
+                    }
+                }
+            }
+
+            // Empty state.
+            if PresetPicker.options.length == 0 : Text {
+                x: 0;
+                y: 58px;
+                width: parent.width;
+                height: 36px;
+                text: @tr("status-no-presets-found");
+                color: #6a6a82;
+                font-size: 15px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+
+            // Scrolling list. Flickable scrolls with wheel/trackpad and
+            // renders no visible scrollbar — same choice as the block picker.
+            if PresetPicker.options.length > 0 : Flickable {
+                x: 0;
+                y: root.header-height;
+                width: parent.width;
+                height: parent.height - root.header-height - 4px;
+                viewport-width: self.width;
+                viewport-height: PresetPicker.options.length * root.row-height + 4px;
+
+                for option[i] in PresetPicker.options : Rectangle {
+                    x: 4px;
+                    y: i * root.row-height;
+                    width: parent.width - 8px;
+                    height: root.row-height;
+                    border-radius: 4px;
+                    background: option.slot == root.active-index
+                        ? Theme.palette.accent-end
+                        : (row-ta.has-hover ? #1b2230 : transparent);
+                    Text {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        height: parent.height;
+                        text: option.label;
+                        color: #f1f4f8;
+                        font-size: 16px;
+                        font-weight: option.slot == root.active-index ? 800 : 600;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    row-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.picked(option.slot);
+                            pop.close();
+                        }
+                        // Let wheel/trackpad scroll bubble to the Flickable
+                        // instead of being swallowed by the row.
+                        scroll-event(_) => {
+                            reject
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

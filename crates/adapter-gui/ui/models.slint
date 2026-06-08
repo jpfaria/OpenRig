@@ -156,6 +156,15 @@ export struct BlockModelPickerItem {
     thumbnail_path: string,
 }
 
+// One row of the chain preset bank dropdown (`PresetSelect`), already
+// filtered by the search field. `slot` is the row's ORIGINAL position in
+// the unfiltered bank — selecting it dispatches `Preset(slot)`, so it must
+// survive filtering (the filtered list reorders/drops rows). Issue #659.
+export struct PresetOption {
+    label: string,
+    slot: int,
+}
+
 export struct BlockKnobOverlay {
     path: string,
     label: string,
