@@ -252,6 +252,15 @@ impl MeterTapApi for infra_cpal::ProjectRuntimeController {
     }
 }
 
+/// Issue #670: a chain is "overloading" when its audio callback counted
+/// MORE deadline misses (xruns) than the previous meter poll saw — i.e.
+/// the user is hearing dropouts right now. The timer keeps the previous
+/// per-chain count; a decrease means the counter was reset (e.g. on a
+/// chain rebuild), not a fresh overrun.
+pub(crate) fn chain_overloaded(prev_xruns: u64, cur_xruns: u64) -> bool {
+    cur_xruns > prev_xruns
+}
+
 /// Build the per-stream meter rings for a chain by asking the runtime
 /// how many streams it actually owns and subscribing each one
 /// independently.
@@ -394,6 +403,12 @@ pub fn start_meter_polling(
     let last_signature: std::rc::Rc<
         std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    // Issue #670: previous-tick xrun count per chain, so the overload
+    // indicator lights when the audio callback missed a NEW deadline since
+    // the last poll (and a warning is logged once per transition).
+    let last_xruns: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     // #661: bundled DI loop ids are static for the session (the di-loops
     // directory is scanned once on project load by `replace_project_chains`);
     // cache them here so the per-tick source-list refresh never hits the
@@ -522,14 +537,36 @@ pub fn start_meter_polling(
                     row.di_loop_sources.iter().map(|s| s.to_string()).collect();
                 current != desired_sources
             };
+            // Issue #670: per-chain audio overload — true when the audio
+            // callback counted new deadline misses (xruns) since the last
+            // tick. Logged once per transition into overload so the cause
+            // of the crackle is visible in the log too.
+            let cur_xruns = controller.chain_xrun_count(&cid);
+            let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
+            let overloaded = chain_overloaded(prev_xruns, cur_xruns);
+            last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
+            if overloaded && !row.audio_overload {
+                log::warn!(
+                    "[{}] audio overload: {} new xrun(s) — the rig is too heavy \
+                     for the current buffer size; raise the buffer or reduce \
+                     simultaneous NAM amps (#670)",
+                    cid.0,
+                    cur_xruns.saturating_sub(prev_xruns),
+                );
+            }
+            let overload_changed = row.audio_overload != overloaded;
             if aggregate_changed
                 || stream_meters_changed
                 || di_changed
                 || di_selected_changed
                 || di_sources_changed
+                || overload_changed
             {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
+                if overload_changed {
+                    row.audio_overload = overloaded;
+                }
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
                 }

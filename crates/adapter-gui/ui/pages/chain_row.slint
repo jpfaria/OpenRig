@@ -152,6 +152,21 @@ export component ChainRow inherits Rectangle {
             colorize: #6a7483;
         }
 
+        // Issue #670: audio-overload (xrun) badge. Lights red while the
+        // chain's audio callback is missing its deadline — the rig is too
+        // heavy for the current buffer size and the user is hearing
+        // dropouts ("crackle"). Visible only while overloading.
+        Image {
+            x: 28px;
+            y: 17px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../assets/overload.svg");
+            image-fit: contain;
+            colorize: #e02424;
+            visible: root.chain.audio_overload;
+        }
+
         ChainTitlePreset {
             x: 72px;
             y: 9px;

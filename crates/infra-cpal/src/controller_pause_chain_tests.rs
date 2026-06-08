@@ -254,3 +254,29 @@ fn upsert_chain_enabled_resumes_every_input_group_runtime() {
          and its audio stays silent after toggle-on."
     );
 }
+
+// ── Issue #670: per-chain xrun count accessor for the GUI overload meter ──
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_xrun_count_reports_runtime_overruns() {
+    let chain_id = ChainId("chain:670:xrun".into());
+    let (controller, runtime_arc) = controller_with_active_chain(&chain_id);
+    assert_eq!(controller.chain_xrun_count(&chain_id), 0);
+    // Two overrunning callbacks (2 ms each against a 1 ms deadline).
+    runtime_arc.record_callback_load(2_000_000, 1_000_000);
+    runtime_arc.record_callback_load(2_000_000, 1_000_000);
+    assert_eq!(controller.chain_xrun_count(&chain_id), 2);
+}
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_xrun_count_is_zero_for_unknown_chain() {
+    let chain_id = ChainId("chain:670:known".into());
+    let (controller, _rt) = controller_with_active_chain(&chain_id);
+    assert_eq!(
+        controller.chain_xrun_count(&ChainId("nope".into())),
+        0,
+        "unknown chain has no runtime, so no xruns"
+    );
+}

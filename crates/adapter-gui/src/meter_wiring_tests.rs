@@ -579,3 +579,23 @@ fn build_streams_returns_empty_when_chain_has_no_runtime() {
          rebuilt"
     );
 }
+
+// ── Issue #670: per-chain audio-overload (xrun) indicator ────────────────
+
+#[test]
+fn chain_overloaded_when_new_xruns_since_last_poll() {
+    // The audio callback counted more deadline misses than the previous
+    // poll saw → the user is hearing dropouts right now.
+    assert!(super::chain_overloaded(10, 13));
+}
+
+#[test]
+fn chain_not_overloaded_when_xrun_count_is_stable() {
+    assert!(!super::chain_overloaded(13, 13));
+}
+
+#[test]
+fn chain_not_overloaded_when_counter_was_reset() {
+    // reset_load_stats zeroed the counter between polls — not a new overrun.
+    assert!(!super::chain_overloaded(13, 0));
+}

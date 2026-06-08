@@ -244,6 +244,19 @@ impl ProjectRuntimeController {
             .sum()
     }
 
+    /// Total audio-thread deadline overruns (xruns) counted across this
+    /// chain's per-input runtimes (issue #670). Read by the GUI meter timer
+    /// (~30 Hz) to drive the per-chain overload indicator, and exposed via
+    /// `QueryKind` for MCP / gRPC parity. Unknown / runtime-less chains
+    /// return 0.
+    pub fn chain_xrun_count(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.xrun_count())
+            .sum()
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {
