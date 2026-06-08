@@ -178,6 +178,20 @@ impl LocalDispatcher {
             .get(chain)
             .map(|(_, arc)| Arc::clone(arc))
     }
+
+    /// #661: retrieve WHICH source is currently loaded for `chain`, if any.
+    ///
+    /// Parity twin of [`Self::di_loop_for_chain`]: the GUI reads this back so
+    /// the DI loop popup's ComboBox can highlight the active source when it is
+    /// reopened (the popup is re-instantiated on each show, so the selection
+    /// must be re-derived from dispatcher state rather than held in the view).
+    /// Returns `None` when no source has been loaded for this chain yet.
+    pub fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
+        self.di_loop_state
+            .borrow()
+            .get(chain)
+            .map(|(source, _)| source.clone())
+    }
 }
 
 impl CommandDispatcher for LocalDispatcher {

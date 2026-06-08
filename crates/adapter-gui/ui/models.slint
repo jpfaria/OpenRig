@@ -108,6 +108,10 @@ export struct ProjectChainItem {
     /// Issue #614: ordered list of available DI loop source names for the
     /// chain-tile ComboBox. Bundled ids first, then "Choose file…" sentinel.
     di_loop_sources: [string],
+    /// Issue #661: index into `di_loop_sources` of the currently loaded DI
+    /// loop source, or -1 when none. Refreshed by the meter timer from the
+    /// dispatcher so the popup ComboBox highlights the active source on reopen.
+    di_loop_selected_index: int,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the

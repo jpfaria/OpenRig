@@ -498,11 +498,26 @@ pub fn start_meter_polling(
             // reflects the engine's current armed/disarmed state.
             let di_playing_now = controller.chain_has_di_loop(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
-            if aggregate_changed || stream_meters_changed || di_changed {
+            // #661: re-derive the loaded source's row index from the
+            // dispatcher so the popup ComboBox highlights the active source
+            // when reopened (the popup is re-instantiated on each show).
+            let di_selected_now = match session.dispatcher.di_loop_source_for_chain(&cid) {
+                Some(source) => {
+                    let sources: Vec<String> =
+                        row.di_loop_sources.iter().map(|s| s.to_string()).collect();
+                    crate::di_loop_ui_sources::di_loop_selected_index(&sources, &source)
+                }
+                None => -1,
+            };
+            let di_selected_changed = row.di_loop_selected_index != di_selected_now;
+            if aggregate_changed || stream_meters_changed || di_changed || di_selected_changed {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
+                }
+                if di_selected_changed {
+                    row.di_loop_selected_index = di_selected_now;
                 }
                 if stream_meters_changed {
                     let model = std::rc::Rc::new(slint::VecModel::default());

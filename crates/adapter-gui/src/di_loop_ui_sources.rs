@@ -62,6 +62,23 @@ pub fn build_di_loop_sources(bundled_ids: &[&str]) -> Vec<String> {
     result
 }
 
+/// Index of the currently selected `source` within the ComboBox `sources`
+/// list, or `-1` when it has no row to highlight (issue #661).
+///
+/// A [`DiLoopSource::Bundled`] maps to the position of its id; an id not in
+/// the list (or a [`DiLoopSource::File`], which is never a bundled entry)
+/// yields `-1`. The `-1` sentinel matches Slint's `ComboBox.current-index`
+/// "nothing selected" convention.
+pub fn di_loop_selected_index(sources: &[String], source: &DiLoopSource) -> i32 {
+    let DiLoopSource::Bundled(id) = source else {
+        return -1;
+    };
+    sources
+        .iter()
+        .position(|s| s == id)
+        .map_or(-1, |pos| pos as i32)
+}
+
 /// Map a selected ComboBox entry back to a [`DiLoopSource`].
 ///
 /// Returns `None` for the sentinel or any unknown string so the caller
