@@ -33,10 +33,10 @@ blocks:
     mix: 50.0
 - type: amp
   enabled: true
-  model: nam_dumble
+  model: nam_dumble_a1
   params:
     cabinet: 4x12_v30
-    gain: drive
+    output_db: -2.9501152
 - type: delay
   enabled: true
   model: tape_vintage

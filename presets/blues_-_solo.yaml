@@ -26,13 +26,15 @@ blocks:
     mix: 70.0
 - type: gain
   enabled: true
-  model: nam_ibanez_ts9
-  params: {}
+  model: nam_ibanez_ts9_a1
+  params:
+    output_db: -4.0818596
 - type: amp
   enabled: true
-  model: nam_fender_super_reverb_1977
+  model: nam_fender_super_reverb_1977_a1
   params:
     mic: sm57_akg414
+    output_db: 5.9153023
 - type: delay
   enabled: true
   model: tape_vintage

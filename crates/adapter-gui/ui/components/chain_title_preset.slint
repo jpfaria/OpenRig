@@ -7,6 +7,7 @@
 
 import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
+import { PresetSelect } from "preset_select.slint";
 
 // Small square icon button (press to fire). Mirrors the chain action
 // icons; own copy so this file has no chain_row dependency.
@@ -39,100 +40,6 @@ component IconButton inherits Rectangle {
     }
     accessible-role: button;
     accessible-label: root.a11y;
-}
-
-// The preset select: dark/near-black field, big bold type (matches the
-// chain title), caret on the right. The list is a PopupWindow so it
-// renders on the overlay layer (never clipped by / under the blocks).
-component PresetSelect inherits Rectangle {
-    in property <[string]> labels;
-    in property <int> active-index;
-    callback picked(int);
-    height: 38px;
-    border-radius: 6px;
-    background: #0a0d12;
-    border-width: 1px;
-    border-color: ta.has-hover ? #4d5868 : #2b3340;
-    animate border-color { duration: 150ms; }
-
-    Text {
-        x: 14px;
-        width: parent.width - 44px;
-        height: parent.height;
-        text: root.active-index >= 0 && root.active-index < root.labels.length
-            ? root.labels[root.active-index]
-            : "";
-        color: #f1f4f8;
-        font-size: 18px;
-        font-weight: 800;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-    Image {
-        x: parent.width - 30px;
-        y: (parent.height - 16px) / 2;
-        width: 16px;
-        height: 16px;
-        source: @image-url("../assets/arrow-down.svg");
-        image-fit: contain;
-        colorize: ta.has-hover ? #ffffff : #8a94a2;
-    }
-    ta := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            pop.show();
-        }
-    }
-    accessible-role: button;
-    accessible-label: @tr("Preset selector");
-
-    pop := PopupWindow {
-        x: 0px;
-        y: 40px;
-        // PopupWindow has no intrinsic size — without an EXPLICIT
-        // width/height it collapses to 0 and the list is invisible /
-        // unclickable (the bug: selecting did nothing). Size it to the
-        // item count, exactly like the working ChainVolumeButton popup.
-        width: root.width;
-        height: root.labels.length * 34px + 8px;
-        close-policy: close-on-click-outside;
-        Rectangle {
-            width: 100%;
-            height: 100%;
-            background: #0a0d12;
-            border-width: 1px;
-            border-color: #2b3340;
-            border-radius: 6px;
-            VerticalLayout {
-                padding: 4px;
-                for label[i] in root.labels: Rectangle {
-                    height: 34px;
-                    border-radius: 4px;
-                    background: i == root.active-index
-                        ? Theme.palette.accent-end
-                        : (row-ta.has-hover ? #1b2230 : transparent);
-                    Text {
-                        x: 10px;
-                        width: parent.width - 20px;
-                        height: parent.height;
-                        text: label;
-                        color: #f1f4f8;
-                        font-size: 16px;
-                        font-weight: i == root.active-index ? 800 : 600;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    row-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.picked(i);
-                            pop.close();
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 // One compact scene number button. Active = filled accent; otherwise a

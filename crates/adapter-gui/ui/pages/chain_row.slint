@@ -199,6 +199,7 @@ export component ChainRow inherits Rectangle {
             y: 12px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
+            selected-index: root.chain.di_loop_selected_index;
             di-loop-source-selected(src) => {
                 root.di-loop-source-selected(root.chain-index, src);
             }

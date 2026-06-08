@@ -23,13 +23,14 @@ blocks:
     release_ms: 80.0
 - type: gain
   enabled: true
-  model: nam_ibanez_ts9
-  params: {}
+  model: nam_ibanez_ts9_a1
+  params:
+    output_db: -4.0818596
 - type: amp
   enabled: true
-  model: nam_mesa_triple_rectifier
+  model: nam_mesa_triple_rectifier_a1
   params:
-    voicing: chaosball
+    output_db: -18.2836208
     mic: sm57
 - type: reverb
   enabled: true

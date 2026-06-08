@@ -103,6 +103,11 @@ msgctxt "ModelSelectWithSearch"
 msgid "placeholder-search-models"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgctxt "PresetSelect"
+msgid "status-no-presets-found"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgctxt "ModelSelectWithSearch"
 msgid "status-no-models-found"

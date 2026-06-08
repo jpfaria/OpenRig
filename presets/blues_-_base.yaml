@@ -26,13 +26,15 @@ blocks:
     mix: 60.0
 - type: gain
   enabled: false
-  model: nam_ibanez_ts9
-  params: {}
+  model: nam_ibanez_ts9_a1
+  params:
+    output_db: -4.0818596
 - type: amp
   enabled: true
-  model: nam_fender_deluxe_reverb_65
+  model: nam_fender_deluxe_reverb_65_a1
   params:
     mic: sm57_royer
+    output_db: -8.6591778
 - type: delay
   enabled: false
   model: analog_warm
@@ -44,9 +46,8 @@ blocks:
   enabled: true
   model: spring
   params:
-    room_size: 40.0
-    damping: 60.0
     mix: 22.0
+    damping: 60.0
 - type: dynamics
   enabled: true
   model: limiter_brickwall

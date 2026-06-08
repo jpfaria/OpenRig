@@ -87,7 +87,7 @@ install_name_tool \
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
 cp -r assets                   "$APP/Contents/Resources/assets"
 
-# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# Bundled preset library: the default presets under presets/*.yaml ship
 # next to plugins/ and assets/ so the app finds them via
 # infra_filesystem::detect_data_root().join("presets"). Without this copy,
 # a fresh install shows an empty preset list.
