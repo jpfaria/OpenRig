@@ -141,9 +141,7 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // runtime size lever (SetSlimmableSize). A1 models are not
             // slimmable, so the knob is appended only for A2 — driven by
             // the manifest's declared architecture (issue #650).
-            if package.manifest.architecture
-                == Some(plugin_loader::manifest::NamArchitecture::A2)
-            {
+            if package.manifest.architecture == Some(plugin_loader::manifest::NamArchitecture::A2) {
                 specs.push(nam::processor::slim_parameter_spec());
             }
             specs
