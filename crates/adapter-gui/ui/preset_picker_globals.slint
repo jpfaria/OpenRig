@@ -1,0 +1,26 @@
+// Shared state + actions for the chain preset bank dropdown (`PresetSelect`),
+// issue #659. Only one bank dropdown popup is open at a time (PopupWindow
+// closes on click-outside), so a single global backs whichever picker is
+// currently open — no per-chain-row filtered model, which would otherwise
+// hit the in-place mutation dance of #537.
+//
+// Rust owns the filter logic (Slint has no string `contains`): `open` caches
+// the picker's full label list and publishes `options` (all rows); each
+// keystroke fires `query-changed`, and Rust republishes `options` filtered.
+// Every `PresetOption` carries its original bank slot, so selection stays
+// correct after filtering.
+import { PresetOption } from "models.slint";
+
+export global PresetPicker {
+    // Filtered rows for the currently-open dropdown. Each carries its
+    // original bank slot.
+    in property <[PresetOption]> options;
+    // Two-way bound to the search field's text so Rust can reset it on open.
+    in-out property <string> search;
+
+    // Fired when a dropdown opens, carrying that picker's full (unfiltered)
+    // label list. Rust caches it and publishes `options` with every slot.
+    callback open([string]);
+    // Fired on every keystroke in the search field.
+    callback query-changed(string);
+}

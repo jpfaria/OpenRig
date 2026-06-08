@@ -127,6 +127,7 @@ pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
 mod model_search;
 mod model_search_wiring;
+mod preset_search;
 mod project_ops;
 mod project_view;
 mod project_view_assets;

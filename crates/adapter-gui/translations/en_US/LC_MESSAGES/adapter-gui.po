@@ -87,6 +87,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "Search models..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "No presets found"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "No models found"

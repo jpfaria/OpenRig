@@ -285,6 +285,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 }
             });
         }
+        // #659: the preset bank dropdown's search runs against this window's
+        // own `PresetPicker` global (each Slint window owns its globals), so
+        // wire it here too — without it the compact view's finder would
+        // never populate.
+        crate::chain_rig_nav_wiring::wire_preset_picker_search(&compact_win);
         {
             let weak_main = window.as_weak();
             compact_win.on_switch_chain_scene(move |s| {
