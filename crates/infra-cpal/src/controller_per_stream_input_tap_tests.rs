@@ -147,6 +147,8 @@ fn controller_with_single_runtime(
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

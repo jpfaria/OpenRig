@@ -23,14 +23,18 @@ use anyhow::anyhow;
 use anyhow::Result;
 use std::collections::HashMap;
 
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+
 use domain::ids::ChainId;
-use engine::runtime::RuntimeGraph;
+use engine::runtime::{ChainRuntimeState, RuntimeGraph};
 use project::chain::Chain;
 use project::project::Project;
 
 use crate::active_runtime::ActiveChainRuntime;
 use crate::elastic::compute_elastic_targets_for_chain;
 use crate::resolved::ResolvedChainAudioConfig;
+use crate::{build_chain_runtime, BuildRequest, ControlWorker, LiveRuntimeSlot};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::host::using_jack_direct;
@@ -55,6 +59,13 @@ use crate::validation::{
 pub struct ProjectRuntimeController {
     pub(crate) runtime_graph: RuntimeGraph,
     pub(crate) active_chains: HashMap<ChainId, ActiveChainRuntime>,
+    /// Issue #672 — per-`(chain, group)` swap point. The control worker
+    /// publishes a rebuilt runtime here; once the stream callbacks read through
+    /// these slots the swap is observed live, with no stream rebuild.
+    pub(crate) chain_slots: HashMap<(ChainId, usize), LiveRuntimeSlot>,
+    /// Issue #672 — dedicated thread that builds chain runtimes off the
+    /// frontend thread so heavy commands never block the UI.
+    pub(crate) worker: ControlWorker,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -68,9 +79,16 @@ impl ProjectRuntimeController {
     /// `ProjectRuntimeController` without opening audio devices (e.g. to verify
     /// that `set_chain_di_loop` / `chain_has_di_loop` work without cpal I/O).
     pub fn for_testing(graph: RuntimeGraph) -> Self {
+        let chain_slots = graph
+            .chains
+            .iter()
+            .map(|(key, runtime)| (key.clone(), LiveRuntimeSlot::new(Arc::clone(runtime))))
+            .collect();
         Self {
             runtime_graph: graph,
             active_chains: HashMap::new(),
+            chain_slots,
+            worker: ControlWorker::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -85,6 +103,8 @@ impl ProjectRuntimeController {
                 chains: HashMap::new(),
             },
             active_chains: HashMap::new(),
+            chain_slots: HashMap::new(),
+            worker: ControlWorker::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -92,6 +112,74 @@ impl ProjectRuntimeController {
         };
         controller.sync_project(project)?;
         Ok(controller)
+    }
+
+    /// Issue #672 — read a chain's current live runtime (group 0), reflecting
+    /// any runtime the control worker has published into the live slot.
+    #[must_use]
+    pub fn chain_runtime(&self, chain_id: &ChainId) -> Option<Arc<ChainRuntimeState>> {
+        if let Some(slot) = self.chain_slots.get(&(chain_id.clone(), 0)) {
+            return Some(slot.load());
+        }
+        self.runtime_graph
+            .chains
+            .get(&(chain_id.clone(), 0))
+            .map(Arc::clone)
+    }
+
+    /// Issue #672 — rebuild a chain's runtime on the control worker and publish
+    /// it into the live slot, without blocking the caller (frontend thread).
+    ///
+    /// Returns a completion handle. The heavy build AND the drop of the
+    /// superseded runtime both run on the worker thread; the frontend thread
+    /// only enqueues the request. Applies to chains that already have a runtime
+    /// (the freeze case — re-activating / editing a live chain); a brand-new
+    /// chain is still built synchronously by `sync_project` at startup.
+    pub fn schedule_chain_rebuild(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        buffer_sizes: Vec<usize>,
+    ) -> Receiver<Result<ChainId>> {
+        let key = (chain.id.clone(), 0);
+        // Seed the slot from the current graph runtime if it has not been
+        // created yet (chain built before its slot was wired).
+        if !self.chain_slots.contains_key(&key) {
+            if let Some(runtime) = self.runtime_graph.chains.get(&key).map(Arc::clone) {
+                self.chain_slots
+                    .insert(key.clone(), LiveRuntimeSlot::new(runtime));
+            }
+        }
+
+        let chain_id = chain.id.clone();
+        let request = BuildRequest {
+            chain: chain.clone(),
+            sample_rate,
+            buffer_sizes,
+        };
+
+        match self.chain_slots.get(&key) {
+            Some(slot) => {
+                let slot = slot.handle();
+                self.worker.submit(move || -> Result<ChainId> {
+                    let runtime = build_chain_runtime(&request)?;
+                    // The superseded runtime is returned here and dropped on the
+                    // worker thread — never on the audio or frontend thread.
+                    let _superseded = slot.publish(runtime);
+                    Ok(chain_id)
+                })
+            }
+            None => {
+                // No existing runtime to swap — out of scope for the async
+                // rebuild path (a first build is synchronous via sync_project).
+                let (tx, rx) = std::sync::mpsc::channel();
+                let _ = tx.send(Err(anyhow::anyhow!(
+                    "no existing runtime for chain '{}' to rebuild",
+                    chain_id.0
+                )));
+                rx
+            }
+        }
     }
 
     /// Translate a detected USB audio card + project-level device settings
