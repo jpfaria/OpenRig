@@ -47,11 +47,16 @@ pub(crate) fn sync_project_runtime(
     session: &ProjectSession,
 ) -> Result<()> {
     let proj = session.project.borrow();
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        runtime.sync_project(&*proj)?;
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            validate_project(&*proj)?;
+            runtime.sync_project(&*proj)?;
+        }
     }
+    // #669: keep the dispatcher's engine sample rate in lock-step with the
+    // (possibly rebuilt) runtime so DI loops resample to the live device rate.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
 
@@ -69,24 +74,33 @@ pub(crate) fn sync_live_chain_runtime(
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
             *borrow = Some(ProjectRuntimeController::start(&*proj)?);
+            drop(borrow);
+            // #669: start() resolved the real device rate — push it to the
+            // dispatcher so DI loops resample correctly (not stuck at 48000).
+            crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
     }
     // Normal sync
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        if let Some(chain) = chain {
-            runtime.upsert_chain(&*proj, chain)?;
-        } else {
-            runtime.remove_chain(chain_id);
-        }
-        // If no chains are running, destroy runtime
-        if !runtime.is_running() {
-            *borrow = None;
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            validate_project(&*proj)?;
+            if let Some(chain) = chain {
+                runtime.upsert_chain(&*proj, chain)?;
+            } else {
+                runtime.remove_chain(chain_id);
+            }
+            // If no chains are running, destroy runtime
+            if !runtime.is_running() {
+                *borrow = None;
+            }
         }
     }
+    // #669: an upsert may have rebuilt the stream at a new device rate; keep
+    // the dispatcher's engine sample rate in lock-step.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
 

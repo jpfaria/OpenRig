@@ -55,6 +55,12 @@ use crate::validation::{
 pub struct ProjectRuntimeController {
     pub(crate) runtime_graph: RuntimeGraph,
     pub(crate) active_chains: HashMap<ChainId, ActiveChainRuntime>,
+    /// Sample rate (Hz) the live streams were built at, captured from the last
+    /// resolved chain config. The DI-loop loader reads this (via the
+    /// dispatcher's `engine_sr`) to resample loops to the device rate; a stale
+    /// value plays them at the wrong speed (#669). Defaults to 48000 until the
+    /// first chain is built.
+    pub(crate) sample_rate: u32,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -68,9 +74,17 @@ impl ProjectRuntimeController {
     /// `ProjectRuntimeController` without opening audio devices (e.g. to verify
     /// that `set_chain_di_loop` / `chain_has_di_loop` work without cpal I/O).
     pub fn for_testing(graph: RuntimeGraph) -> Self {
+        Self::for_testing_with_sample_rate(graph, 48_000)
+    }
+
+    /// Like [`Self::for_testing`] but reports `sample_rate` Hz, so tests can
+    /// exercise rate-dependent wiring (e.g. DI-loop resampling, #669) without
+    /// opening audio devices.
+    pub fn for_testing_with_sample_rate(graph: RuntimeGraph, sample_rate: u32) -> Self {
         Self {
             runtime_graph: graph,
             active_chains: HashMap::new(),
+            sample_rate,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -85,6 +99,9 @@ impl ProjectRuntimeController {
                 chains: HashMap::new(),
             },
             active_chains: HashMap::new(),
+            // Updated to the real device rate by `upsert_chain_with_resolved`
+            // as each chain is built below (#669).
+            sample_rate: 48_000,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -92,6 +109,13 @@ impl ProjectRuntimeController {
         };
         controller.sync_project(project)?;
         Ok(controller)
+    }
+
+    /// Sample rate (Hz) the live streams are running at. The DI-loop loader
+    /// resamples to this so loops play at the correct speed on any device rate
+    /// (#669).
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     /// Translate a detected USB audio card + project-level device settings
@@ -545,6 +569,10 @@ impl ProjectRuntimeController {
             .get(&chain.id)
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
+
+        // #669: track the real device sample rate the runtime is built at, so
+        // the DI-loop loader resamples loops to it instead of a stale 48000.
+        self.sample_rate = resolved.sample_rate as u32;
 
         // Tear down the previous ActiveChainRuntime BEFORE mutating shared
         // runtime state or building the replacement. Otherwise HashMap::insert

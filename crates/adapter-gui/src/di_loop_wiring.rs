@@ -154,3 +154,21 @@ pub fn stop_chain_di_loop(
     });
     handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
 }
+
+/// #669: push the running controller's real device sample rate into the
+/// dispatcher's `engine_sr`, so a DI loop loaded afterwards (via GUI *or* MCP)
+/// is resampled to the live rate instead of the hardcoded 48000 default. A
+/// stale rate plays loops at the wrong speed (e.g. ~0.92× / "slow motion" at
+/// 44.1 kHz). No-op when no runtime is active.
+///
+/// Called from the runtime lifecycle whenever the controller is started or
+/// re-synced (a sample-rate change rebuilds the runtime), so the dispatcher's
+/// rate is always current before any DI source is loaded.
+pub fn sync_engine_sr_from_runtime(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+) {
+    if let Some(runtime) = project_runtime.borrow().as_ref() {
+        dispatcher.attach_engine_sr(runtime.sample_rate());
+    }
+}
