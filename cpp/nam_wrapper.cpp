@@ -8,6 +8,7 @@
 
 #include "../deps/NeuralAmpModelerCore/NAM/get_dsp.h"
 #include "../deps/NeuralAmpModelerCore/NAM/dsp.h"
+#include "../deps/NeuralAmpModelerCore/NAM/slimmable.h"
 #include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/ImpulseResponse.h"
 #include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/NoiseGate.h"
 #include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/dsp.h"
@@ -117,6 +118,19 @@ void* nam_create(const NamPluginConfig* config) {
       std::abs(config->treble - 5.0f) < 1.0e-6f;
     h->ir_enabled = config->ir_enabled != 0;
     h->dsp->Reset(sample_rate, kMaxBlock);
+    // Issue #657: A2 SlimmableContainer models expose a runtime size
+    // lever (nam::SlimmableModel::SetSlimmableSize, 0.0 smallest .. 1.0
+    // full) that trades fidelity for CPU. A1 models do not implement the
+    // interface, so the cast is null and the knob is inert. SetSlimmableSize
+    // is thread-safe but NOT real-time safe, so it runs here at load (off
+    // the audio thread), after Reset (it needs the configured sample rate
+    // and buffer size); the staged submodel is then installed lock-free on
+    // the first process() call. Calling it with the model's current size
+    // (e.g. 1.0 = full, the post-construction state) is a no-op early-out
+    // inside the container, so the default path is unchanged.
+    if (auto* slimmable = dynamic_cast<nam::SlimmableModel*>(h->dsp.get())) {
+      slimmable->SetSlimmableSize(static_cast<double>(config->slim_size));
+    }
     h->noise_gate_trigger.AddListener(&h->noise_gate_gain);
     if (h->noise_gate_enabled) {
       const double time = 0.01;
