@@ -62,6 +62,17 @@ pub fn load_di_loop(source: &DiLoopSource, engine_sr: u32) -> Result<Arc<DiLoop>
         engine_sr,
         DI_LOOP_XFADE_FRAMES,
     );
+    // #669 diagnostic: if src_sr != engine_sr the loop is resampled; if
+    // engine_sr does not match the live device rate, it plays at the wrong
+    // speed. Compare these to the device's actual rate.
+    eprintln!(
+        "[di-loop #669] build: file_sr={} channels={} engine_sr={} src_frames={} out_frames={}",
+        wav.sample_rate_hz,
+        wav.channels,
+        engine_sr,
+        wav.samples.len() / (wav.channels.max(1) as usize),
+        di.len(),
+    );
     Ok(Arc::new(di))
 }
 
