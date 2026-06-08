@@ -11,9 +11,9 @@ blocks:
     high: 0.0
 - type: amp
   enabled: true
-  model: nam_vox_ac30
+  model: nam_vox_ac30_a1
   params:
-    character: standard
+    output_db: -5.7059765
 - type: reverb
   enabled: true
   model: room

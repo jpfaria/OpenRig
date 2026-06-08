@@ -26,9 +26,9 @@ blocks:
     mix: 100.0
 - type: amp
   enabled: true
-  model: nam_vox_ac30
+  model: nam_vox_ac30_a1
   params:
-    character: clean_65prince
+    output_db: -5.7059765
 - type: modulation
   enabled: true
   model: classic_chorus
