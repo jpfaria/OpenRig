@@ -57,6 +57,9 @@ pub use control_worker::ControlWorker;
 mod live_runtime;
 pub use live_runtime::LiveRuntimeSlot;
 
+mod build_request;
+pub use build_request::{build_chain_runtime, BuildRequest};
+
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
