@@ -77,7 +77,10 @@ pub(crate) fn sync_live_chain_runtime(
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
-            crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+            crate::di_loop_wiring::sync_engine_sr_from_runtime(
+                project_runtime,
+                &session.dispatcher,
+            );
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
