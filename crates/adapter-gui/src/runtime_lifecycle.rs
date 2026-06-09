@@ -91,11 +91,20 @@ pub(crate) fn sync_live_chain_runtime(
         if let Some(runtime) = borrow.as_mut() {
             validate_project(&*proj)?;
             if let Some(chain) = chain {
-                runtime.upsert_chain(&*proj, chain)?;
+                // Issue #672: cold activation of a single-input chain builds the
+                // runtime off the control worker and installs it on the poll tick
+                // (no live state to preserve). A LIVE edit (model swap, param,
+                // block) must NOT be routed off-thread: replacing the whole
+                // runtime discards the SPSC ring continuity and runtime-only
+                // state (DI loop, #614) — it stops the sound. Live edits keep the
+                // engine's in-place lock-free update via upsert_chain.
+                if !runtime.schedule_chain_activation(&*proj, chain)? {
+                    runtime.upsert_chain(&*proj, chain)?;
+                }
             } else {
                 runtime.remove_chain(chain_id);
             }
-            // If no chains are running, destroy runtime
+            // If no chains are running (and none are activating), destroy runtime.
             if !runtime.is_running() {
                 *borrow = None;
             }
