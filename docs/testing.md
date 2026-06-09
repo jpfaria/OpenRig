@@ -47,6 +47,7 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`
 
 - **Integração com áudio real**: `#[ignore]` (rodar com `cargo test -- --ignored`)
 - **DSP nativos**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
+- **Caracterização de DSP nativos** (block-delay, `src/dsp_probe.rs`, test-only): provas determinísticas de que cada modelo cumpre a proposta dele — timing de eco (`peaks`), decaimento por feedback, brilho/escurecimento (`spectral_centroid`), saturação (`harmonic_ratio`). Não basta non-NaN: o teste mede a característica que dá nome ao modelo (#388)
 - **NAM/LV2/IR builds**: `#[ignore]` (assets externos)
 - **Registry tests** em block-* crates: iterar TODOS os modelos via registry
 
