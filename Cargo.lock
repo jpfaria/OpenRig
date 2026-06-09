@@ -850,6 +850,7 @@ dependencies = [
  "domain",
  "lv2",
  "plugin-loader",
+ "realfft",
  "vst3-host",
 ]
 
