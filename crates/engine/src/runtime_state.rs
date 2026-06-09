@@ -381,13 +381,16 @@ pub struct ChainRuntimeState {
     /// [`crate::runtime_load`].
     pub(crate) xrun_count: AtomicU64,
     pub(crate) peak_load_ppm: AtomicU64,
-    /// Issue #670 probe: worst wall-clock time (ns) spent in a SINGLE block's
-    /// `process_audio_block` since the last read. Lets the off-thread probe
-    /// tell whether a callback spike is one block doing real work (compute →
-    /// `worst_block_ns` ≈ the whole callback) or no single block dominating
-    /// (the time is stall/preemption/overhead OUTSIDE block compute). Reset
-    /// on read each interval. Diagnostic — revert with the probe.
-    pub(crate) worst_block_ns: AtomicU64,
+    /// Issue #670 probe (COUPLED): the worst FULL `process_input_f32`
+    /// wall-clock time (ns) seen this interval, and — from that SAME
+    /// callback — the time its slowest single block took. Coupling them (vs
+    /// two independent maxes that can come from different callbacks) is what
+    /// makes the read unambiguous: `peak_block_ns` ≈ `peak_callback_ns` ⇒ a
+    /// block did real work (compute); `peak_block_ns` ≪ `peak_callback_ns` ⇒
+    /// the time was stall/preemption/overhead OUTSIDE block compute. Both
+    /// reset on read. Diagnostic — revert with the probe.
+    pub(crate) peak_callback_ns: AtomicU64,
+    pub(crate) peak_block_ns: AtomicU64,
 }
 
 impl ChainRuntimeState {

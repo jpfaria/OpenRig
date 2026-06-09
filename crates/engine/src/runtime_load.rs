@@ -68,12 +68,14 @@ impl ChainRuntimeState {
         self.peak_load_ppm.swap(0, Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
     }
 
-    /// Issue #670 probe: worst single-block process time (µs) since the last
-    /// read, reset on read. Compare to the interval peak load: if it accounts
-    /// for most of the callback, a block is spiking (compute); if it is tiny
-    /// while the callback spiked, the cost is stall/overhead outside blocks.
-    pub fn take_worst_block_micros(&self) -> u64 {
-        self.worst_block_ns.swap(0, Ordering::Relaxed) / 1_000
+    /// Issue #670 probe: the worst full-callback time (µs) this interval and,
+    /// from that SAME callback, its slowest block (µs). Reset on read.
+    /// `block ≈ callback` ⇒ a block spiked (compute); `block ≪ callback` ⇒
+    /// the time was stall/overhead outside block compute.
+    pub fn take_peak_breakdown_micros(&self) -> (u64, u64) {
+        let callback_us = self.peak_callback_ns.swap(0, Ordering::Relaxed) / 1_000;
+        let block_us = self.peak_block_ns.swap(0, Ordering::Relaxed) / 1_000;
+        (callback_us, block_us)
     }
 
     /// Total output-side underruns across this chain's elastic buffers

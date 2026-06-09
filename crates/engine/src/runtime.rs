@@ -212,6 +212,11 @@ pub fn process_input_f32(
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.
+    // Issue #670 probe: time the whole DSP body (coupled with the slowest
+    // single block IN THIS callback) so the off-thread probe can tell a
+    // compute spike (one block) from a stall (no block dominates).
+    let callback_start = std::time::Instant::now();
+    let mut cb_worst_block_ns = 0u64;
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
@@ -225,7 +230,7 @@ pub fn process_input_f32(
             &runtime.error_queue,
             &stream_taps,
             di_for_seg,
-            &runtime.worst_block_ns,
+            &mut cb_worst_block_ns,
         );
     }
 
@@ -256,6 +261,18 @@ pub fn process_input_f32(
                 route.buffer.push(frame);
             }
         }
+    }
+
+    // Issue #670 probe: record this callback's total DSP time, coupling the
+    // peak callback with ITS slowest block so the comparison is unambiguous.
+    let callback_ns = callback_start.elapsed().as_nanos() as u64;
+    let prev_peak = runtime
+        .peak_callback_ns
+        .fetch_max(callback_ns, Ordering::Relaxed);
+    if callback_ns > prev_peak {
+        runtime
+            .peak_block_ns
+            .store(cb_worst_block_ns, Ordering::Relaxed);
     }
 
     if let Some(slot) = input_scratches.get_mut(input_index) {
@@ -335,7 +352,7 @@ fn process_single_segment(
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
     di: Option<(&crate::di_loop::DiLoop, usize)>,
-    worst_block_ns: &std::sync::atomic::AtomicU64,
+    worst_block_ns: &mut u64,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -399,7 +416,7 @@ fn process_single_segment(
         // process accounts for a callback spike (compute) or not (stall).
         let block_start = std::time::Instant::now();
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
-        worst_block_ns.fetch_max(block_start.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
+        *worst_block_ns = (*worst_block_ns).max(block_start.elapsed().as_nanos() as u64);
     }
 
     // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window

@@ -293,17 +293,17 @@ impl ProjectRuntimeController {
             .fold(0.0_f32, f32::max)
     }
 
-    /// Issue #670 probe: worst single-block process time (µs) across this
-    /// chain's runtimes since the last call, resetting each. Compared to the
-    /// interval peak load off-thread to split a compute spike (a block) from
-    /// a stall (no block dominates).
-    pub fn chain_take_worst_block_micros(&self, chain_id: &ChainId) -> u64 {
+    /// Issue #670 probe: worst full-callback time (µs) across this chain's
+    /// runtimes since the last call AND, from that same callback, its
+    /// slowest block (µs); resets both. `block ≈ callback` ⇒ a block spikes
+    /// (compute); `block ≪ callback` ⇒ stall outside block compute.
+    pub fn chain_take_peak_breakdown(&self, chain_id: &ChainId) -> (u64, u64) {
         self.runtime_graph
             .runtimes_for(chain_id)
             .iter()
-            .map(|runtime| runtime.take_worst_block_micros())
-            .max()
-            .unwrap_or(0)
+            .map(|runtime| runtime.take_peak_breakdown_micros())
+            .max_by_key(|(callback_us, _)| *callback_us)
+            .unwrap_or((0, 0))
     }
 
     /// Drop stream taps with no surviving consumer handles across all chains.

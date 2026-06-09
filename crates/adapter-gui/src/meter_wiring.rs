@@ -557,7 +557,7 @@ pub fn start_meter_polling(
             // mark — tells an ongoing per-callback spike apart from a
             // one-time startup cost.
             let interval_peak_load = controller.chain_take_peak_load(&cid);
-            let worst_block_us = controller.chain_take_worst_block_micros(&cid);
+            let (peak_callback_us, peak_block_us) = controller.chain_take_peak_breakdown(&cid);
             let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
             let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
@@ -567,14 +567,16 @@ pub fn start_meter_polling(
             if overloaded {
                 log::warn!(
                     "[#670-probe] chain={} new_xruns={} new_underruns={} \
-                     interval_peak_load={:.0}% worst_block={}us (period@64=1333us; \
-                     worst_block≈peak ⇒ a block spikes [compute]; worst_block≪peak \
-                     ⇒ stall/preemption outside blocks)",
+                     peak_callback={}us worst_block_in_that_callback={}us \
+                     interval_peak_load={:.0}% (COUPLED: block≈callback ⇒ a block \
+                     spikes [compute]; block≪callback ⇒ stall/preemption outside \
+                     blocks; period@64=1333us)",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
                     cur_underruns.saturating_sub(prev_underruns),
+                    peak_callback_us,
+                    peak_block_us,
                     interval_peak_load * 100.0,
-                    worst_block_us,
                 );
             }
             let overload_changed = row.audio_overload != overloaded;
