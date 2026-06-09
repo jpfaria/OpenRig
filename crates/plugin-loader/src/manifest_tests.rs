@@ -554,3 +554,36 @@ captures:
 
     assert_eq!(reparsed.architecture, Some(NamArchitecture::A2));
 }
+
+// Issue #675 — pure precedence resolver for the manifest noise gate:
+// per-capture override wins per field over the manifest-level default.
+
+#[test]
+fn resolve_noise_gate_picks_per_capture_over_manifest_per_field() {
+    let manifest = ManifestNoiseGate {
+        enabled: Some(true),
+        threshold_db: Some(-60.0),
+    };
+    let capture = ManifestNoiseGate {
+        enabled: None,
+        threshold_db: Some(-55.0),
+    };
+    let (enabled, threshold) = resolve_noise_gate(Some(&capture), Some(&manifest));
+    assert_eq!(
+        enabled,
+        Some(true),
+        "enabled inherits the manifest-level value"
+    );
+    assert_eq!(
+        threshold,
+        Some(-55.0),
+        "threshold comes from the per-capture override"
+    );
+}
+
+#[test]
+fn resolve_noise_gate_is_none_when_neither_sets_a_field() {
+    let (enabled, threshold) = resolve_noise_gate(None, None);
+    assert_eq!(enabled, None);
+    assert_eq!(threshold, None);
+}

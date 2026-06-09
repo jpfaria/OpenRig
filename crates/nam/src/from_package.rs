@@ -10,13 +10,11 @@
 use anyhow::{anyhow, bail, Result};
 use block_core::param::ParameterSet;
 use block_core::{AudioChannelLayout, BlockProcessor};
-use plugin_loader::manifest::{Backend, ManifestNoiseGate};
+use plugin_loader::manifest::Backend;
 use plugin_loader::LoadedPackage;
 
 use crate::build_processor_with_assets_for_layout;
-use crate::processor::{
-    plugin_params_from_set_with_defaults, NamPluginParams, DEFAULT_PLUGIN_PARAMS,
-};
+use crate::processor::{plugin_params_from_set_with_defaults, DEFAULT_PLUGIN_PARAMS};
 
 /// Build a [`BlockProcessor`] from a disk-backed NAM package.
 ///
@@ -60,16 +58,7 @@ pub fn build_from_package(
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| anyhow!("non-utf8 capture path: {model_path:?}"))?;
-    // Issue #675: a capture (or its plugin) can ship the noise gate
-    // pre-regulated to tame the idle hiss high-gain captures produce by
-    // amplifying the input noise floor. Per-capture overrides manifest-level
-    // overrides the engine base; the user's project params still win on top.
-    let gate_defaults = resolve_noise_gate_defaults(
-        capture.noise_gate.as_ref(),
-        package.manifest.noise_gate.as_ref(),
-        DEFAULT_PLUGIN_PARAMS,
-    );
-    let mut plugin_params = plugin_params_from_set_with_defaults(params, gate_defaults)?;
+    let mut plugin_params = plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?;
     // Audit baseline now lives in the preset's user-facing
     // `output_db`, not stacked on top of it at load time. Whoever
     // creates the block (factory) or migrates an existing preset
@@ -91,31 +80,6 @@ pub fn build_from_package(
 /// the contract is testable in isolation from a real model file.
 pub fn resolve_user_output_level_db(user_param_db: f32, _manifest_audit_db: Option<f32>) -> f32 {
     user_param_db
-}
-
-/// Resolve the effective noise-gate defaults for a NAM capture (issue #675):
-/// a per-capture override wins over the manifest-level default, which wins
-/// over the engine base (`DEFAULT_PLUGIN_PARAMS`), field by field. Returns
-/// `base` with only the gate fields overridden — the user's project params
-/// still win on top, applied by `plugin_params_from_set_with_defaults`.
-fn resolve_noise_gate_defaults(
-    capture: Option<&ManifestNoiseGate>,
-    manifest: Option<&ManifestNoiseGate>,
-    base: NamPluginParams,
-) -> NamPluginParams {
-    let enabled = capture
-        .and_then(|g| g.enabled)
-        .or_else(|| manifest.and_then(|g| g.enabled))
-        .unwrap_or(base.noise_gate_enabled);
-    let threshold_db = capture
-        .and_then(|g| g.threshold_db)
-        .or_else(|| manifest.and_then(|g| g.threshold_db))
-        .unwrap_or(base.noise_gate_threshold_db);
-    NamPluginParams {
-        noise_gate_enabled: enabled,
-        noise_gate_threshold_db: threshold_db,
-        ..base
-    }
 }
 
 /// Register this crate's builder in the global package-builders table.

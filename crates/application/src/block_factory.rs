@@ -102,6 +102,36 @@ pub fn build_default_block(
                 domain::value_objects::ParameterValue::Float(audit_db),
             );
         }
+        // Issue #675: seed the noise-gate knobs the same way. A high-gain
+        // capture amplifies the input noise floor into idle hiss; the gate
+        // that tames it must arrive pre-configured in the user-visible knobs
+        // (editable, persisted), not as a hidden load-time default. The born
+        // capture's per-capture override wins over the manifest-level value;
+        // an absent field leaves the engine schema default (gate off) in place.
+        let capture_gate = match &pkg.manifest.backend {
+            plugin_loader::manifest::Backend::Nam {
+                parameters,
+                captures,
+            } => plugin_loader::dispatch::resolve_capture(parameters, captures, &params)
+                .and_then(|c| c.noise_gate.as_ref()),
+            _ => None,
+        };
+        let (gate_enabled, gate_threshold_db) = plugin_loader::manifest::resolve_noise_gate(
+            capture_gate,
+            pkg.manifest.noise_gate.as_ref(),
+        );
+        if let Some(enabled) = gate_enabled {
+            params.insert(
+                "noise_gate.enabled",
+                domain::value_objects::ParameterValue::Bool(enabled),
+            );
+        }
+        if let Some(threshold_db) = gate_threshold_db {
+            params.insert(
+                "noise_gate.threshold_db",
+                domain::value_objects::ParameterValue::Float(threshold_db),
+            );
+        }
     }
     let kind = build_audio_block_kind(effect_type, model_id, params)
         .map_err(|e| anyhow!("build_audio_block_kind failed for '{}': {}", model_id, e))?;

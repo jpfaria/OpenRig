@@ -7,7 +7,7 @@
 
 use super::*;
 use domain::value_objects::ParameterValue as BlockParameterValue;
-use plugin_loader::manifest::{GridCapture, GridParameter, ManifestNoiseGate, ParameterValue};
+use plugin_loader::manifest::{GridCapture, GridParameter, ParameterValue};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -99,46 +99,4 @@ fn user_output_param_is_passed_through_when_no_audit_in_manifest() {
 fn user_output_param_is_passed_through_even_when_audit_is_present() {
     let resolved = crate::from_package::resolve_user_output_level_db(-3.0, Some(-10.0));
     assert_eq!(resolved, -3.0);
-}
-
-// Issue #675 — manifest-driven noise-gate defaults. The effective default
-// is per-capture > manifest-level > engine base; the user's project param
-// still overrides on top (handled later by the param-set merge).
-
-fn gate(enabled: Option<bool>, threshold_db: Option<f32>) -> ManifestNoiseGate {
-    ManifestNoiseGate {
-        enabled,
-        threshold_db,
-    }
-}
-
-#[test]
-fn noise_gate_per_capture_overrides_manifest_per_field() {
-    let manifest = gate(Some(true), Some(-60.0));
-    let capture = gate(None, Some(-55.0)); // overrides threshold only
-    let r = resolve_noise_gate_defaults(Some(&capture), Some(&manifest), DEFAULT_PLUGIN_PARAMS);
-    assert!(
-        r.noise_gate_enabled,
-        "enabled inherits the manifest-level true"
-    );
-    assert_eq!(
-        r.noise_gate_threshold_db, -55.0,
-        "threshold comes from the per-capture override"
-    );
-}
-
-#[test]
-fn noise_gate_manifest_level_applies_when_no_per_capture() {
-    let manifest = gate(Some(true), Some(-60.0));
-    let r = resolve_noise_gate_defaults(None, Some(&manifest), DEFAULT_PLUGIN_PARAMS);
-    assert!(r.noise_gate_enabled);
-    assert_eq!(r.noise_gate_threshold_db, -60.0);
-}
-
-#[test]
-fn noise_gate_absent_keeps_engine_base_defaults() {
-    let base = DEFAULT_PLUGIN_PARAMS;
-    let r = resolve_noise_gate_defaults(None, None, base);
-    assert_eq!(r.noise_gate_enabled, base.noise_gate_enabled);
-    assert_eq!(r.noise_gate_threshold_db, base.noise_gate_threshold_db);
 }

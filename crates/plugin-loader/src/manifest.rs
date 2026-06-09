@@ -339,6 +339,25 @@ pub struct ManifestNoiseGate {
     pub threshold_db: Option<f32>,
 }
 
+/// Resolve the effective noise-gate fields for a capture (issue #675): a
+/// per-capture override wins per field over the manifest-level default.
+/// Returns `(enabled, threshold_db)`, each `None` when neither layer sets
+/// it — the caller then leaves the schema default in place. Used to SEED
+/// the user-visible knobs at block creation (mirrors the `output_gain_db`
+/// seeding), never applied as a hidden load-time default.
+pub fn resolve_noise_gate(
+    capture: Option<&ManifestNoiseGate>,
+    manifest: Option<&ManifestNoiseGate>,
+) -> (Option<bool>, Option<f32>) {
+    let enabled = capture
+        .and_then(|g| g.enabled)
+        .or(manifest.and_then(|g| g.enabled));
+    let threshold_db = capture
+        .and_then(|g| g.threshold_db)
+        .or(manifest.and_then(|g| g.threshold_db));
+    (enabled, threshold_db)
+}
+
 /// One cell of the NAM/IR capture grid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridCapture {
