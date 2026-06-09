@@ -83,6 +83,7 @@ fn controller_with_active_chain(
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains,
+        sample_rate: 48_000,
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
