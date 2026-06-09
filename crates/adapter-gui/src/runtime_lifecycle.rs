@@ -91,16 +91,14 @@ pub(crate) fn sync_live_chain_runtime(
         if let Some(runtime) = borrow.as_mut() {
             validate_project(&*proj)?;
             if let Some(chain) = chain {
-                // Issue #672: a live model/block edit (IO unchanged) or a cold
-                // single-input activation rebuilds off the control worker and is
-                // applied on the poll tick, so the heavy NAM/IR load never blocks
-                // the UI. Live knob drags use the in-place set_block_parameter
-                // fast path and do not come through here, so click-freeness is
-                // preserved. Both helpers return false for an IO-topology change
-                // or a multi-input chain, which fall through to the sync rebuild.
-                if !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
-                    && !runtime.schedule_chain_activation(&*proj, chain)?
-                {
+                // Issue #672: cold activation of a single-input chain builds the
+                // runtime off the control worker and installs it on the poll tick
+                // (no live state to preserve). A LIVE edit (model swap, param,
+                // block) must NOT be routed off-thread: replacing the whole
+                // runtime discards the SPSC ring continuity and runtime-only
+                // state (DI loop, #614) — it stops the sound. Live edits keep the
+                // engine's in-place lock-free update via upsert_chain.
+                if !runtime.schedule_chain_activation(&*proj, chain)? {
                     runtime.upsert_chain(&*proj, chain)?;
                 }
             } else {
