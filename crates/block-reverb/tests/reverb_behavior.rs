@@ -118,16 +118,20 @@ fn amplitude_cov(sig: &[f32]) -> f32 {
     var.sqrt() / mean
 }
 
-/// Fraction of samples in the first `window` exceeding 5% of the local peak —
-/// a proxy for echo density (diffusion).
-fn echo_density(ir: &[f32], window: usize) -> f32 {
-    let slice = &ir[..window.min(ir.len())];
-    let peak = slice.iter().fold(0.0f32, |m, &x| m.max(x.abs()));
+/// Diffusion proxy: of the 1 ms sub-blocks in the first `window_ms`, the
+/// fraction whose RMS exceeds 12% of the loudest sub-block. A gap-free,
+/// smeared early field (a plate) scores high; sparse discrete echoes with
+/// silence between them score low. Unlike a bare "samples above threshold"
+/// count, this is not dragged down by the decay envelope.
+fn early_fill(sig: &[f32], window_ms: f32) -> f32 {
+    let w = (0.001 * SR) as usize;
+    let end = ((window_ms / 1000.0) * SR) as usize;
+    let blocks: Vec<f32> = sig[..end.min(sig.len())].chunks(w.max(1)).map(rms).collect();
+    let peak = blocks.iter().cloned().fold(0.0f32, f32::max);
     if peak <= 0.0 {
         return 0.0;
     }
-    let count = slice.iter().filter(|&&x| x.abs() > 0.05 * peak).count();
-    count as f32 / slice.len() as f32
+    blocks.iter().filter(|&&b| b > 0.12 * peak).count() as f32 / blocks.len() as f32
 }
 
 fn one_pole_lowpass(sig: &[f32], cut: f32) -> Vec<f32> {
@@ -222,21 +226,19 @@ fn freeverb_room_size_controls_tail_length() {
 
 #[test]
 fn dattorro_plate_is_diffuse() {
-    let response = ir("dattorro_plate", &[], 1.0);
-    let density = echo_density(&response, at(0.1));
+    let fill = early_fill(&ir("dattorro_plate", &[], 1.0), 80.0);
     assert!(
-        density > 0.3,
-        "dattorro_plate echo density = {density:.2} in first 100 ms is too sparse to be a plate"
+        fill > 0.6,
+        "dattorro_plate early fill = {fill:.2}; a plate must smear into a gap-free field, not echo"
     );
 }
 
 #[test]
 fn plate_foundation_is_diffuse() {
-    let response = ir("plate_foundation", &[], 1.0);
-    let density = echo_density(&response, at(0.1));
+    let fill = early_fill(&ir("plate_foundation", &[], 1.0), 80.0);
     assert!(
-        density > 0.3,
-        "plate_foundation echo density = {density:.2} in first 100 ms is too sparse to be a plate"
+        fill > 0.6,
+        "plate_foundation early fill = {fill:.2}; a plate must smear into a gap-free field, not echo"
     );
 }
 
