@@ -110,6 +110,23 @@ pub fn harmonic_ratio(signal: &[f32], f0: f32, sample_rate: f32) -> f32 {
     (at(2.0 * f0) + at(3.0 * f0)) / fundamental
 }
 
+/// Relative RMS difference between two equal-length renders: `0.0` = identical,
+/// grows as they diverge. Used to prove one model is audibly distinct.
+pub fn rms_difference(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len(), "renders must be the same length");
+    let mut diff_sq = 0.0;
+    let mut ref_sq = 0.0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff_sq += (x - y) * (x - y);
+        ref_sq += y * y;
+    }
+    if ref_sq > 0.0 {
+        (diff_sq / ref_sq).sqrt()
+    } else {
+        diff_sq.sqrt()
+    }
+}
+
 /// Hann-windowed magnitude spectrum, zero-padded to the next power of two.
 fn magnitude_spectrum(segment: &[f32]) -> Vec<f32> {
     let n = segment.len().next_power_of_two().max(2);
