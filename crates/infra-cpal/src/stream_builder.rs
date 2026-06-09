@@ -159,7 +159,13 @@ pub(crate) fn build_input_stream_for_input(
                         let frames = (data.len() / channels.max(1)).max(1);
                         let period_ns =
                             (frames as u64 * 1_000_000_000) / (sample_rate.max(1) as u64);
-                        crate::promote_current_thread_realtime(period_ns);
+                        let ok = crate::promote_current_thread_realtime(period_ns);
+                        log::info!(
+                            "[#670] input audio thread realtime: {} (input {}, period={}us)",
+                            if ok { "ok" } else { "FAILED/unsupported" },
+                            input_index,
+                            period_ns / 1000,
+                        );
                     }
                     // Time the block DSP (the heavy work runs here, not on the
                     // output pop) so a buffer-64 deadline miss is counted as an
