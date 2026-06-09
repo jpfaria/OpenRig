@@ -281,52 +281,6 @@ impl ProjectRuntimeController {
             .fold(0.0_f32, f32::max)
     }
 
-    /// Worst per-callback load across this chain's runtimes since the last
-    /// call, RESETTING each runtime's peak (issue #670). The off-thread
-    /// poller calls this every interval so the reported peak is the worst
-    /// spike in that interval, not an all-time high-water mark.
-    pub fn chain_take_peak_load(&self, chain_id: &ChainId) -> f32 {
-        self.runtime_graph
-            .runtimes_for(chain_id)
-            .iter()
-            .map(|runtime| runtime.take_peak_callback_load())
-            .fold(0.0_f32, f32::max)
-    }
-
-    /// Issue #670 probe: worst full-callback time (µs) across this chain's
-    /// runtimes since the last call AND, from that same callback, its
-    /// slowest block (µs); resets both. `block ≈ callback` ⇒ a block spikes
-    /// (compute); `block ≪ callback` ⇒ stall outside block compute.
-    pub fn chain_take_peak_breakdown(&self, chain_id: &ChainId) -> (u64, u64) {
-        self.runtime_graph
-            .runtimes_for(chain_id)
-            .iter()
-            .map(|runtime| runtime.take_peak_breakdown_micros())
-            .max_by_key(|(callback_us, _)| *callback_us)
-            .unwrap_or((0, 0))
-    }
-
-    /// Issue #670 probe: worst-wall callback's (wall_us, cpu_us) across this
-    /// chain's runtimes, resetting both. `cpu ≪ wall` ⇒ off-CPU stall
-    /// (preemption/page fault); `cpu ≈ wall` ⇒ on-CPU (compute/cache).
-    pub fn chain_take_probe_wall_cpu(&self, chain_id: &ChainId) -> (u64, u64) {
-        self.runtime_graph
-            .runtimes_for(chain_id)
-            .iter()
-            .map(|runtime| runtime.take_probe_wall_cpu_micros())
-            .max_by_key(|(wall_us, _)| *wall_us)
-            .unwrap_or((0, 0))
-    }
-
-    /// Issue #670 probe: model of the slowest block in the peak callback,
-    /// resolved off the audio thread. Names the spiking block in the log.
-    pub fn chain_take_peak_block_model(&self, chain_id: &ChainId) -> Option<String> {
-        self.runtime_graph
-            .runtimes_for(chain_id)
-            .iter()
-            .find_map(|runtime| runtime.take_peak_block_model())
-    }
-
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {

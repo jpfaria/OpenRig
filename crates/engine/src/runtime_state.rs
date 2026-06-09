@@ -381,30 +381,6 @@ pub struct ChainRuntimeState {
     /// [`crate::runtime_load`].
     pub(crate) xrun_count: AtomicU64,
     pub(crate) peak_load_ppm: AtomicU64,
-    /// Issue #670 probe (COUPLED): the worst FULL `process_input_f32`
-    /// wall-clock time (ns) seen this interval, and — from that SAME
-    /// callback — the time its slowest single block took. Coupling them (vs
-    /// two independent maxes that can come from different callbacks) is what
-    /// makes the read unambiguous: `peak_block_ns` ≈ `peak_callback_ns` ⇒ a
-    /// block did real work (compute); `peak_block_ns` ≪ `peak_callback_ns` ⇒
-    /// the time was stall/preemption/overhead OUTSIDE block compute. Both
-    /// reset on read. Diagnostic — revert with the probe.
-    pub(crate) peak_callback_ns: AtomicU64,
-    pub(crate) peak_block_ns: AtomicU64,
-    /// Issue #670 probe: global index (across this input's segment blocks) of
-    /// the slowest block in the peak callback, so the off-thread probe can
-    /// NAME the spiking block's model. `usize::MAX` = none. Resolved to the
-    /// block model under `processing.try_lock` off the audio thread.
-    pub(crate) peak_block_idx: AtomicUsize,
-    /// Issue #670 probe (COUPLED wall vs CPU): the worst process_input
-    /// WALL-clock time (ns) measured by the cpal callback, and — from the
-    /// SAME callback — the thread CPU time it actually consumed. `cpu ≈ wall`
-    /// ⇒ the thread was ON-CPU the whole time (a genuine compute/memory cost
-    /// — cache); `cpu ≪ wall` ⇒ the thread was OFF-CPU (preempted / blocked
-    /// on a page fault — a scheduling stall). Written by infra-cpal (which
-    /// has libc for the thread CPU clock); both reset on read. Diagnostic.
-    pub(crate) probe_wall_ns: AtomicU64,
-    pub(crate) probe_cpu_ns: AtomicU64,
 }
 
 impl ChainRuntimeState {

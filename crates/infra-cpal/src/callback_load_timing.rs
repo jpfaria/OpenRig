@@ -51,28 +51,6 @@ pub(crate) fn record_callback_deadline(
     runtime.record_callback_load(elapsed_ns, period_ns);
 }
 
-/// Issue #670 probe: this thread's consumed CPU time in nanoseconds. Used
-/// alongside the wall clock to tell an off-CPU stall (preemption / page
-/// fault → wall ≫ cpu) from an on-CPU cost (compute / cache → wall ≈ cpu).
-/// Returns 0 if the clock is unavailable.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
-pub(crate) fn thread_cpu_time_ns() -> u64 {
-    let mut ts = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    let rc = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
-    if rc != 0 {
-        return 0;
-    }
-    (ts.tv_sec as u64) * 1_000_000_000 + (ts.tv_nsec as u64)
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-pub(crate) fn thread_cpu_time_ns() -> u64 {
-    0
-}
-
 #[cfg(test)]
 #[path = "callback_load_timing_tests.rs"]
 mod callback_load_timing_tests;

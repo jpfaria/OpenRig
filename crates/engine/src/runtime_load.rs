@@ -59,66 +59,6 @@ impl ChainRuntimeState {
         self.peak_load_ppm.load(Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
     }
 
-    /// Read the worst callback load AND reset it to zero (issue #670). The
-    /// off-thread poller calls this each interval so the value reported is
-    /// the worst spike SINCE THE LAST POLL, not an all-time high-water mark
-    /// — that distinguishes an ongoing per-callback spike from a one-time
-    /// startup/warmup cost.
-    pub fn take_peak_callback_load(&self) -> f32 {
-        self.peak_load_ppm.swap(0, Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
-    }
-
-    /// Issue #670 probe: the worst full-callback time (µs) this interval and,
-    /// from that SAME callback, its slowest block (µs). Reset on read.
-    /// `block ≈ callback` ⇒ a block spiked (compute); `block ≪ callback` ⇒
-    /// the time was stall/overhead outside block compute.
-    pub fn take_peak_breakdown_micros(&self) -> (u64, u64) {
-        let callback_us = self.peak_callback_ns.swap(0, Ordering::Relaxed) / 1_000;
-        let block_us = self.peak_block_ns.swap(0, Ordering::Relaxed) / 1_000;
-        (callback_us, block_us)
-    }
-
-    /// Issue #670 probe: the MODEL of the slowest block in the peak callback,
-    /// resolved off the audio thread (read+reset the index, then a brief
-    /// `try_lock` to read the live node's snapshot). `None` when no spike was
-    /// recorded or the lock is momentarily held by the audio thread.
-    /// Issue #670 probe: record one callback's wall vs thread-CPU time,
-    /// keeping the pair from the worst-WALL callback this interval. Called
-    /// from the cpal callback (infra-cpal owns the libc thread clock).
-    pub fn record_probe_wall_cpu(&self, wall_ns: u64, cpu_ns: u64) {
-        let prev = self.probe_wall_ns.fetch_max(wall_ns, Ordering::Relaxed);
-        if wall_ns > prev {
-            self.probe_cpu_ns.store(cpu_ns, Ordering::Relaxed);
-        }
-    }
-
-    /// Read+reset the worst-wall callback's (wall_us, cpu_us). `cpu ≪ wall`
-    /// ⇒ off-CPU stall (preemption/page fault); `cpu ≈ wall` ⇒ on-CPU
-    /// (compute/cache).
-    pub fn take_probe_wall_cpu_micros(&self) -> (u64, u64) {
-        let wall = self.probe_wall_ns.swap(0, Ordering::Relaxed) / 1_000;
-        let cpu = self.probe_cpu_ns.swap(0, Ordering::Relaxed) / 1_000;
-        (wall, cpu)
-    }
-
-    pub fn take_peak_block_model(&self) -> Option<String> {
-        let idx = self.peak_block_idx.swap(usize::MAX, Ordering::Relaxed);
-        if idx == usize::MAX {
-            return None;
-        }
-        let guard = self.processing.try_lock().ok()?;
-        let mut ord = 0usize;
-        for state in &guard.input_states {
-            for node in &state.blocks {
-                if ord == idx {
-                    return Some(block_model_label(&node.block_snapshot));
-                }
-                ord += 1;
-            }
-        }
-        None
-    }
-
     /// Total output-side underruns across this chain's elastic buffers
     /// (issue #670). An underrun is an empty `pop` on the output callback:
     /// the input/DSP producer hasn't delivered the frame in time, so a
@@ -140,18 +80,6 @@ impl ChainRuntimeState {
     pub fn reset_load_stats(&self) {
         self.xrun_count.store(0, Ordering::Relaxed);
         self.peak_load_ppm.store(0, Ordering::Relaxed);
-    }
-}
-
-/// Issue #670 probe: a short model label for a placed block, for naming the
-/// spiking block in the diagnostic log. DSP blocks (Core / NAM) carry the
-/// model; anything else falls back to its block id.
-fn block_model_label(block: &project::block::AudioBlock) -> String {
-    use project::block::AudioBlockKind;
-    match &block.kind {
-        AudioBlockKind::Core(c) => c.model.clone(),
-        AudioBlockKind::Nam(n) => n.model.clone(),
-        _ => block.id.0.clone(),
     }
 }
 

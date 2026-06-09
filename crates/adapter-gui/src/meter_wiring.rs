@@ -540,50 +540,29 @@ pub fn start_meter_polling(
                     row.di_loop_sources.iter().map(|s| s.to_string()).collect();
                 current != desired_sources
             };
-            // Issue #670: per-chain audio overload. The user hears crackle
-            // from EITHER failure mode, so the indicator must catch both:
-            //   - xrun     = the audio callback missed its deadline (CPU too
-            //                 slow for this buffer).
-            //   - underrun = the output elastic buffer was empty (the input/
-            //                 DSP producer didn't deliver in time — a starve,
-            //                 NOT a CPU cost). A light single chain crackling
-            //                 at buffer 64 with underruns but ~zero xruns is
-            //                 THIS, not CPU.
-            // Tagged so the cause is observable in the log (grep `#670-probe`).
+            // Issue #670: per-chain audio overload. Catch BOTH failure modes
+            // the user hears as crackle — an xrun (the audio callback missed
+            // its deadline) or an underrun (the output elastic buffer ran
+            // empty because the producer didn't deliver in time). Either
+            // lights the row's overload badge. Both counters are plain atomic
+            // reads off the audio thread — no `processing` lock (issue #580).
             let cur_xruns = controller.chain_xrun_count(&cid);
             let cur_underruns = controller.chain_underrun_count(&cid);
-            // Read AND reset the peak every tick so it reflects the worst
-            // callback in THIS ~33 ms interval, not an all-time high-water
-            // mark — tells an ongoing per-callback spike apart from a
-            // one-time startup cost.
-            let interval_peak_load = controller.chain_take_peak_load(&cid);
-            let (peak_callback_us, peak_block_us) = controller.chain_take_peak_breakdown(&cid);
-            let peak_block_model = controller
-                .chain_take_peak_block_model(&cid)
-                .unwrap_or_else(|| "?".into());
-            let (probe_wall_us, probe_cpu_us) = controller.chain_take_probe_wall_cpu(&cid);
             let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
             let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
                 || chain_overloaded(prev_underruns, cur_underruns);
             last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
             last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
-            if overloaded {
+            // One concise warning only on the transition INTO overload (not
+            // every event) so it never spams the log.
+            if overloaded && !row.audio_overload {
                 log::warn!(
-                    "[#670-probe] chain={} new_xruns={} new_underruns={} \
-                     wall={}us cpu={}us spiking_block={} (DECISIVE: cpu≪wall ⇒ \
-                     OFF-CPU stall = preemption/page-fault [fix=scheduling]; \
-                     cpu≈wall ⇒ ON-CPU = compute/cache [fix=working-set]; \
-                     period@64=1333us) [worst_block={}us peak_callback={}us load={:.0}%]",
+                    "[#670] audio overload on chain '{}': {} new xrun(s), {} new \
+                     underrun(s) — the rig is heavy for this buffer size",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
                     cur_underruns.saturating_sub(prev_underruns),
-                    probe_wall_us,
-                    probe_cpu_us,
-                    peak_block_model,
-                    peak_block_us,
-                    peak_callback_us,
-                    interval_peak_load * 100.0,
                 );
             }
             let overload_changed = row.audio_overload != overloaded;
