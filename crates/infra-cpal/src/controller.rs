@@ -66,6 +66,12 @@ pub struct ProjectRuntimeController {
     /// Issue #672 — dedicated thread that builds chain runtimes off the
     /// frontend thread so heavy commands never block the UI.
     pub(crate) worker: ControlWorker,
+    /// Issue #672 — in-flight off-thread rebuilds. The worker only *builds*;
+    /// `poll_pending_rebuilds` (called on the frontend tick) applies a finished
+    /// build by swapping the slot and `runtime_graph` in lock-step so they stay
+    /// consistent, and drops the superseded runtime back on the worker.
+    pub(crate) pending_rebuilds:
+        Vec<((ChainId, usize), Receiver<Result<Arc<ChainRuntimeState>>>)>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -89,6 +95,7 @@ impl ProjectRuntimeController {
             active_chains: HashMap::new(),
             chain_slots,
             worker: ControlWorker::new(),
+            pending_rebuilds: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -105,6 +112,7 @@ impl ProjectRuntimeController {
             active_chains: HashMap::new(),
             chain_slots: HashMap::new(),
             worker: ControlWorker::new(),
+            pending_rebuilds: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -127,20 +135,15 @@ impl ProjectRuntimeController {
             .map(Arc::clone)
     }
 
-    /// Issue #672 — rebuild a chain's runtime on the control worker and publish
-    /// it into the live slot, without blocking the caller (frontend thread).
+    /// Issue #672 — enqueue an off-thread rebuild of a chain's runtime.
     ///
-    /// Returns a completion handle. The heavy build AND the drop of the
-    /// superseded runtime both run on the worker thread; the frontend thread
-    /// only enqueues the request. Applies to chains that already have a runtime
-    /// (the freeze case — re-activating / editing a live chain); a brand-new
-    /// chain is still built synchronously by `sync_project` at startup.
-    pub fn schedule_chain_rebuild(
-        &mut self,
-        chain: &Chain,
-        sample_rate: f32,
-        buffer_sizes: Vec<usize>,
-    ) -> Receiver<Result<ChainId>> {
+    /// The heavy build (NAM loads, route assembly) runs on the control worker;
+    /// the caller (frontend thread) returns immediately. The finished build is
+    /// applied later by [`ProjectRuntimeController::poll_pending_rebuilds`].
+    /// Applies to chains that already have a runtime (the freeze case — editing
+    /// a live chain whose IO is unchanged); a brand-new chain or an IO-topology
+    /// change is still built synchronously by `upsert_chain`.
+    pub fn schedule_chain_rebuild(&mut self, chain: &Chain, sample_rate: f32, buffer_sizes: Vec<usize>) {
         let key = (chain.id.clone(), 0);
         // Seed the slot from the current graph runtime if it has not been
         // created yet (chain built before its slot was wired).
@@ -151,35 +154,48 @@ impl ProjectRuntimeController {
             }
         }
 
-        let chain_id = chain.id.clone();
         let request = BuildRequest {
             chain: chain.clone(),
             sample_rate,
             buffer_sizes,
         };
+        let rx = self.worker.submit(move || build_chain_runtime(&request));
+        self.pending_rebuilds.push((key, rx));
+    }
 
-        match self.chain_slots.get(&key) {
-            Some(slot) => {
-                let slot = slot.handle();
-                self.worker.submit(move || -> Result<ChainId> {
-                    let runtime = build_chain_runtime(&request)?;
-                    // The superseded runtime is returned here and dropped on the
-                    // worker thread — never on the audio or frontend thread.
-                    let _superseded = slot.publish(runtime);
-                    Ok(chain_id)
-                })
-            }
-            None => {
-                // No existing runtime to swap — out of scope for the async
-                // rebuild path (a first build is synchronous via sync_project).
-                let (tx, rx) = std::sync::mpsc::channel();
-                let _ = tx.send(Err(anyhow::anyhow!(
-                    "no existing runtime for chain '{}' to rebuild",
-                    chain_id.0
-                )));
-                rx
+    /// Issue #672 — apply any finished off-thread rebuilds (call on the frontend
+    /// tick). For each completed build, swap the live slot AND the
+    /// `runtime_graph` entry in lock-step so the audio path and every other
+    /// reader stay consistent, and drop the superseded runtime back on the
+    /// worker (its NAM C++ destructors never run on the audio/frontend thread).
+    ///
+    /// Returns the number of rebuilds applied this tick.
+    pub fn poll_pending_rebuilds(&mut self) -> usize {
+        let mut applied = 0;
+        let mut still_pending = Vec::new();
+        for (key, rx) in std::mem::take(&mut self.pending_rebuilds) {
+            match rx.try_recv() {
+                Ok(Ok(runtime)) => {
+                    if let Some(slot) = self.chain_slots.get(&key) {
+                        let graph_runtime = Arc::clone(&runtime);
+                        let superseded = slot.publish(runtime);
+                        self.runtime_graph.chains.insert(key.clone(), graph_runtime);
+                        // Drop the old runtime off the audio/frontend thread.
+                        let _ = self.worker.submit(move || drop(superseded));
+                        applied += 1;
+                    }
+                }
+                Ok(Err(e)) => {
+                    log::error!("chain '{}' off-thread rebuild failed: {e}", key.0 .0);
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => still_pending.push((key, rx)),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    log::error!("chain '{}' rebuild worker disconnected", key.0 .0);
+                }
             }
         }
+        self.pending_rebuilds = still_pending;
+        applied
     }
 
     /// Translate a detected USB audio card + project-level device settings

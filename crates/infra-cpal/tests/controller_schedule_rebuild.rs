@@ -1,7 +1,8 @@
-//! Issue #672 — `ProjectRuntimeController::schedule_chain_rebuild` rebuilds a
-//! chain's runtime on the control worker and publishes it, without blocking the
-//! caller. The new runtime replaces the old one in the live graph; the public
-//! `chain_runtime` accessor observes the swap.
+//! Issue #672 — `ProjectRuntimeController::schedule_chain_rebuild` enqueues an
+//! off-thread runtime build; `poll_pending_rebuilds` (called on the frontend
+//! tick) applies the finished build by swapping the live slot AND the
+//! runtime_graph in lock-step, so both stay consistent. The heavy build never
+//! blocks the caller.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,7 +25,7 @@ fn empty_chain(id: &str) -> Chain {
 }
 
 #[test]
-fn schedule_chain_rebuild_publishes_a_new_runtime_offthread() {
+fn schedule_then_poll_publishes_a_new_runtime_offthread() {
     let chain_id = ChainId("chain:672:rebuild".into());
     let chain = empty_chain(&chain_id.0);
 
@@ -35,22 +36,25 @@ fn schedule_chain_rebuild_publishes_a_new_runtime_offthread() {
 
     let mut controller = ProjectRuntimeController::for_testing(graph);
 
-    let before = controller
-        .chain_runtime(&chain_id)
-        .expect("chain runtime is present before the rebuild");
+    let before = controller.chain_runtime(&chain_id).expect("runtime present");
     assert!(Arc::ptr_eq(&before, &initial));
 
-    // Schedule the rebuild — must return immediately with a completion handle.
-    let done = controller.schedule_chain_rebuild(&chain, 48_000.0, vec![1024]);
-    done.recv_timeout(Duration::from_secs(10))
-        .expect("rebuild completes")
-        .expect("rebuild succeeds");
+    // Enqueue the rebuild — must return immediately (no build on this thread).
+    controller.schedule_chain_rebuild(&chain, 48_000.0, vec![1024]);
 
-    let after = controller
-        .chain_runtime(&chain_id)
-        .expect("chain runtime is present after the rebuild");
+    // The frontend tick drains finished builds; spin the poll until applied.
+    let mut applied = 0;
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while applied == 0 {
+        applied += controller.poll_pending_rebuilds();
+        assert!(std::time::Instant::now() < deadline, "rebuild never completed");
+        std::thread::yield_now();
+    }
+    assert_eq!(applied, 1);
+
+    let after = controller.chain_runtime(&chain_id).expect("runtime present");
     assert!(
         !Arc::ptr_eq(&before, &after),
-        "schedule_chain_rebuild must publish a freshly built runtime (new Arc)"
+        "poll must publish the freshly built runtime (new Arc)"
     );
 }
