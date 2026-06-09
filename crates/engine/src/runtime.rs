@@ -217,6 +217,8 @@ pub fn process_input_f32(
     // compute spike (one block) from a stall (no block dominates).
     let callback_start = std::time::Instant::now();
     let mut cb_worst_block_ns = 0u64;
+    let mut cb_worst_block_idx = usize::MAX;
+    let mut cb_block_ordinal = 0usize;
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
@@ -231,6 +233,8 @@ pub fn process_input_f32(
             &stream_taps,
             di_for_seg,
             &mut cb_worst_block_ns,
+            &mut cb_worst_block_idx,
+            &mut cb_block_ordinal,
         );
     }
 
@@ -273,6 +277,9 @@ pub fn process_input_f32(
         runtime
             .peak_block_ns
             .store(cb_worst_block_ns, Ordering::Relaxed);
+        runtime
+            .peak_block_idx
+            .store(cb_worst_block_idx, Ordering::Relaxed);
     }
 
     if let Some(slot) = input_scratches.get_mut(input_index) {
@@ -353,6 +360,8 @@ fn process_single_segment(
     stream_taps: &[Arc<StreamTap>],
     di: Option<(&crate::di_loop::DiLoop, usize)>,
     worst_block_ns: &mut u64,
+    worst_block_idx: &mut usize,
+    block_ordinal: &mut usize,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -416,7 +425,12 @@ fn process_single_segment(
         // process accounts for a callback spike (compute) or not (stall).
         let block_start = std::time::Instant::now();
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
-        *worst_block_ns = (*worst_block_ns).max(block_start.elapsed().as_nanos() as u64);
+        let block_ns = block_start.elapsed().as_nanos() as u64;
+        if block_ns > *worst_block_ns {
+            *worst_block_ns = block_ns;
+            *worst_block_idx = *block_ordinal;
+        }
+        *block_ordinal += 1;
     }
 
     // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window

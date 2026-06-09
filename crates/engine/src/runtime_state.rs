@@ -391,6 +391,11 @@ pub struct ChainRuntimeState {
     /// reset on read. Diagnostic — revert with the probe.
     pub(crate) peak_callback_ns: AtomicU64,
     pub(crate) peak_block_ns: AtomicU64,
+    /// Issue #670 probe: global index (across this input's segment blocks) of
+    /// the slowest block in the peak callback, so the off-thread probe can
+    /// NAME the spiking block's model. `usize::MAX` = none. Resolved to the
+    /// block model under `processing.try_lock` off the audio thread.
+    pub(crate) peak_block_idx: AtomicUsize,
 }
 
 impl ChainRuntimeState {

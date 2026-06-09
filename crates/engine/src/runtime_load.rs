@@ -78,6 +78,28 @@ impl ChainRuntimeState {
         (callback_us, block_us)
     }
 
+    /// Issue #670 probe: the MODEL of the slowest block in the peak callback,
+    /// resolved off the audio thread (read+reset the index, then a brief
+    /// `try_lock` to read the live node's snapshot). `None` when no spike was
+    /// recorded or the lock is momentarily held by the audio thread.
+    pub fn take_peak_block_model(&self) -> Option<String> {
+        let idx = self.peak_block_idx.swap(usize::MAX, Ordering::Relaxed);
+        if idx == usize::MAX {
+            return None;
+        }
+        let guard = self.processing.try_lock().ok()?;
+        let mut ord = 0usize;
+        for state in &guard.input_states {
+            for node in &state.blocks {
+                if ord == idx {
+                    return Some(block_model_label(&node.block_snapshot));
+                }
+                ord += 1;
+            }
+        }
+        None
+    }
+
     /// Total output-side underruns across this chain's elastic buffers
     /// (issue #670). An underrun is an empty `pop` on the output callback:
     /// the input/DSP producer hasn't delivered the frame in time, so a
@@ -99,6 +121,18 @@ impl ChainRuntimeState {
     pub fn reset_load_stats(&self) {
         self.xrun_count.store(0, Ordering::Relaxed);
         self.peak_load_ppm.store(0, Ordering::Relaxed);
+    }
+}
+
+/// Issue #670 probe: a short model label for a placed block, for naming the
+/// spiking block in the diagnostic log. DSP blocks (Core / NAM) carry the
+/// model; anything else falls back to its block id.
+fn block_model_label(block: &project::block::AudioBlock) -> String {
+    use project::block::AudioBlockKind;
+    match &block.kind {
+        AudioBlockKind::Core(c) => c.model.clone(),
+        AudioBlockKind::Nam(n) => n.model.clone(),
+        _ => block.id.0.clone(),
     }
 }
 

@@ -443,6 +443,7 @@ fn assemble_chain_runtime_state(
         peak_load_ppm: AtomicU64::new(0),
         peak_callback_ns: AtomicU64::new(0),
         peak_block_ns: AtomicU64::new(0),
+        peak_block_idx: std::sync::atomic::AtomicUsize::new(usize::MAX),
     })
 }
 

@@ -306,6 +306,15 @@ impl ProjectRuntimeController {
             .unwrap_or((0, 0))
     }
 
+    /// Issue #670 probe: model of the slowest block in the peak callback,
+    /// resolved off the audio thread. Names the spiking block in the log.
+    pub fn chain_take_peak_block_model(&self, chain_id: &ChainId) -> Option<String> {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .find_map(|runtime| runtime.take_peak_block_model())
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {
