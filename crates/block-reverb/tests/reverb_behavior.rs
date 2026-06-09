@@ -303,17 +303,20 @@ fn gated_tail_collapses_after_release() {
 
 #[test]
 fn reverse_envelope_swells_then_cuts() {
-    let response = ir("reverse", &[], 3.0);
-    let env = rms_blocks(&response, at(0.02));
-    let (peak_idx, _) = env
-        .iter()
-        .enumerate()
-        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        .expect("non-empty envelope");
+    // A reverse reverb plays each captured segment back with a rising 0->1
+    // envelope: within a settled reversed window the energy swells from
+    // near-silence to a peak, then cuts at the segment boundary — the
+    // opposite of a decaying tail. Measured with a sustained tone (an
+    // impulse would just be replayed as a single late spike).
+    let out = run_mono(&mut build_wet_mono("reverse", &[]), &sine(220.0, at(3.0)));
+    // Default length is 600 ms; take one fully-settled reversed window.
+    let window = &out[at(1.8)..at(2.4)];
+    let q = window.len() / 4;
+    let first_quarter = rms(&window[..q]);
+    let last_quarter = rms(&window[3 * q..]);
     assert!(
-        peak_idx as f32 > env.len() as f32 * 0.4,
-        "reverse peak at block {peak_idx}/{} should be late (a swell), not at the start",
-        env.len()
+        last_quarter > first_quarter * 3.0,
+        "reverse should swell: last-quarter RMS {last_quarter:.3} must rise well above first-quarter {first_quarter:.3}"
     );
 }
 
