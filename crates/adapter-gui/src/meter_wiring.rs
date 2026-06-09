@@ -561,6 +561,7 @@ pub fn start_meter_polling(
             let peak_block_model = controller
                 .chain_take_peak_block_model(&cid)
                 .unwrap_or_else(|| "?".into());
+            let (probe_wall_us, probe_cpu_us) = controller.chain_take_probe_wall_cpu(&cid);
             let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
             let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
@@ -570,16 +571,18 @@ pub fn start_meter_polling(
             if overloaded {
                 log::warn!(
                     "[#670-probe] chain={} new_xruns={} new_underruns={} \
-                     peak_callback={}us worst_block_in_that_callback={}us \
-                     spiking_block={} interval_peak_load={:.0}% (COUPLED: \
-                     block≈callback ⇒ that block spikes [compute]; block≪callback \
-                     ⇒ stall/preemption outside blocks; period@64=1333us)",
+                     wall={}us cpu={}us spiking_block={} (DECISIVE: cpu≪wall ⇒ \
+                     OFF-CPU stall = preemption/page-fault [fix=scheduling]; \
+                     cpu≈wall ⇒ ON-CPU = compute/cache [fix=working-set]; \
+                     period@64=1333us) [worst_block={}us peak_callback={}us load={:.0}%]",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
                     cur_underruns.saturating_sub(prev_underruns),
-                    peak_callback_us,
-                    peak_block_us,
+                    probe_wall_us,
+                    probe_cpu_us,
                     peak_block_model,
+                    peak_block_us,
+                    peak_callback_us,
                     interval_peak_load * 100.0,
                 );
             }

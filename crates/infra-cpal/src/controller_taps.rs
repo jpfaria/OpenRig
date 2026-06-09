@@ -306,6 +306,18 @@ impl ProjectRuntimeController {
             .unwrap_or((0, 0))
     }
 
+    /// Issue #670 probe: worst-wall callback's (wall_us, cpu_us) across this
+    /// chain's runtimes, resetting both. `cpu ≪ wall` ⇒ off-CPU stall
+    /// (preemption/page fault); `cpu ≈ wall` ⇒ on-CPU (compute/cache).
+    pub fn chain_take_probe_wall_cpu(&self, chain_id: &ChainId) -> (u64, u64) {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.take_probe_wall_cpu_micros())
+            .max_by_key(|(wall_us, _)| *wall_us)
+            .unwrap_or((0, 0))
+    }
+
     /// Issue #670 probe: model of the slowest block in the peak callback,
     /// resolved off the audio thread. Names the spiking block in the log.
     pub fn chain_take_peak_block_model(&self, chain_id: &ChainId) -> Option<String> {

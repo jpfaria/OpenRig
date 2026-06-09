@@ -42,7 +42,7 @@ use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use crate::callback_load_timing::record_callback_deadline;
+use crate::callback_load_timing::{record_callback_deadline, thread_cpu_time_ns};
 use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -148,10 +148,16 @@ pub(crate) fn build_input_stream_for_input(
                     // Issue #670: time the block DSP (the heavy work runs here,
                     // not on the output pop) so a buffer-64 deadline miss is
                     // counted and surfaced instead of crackling silently.
+                    // Also capture thread CPU time to tell an off-CPU stall
+                    // (preemption/page fault) from on-CPU cost (compute/cache).
                     let callback_start = std::time::Instant::now();
+                    let cpu_start = thread_cpu_time_ns();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&runtime_for_data, input_index, data, channels);
                     }));
+                    let wall_ns = callback_start.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+                    runtime_for_data
+                        .record_probe_wall_cpu(wall_ns, thread_cpu_time_ns().saturating_sub(cpu_start));
                     record_callback_deadline(
                         &runtime_for_data,
                         callback_start.elapsed(),

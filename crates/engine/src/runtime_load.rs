@@ -82,6 +82,25 @@ impl ChainRuntimeState {
     /// resolved off the audio thread (read+reset the index, then a brief
     /// `try_lock` to read the live node's snapshot). `None` when no spike was
     /// recorded or the lock is momentarily held by the audio thread.
+    /// Issue #670 probe: record one callback's wall vs thread-CPU time,
+    /// keeping the pair from the worst-WALL callback this interval. Called
+    /// from the cpal callback (infra-cpal owns the libc thread clock).
+    pub fn record_probe_wall_cpu(&self, wall_ns: u64, cpu_ns: u64) {
+        let prev = self.probe_wall_ns.fetch_max(wall_ns, Ordering::Relaxed);
+        if wall_ns > prev {
+            self.probe_cpu_ns.store(cpu_ns, Ordering::Relaxed);
+        }
+    }
+
+    /// Read+reset the worst-wall callback's (wall_us, cpu_us). `cpu ≪ wall`
+    /// ⇒ off-CPU stall (preemption/page fault); `cpu ≈ wall` ⇒ on-CPU
+    /// (compute/cache).
+    pub fn take_probe_wall_cpu_micros(&self) -> (u64, u64) {
+        let wall = self.probe_wall_ns.swap(0, Ordering::Relaxed) / 1_000;
+        let cpu = self.probe_cpu_ns.swap(0, Ordering::Relaxed) / 1_000;
+        (wall, cpu)
+    }
+
     pub fn take_peak_block_model(&self) -> Option<String> {
         let idx = self.peak_block_idx.swap(usize::MAX, Ordering::Relaxed);
         if idx == usize::MAX {

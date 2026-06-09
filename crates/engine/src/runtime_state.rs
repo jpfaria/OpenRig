@@ -396,6 +396,15 @@ pub struct ChainRuntimeState {
     /// NAME the spiking block's model. `usize::MAX` = none. Resolved to the
     /// block model under `processing.try_lock` off the audio thread.
     pub(crate) peak_block_idx: AtomicUsize,
+    /// Issue #670 probe (COUPLED wall vs CPU): the worst process_input
+    /// WALL-clock time (ns) measured by the cpal callback, and — from the
+    /// SAME callback — the thread CPU time it actually consumed. `cpu ≈ wall`
+    /// ⇒ the thread was ON-CPU the whole time (a genuine compute/memory cost
+    /// — cache); `cpu ≪ wall` ⇒ the thread was OFF-CPU (preempted / blocked
+    /// on a page fault — a scheduling stall). Written by infra-cpal (which
+    /// has libc for the thread CPU clock); both reset on read. Diagnostic.
+    pub(crate) probe_wall_ns: AtomicU64,
+    pub(crate) probe_cpu_ns: AtomicU64,
 }
 
 impl ChainRuntimeState {
