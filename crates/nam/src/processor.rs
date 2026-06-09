@@ -528,10 +528,6 @@ impl NamProcessor {
     }
 }
 
-/// Diagnostic counter for periodic NAM audio health logging.
-/// Only compiled on Linux/aarch64 where NAM audio issues have been observed.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-static NAM_DIAG_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 impl MonoProcessor for NamProcessor {
     fn process_sample(&mut self, sample: f32) -> f32 {
@@ -557,8 +553,19 @@ impl MonoProcessor for NamProcessor {
         // wrapper does NOT clip. The noise gate / EQ / IR are all
         // handled inside the official core wrapper (issue #612).
         self.scratch_output.resize(buffer.len(), 0.0);
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        // Issue #670 probe: read the FPCR flush-to-zero (FZ) bit right before
+        // the inference, so when a NAM call overruns we know whether FZ was
+        // set (→ not denormals, look at cache) or cleared (→ a preceding block
+        // left flush-to-zero off and the net is denormal-stalling). aarch64
+        // only (the user's platform + where ensure_flush_to_zero applies).
+        #[cfg(target_arch = "aarch64")]
         let t0 = std::time::Instant::now();
+        #[cfg(target_arch = "aarch64")]
+        let fz_before: u64 = unsafe {
+            let fpcr: u64;
+            core::arch::asm!("mrs {}, fpcr", out(reg) fpcr);
+            (fpcr >> 24) & 1
+        };
         unsafe {
             nam_process_ffi(
                 self.handle,
@@ -567,29 +574,25 @@ impl MonoProcessor for NamProcessor {
                 buffer.len() as c_int,
             );
         }
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         let elapsed = t0.elapsed();
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = soft_clip(*src);
         }
 
-        // Periodic diagnostic logging on aarch64 to investigate NAM audio quality
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        // Issue #670 probe: log ONLY when this NAM inference overran its
+        // buffer budget (a spike), with the FZ bit captured above — so one
+        // grep settles denormals (fz=0) vs cache (fz=1). Rare by construction
+        // (only on a spike), so the audio-thread log cost is acceptable for a
+        // diagnostic. aarch64 only.
+        #[cfg(target_arch = "aarch64")]
         {
-            let count = NAM_DIAG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            // Log every ~2 seconds at 48kHz/1024 ≈ 47 callbacks/sec → every 94 callbacks
-            if count % 94 == 0 {
-                let out_rms =
-                    (buffer.iter().map(|s| s * s).sum::<f32>() / buffer.len() as f32).sqrt();
-                let has_nan = buffer.iter().any(|s| s.is_nan());
-                let peak_out = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-                let elapsed_us = elapsed.as_micros();
-                let budget_us = (buffer.len() as u64 * 1_000_000) / 48000;
+            let elapsed_us = elapsed.as_micros() as u64;
+            let budget_us = (buffer.len() as u64 * 1_000_000) / 48000;
+            if elapsed_us > budget_us {
                 log::warn!(
-                    "[NAM-DIAG] blk={} len={} process_us={} budget_us={} load={:.0}% out_rms={:.4} peak={:.4} nan={}",
-                    count, buffer.len(), elapsed_us, budget_us,
-                    elapsed_us as f64 / budget_us as f64 * 100.0,
-                    out_rms, peak_out, has_nan,
+                    "[NAM-FZ-PROBE] inference OVERRAN: us={} budget_us={} fz={} len={} (fz=0 ⇒ flush-to-zero was OFF when NAM ran ⇒ denormals; fz=1 ⇒ FTZ on ⇒ cache/other) #670",
+                    elapsed_us, budget_us, fz_before, buffer.len(),
                 );
             }
         }
