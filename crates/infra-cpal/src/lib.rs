@@ -88,8 +88,6 @@ mod jack_chain_resolve;
 
 mod validation;
 
-mod audio_thread_priority;
-pub use audio_thread_priority::promote_current_thread_realtime;
 mod callback_load_timing;
 mod stream_builder;
 mod stream_config;
