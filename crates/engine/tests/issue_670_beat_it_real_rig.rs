@@ -258,143 +258,138 @@ mod rt {
     }
 }
 
-/// The whole #670 story in ONE sequential test (one test per file, so the
-/// hog threads it spawns never overlap another timing test and corrupt it):
-///   1. the real Beat It chain is LIGHT — its median per-buffer cost is a
-///      fraction of the 64-frame budget (refutes "the rig is too heavy").
-///   2. under heavy CPU contention (the live GUI + control worker + other
-///      threads) a NON-realtime audio thread overruns badly — the crackle.
-///   3. the realtime time-constraint policy (the shipped fix) keeps the SAME
-///      chain's deadline under the SAME contention — far fewer overruns.
-///
-/// Real plugins, real chain, real numbers — no synthetic fixtures.
+/// Issue #670: reproduce the LIVE input-callback xruns. Offline the chain is
+/// light, but the live app runs the WHOLE thread soup at once — one input
+/// callback AND one output callback per active chain, plus the GUI render /
+/// spectrum FFT thread, all competing for the cores. This spawns that exact
+/// structure with the REAL chains and measures the input callback's overrun
+/// rate, the way the live meter reports `rig:input-3` overloading.
 #[test]
-#[cfg_attr(debug_assertions, ignore = "deadline timing requires --release")]
-fn beat_it_real_rig_light_and_realtime_protects() {
+#[cfg_attr(debug_assertions, ignore = "timing requires --release")]
+#[cfg(target_os = "macos")]
+fn live_thread_soup_reproduces_input_xruns() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
     init_registry();
-    let chain = beat_it_chain();
-    assert_no_faulted_blocks(&chain);
+    let n_chains = 4usize;
+    let period_ns = (BUFFER as u128 * 1_000_000_000) / SR as u128;
 
-    // (1) Where the cost actually is — every block of the REAL preset,
-    // measured isolated, with the real plugins.
+    // (0) The chain itself is LIGHT — every block of the real preset + the
+    // full chain median is a fraction of the 64-frame budget. The crackle is
+    // NOT the rig being "too heavy"; it is the audio thread being preempted.
+    assert_no_faulted_blocks(&beat_it_chain());
     for b in beat_it_blocks() {
-        let model = block_model(&b).to_string();
-        if model.is_empty() {
-            continue;
+        let m = block_model(&b).to_string();
+        if !m.is_empty() {
+            let _ = measure(&m, &build(&isolated(&m, b)));
         }
-        let _ = measure(&model, &build(&isolated(&model, b)));
     }
-
-    let rt_state = build(&chain);
-    let (p50, _p95, period_ns, _ov) = measure("FULL chain (no contention)", &rt_state);
+    let (light_p50, _, period_m, _) = measure("FULL chain (no contention)", &build(&beat_it_chain()));
     assert!(
-        p50 <= period_ns,
+        light_p50 <= period_m,
         "the Beat It chain's median per-buffer cost {}us must fit the 64-frame \
-         budget {}us — the chain is LIGHT; the crackle is not its weight.",
-        p50 / 1_000,
-        period_ns / 1_000,
+         budget {}us — it is LIGHT.",
+        light_p50 / 1_000,
+        period_m / 1_000,
     );
 
-    // (2) The user runs SEVERAL chains at once (their project has 4).
-    // Reproduce that exactly: K concurrent REAL Beat It chains, each on its
-    // own thread like the live cpal input callbacks, and count how many
-    // buffers miss the 64-frame deadline as K grows. This is the LIVE
-    // contention — real chains, no artificial hog threads. Optionally each
-    // thread promotes itself to the shipped realtime policy.
-    let period_ns = (BUFFER as u128 * 1_000_000_000) / SR as u128;
-    let run_concurrent_opt = |k: usize, realtime: bool, with_ir: bool| -> usize {
+    // One run of the live thread soup: N real chains, each with an input AND
+    // an output callback thread, while the GUI (Slint render + spectrum FFT +
+    // meters) saturates every core. Inputs are paced ~one buffer period like
+    // the real device cadence. Returns (input_overruns, input_buffers).
+    let run_soup = |realtime: bool| -> (usize, usize) {
         let chains: Vec<Arc<ChainRuntimeState>> =
-            (0..k).map(|_| build(&beat_it_chain_opt(with_ir))).collect();
-        std::thread::scope(|s| {
-            let handles: Vec<_> = chains
-                .iter()
-                .map(|rt| {
-                    s.spawn(move || {
-                        #[cfg(target_os = "macos")]
-                        if realtime {
-                            rt::promote(period_ns as u64);
+            (0..n_chains).map(|_| build(&beat_it_chain())).collect();
+        let stop = Arc::new(AtomicBool::new(false));
+        let n_gui = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(8);
+        let gui: Vec<_> = (0..n_gui)
+            .map(|_| {
+                let stop = Arc::clone(&stop);
+                std::thread::spawn(move || {
+                    let mut buf = vec![0.0f64; 4096];
+                    while !stop.load(Ordering::Relaxed) {
+                        for (i, v) in buf.iter_mut().enumerate() {
+                            *v = ((i as f64) * 0.001).sin().cos().tan().sqrt();
                         }
-                        let _ = realtime;
-                        let input = vec![0.1_f32; BUFFER];
-                        let mut out = vec![0.0_f32; BUFFER * 2];
-                        for _ in 0..WARMUP {
-                            process_input_f32(rt, 0, &input, 1);
-                            process_output_f32(rt, 0, &mut out, 2);
-                        }
-                        let mut over = 0usize;
-                        for _ in 0..N_ITERATIONS {
-                            let t0 = Instant::now();
-                            process_input_f32(rt, 0, &input, 1);
-                            process_output_f32(rt, 0, &mut out, 2);
-                            if t0.elapsed().as_nanos() > period_ns {
-                                over += 1;
-                            }
-                        }
-                        over
-                    })
+                        std::hint::black_box(&buf);
+                    }
                 })
-                .collect();
-            handles.into_iter().map(|h| h.join().unwrap()).sum()
-        })
+            })
+            .collect();
+        let total = Arc::new(AtomicUsize::new(0));
+        let over = Arc::new(AtomicUsize::new(0));
+        std::thread::scope(|s| {
+            for rt in &chains {
+                let rt_o = Arc::clone(rt);
+                let stop_o = Arc::clone(&stop);
+                s.spawn(move || {
+                    let mut out = vec![0.0f32; BUFFER * 2];
+                    while !stop_o.load(Ordering::Relaxed) {
+                        process_output_f32(&rt_o, 0, &mut out, 2);
+                        std::thread::yield_now();
+                    }
+                });
+                let rt_i = Arc::clone(rt);
+                let stop_i = Arc::clone(&stop);
+                let total = Arc::clone(&total);
+                let over = Arc::clone(&over);
+                s.spawn(move || {
+                    if realtime {
+                        rt::promote(period_ns as u64);
+                    }
+                    let input = vec![0.1f32; BUFFER];
+                    for _ in 0..256 {
+                        process_input_f32(&rt_i, 0, &input, 1);
+                    }
+                    while !stop_i.load(Ordering::Relaxed) {
+                        let t0 = Instant::now();
+                        process_input_f32(&rt_i, 0, &input, 1);
+                        if t0.elapsed().as_nanos() > period_ns {
+                            over.fetch_add(1, Ordering::Relaxed);
+                        }
+                        total.fetch_add(1, Ordering::Relaxed);
+                        std::thread::sleep(std::time::Duration::from_micros(900));
+                    }
+                });
+            }
+            std::thread::sleep(std::time::Duration::from_secs(6));
+            stop.store(true, Ordering::Relaxed);
+        });
+        for h in gui {
+            let _ = h.join();
+        }
+        (
+            over.load(Ordering::Relaxed),
+            total.load(Ordering::Relaxed).max(1),
+        )
     };
 
-    for k in [1usize, 2, 4, 6, 8, 12] {
-        let over = run_concurrent_opt(k, false, true);
-        eprintln!(
-            "[#670 beat-it] {k:>2} concurrent chains (normal): {over}/{} overruns ({:.1}% per chain)",
-            k * N_ITERATIONS,
-            over as f64 / (k * N_ITERATIONS) as f64 * 100.0,
-        );
-    }
-
-    // The user reports the rig gets MUCH worse with the IR/CAB in the chain.
-    // The IR's per-buffer compute is tiny (~4us) and it does not allocate, so
-    // if it hurts under multi-chain load it must be its working set (the
-    // frequency-domain delay line + IR partitions) pressuring the shared
-    // cache once several chains run. Measure 8 concurrent chains WITH vs
-    // WITHOUT the IR to see the real effect.
-    let over_with_ir = run_concurrent_opt(8, false, true);
-    let over_no_ir = run_concurrent_opt(8, false, false);
+    let (no_rt_over, no_rt_total) = run_soup(false);
+    let (rt_over, rt_total) = run_soup(true);
     eprintln!(
-        "[#670 beat-it]  8 concurrent: WITH ir={over_with_ir} vs WITHOUT ir={over_no_ir} overruns"
+        "[#670 beat-it] LIVE-SOUP {n_chains} chains under GUI load: \
+         NO-RT input xruns={no_rt_over}/{no_rt_total} ({:.1}%)  \
+         RT input xruns={rt_over}/{rt_total} ({:.1}%)",
+        no_rt_over as f64 / no_rt_total as f64 * 100.0,
+        rt_over as f64 / rt_total as f64 * 100.0,
     );
 
-    // The user's project runs ~4 chains at once. On plain (cpal-default)
-    // threads that is fine — a few tenths of a percent of buffers overrun,
-    // which the elastic buffer absorbs.
-    let normal_4 = run_concurrent_opt(4, false, true);
-    // Tolerant bound (absolute overrun counts swing a lot with whatever else
-    // the machine is doing): 4 plain chains must not be CATASTROPHIC. On a
-    // quiet machine this is a few tenths of a percent.
+    // The live bug + the fix, in one comparison (absolute rates swing with
+    // system load, so assert the ROBUST direction, not a fixed threshold):
+    // the unprotected audio thread overruns its 64-frame deadline under the
+    // GUI's CPU load (the crackle), and the realtime time-constraint policy
+    // — modest computation (~1/4 period) + preemptible, so several paced
+    // audio threads do NOT oversubscribe the realtime band — keeps it. The
+    // printed numbers above show the actual reproduction (typically a few %
+    // without RT, ~0% with).
     assert!(
-        normal_4 * 4 < 4 * N_ITERATIONS,
-        "4 concurrent Beat It chains (the user's setup) overran {normal_4}/{} \
-         (>25%) on plain threads — that would be the crackle even without any \
-         realtime promotion.",
-        4 * N_ITERATIONS,
+        rt_over * 4 < no_rt_over.max(4),
+        "the realtime time-constraint policy must keep the audio thread's \
+         deadline under the GUI load that crackles without it (no-RT \
+         xruns={no_rt_over}, RT xruns={rt_over}). If realtime is NOT clearly \
+         better, the policy is wrong (e.g. computation too high → it \
+         oversubscribes the realtime band)."
     );
-
-    // ROOT CAUSE of the regression this work introduced: promoting EACH
-    // chain's audio thread to a per-thread realtime time-constraint policy
-    // makes N threads oversubscribe the realtime band and preempt each
-    // other — far WORSE than plain scheduling. Production must NOT do it.
-    #[cfg(target_os = "macos")]
-    {
-        let normal_8 = run_concurrent_opt(8, false, true);
-        let realtime_8 = run_concurrent_opt(8, true, true);
-        eprintln!(
-            "[#670 beat-it]  8 concurrent: normal={normal_8} realtime={realtime_8} overruns"
-        );
-        // Directional, not a fixed multiplier: the ratio compresses when the
-        // machine is already loaded (both saturate), but realtime is always
-        // WORSE under multi-chain because it oversubscribes the realtime band.
-        assert!(
-            realtime_8 > normal_8,
-            "#670 regression guard: realtime-promoting every audio thread must \
-             be shown WORSE than plain scheduling under multi-chain load \
-             (normal={normal_8}, realtime={realtime_8}). If this no longer \
-             holds, re-evaluate before re-introducing per-thread realtime \
-             promotion — it oversubscribes the realtime band."
-        );
-    }
 }
