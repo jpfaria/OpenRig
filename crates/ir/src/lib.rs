@@ -284,6 +284,12 @@ impl FftBlockConvolver {
         // Feed samples into internal input buffer, process partition-sized
         // chunks, and drain output buffer back into the caller's buffer.
         let out_len = state.output_buf.len();
+        // Issue #670 probe: time the convolution and log ONLY on a real spike
+        // — to catch the IR's LIVE cost (offline ~4us; the user pinned the
+        // crackle to this block). No per-callback log; only on an overrun.
+        let (probe_np, probe_fl, probe_ps) =
+            (state.num_partitions, state.fft_len, state.partition_size);
+        let probe_t0 = std::time::Instant::now();
         for i in 0..buffer.len() {
             state.input_buf[state.input_pos] = buffer[i];
             buffer[i] = state.output_buf[state.output_pos % out_len];
@@ -298,6 +304,13 @@ impl FftBlockConvolver {
                 Self::process_partition(state);
                 state.input_pos = 0;
             }
+        }
+        let probe_us = probe_t0.elapsed().as_micros();
+        if probe_us > 100 {
+            log::warn!(
+                "[#670 IR] convolution spike: {probe_us}us (buffer={}, partitions={probe_np}, fft_len={probe_fl}, partition_size={probe_ps})",
+                buffer.len(),
+            );
         }
     }
 
