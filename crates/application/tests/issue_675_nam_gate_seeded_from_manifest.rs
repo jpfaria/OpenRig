@@ -47,3 +47,16 @@ fn nam_block_seeds_noise_gate_knobs_from_manifest() {
         "`threshold_db` must be seeded from the per-capture override into the knob"
     );
 }
+
+#[test]
+fn default_params_for_model_seeds_noise_gate() {
+    // The GUI block editor builds a new block's param rows from
+    // `default_params_for_model` (not `build_default_block`, which makes a
+    // whole AudioBlock). It must seed the gate the same way, or the editor
+    // knob shows the schema default (off/-50) and the manifest value is lost.
+    init_plugins();
+    let params = application::block_factory::default_params_for_model("gain_pedal", "nam_ts9_grid")
+        .expect("default params for the grid pedal");
+    assert_eq!(params.get_bool("noise_gate.enabled"), Some(true));
+    assert_eq!(params.get_f32("noise_gate.threshold_db"), Some(-55.0));
+}
