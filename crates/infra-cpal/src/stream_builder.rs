@@ -330,25 +330,9 @@ pub(crate) fn build_output_stream_for_output(
             // never allocates. `process_output_f32_mixed` takes the
             // single-runtime byte-identical fast path when len()==1.
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
-            let mut rt_promoted = false;
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    // Issue #670: promote the output audio callback thread to
-                    // real-time too (mirrors the input thread) so neither
-                    // audio thread is preempted off-CPU at buffer 64.
-                    if !rt_promoted {
-                        rt_promoted = true;
-                        let frames = out.len() / channels.max(1);
-                        let period_ns =
-                            (frames as u64 * 1_000_000_000) / (sample_rate.max(1) as u64);
-                        let ok = crate::promote_current_thread_realtime(period_ns);
-                        log::info!(
-                            "[#670] output audio thread real-time promotion: {} (period={}us)",
-                            if ok { "ok" } else { "FAILED" },
-                            period_ns / 1000,
-                        );
-                    }
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
