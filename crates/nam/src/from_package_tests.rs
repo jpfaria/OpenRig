@@ -27,9 +27,13 @@ fn drive_captures() -> Vec<GridCapture> {
             values,
             file: PathBuf::from(file),
             output_gain_db: None,
+            noise_gate: None,
         }
     }
-    vec![cell(0.0, "captures/drive_min.nam"), cell(5.0, "captures/drive_hi.nam")]
+    vec![
+        cell(0.0, "captures/drive_min.nam"),
+        cell(5.0, "captures/drive_hi.nam"),
+    ]
 }
 
 /// Issue #630: a grid pedal at the axis minimum (drive=0) must resolve to the

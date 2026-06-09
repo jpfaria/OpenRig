@@ -108,6 +108,7 @@ fn ncap(values: &[(&str, f64)], file: &str) -> GridCapture {
             .collect(),
         file: file.into(),
         output_gain_db: None,
+        noise_gate: None,
     }
 }
 
@@ -120,6 +121,7 @@ fn tcap(values: &[(&str, &str)], file: &str) -> GridCapture {
             .collect(),
         file: file.into(),
         output_gain_db: None,
+        noise_gate: None,
     }
 }
 
@@ -237,5 +239,6 @@ fn cell(values: &[(&str, V)], file: &str) -> GridCapture {
         values: map,
         file: file.into(),
         output_gain_db: None,
+        noise_gate: None,
     }
 }

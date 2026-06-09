@@ -64,6 +64,7 @@ fn nam_manifest(captures: Vec<GridCapture>) -> PluginManifest {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
@@ -85,6 +86,7 @@ fn capture(values: &[(&str, f64)], file: &str) -> GridCapture {
             .collect(),
         file: PathBuf::from(file),
         output_gain_db: None,
+        noise_gate: None,
     }
 }
 
@@ -124,6 +126,7 @@ fn accepts_ir_package_with_existing_wav() {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::Cab,
         backend: Backend::Ir {
@@ -151,6 +154,7 @@ fn lv2_manifest(binaries: BTreeMap<Lv2Slot, PathBuf>) -> PluginManifest {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {

@@ -188,11 +188,15 @@ pub(crate) fn wire(
             );
             draft.model_id = model.model_id.to_string();
             draft.effect_type = model.effect_type.to_string();
-            let new_params = block_parameter_items_for_model(
+            // Seed the new model's knobs from the manifest (output_db #655,
+            // noise_gate #675) via the single source in `block_factory`.
+            let seeded = application::block_factory::default_params_for_model(
                 &model.effect_type,
                 &model.model_id,
-                &ParameterSet::default(),
-            );
+            )
+            .unwrap_or_default();
+            let new_params =
+                block_parameter_items_for_model(&model.effect_type, &model.model_id, &seeded);
             let overlays = build_knob_overlays(
                 project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
                 &new_params,
