@@ -11,17 +11,10 @@ fn init_plugins() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        let candidates = [
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../../../OpenRig-plugins/plugins/source"),
-            PathBuf::from(
-                "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-            ),
-        ];
-        let roots: Vec<PathBuf> = candidates.into_iter().filter(|p| p.is_dir()).collect();
-        if !roots.is_empty() {
-            plugin_loader::registry::init_many(&roots);
-        }
+        // Self-contained: an in-repo NAM amp fixture (nam_marshall_plexi),
+        // not the external OpenRig-plugins tree.
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins");
+        plugin_loader::registry::init(&root);
     });
 }
 

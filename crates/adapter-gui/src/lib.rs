@@ -129,7 +129,10 @@ mod model_search;
 mod model_search_wiring;
 mod preset_search;
 mod project_ops;
-mod project_view;
+// #679: `pub` so the issue_599 integration test can reach
+// `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
+// `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
+pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
 mod state;
