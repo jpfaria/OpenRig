@@ -182,6 +182,7 @@ fn round_trip_nam_preserves_data() {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
@@ -194,6 +195,7 @@ fn round_trip_nam_preserves_data() {
                 values: BTreeMap::from([("gain".to_string(), ParameterValue::Number(10.0))]),
                 file: PathBuf::from("captures/g10.nam"),
                 output_gain_db: None,
+                noise_gate: None,
             }],
         },
     };
@@ -232,6 +234,82 @@ captures:
         Some(13.0556831),
         "manifest output_gain_db calibration must reach the engine in dB, unchanged"
     );
+}
+
+// Issue #675 — per-capture / manifest-level noise gate defaults so a
+// high-gain capture can ship with the gate regulated (the idle-hiss fix:
+// high-gain captures amplify the input noise floor ~+32 dB).
+
+#[test]
+fn parses_nam_manifest_with_noise_gate_defaults() {
+    let yaml = r#"
+manifest_version: 1
+id: vox_dirty
+display_name: Vox Dirty
+type: amp
+backend: nam
+noise_gate:
+  enabled: true
+  threshold_db: -60.0
+parameters:
+  - name: gain
+    values: [5, 9]
+captures:
+  - values: { gain: 5 }
+    file: captures/clean.nam
+  - values: { gain: 9 }
+    file: captures/hot.nam
+    noise_gate:
+      threshold_db: -55.0
+"#;
+
+    let m = parse(yaml);
+
+    // Manifest-level default applies to all captures.
+    let mg = m.noise_gate.as_ref().expect("manifest-level noise_gate");
+    assert_eq!(mg.enabled, Some(true));
+    assert_eq!(mg.threshold_db, Some(-60.0));
+
+    match m.backend {
+        Backend::Nam { captures, .. } => {
+            // No per-capture override → None (inherits manifest level).
+            assert_eq!(captures[0].noise_gate, None);
+            // Per-capture override sets only the threshold; enabled stays
+            // None so it inherits the manifest-level value.
+            let cg = captures[1]
+                .noise_gate
+                .as_ref()
+                .expect("per-capture noise_gate override");
+            assert_eq!(cg.threshold_db, Some(-55.0));
+            assert_eq!(cg.enabled, None);
+        }
+        other => panic!("expected NAM backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn nam_manifest_without_noise_gate_is_none() {
+    let yaml = r#"
+manifest_version: 1
+id: plain
+display_name: Plain
+type: amp
+backend: nam
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.noise_gate, None);
+    match m.backend {
+        Backend::Nam { captures, .. } => assert_eq!(captures[0].noise_gate, None),
+        other => panic!("expected NAM backend, got {other:?}"),
+    }
 }
 
 #[test]

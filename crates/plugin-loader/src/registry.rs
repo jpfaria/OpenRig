@@ -109,6 +109,7 @@ pub fn register_native_simple(
         thumbnail: None,
         photo: None,
         output_gain_db: None,
+        noise_gate: None,
         screenshot: None,
         brand_logo: None,
         license: Some("internal".to_string()),

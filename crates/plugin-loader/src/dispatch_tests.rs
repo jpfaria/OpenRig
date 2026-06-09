@@ -10,6 +10,7 @@ fn cap(values: &[(&str, f64)], file: &str) -> GridCapture {
             .collect(),
         file: file.into(),
         output_gain_db: None,
+        noise_gate: None,
     }
 }
 

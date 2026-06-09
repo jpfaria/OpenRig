@@ -110,6 +110,17 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_gain_db: Option<f32>,
 
+    /// Manifest-level noise-gate defaults (issue #675).
+    ///
+    /// High-gain NAM captures amplify the input noise floor (~+32 dB) into
+    /// audible idle hiss; the gate (already in the chain before the model)
+    /// cuts it but defaults OFF (#612). This lets a capture ship the gate
+    /// pre-regulated. Applies to every capture; a `GridCapture.noise_gate`
+    /// overrides it per capture. Absent (the common case, and all IR
+    /// plugins) → engine `DEFAULT_PLUGIN_PARAMS` (gate off).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noise_gate: Option<ManifestNoiseGate>,
+
     /// NAM model architecture summary for the whole plugin (issue #650).
     ///
     /// Every NAM plugin is uniform — all its captures share one architecture
@@ -311,6 +322,23 @@ pub struct GridParameter {
     pub values: Vec<ParameterValue>,
 }
 
+/// Noise-gate defaults a NAM plugin can ship in its manifest (issue #675).
+///
+/// Both fields are optional so a manifest can set only what it needs
+/// (e.g. just `threshold_db`); an absent field falls back to the next
+/// layer (per-capture → manifest-level → engine `DEFAULT_PLUGIN_PARAMS`).
+/// `threshold_db` uses the same input-referred dB convention the engine
+/// already uses for `noise_gate.threshold_db`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ManifestNoiseGate {
+    /// Whether the gate is engaged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Gate threshold in input-referred dB.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threshold_db: Option<f32>,
+}
+
 /// One cell of the NAM/IR capture grid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridCapture {
@@ -328,6 +356,13 @@ pub struct GridCapture {
     /// `-6.0` = −6 dB).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_gain_db: Option<f32>,
+
+    /// Per-capture noise-gate override (issue #675). Overrides
+    /// [`PluginManifest::noise_gate`] for this capture; an absent field
+    /// inherits the manifest-level value. Lets a single plugin ship the
+    /// gate ON only for its high-gain captures and OFF for clean ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noise_gate: Option<ManifestNoiseGate>,
 }
 
 /// Build target slot for an LV2 binary.
