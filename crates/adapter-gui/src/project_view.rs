@@ -18,7 +18,7 @@ use std::rc::Rc;
 pub(crate) use crate::project_view_assets::{load_screenshot_image, load_thumbnail_image};
 pub(crate) use crate::project_view_tooltips::{chain_inputs_tooltip, chain_outputs_tooltip};
 
-pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
+pub fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
     let mut items: Vec<BlockTypePickerItem> = supported_block_types()
         .into_iter()
