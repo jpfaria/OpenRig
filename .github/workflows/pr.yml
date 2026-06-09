@@ -16,14 +16,6 @@ env:
   # The gate ignores the project's clippy.toml/rustfmt.toml on purpose
   # (tamper-resistance) and uses its own embedded rulesets.
   QG_LOG_DIR: target/qg-logs
-  # Issue #683: the gate is comparative + --force-full, so it compiles the
-  # whole workspace twice per run (PR head + baseline tree). rust-cache only
-  # keeps external deps and evicts workspace-crate artifacts, so everything
-  # else recompiled every run. sccache caches compiled outputs by content
-  # hash, so the unchanged baseline tree and unchanged crates hit cache.
-  RUSTC_WRAPPER: sccache
-  SCCACHE_GHA_ENABLED: "true"
-  CARGO_INCREMENTAL: "0"
 
 permissions:
   contents: read
@@ -52,15 +44,25 @@ jobs:
           lfs: true
           fetch-depth: 1
 
+      # Issue #683: the gate is comparative + --force-full, so it fully builds
+      # the baseline tree (the PR's base commit) too — the biggest uncached
+      # cost. The baseline is identical for every PR on the same develop tip,
+      # so cache its whole build keyed on the base SHA: the first PR after a
+      # develop advance populates it, the rest reuse it. Best-effort by design
+      # — a cache miss or a GitHub cache outage just rebuilds, never fails the
+      # gate (unlike a RUSTC_WRAPPER, which hard-fails when the backend is down).
+      - name: Cache baseline build
+        uses: actions/cache@v4
+        with:
+          path: baseline/target
+          key: baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('baseline/Cargo.lock') }}
+          restore-keys: |
+            baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
-
-      # Issue #683: sccache (GitHub Actions cache backend) wraps rustc so the
-      # gate's double full build reuses compiled outputs across runs.
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
