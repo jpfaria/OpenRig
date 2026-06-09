@@ -28,16 +28,13 @@ use std::sync::Arc;
 use std::sync::Once;
 use std::time::Instant;
 
-use block_core::param::ParameterSet;
 use domain::ids::{BlockId, ChainId, DeviceId};
-use domain::value_objects::ParameterValue;
 use engine::offline::render_chain;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_graph::build_chain_runtime_state;
 use engine::runtime_state::ChainRuntimeState;
 use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock, OutputBlock,
-    OutputEntry,
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
 };
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
@@ -70,37 +67,6 @@ fn init_registry() {
     });
 }
 
-fn floats(pairs: &[(&str, f32)]) -> ParameterSet {
-    let mut p = ParameterSet::default();
-    for (k, v) in pairs {
-        p.insert(*k, ParameterValue::Float(*v));
-    }
-    p
-}
-
-fn core(id: &str, effect_type: &str, model: &str, params: ParameterSet) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: effect_type.into(),
-            model: model.into(),
-            params,
-        }),
-    }
-}
-
-fn nam(id: &str, model: &str, params: ParameterSet) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Nam(NamBlock {
-            model: model.into(),
-            params,
-        }),
-    }
-}
-
 fn input_mono() -> AudioBlock {
     AudioBlock {
         id: BlockId("in".into()),
@@ -131,143 +97,27 @@ fn output_stereo() -> AudioBlock {
     }
 }
 
-// ── The user's exact "Beat It (rhythm)" blocks ───────────────────────────
+// ── Load the user's REAL "Beat It (rhythm)" preset through the PRODUCTION
+// parser (infra-yaml), so this test runs the LITERAL preset file the user
+// runs — not a hand transcription. The preset's FX blocks are wrapped with a
+// mono input and a stereo output, exactly like the live chain at buffer 64.
 
-fn compressor() -> AudioBlock {
-    core(
-        "comp",
-        "dynamics",
-        "compressor_studio_clean",
-        floats(&[
-            ("attack_ms", 10.0),
-            ("makeup_gain", 50.0),
-            ("mix", 100.0),
-            ("ratio", 16.0),
-            ("release_ms", 80.0),
-            ("threshold", 70.0),
-        ]),
-    )
+fn beat_it_blocks() -> Vec<AudioBlock> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/presets/beat_it_michael_jackson_rhythm.yaml");
+    infra_yaml::load_chain_preset_file(&path)
+        .unwrap_or_else(|e| {
+            panic!("must load the real Beat It preset through the production parser: {e}")
+        })
+        .blocks
 }
 
-fn guitar_eq() -> AudioBlock {
-    core(
-        "geq",
-        "filter",
-        "native_guitar_eq",
-        floats(&[("high", -1.0), ("high_mid", 0.0), ("low", 0.0), ("low_mid", 1.0)]),
-    )
-}
-
-fn gate() -> AudioBlock {
-    core(
-        "gate",
-        "dynamics",
-        "gate_basic",
-        floats(&[
-            ("attack_ms", 5.0),
-            ("hold_ms", 150.0),
-            ("hysteresis_db", 6.0),
-            ("release_ms", 50.0),
-            ("threshold", 35.0),
-        ]),
-    )
-}
-
-/// maxon_od808 A2 overdrive — capture axes drive=12, tone=12, boost=plus6
-/// (selects `od808_noon_noon_plus6_a2.nam`).
-fn nam_maxon() -> AudioBlock {
-    let mut p = ParameterSet::default();
-    p.insert("drive", ParameterValue::Float(12.0));
-    p.insert("tone", ParameterValue::Float(12.0));
-    p.insert("boost", ParameterValue::String("plus6".into()));
-    p.insert("input_db", ParameterValue::Float(0.0));
-    p.insert("output_db", ParameterValue::Float(-0.8));
-    nam("maxon", "nam_maxon_od808_a2", p)
-}
-
-/// fender_deluxe_reverb_65 A2 amp — capture axis preset=rocking.
-fn nam_fender() -> AudioBlock {
-    let mut p = ParameterSet::default();
-    p.insert("preset", ParameterValue::String("rocking".into()));
-    p.insert("input_db", ParameterValue::Float(9.0));
-    p.insert("output_db", ParameterValue::Float(-2.2));
-    nam("fender", "nam_fender_deluxe_reverb_65_a2", p)
-}
-
-/// fender_deluxe_reverb_oxford cab IR — preset=big.
-fn ir_cab() -> AudioBlock {
-    let mut p = ParameterSet::default();
-    p.insert("preset", ParameterValue::String("big".into()));
-    p.insert("output_db", ParameterValue::Float(-13.9));
-    core("cab", "cab", "ir_fender_deluxe_reverb_oxford", p)
-}
-
-fn eq8() -> AudioBlock {
-    let mut p = ParameterSet::default();
-    let bands: [(f32, f32, &str); 8] = [
-        (80.0, 0.0, "high_pass"),
-        (125.0, 0.0, "peak"),
-        (250.0, 0.0, "peak"),
-        (500.0, 0.0, "peak"),
-        (1000.0, 1.5, "peak"),
-        (2000.0, 0.0, "peak"),
-        (4000.0, -1.0, "peak"),
-        (9500.0, 0.0, "low_pass"),
-    ];
-    for (i, (freq, g, ty)) in bands.iter().enumerate() {
-        let b = i + 1;
-        p.insert(&format!("band{b}_enabled"), ParameterValue::Bool(true));
-        p.insert(&format!("band{b}_freq"), ParameterValue::Float(*freq));
-        p.insert(&format!("band{b}_gain"), ParameterValue::Float(*g));
-        p.insert(&format!("band{b}_q"), ParameterValue::Float(1.0));
-        p.insert(&format!("band{b}_type"), ParameterValue::String((*ty).into()));
+fn block_model(b: &AudioBlock) -> &str {
+    match &b.kind {
+        AudioBlockKind::Nam(n) => n.model.as_str(),
+        AudioBlockKind::Core(c) => c.model.as_str(),
+        _ => "",
     }
-    p.insert("output_db", ParameterValue::Float(0.0));
-    core("eq8", "filter", "eq_eight_band_parametric", p)
-}
-
-/// LV2 Dragonfly Hall reverb — the user's exact params.
-fn lv2_hall() -> AudioBlock {
-    core(
-        "verb",
-        "reverb",
-        "lv2_dragonfly_hall",
-        floats(&[
-            ("decay", 1.3),
-            ("delay", 4.0),
-            ("diffuse", 90.0),
-            ("dry_level", 80.0),
-            ("early_level", 10.0),
-            ("early_send", 20.0),
-            ("high_cut", 7600.0),
-            ("high_mult", 0.5),
-            ("high_xo", 5500.0),
-            ("late_level", 20.0),
-            ("low_cut", 4.0),
-            ("low_mult", 1.3),
-            ("low_xo", 500.0),
-            ("modulation", 15.0),
-            ("size", 24.0),
-            ("spin", 3.3),
-            ("wander", 15.0),
-            ("width", 100.0),
-        ]),
-    )
-}
-
-fn limiter() -> AudioBlock {
-    core(
-        "limit",
-        "dynamics",
-        "limiter_brickwall",
-        floats(&[
-            ("ceiling", -0.1),
-            ("knee_db", 2.0),
-            ("lookahead_ms", 3.0),
-            ("release_ms", 100.0),
-            ("threshold", -1.0),
-        ]),
-    )
 }
 
 fn beat_it_chain() -> Chain {
@@ -275,24 +125,17 @@ fn beat_it_chain() -> Chain {
 }
 
 fn beat_it_chain_opt(with_ir: bool) -> Chain {
-    let mut blocks = vec![
-        input_mono(),
-        compressor(),
-        guitar_eq(),
-        gate(),
-        nam_maxon(),
-        nam_fender(),
-    ];
-    if with_ir {
-        blocks.push(ir_cab());
+    let mut blocks = vec![input_mono()];
+    for b in beat_it_blocks() {
+        if !with_ir && block_model(&b).starts_with("ir_") {
+            continue; // drop the IR/CAB only to isolate its effect
+        }
+        blocks.push(b);
     }
-    blocks.push(eq8());
-    blocks.push(lv2_hall());
-    blocks.push(limiter());
     blocks.push(output_stereo());
     Chain {
         id: ChainId("issue-670-beat-it".into()),
-        description: Some("Beat It (rhythm) — real user chain".into()),
+        description: Some("Beat It (rhythm) — loaded from the user's real preset".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
@@ -432,11 +275,15 @@ fn beat_it_real_rig_light_and_realtime_protects() {
     let chain = beat_it_chain();
     assert_no_faulted_blocks(&chain);
 
-    // (1) Where the cost actually is — real numbers from the real plugins.
-    let _ = measure("nam_maxon_od808", &build(&isolated("maxon", nam_maxon())));
-    let _ = measure("nam_fender_deluxe", &build(&isolated("fender", nam_fender())));
-    let _ = measure("ir_cab", &build(&isolated("cab", ir_cab())));
-    let _ = measure("lv2_dragonfly_hall", &build(&isolated("verb", lv2_hall())));
+    // (1) Where the cost actually is — every block of the REAL preset,
+    // measured isolated, with the real plugins.
+    for b in beat_it_blocks() {
+        let model = block_model(&b).to_string();
+        if model.is_empty() {
+            continue;
+        }
+        let _ = measure(&model, &build(&isolated(&model, b)));
+    }
 
     let rt_state = build(&chain);
     let (p50, _p95, period_ns, _ov) = measure("FULL chain (no contention)", &rt_state);
