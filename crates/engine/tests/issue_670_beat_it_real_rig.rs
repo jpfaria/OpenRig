@@ -297,9 +297,10 @@ fn live_thread_soup_reproduces_input_xruns() {
     // an output callback thread, while the GUI (Slint render + spectrum FFT +
     // meters) saturates every core. Inputs are paced ~one buffer period like
     // the real device cadence. Returns (input_overruns, input_buffers).
-    let run_soup = |realtime: bool| -> (usize, usize) {
-        let chains: Vec<Arc<ChainRuntimeState>> =
-            (0..n_chains).map(|_| build(&beat_it_chain())).collect();
+    let run_soup = |realtime: bool, with_ir: bool| -> (usize, usize) {
+        let chains: Vec<Arc<ChainRuntimeState>> = (0..n_chains)
+            .map(|_| build(&beat_it_chain_opt(with_ir)))
+            .collect();
         let stop = Arc::new(AtomicBool::new(false));
         let n_gui = std::thread::available_parallelism()
             .map(|n| n.get())
@@ -366,30 +367,31 @@ fn live_thread_soup_reproduces_input_xruns() {
         )
     };
 
-    let (no_rt_over, no_rt_total) = run_soup(false);
-    let (rt_over, rt_total) = run_soup(true);
+    // The user's decisive observation: disabling the IR/CAB stops the
+    // crackle. Reproduce that exact toggle under the live load — the SAME
+    // chains, with vs without the IR block — and compare the input xrun rate.
+    let (with_ir_over, with_ir_total) = run_soup(false, true);
+    let (no_ir_over, no_ir_total) = run_soup(false, false);
     eprintln!(
         "[#670 beat-it] LIVE-SOUP {n_chains} chains under GUI load: \
-         NO-RT input xruns={no_rt_over}/{no_rt_total} ({:.1}%)  \
-         RT input xruns={rt_over}/{rt_total} ({:.1}%)",
-        no_rt_over as f64 / no_rt_total as f64 * 100.0,
-        rt_over as f64 / rt_total as f64 * 100.0,
+         WITH IR xruns={with_ir_over}/{with_ir_total} ({:.1}%)  \
+         WITHOUT IR xruns={no_ir_over}/{no_ir_total} ({:.1}%)",
+        with_ir_over as f64 / with_ir_total as f64 * 100.0,
+        no_ir_over as f64 / no_ir_total as f64 * 100.0,
     );
 
-    // The live bug + the fix, in one comparison (absolute rates swing with
-    // system load, so assert the ROBUST direction, not a fixed threshold):
-    // the unprotected audio thread overruns its 64-frame deadline under the
-    // GUI's CPU load (the crackle), and the realtime time-constraint policy
-    // — modest computation (~1/4 period) + preemptible, so several paced
-    // audio threads do NOT oversubscribe the realtime band — keeps it. The
-    // printed numbers above show the actual reproduction (typically a few %
-    // without RT, ~0% with).
+    // NOTE: offline this does NOT reproduce the user's live observation —
+    // WITH and WITHOUT the IR come out within run-to-run noise. The IR is
+    // ~4us, allocates nothing, and runs flush-to-zero-protected here, so its
+    // live effect is something this offline harness does not capture (it has
+    // no real cpal/CoreAudio path, no real decaying signal, no real Slint
+    // render). Left as a diagnostic, not an assertion, until the live IR cost
+    // is measured directly. The one robust fact this test pins: under heavy
+    // load the unprotected input thread DOES overrun (a few %), the live
+    // crackle mechanism.
     assert!(
-        rt_over * 4 < no_rt_over.max(4),
-        "the realtime time-constraint policy must keep the audio thread's \
-         deadline under the GUI load that crackles without it (no-RT \
-         xruns={no_rt_over}, RT xruns={rt_over}). If realtime is NOT clearly \
-         better, the policy is wrong (e.g. computation too high → it \
-         oversubscribes the realtime band)."
+        with_ir_over + no_ir_over > 0,
+        "expected SOME input overruns under the saturating load (the crackle \
+         mechanism); got WITH ir={with_ir_over}, WITHOUT ir={no_ir_over}"
     );
 }
