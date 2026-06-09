@@ -244,15 +244,22 @@ fn plate_foundation_is_diffuse() {
 
 #[test]
 fn shimmer_adds_octave_up_content() {
+    // Shimmer is a tail effect: play a note, let it ring out, and the +12
+    // must come to dominate the surviving tail. Measuring during sustained
+    // input would just read the continuously re-injected fundamental.
     let f0 = 220.0;
-    let out = run_mono(&mut build_wet_mono("shimmer", &[]), &sine(f0, at(2.0)));
-    let tail = &out[at(1.2)..];
+    let mut input = sine(f0, at(2.5));
+    for x in input[at(0.8)..].iter_mut() {
+        *x = 0.0;
+    }
+    let out = run_mono(&mut build_wet_mono("shimmer", &[]), &input);
+    let tail = &out[at(1.2)..at(2.4)];
     let fund = goertzel_energy(tail, f0);
     let octave = goertzel_energy(tail, f0 * 2.0);
     let ratio = octave / (fund + 1e-12);
     assert!(
         ratio > 0.2,
-        "shimmer octave/fundamental ratio = {ratio:.3}; no audible +12 in the tail"
+        "shimmer octave/fundamental ratio = {ratio:.3} in the ring-out; no audible +12"
     );
 }
 
