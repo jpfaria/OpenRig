@@ -36,13 +36,14 @@ use cpal::Stream;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime::{process_input_f32, process_output_f32_mixed};
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 
 use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
+use crate::LiveRuntimeSlot;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::{build_chain_slots, process_input_buffer, process_output_buffer};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::{
     ChainStreamSignature, InputStreamSignature, OutputStreamSignature, ResolvedInputDevice,
@@ -98,11 +99,15 @@ pub fn build_streams_for_project(
             if runtimes.is_empty() {
                 return Err(anyhow!("chain '{}' has no runtime state", chain.id.0));
             }
+            // This bulk/console path has no controller to hold the slots, so the
+            // wrappers are throwaway (no live swap needed here); the streams
+            // still read through them identically.
+            let slots = build_chain_slots(&runtimes);
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
             let (input_streams, output_streams) =
-                build_chain_streams(&chain.id, resolved, runtimes)?;
+                build_chain_streams(&chain.id, resolved, slots)?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -115,7 +120,7 @@ pub(crate) fn build_input_stream_for_input(
     chain_id: &ChainId,
     input_index: usize,
     resolved_input_device: ResolvedInputDevice,
-    runtime: Arc<ChainRuntimeState>,
+    slot: LiveRuntimeSlot,
 ) -> Result<Stream> {
     log::debug!(
         "building input stream for chain '{}' input_index={}",
@@ -137,14 +142,14 @@ pub(crate) fn build_input_stream_for_input(
     let device = resolved_input_device.device;
     let stream = match sample_format {
         SampleFormat::F32 => {
-            let runtime_for_data = runtime.clone();
+            let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_f32(&runtime_for_data, input_index, data, channels);
+                        process_input_buffer(&slot_for_data, input_index, data, channels);
                     }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
@@ -152,7 +157,7 @@ pub(crate) fn build_input_stream_for_input(
             )?
         }
         SampleFormat::I16 => {
-            let runtime_for_data = runtime.clone();
+            let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -164,7 +169,7 @@ pub(crate) fn build_input_stream_for_input(
                         *dst = src as f32 / i16::MAX as f32;
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
@@ -172,7 +177,7 @@ pub(crate) fn build_input_stream_for_input(
             )?
         }
         SampleFormat::U16 => {
-            let runtime_for_data = runtime.clone();
+            let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -184,7 +189,7 @@ pub(crate) fn build_input_stream_for_input(
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
@@ -192,7 +197,7 @@ pub(crate) fn build_input_stream_for_input(
             )?
         }
         SampleFormat::I32 => {
-            let runtime_for_data = runtime.clone();
+            let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -204,7 +209,7 @@ pub(crate) fn build_input_stream_for_input(
                         *dst = src as f32 / i32::MAX as f32;
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
@@ -236,7 +241,7 @@ pub(crate) fn build_output_stream_for_output(
     chain_id: &ChainId,
     output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
-    runtimes: Vec<Arc<ChainRuntimeState>>,
+    slots: Vec<LiveRuntimeSlot>,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -258,7 +263,8 @@ pub(crate) fn build_output_stream_for_output(
     let device = resolved_output_device.device;
     let stream = match sample_format {
         SampleFormat::F32 => {
-            let runtimes_for_data = runtimes.clone();
+            let slots_for_data = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             // Pre-allocated backend-mix scratch (issue #350 phase 3). Sized
@@ -273,8 +279,9 @@ pub(crate) fn build_output_stream_for_output(
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32_mixed(
-                            &runtimes_for_data,
+                        process_output_buffer(
+                            &slots_for_data,
+                            &mut loaded,
                             output_index,
                             out,
                             channels,
@@ -287,7 +294,8 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I16 => {
-            let runtimes_for_data = runtimes.clone();
+            let slots_for_data = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -300,8 +308,9 @@ pub(crate) fn build_output_stream_for_output(
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32_mixed(
-                            &runtimes_for_data,
+                        process_output_buffer(
+                            &slots_for_data,
+                            &mut loaded,
                             output_index,
                             &mut temp,
                             channels,
@@ -318,7 +327,8 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::U16 => {
-            let runtimes_for_data = runtimes.clone();
+            let slots_for_data = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -331,8 +341,9 @@ pub(crate) fn build_output_stream_for_output(
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32_mixed(
-                            &runtimes_for_data,
+                        process_output_buffer(
+                            &slots_for_data,
+                            &mut loaded,
                             output_index,
                             &mut temp,
                             channels,
@@ -350,7 +361,8 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I32 => {
-            let runtimes_for_data = runtimes.clone();
+            let slots_for_data = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -363,8 +375,9 @@ pub(crate) fn build_output_stream_for_output(
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_output_f32_mixed(
-                            &runtimes_for_data,
+                        process_output_buffer(
+                            &slots_for_data,
+                            &mut loaded,
                             output_index,
                             &mut temp,
                             channels,
@@ -409,19 +422,20 @@ pub(crate) fn build_output_stream_for_output(
 fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
-    runtimes: Vec<(usize, Arc<ChainRuntimeState>)>,
+    slots: Vec<(usize, LiveRuntimeSlot)>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
-    // group_id -> runtime, for binding each physical input device to the
-    // isolated runtime that owns its cpal index.
-    let runtime_by_group: std::collections::HashMap<usize, Arc<ChainRuntimeState>> =
-        runtimes.iter().map(|(g, rt)| (*g, rt.clone())).collect();
+    // group_id -> live runtime slot, for binding each physical input device to
+    // the isolated runtime that owns its cpal index. Issue #672: the callbacks
+    // read the slot live so a worker-published rebuild takes effect without a
+    // stream rebuild.
+    let slot_by_group: std::collections::HashMap<usize, LiveRuntimeSlot> =
+        slots.iter().map(|(g, s)| (*g, s.handle())).collect();
     // Flat list (group order) for the backend output mix.
-    let all_runtimes: Vec<Arc<ChainRuntimeState>> =
-        runtimes.iter().map(|(_, rt)| rt.clone()).collect();
+    let all_slots: Vec<LiveRuntimeSlot> = slots.iter().map(|(_, s)| s.handle()).collect();
     // Fallback used only if a chain somehow has no per-input runtime for a
     // given group (degenerate config) — keeps behaviour defined instead of
     // panicking on the audio-setup path.
-    let first_runtime = all_runtimes.first().cloned();
+    let first_slot = all_slots.first().cloned();
 
     // Deduplicate input streams by device: one CPAL stream per unique
     // device. Iteration order over resolved.inputs matches the engine's
@@ -446,10 +460,10 @@ fn build_chain_streams(
         }
         let group = next_group;
         next_group += 1;
-        let runtime = runtime_by_group
+        let slot = slot_by_group
             .get(&group)
             .cloned()
-            .or_else(|| first_runtime.clone())
+            .or_else(|| first_slot.clone())
             .ok_or_else(|| {
                 anyhow!(
                     "chain '{}' input group {} has no per-input runtime",
@@ -457,14 +471,14 @@ fn build_chain_streams(
                     group
                 )
             })?;
-        let stream = build_input_stream_for_input(chain_id, group, resolved_input, runtime)?;
+        let stream = build_input_stream_for_input(chain_id, group, resolved_input, slot)?;
         input_streams.push(stream);
     }
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
         let stream =
-            build_output_stream_for_output(chain_id, j, resolved_output, all_runtimes.clone())?;
+            build_output_stream_for_output(chain_id, j, resolved_output, all_slots.clone())?;
         output_streams.push(stream);
     }
 
@@ -481,7 +495,7 @@ pub(crate) fn build_active_chain_runtime(
     chain_id: &ChainId,
     #[allow(unused_variables)] chain: &Chain,
     resolved: ResolvedChainAudioConfig,
-    runtimes: Vec<(usize, Arc<ChainRuntimeState>)>,
+    slots: Vec<(usize, LiveRuntimeSlot)>,
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -499,10 +513,13 @@ pub(crate) fn build_active_chain_runtime(
             log::info!("JACK detected — using direct JACK backend (bypassing CPAL)");
             // JACK-direct chains are a single runtime by Phase-1 design
             // (Insert pipelines are not partitioned). Use the first.
-            let runtime = runtimes
+            // JACK does not yet read through the live slot (issue #672 wires the
+            // cpal path first); load the published runtime once here so JACK keeps
+            // its current behaviour. Live JACK swap is a follow-up.
+            let runtime = slots
                 .into_iter()
                 .next()
-                .map(|(_, rt)| rt)
+                .map(|(_, slot)| slot.load())
                 .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
             let (jack_client, dsp_worker) = build_jack_direct_chain(chain_id, chain, runtime)?;
             return Ok(ActiveChainRuntime {
@@ -519,7 +536,7 @@ pub(crate) fn build_active_chain_runtime(
         // through to the CPAL path with nothing to build.
         let _ = chain_id;
         let _ = resolved;
-        let _ = runtimes;
+        let _ = slots;
         return Ok(ActiveChainRuntime {
             stream_signature,
             _input_streams: Vec::new(),
@@ -531,7 +548,7 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
-        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtimes)?;
+        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, slots)?;
         for stream in &input_streams {
             stream.play()?;
         }

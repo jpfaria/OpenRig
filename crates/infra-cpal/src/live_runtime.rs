@@ -45,3 +45,10 @@ impl LiveRuntimeSlot {
         Self(Arc::clone(&self.0))
     }
 }
+
+impl Clone for LiveRuntimeSlot {
+    /// Cloning shares the same underlying slot (same as [`LiveRuntimeSlot::handle`]).
+    fn clone(&self) -> Self {
+        self.handle()
+    }
+}

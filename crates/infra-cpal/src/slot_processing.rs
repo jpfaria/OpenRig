@@ -13,6 +13,21 @@ use engine::runtime::{process_input_f32, process_output_f32_mixed, ChainRuntimeS
 
 use crate::LiveRuntimeSlot;
 
+/// Wrap each per-group runtime in a fresh [`LiveRuntimeSlot`] (issue #672).
+///
+/// The stream callbacks capture these slot handles and read them live, and the
+/// controller stores the same slots so the control worker can publish a rebuilt
+/// runtime into them without tearing the stream down.
+#[must_use]
+pub fn build_chain_slots(
+    runtimes: &[(usize, Arc<ChainRuntimeState>)],
+) -> Vec<(usize, LiveRuntimeSlot)> {
+    runtimes
+        .iter()
+        .map(|(group, runtime)| (*group, LiveRuntimeSlot::new(Arc::clone(runtime))))
+        .collect()
+}
+
 /// Process one input buffer through the chain's live input runtime.
 ///
 /// Wait-free: one `slot.load()` then the existing `process_input_f32`.

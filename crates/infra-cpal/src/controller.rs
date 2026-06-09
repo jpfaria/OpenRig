@@ -669,7 +669,15 @@ impl ProjectRuntimeController {
 
         if needs_stream_rebuild {
             let runtimes = self.runtime_graph.runtimes_with_groups_for(&chain.id);
-            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, runtimes)?;
+            // Issue #672: wrap each group runtime in a LiveRuntimeSlot, keep a
+            // handle so the control worker can publish a rebuilt runtime into the
+            // exact slot the new streams read, then build the streams from them.
+            let slots = crate::build_chain_slots(&runtimes);
+            for (group, slot) in &slots {
+                self.chain_slots
+                    .insert((chain.id.clone(), *group), slot.handle());
+            }
+            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, slots)?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 
