@@ -395,3 +395,133 @@ fn live_thread_soup_reproduces_input_xruns() {
          mechanism); got WITH ir={with_ir_over}, WITHOUT ir={no_ir_over}"
     );
 }
+
+/// Issue #670: render the FULL Beat It chain offline with a decaying note (as
+/// when actually playing) WITH vs WITHOUT the IR, and inspect the OUTPUT for
+/// the "caixa de abelha" — sustained buzz/energy in the tail where it should
+/// be decaying to silence. The user proved disabling the IR stops it, so the
+/// difference must be in the rendered audio, not the timing.
+#[test]
+#[cfg_attr(debug_assertions, ignore = "render is slow in debug")]
+fn beat_it_output_tail_is_clean_with_ir() {
+    init_registry();
+
+    // A plucked note: 110 Hz decaying over ~0.4 s, then 0.6 s of silence so
+    // the tail (reverb + IR) is fully exposed.
+    let attack = (SR * 0.4) as usize;
+    let total = (SR * 1.0) as usize;
+    let input: Vec<[f32; 2]> = (0..total)
+        .map(|i| {
+            let t = i as f32 / SR;
+            let env = if i < attack { (-t * 6.0).exp() } else { 0.0 };
+            let s = 0.4 * env * (2.0 * std::f32::consts::PI * 110.0 * t).sin();
+            [s, s]
+        })
+        .collect();
+
+    let analyze = |with_ir: bool| -> (f32, f32, f32, usize) {
+        let chain = beat_it_chain_opt(with_ir);
+        let out = render_chain(&chain, SR, &input, BUFFER, 0)
+            .expect("render")
+            .samples;
+        // Tail window: the last 0.4 s, where the note is long gone.
+        let tail_start = out.len().saturating_sub((SR * 0.4) as usize);
+        let tail = &out[tail_start..];
+        let mut peak = 0.0f32;
+        let mut energy = 0.0f64;
+        let mut disc = 0.0f64; // sum |s[n]-s[n-1]| — high-frequency "buzz" content
+        let mut nan = 0usize;
+        let mut prev = 0.0f32;
+        for s in tail {
+            let v = s[0];
+            if !v.is_finite() {
+                nan += 1;
+                continue;
+            }
+            peak = peak.max(v.abs());
+            energy += (v * v) as f64;
+            disc += (v - prev).abs() as f64;
+            prev = v;
+        }
+        let rms = (energy / tail.len() as f64).sqrt() as f32;
+        // buzz ratio: high-frequency content relative to amplitude. A smooth
+        // decaying tail has low disc/peak; a buzz has high.
+        let buzz = (disc / tail.len() as f64) as f32 / peak.max(1e-9);
+        (peak, rms, buzz, nan)
+    };
+
+    let (peak_ir, rms_ir, buzz_ir, nan_ir) = analyze(true);
+    let (peak_no, rms_no, buzz_no, nan_no) = analyze(false);
+    eprintln!(
+        "[#670 IR] TAIL with-IR: peak={peak_ir:.4} rms={rms_ir:.5} buzz={buzz_ir:.3} nan={nan_ir}  |  \
+         no-IR: peak={peak_no:.4} rms={rms_no:.5} buzz={buzz_no:.3} nan={nan_no}"
+    );
+
+    assert_eq!(nan_ir, 0, "BUG #670: IR tail has non-finite samples (NaN/Inf)");
+    assert!(
+        buzz_ir < buzz_no.max(0.05) * 2.0,
+        "BUG #670: with the IR the output tail is much buzzier (buzz={buzz_ir:.3}) \
+         than without it (buzz={buzz_no:.3}) — high-frequency junk in a tail that \
+         should be decaying smoothly. That is the 'caixa de abelha'."
+    );
+}
+
+/// Issue #670: drive the chain through the LIVE elastic-buffered path
+/// (process_input_f32 fills the elastic ring, process_output_f32 pops it) —
+/// which `render_chain` bypasses — and inspect the popped OUTPUT for the
+/// beehive. The IR adds latency; if that desyncs the elastic so the output
+/// pops silence/stale frames mid-tone, the result is a buzzy click-train.
+#[test]
+#[cfg_attr(debug_assertions, ignore = "timing/render slow in debug")]
+fn beat_it_elastic_output_is_clean_with_ir() {
+    init_registry();
+
+    let analyze = |with_ir: bool| -> (usize, f32, usize) {
+        let rt = build(&beat_it_chain_opt(with_ir));
+        // steady 110 Hz tone fed buffer-by-buffer through the live path.
+        let mut out_all: Vec<f32> = Vec::new();
+        let mut out = vec![0.0_f32; BUFFER * 2];
+        let mut phase = 0usize;
+        for _ in 0..2048 {
+            let input: Vec<f32> = (0..BUFFER)
+                .map(|_| {
+                    let s = 0.4 * (2.0 * std::f32::consts::PI * 110.0 * phase as f32 / SR).sin();
+                    phase += 1;
+                    s
+                })
+                .collect();
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+            out_all.extend(out.iter().step_by(2)); // left channel
+        }
+        // Skip warmup, analyze steady state.
+        let tail = &out_all[out_all.len() / 2..];
+        let peak = tail.iter().fold(0.0f32, |a, &v| a.max(v.abs()));
+        // Silent frames in the middle of a sustained tone = elastic underrun
+        // dropouts (the click-train / buzz).
+        let silent = tail.iter().filter(|&&v| v.abs() < peak * 0.001).count();
+        // Discontinuity (high-frequency junk).
+        let mut disc = 0.0f64;
+        let mut prev = 0.0f32;
+        for &v in tail {
+            disc += (v - prev).abs() as f64;
+            prev = v;
+        }
+        let buzz = (disc / tail.len() as f64) as f32 / peak.max(1e-9);
+        (silent, buzz, tail.len())
+    };
+
+    let (sil_ir, buzz_ir, n) = analyze(true);
+    let (sil_no, buzz_no, _) = analyze(false);
+    eprintln!(
+        "[#670 IR] ELASTIC out (n={n}): with-IR silent_frames={sil_ir} buzz={buzz_ir:.3}  |  \
+         no-IR silent_frames={sil_no} buzz={buzz_no:.3}"
+    );
+
+    assert!(
+        sil_ir <= sil_no + n / 100,
+        "BUG #670: with the IR the live output has {sil_ir} silent dropout frames \
+         vs {sil_no} without it (>1% more) — the IR desyncs the elastic buffer and \
+         the output pops silence mid-tone (the buzz)."
+    );
+}
