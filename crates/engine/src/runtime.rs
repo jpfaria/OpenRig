@@ -225,6 +225,7 @@ pub fn process_input_f32(
             &runtime.error_queue,
             &stream_taps,
             di_for_seg,
+            &runtime.worst_block_ns,
         );
     }
 
@@ -334,6 +335,7 @@ fn process_single_segment(
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
     di: Option<(&crate::di_loop::DiLoop, usize)>,
+    worst_block_ns: &std::sync::atomic::AtomicU64,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -393,7 +395,11 @@ fn process_single_segment(
     }
 
     for block in blocks.iter_mut() {
+        // Issue #670 probe: time each block to find whether one block's
+        // process accounts for a callback spike (compute) or not (stall).
+        let block_start = std::time::Instant::now();
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
+        worst_block_ns.fetch_max(block_start.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
     }
 
     // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window

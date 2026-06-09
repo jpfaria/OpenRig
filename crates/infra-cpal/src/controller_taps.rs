@@ -293,6 +293,19 @@ impl ProjectRuntimeController {
             .fold(0.0_f32, f32::max)
     }
 
+    /// Issue #670 probe: worst single-block process time (µs) across this
+    /// chain's runtimes since the last call, resetting each. Compared to the
+    /// interval peak load off-thread to split a compute spike (a block) from
+    /// a stall (no block dominates).
+    pub fn chain_take_worst_block_micros(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.take_worst_block_micros())
+            .max()
+            .unwrap_or(0)
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {

@@ -68,6 +68,21 @@ impl ChainRuntimeState {
         self.peak_load_ppm.swap(0, Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
     }
 
+    /// Issue #670 probe: worst single-block process time (µs) since the last
+    /// read, reset on read. Compare to the interval peak load: if it accounts
+    /// for most of the callback, a block is spiking (compute); if it is tiny
+    /// while the callback spiked, the cost is stall/overhead outside blocks.
+    pub fn take_worst_block_micros(&self) -> u64 {
+        self.worst_block_ns.swap(0, Ordering::Relaxed) / 1_000
+    }
+
+    /// Audio-thread side: record one block's process time, keeping the
+    /// per-interval maximum. RT-safe (one relaxed `fetch_max`).
+    #[inline(always)]
+    pub(crate) fn record_block_ns(&self, ns: u64) {
+        self.worst_block_ns.fetch_max(ns, Ordering::Relaxed);
+    }
+
     /// Total output-side underruns across this chain's elastic buffers
     /// (issue #670). An underrun is an empty `pop` on the output callback:
     /// the input/DSP producer hasn't delivered the frame in time, so a
