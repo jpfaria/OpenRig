@@ -163,7 +163,14 @@ binaries:
         cab_names.contains(&"voicing"),
         "IR schema missing 'voicing', got: {cab_names:?}"
     );
-    assert_eq!(cab_schema.parameters.len(), 1);
+    // Besides the manifest `voicing` axis, the IR schema synthesizes the
+    // built-in `output_db` gain knob (the IR sibling of the NAM output knob
+    // restored in #496).
+    assert!(
+        cab_names.contains(&"output_db"),
+        "IR schema missing the built-in 'output_db' knob, got: {cab_names:?}"
+    );
+    assert_eq!(cab_schema.parameters.len(), 2);
 
     // ── LV2: data/ TTLs + per-platform binary → control ports become float params ──
     let lv2_schema = project::block::schema_for_block_model("modulation", "lv2_test_chorus_e2e")

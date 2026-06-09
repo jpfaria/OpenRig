@@ -1,0 +1,19 @@
+manifest_version: 1
+id: nam_marshall_plexi
+display_name: Plexi
+brand: marshall
+brand_logo: assets/brand_logo.svg
+sources:
+- https://www.tone3000.com/tones/2717
+output_gain_db: 8.9318924
+type: amp
+backend: nam
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - angus
+captures:
+- values:
+    preset: angus
+  file: captures/angus_nano.nam
