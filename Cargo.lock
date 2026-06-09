@@ -3236,7 +3236,6 @@ dependencies = [
  "jack",
  "libc",
  "log",
- "mach2",
  "project",
 ]
 

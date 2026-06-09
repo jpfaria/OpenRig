@@ -431,3 +431,47 @@ fn audio_callback_does_not_allocate_with_eq8() {
     eprintln!("[#670 alloc] eq_eight_band_parametric @64: {allocs} allocations / 1000 callbacks");
     assert_eq!(allocs, 0, "BUG #670: eq_eight_band_parametric allocates {allocs}x on the audio thread");
 }
+
+/// Issue #670: the user reports the rig gets MUCH worse with an IR/CAB in the
+/// chain. The IR's per-buffer COMPUTE is tiny (~4us measured), so if it hurts
+/// it must be doing something else on the audio thread — the prime suspect is
+/// a per-callback heap allocation (FFT scratch), which is cheap alone but
+/// serializes every audio thread on the allocator lock once several chains
+/// run at once (the multi-chain crackle). This pins the IR convolution to
+/// ZERO audio-thread allocations (CLAUDE.md invariant #8). Uses the real
+/// bundled cab IR.
+fn p670_ir_cab() -> AudioBlock {
+    let mut p = P670Set::default();
+    p.insert("preset", P670Val::String("big".into()));
+    p670_core("ircab", "cab", "ir_fender_deluxe_reverb_oxford", p)
+}
+
+#[test]
+#[ignore = "issue #670: run serially in release"]
+fn audio_callback_does_not_allocate_with_ir_cab() {
+    p670_init_registry();
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(&p670_isolated(p670_ir_cab()), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+            .expect("ir cab runtime should build"),
+    );
+    let input_buf = vec![0.3_f32; 64];
+    let mut output_buf = vec![0.0_f32; 64 * 2];
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, 1);
+        process_output_f32(&runtime, 0, &mut output_buf, 2);
+    }
+    let allocs = measure_allocs(|| {
+        for _ in 0..1_000 {
+            process_input_f32(&runtime, 0, &input_buf, 1);
+            process_output_f32(&runtime, 0, &mut output_buf, 2);
+        }
+    });
+    eprintln!("[#670 alloc] ir_fender_deluxe_reverb_oxford cab @64: {allocs} allocations / 1000 callbacks");
+    assert_eq!(
+        allocs, 0,
+        "BUG #670: the IR/CAB convolution allocates {allocs}x on the audio thread \
+         in 1000 callbacks — cheap alone, but it serializes every audio thread on \
+         the allocator lock once several chains run, which is why the rig gets \
+         much worse with an IR in the chain."
+    );
+}
