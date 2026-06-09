@@ -47,11 +47,16 @@ pub(crate) fn sync_project_runtime(
     session: &ProjectSession,
 ) -> Result<()> {
     let proj = session.project.borrow();
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        runtime.sync_project(&*proj)?;
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            validate_project(&*proj)?;
+            runtime.sync_project(&*proj)?;
+        }
     }
+    // #669: keep the dispatcher's engine sample rate in lock-step with the
+    // (possibly rebuilt) runtime so DI loops resample to the live device rate.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
 
@@ -69,40 +74,47 @@ pub(crate) fn sync_live_chain_runtime(
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
             *borrow = Some(ProjectRuntimeController::start(&*proj)?);
+            drop(borrow);
+            // #669: start() resolved the real device rate — push it to the
+            // dispatcher so DI loops resample correctly (not stuck at 48000).
+            crate::di_loop_wiring::sync_engine_sr_from_runtime(
+                project_runtime,
+                &session.dispatcher,
+            );
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
     }
     // Normal sync
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        if let Some(chain) = chain {
-            // Issue #672: if the chain is already streaming and this edit does
-            // not change its IO topology (model swap / block edit), rebuild its
-            // runtime off the control worker and let the frontend poll publish
-            // it — the heavy NAM/IR load never blocks the UI. Live knob drags do
-            // NOT come through here (they use the in-place set_block_parameter
-            // fast path), so click-freeness is preserved. Returns false for cold
-            // activation or an IO change, which fall through to the sync rebuild.
-            if runtime.request_offthread_rebuild_if_live(&*proj, chain)? {
-                return Ok(());
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            validate_project(&*proj)?;
+            if let Some(chain) = chain {
+                // Issue #672: a live model/block edit (IO unchanged) or a cold
+                // single-input activation rebuilds off the control worker and is
+                // applied on the poll tick, so the heavy NAM/IR load never blocks
+                // the UI. Live knob drags use the in-place set_block_parameter
+                // fast path and do not come through here, so click-freeness is
+                // preserved. Both helpers return false for an IO-topology change
+                // or a multi-input chain, which fall through to the sync rebuild.
+                if !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
+                    && !runtime.schedule_chain_activation(&*proj, chain)?
+                {
+                    runtime.upsert_chain(&*proj, chain)?;
+                }
+            } else {
+                runtime.remove_chain(chain_id);
             }
-            // Issue #672: cold activation of a single-input chain — build the
-            // runtime (NAM/IR load, the bulk of the freeze) off the frontend
-            // thread; the poll tick creates the streams and installs it.
-            if runtime.schedule_chain_activation(&*proj, chain)? {
-                return Ok(());
+            // If no chains are running (and none are activating), destroy runtime.
+            if !runtime.is_running() {
+                *borrow = None;
             }
-            runtime.upsert_chain(&*proj, chain)?;
-        } else {
-            runtime.remove_chain(chain_id);
-        }
-        // If no chains are running, destroy runtime
-        if !runtime.is_running() {
-            *borrow = None;
         }
     }
+    // #669: an upsert may have rebuilt the stream at a new device rate; keep
+    // the dispatcher's engine sample rate in lock-step.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
 

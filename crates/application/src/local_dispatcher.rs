@@ -159,11 +159,37 @@ impl LocalDispatcher {
         *self.config_path.borrow_mut() = path;
     }
 
-    /// #614: inform the dispatcher of the engine sample rate so DI loop
+    /// #614/#669: inform the dispatcher of the engine sample rate so DI loop
     /// decoding resamples to the correct target. Call this once the audio
-    /// stream is running (or when the device changes). Defaults to 48 000 Hz.
-    pub fn attach_engine_sr(&self, sr: u32) {
+    /// stream is running and whenever the device rate changes. Defaults to
+    /// 48 000 Hz.
+    ///
+    /// #669: when the rate actually changes, every already-loaded DI loop is
+    /// re-resampled to the new rate in place — a stale 48 kHz buffer plays in
+    /// slow motion on a 44.1 kHz stream. Returns the chains whose loop arc was
+    /// rebuilt so the caller can re-apply the fresh arc to any armed runtime.
+    /// No-op (empty result) when the rate is unchanged.
+    pub fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
+        if *self.engine_sr.borrow() == sr {
+            return Vec::new();
+        }
         *self.engine_sr.borrow_mut() = sr;
+        let mut rebuilt = Vec::new();
+        let mut state = self.di_loop_state.borrow_mut();
+        for (chain, (source, arc)) in state.iter_mut() {
+            match crate::di_loader::load_di_loop(source, sr) {
+                Ok(new_arc) => {
+                    *arc = new_arc;
+                    rebuilt.push(chain.clone());
+                }
+                Err(e) => {
+                    // Off-thread; never silently swallow — a loop that fails to
+                    // rebuild keeps its old (wrong-rate) buffer, so surface it.
+                    eprintln!("[di-loop #669] rebuild for {chain:?} at {sr} Hz failed: {e}");
+                }
+            }
+        }
+        rebuilt
     }
 
     /// #614: retrieve the pre-loaded DI loop arc for `chain`, if any.
