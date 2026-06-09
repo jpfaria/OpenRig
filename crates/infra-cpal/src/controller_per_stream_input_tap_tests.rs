@@ -147,6 +147,10 @@ fn controller_with_single_runtime(
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
         sample_rate: 48_000,
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(

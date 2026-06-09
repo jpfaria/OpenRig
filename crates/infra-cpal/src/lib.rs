@@ -51,6 +51,18 @@ mod resolved;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
 
+mod control_worker;
+pub use control_worker::ControlWorker;
+
+mod live_runtime;
+pub use live_runtime::LiveRuntimeSlot;
+
+mod build_request;
+pub use build_request::{build_chain_runtime, BuildRequest};
+
+mod slot_processing;
+pub use slot_processing::{build_chain_slots, process_input_buffer, process_output_buffer};
+
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;

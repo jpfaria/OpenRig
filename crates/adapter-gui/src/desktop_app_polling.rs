@@ -46,10 +46,14 @@ pub(crate) fn start(
                 let Some(win) = weak_window.upgrade() else {
                     return;
                 };
-                let rt_borrow = project_runtime_for_errors.borrow();
-                let Some(rt) = rt_borrow.as_ref() else {
+                let mut rt_borrow = project_runtime_for_errors.borrow_mut();
+                let Some(rt) = rt_borrow.as_mut() else {
                     return;
                 };
+                // Issue #672: apply any off-thread chain rebuilds finished by the
+                // control worker — swaps the live runtime in on the frontend tick
+                // so the heavy build never blocked the UI.
+                rt.poll_pending_rebuilds();
                 let errors = rt.poll_errors();
                 if let Some(first) = errors.first() {
                     set_status_error(
