@@ -88,6 +88,12 @@ pub(crate) fn sync_live_chain_runtime(
             if runtime.request_offthread_rebuild_if_live(&*proj, chain)? {
                 return Ok(());
             }
+            // Issue #672: cold activation of a single-input chain — build the
+            // runtime (NAM/IR load, the bulk of the freeze) off the frontend
+            // thread; the poll tick creates the streams and installs it.
+            if runtime.schedule_chain_activation(&*proj, chain)? {
+                return Ok(());
+            }
             runtime.upsert_chain(&*proj, chain)?;
         } else {
             runtime.remove_chain(chain_id);

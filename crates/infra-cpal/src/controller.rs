@@ -72,6 +72,13 @@ pub struct ProjectRuntimeController {
     /// consistent, and drops the superseded runtime back on the worker.
     pub(crate) pending_rebuilds:
         Vec<((ChainId, usize), Receiver<Result<Arc<ChainRuntimeState>>>)>,
+    /// Issue #672 — in-flight cold activations (single-input chains). The worker
+    /// builds the runtime off-thread (the NAM/IR load); `poll_pending_rebuilds`
+    /// then creates the cpal streams on the frontend (they are `!Send`) and
+    /// installs the chain. Holds the resolved IO config + chain needed to build
+    /// the streams once the runtime is ready.
+    pub(crate) pending_activations:
+        Vec<(ChainId, Chain, ResolvedChainAudioConfig, Receiver<Result<Arc<ChainRuntimeState>>>)>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -96,6 +103,7 @@ impl ProjectRuntimeController {
             chain_slots,
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
+            pending_activations: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -113,6 +121,7 @@ impl ProjectRuntimeController {
             chain_slots: HashMap::new(),
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
+            pending_activations: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -195,6 +204,41 @@ impl ProjectRuntimeController {
             }
         }
         self.pending_rebuilds = still_pending;
+
+        // Cold activations: once the runtime is built off-thread, create the
+        // cpal streams on THIS (frontend) thread — cpal `Stream` is `!Send` — and
+        // install the chain.
+        let mut still_activating = Vec::new();
+        for (chain_id, chain, resolved, rx) in std::mem::take(&mut self.pending_activations) {
+            match rx.try_recv() {
+                Ok(Ok(runtime)) => {
+                    let key = (chain_id.clone(), 0);
+                    self.runtime_graph
+                        .chains
+                        .insert(key.clone(), Arc::clone(&runtime));
+                    let slots = crate::build_chain_slots(&[(0, runtime)]);
+                    self.chain_slots.insert(key, slots[0].1.handle());
+                    match crate::build_active_chain_runtime(&chain_id, &chain, resolved, slots) {
+                        Ok(active) => {
+                            self.active_chains.insert(chain_id, active);
+                            applied += 1;
+                        }
+                        Err(e) => {
+                            log::error!("chain '{}' stream build failed: {e}", chain_id.0);
+                            self.runtime_graph.remove_chain(&chain_id);
+                        }
+                    }
+                }
+                Ok(Err(e)) => log::error!("chain '{}' activation build failed: {e}", chain_id.0),
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    still_activating.push((chain_id, chain, resolved, rx))
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    log::error!("chain '{}' activation worker disconnected", chain_id.0)
+                }
+            }
+        }
+        self.pending_activations = still_activating;
         applied
     }
 
@@ -544,6 +588,55 @@ impl ProjectRuntimeController {
     /// synchronous path.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     pub fn request_offthread_rebuild_if_live(
+        &mut self,
+        _project: &Project,
+        _chain: &Chain,
+    ) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// Issue #672 — cold activation. If `chain` is a single-input-group chain
+    /// that is not yet streaming, build its runtime (the heavy NAM/IR load) on
+    /// the control worker and return `true`; the next poll creates the cpal
+    /// streams on the frontend (they are `!Send`) and installs the chain. Returns
+    /// `false` for an already-streaming chain or a multi-input chain, which the
+    /// caller then builds synchronously.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn schedule_chain_activation(&mut self, project: &Project, chain: &Chain) -> Result<bool> {
+        if self.active_chains.contains_key(&chain.id) {
+            return Ok(false); // already streaming — not a cold activation
+        }
+        // Only a single input device maps to the one ChainRuntimeState that
+        // build_chain_runtime produces. Multi-device chains need N per-device
+        // runtimes, so defer them to the synchronous build.
+        let input_devices: std::collections::HashSet<&str> = chain
+            .input_blocks()
+            .iter()
+            .flat_map(|(_, block)| block.entries.iter())
+            .map(|entry| entry.device_id.0.as_str())
+            .collect();
+        if input_devices.len() != 1 {
+            return Ok(false);
+        }
+
+        let host = get_host();
+        validate_chain_channels_against_devices(host, chain)?;
+        let resolved = resolve_chain_audio_config(host, project, chain)?;
+        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        let request = BuildRequest {
+            chain: chain.clone(),
+            sample_rate: resolved.sample_rate,
+            buffer_sizes: elastic_targets,
+        };
+        let rx = self.worker.submit(move || build_chain_runtime(&request));
+        self.pending_activations
+            .push((chain.id.clone(), chain.clone(), resolved, rx));
+        Ok(true)
+    }
+
+    /// JACK build keeps cold activation synchronous (issue #672 wires cpal first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn schedule_chain_activation(
         &mut self,
         _project: &Project,
         _chain: &Chain,

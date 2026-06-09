@@ -86,6 +86,7 @@ fn controller_with_active_chain(
         chain_slots: std::collections::HashMap::new(),
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
