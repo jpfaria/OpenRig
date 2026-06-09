@@ -9,3 +9,6 @@ plugin-loader = { path = "../plugin-loader" }
 anyhow.workspace = true
 log.workspace = true
 libloading = "0.8"
+# Issue #670: lock-free SPSC queues for the async LV2 worker (move plugin
+# work() off the realtime audio thread).
+crossbeam-queue = "0.3"
