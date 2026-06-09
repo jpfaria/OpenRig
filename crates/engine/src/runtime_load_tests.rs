@@ -12,7 +12,7 @@
 //! and the GUI / MCP / gRPC read `xrun_count()` + `peak_callback_load()`
 //! to surface the overload instead of letting it crackle unexplained.
 
-use crate::runtime::{build_chain_runtime_state, DEFAULT_ELASTIC_TARGET};
+use crate::runtime::{build_chain_runtime_state, process_output_f32, DEFAULT_ELASTIC_TARGET};
 use crate::runtime_state::ChainRuntimeState;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
@@ -142,4 +142,28 @@ fn a_zero_period_callback_is_ignored_without_panic() {
     rt.record_callback_load(100_000, 0);
     assert_eq!(rt.xrun_count(), 0);
     assert_eq!(rt.peak_callback_load(), 0.0);
+}
+
+#[test]
+fn underrun_count_starts_at_zero() {
+    let rt = pipe_runtime();
+    assert_eq!(rt.underrun_count(), 0);
+}
+
+#[test]
+fn underrun_count_rises_when_output_drains_an_empty_elastic_buffer() {
+    // The crackle the user hears on a light single chain at buffer 64 is an
+    // elastic-buffer STARVE, not a CPU overrun: the output callback pops a
+    // frame the input/DSP producer hasn't delivered yet. Pin that the
+    // instrumentation counts exactly this — drain the output with no input
+    // fed, so every pop underruns.
+    let rt = pipe_runtime();
+    assert_eq!(rt.underrun_count(), 0);
+    let mut out = vec![0.0f32; 64 * 2];
+    process_output_f32(&rt, 0, &mut out, 2);
+    assert!(
+        rt.underrun_count() > 0,
+        "draining an empty elastic buffer must register underruns so the \
+         GUI/log can distinguish a starve from a CPU xrun"
+    );
 }

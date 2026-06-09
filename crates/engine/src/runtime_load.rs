@@ -59,6 +59,21 @@ impl ChainRuntimeState {
         self.peak_load_ppm.load(Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
     }
 
+    /// Total output-side underruns across this chain's elastic buffers
+    /// (issue #670). An underrun is an empty `pop` on the output callback:
+    /// the input/DSP producer hasn't delivered the frame in time, so a
+    /// silent gap (the click) is emitted. Distinct from an xrun (a slow
+    /// callback): a light single chain crackling at buffer 64 with many
+    /// underruns but ~zero xruns is starving the elastic buffer, not the
+    /// CPU. Read off the audio thread.
+    pub fn underrun_count(&self) -> u64 {
+        self.output_routes
+            .load()
+            .iter()
+            .map(|route| route.buffer.underrun_count())
+            .sum()
+    }
+
     /// Clear the xrun count and peak load. Called off the audio thread
     /// (e.g. when the user opens the audio diagnostics, or on a chain
     /// rebuild) so the meter reflects the current rig, not stale history.

@@ -409,6 +409,9 @@ pub fn start_meter_polling(
     let last_xruns: std::rc::Rc<
         std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    let last_underruns: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
     // #661: bundled DI loop ids are static for the session (the di-loops
     // directory is scanned once on project load by `replace_project_chains`);
     // cache them here so the per-tick source-list refresh never hits the
@@ -537,21 +540,33 @@ pub fn start_meter_polling(
                     row.di_loop_sources.iter().map(|s| s.to_string()).collect();
                 current != desired_sources
             };
-            // Issue #670: per-chain audio overload — true when the audio
-            // callback counted new deadline misses (xruns) since the last
-            // tick. Logged once per transition into overload so the cause
-            // of the crackle is visible in the log too.
+            // Issue #670: per-chain audio overload. The user hears crackle
+            // from EITHER failure mode, so the indicator must catch both:
+            //   - xrun     = the audio callback missed its deadline (CPU too
+            //                 slow for this buffer).
+            //   - underrun = the output elastic buffer was empty (the input/
+            //                 DSP producer didn't deliver in time — a starve,
+            //                 NOT a CPU cost). A light single chain crackling
+            //                 at buffer 64 with underruns but ~zero xruns is
+            //                 THIS, not CPU.
+            // Tagged so the cause is observable in the log (grep `#670-probe`).
             let cur_xruns = controller.chain_xrun_count(&cid);
+            let cur_underruns = controller.chain_underrun_count(&cid);
             let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
-            let overloaded = chain_overloaded(prev_xruns, cur_xruns);
+            let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
+            let overloaded = chain_overloaded(prev_xruns, cur_xruns)
+                || chain_overloaded(prev_underruns, cur_underruns);
             last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
-            if overloaded && !row.audio_overload {
+            last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+            if overloaded {
                 log::warn!(
-                    "[{}] audio overload: {} new xrun(s) — the rig is too heavy \
-                     for the current buffer size; raise the buffer or reduce \
-                     simultaneous NAM amps (#670)",
+                    "[#670-probe] chain={} new_xruns={} new_underruns={} \
+                     peak_load={:.0}% (xrun=callback too slow, underrun=elastic \
+                     starve/not-CPU)",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
+                    cur_underruns.saturating_sub(prev_underruns),
+                    controller.chain_peak_load(&cid) * 100.0,
                 );
             }
             let overload_changed = row.audio_overload != overloaded;
