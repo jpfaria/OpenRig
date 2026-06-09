@@ -54,6 +54,20 @@ jobs:
         with:
           shared-key: pr-quality
 
+      # #677: the gate measures the base (develop) from scratch every PR
+      # (`--force-full`). Without a cache for the separate `baseline/` checkout
+      # its `target/` is built clean each run — ~half the gate's wall-clock for
+      # a deterministic-per-SHA result. Cache the baseline workspace keyed by its
+      # own Cargo.lock (develop's at the base SHA), so consecutive PRs against the
+      # same develop reuse a warm baseline build. The full fix (feeding stored
+      # base metrics so the base is not re-measured at all) needs a
+      # `--baseline-metrics` feature in xgodev/quality-gate.
+      - name: Cache cargo (baseline build)
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: pr-quality-baseline
+          workspaces: baseline
+
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
         with:
