@@ -214,7 +214,6 @@ fn audio_callback_does_not_allocate_at_buffer_32() {
 // blocks). This test drives the user's REAL native + NAM blocks and pins
 // zero per-callback allocations through them.
 
-use crate::runtime::ChainRuntimeState as _Ck;
 use project::block::{CoreBlock, NamBlock};
 use project::param::ParameterSet as P670Set;
 use domain::value_objects::ParameterValue as P670Val;
