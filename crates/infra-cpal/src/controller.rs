@@ -508,6 +508,49 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Issue #672 — if `chain` is already streaming with UNCHANGED IO topology,
+    /// rebuild its runtime off the frontend thread (the model-swap freeze) and
+    /// return `true`. Returns `false` when the chain is not live or its IO
+    /// changed, so the caller falls back to the synchronous stream-rebuild path.
+    ///
+    /// Param/knob edits are NOT routed here — they keep the engine's cheap
+    /// in-place lock-free update. Only the model/type-swap callbacks call this.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn request_offthread_rebuild_if_live(
+        &mut self,
+        project: &Project,
+        chain: &Chain,
+    ) -> Result<bool> {
+        if !self.active_chains.contains_key(&chain.id) {
+            return Ok(false); // cold activation — caller does the synchronous build
+        }
+        let host = get_host();
+        let resolved = resolve_chain_audio_config(host, project, chain)?;
+        let io_unchanged = self
+            .active_chains
+            .get(&chain.id)
+            .map(|active| active.stream_signature == resolved.stream_signature)
+            .unwrap_or(false);
+        if !io_unchanged {
+            return Ok(false); // IO topology changed — needs a synchronous stream rebuild
+        }
+        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        self.schedule_chain_rebuild(chain, resolved.sample_rate, elastic_targets);
+        Ok(true)
+    }
+
+    /// JACK build: the live-slot swap is not wired for the JACK backend yet
+    /// (issue #672 does the cpal path first), so always fall back to the
+    /// synchronous path.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn request_offthread_rebuild_if_live(
+        &mut self,
+        _project: &Project,
+        _chain: &Chain,
+    ) -> Result<bool> {
+        Ok(false)
+    }
+
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
         log::info!("removing chain '{}' from runtime", chain_id.0);
         if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {

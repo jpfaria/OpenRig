@@ -78,6 +78,16 @@ pub(crate) fn sync_live_chain_runtime(
     if let Some(runtime) = borrow.as_mut() {
         validate_project(&*proj)?;
         if let Some(chain) = chain {
+            // Issue #672: if the chain is already streaming and this edit does
+            // not change its IO topology (model swap / block edit), rebuild its
+            // runtime off the control worker and let the frontend poll publish
+            // it — the heavy NAM/IR load never blocks the UI. Live knob drags do
+            // NOT come through here (they use the in-place set_block_parameter
+            // fast path), so click-freeness is preserved. Returns false for cold
+            // activation or an IO change, which fall through to the sync rebuild.
+            if runtime.request_offthread_rebuild_if_live(&*proj, chain)? {
+                return Ok(());
+            }
             runtime.upsert_chain(&*proj, chain)?;
         } else {
             runtime.remove_chain(chain_id);
