@@ -64,11 +64,22 @@ fn passthrough_chain(id: &str) -> Chain {
 
 /// Drive one buffer through the seam: feed `sig` via the live input runtime,
 /// read the mixed output via the live output runtime.
-fn drive(slot: &LiveRuntimeSlot, loaded: &mut Vec<Arc<engine::runtime::ChainRuntimeState>>, sig: &[f32]) -> Vec<f32> {
+fn drive(
+    slot: &LiveRuntimeSlot,
+    loaded: &mut Vec<Arc<engine::runtime::ChainRuntimeState>>,
+    sig: &[f32],
+) -> Vec<f32> {
     process_input_buffer(slot, 0, sig, 1);
     let mut out = vec![0.0_f32; sig.len() * 2];
     let mut scratch = vec![0.0_f32; sig.len() * 2];
-    process_output_buffer(std::slice::from_ref(slot), loaded, 0, &mut out, 2, &mut scratch);
+    process_output_buffer(
+        std::slice::from_ref(slot),
+        loaded,
+        0,
+        &mut out,
+        2,
+        &mut scratch,
+    );
     out
 }
 

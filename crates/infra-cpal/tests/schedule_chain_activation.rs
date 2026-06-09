@@ -13,7 +13,9 @@ use std::collections::HashMap;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use engine::runtime::RuntimeGraph;
 use infra_cpal::ProjectRuntimeController;
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::project::Project;
 

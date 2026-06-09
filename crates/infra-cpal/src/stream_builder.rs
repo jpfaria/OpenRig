@@ -41,14 +41,14 @@ use project::chain::Chain;
 
 use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
-use crate::LiveRuntimeSlot;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use crate::{build_chain_slots, process_input_buffer, process_output_buffer};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::{
     ChainStreamSignature, InputStreamSignature, OutputStreamSignature, ResolvedInputDevice,
     ResolvedOutputDevice,
 };
+use crate::LiveRuntimeSlot;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::{build_chain_slots, process_input_buffer, process_output_buffer};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::stream_config::{
@@ -106,8 +106,7 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) =
-                build_chain_streams(&chain.id, resolved, slots)?;
+            let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, slots)?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }

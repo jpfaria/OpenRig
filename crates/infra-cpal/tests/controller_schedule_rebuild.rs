@@ -36,7 +36,9 @@ fn schedule_then_poll_publishes_a_new_runtime_offthread() {
 
     let mut controller = ProjectRuntimeController::for_testing(graph);
 
-    let before = controller.chain_runtime(&chain_id).expect("runtime present");
+    let before = controller
+        .chain_runtime(&chain_id)
+        .expect("runtime present");
     assert!(Arc::ptr_eq(&before, &initial));
 
     // Enqueue the rebuild — must return immediately (no build on this thread).
@@ -47,12 +49,17 @@ fn schedule_then_poll_publishes_a_new_runtime_offthread() {
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
     while applied == 0 {
         applied += controller.poll_pending_rebuilds();
-        assert!(std::time::Instant::now() < deadline, "rebuild never completed");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "rebuild never completed"
+        );
         std::thread::yield_now();
     }
     assert_eq!(applied, 1);
 
-    let after = controller.chain_runtime(&chain_id).expect("runtime present");
+    let after = controller
+        .chain_runtime(&chain_id)
+        .expect("runtime present");
     assert!(
         !Arc::ptr_eq(&before, &after),
         "poll must publish the freshly built runtime (new Arc)"

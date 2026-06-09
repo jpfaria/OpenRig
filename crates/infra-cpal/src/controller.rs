@@ -70,15 +70,18 @@ pub struct ProjectRuntimeController {
     /// `poll_pending_rebuilds` (called on the frontend tick) applies a finished
     /// build by swapping the slot and `runtime_graph` in lock-step so they stay
     /// consistent, and drops the superseded runtime back on the worker.
-    pub(crate) pending_rebuilds:
-        Vec<((ChainId, usize), Receiver<Result<Arc<ChainRuntimeState>>>)>,
+    pub(crate) pending_rebuilds: Vec<((ChainId, usize), Receiver<Result<Arc<ChainRuntimeState>>>)>,
     /// Issue #672 — in-flight cold activations (single-input chains). The worker
     /// builds the runtime off-thread (the NAM/IR load); `poll_pending_rebuilds`
     /// then creates the cpal streams on the frontend (they are `!Send`) and
     /// installs the chain. Holds the resolved IO config + chain needed to build
     /// the streams once the runtime is ready.
-    pub(crate) pending_activations:
-        Vec<(ChainId, Chain, ResolvedChainAudioConfig, Receiver<Result<Arc<ChainRuntimeState>>>)>,
+    pub(crate) pending_activations: Vec<(
+        ChainId,
+        Chain,
+        ResolvedChainAudioConfig,
+        Receiver<Result<Arc<ChainRuntimeState>>>,
+    )>,
     /// Sample rate (Hz) the live streams were built at, captured from the last
     /// resolved chain config. The DI-loop loader reads this (via the
     /// dispatcher's `engine_sr`) to resample loops to the device rate; a stale
@@ -169,7 +172,12 @@ impl ProjectRuntimeController {
     /// Applies to chains that already have a runtime (the freeze case — editing
     /// a live chain whose IO is unchanged); a brand-new chain or an IO-topology
     /// change is still built synchronously by `upsert_chain`.
-    pub fn schedule_chain_rebuild(&mut self, chain: &Chain, sample_rate: f32, buffer_sizes: Vec<usize>) {
+    pub fn schedule_chain_rebuild(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        buffer_sizes: Vec<usize>,
+    ) {
         let key = (chain.id.clone(), 0);
         // Seed the slot from the current graph runtime if it has not been
         // created yet (chain built before its slot was wired).
