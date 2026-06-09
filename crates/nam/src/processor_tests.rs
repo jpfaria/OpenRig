@@ -264,3 +264,94 @@ fn soft_clip_two_input_response_bounded() {
     let y = soft_clip(2.0);
     assert!(y > 0.9 && y < 1.0);
 }
+
+// ── peak-safety anti-aliasing (issue #675) ─────────────────────
+//
+// The existing soft_clip battery above proves the saturator's TIME-domain
+// shape (monotonic, odd, bounded, continuous) but never its FREQUENCY
+// behavior. The "xiado" bug is in the frequency domain: a base-rate
+// nonlinearity folds the harmonics it generates above Nyquist back into
+// the audible band as inharmonic aliasing. A loud-calibrated capture (some
+// NAMs are baked hot) drives the stage well past 0.8 on normal playing, so
+// the fold-back is continuous — heard as harsh hiss. Invariant #2 forbids
+// added aliasing, so the peak-safety stage must not inject it.
+
+/// Single-bin magnitude via Goertzel — no FFT dependency, deterministic.
+/// With an integer bin (`len * freq / sample_rate` whole) there is no
+/// spectral leakage, so a clean tone reads ~0 at any unrelated bin.
+fn goertzel_mag(samples: &[f32], freq_hz: f32, sample_rate: f32) -> f32 {
+    let n = samples.len() as f32;
+    let k = (n * freq_hz / sample_rate).round();
+    let w = 2.0 * std::f32::consts::PI * k / n;
+    let coeff = 2.0 * w.cos();
+    let (mut s1, mut s2) = (0.0f32, 0.0f32);
+    for &x in samples {
+        let s = x + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s;
+    }
+    (s1 * s1 + s2 * s2 - coeff * s1 * s2).sqrt()
+}
+
+#[test]
+fn peak_safety_is_transparent_below_threshold() {
+    // Normal playing sits below the 0.8 knee. There soft_clip is the
+    // identity, so the saturator must be byte-exact transparent — the
+    // anti-aliasing must NOT low-pass clean signal (that would dull the
+    // tone: the #413 "abafado" regression, and the #496 transparency
+    // contract). Amplitude 0.5 keeps every sample sub-threshold.
+    const FS: f32 = 48_000.0;
+    let input: Vec<f32> = (0..1024)
+        .map(|n| 0.5 * (2.0 * std::f32::consts::PI * 7_500.0 * n as f32 / FS).sin())
+        .collect();
+    let mut buf = input.clone();
+    PeakSafety::new().process_block(&mut buf);
+    assert_eq!(buf, input, "peak safety altered sub-threshold (clean) signal");
+}
+
+/// Aliasing the saturator folds into the band, as a fraction of the
+/// fundamental, for a hot tone at `f0`. `f0` and the measured alias bin
+/// both land on exact Goertzel bins at N=4096, so a clean path reads ~0.
+fn peak_safety_alias_ratio<F: FnMut(&mut [f32])>(f0: f32, alias_hz: f32, mut saturate: F) -> f32 {
+    const FS: f32 = 48_000.0;
+    const N: usize = 4096;
+    // Hot output: a loud-calibrated model peaks well past the 0.8 knee on
+    // normal playing, so the saturator engages continuously.
+    let mut buf: Vec<f32> = (0..N)
+        .map(|n| 2.0 * (2.0 * std::f32::consts::PI * f0 * n as f32 / FS).sin())
+        .collect();
+    saturate(&mut buf);
+    goertzel_mag(&buf, alias_hz, FS) / goertzel_mag(&buf, f0, FS)
+}
+
+#[test]
+fn peak_safety_anti_aliases_a_hot_high_tone() {
+    // A 7.5 kHz tone (pick-attack / presence-band content, well inside the
+    // guitar range) saturated hot. soft_clip is odd, so it makes only odd
+    // harmonics; the 5th (37.5 kHz) folds to exactly 10.5 kHz — a bin with
+    // ZERO legitimate content, so any energy there is purely the
+    // saturator's aliasing. Both 7.5 kHz and 10.5 kHz are exact bins at
+    // N=4096 (k=640 / k=896).
+    const F0: f32 = 7_500.0;
+    const ALIAS: f32 = 10_500.0;
+
+    // The naive per-sample saturator (issue #496) folds audible aliasing
+    // into the band — the "xiado". This is the defect.
+    let naive = peak_safety_alias_ratio(F0, ALIAS, |buf| {
+        for s in buf.iter_mut() {
+            *s = soft_clip(*s);
+        }
+    });
+    assert!(
+        naive > 0.03,
+        "expected the naive saturator to alias audibly, got only {naive:.5}"
+    );
+
+    // ADAA band-limits the saturation: same shape, the in-band aliasing
+    // collapses by more than an order of magnitude, at zero latency cost.
+    let adaa = peak_safety_alias_ratio(F0, ALIAS, |buf| PeakSafety::new().process_block(buf));
+    assert!(
+        adaa < naive / 5.0 && adaa < 8e-3,
+        "ADAA must crush the aliasing: naive={naive:.5} adaa={adaa:.5}"
+    );
+}

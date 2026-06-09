@@ -306,11 +306,17 @@ pub(crate) fn wire(
         block_model_option_labels.set_vec(block_model_picker_labels(&items));
         block_model_options.set_vec(items.clone());
         filtered_block_model_options.set_vec(items);
-        let new_params = block_parameter_items_for_model(
+        // Seed the new block's knobs from the manifest (output_db #655,
+        // noise_gate #675) via the single source in `block_factory`, so the
+        // editor shows the pre-configured values instead of bare schema
+        // defaults. Falls back to empty params if the model is unknown.
+        let seeded = application::block_factory::default_params_for_model(
             &model.effect_type,
             &model.model_id,
-            &ParameterSet::default(),
-        );
+        )
+        .unwrap_or_default();
+        let new_params =
+            block_parameter_items_for_model(&model.effect_type, &model.model_id, &seeded);
         let overlays = build_knob_overlays(
             project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
             &new_params,

@@ -24,6 +24,7 @@ fn captures_a_minus20_b_minus10() -> Vec<GridCapture> {
                 .collect(),
             file: "a.wav".into(),
             output_gain_db: Some(-20.0),
+            noise_gate: None,
         },
         GridCapture {
             values: [("position".to_string(), ParameterValue::Text("b".into()))]
@@ -31,6 +32,7 @@ fn captures_a_minus20_b_minus10() -> Vec<GridCapture> {
                 .collect(),
             file: "b.wav".into(),
             output_gain_db: Some(-10.0),
+            noise_gate: None,
         },
     ]
 }
@@ -75,6 +77,7 @@ fn capture_without_audit_falls_back_to_manifest_level() {
             .collect(),
         file: "a.wav".into(),
         output_gain_db: None,
+        noise_gate: None,
     }];
     let result = reseed_output_db_for_capture_change(
         &position_axis(),

@@ -567,6 +567,7 @@ mod tests {
                 homepage: None,
                 sources: None,
                 output_gain_db: None,
+                noise_gate: None,
                 architecture: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
@@ -672,6 +673,7 @@ mod tests {
                 homepage: None,
                 sources: None,
                 output_gain_db: None,
+                noise_gate: None,
                 architecture: None,
                 block_type: BlockType::Cab,
                 backend: Backend::Ir {
@@ -690,6 +692,7 @@ mod tests {
                                 .collect(),
                             file: "a.wav".into(),
                             output_gain_db: first_audit_db,
+                            noise_gate: None,
                         },
                         GridCapture {
                             values: [("position".to_string(), ParameterValue::Text("b".into()))]
@@ -697,6 +700,7 @@ mod tests {
                                 .collect(),
                             file: "b.wav".into(),
                             output_gain_db: Some(-10.0),
+                            noise_gate: None,
                         },
                     ],
                 },
@@ -765,6 +769,7 @@ mod tests {
                     .collect(),
                     file: "4x12.nam".into(),
                     output_gain_db: None,
+                    noise_gate: None,
                 },
                 GridCapture {
                     values: [(
@@ -775,6 +780,7 @@ mod tests {
                     .collect(),
                     file: "2x12.nam".into(),
                     output_gain_db: None,
+                    noise_gate: None,
                 },
             ],
         )
