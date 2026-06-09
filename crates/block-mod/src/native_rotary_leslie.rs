@@ -286,18 +286,26 @@ impl Rotor {
         // Band-limited LFO, bipolar [-1, 1].
         let lfo_sin = self.lfo.next();
 
-        // Doppler: instantaneous delay sweeps base ± depth.
-        let delay = self.base_delay_samples + self.depth_samples * lfo_sin;
         // Write input.
         self.buffer[self.write_idx] = input;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
-        let delayed = self.read_cubic(delay);
 
-        // AM tremolo (rotor pointing toward a mic = louder).
+        // Stereo Doppler: the two mics sit on opposite sides of the rotor,
+        // so as the horn nears one mic its path shortens (delay ↓) while it
+        // lengthens toward the other (delay ↑). Reading the line at base ∓
+        // depth per channel gives opposite pitch modulation — the swirling
+        // stereo image that defines a rotary speaker. A single shared read
+        // (the previous behaviour) only panned amplitude and left the image
+        // nearly mono (issue #681).
+        let delayed_l = self.read_cubic(self.base_delay_samples + self.depth_samples * lfo_sin);
+        let delayed_r = self.read_cubic(self.base_delay_samples - self.depth_samples * lfo_sin);
+
+        // AM tremolo (rotor pointing toward a mic = louder), in phase with
+        // each mic's Doppler so amplitude and pitch peaks line up per side.
         let am_l = 1.0 - self.am_depth * (1.0 + lfo_sin) * 0.5;
         let am_r = 1.0 - self.am_depth * (1.0 - lfo_sin) * 0.5;
 
-        [delayed * am_l, delayed * am_r]
+        [delayed_l * am_l, delayed_r * am_r]
     }
 }
 
