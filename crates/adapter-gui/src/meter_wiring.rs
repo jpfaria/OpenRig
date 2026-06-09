@@ -552,6 +552,11 @@ pub fn start_meter_polling(
             // Tagged so the cause is observable in the log (grep `#670-probe`).
             let cur_xruns = controller.chain_xrun_count(&cid);
             let cur_underruns = controller.chain_underrun_count(&cid);
+            // Read AND reset the peak every tick so it reflects the worst
+            // callback in THIS ~33 ms interval, not an all-time high-water
+            // mark — tells an ongoing per-callback spike apart from a
+            // one-time startup cost.
+            let interval_peak_load = controller.chain_take_peak_load(&cid);
             let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
             let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
@@ -561,12 +566,12 @@ pub fn start_meter_polling(
             if overloaded {
                 log::warn!(
                     "[#670-probe] chain={} new_xruns={} new_underruns={} \
-                     peak_load={:.0}% (xrun=callback too slow, underrun=elastic \
-                     starve/not-CPU)",
+                     interval_peak_load={:.0}% (xrun=callback too slow, \
+                     underrun=elastic starve/not-CPU)",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
                     cur_underruns.saturating_sub(prev_underruns),
-                    controller.chain_peak_load(&cid) * 100.0,
+                    interval_peak_load * 100.0,
                 );
             }
             let overload_changed = row.audio_overload != overloaded;

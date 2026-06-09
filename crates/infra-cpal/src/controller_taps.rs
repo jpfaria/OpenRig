@@ -281,6 +281,18 @@ impl ProjectRuntimeController {
             .fold(0.0_f32, f32::max)
     }
 
+    /// Worst per-callback load across this chain's runtimes since the last
+    /// call, RESETTING each runtime's peak (issue #670). The off-thread
+    /// poller calls this every interval so the reported peak is the worst
+    /// spike in that interval, not an all-time high-water mark.
+    pub fn chain_take_peak_load(&self, chain_id: &ChainId) -> f32 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.take_peak_callback_load())
+            .fold(0.0_f32, f32::max)
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {

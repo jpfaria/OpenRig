@@ -59,6 +59,15 @@ impl ChainRuntimeState {
         self.peak_load_ppm.load(Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
     }
 
+    /// Read the worst callback load AND reset it to zero (issue #670). The
+    /// off-thread poller calls this each interval so the value reported is
+    /// the worst spike SINCE THE LAST POLL, not an all-time high-water mark
+    /// — that distinguishes an ongoing per-callback spike from a one-time
+    /// startup/warmup cost.
+    pub fn take_peak_callback_load(&self) -> f32 {
+        self.peak_load_ppm.swap(0, Ordering::Relaxed) as f32 / LOAD_PPM_SCALE as f32
+    }
+
     /// Total output-side underruns across this chain's elastic buffers
     /// (issue #670). An underrun is an empty `pop` on the output callback:
     /// the input/DSP producer hasn't delivered the frame in time, so a
