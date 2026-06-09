@@ -76,13 +76,6 @@ impl ChainRuntimeState {
         self.worst_block_ns.swap(0, Ordering::Relaxed) / 1_000
     }
 
-    /// Audio-thread side: record one block's process time, keeping the
-    /// per-interval maximum. RT-safe (one relaxed `fetch_max`).
-    #[inline(always)]
-    pub(crate) fn record_block_ns(&self, ns: u64) {
-        self.worst_block_ns.fetch_max(ns, Ordering::Relaxed);
-    }
-
     /// Total output-side underruns across this chain's elastic buffers
     /// (issue #670). An underrun is an empty `pop` on the output callback:
     /// the input/DSP producer hasn't delivered the frame in time, so a
