@@ -355,3 +355,19 @@ fn leslie_variants_are_distinct() {
         0.20,
     );
 }
+
+// ── Fractal-grade quality bar (issue #681 round 2) ───────────────────────
+
+#[test]
+fn ensemble_chorus_is_a_wide_image() {
+    // A real ensemble (Juno-60 / Solina) spreads its detuned voices into a wide
+    // stereo image. It used to average the voices to mono and only offset L/R,
+    // collapsing the image to near-mono (decorr 0.49) — narrower than the basic
+    // single-voice chorus. A wide ensemble must clear a much higher bar.
+    let input = tone();
+    let (el, er) = render_default("ensemble_chorus", &input);
+    let decorr = rel_diff(&el, &er);
+    eprintln!("ensemble decorr={decorr:.3}");
+    assert!(decorr > 0.70, "ensemble stereo image not wide enough (decorr {decorr:.3})");
+}
+
