@@ -22,6 +22,7 @@ project = { path = "../project" }
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
 
-# Issue #670 probe: thread CPU-time clock on macOS (off-CPU vs on-CPU stall).
+# Issue #670: thread CPU-time clock + real-time scheduling on macOS.
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
+mach2 = "0.5"

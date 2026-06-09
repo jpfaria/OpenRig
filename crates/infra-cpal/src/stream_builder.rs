@@ -146,14 +146,30 @@ pub(crate) fn build_input_stream_for_input(
             let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let mut rt_promoted = false;
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    // Issue #670: time the block DSP (the heavy work runs here,
-                    // not on the output pop) so a buffer-64 deadline miss is
-                    // counted and surfaced instead of crackling silently.
-                    // Also capture thread CPU time to tell an off-CPU stall
-                    // (preemption/page fault) from on-CPU cost (compute/cache).
+                    // Issue #670: promote THIS (the audio callback) thread to a
+                    // real-time time-constraint policy on the first call — cpal's
+                    // macOS backend doesn't, so the thread was preempted off-CPU
+                    // at buffer 64 even on an M4 Pro (the crackle).
+                    if !rt_promoted {
+                        rt_promoted = true;
+                        let frames = data.len() / channels.max(1);
+                        let period_ns =
+                            (frames as u64 * 1_000_000_000) / (sample_rate.max(1) as u64);
+                        let ok = crate::promote_current_thread_realtime(period_ns);
+                        log::info!(
+                            "[#670] input audio thread real-time promotion: {} (period={}us)",
+                            if ok { "ok" } else { "FAILED" },
+                            period_ns / 1000,
+                        );
+                    }
+                    // Time the block DSP (the heavy work runs here, not on the
+                    // output pop) so a buffer-64 deadline miss is counted; also
+                    // capture thread CPU time to tell an off-CPU stall from
+                    // on-CPU cost.
                     let callback_start = std::time::Instant::now();
                     let cpu_start = thread_cpu_time_ns();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
