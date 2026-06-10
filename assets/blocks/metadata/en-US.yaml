@@ -67,6 +67,10 @@ plugins:
     description: Pitch delay — each repeat is pitch-shifted (harmonized/shimmer); cascades with feedback.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  ping_pong:
+    description: Ping-pong delay — true-stereo echo that bounces left-to-right with cross-feedback.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.

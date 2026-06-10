@@ -85,6 +85,26 @@ where
     Ok(Box::new(DualMonoProcessor::new(left, right)))
 }
 
+/// Runs a stereo processor on a mono host bus: broadcasts the sample to both
+/// channels and sums the result. Lets a true-stereo model (e.g. ping-pong)
+/// degrade gracefully when the layout is mono.
+pub struct StereoToMono {
+    inner: Box<dyn StereoProcessor>,
+}
+
+impl StereoToMono {
+    pub fn new(inner: Box<dyn StereoProcessor>) -> Self {
+        Self { inner }
+    }
+}
+
+impl MonoProcessor for StereoToMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let [l, r] = self.inner.process_frame([input, input]);
+        (l + r) * 0.5
+    }
+}
+
 pub fn process_simple_delay(line: &mut DelayLine, input: f32, feedback: f32, mix: f32) -> f32 {
     let delayed = line.read();
     line.write(input + delayed * clamp_feedback(feedback));

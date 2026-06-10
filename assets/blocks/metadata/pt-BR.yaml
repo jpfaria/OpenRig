@@ -67,6 +67,10 @@ plugins:
     description: Pitch delay — cada repetição é transposta (harmonizado/shimmer); cascateia com o feedback.
     license: Proprietário - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  ping_pong:
+    description: Delay ping-pong — eco estéreo de verdade que quica da esquerda para a direita com cross-feedback.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Compressor de estúdio transparente com threshold, ratio, ataque,
       release, makeup gain e mix paralelo.
