@@ -93,6 +93,39 @@ fn promote_to_audio_rt(_period_ns: u64) {}
 /// transient worker stall that wouldn't already be audible.
 const RING_SLOTS: usize = 16;
 
+/// Saturation-recovery policy (issue #670). Owner-hit failure mode: a one-off
+/// multi-ms stall builds backlog; the worker then runs chronically over its
+/// declared RT computation budget, the kernel demotes it (to an E core), and
+/// EVERY buffer becomes multi-ms — the ring pins at its overflow clamp and the
+/// chain never heals. The policy: after `threshold` CONSECUTIVE saturated
+/// drains, demand recovery — the worker re-asserts its realtime promotion and
+/// drops the backlog to bound latency. A single healthy drain resets the run.
+pub(crate) struct SaturationRecovery {
+    threshold: u32,
+    run: u32,
+}
+
+impl SaturationRecovery {
+    pub(crate) fn new(threshold: u32) -> Self {
+        Self { threshold, run: 0 }
+    }
+
+    /// Record one drain; `saturated` = the backlog hit the overflow clamp.
+    /// Returns `true` when recovery must run NOW (and restarts the counter).
+    pub(crate) fn observe(&mut self, saturated: bool) -> bool {
+        if !saturated {
+            self.run = 0;
+            return false;
+        }
+        self.run += 1;
+        if self.run >= self.threshold {
+            self.run = 0;
+            return true;
+        }
+        false
+    }
+}
+
 struct RingSlot {
     /// Valid sample count in `data` (callbacks may deliver varying sizes).
     len: AtomicUsize,
@@ -191,6 +224,9 @@ pub(crate) fn spawn(
             let mut local = vec![0.0_f32; max_buffer_samples];
             let spin_budget = std::time::Duration::from_nanos(period_ns * 35 / 100);
             let mut idle_since: Option<std::time::Instant> = None;
+            // ~43 ms of pinned backlog at 64 frames before declaring the
+            // death spiral and recovering.
+            let mut recovery = SaturationRecovery::new(32);
             loop {
                 if worker_inner.stop.load(Ordering::Acquire) {
                     return;
@@ -208,8 +244,21 @@ pub(crate) fn spawn(
                 }
                 idle_since = None;
                 // Overflow: jump past slots the callback may be overwriting.
-                if w - r > RING_SLOTS - 2 {
+                let saturated = w - r > RING_SLOTS - 2;
+                if saturated {
                     r = w - (RING_SLOTS - 2);
+                }
+                if recovery.observe(saturated) {
+                    // Death spiral detected: the kernel has likely demoted
+                    // this thread after the sustained over-budget churn.
+                    // Re-assert the realtime promotion and drop the backlog
+                    // to ONE buffer so latency is bounded again. Worker
+                    // thread, rare event — the log is allowed.
+                    promote_to_audio_rt(period_ns.max(500_000));
+                    r = w.saturating_sub(1);
+                    log::warn!(
+                        "[#670 worker] saturation spiral: re-promoted realtime and dropped backlog"
+                    );
                 }
                 let slot = &worker_inner.slots[r % RING_SLOTS];
                 let n = slot.len.load(Ordering::Relaxed).min(local.len());

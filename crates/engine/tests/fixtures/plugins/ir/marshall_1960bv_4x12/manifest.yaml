@@ -1,0 +1,84 @@
+manifest_version: 1
+id: ir_marshall_1960bv_4x12
+display_name: 1960BV 4x12
+brand: marshall
+brand_logo: assets/brand_logo.svg
+sources:
+- https://www.tone3000.com/tones/51086
+type: cab
+backend: ir
+# Constant across all captures (dropped from axes): trailing "_3" tag in every
+# filename. Speaker positions: g12_1/g12_4 = the two G12T-75 cones, v30_2/v30_3 =
+# the two Vintage 30 cones on the 1960BV 4x12 (per tone3000 description).
+parameters:
+- name: speaker
+  display_name: Speaker
+  values:
+  - g12_1
+  - g12_4
+  - v30_2
+  - v30_3
+- name: mic
+  display_name: Mic
+  values:
+  - sm57
+  - sm58
+- name: take
+  display_name: Take
+  values:
+  - take_1
+  - take_2
+  - take_3
+  - take_4
+  - take_5
+  - take_6
+  - take_8
+captures:
+- values:
+    mic: sm57
+    speaker: g12_1
+    take: take_2
+  file: ir/marshall_g12_1_sm57_2_3.wav
+  output_gain_db: -22.2512264
+- values:
+    mic: sm58
+    speaker: g12_1
+    take: take_5
+  file: ir/marshall_g12_1_sm58_5_3.wav
+  output_gain_db: -22.2017994
+- values:
+    mic: sm57
+    speaker: g12_4
+    take: take_3
+  file: ir/marshall_g12_4_sm57_3_3.wav
+  output_gain_db: -24.0611534
+- values:
+    mic: sm57
+    speaker: g12_4
+    take: take_8
+  file: ir/marshall_g12_4_sm57_8_3.wav
+  output_gain_db: -25.2169724
+- values:
+    mic: sm58
+    speaker: g12_4
+    take: take_4
+  file: ir/marshall_g12_4_sm58_4_3.wav
+  output_gain_db: -22.3451519
+- values:
+    mic: sm58
+    speaker: v30_2
+    take: take_1
+  file: ir/marshall_v30_2_sm58_1_3.wav
+  output_gain_db: -25.3538933
+- values:
+    mic: sm58
+    speaker: v30_2
+    take: take_6
+  file: ir/marshall_v30_2_sm58_6_3.wav
+  output_gain_db: -22.5900192
+- values:
+    mic: sm57
+    speaker: v30_3
+    take: take_1
+  file: ir/marshall_v30_3_sm57_1_3.wav
+  output_gain_db: -22.2768745

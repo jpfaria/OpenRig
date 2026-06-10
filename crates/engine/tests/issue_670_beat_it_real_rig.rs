@@ -1303,3 +1303,140 @@ fn three_chains_share_one_device_cycle() {
         counter.peak_callback_load(),
     );
 }
+
+/// Issue #670 — owner-reported: adding the ir_v30_4x12 cab to Beat It floods
+/// the worker with 2-8 ms buffers (backlog pinned at 14 = ring saturated).
+/// Offline both IRs measure ~5 us, so a ms-scale per-buffer cost points at a
+/// pathological path (e.g. state re-init per call), not convolution math.
+/// Measure the paced per-buffer cost of Beat It + the added v30 cab.
+#[cfg(target_os = "macos")]
+#[test]
+fn beat_it_plus_v30_cab_per_buffer_cost() {
+    init_registry();
+    use domain::value_objects::ParameterValue;
+
+    let mut blocks = vec![input_mono()];
+    blocks.extend(beat_it_blocks());
+    // The added cab, as the GUI picker creates it (first capture preset).
+    let mut params = block_core::param::ParameterSet::default();
+    params.insert("preset", ParameterValue::String("sm57_balanced".into()));
+    params.insert("output_db", ParameterValue::Float(-60.0)); // owner: "output no minimo"
+    blocks.push(AudioBlock {
+        id: BlockId("added-cab".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(project::block::CoreBlock {
+            effect_type: block_core::EFFECT_TYPE_CAB.into(),
+            model: "ir_v30_4x12".into(),
+            params,
+        }),
+    });
+    blocks.push(output_stereo());
+    let chain = Chain {
+        id: ChainId("beat-it-plus-v30".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 139.0,
+        blocks,
+    };
+    assert_no_faulted_blocks(&chain);
+    let rt = build(&chain);
+
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    let n = ((SR as usize * 20) / BUFFER).min(di.len() / BUFFER);
+    let times = run_paced(&rt, n, |k, input| {
+        input.copy_from_slice(&di[k * BUFFER..(k + 1) * BUFFER]);
+    });
+    let mut s = times.clone();
+    s.sort_unstable();
+    let deadline_ns = (BUFFER as u128 * 1_000_000_000) / SR as u128;
+    let over = times.iter().filter(|&&t| t > deadline_ns).count();
+    eprintln!(
+        "[#670 V30] beat-it + v30 cab: p50={}us p99={}us max={}us over_deadline={over}/{n}",
+        s[s.len() / 2] / 1000,
+        s[s.len() * 99 / 100] / 1000,
+        s.last().unwrap() / 1000,
+    );
+    assert!(
+        s[s.len() / 2] < deadline_ns,
+        "BUG #670: with the added ir_v30_4x12 cab the chain's MEDIAN buffer is \
+         {}us (deadline {}us) — the sustained overload the owner hit.",
+        s[s.len() / 2] / 1000,
+        deadline_ns / 1000,
+    );
+}
+
+/// Issue #670 — the FIRST buffer through a freshly (re)built chain must not
+/// carry lazy multi-ms init. The IR convolver plans its FFTs and allocates on
+/// the first process call — which, live, runs ON the audio worker right after
+/// an add-block rebuild: a multi-ms spike that seeds the backlog death spiral
+/// the owner hit. Init must happen at BUILD time (rebuild thread), so the
+/// first audio buffer costs the same as any other.
+#[test]
+fn first_buffer_after_build_carries_no_lazy_init() {
+    init_registry();
+    use domain::value_objects::ParameterValue;
+
+    let mut blocks = vec![input_mono()];
+    blocks.extend(beat_it_blocks());
+    let mut params = block_core::param::ParameterSet::default();
+    params.insert("output_db", ParameterValue::Float(-20.0));
+    blocks.push(AudioBlock {
+        id: BlockId("added-v30".into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(project::block::CoreBlock {
+            effect_type: block_core::EFFECT_TYPE_CAB.into(),
+            model: "ir_v30_4x12".into(),
+            params,
+        }),
+    });
+    blocks.push(output_stereo());
+    let chain = Chain {
+        id: ChainId("first-buffer-init".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 139.0,
+        blocks,
+    };
+
+    // Median steady cost for reference.
+    let rt = build(&chain);
+    let input = vec![0.1_f32; BUFFER];
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    let mut steady = Vec::with_capacity(500);
+    for i in 0..500 {
+        let t0 = Instant::now();
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+        if i >= 100 {
+            steady.push(t0.elapsed().as_nanos());
+        }
+    }
+    steady.sort_unstable();
+    let median = steady[steady.len() / 2];
+
+    // Fresh build → FIRST buffer.
+    let rt2 = build(&chain);
+    let t0 = Instant::now();
+    process_input_f32(&rt2, 0, &input, 1);
+    process_output_f32(&rt2, 0, &mut out, 2);
+    let first = t0.elapsed().as_nanos();
+
+    eprintln!(
+        "[#670 FIRSTBUF] first buffer={}us  steady median={}us  ratio={:.1}x",
+        first / 1000,
+        median / 1000,
+        first as f64 / median.max(1) as f64,
+    );
+    assert!(
+        first < median * 5,
+        "BUG #670: the FIRST buffer after a build costs {}us vs steady {}us \
+         ({:.0}x) — lazy init (IR FFT planning/allocations) runs on the audio \
+         worker and seeds the post-edit backlog spiral. Init must run at build \
+         time.",
+        first / 1000,
+        median / 1000,
+        first as f64 / median.max(1) as f64,
+    );
+}
