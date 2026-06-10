@@ -59,6 +59,10 @@ plugins:
     description: Delay rítmico — ecos num grid sincopado (colcheia pontuada, tercina ou colcheia) relativo ao tempo.
     license: Proprietário - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  granular:
+    description: Delay granular — espalha o sinal numa nuvem de grãos janelados, gerando ecos texturizados e difusos.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Compressor de estúdio transparente com threshold, ratio, ataque,
       release, makeup gain e mix paralelo.

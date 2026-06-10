@@ -59,6 +59,10 @@ plugins:
     description: Rhythmic delay — echoes on a syncopated grid (dotted-eighth, triplet, or eighth) relative to the beat.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  granular:
+    description: Granular delay — scatters the signal into a cloud of windowed grains for textured, smeared echoes.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
