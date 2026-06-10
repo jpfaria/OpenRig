@@ -1,0 +1,109 @@
+# Dropped constant across all captures: Mid = Boost (mid-boost switch engaged on every capture).
+manifest_version: 1
+id: nam_tc_spark_a2
+display_name: Spark
+brand: tc-electronic
+brand_logo: assets/brand_logo.svg
+output_gain_db: 0.0000000
+type: gain_pedal
+backend: nam
+architecture: A2
+sources:
+- https://www.tone3000.com/tones/5099
+parameters:
+- name: gain
+  display_name: Gain
+  values:
+  - 0
+  - 4
+  - 5
+- name: level
+  display_name: Level
+  values:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+- name: bass
+  display_name: Bass
+  values:
+  - 5
+  - 6
+- name: treble
+  display_name: Treble
+  values:
+  - 5
+  - 6
+captures:
+- values:
+    gain: 4
+    level: 6
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_6_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 8
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_8_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 5
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_5_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 1
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_1_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 9
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_9_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 4
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_4_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 7
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_7_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 5
+    level: 5
+    bass: 5
+    treble: 5
+  file: captures/tc_electronic_spark_boost_gain_5_level_5_bass_5_treble_5_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 2
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_2_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 4
+    level: 3
+    bass: 6
+    treble: 6
+  file: captures/tc_electronic_spark_boost_gain_4_level_3_bass_6_treble_6_mid_boost_a2.nam
+- values:
+    gain: 0
+    level: 10
+    bass: 5
+    treble: 5
+  file: captures/tc_electronic_spark_boost_gain_0_level_10_bass_5_treble_5_mid_boost_a2.nam

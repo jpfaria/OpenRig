@@ -1,0 +1,140 @@
+version: 1
+id: barão vermelho - betE balanço
+name: gUItARRA - SETLIST
+volume: 100.0
+instrument: electric_guitar
+blocks:
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    high: 0.0
+    high_mid: 0.0
+    low: 0.0
+    low_mid: 0.0
+- type: dynamics
+  enabled: true
+  model: gate_basic
+  params:
+    attack_ms: 0.10000000149011612
+    hold_ms: 150.0
+    hysteresis_db: 6.0
+    release_ms: 80.0
+    threshold: 45.0
+- type: gain
+  enabled: true
+  model: nam_tc_spark_a2
+  params:
+    bass: 5.0
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    gain: 4.0
+    input_db: 0.0
+    level: 10.0
+    noise_gate:
+      enabled: true
+      threshold_db: -50.0
+    output_db: 0.0
+    slim: 100.0
+    treble: 5.0
+- type: filter
+  enabled: true
+  model: eq_eight_band_parametric
+  params:
+    band1_enabled: true
+    band1_freq: 70.0
+    band1_gain: 0.0
+    band1_q: 1.0
+    band1_type: high_pass
+    band2_enabled: true
+    band2_freq: 180.0
+    band2_gain: 2.5
+    band2_q: 1.2000000476837158
+    band2_type: peak
+    band3_enabled: true
+    band3_freq: 250.0
+    band3_gain: 0.0
+    band3_q: 1.2000000476837158
+    band3_type: peak
+    band4_enabled: true
+    band4_freq: 850.0
+    band4_gain: -3.0
+    band4_q: 1.5
+    band4_type: peak
+    band5_enabled: true
+    band5_freq: 1000.0
+    band5_gain: -3.0
+    band5_q: 1.399999976158142
+    band5_type: peak
+    band6_enabled: true
+    band6_freq: 2000.0
+    band6_gain: 1.0
+    band6_q: 1.0
+    band6_type: peak
+    band7_enabled: true
+    band7_freq: 4000.0
+    band7_gain: 2.0
+    band7_q: 1.0
+    band7_type: peak
+    band8_enabled: true
+    band8_freq: 8000.0
+    band8_gain: 2.0
+    band8_q: 1.0
+    band8_type: high_shelf
+    output_db: 0.0
+- type: amp
+  enabled: true
+  model: nam_fender_deluxe_reverb_65_a2
+  params:
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 6.099999904632568
+    input_db: -2.6000003814697266
+    noise_gate:
+      enabled: true
+      threshold_db: -45.0
+    output_db: 0.0
+    preset: rhythm
+    slim: 100.0
+- type: reverb
+  enabled: true
+  model: lv2_dragonfly_hall
+  params:
+    decay: 0.8999999761581421
+    delay: 4.0
+    diffuse: 40.0
+    dry_level: 80.0
+    early_level: 10.0
+    early_send: 20.0
+    high_cut: 7600.0
+    high_mult: 0.5
+    high_xo: 5500.0
+    late_level: 12.0
+    low_cut: 4.0
+    low_mult: 1.2999999523162842
+    low_xo: 500.0
+    modulation: 0.0
+    size: 14.0
+    spin: 0.5
+    wander: 15.0
+    width: 100.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    knee_db: 2.0
+    lookahead_ms: 3.0
+    release_ms: 50.0
+    threshold: -1.0
+- type: gain
+  enabled: false
+  model: volume
+  params:
+    mute: false
+    volume: 80.0
