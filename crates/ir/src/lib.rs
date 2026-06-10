@@ -271,7 +271,14 @@ impl FftBlockConvolver {
         if ir.is_empty() {
             bail!("IR cannot be empty");
         }
-        Ok(Self { ir, state: None })
+        let mut convolver = Self { ir, state: None };
+        // Issue #670: build the partitioned state (FFT planning + buffer
+        // allocations) EAGERLY, on the thread that constructs the block (the
+        // build/rebuild thread) — not lazily on the audio worker's first
+        // process call, where the one-time multi-hundred-us spike lands right
+        // after a cab/model swap and can starve the output.
+        convolver.ensure_state();
+        Ok(convolver)
     }
 
     fn process_block_in_place(&mut self, buffer: &mut [f32]) {

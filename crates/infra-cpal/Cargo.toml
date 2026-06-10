@@ -20,6 +20,8 @@ block-core = { path = "../block-core" }
 project = { path = "../project" }
 
 [dev-dependencies]
+env_logger = "0.11"
+application = { path = "../application" }
 hound = "3.5"
 infra-yaml = { path = "../infra-yaml" }
 nam = { path = "../nam" }

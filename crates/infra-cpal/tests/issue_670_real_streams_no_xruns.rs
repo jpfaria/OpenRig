@@ -108,7 +108,9 @@ fn rig_project(
             description: None,
             instrument: "electric_guitar".into(),
             enabled: true,
-            volume: 139.0,
+            // Volume 0: the DSP path is identical (volume applies at the
+            // output mixdown); the test just stops blasting the monitors.
+            volume: 0.0,
             blocks,
         }],
         midi: None,
@@ -295,7 +297,16 @@ fn adding_a_cab_live_does_not_spiral() {
         panic!("no audio devices available");
     };
 
-    let (project, chain_id) = rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
+    // The owner's app runs the WHOLE project — their rig has 3+ chains, so
+    // 3+ DSP workers (each with its idle spin) plus the GUI all compete on
+    // the same machine. One isolated chain never reproduced the spiral; the
+    // multi-chain shape is the live condition.
+    let (mut project, chain_id) = rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
+    for i in 1..3 {
+        let mut extra = project.chains[0].clone();
+        extra.id = ChainId(format!("issue-670-extra-{i}"));
+        project.chains.push(extra);
+    }
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));

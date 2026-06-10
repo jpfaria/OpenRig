@@ -3229,6 +3229,7 @@ name = "infra-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "application",
  "arc-swap",
  "block-amp",
  "block-cab",
@@ -3245,6 +3246,7 @@ dependencies = [
  "cpal",
  "domain",
  "engine",
+ "env_logger",
  "hound",
  "infra-yaml",
  "ir",

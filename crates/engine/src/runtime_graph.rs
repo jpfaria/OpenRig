@@ -739,7 +739,19 @@ fn update_chain_runtime_state_impl(
                     }
                 }
             }
-            Arc::new(build_output_routing_state(o, target, 0))
+            // Fresh route on a rebuild. A convolution chain gets the SAME
+            // cushion the initial build would give it (#670): the reuse
+            // check above rejects exactly when the cushion posture changed —
+            // e.g. the chain GAINED its first cab/IR live — and an unprimed
+            // route here left the chain permanently fragile (fill ~0, every
+            // scheduling wobble on a real USB interface popped the output
+            // empty: the owner's random clicks after adding/swapping a cab).
+            let prime = if rebuild_has_convolution { target } else { 0 };
+            let fresh = build_output_routing_state(o, target, prime);
+            if let Some(old) = old_output_routes.get(route_idx) {
+                fresh.buffer.seed_last_frame_from(&old.buffer);
+            }
+            Arc::new(fresh)
         })
         .collect();
 
@@ -757,10 +769,18 @@ fn update_chain_runtime_state_impl(
         }
     }
 
-    // Step 3: Swap in new state (brief lock)
+    // Step 3: Swap in new state (brief lock). The OLD nodes are NOT dropped
+    // inside the critical section: dropping them runs the NAM C++ destructor
+    // (frees the model) and the IR FFT state — multi-ms work. The audio
+    // worker only try_locks `processing`; holding the lock through those
+    // destructors made it emit silence for 3-6 buffers on every cab/model
+    // swap (issue #670, owner's click when switching the CAB/IR — reproduced
+    // on the real interface, 64-384 underruns per swap). The old Vec is moved
+    // out and dropped AFTER the lock is released.
+    let old_input_states;
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
-        processing.input_states = new_input_states;
+        old_input_states = std::mem::replace(&mut processing.input_states, new_input_states);
         // Issue #580: keep the lock-free `stream_count` mirror in sync
         // with the new Vec length. Updated INSIDE the same critical
         // section that swaps the Vec so any concurrent reader sees a
@@ -805,6 +825,9 @@ fn update_chain_runtime_state_impl(
             .input_scratches
             .resize_with(new_len, InputCallbackScratch::default);
     }
+    // Lock released — NOW the old nodes (NAM models, IR FFT states) may run
+    // their multi-ms destructors without starving the audio worker (#670).
+    drop(old_input_states);
 
     // Seed each new buffer with the previous buffer's last pushed frame so a
     // brief underrun during the transition repeats the tail of the old audio
