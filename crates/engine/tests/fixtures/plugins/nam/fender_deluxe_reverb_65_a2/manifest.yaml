@@ -1,0 +1,63 @@
+manifest_version: 1
+id: nam_fender_deluxe_reverb_65_a2
+display_name: Deluxe Reverb '65
+brand: fender
+brand_logo: assets/brand_logo.svg
+output_gain_db: 0.0000000
+type: amp
+backend: nam
+architecture: A2
+sources:
+- https://www.tone3000.com/tones/6253
+# Constant token dropped from every capture name: "Deluxe 65" (the amp itself).
+# Names are distinct voicing/character labels (plus an Archer OD in two of them)
+# that do not factor into numeric control axes -> single 'preset' axis.
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - cleanest
+  - clean
+  - rhythm
+  - edgy
+  - dark
+  - tight
+  - rocking
+  - hot
+  - cranked
+  - archer_drive
+  - archer_boost
+captures:
+- values:
+    preset: cleanest
+  file: captures/cleanest_a2.nam
+- values:
+    preset: clean
+  file: captures/clean_a2.nam
+- values:
+    preset: rhythm
+  file: captures/rhythm_a2.nam
+- values:
+    preset: edgy
+  file: captures/edgy_a2.nam
+- values:
+    preset: dark
+  file: captures/dark_a2.nam
+- values:
+    preset: tight
+  file: captures/tight_a2.nam
+- values:
+    preset: rocking
+  file: captures/rocking_a2.nam
+- values:
+    preset: hot
+  file: captures/hot_a2.nam
+- values:
+    preset: cranked
+  file: captures/cranked_a2.nam
+- values:
+    preset: archer_drive
+  file: captures/archer_drive_a2.nam
+- values:
+    preset: archer_boost
+  file: captures/archer_boost_a2.nam

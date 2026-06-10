@@ -36,8 +36,7 @@ const SR: f32 = 48_000.0;
 /// vs unity. We assert the calibrated build lands within a band around
 /// that, not an exact value (the model is nonlinear, so the boost is not
 /// a perfectly linear scaling of the steady-state RMS).
-const FIXTURE_MODEL: &str =
-    "tests/fixtures/plugins/nam/marshall_plexi/captures/angus_nano.nam";
+const FIXTURE_MODEL: &str = "tests/fixtures/plugins/nam/marshall_plexi/captures/angus_nano.nam";
 
 fn model_path() -> String {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))

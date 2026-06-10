@@ -482,6 +482,9 @@ pub(crate) fn replace_project_chains(
                 // timer subscribes & polls (engine::output_meter).
                 meter_in_dbfs: engine::output_meter::SILENT_DBFS,
                 meter_out_dbfs: engine::output_meter::SILENT_DBFS,
+                // Issue #670: no overload until the meter timer observes
+                // xruns from the running audio callback.
+                audio_overload: false,
                 // Per-stream meter slots. Length matches the number of
                 // input entries on the chain (one stream per input runtime
                 // in the engine, per invariant #4). Timer fills the live

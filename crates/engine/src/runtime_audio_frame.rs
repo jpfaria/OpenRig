@@ -84,13 +84,19 @@ impl AudioFrame {
 /// brief sustain instead of silence.
 pub(crate) struct ElasticBuffer {
     ring: SpscRing<AudioFrame>,
-    #[allow(dead_code)]
     target_level: usize,
     layout: AudioChannelLayout,
     /// Bit-packed last-pushed frame, used as the underrun fallback.
     /// Mono: `f32` bits in the low 32 bits.
     /// Stereo: left in low 32 bits, right in high 32 bits.
     last_frame_bits: AtomicU64,
+    /// Issue #670 instrumentation: count of `pop`s that found the ring empty
+    /// (underrun → a silent frame was emitted = an audible gap). Incremented
+    /// on the output callback (RT-safe relaxed atomic, only on the rare
+    /// empty branch). Read off-thread to tell an elastic-buffer underrun
+    /// apart from a CPU deadline overrun (xrun): a single light chain at
+    /// buffer 64 crackling with near-zero xruns points here, not at CPU.
+    underrun_count: AtomicU64,
 }
 
 impl ElasticBuffer {
@@ -101,7 +107,14 @@ impl ElasticBuffer {
             target_level,
             layout,
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
+            underrun_count: AtomicU64::new(0),
         }
+    }
+
+    /// Issue #670: number of underruns (empty `pop`s → silent gaps) since
+    /// this buffer was built. Read off the audio thread.
+    pub(crate) fn underrun_count(&self) -> u64 {
+        self.underrun_count.load(Ordering::Relaxed)
     }
 
     #[inline(always)]
@@ -125,7 +138,12 @@ impl ElasticBuffer {
         // repeated samples are not.
         match self.ring.pop() {
             Some(frame) => frame,
-            None => silent_frame(self.layout),
+            None => {
+                // Issue #670: underrun — the producer (input DSP) hasn't
+                // delivered this frame yet. Count it; the gap is the click.
+                self.underrun_count.fetch_add(1, Ordering::Relaxed);
+                silent_frame(self.layout)
+            }
         }
     }
 
@@ -140,6 +158,16 @@ impl ElasticBuffer {
         for _ in 0..frames {
             self.push(silence);
         }
+    }
+
+    /// Capacity target this buffer was built for (#670: rebuild route reuse).
+    pub(crate) fn target_level(&self) -> usize {
+        self.target_level
+    }
+
+    /// Channel layout this buffer was built for (#670: rebuild route reuse).
+    pub(crate) fn layout(&self) -> AudioChannelLayout {
+        self.layout
     }
 
     /// Seed the underrun fallback from another buffer's last pushed frame.

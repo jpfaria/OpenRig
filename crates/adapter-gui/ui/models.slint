@@ -96,6 +96,13 @@ export struct ProjectChainItem {
     ///   < -18   → grey/orange (low)
     meter_in_dbfs: float,
     meter_out_dbfs: float,
+    /// Issue #670: true while this chain's audio callback is missing its
+    /// deadline (xruns) — the rig is too heavy for the current buffer size
+    /// and the user is hearing dropouts ("crackle"). Refreshed by the meter
+    /// timer from `ProjectRuntimeController::chain_xrun_count`. Drives the
+    /// per-chain overload indicator so the overload is visible instead of an
+    /// unexplained crackle.
+    audio_overload: bool,
     /// Per-stream meter readings. One entry per stream the runtime
     /// exposes for this chain. A multi-input chain (3 entries on its
     /// Input block) gets 3 pairs here so the GUI can draw 3 in/out

@@ -413,3 +413,30 @@ Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
 - Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
 
 **Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
+
+---
+
+## LEI — bug de runtime/áudio: INSTRUMENTAR antes de teorizar
+
+Bug de áudio/real-time cuja causa não salta da leitura do código: **após a PRIMEIRA hipótese falhar, parar de teorizar e instrumentar.** Adicionar uma medição dos **valores reais** (sample rates, tamanhos de buffer, níveis do elastic, contadores de underrun/xrun, qual arquivo/path) e fazer o usuário rodar e observar. Os números resolvem em uma rodada; hipóteses encadeadas queimam a paciência e a credibilidade.
+
+**Como instrumentar (RT-safe — invariante #8):**
+- **NUNCA** `eprintln!`/log no audio thread (`process_input_f32`/`process_output_f32`/`pop`/`push`). I/O no callback é proibido.
+- No audio thread: incrementar **átomo `Relaxed`** (contador de underrun/xrun/load), e **drenar/imprimir fora da thread** (timer da GUI, loader, wiring). Modelo: `ChainRuntimeState::record_callback_load`/`xrun_count`/`underrun_count` (#670).
+- Em loaders/wiring (fora do audio thread) um `eprintln!` temporário tagueado (`[#670-probe]`) é OK. OpenRig loga em **stderr** via `env_logger` (sem arquivo): rodar `cargo run … 2>/tmp/openrig.log` e `grep` a tag.
+- `openrig://*` (MCP) **não** expõe sample rate viva nem estado de runtime — serializa projeto/devices/meters. Pra valor em execução: instrumentar ou ler o stderr. **Nunca** afirmar um valor de runtime que você não observou.
+- Tag o diagnóstico, commit como `chore:` separado, e **reverter** quando a causa for confirmada (ou promover a contador permanente surfacado, como #670).
+
+**Why:** #669 (DI loop em câmera lenta) — chutei a causa 2× (engine_sr preso em 48000; depois "deve ser o device stream") e entreguei fix que não resolveu, porque raciocinei sobre o estado em vez de observá-lo. Um `eprintln!` de `file_sr/engine_sr/out_frames` mostrou na hora que o loop foi construído a 48000 e **nunca reconstruído** quando o device foi pra 44.1k. Dois fixes errados vs uma linha de log. Padrão recorrente nesta própria sessão (#670): teorizei "rig pesado demais / NAM domina / chains competindo" com base na mediana, até o usuário cravar "single chain em 64 também" — ~18% de CPU não craqueia, é underrun/stall, e só instrumentando dá pra ver.
+
+**How to apply (extra):** bug de resampling ligado a uma config (rate/buffer) → checar se o buffer **já carregado** é reconstruído na mudança, não só os loads novos. O "stall intermitente" num único stream leve aponta pro **decoupling input↔output** (elastic buffer), não pra custo de DSP.
+
+**Anti-padrão:**
+```
+❌ "deve ser X" → fix → "deve ser Y" → fix   (2+ hipóteses sem observar)
+❌ afirmar engine_sr/buffer/contagem sem ter lido o valor real
+❌ eprintln! dentro de process_input_f32 / pop  (I/O no audio thread)
+```
+**Padrão:** 1 hipótese falhou → contador atômico + dump off-thread tagueado → usuário roda em 64 → observa underruns vs xruns → causa cravada → teste que reproduz → fix.
+
+**LEI dentro da LEI — PROVE com teste ANTES de anunciar a descoberta.** Ler o código e dizer "achei o bug, é X" é HIPÓTESE, não prova — e atrapalha/queima credibilidade quando está errado. Antes de afirmar que descobriu a causa: escreva um teste DETERMINÍSTICO que demonstra o defeito (ex.: #670 — em vez de "o worker LV2 roda inline", escrevi um teste que agenda trabalho do worker e checa em qual thread roda; ele FALHOU = provado). E "provei que o defeito X existe" ≠ "provei que X causa a craquejada DO USUÁRIO" — se a medição aponta pra outro bloco/sintoma, diga isso; não conflate um bug real achado de passagem com a causa que o usuário está perseguindo. Caso real #670: provei o worker LV2 inline, mas o stall medido era no NAM (off-CPU) — bugs diferentes; anunciar o worker como "a causa" teria sido errado.

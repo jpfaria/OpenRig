@@ -246,6 +246,9 @@ pub(crate) fn build_jack_direct_chain(
     let worker_channels = max_in_ch;
     let worker_chain_id = chain_id.0.clone();
     let worker_current_frames = Arc::clone(&current_n_frames);
+    // Issue #670: the JACK DSP worker runs the heavy block processing, so
+    // its per-buffer cost is timed here against the buffer deadline.
+    let worker_sample_rate = sample_rate as u32;
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
@@ -294,9 +297,16 @@ pub(crate) fn build_jack_direct_chain(
                         .max(1);
                     let needed = (n_frames * worker_channels).min(read_buf.len());
                     let real = &read_buf[..needed];
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&worker_runtime, 0, real, worker_channels);
                     }));
+                    crate::callback_load_timing::record_callback_deadline(
+                        &worker_runtime,
+                        callback_start.elapsed(),
+                        n_frames,
+                        worker_sample_rate,
+                    );
                     processed_any = true;
                 }
 

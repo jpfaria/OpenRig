@@ -178,15 +178,36 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     };
     let mut compact_open_idx: Option<i32> = None;
 
-    // Re-sync the live runtime for each chain a command touched (once).
+    // Re-sync the live runtime for each chain a GRAPH-changing command
+    // touched (once). Runtime-only events (DI loop) are applied as wait-free
+    // pointer swaps below — rebuilding the chain for them caused the #670
+    // DI-on output starvation (see runtime_sync_policy).
     let mut synced: Vec<ChainId> = Vec::new();
-    for chain_id in events.iter().filter_map(Event::chain) {
+    for event in events {
+        let Some(chain_id) = event.chain() else {
+            continue;
+        };
+        if !crate::runtime_sync_policy::event_requires_runtime_sync(event) {
+            continue;
+        }
         if synced.iter().any(|c| c == chain_id) {
             continue;
         }
         synced.push(chain_id.clone());
         if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, chain_id) {
             set_status_error(window, &ctx.toast_timer, &e.to_string());
+        }
+    }
+    // Apply DI-loop events to the runtime directly (the same wait-free path
+    // the GUI buttons use), so MCP/MIDI DI toggles work without a rebuild.
+    for event in events {
+        if let Event::ChainDiLoopEnabledChanged { chain, enabled } = event {
+            crate::di_loop_wiring::handle_chain_di_loop_enabled_changed(
+                &ctx.project_runtime,
+                &session.dispatcher,
+                chain,
+                *enabled,
+            );
         }
     }
     replace_project_chains(

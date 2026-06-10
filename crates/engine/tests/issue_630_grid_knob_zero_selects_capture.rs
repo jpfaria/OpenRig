@@ -175,9 +175,8 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // (a) Build LIVE at the HIGH capture (drive=5). Model loads once.
     let hi = grid_chain(5.0, true);
     let (project, rates) = project_with(hi.clone());
-    let mut graph =
-        engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new())
-            .expect("graph with a NAM grid pedal must build");
+    let mut graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new())
+        .expect("graph with a NAM grid pedal must build");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
         .expect("the chain must have a live runtime");

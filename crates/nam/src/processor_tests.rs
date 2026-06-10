@@ -306,7 +306,10 @@ fn peak_safety_is_transparent_below_threshold() {
         .collect();
     let mut buf = input.clone();
     PeakSafety::new().process_block(&mut buf);
-    assert_eq!(buf, input, "peak safety altered sub-threshold (clean) signal");
+    assert_eq!(
+        buf, input,
+        "peak safety altered sub-threshold (clean) signal"
+    );
 }
 
 /// Aliasing the saturator folds into the band, as a fraction of the

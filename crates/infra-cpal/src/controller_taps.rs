@@ -244,6 +244,43 @@ impl ProjectRuntimeController {
             .sum()
     }
 
+    /// Total audio-thread deadline overruns (xruns) counted across this
+    /// chain's per-input runtimes (issue #670). Read by the GUI meter timer
+    /// (~30 Hz) to drive the per-chain overload indicator, and exposed via
+    /// `QueryKind` for MCP / gRPC parity. Unknown / runtime-less chains
+    /// return 0.
+    pub fn chain_xrun_count(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.xrun_count())
+            .sum()
+    }
+
+    /// Total output-side elastic-buffer underruns across this chain's
+    /// per-input runtimes (issue #670 instrumentation). An underrun is a
+    /// silent gap emitted because the input/DSP producer didn't deliver a
+    /// frame in time — the dropout the user hears as crackle even when the
+    /// callback itself is fast (no xrun). Read off the audio thread.
+    pub fn chain_underrun_count(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.underrun_count())
+            .sum()
+    }
+
+    /// Worst per-callback load (elapsed/period) across this chain's runtimes
+    /// since the last reset (issue #670). 1.0 == exactly at the deadline,
+    /// > 1.0 == the callback overran. Read off the audio thread.
+    pub fn chain_peak_load(&self, chain_id: &ChainId) -> f32 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.peak_callback_load())
+            .fold(0.0_f32, f32::max)
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {
@@ -269,11 +306,7 @@ impl ProjectRuntimeController {
     /// Called from the adapter-gui wiring after
     /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
     /// retrieved from the dispatcher's ephemeral store (not persisted).
-    pub fn set_chain_di_loop(
-        &self,
-        chain_id: &ChainId,
-        di: Option<Arc<engine::DiLoop>>,
-    ) {
+    pub fn set_chain_di_loop(&self, chain_id: &ChainId, di: Option<Arc<engine::DiLoop>>) {
         for runtime in self.runtime_graph.runtimes_for(chain_id) {
             runtime.set_di_loop(di.clone());
         }

@@ -5,9 +5,9 @@
 
 use std::collections::BTreeMap;
 
+use block_core;
 use project::block::AudioBlock;
 use project::rig::{RigInput, RigPreset, RigProject};
-use block_core;
 
 use super::rig_to_chains;
 

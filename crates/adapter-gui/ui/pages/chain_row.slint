@@ -152,6 +152,31 @@ export component ChainRow inherits Rectangle {
             colorize: #6a7483;
         }
 
+        // Issue #670: audio-overload (xrun) red LED. Lit while the chain's
+        // audio callback is missing its deadline — the rig is too heavy for
+        // the buffer size and the user is hearing dropouts ("crackle").
+        // Placed BEFORE the PowerSwitch (x:0–10, flush against the switch at
+        // x:10) as a status LED, using the same led-red sprite as the block
+        // chips. (Feedback: the triangle on top of the power button looked
+        // like the button itself blinking.)
+        Rectangle {
+            x: 0px;
+            y: (58px - 10px) / 2;
+            width: 10px;
+            height: 10px;
+            clip: true;
+            visible: root.chain.audio_overload;
+            Image {
+                source: @image-url("../assets/sprites/led-red.png");
+                x: -10px;
+                y: 0;
+                width: 20px;
+                height: 10px;
+                image-fit: fill;
+                image-rendering: smooth;
+            }
+        }
+
         ChainTitlePreset {
             x: 72px;
             y: 9px;

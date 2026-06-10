@@ -28,8 +28,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use arc_swap::{ArcSwap, ArcSwapOption};
 use crate::di_loop::DiLoop;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use block_core::{AudioChannelLayout, StreamHandle};
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
@@ -368,6 +368,19 @@ pub struct ChainRuntimeState {
     /// to 0 from the off-thread caller; the audio thread will read the
     /// new value on its next callback.
     pub(crate) di_loop_pos: AtomicUsize,
+    /// Issue #670 — audio-thread deadline accounting. The output callback
+    /// records its own wall-clock cost via `record_callback_load`: every
+    /// buffer whose processing exceeded the device period increments
+    /// `xrun_count`, and `peak_load_ppm` keeps the worst `elapsed/period`
+    /// ratio (in parts-per-million) since the last `reset_load_stats`.
+    /// Both are read off the audio thread by the GUI meter timer and by
+    /// `QueryKind` (MCP / gRPC parity) to surface an overload warning
+    /// instead of letting the dropout crackle unexplained. Relaxed
+    /// ordering: the values are purely informational for the UI, with one
+    /// audio-thread writer and one off-thread reader. See
+    /// [`crate::runtime_load`].
+    pub(crate) xrun_count: AtomicU64,
+    pub(crate) peak_load_ppm: AtomicU64,
 }
 
 impl ChainRuntimeState {

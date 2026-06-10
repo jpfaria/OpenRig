@@ -1,0 +1,24 @@
+manifest_version: 1
+id: ir_marshall_4x12_v30
+display_name: 4x12 V30
+brand: marshall
+photo: assets/photo.png
+brand_logo: assets/brand_logo.svg
+type: cab
+backend: ir
+# constant across all captures (dropped): ev_mix (Electro-Voice mic mix designation)
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - b
+  - d
+captures:
+- values:
+    preset: b
+  file: ir/ev_mix_b.wav
+  output_gain_db: -18.3097191
+- values:
+    preset: d
+  file: ir/ev_mix_d.wav
+  output_gain_db: -20.3393364

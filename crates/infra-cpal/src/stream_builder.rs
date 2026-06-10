@@ -40,6 +40,8 @@ use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 
 use crate::active_runtime::ActiveChainRuntime;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::callback_load_timing::record_callback_deadline;
 use crate::resolved::ResolvedChainAudioConfig;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::{
@@ -140,6 +142,40 @@ pub(crate) fn build_input_stream_for_input(
     );
     let device = resolved_input_device.device;
     let stream = match sample_format {
+        SampleFormat::F32 if cfg!(target_os = "macos") => {
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            // #670 (macOS ONLY — cross-platform law: a fix for one OS stays
+            // behind a guard): the chain DSP does NOT run in this callback.
+            // The HAL thread sleeps between cycles, the NAM working set
+            // cools, and the cold-cache inference tail sporadically crossed
+            // the cycle (CoreAudio then drops input — the click). The
+            // callback only copies the buffer into the worker's lock-free
+            // ring (microseconds); the per-stream dsp_worker runs the chain.
+            // Windows / Linux-cpal keep the proven inline path below: the
+            // worker's realtime promotion is mach-specific, and an
+            // UNPROMOTED busy worker measured catastrophically worse
+            // (167 xruns + 256 underruns per 60 s) than inline DSP.
+            let worker = crate::dsp_worker::spawn(
+                format!("{}:{input_index}", chain_id.0),
+                slot.handle(),
+                input_index,
+                channels,
+                sample_rate,
+                (buffer_size_frames as usize).max(64) * channels * 8,
+            );
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[f32], _| {
+                    // #670: co-schedule this callback thread with the audio I/O
+                    // workgroup so its cache (NAM weights) stays warm.
+                    crate::audio_workgroup::ensure_joined_input();
+                    worker.push(data);
+                },
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
         SampleFormat::F32 => {
             let slot_for_data = slot.handle();
             let channels = stream_config.channels as usize;
@@ -147,9 +183,17 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
+                    // Inline DSP (non-macOS cpal path; see the macOS arm above).
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_buffer(&slot_for_data, input_index, data, channels);
                     }));
+                    record_callback_deadline(
+                        &slot_for_data.load(),
+                        callback_start.elapsed(),
+                        data.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -163,13 +207,21 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
+                    crate::audio_workgroup::ensure_joined_input();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &slot_for_data.load(),
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -183,13 +235,21 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
+                    crate::audio_workgroup::ensure_joined_input();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &slot_for_data.load(),
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -203,13 +263,21 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i32], _| {
+                    crate::audio_workgroup::ensure_joined_input();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i32::MAX as f32;
                     }
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_buffer(&slot_for_data, input_index, &converted, channels);
                     }));
+                    record_callback_deadline(
+                        &slot_for_data.load(),
+                        callback_start.elapsed(),
+                        converted.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -274,6 +342,7 @@ pub(crate) fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
+                    crate::audio_workgroup::ensure_joined_output();
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
@@ -302,6 +371,7 @@ pub(crate) fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i16], _| {
+                    crate::audio_workgroup::ensure_joined_output();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -335,6 +405,7 @@ pub(crate) fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [u16], _| {
+                    crate::audio_workgroup::ensure_joined_output();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -369,6 +440,7 @@ pub(crate) fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i32], _| {
+                    crate::audio_workgroup::ensure_joined_output();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);

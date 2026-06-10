@@ -8,6 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod di_loop;
 pub mod elastic_prime;
 pub mod input_tap;
 pub mod native_registry;
@@ -25,10 +26,10 @@ pub mod runtime_endpoints;
 pub mod runtime_graph;
 pub mod runtime_io;
 pub mod runtime_layout;
+pub mod runtime_load;
 pub mod runtime_probe;
 pub mod runtime_segments;
 pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;
-pub mod di_loop;
 pub use di_loop::{DiFrame, DiLoop};

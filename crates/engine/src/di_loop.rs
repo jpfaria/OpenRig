@@ -122,8 +122,16 @@ fn lerp_frame(a: DiFrame, b: DiFrame, t: f32, layout: AudioChannelLayout) -> DiF
             DiFrame::Mono(av + (bv - av) * t)
         }
         AudioChannelLayout::Stereo => {
-            let [al, ar] = if let DiFrame::Stereo(v) = a { v } else { [0.0, 0.0] };
-            let [bl, br] = if let DiFrame::Stereo(v) = b { v } else { [0.0, 0.0] };
+            let [al, ar] = if let DiFrame::Stereo(v) = a {
+                v
+            } else {
+                [0.0, 0.0]
+            };
+            let [bl, br] = if let DiFrame::Stereo(v) = b {
+                v
+            } else {
+                [0.0, 0.0]
+            };
             DiFrame::Stereo([al + (bl - al) * t, ar + (br - ar) * t])
         }
     }
@@ -178,8 +186,16 @@ fn mix_frame(a: DiFrame, ga: f32, b: DiFrame, gb: f32, layout: AudioChannelLayou
             DiFrame::Mono(av * ga + bv * gb)
         }
         AudioChannelLayout::Stereo => {
-            let [al, ar] = if let DiFrame::Stereo(v) = a { v } else { [0.0, 0.0] };
-            let [bl, br] = if let DiFrame::Stereo(v) = b { v } else { [0.0, 0.0] };
+            let [al, ar] = if let DiFrame::Stereo(v) = a {
+                v
+            } else {
+                [0.0, 0.0]
+            };
+            let [bl, br] = if let DiFrame::Stereo(v) = b {
+                v
+            } else {
+                [0.0, 0.0]
+            };
             DiFrame::Stereo([al * ga + bl * gb, ar * ga + br * gb])
         }
     }

@@ -50,6 +50,14 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`
 - **Caracterização de DSP nativos** (block-delay, `src/dsp_probe.rs`, test-only): provas determinísticas de que cada modelo cumpre a proposta dele — timing de eco (`peaks`), decaimento por feedback, brilho/escurecimento (`spectral_centroid`), saturação (`harmonic_ratio`). Não basta non-NaN: o teste mede a característica que dá nome ao modelo (#388)
 - **NAM/LV2/IR builds**: `#[ignore]` (assets externos)
 - **Registry tests** em block-* crates: iterar TODOS os modelos via registry
+- **Deadline / xrun (timing)**: `#[cfg_attr(debug_assertions, ignore)]` — só
+  fazem sentido em release. `engine/src/audio_deadline_tests.rs` (pipe chains)
+  e `engine/tests/issue_670_heavy_rig_deadline.rs` (rig pesado, breakdown
+  por-bloco) medem o custo por-buffer do audio thread. O custo é dominado
+  pela inferência NAM; empilhar vários NAM amps satura o orçamento de 64
+  frames → overrun de deadline (xrun) → crackle. O overrun é contado em
+  runtime por `ChainRuntimeState::record_callback_load` (#670), alimentado
+  pelo callback de input via `infra-cpal::callback_load_timing`.
 
 ## Workspace
 
@@ -58,3 +66,27 @@ cargo test --workspace
 ```
 
 (~1100+ testes)
+
+## Real-hardware battery (issue #670)
+
+`crates/infra-cpal/tests/issue_670_cab_swap.rs` and
+`crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs` open the REAL
+audio interface (CoreAudio streams, the owner's presets and DI takes) and
+assert real-time deadlines through the engine's own xrun/underrun counters.
+They are the full-fidelity reproduction harness for the #670 crackle.
+
+They are only meaningful on an otherwise idle machine, so they are gated by
+an environment variable and return immediately (with a loud notice on
+stderr) when it is absent — they never fail under the parallel workspace
+suite or the quality gate for reasons unrelated to the app. **Any agent or
+contributor can (and should) enable them when validating audio-path
+changes:**
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
+    --test issue_670_cab_swap --test issue_670_real_streams_no_xruns
+```
+
+Requirements: macOS, a real input/output interface connected (the suite
+looks for the Scarlett by name), an idle machine, and ~8 minutes. The tests
+serialize access to the physical device across processes via a lock file.

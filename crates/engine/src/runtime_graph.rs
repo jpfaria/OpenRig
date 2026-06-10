@@ -438,6 +438,9 @@ fn assemble_chain_runtime_state(
         bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
         di_loop: arc_swap::ArcSwapOption::empty(),
         di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
+        // Issue #670 — audio-thread deadline accounting, zeroed at build.
+        xrun_count: AtomicU64::new(0),
+        peak_load_ppm: AtomicU64::new(0),
     })
 }
 
@@ -540,19 +543,25 @@ fn build_input_processing_state(
     })
 }
 
-pub(crate) fn build_output_routing_state(
-    output: &OutputEntry,
-    elastic_target: usize,
-    prime_frames: usize,
-) -> OutputRoutingState {
-    let output_layout = if output.channels.len() >= 2 {
+/// Channel layout an output entry produces — shared by the route builder and
+/// the rebuild route-reuse check (#670).
+pub(crate) fn output_entry_layout(output: &OutputEntry) -> AudioChannelLayout {
+    if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
             ChainOutputMode::Mono => AudioChannelLayout::Mono,
         }
     } else {
         AudioChannelLayout::Mono
-    };
+    }
+}
+
+pub(crate) fn build_output_routing_state(
+    output: &OutputEntry,
+    elastic_target: usize,
+    prime_frames: usize,
+) -> OutputRoutingState {
+    let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
     // Issue #592: prime the cushion (silence) only when the caller asks —
     // a cold-start IR chain at a small device buffer would otherwise
@@ -702,11 +711,17 @@ fn update_chain_runtime_state_impl(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
-    // Keep the IR capacity floor consistent with the initial build, but do
-    // NOT prime on a rebuild — the producer is already warm, so it refills
-    // naturally (issue #592).
+    // Output routes (#670): REUSE the existing route when its endpoint shape
+    // is unchanged (the param-edit / block-toggle case). A fresh empty buffer
+    // here used to (a) discard the in-flight audio — the audible gap on every
+    // edit — and (b) restart the standing cushion at zero, which never
+    // refills in producer/consumer lockstep, leaving the chain permanently
+    // fragile after the first edit (owner-reported underruns while playing,
+    // reproduced by rebuild_while_playing_keeps_the_cushion). Reusing the
+    // Arc keeps both the buffered audio and the cushion. A genuinely changed
+    // endpoint (or an explicit queue reset) still gets a fresh route.
     let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
+    let old_output_routes = runtime.output_routes.load();
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
@@ -714,7 +729,29 @@ fn update_chain_runtime_state_impl(
             let base = target_for_route(elastic_targets, route_idx);
             let target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
-            Arc::new(build_output_routing_state(o, target, 0))
+            if !reset_output_queue {
+                if let Some(old) = old_output_routes.get(route_idx) {
+                    if old.output_channels == o.channels
+                        && old.buffer.layout() == output_entry_layout(o)
+                        && old.buffer.target_level() == target
+                    {
+                        return Arc::clone(old);
+                    }
+                }
+            }
+            // Fresh route on a rebuild. A convolution chain gets the SAME
+            // cushion the initial build would give it (#670): the reuse
+            // check above rejects exactly when the cushion posture changed —
+            // e.g. the chain GAINED its first cab/IR live — and an unprimed
+            // route here left the chain permanently fragile (fill ~0, every
+            // scheduling wobble on a real USB interface popped the output
+            // empty: the owner's random clicks after adding/swapping a cab).
+            let prime = if rebuild_has_convolution { target } else { 0 };
+            let fresh = build_output_routing_state(o, target, prime);
+            if let Some(old) = old_output_routes.get(route_idx) {
+                fresh.buffer.seed_last_frame_from(&old.buffer);
+            }
+            Arc::new(fresh)
         })
         .collect();
 
@@ -732,10 +769,18 @@ fn update_chain_runtime_state_impl(
         }
     }
 
-    // Step 3: Swap in new state (brief lock)
+    // Step 3: Swap in new state (brief lock). The OLD nodes are NOT dropped
+    // inside the critical section: dropping them runs the NAM C++ destructor
+    // (frees the model) and the IR FFT state — multi-ms work. The audio
+    // worker only try_locks `processing`; holding the lock through those
+    // destructors made it emit silence for 3-6 buffers on every cab/model
+    // swap (issue #670, owner's click when switching the CAB/IR — reproduced
+    // on the real interface, 64-384 underruns per swap). The old Vec is moved
+    // out and dropped AFTER the lock is released.
+    let old_input_states;
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
-        processing.input_states = new_input_states;
+        old_input_states = std::mem::replace(&mut processing.input_states, new_input_states);
         // Issue #580: keep the lock-free `stream_count` mirror in sync
         // with the new Vec length. Updated INSIDE the same critical
         // section that swaps the Vec so any concurrent reader sees a
@@ -780,6 +825,9 @@ fn update_chain_runtime_state_impl(
             .input_scratches
             .resize_with(new_len, InputCallbackScratch::default);
     }
+    // Lock released — NOW the old nodes (NAM models, IR FFT states) may run
+    // their multi-ms destructors without starving the audio worker (#670).
+    drop(old_input_states);
 
     // Seed each new buffer with the previous buffer's last pushed frame so a
     // brief underrun during the transition repeats the tail of the old audio
