@@ -14,7 +14,9 @@ use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // #693: non-blocking logger — log calls must never stall the GUI
+    // thread on a slow stderr consumer.
+    adapter_gui::logging::init_logging();
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.
