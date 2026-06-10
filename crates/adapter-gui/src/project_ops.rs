@@ -543,5 +543,9 @@ mod chain_rename_persistence_tests;
 mod scene_param_persistence_tests;
 
 #[cfg(test)]
+#[path = "issue_690_nam_gate_persistence_tests.rs"]
+mod issue_690_nam_gate_persistence_tests;
+
+#[cfg(test)]
 #[path = "chain_reorder_refresh_tests.rs"]
 mod chain_reorder_refresh_tests;
