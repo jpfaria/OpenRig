@@ -88,6 +88,7 @@ mod jack_chain_resolve;
 
 mod validation;
 
+mod audio_workgroup;
 mod callback_load_timing;
 mod stream_builder;
 mod stream_config;

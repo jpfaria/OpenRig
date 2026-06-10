@@ -149,6 +149,9 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
+                    // #670: co-schedule this callback thread with the audio I/O
+                    // workgroup so its cache (NAM weights) stays warm.
+                    crate::audio_workgroup::ensure_joined();
                     // Time the block DSP (the heavy work runs here, not on the
                     // output pop) so a buffer-64 deadline miss is counted as an
                     // xrun and surfaced instead of crackling silently.
@@ -175,6 +178,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
+                    crate::audio_workgroup::ensure_joined();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
@@ -202,6 +206,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
+                    crate::audio_workgroup::ensure_joined();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
@@ -229,6 +234,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i32], _| {
+                    crate::audio_workgroup::ensure_joined();
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i32::MAX as f32;
