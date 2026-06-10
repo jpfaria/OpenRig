@@ -1,16 +1,15 @@
-//! Issue #670 — join the audio callback thread to the input device's OS
-//! workgroup (macOS). The heavy chain DSP runs in the cpal input callback;
-//! when the OS lets that thread drift off the audio I/O core cluster, its
-//! cache — notably the ~290 KB of NAM A2 weights — is lost to the UI thread
-//! between buffers and the next inference reloads cold, spiking a 64-frame
-//! buffer past its deadline (the xrun / "crackle").
+//! Issue #670 — join each audio callback thread to its device's OS workgroup
+//! (macOS). The chain DSP runs in the cpal INPUT callback and the mix+limiter
+//! in the OUTPUT callback; when the OS lets either thread drift off the audio
+//! I/O core cluster, its cache — notably the ~290 KB of NAM A2 weights — is
+//! lost to the UI thread between buffers and the next buffer reloads cold,
+//! spiking a 64-frame buffer past its deadline (the xrun / "crackle").
 //!
-//! Joining the device's `os_workgroup` tells the scheduler this thread is part
-//! of that device's real-time work, so it is co-scheduled with the audio I/O
-//! and kept cache-warm. Crucially, unlike a `THREAD_TIME_CONSTRAINT_POLICY`
-//! promotion, a workgroup join does NOT reserve a real-time band, so it cannot
-//! oversubscribe when several chains each run their own callback thread (that
-//! oversubscription is what made the earlier RT promotion worse).
+//! Joining the device `os_workgroup` co-schedules the thread with that
+//! device's real-time work and keeps it cache-warm. Unlike a
+//! `THREAD_TIME_CONSTRAINT_POLICY` promotion it reserves NO real-time band, so
+//! it cannot oversubscribe when several chains each run their own callback
+//! thread (that oversubscription is what made the earlier RT promotion worse).
 //!
 //! Best-effort and idempotent per thread: every failure path is a silent
 //! no-op, never worse than not joining. macOS only; a no-op elsewhere.
@@ -55,6 +54,7 @@ mod imp {
 
     const SYSTEM_OBJECT: u32 = 1; // kAudioObjectSystemObject
     const DEFAULT_INPUT_DEVICE: u32 = u32::from_be_bytes(*b"dIn "); // kAudioHardwarePropertyDefaultInputDevice
+    const DEFAULT_OUTPUT_DEVICE: u32 = u32::from_be_bytes(*b"dOut"); // kAudioHardwarePropertyDefaultOutputDevice
     const IO_WORKGROUP: u32 = u32::from_be_bytes(*b"oswg"); // kAudioDevicePropertyIOThreadOSWorkgroup
     const SCOPE_GLOBAL: u32 = u32::from_be_bytes(*b"glob"); // kAudioObjectPropertyScopeGlobal
 
@@ -100,50 +100,64 @@ mod imp {
         (status == 0 && !workgroup.is_null()).then_some(workgroup)
     }
 
-    thread_local! {
-        static ATTEMPTED: Cell<bool> = const { Cell::new(false) };
+    /// Join the current thread to the default device (`device_selector`)'s OS
+    /// workgroup. `attempted` is a per-thread guard so it runs at most once.
+    fn join(device_selector: u32, label: &str, attempted: &Cell<bool>) {
+        if attempted.get() {
+            return;
+        }
+        attempted.set(true); // try at most once per thread, whatever happens
+
+        let Some(device) = property_u32(SYSTEM_OBJECT, device_selector) else {
+            log::warn!("[#670] workgroup: no default {label} device (skipping join)");
+            return;
+        };
+        let Some(workgroup) = device_workgroup(device) else {
+            log::warn!("[#670] workgroup: {label} device {device} has no OS workgroup (skipping)");
+            return;
+        };
+        // The thread never leaves the workgroup, so the join token must outlive
+        // it — leak it (one tiny allocation per audio thread).
+        let token = Box::leak(Box::new(JoinToken { _opaque: [0; 8] }));
+        let rc = unsafe { os_workgroup_join(workgroup, token) };
+        if rc == 0 {
+            log::info!("[#670] audio {label} callback thread joined the device OS workgroup");
+        } else {
+            log::info!(
+                "[#670] workgroup: {label} os_workgroup_join returned {rc} \
+                 (EALREADY/already-a-member is harmless)"
+            );
+        }
     }
 
-    pub(crate) fn ensure_joined() {
-        ATTEMPTED.with(|attempted| {
-            if attempted.get() {
-                return;
-            }
-            attempted.set(true); // try at most once per thread, whatever happens
+    thread_local! {
+        static INPUT_ATTEMPTED: Cell<bool> = const { Cell::new(false) };
+        static OUTPUT_ATTEMPTED: Cell<bool> = const { Cell::new(false) };
+    }
 
-            let Some(device) = property_u32(SYSTEM_OBJECT, DEFAULT_INPUT_DEVICE) else {
-                log::warn!("[#670] workgroup: no default input device (skipping join)");
-                return;
-            };
-            let Some(workgroup) = device_workgroup(device) else {
-                log::warn!(
-                    "[#670] workgroup: input device {device} has no OS workgroup (skipping join)"
-                );
-                return;
-            };
-            // The thread never leaves the workgroup, so the join token must
-            // outlive it — leak it (one tiny allocation per audio thread).
-            let token = Box::leak(Box::new(JoinToken { _opaque: [0; 8] }));
-            let rc = unsafe { os_workgroup_join(workgroup, token) };
-            if rc == 0 {
-                log::info!("[#670] audio callback thread joined the input device OS workgroup");
-            } else {
-                log::info!(
-                    "[#670] workgroup: os_workgroup_join returned {rc} \
-                     (EALREADY/already-a-member is harmless)"
-                );
-            }
-        });
+    pub(crate) fn ensure_joined_input() {
+        INPUT_ATTEMPTED.with(|a| join(DEFAULT_INPUT_DEVICE, "input", a));
+    }
+
+    pub(crate) fn ensure_joined_output() {
+        OUTPUT_ATTEMPTED.with(|a| join(DEFAULT_OUTPUT_DEVICE, "output", a));
     }
 }
 
 #[cfg(not(target_os = "macos"))]
 mod imp {
-    pub(crate) fn ensure_joined() {}
+    pub(crate) fn ensure_joined_input() {}
+    pub(crate) fn ensure_joined_output() {}
 }
 
-/// Join the current (audio callback) thread to the input device's OS workgroup
+/// Join the current INPUT-callback thread to the input device's OS workgroup
 /// once. Cheap thread-local check after the first call. See module docs.
-pub(crate) fn ensure_joined() {
-    imp::ensure_joined();
+pub(crate) fn ensure_joined_input() {
+    imp::ensure_joined_input();
+}
+
+/// Join the current OUTPUT-callback thread to the output device's OS workgroup
+/// once. Cheap thread-local check after the first call. See module docs.
+pub(crate) fn ensure_joined_output() {
+    imp::ensure_joined_output();
 }
