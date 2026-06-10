@@ -54,14 +54,14 @@ pub mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;
-/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
-pub mod di_loop_wiring;
-/// #614: pure source-list builder + string→DiLoopSource mapper for the
-/// chain-tile DI loop ComboBox (Task 7).
-pub mod di_loop_ui_sources;
 /// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
 /// which is forbidden from importing rfd by issue #511).
 mod di_loop_chooser_wiring;
+/// #614: pure source-list builder + string→DiLoopSource mapper for the
+/// chain-tile DI loop ComboBox (Task 7).
+pub mod di_loop_ui_sources;
+/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod di_loop_wiring;
 mod insert_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;
@@ -70,20 +70,24 @@ mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
 mod runtime_lifecycle;
+mod runtime_sync_policy;
+#[cfg(test)]
+#[path = "runtime_sync_policy_tests.rs"]
+mod runtime_sync_policy_tests;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod settings;
+/// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
+/// in sync with a `SaveAudioSettings` disk write so that a subsequent
+/// whole-config re-save does not clobber the user's buffer-size pick.
+pub use settings::audio::apply_audio_override;
 /// #607: pure path-override helpers (persist + mirror into the in-memory
 /// `AppConfig`) exposed at the crate root for integration tests, without
 /// widening the whole `settings` module to `pub`.
 pub use settings::paths::{
     apply_evaluations_override, apply_plugins_override, apply_presets_override,
 };
-/// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
-/// in sync with a `SaveAudioSettings` disk write so that a subsequent
-/// whole-config re-save does not clobber the user's buffer-size pick.
-pub use settings::audio::apply_audio_override;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
