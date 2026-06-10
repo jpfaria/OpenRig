@@ -182,7 +182,11 @@ pub const MODEL_DEFINITION: ReverbModelDefinition = ReverbModelDefinition {
 };
 
 fn room_feedback(room_size: f32) -> f32 {
-    (0.2 + room_size.clamp(0.0, 1.0) * 0.77).clamp(0.0, 0.97)
+    // RT60 ≈ 203 ms / -ln(feedback) for this comb network. The old mapping
+    // peaked the usable range at the very top of the knob, so the default
+    // size read as a small room (~0.8 s), not a hall. Re-centre it: default
+    // size lands ~2 s and the maximum reaches a large-hall ~3.5 s.
+    (0.78 + room_size.clamp(0.0, 1.0) * 0.165).clamp(0.0, 0.96)
 }
 
 struct CombFilter {

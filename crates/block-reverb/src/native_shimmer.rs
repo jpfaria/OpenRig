@@ -229,19 +229,26 @@ impl StereoProcessor for ShimmerReverb {
         let wet_l = (s[0] + s[2] + s[4] + s[6]) * 0.25;
         let wet_r = (s[1] + s[3] + s[5] + s[7]) * 0.25;
 
-        // Pitch-shift the wet output up an octave for the shimmer feedback.
-        let shimmer_l = self.pitch_l.step(wet_l) * self.params.shimmer_amount;
-        let shimmer_r = self.pitch_r.step(wet_r) * self.params.shimmer_amount;
-        let shimmer_mono = (shimmer_l + shimmer_r) * 0.5;
+        // Octave-up of the current tail. The shifter sits INSIDE the feedback
+        // loop (not as a parallel injection): each recirculation transposes
+        // the surviving energy up a further octave, so the +12 stacks and
+        // comes to dominate the tail — the defining shimmer character.
+        let pitched_l = self.pitch_l.step(wet_l);
+        let pitched_r = self.pitch_r.step(wet_r);
 
         for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+            s[i] = self.lpfs[i].process(s[i]);
         }
         hadamard8(&mut s);
 
+        let sa = self.params.shimmer_amount;
         for i in 0..N {
-            // Inject both the dry input AND the shimmer feedback.
-            self.delays[i].write(s[i] + (in_mono + shimmer_mono) * 0.25);
+            // Crossfade the recirculated signal between the plain reverberant
+            // tail and its octave-shifted twin. At sa=0 this is a clean FDN;
+            // as sa rises, more of the loop energy climbs an octave each pass.
+            let pitched = if i % 2 == 0 { pitched_l } else { pitched_r };
+            let recirc = self.feedback * ((1.0 - sa) * s[i] + sa * pitched);
+            self.delays[i].write(recirc + in_mono * 0.25);
         }
 
         let dry = 1.0 - self.params.mix;

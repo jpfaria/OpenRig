@@ -22,6 +22,35 @@
         }
     }
 
+    fn goertzel_energy(sig: &[f32], freq: f32, sr: f32) -> f32 {
+        let w = 2.0 * std::f32::consts::PI * freq / sr;
+        let coeff = 2.0 * w.cos();
+        let (mut s1, mut s2) = (0.0f32, 0.0f32);
+        for &x in sig {
+            let s0 = x + coeff * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+        }
+        (s1 * s1 + s2 * s2 - coeff * s1 * s2).max(0.0)
+    }
+
+    #[test]
+    fn octave_up_transposes_sine_up_one_octave() {
+        let mut p = OctaveUp::new(2048);
+        let sr = 44_100.0_f32;
+        let f0 = 220.0;
+        let out: Vec<f32> = (0..16384)
+            .map(|i| p.step((2.0 * std::f32::consts::PI * f0 * i as f32 / sr).sin()))
+            .collect();
+        let tail = &out[4096..]; // skip the first grain while it fills
+        let fund = goertzel_energy(tail, f0, sr);
+        let octave = goertzel_energy(tail, f0 * 2.0, sr);
+        assert!(
+            octave > fund * 4.0,
+            "octave-up shifter must make 2f dominate f: 2f={octave:.4}, f={fund:.4}"
+        );
+    }
+
     #[test]
     fn impulse_response_finite() {
         let mut reverb = default_reverb();

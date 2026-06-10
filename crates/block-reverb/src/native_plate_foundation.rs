@@ -76,6 +76,7 @@ pub fn params_from_set(params: &ParameterSet) -> Result<ReverbParams> {
 
 pub struct FoundationPlateReverb {
     params: ReverbParams,
+    input_diffusers: [AllpassFilter; 4],
     combs: [CombFilter; 4],
     allpasses: [AllpassFilter; 2],
 }
@@ -83,6 +84,16 @@ pub struct FoundationPlateReverb {
 impl FoundationPlateReverb {
     pub fn new(params: ReverbParams, sample_rate: f32) -> Self {
         let scale = sample_rate / 44_100.0;
+        // Input diffusion: a short allpass cascade that smears the impulse
+        // into a dense field within the first few milliseconds. Without it
+        // the bare comb bank is silent until its shortest delay (~25 ms)
+        // speaks, leaving a gap and sparse early echoes — not a plate.
+        let input_diffusers = [
+            AllpassFilter::new((142.0 * scale) as usize, 0.7),
+            AllpassFilter::new((107.0 * scale) as usize, 0.7),
+            AllpassFilter::new((379.0 * scale) as usize, 0.625),
+            AllpassFilter::new((277.0 * scale) as usize, 0.625),
+        ];
         let mut combs = [
             CombFilter::new((1116.0 * scale) as usize),
             CombFilter::new((1188.0 * scale) as usize),
@@ -99,6 +110,7 @@ impl FoundationPlateReverb {
         ];
         Self {
             params,
+            input_diffusers,
             combs,
             allpasses,
         }
@@ -107,15 +119,27 @@ impl FoundationPlateReverb {
 
 impl MonoProcessor for FoundationPlateReverb {
     fn process_sample(&mut self, input: f32) -> f32 {
+        // Diffuse the input first — this dense burst fills the early field.
+        let mut diffused = input;
+        for ap in &mut self.input_diffusers {
+            diffused = ap.process(diffused);
+        }
+
+        // Comb bank + output allpasses sustain the diffused signal into the
+        // reverberant tail.
         let mut wet = 0.0;
         for comb in &mut self.combs {
-            wet += comb.process(input);
+            wet += comb.process(diffused);
         }
         wet /= self.combs.len() as f32;
         for allpass in &mut self.allpasses {
             wet = allpass.process(wet);
         }
-        (1.0 - self.params.mix).mul_add(input, self.params.mix * wet)
+
+        // Blend the early diffused field with the sustained tail so the
+        // first ~25 ms (before the combs speak) is already dense.
+        let plate = 0.5 * diffused + wet;
+        (1.0 - self.params.mix).mul_add(input, self.params.mix * plate)
     }
 }
 
