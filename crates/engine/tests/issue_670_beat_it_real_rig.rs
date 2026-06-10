@@ -1164,3 +1164,69 @@ fn slim_zero_reaches_the_runtime_nam() {
         full / 1000,
     );
 }
+
+/// Issue #670 — the LIVE path: the user turns the slim knob while playing,
+/// which dispatches SetBlockParameterNumber and then calls
+/// `update_chain_runtime_state` (sync_live_chain_runtime) on the EXISTING
+/// runtime. Verify the updated runtime actually runs the slimmer model: cost
+/// must drop ~3x. RED if the live update path loses the slim change.
+#[test]
+fn live_param_update_applies_slim() {
+    init_registry();
+    use domain::value_objects::ParameterValue;
+    use engine::runtime_graph::update_chain_runtime_state;
+
+    // Chain with the preset's od808 at default (full) size.
+    let mut block = beat_it_blocks()
+        .into_iter()
+        .find(|b| block_model(b) == "nam_maxon_od808_a2")
+        .expect("od808 in preset");
+    let chain_full = isolated("live-slim", block.clone());
+    let rt = build(&chain_full);
+
+    let cost = |rt: &Arc<ChainRuntimeState>| -> u128 {
+        let input = vec![0.1_f32; BUFFER];
+        let mut out = vec![0.0_f32; BUFFER * 2];
+        for _ in 0..512 {
+            process_input_f32(rt, 0, &input, 1);
+            process_output_f32(rt, 0, &mut out, 2);
+        }
+        let mut s = Vec::with_capacity(1500);
+        for _ in 0..1500 {
+            let t0 = Instant::now();
+            process_input_f32(rt, 0, &input, 1);
+            process_output_f32(rt, 0, &mut out, 2);
+            s.push(t0.elapsed().as_nanos());
+        }
+        s.sort_unstable();
+        s[s.len() / 2]
+    };
+
+    let full = cost(&rt);
+
+    // The user turns slim to 0 — same param write the dispatcher does…
+    if let AudioBlockKind::Core(c) = &mut block.kind {
+        c.params.insert("slim", ParameterValue::Float(0.0));
+    } else {
+        panic!("preset od808 expected as Core");
+    }
+    let chain_slim = isolated("live-slim", block);
+    // …then the GUI syncs the EXISTING runtime (sync_live_chain_runtime).
+    update_chain_runtime_state(&rt, &chain_slim, SR, false, &[BUFFER]).expect("live update");
+
+    let slim0 = cost(&rt);
+    eprintln!(
+        "[#670 LIVESLIM] live update: full -> {}us  slim=0 -> {}us  ratio={:.2}x",
+        full / 1000,
+        slim0 / 1000,
+        slim0 as f64 / full.max(1) as f64,
+    );
+    assert!(
+        slim0 * 10 < full * 8,
+        "BUG #670: after a LIVE slim=0 param update the chain still costs {}us \
+         vs {}us — update_chain_runtime_state does not apply the new slim (the \
+         user's live knob is inert).",
+        slim0 / 1000,
+        full / 1000,
+    );
+}
