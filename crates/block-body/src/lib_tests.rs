@@ -7,7 +7,6 @@ use block_core::param::ParameterSet;
 use block_core::AudioChannelLayout;
 
 #[test]
-#[ignore]
 fn supported_bodies_expose_valid_schema() {
     for model in supported_models() {
         let schema = body_model_schema(model).expect("body schema should exist");
@@ -20,7 +19,6 @@ fn supported_bodies_expose_valid_schema() {
 }
 
 #[test]
-#[ignore]
 fn supported_bodies_build_for_mono_chains() {
     for model in supported_models() {
         let schema = body_model_schema(model).expect("schema should exist");
@@ -226,7 +224,6 @@ fn unknown_model_returns_error_for_asset_summary() {
 }
 
 #[test]
-#[ignore]
 fn unknown_model_returns_error_for_build() {
     let result = build_body_processor_for_layout(
         "nonexistent_body_model_xyz",

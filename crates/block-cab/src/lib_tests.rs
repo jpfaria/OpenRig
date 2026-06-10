@@ -6,7 +6,6 @@ use block_core::param::ParameterSet;
 use block_core::AudioChannelLayout;
 
 #[test]
-#[ignore]
 fn supported_cabs_expose_valid_schema() {
     for model in supported_models() {
         let schema = cab_model_schema(model).expect("cab schema should exist");
@@ -19,7 +18,6 @@ fn supported_cabs_expose_valid_schema() {
 }
 
 #[test]
-#[ignore]
 fn supported_cabs_build_for_mono_chains() {
     for model in supported_models() {
         let schema = cab_model_schema(model).expect("schema should exist");

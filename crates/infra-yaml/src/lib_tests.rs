@@ -4,8 +4,7 @@
 //! the original 4-space indent so raw-string YAML literals stay intact.
 
 use super::{
-    load_chain_preset_file, save_chain_preset_file, serialize_project, ChainBlocksPreset,
-    YamlProjectRepository,
+    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
@@ -18,7 +17,6 @@ use project::project::Project;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
-use tempfile::TempDir;
 
 #[test]
 fn save_project_creates_yaml_that_roundtrips_basic_project() {
@@ -565,12 +563,6 @@ fn roundtrip_pitch_block_preserves_type_and_model() {
         return;
     };
     assert_core_roundtrip("pitch", model);
-}
-
-#[test]
-#[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
-fn roundtrip_utility_block_preserves_type_and_model() {
-    assert_core_roundtrip("utility", first_model(block_util::supported_models()));
 }
 
 #[test]

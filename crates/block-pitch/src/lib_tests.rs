@@ -67,7 +67,6 @@ fn registry_schema_defaults_normalize_for_all_models() {
 // ── LV2 models: build requires external plugins, skip ───────────
 
 #[test]
-#[ignore]
 fn registry_build_lv2_models_ignored() {
     for model in supported_models() {
         let params = defaults_for(model);

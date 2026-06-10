@@ -333,13 +333,6 @@ fn model_stream_kind_non_utility_returns_empty() {
     assert_eq!(super::model_stream_kind("preamp", "american_clean"), "");
 }
 
-#[test]
-#[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
-fn model_stream_kind_utility_returns_value() {
-    let model = block_util::supported_models()[0];
-    // Should not panic; may return empty or a stream kind string
-    let _ = super::model_stream_kind("utility", model);
-}
 
 // --- model_knob_layout tests ---
 
