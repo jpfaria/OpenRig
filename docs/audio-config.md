@@ -149,6 +149,26 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
 
+### DSP worker per input stream (issue #670, macOS)
+
+The chain DSP does NOT run inside the CoreAudio input callback. The HAL
+thread sleeps between cycles; heavy model working sets (NAM A2 weights)
+cool down, and the cold-cache inference tail (~1.4 ms vs ~250 us hot)
+sporadically crossed the 64-frame cycle — CoreAudio then drops input,
+heard as a click. Measured and fixed via
+`crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs` (real
+streams, real chain, DI-loop injection, 60 s): inline DSP = 12 xruns;
+worker = 0 xruns / 0 underruns.
+
+The input callback only copies the buffer into a lock-free SPSC ring
+(microseconds, invariant #8 clean) and a dedicated per-stream worker
+(`crates/infra-cpal/src/dsp_worker.rs`) runs `process_input_buffer`:
+preemptible realtime, computation budget sized to the real work, short
+spin then 100 us sleeps when idle. The worker feeds the same
+`record_callback_deadline`, so the xrun counter keeps its meaning. F32
+input path only (the macOS live path); other sample formats keep the
+inline path. The Linux/JACK backend is untouched.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma
