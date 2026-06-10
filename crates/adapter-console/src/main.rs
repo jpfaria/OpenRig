@@ -46,11 +46,28 @@ fn build_streams(project: &Project) -> Result<Vec<cpal::Stream>> {
 }
 
 fn main() -> Result<()> {
+    // Issue #670: without a logger every log::* line (worker timing, stream
+    // diagnostics) was silently dropped — a clean-looking run proved nothing.
+    env_logger::init();
     let project_path = parse_project_path();
     let config_path = parse_config_path();
     let _config = load_app_config(&config_path)?;
     let mcp_addr = parse_mcp_addr();
     infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
+    // Issue #670: the console never initialized the plugin catalog, so every
+    // NAM/IR/LV2 block in a real rig was silently dropped as "unsupported"
+    // (the chain degraded to passthrough — useless for validating real
+    // presets headless). Mirror the GUI's startup registration: natives
+    // first, then the bundled + user plugin roots.
+    let bundled_root = infra_filesystem::detect_data_root().join("plugins");
+    let user_root = plugin_loader::plugins_root_from_config(&config_path);
+    engine::native_registry::register_all_natives();
+    plugin_loader::registry::init_many(&[bundled_root, user_root]);
+    println!(
+        "plugins: {} loaded ({} native)",
+        plugin_loader::registry::len(),
+        plugin_loader::registry::native_count(),
+    );
     let project_repo = YamlProjectRepository { path: project_path };
     let project = project_repo.load_current_project()?;
     validate_project(&project)?;

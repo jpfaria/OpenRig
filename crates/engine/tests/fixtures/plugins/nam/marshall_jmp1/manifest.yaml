@@ -1,0 +1,67 @@
+manifest_version: 1
+id: nam_marshall_jmp1
+display_name: JMP-1
+brand: marshall
+brand_logo: assets/brand_logo.svg
+sources:
+- https://www.tone3000.com/tones/45918
+output_gain_db: 0.0000000
+type: preamp
+backend: nam
+architecture: A2
+# Constant token dropped across all captures: "jmp" (the amp model itself). The
+# remaining names are distinct factory voicings (clean / crunch / rhythm tiers /
+# deftoned / od808 / creamy lead) that do not factor into shared numeric knob
+# axes, so they collapse into a single clean 'preset' selector.
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - clean
+  - crunch_breakup
+  - rhythm_1
+  - rhythm_2
+  - rhythm_3
+  - rhythm_deftoned
+  - rhythm_od808
+  - lead_creamy
+captures:
+- values:
+    preset: clean
+  file: captures/jmp_clean.nam
+- values:
+    preset: crunch_breakup
+  file: captures/jmp_crunch_breakup.nam
+- values:
+    preset: rhythm_1
+  file: captures/jmp_rhythm_1.nam
+- values:
+    preset: rhythm_2
+  file: captures/jmp_rhythm_2.nam
+  noise_gate:
+    enabled: true
+    threshold_db: -34.0
+- values:
+    preset: rhythm_3
+  file: captures/jmp_rhythm_3.nam
+  noise_gate:
+    enabled: true
+    threshold_db: -31.5
+- values:
+    preset: rhythm_deftoned
+  file: captures/jmp_rhythm_deftoned.nam
+  noise_gate:
+    enabled: true
+    threshold_db: -32.5
+- values:
+    preset: rhythm_od808
+  file: captures/jmp_rhythm_overdrive808.nam
+  noise_gate:
+    enabled: true
+    threshold_db: -31.0
+- values:
+    preset: lead_creamy
+  file: captures/jmp_lead_creamy.nam
+  noise_gate:
+    enabled: true
+    threshold_db: -30.0

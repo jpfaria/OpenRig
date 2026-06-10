@@ -1,0 +1,34 @@
+manifest_version: 1
+id: nam_marshall_jcm_800_2203_a2
+display_name: JCM 800 2203
+brand: marshall
+brand_logo: assets/brand_logo.svg
+output_gain_db: 0.0000000
+type: preamp
+backend: nam
+architecture: A2
+sources:
+- https://www.tone3000.com/tones/37987
+# Constant across all captures (dropped from axes): bass 5, mid 5, treble 5,
+# presence 5, volume 5, D.I., STD.
+parameters:
+- name: gain
+  display_name: Gain
+  values:
+  - 3
+  - 5
+  - 7
+  - 10
+captures:
+- values:
+    gain: 3
+  file: captures/jcm800_2203_di_g3_b5_m5_t5_p5_v5_std_a2.nam
+- values:
+    gain: 5
+  file: captures/jcm800_2203_di_g5_b5_m5_t5_p5_v5_std_a2.nam
+- values:
+    gain: 7
+  file: captures/jcm800_2203_di_g7_b5_m5_t5_p5_v5_std_a2.nam
+- values:
+    gain: 10
+  file: captures/jcm800_2203_di_g10_b5_m5_t5_p5_v5_std_a2.nam
