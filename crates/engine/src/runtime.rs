@@ -597,6 +597,15 @@ fn apply_block_processor(
     if block.faulted {
         return;
     }
+    // Issue #670: re-arm flush-to-zero before EVERY block. The engine arms FZ
+    // once per callback, but a C++ block (NAM A2 inference, LV2 reverb) can
+    // clear the FPCR FZ bit mid-chain; every block after it then processes the
+    // note's decaying (subnormal) tail on the FPU gradual-underflow path, and a
+    // single 64-frame buffer stalls ~100x — blowing the deadline as the audio
+    // overload / "beehive" (reproduced by beat_it_green_day_di_analysis: the
+    // heaviest buffers are all on quiet/decay passages). One cheap FPCR check
+    // per block guarantees no block ever runs denormals unprotected.
+    ensure_flush_to_zero();
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

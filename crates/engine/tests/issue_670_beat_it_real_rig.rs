@@ -844,3 +844,49 @@ fn beat_it_green_day_di_analysis() {
         deadline_ns / 1000,
     );
 }
+
+/// Issue #670 — DETERMINISTIC denormal check, immune to OS preemption (uses a
+/// LOW percentile, not worst/wall). After the per-block flush-to-zero fix, the
+/// chain's cost while a note DECAYS TO SILENCE (internal reverb/IR tails go
+/// subnormal) must be ~the same as while a tone is ACTIVE. A big ratio means a
+/// block still runs the subnormal tail on the FPU slow path.
+#[test]
+fn beat_it_decay_tail_has_no_denormal_stall() {
+    init_registry();
+    let rt = build(&beat_it_chain());
+    let mut out = vec![0.0_f32; BUFFER * 2];
+
+    let mut p5 = |make: &dyn Fn(usize) -> f32| -> u128 {
+        let mut s = Vec::with_capacity(1500);
+        for k in 0..1500 {
+            let input: Vec<f32> = (0..BUFFER).map(|i| make(k * BUFFER + i)).collect();
+            let t0 = Instant::now();
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+            s.push(t0.elapsed().as_nanos());
+        }
+        s.sort_unstable();
+        s[s.len() / 20] // 5th percentile — strips OS-preemption outliers
+    };
+
+    // Active tone (no subnormals).
+    let active = p5(&|n| 0.3 * (2.0 * std::f32::consts::PI * 110.0 * n as f32 / SR).sin());
+    // Decaying tail: feed silence so reverb/IR tails ring out into subnormals.
+    let decay = p5(&|_| 0.0);
+
+    eprintln!(
+        "[#670 DENORM] active-tone p5={}us  decay-tail p5={}us  ratio={:.2}x",
+        active / 1000,
+        decay / 1000,
+        decay as f64 / active.max(1) as f64,
+    );
+    assert!(
+        decay < active * 2,
+        "BUG #670: the decaying (subnormal) tail costs {:.1}x an active tone \
+         ({}us vs {}us, preemption-stripped) — a block still runs denormals \
+         without flush-to-zero.",
+        decay as f64 / active.max(1) as f64,
+        decay / 1000,
+        active / 1000,
+    );
+}
