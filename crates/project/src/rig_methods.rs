@@ -17,7 +17,10 @@ impl RigProject {
     /// template; a float param / bypass that differs from the template is
     /// stored as that scene's override (and the key auto-marked as a
     /// scene-param so `apply_scene` applies it). A value back at the
-    /// template clears the override. No-op if input/preset is unknown.
+    /// template clears the override. Non-float params (Bool/Int/String)
+    /// cannot live in the f32 scene diff — they are written into the
+    /// preset base itself, shared by every scene (issue #690). No-op if
+    /// input/preset is unknown.
     pub fn write_back_processing_blocks(
         &mut self,
         input: &str,
@@ -44,6 +47,7 @@ impl RigProject {
 
         let mut set_param: Vec<(String, f32)> = Vec::new();
         let mut clear_param: Vec<String> = Vec::new();
+        let mut set_base_param: Vec<(String, String, ParameterValue)> = Vec::new();
         let mut set_bypass: Vec<(String, bool)> = Vec::new();
         let mut clear_bypass: Vec<String> = Vec::new();
 
@@ -64,15 +68,44 @@ impl RigProject {
             };
             if let Some((ep, bp)) = pair {
                 for (pid, val) in &ep.values {
-                    if let ParameterValue::Float(v) = val {
-                        let key = format!("{bid}.{pid}");
-                        if bp.get_f32(pid) != Some(*v) {
-                            set_param.push((key, *v));
-                        } else {
-                            clear_param.push(key);
+                    match val {
+                        ParameterValue::Float(v) => {
+                            let key = format!("{bid}.{pid}");
+                            if bp.get_f32(pid) != Some(*v) {
+                                set_param.push((key, *v));
+                            } else {
+                                clear_param.push(key);
+                            }
+                        }
+                        // Scenes can only carry f32 overrides (Helix
+                        // snapshot rule), so a Bool/Int/String/enum edit
+                        // is preset-level: write it into the base
+                        // template, shared by every scene. Issue #690 —
+                        // the NAM noise-gate toggle was silently dropped
+                        // here and reverted on save+reload.
+                        other => {
+                            if bp.get(pid) != Some(other) {
+                                set_base_param.push((bid.clone(), pid.clone(), other.clone()));
+                            }
                         }
                     }
                 }
+            }
+        }
+
+        for (bid, pid, val) in set_base_param {
+            let params =
+                preset
+                    .blocks
+                    .iter_mut()
+                    .find(|b| b.id.0 == bid)
+                    .and_then(|b| match &mut b.kind {
+                        AudioBlockKind::Core(c) => Some(&mut c.params),
+                        AudioBlockKind::Nam(n) => Some(&mut n.params),
+                        _ => None,
+                    });
+            if let Some(params) = params {
+                params.insert(pid, val);
             }
         }
 
@@ -251,12 +284,11 @@ impl RigProject {
         // per-scene diff, so the swapped model was never written into the
         // preset base and reverted on reload. Model identity excludes params,
         // so genuine param/bypass edits still take the diff-only path below.
-        let same_structure = preset.blocks.len() == blocks.len()
-            && preset
-                .blocks
-                .iter()
-                .zip(blocks)
-                .all(|(a, b)| a.id == b.id && a.kind.model_identity() == b.kind.model_identity());
+        let same_structure =
+            preset.blocks.len() == blocks.len()
+                && preset.blocks.iter().zip(blocks).all(|(a, b)| {
+                    a.id == b.id && a.kind.model_identity() == b.kind.model_identity()
+                });
         if same_structure {
             return false;
         }
