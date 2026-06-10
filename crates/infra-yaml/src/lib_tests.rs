@@ -566,12 +566,6 @@ fn roundtrip_pitch_block_preserves_type_and_model() {
 }
 
 #[test]
-#[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
-fn roundtrip_utility_block_preserves_type_and_model() {
-    assert_core_roundtrip("utility", first_model(block_util::supported_models()));
-}
-
-#[test]
 fn roundtrip_ir_block_serializes_and_deserializes_yaml() {
     use domain::value_objects::ParameterValue;
     // IR normalization validates the file exists on disk, so we only test

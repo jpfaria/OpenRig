@@ -244,7 +244,6 @@ fn params_from_set_null_ir_path_returns_none() {
 // ── build_processor (requires NAM lib) ──────────────────────────
 
 #[test]
-#[ignore]
 fn build_processor_nonexistent_model_returns_error() {
     let mut ps = ParameterSet::default();
     ps.insert(
@@ -258,7 +257,6 @@ fn build_processor_nonexistent_model_returns_error() {
 // ── build_processor_for_layout stereo rejection ─────────────────
 
 #[test]
-#[ignore]
 fn build_processor_for_layout_stereo_returns_error() {
     let mut ps = ParameterSet::default();
     ps.insert(
