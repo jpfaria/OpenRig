@@ -47,6 +47,10 @@ plugins:
     description: Bucket-brigade analog delay — steep per-repeat high-frequency loss and gentle saturation.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  tape_echo:
+    description: Hot tape echo — random-walk wow/flutter, heavy magnetic saturation, and tape tone.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.

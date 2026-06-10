@@ -47,6 +47,10 @@ plugins:
     description: Delay analógico bucket-brigade — perda acentuada de agudos a cada repetição e saturação suave.
     license: Proprietário - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  tape_echo:
+    description: Tape echo quente — wow/flutter por random-walk, saturação magnética forte e tom de fita.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Compressor de estúdio transparente com threshold, ratio, ataque,
       release, makeup gain e mix paralelo.
