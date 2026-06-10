@@ -56,7 +56,11 @@ fn render_beat_it_green_day_to_wav() {
             }],
         }),
     }];
-    blocks.extend(infra_yaml::load_chain_preset_file(&preset).expect("preset").blocks);
+    blocks.extend(
+        infra_yaml::load_chain_preset_file(&preset)
+            .expect("preset")
+            .blocks,
+    );
     blocks.push(AudioBlock {
         id: BlockId("out".into()),
         enabled: true,
@@ -101,10 +105,12 @@ fn render_beat_it_green_day_to_wav() {
     };
     let input: Vec<[f32; 2]> = mono.iter().map(|&s| [s, s]).collect();
 
-    let out = render_chain(&chain, SR, &input, 64, 0).expect("render").samples;
+    let out = render_chain(&chain, SR, &input, 64, 0)
+        .expect("render")
+        .samples;
 
-    let path = std::env::var("ISSUE670_RENDER_OUT")
-        .unwrap_or_else(|_| "/tmp/issue670_render.wav".into());
+    let path =
+        std::env::var("ISSUE670_RENDER_OUT").unwrap_or_else(|_| "/tmp/issue670_render.wav".into());
     let wspec = hound::WavSpec {
         channels: 2,
         sample_rate: SR as u32,

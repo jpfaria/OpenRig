@@ -5,10 +5,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use domain::ids::DeviceId;
 use project::block::InputEntry;
 use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
-use domain::ids::DeviceId;
 
 use crate::rig_runtime::rig_to_legacy_project;
 use project::rig_sync::sync_synthetic_into_rig;
@@ -35,14 +35,16 @@ fn simple_rig() -> RigProject {
         .into_iter()
         .collect(),
         outputs: Default::default(),
-        presets: [("p".to_string(), RigPreset::from_legacy_blocks(vec![], 100.0))]
-            .into_iter()
-            .collect(),
+        presets: [(
+            "p".to_string(),
+            RigPreset::from_legacy_blocks(vec![], 100.0),
+        )]
+        .into_iter()
+        .collect(),
         midi: None,
         chain_order: vec![],
     }
 }
-
 
 /// Mutating chain.instrument to "acoustic_guitar" and calling sync_synthetic_into_rig
 /// must capture the new value into RigInput.instrument.
@@ -55,7 +57,11 @@ fn instrument_survives_sync_and_reprojection() {
     let mut proj = rig_to_legacy_project(&rig, &BTreeSet::new());
 
     // Simulate user changing the instrument on the projected chain
-    let chain = proj.chains.iter_mut().find(|c| c.id.0 == "rig:input-1").unwrap();
+    let chain = proj
+        .chains
+        .iter_mut()
+        .find(|c| c.id.0 == "rig:input-1")
+        .unwrap();
     chain.instrument = block_core::INST_ACOUSTIC_GUITAR.to_string();
 
     // Sync legacy state back into the rig model
@@ -63,7 +69,11 @@ fn instrument_survives_sync_and_reprojection() {
 
     // Re-project: instrument must survive
     let proj2 = rig_to_legacy_project(&rig, &BTreeSet::new());
-    let c = proj2.chains.iter().find(|c| c.id.0 == "rig:input-1").unwrap();
+    let c = proj2
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "rig:input-1")
+        .unwrap();
     assert_eq!(
         c.instrument,
         block_core::INST_ACOUSTIC_GUITAR,

@@ -118,9 +118,13 @@ pub(crate) fn build_runtime_block_nodes(
             blocks.push(node);
             continue;
         }
-        if let Some(node) =
-            try_reuse_block_node(&mut reusable_nodes, block, current_layout, content_mono, sample_rate)
-        {
+        if let Some(node) = try_reuse_block_node(
+            &mut reusable_nodes,
+            block,
+            current_layout,
+            content_mono,
+            sample_rate,
+        ) {
             log::info!(
                 "[engine] reuse block {:?} (id={})",
                 block.model_ref().map(|m| m.model),
@@ -294,9 +298,14 @@ fn build_block_runtime_node(
             content_mono,
             build_nam_audio_processor(chain, stage, input_layout, content_mono, sample_rate)?,
         ),
-        AudioBlockKind::Core(core) => {
-            build_core_block_runtime_node(chain, block, core, input_layout, content_mono, sample_rate)?
-        }
+        AudioBlockKind::Core(core) => build_core_block_runtime_node(
+            chain,
+            block,
+            core,
+            input_layout,
+            content_mono,
+            sample_rate,
+        )?,
         AudioBlockKind::Select(select) => build_select_runtime_node(
             chain,
             block,

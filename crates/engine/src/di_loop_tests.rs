@@ -48,10 +48,19 @@ fn loop_crossfade_makes_seam_continuous() {
     let samples: Vec<f32> = (0..n).map(|i| i as f32 / n as f32).collect();
     let xfade = 32;
     let di = DiLoop::from_samples(&samples, 48_000, 1, 48_000, xfade);
-    let last = match di.frame_at(di.len() - 1) { DiFrame::Mono(s) => s, _ => unreachable!() };
-    let first = match di.frame_at(0) { DiFrame::Mono(s) => s, _ => unreachable!() };
+    let last = match di.frame_at(di.len() - 1) {
+        DiFrame::Mono(s) => s,
+        _ => unreachable!(),
+    };
+    let first = match di.frame_at(0) {
+        DiFrame::Mono(s) => s,
+        _ => unreachable!(),
+    };
     let seam_step = (first - last).abs();
-    assert!(seam_step < 0.5, "seam step {seam_step} not reduced by crossfade");
+    assert!(
+        seam_step < 0.5,
+        "seam step {seam_step} not reduced by crossfade"
+    );
 }
 
 #[test]

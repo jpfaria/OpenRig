@@ -218,7 +218,12 @@ fn eq_block() -> AudioBlock {
         "eq",
         "filter",
         "native_guitar_eq",
-        floats(&[("high", 0.0), ("high_mid", 0.0), ("low", 0.0), ("low_mid", 0.0)]),
+        floats(&[
+            ("high", 0.0),
+            ("high_mid", 0.0),
+            ("low", 0.0),
+            ("low_mid", 0.0),
+        ]),
     )
 }
 
@@ -341,9 +346,7 @@ fn print_stats(label: &str, s: &Stats) {
 }
 
 fn build(chain: &Chain) -> Arc<ChainRuntimeState> {
-    Arc::new(
-        build_chain_runtime_state(chain, SR, &[BUFFER]).expect("heavy runtime must build"),
-    )
+    Arc::new(build_chain_runtime_state(chain, SR, &[BUFFER]).expect("heavy runtime must build"))
 }
 
 /// Drive N runtimes once per buffer and time the WHOLE batch — the
@@ -437,8 +440,9 @@ fn heavy_rig_buffer_64_cost_is_dominated_by_nam() {
     // already overrunning and 4 chains overrunning the median.
     let single = build(&chain);
     measure("full_rig_single_chain@64", std::slice::from_ref(&single));
-    let four: Vec<Arc<ChainRuntimeState>> =
-        (0..4).map(|i| build(&heavy_chain(&i.to_string()))).collect();
+    let four: Vec<Arc<ChainRuntimeState>> = (0..4)
+        .map(|i| build(&heavy_chain(&i.to_string())))
+        .collect();
     measure("full_rig_four_chains@64", &four);
 
     // Root-cause assertion: NAM inference dominates. Each NAM amp's median

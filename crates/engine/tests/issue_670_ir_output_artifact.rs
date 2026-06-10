@@ -91,7 +91,9 @@ fn band(mag: &[f32], bin_hz: f32, f: f32) -> f32 {
     let b = (f / bin_hz).round() as usize;
     let lo = b.saturating_sub(2);
     let hi = (b + 3).min(mag.len());
-    mag.get(lo..hi).map(|w| w.iter().cloned().fold(0.0, f32::max)).unwrap_or(0.0)
+    mag.get(lo..hi)
+        .map(|w| w.iter().cloned().fold(0.0, f32::max))
+        .unwrap_or(0.0)
 }
 
 #[test]
@@ -99,7 +101,11 @@ fn ir_output_is_clean_no_partition_rate_buzz() {
     init();
     let chain = io_wrap(ir_block_from_preset());
     let outcome = render_chain(&chain, SR, &[[0.0, 0.0]; 8], 64, 0).expect("render");
-    assert!(outcome.faulted_blocks.is_empty(), "IR faulted: {:?}", outcome.faulted_blocks);
+    assert!(
+        outcome.faulted_blocks.is_empty(),
+        "IR faulted: {:?}",
+        outcome.faulted_blocks
+    );
 
     let n = 16_384usize;
     let freq = 220.0f32;
@@ -111,7 +117,9 @@ fn ir_output_is_clean_no_partition_rate_buzz() {
         .collect();
 
     for &block in &[64usize, 32, 96, 128] {
-        let out = render_chain(&chain, SR, &input, block, 0).expect("render").samples;
+        let out = render_chain(&chain, SR, &input, block, 0)
+            .expect("render")
+            .samples;
         // steady-state window (skip attack + the IR's latency)
         let sig: Vec<f32> = out[4096..12_288].iter().map(|s| s[0]).collect();
         let len = sig.len();

@@ -192,9 +192,7 @@ fn audio_callback_does_not_allocate_at_buffer_32() {
         }
     });
 
-    eprintln!(
-        "[audio_alloc_invariant] 1000 callbacks at buffer=32 @ 48k: {allocs} allocations"
-    );
+    eprintln!("[audio_alloc_invariant] 1000 callbacks at buffer=32 @ 48k: {allocs} allocations");
 
     assert_eq!(
         allocs, 0,
@@ -214,9 +212,9 @@ fn audio_callback_does_not_allocate_at_buffer_32() {
 // blocks). This test drives the user's REAL native + NAM blocks and pins
 // zero per-callback allocations through them.
 
+use domain::value_objects::ParameterValue as P670Val;
 use project::block::{CoreBlock, NamBlock};
 use project::param::ParameterSet as P670Set;
-use domain::value_objects::ParameterValue as P670Val;
 use std::sync::Once as P670Once;
 
 fn p670_init_registry() {
@@ -231,8 +229,8 @@ fn p670_init_registry() {
         block_amp::register_natives();
         block_preamp::register_natives();
         block_cab::register_natives();
-        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/plugins");
+        let root =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins");
         plugin_loader::registry::init(&root);
     });
 }
@@ -294,7 +292,12 @@ fn p670_real_rig_chain() -> Chain {
                 "eq",
                 "filter",
                 "native_guitar_eq",
-                p670_floats(&[("high", 0.0), ("high_mid", 0.0), ("low", 0.0), ("low_mid", 0.0)]),
+                p670_floats(&[
+                    ("high", 0.0),
+                    ("high_mid", 0.0),
+                    ("low", 0.0),
+                    ("low_mid", 0.0),
+                ]),
             ),
             p670_nam("amp", "nam_marshall_plexi", "angus"),
             p670_core(
@@ -332,8 +335,12 @@ fn p670_real_rig_chain() -> Chain {
 fn audio_callback_does_not_allocate_with_real_blocks() {
     p670_init_registry();
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&p670_real_rig_chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
-            .expect("real-rig runtime should build"),
+        build_chain_runtime_state(
+            &p670_real_rig_chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+        )
+        .expect("real-rig runtime should build"),
     );
     let input_buf = vec![0.3_f32; 64];
     let mut output_buf = vec![0.0_f32; 64 * 2];
@@ -413,8 +420,12 @@ fn p670_isolated(block: AudioBlock) -> Chain {
 fn audio_callback_does_not_allocate_with_eq8() {
     p670_init_registry();
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&p670_isolated(p670_eq8()), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
-            .expect("eq8 runtime should build"),
+        build_chain_runtime_state(
+            &p670_isolated(p670_eq8()),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+        )
+        .expect("eq8 runtime should build"),
     );
     let input_buf = vec![0.3_f32; 64];
     let mut output_buf = vec![0.0_f32; 64 * 2];
@@ -429,7 +440,10 @@ fn audio_callback_does_not_allocate_with_eq8() {
         }
     });
     eprintln!("[#670 alloc] eq_eight_band_parametric @64: {allocs} allocations / 1000 callbacks");
-    assert_eq!(allocs, 0, "BUG #670: eq_eight_band_parametric allocates {allocs}x on the audio thread");
+    assert_eq!(
+        allocs, 0,
+        "BUG #670: eq_eight_band_parametric allocates {allocs}x on the audio thread"
+    );
 }
 
 /// Issue #670: the user reports the rig gets MUCH worse with an IR/CAB in the
@@ -451,8 +465,12 @@ fn p670_ir_cab() -> AudioBlock {
 fn audio_callback_does_not_allocate_with_ir_cab() {
     p670_init_registry();
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&p670_isolated(p670_ir_cab()), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
-            .expect("ir cab runtime should build"),
+        build_chain_runtime_state(
+            &p670_isolated(p670_ir_cab()),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+        )
+        .expect("ir cab runtime should build"),
     );
     let input_buf = vec![0.3_f32; 64];
     let mut output_buf = vec![0.0_f32; 64 * 2];

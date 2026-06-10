@@ -28,8 +28,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use arc_swap::{ArcSwap, ArcSwapOption};
 use crate::di_loop::DiLoop;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use block_core::{AudioChannelLayout, StreamHandle};
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;

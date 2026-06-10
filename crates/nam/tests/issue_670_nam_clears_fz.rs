@@ -31,8 +31,8 @@ unsafe fn arm_fz() {
 fn nam_inference_does_not_clear_flush_to_zero() {
     let mut params = DEFAULT_PLUGIN_PARAMS;
     params.noise_gate_enabled = false;
-    let mut proc = NamProcessor::new(&fixture_model(), None, params, 48_000.0)
-        .expect("fixture NAM must load");
+    let mut proc =
+        NamProcessor::new(&fixture_model(), None, params, 48_000.0).expect("fixture NAM must load");
 
     unsafe { arm_fz() };
     assert_eq!(fz_bit(), 1, "FZ must be armed before the NAM call");

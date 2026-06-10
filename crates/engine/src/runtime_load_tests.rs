@@ -75,7 +75,11 @@ fn records_an_xrun_when_a_callback_overruns_its_period() {
     let rt = pipe_runtime();
     // A callback that took 2 ms against a 1 ms buffer period overran.
     rt.record_callback_load(2_000_000, 1_000_000);
-    assert_eq!(rt.xrun_count(), 1, "an overrunning callback must count one xrun");
+    assert_eq!(
+        rt.xrun_count(),
+        1,
+        "an overrunning callback must count one xrun"
+    );
     assert!(
         (rt.peak_callback_load() - 2.0).abs() < 0.01,
         "peak load must be elapsed/period = 2.0, got {}",
@@ -87,7 +91,11 @@ fn records_an_xrun_when_a_callback_overruns_its_period() {
 fn a_callback_under_budget_is_not_an_xrun() {
     let rt = pipe_runtime();
     rt.record_callback_load(500_000, 1_000_000);
-    assert_eq!(rt.xrun_count(), 0, "a 50%-of-budget callback is not an xrun");
+    assert_eq!(
+        rt.xrun_count(),
+        0,
+        "a 50%-of-budget callback is not an xrun"
+    );
     assert!(
         (rt.peak_callback_load() - 0.5).abs() < 0.01,
         "peak load must be 0.5, got {}",

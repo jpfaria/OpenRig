@@ -87,8 +87,8 @@ fn nam_inference_does_not_denormal_stall_when_flush_to_zero_is_off() {
     let mut params = DEFAULT_PLUGIN_PARAMS;
     params.noise_gate_enabled = false; // let the quiet signal reach the net
     params.eq_enabled = false;
-    let mut proc = NamProcessor::new(&model, None, params, 48_000.0)
-        .expect("fixture NAM model must load");
+    let mut proc =
+        NamProcessor::new(&model, None, params, 48_000.0).expect("fixture NAM model must load");
 
     // Baseline: inference with flush-to-zero ON (the protected path).
     let with_fz = median_block_ns(&mut proc, true);

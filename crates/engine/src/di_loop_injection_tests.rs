@@ -10,10 +10,12 @@ use super::{
 };
 use crate::di_loop::DiLoop;
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -117,13 +119,7 @@ fn off_is_silent_passthrough_of_device() {
 fn cursor_advances_by_num_frames_and_wraps() {
     let runtime = passthrough_runtime();
     // 200-frame loop so wrapping is observable with 128-frame callbacks.
-    let di = Arc::new(DiLoop::from_samples(
-        &vec![0.1f32; 200],
-        SR,
-        1,
-        SR,
-        0,
-    ));
+    let di = Arc::new(DiLoop::from_samples(&vec![0.1f32; 200], SR, 1, SR, 0));
     runtime.set_di_loop(Some(di));
 
     let (frames, channels) = (128usize, 2usize);

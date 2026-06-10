@@ -5,8 +5,8 @@ use crate::di_loop::DiLoop;
 use domain::ids::ChainId;
 use project::block::AudioBlock;
 use project::chain::Chain;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 fn empty_chain() -> Chain {
     Chain {
