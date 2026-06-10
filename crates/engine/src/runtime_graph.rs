@@ -543,19 +543,25 @@ fn build_input_processing_state(
     })
 }
 
-pub(crate) fn build_output_routing_state(
-    output: &OutputEntry,
-    elastic_target: usize,
-    prime_frames: usize,
-) -> OutputRoutingState {
-    let output_layout = if output.channels.len() >= 2 {
+/// Channel layout an output entry produces — shared by the route builder and
+/// the rebuild route-reuse check (#670).
+pub(crate) fn output_entry_layout(output: &OutputEntry) -> AudioChannelLayout {
+    if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
             ChainOutputMode::Mono => AudioChannelLayout::Mono,
         }
     } else {
         AudioChannelLayout::Mono
-    };
+    }
+}
+
+pub(crate) fn build_output_routing_state(
+    output: &OutputEntry,
+    elastic_target: usize,
+    prime_frames: usize,
+) -> OutputRoutingState {
+    let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
     // Issue #592: prime the cushion (silence) only when the caller asks —
     // a cold-start IR chain at a small device buffer would otherwise
@@ -705,11 +711,17 @@ fn update_chain_runtime_state_impl(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
-    // Keep the IR capacity floor consistent with the initial build, but do
-    // NOT prime on a rebuild — the producer is already warm, so it refills
-    // naturally (issue #592).
+    // Output routes (#670): REUSE the existing route when its endpoint shape
+    // is unchanged (the param-edit / block-toggle case). A fresh empty buffer
+    // here used to (a) discard the in-flight audio — the audible gap on every
+    // edit — and (b) restart the standing cushion at zero, which never
+    // refills in producer/consumer lockstep, leaving the chain permanently
+    // fragile after the first edit (owner-reported underruns while playing,
+    // reproduced by rebuild_while_playing_keeps_the_cushion). Reusing the
+    // Arc keeps both the buffered audio and the cushion. A genuinely changed
+    // endpoint (or an explicit queue reset) still gets a fresh route.
     let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
+    let old_output_routes = runtime.output_routes.load();
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
@@ -717,6 +729,16 @@ fn update_chain_runtime_state_impl(
             let base = target_for_route(elastic_targets, route_idx);
             let target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
+            if !reset_output_queue {
+                if let Some(old) = old_output_routes.get(route_idx) {
+                    if old.output_channels == o.channels
+                        && old.buffer.layout() == output_entry_layout(o)
+                        && old.buffer.target_level() == target
+                    {
+                        return Arc::clone(old);
+                    }
+                }
+            }
             Arc::new(build_output_routing_state(o, target, 0))
         })
         .collect();

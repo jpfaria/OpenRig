@@ -84,7 +84,6 @@ impl AudioFrame {
 /// brief sustain instead of silence.
 pub(crate) struct ElasticBuffer {
     ring: SpscRing<AudioFrame>,
-    #[allow(dead_code)]
     target_level: usize,
     layout: AudioChannelLayout,
     /// Bit-packed last-pushed frame, used as the underrun fallback.
@@ -159,6 +158,16 @@ impl ElasticBuffer {
         for _ in 0..frames {
             self.push(silence);
         }
+    }
+
+    /// Capacity target this buffer was built for (#670: rebuild route reuse).
+    pub(crate) fn target_level(&self) -> usize {
+        self.target_level
+    }
+
+    /// Channel layout this buffer was built for (#670: rebuild route reuse).
+    pub(crate) fn layout(&self) -> AudioChannelLayout {
+        self.layout
     }
 
     /// Seed the underrun fallback from another buffer's last pushed frame.
