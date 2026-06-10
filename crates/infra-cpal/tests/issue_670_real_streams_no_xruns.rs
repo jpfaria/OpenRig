@@ -143,8 +143,81 @@ fn load_di(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {
     ))
 }
 
+/// Cross-PROCESS hardware lock: cargo runs separate test binaries
+/// concurrently, so an in-process mutex cannot serialize the one physical
+/// interface between them. A create-new lock file does (stale locks older
+/// than 10 min are reclaimed; the guard removes the file on drop, including
+/// on panic unwind).
+
+/// Real-hardware battery gate (issue #670). These tests open the PHYSICAL
+/// audio interface and assert real-time deadlines — they are only meaningful
+/// on an otherwise IDLE machine, run on demand:
+///
+/// ```sh
+/// OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
+///     --test issue_670_cab_swap --test issue_670_real_streams_no_xruns
+/// ```
+///
+/// Under the full workspace suite / quality gate the machine is saturated by
+/// parallel builds and tests, and the timing assertions fail for reasons
+/// unrelated to the app. Without the variable each test returns immediately
+/// with a loud notice (NOT silently green). See docs/testing.md
+/// ("Real-hardware battery").
+fn hw_tests_enabled(test_name: &str) -> bool {
+    if std::env::var_os("OPENRIG_HW_TESTS").is_some() {
+        return true;
+    }
+    eprintln!(
+        "[#670 HW] {test_name}: SKIPPED — real-hardware timing test. \
+         Run with OPENRIG_HW_TESTS=1 on an idle machine (docs/testing.md)."
+    );
+    false
+}
+
+struct DeviceFileLock;
+
+impl Drop for DeviceFileLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(device_lock_path());
+    }
+}
+
+fn device_lock_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("openrig-issue670-device.lock")
+}
+
+fn device_guard() -> DeviceFileLock {
+    let path = device_lock_path();
+    loop {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(_) => return DeviceFileLock,
+            Err(_) => {
+                if let Ok(meta) = std::fs::metadata(&path) {
+                    if let Ok(modified) = meta.modified() {
+                        if modified.elapsed().unwrap_or_default()
+                            > std::time::Duration::from_secs(600)
+                        {
+                            let _ = std::fs::remove_file(&path);
+                            continue;
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+    }
+}
+
 #[test]
 fn real_streams_beat_it_di_loop_no_xruns() {
+    if !hw_tests_enabled("real_streams_beat_it_di_loop_no_xruns") {
+        return;
+    }
+    let _device = device_guard();
     init_registry();
 
     let inputs = list_input_device_descriptors().expect("list inputs");
@@ -193,6 +266,10 @@ fn real_streams_beat_it_di_loop_no_xruns() {
 /// more, and asserts the post-rebuild stretch records no damage.
 #[test]
 fn rebuild_while_playing_keeps_the_cushion() {
+    if !hw_tests_enabled("rebuild_while_playing_keeps_the_cushion") {
+        return;
+    }
+    let _device = device_guard();
     init_registry();
 
     let inputs = list_input_device_descriptors().expect("list inputs");
@@ -289,6 +366,10 @@ fn rebuild_while_playing_keeps_the_cushion() {
 /// buffer is now multi-ms forever. Reproduce: play, add the cab live, play on.
 #[test]
 fn adding_a_cab_live_does_not_spiral() {
+    if !hw_tests_enabled("adding_a_cab_live_does_not_spiral") {
+        return;
+    }
+    let _device = device_guard();
     init_registry();
 
     let inputs = list_input_device_descriptors().expect("list inputs");

@@ -58,6 +58,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Single source of truth** — constantes uma vez.
 - **Separação de concerns** — business logic sem config visual/UI.
 - Documentação é parte da tarefa: mudou modelo/block/parâmetro/tela/comportamento de áudio → atualizar `docs/` no mesmo commit.
+- **Bateria de hardware (#670):** os testes que abrem a interface de áudio real ficam atrás de `OPENRIG_HW_TESTS=1` (máquina ociosa; ver `docs/testing.md` → "Real-hardware battery"). Qualquer agente PODE e DEVE habilitá-los ao validar mudança no caminho de áudio.
 - **TDD red-first OBRIGATÓRIO** — proibido implementar/alterar produção sem um teste que falhou ANTES. Bug = entrevistar → teste que reproduz → ver falhar → só então corrigir. Teste-depois (passa de primeira) é proibido. Spec: `docs/testing.md` + `.claude/skills/openrig-code-quality/SKILL.md`.
 - **NUNCA parar o processo pra perguntar o óbvio.** O agente decide e segue: escopo já acordado, default sensato, ou destravamento trivial → fazer, não perguntar. Só perguntar quando a resposta muda o resultado e não dá pra inferir do código/contexto. Doc e README no mesmo commit, sempre, sem ser mandado.
 

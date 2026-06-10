@@ -50,33 +50,129 @@ fn init_registry() {
     });
 }
 
-#[test]
-fn swapping_the_cab_while_playing_does_not_damage_sound() {
-    let _ = env_logger::builder()
-        .filter_module("infra_cpal", log::LevelFilter::Debug)
-        .try_init();
-    init_registry();
+/// Cross-PROCESS hardware lock: cargo runs separate test binaries
+/// concurrently, so an in-process mutex cannot serialize the one physical
+/// interface between them. A create-new lock file does (stale locks older
+/// than 10 min are reclaimed; the guard removes the file on drop, including
+/// on panic unwind).
 
-    // The owner's REAL interface: Scarlett 2i2, the device the failure
-    // happens on — NOT a virtual loopback with perfect timing.
-    let inputs = list_input_device_descriptors().expect("list inputs");
-    let outputs = list_output_device_descriptors().expect("list outputs");
-    let input = inputs
-        .iter()
+/// Real-hardware battery gate (issue #670). These tests open the PHYSICAL
+/// audio interface and assert real-time deadlines — they are only meaningful
+/// on an otherwise IDLE machine, run on demand:
+///
+/// ```sh
+/// OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
+///     --test issue_670_cab_swap --test issue_670_real_streams_no_xruns
+/// ```
+///
+/// Under the full workspace suite / quality gate the machine is saturated by
+/// parallel builds and tests, and the timing assertions fail for reasons
+/// unrelated to the app. Without the variable each test returns immediately
+/// with a loud notice (NOT silently green). See docs/testing.md
+/// ("Real-hardware battery").
+fn hw_tests_enabled(test_name: &str) -> bool {
+    if std::env::var_os("OPENRIG_HW_TESTS").is_some() {
+        return true;
+    }
+    eprintln!(
+        "[#670 HW] {test_name}: SKIPPED — real-hardware timing test. \
+         Run with OPENRIG_HW_TESTS=1 on an idle machine (docs/testing.md)."
+    );
+    false
+}
+
+struct DeviceFileLock;
+
+impl Drop for DeviceFileLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(device_lock_path());
+    }
+}
+
+fn device_lock_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("openrig-issue670-device.lock")
+}
+
+fn device_guard() -> DeviceFileLock {
+    let path = device_lock_path();
+    loop {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(_) => return DeviceFileLock,
+            Err(_) => {
+                if let Ok(meta) = std::fs::metadata(&path) {
+                    if let Ok(modified) = meta.modified() {
+                        if modified.elapsed().unwrap_or_default()
+                            > std::time::Duration::from_secs(600)
+                        {
+                            let _ = std::fs::remove_file(&path);
+                            continue;
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+    }
+}
+
+/// The owner's Scarlett input+output descriptors.
+fn scarlett() -> (
+    infra_cpal::AudioDeviceDescriptor,
+    infra_cpal::AudioDeviceDescriptor,
+) {
+    let input = list_input_device_descriptors()
+        .expect("list inputs")
+        .into_iter()
         .find(|d| d.name.contains("Scarlett"))
         .expect("Scarlett input present");
-    let output = outputs
-        .iter()
+    let output = list_output_device_descriptors()
+        .expect("list outputs")
+        .into_iter()
         .find(|d| d.name.contains("Scarlett"))
         .expect("Scarlett output present");
-    eprintln!(
-        "[#670 SWAP] devices: in='{}' out='{}'",
-        input.name, output.name
-    );
+    (input, output)
+}
 
-    // The owner's Bete Balanco preset wired to the real devices.
+/// Load a DI file as the engine-rate loop.
+fn load_di_arc(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/di-loops")
+        .join(name);
+    let mut reader = hound::WavReader::open(&path).expect("DI loop");
+    let spec = reader.spec();
+    let samples: Vec<f32> = match spec.sample_format {
+        hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
+        hound::SampleFormat::Int => {
+            let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
+            reader
+                .samples::<i32>()
+                .map(|s| s.unwrap() as f32 / max)
+                .collect()
+        }
+    };
+    Arc::new(engine::DiLoop::from_samples(
+        &samples,
+        spec.sample_rate,
+        spec.channels as usize,
+        engine_sr,
+        256,
+    ))
+}
+
+/// Build a single-chain project from a preset fixture on the given devices
+/// (48 kHz / 64 frames, chain volume 0 = identical DSP, silent monitors).
+fn preset_project(
+    preset_file: &str,
+    input: &infra_cpal::AudioDeviceDescriptor,
+    output: &infra_cpal::AudioDeviceDescriptor,
+) -> (Project, ChainId) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../engine/tests/fixtures/presets/barao_vermelho_bete_balanco.yaml");
+        .join("../engine/tests/fixtures/presets")
+        .join(preset_file);
     let mut blocks = vec![AudioBlock {
         id: BlockId("in".into()),
         enabled: true,
@@ -106,19 +202,19 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
             }],
         }),
     });
-    let chain_id = ChainId("issue-670-swap".into());
+    let chain_id = ChainId("issue-670".into());
     let project = Project {
-        name: Some("issue-670-cab-swap".into()),
+        name: Some("issue-670".into()),
         device_settings: vec![
             DeviceSettings {
                 device_id: DeviceId(input.id.clone()),
-                sample_rate: 44_100,
+                sample_rate: 48_000,
                 buffer_size_frames: BUFFER,
                 bit_depth: 32,
             },
             DeviceSettings {
                 device_id: DeviceId(output.id.clone()),
-                sample_rate: 44_100,
+                sample_rate: 48_000,
                 buffer_size_frames: BUFFER,
                 bit_depth: 32,
             },
@@ -128,40 +224,61 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
             description: None,
             instrument: "electric_guitar".into(),
             enabled: true,
-            // Volume 0: the DSP path is identical (volume applies at the
-            // output mixdown); the test just stops blasting the monitors.
+            // Volume 0: identical DSP (applied at output mixdown), silent monitors.
             volume: 0.0,
             blocks,
         }],
         midi: None,
     };
+    (project, chain_id)
+}
 
+/// Swap the chain's cab block to `model` with that model's factory defaults
+/// (exactly like ReplaceBlockModel).
+fn set_cab_model(project: &mut Project, model: &str) {
+    let chain = &mut project.chains[0];
+    let cab = chain
+        .blocks
+        .iter_mut()
+        .find(|b| matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("ir_")))
+        .expect("cab block");
+    if let AudioBlockKind::Core(c) = &mut cab.kind {
+        c.model = model.to_string();
+        c.params = application::block_factory::default_params_for_model(
+            block_core::EFFECT_TYPE_CAB,
+            model,
+        )
+        .expect("defaults");
+    }
+}
+
+#[test]
+fn swapping_the_cab_while_playing_does_not_damage_sound() {
+    if !hw_tests_enabled("swapping_the_cab_while_playing_does_not_damage_sound") {
+        return;
+    }
+    let _device = device_guard();
+    let _ = env_logger::builder()
+        .filter_module("infra_cpal", log::LevelFilter::Trace)
+        .try_init();
+    init_registry();
+
+    // The owner's REAL interface: Scarlett 2i2, the device the failure
+    // happens on — NOT a virtual loopback with perfect timing.
+    let (input, output) = scarlett();
+    let (input, output) = (&input, &output);
+    eprintln!(
+        "[#670 SWAP] devices: in='{}' out='{}'",
+        input.name, output.name
+    );
+
+    let (project, chain_id) = preset_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
 
-    // Real DI playback.
-    let di = {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/di-loops/phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav");
-        let mut reader = hound::WavReader::open(&path).expect("DI");
-        let spec = reader.spec();
-        let samples: Vec<f32> = match spec.sample_format {
-            hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
-            hound::SampleFormat::Int => {
-                let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
-                reader
-                    .samples::<i32>()
-                    .map(|s| s.unwrap() as f32 / max)
-                    .collect()
-            }
-        };
-        Arc::new(engine::DiLoop::from_samples(
-            &samples,
-            spec.sample_rate,
-            spec.channels as usize,
-            controller.sample_rate(),
-            256,
-        ))
-    };
+    let di = load_di_arc(
+        "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
+        controller.sample_rate(),
+    );
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
     std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -207,23 +324,7 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
         for model in &swap_to {
             let bx = controller.chain_xrun_count(&chain_id);
             let bu = controller.chain_underrun_count(&chain_id);
-            {
-                let chain = &mut current.chains[0];
-                let cab = chain
-                    .blocks
-                    .iter_mut()
-                    .find(|b| matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("ir_")))
-                    .expect("cab block");
-                if let AudioBlockKind::Core(c) = &mut cab.kind {
-                    c.model = (*model).to_string();
-                    // Fresh defaults for the new model, like ReplaceBlockModel.
-                    c.params = application::block_factory::default_params_for_model(
-                        block_core::EFFECT_TYPE_CAB,
-                        model,
-                    )
-                    .expect("defaults");
-                }
-            }
+            set_cab_model(&mut current, model);
             controller
                 .upsert_chain(&current, &current.chains[0])
                 .expect("live cab swap");
@@ -267,4 +368,321 @@ fn zz_list_devices() {
     for d in list_output_device_descriptors().unwrap() {
         eprintln!("OUT: {} | {} | ch={}", d.id, d.name, d.channels);
     }
+}
+
+/// Issue #670 — the preset the owner JUST SAVED in its broken state ("só de
+/// ligar já explode"): Beat It (rhythm) with nam_maxon_od808_a2 +
+/// nam_marshall_jmp1 (preamp) + ir_marshall_4x12_v30. Load it EXACTLY as
+/// saved on the REAL interface and just PLAY — no edits. RED if the chain
+/// can't hold the deadline from the first minute.
+#[test]
+fn owner_saved_broken_preset_plays_clean() {
+    if !hw_tests_enabled("owner_saved_broken_preset_plays_clean") {
+        return;
+    }
+    let _device = device_guard();
+    let _ = env_logger::builder()
+        .filter_module("infra_cpal", log::LevelFilter::Trace)
+        .try_init();
+    init_registry();
+
+    let (input, output) = scarlett();
+    let (input, output) = (&input, &output);
+
+    let (project, chain_id) = preset_project("beat_it_rhythm_as_saved_broken.yaml", input, output);
+    let controller = ProjectRuntimeController::start(&project).expect("start streams");
+    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+    controller.set_chain_di_loop(&chain_id, Some(di));
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    let x0 = controller.chain_xrun_count(&chain_id);
+    let u0 = controller.chain_underrun_count(&chain_id);
+    std::thread::sleep(std::time::Duration::from_secs(45));
+    let xruns = controller.chain_xrun_count(&chain_id) - x0;
+    let underruns = controller.chain_underrun_count(&chain_id) - u0;
+
+    eprintln!("[#670 SAVED] 45s of the owner's saved preset: xruns={xruns} underruns={underruns}");
+    assert_eq!(
+        (xruns, underruns),
+        (0, 0),
+        "BUG #670: the owner's saved Beat It (rhythm) preset (od808 + jmp1 + \
+         marshall_4x12_v30) damaged the sound just PLAYING: {xruns} xruns / \
+         {underruns} underruns in 45 s."
+    );
+}
+
+/// Issue #670 — THE app condition, verbatim: the owner's WHOLE project
+/// (4 simultaneous chains on the Scarlett — guitar + 2 more instrument
+/// chains + a vocal chain with autotune/harmonizer LV2s), loaded through the
+/// production project loader, all streams up, DI playing through the guitar
+/// chain. "Só de ligar já explode" — so just START IT and PLAY. This stays
+/// RED until the full rig holds the deadline.
+#[test]
+fn owner_full_project_plays_clean() {
+    if !hw_tests_enabled("owner_full_project_plays_clean") {
+        return;
+    }
+    let _device = device_guard();
+    let _ = env_logger::builder()
+        .filter_module("infra_cpal", log::LevelFilter::Trace)
+        .try_init();
+    init_registry();
+
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../engine/tests/fixtures/presets/owner_project_as_is.yaml");
+    let repo = infra_yaml::YamlProjectRepository { path };
+    let project = repo
+        .load_current_project()
+        .expect("the owner's project must load through the production loader");
+    eprintln!(
+        "[#670 PROJECT] loaded {} chains: {:?}",
+        project.chains.len(),
+        project
+            .chains
+            .iter()
+            .map(|c| c.id.0.clone())
+            .collect::<Vec<_>>(),
+    );
+
+    let controller = ProjectRuntimeController::start(&project).expect("start the full rig");
+
+    // DI through every enabled chain so the whole rig works like live play.
+    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+    for chain in &project.chains {
+        controller.set_chain_di_loop(&chain.id, Some(di.clone()));
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    let base: Vec<(u64, u64)> = project
+        .chains
+        .iter()
+        .map(|c| {
+            (
+                controller.chain_xrun_count(&c.id),
+                controller.chain_underrun_count(&c.id),
+            )
+        })
+        .collect();
+    std::thread::sleep(std::time::Duration::from_secs(45));
+
+    let mut total = 0u64;
+    for (i, chain) in project.chains.iter().enumerate() {
+        let x = controller.chain_xrun_count(&chain.id) - base[i].0;
+        let u = controller.chain_underrun_count(&chain.id) - base[i].1;
+        eprintln!(
+            "[#670 PROJECT] chain '{}': xruns={x} underruns={u}",
+            chain.id.0
+        );
+        total += x + u;
+    }
+    assert_eq!(
+        total, 0,
+        "BUG #670: the owner's full project (all chains, real interface) \
+         damaged the sound just playing: {total} xruns+underruns in 45 s."
+    );
+}
+
+/// Issue #670 — THE owner's gesture, finally verbatim: the full project is
+/// running; the guitar chain sits DISABLED holding the saved Beat It preset
+/// (od808 + jmp1 + ir_marshall_4x12_v30); the owner selects it and ENABLES
+/// the chain ("selecionei e ativei a chain com o preset — só nisso o log já
+/// começa"), then turns the DI on ("aí vira um desastre"). Enabling a cold
+/// chain takes the #672 off-thread ACTIVATION path (LiveRuntimeSlot install),
+/// not the live upsert the other tests exercised. RED until that gesture is
+/// clean.
+#[test]
+fn enabling_the_preset_chain_live_is_clean() {
+    if !hw_tests_enabled("enabling_the_preset_chain_live_is_clean") {
+        return;
+    }
+    let _device = device_guard();
+    let _ = env_logger::builder()
+        .filter_module("infra_cpal", log::LevelFilter::Trace)
+        .try_init();
+    init_registry();
+
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../engine/tests/fixtures/presets/owner_project_as_is.yaml");
+    let repo = infra_yaml::YamlProjectRepository { path };
+    let mut project = repo.load_current_project().expect("owner project");
+
+    // Put the saved Beat It preset into the guitar chain and DISABLE it —
+    // the state right before the owner's gesture.
+    let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../engine/tests/fixtures/presets/beat_it_rhythm_as_saved_broken.yaml");
+    let preset_blocks = infra_yaml::load_chain_preset_file(&preset)
+        .expect("saved preset")
+        .blocks;
+    let guitar_idx = 1usize;
+    let chain_id = project.chains[guitar_idx].id.clone();
+
+    // The owner's project.yaml carries NO device settings (they live in the
+    // per-machine config.yaml — ADR 0003), so the resolver was silently
+    // falling back to the device's current state (48000/256: 5.3 ms blocks,
+    // 4x more time per block than the owner's real 64). Inject the owner's
+    // real settings — Scarlett @ 48 kHz / 64 frames (period 1333 us in every
+    // log they sent) — for every device the chains reference.
+    let mut device_ids: Vec<DeviceId> = Vec::new();
+    for chain in &project.chains {
+        for block in &chain.blocks {
+            match &block.kind {
+                AudioBlockKind::Input(b) => {
+                    for e in &b.entries {
+                        device_ids.push(e.device_id.clone());
+                    }
+                }
+                AudioBlockKind::Output(b) => {
+                    for e in &b.entries {
+                        device_ids.push(e.device_id.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    device_ids.sort_by(|a, b| a.0.cmp(&b.0));
+    device_ids.dedup_by(|a, b| a.0 == b.0);
+    project.device_settings = device_ids
+        .into_iter()
+        .map(|device_id| DeviceSettings {
+            device_id,
+            sample_rate: 48_000,
+            buffer_size_frames: 64,
+            bit_depth: 32,
+        })
+        .collect();
+    infra_cpal::apply_device_settings(&project.device_settings).expect("apply device settings");
+    {
+        let chain = &mut project.chains[guitar_idx];
+        let input = chain.blocks.first().cloned().expect("input block");
+        let output = chain.blocks.last().cloned().expect("output block");
+        let mut blocks = vec![input];
+        blocks.extend(preset_blocks);
+        blocks.push(output);
+        chain.blocks = blocks;
+        chain.enabled = false;
+        chain.volume = 0.0; // silent monitors; identical DSP
+    }
+    for c in &mut project.chains {
+        c.volume = 0.0;
+    }
+
+    let mut controller = ProjectRuntimeController::start(&project).expect("start rig");
+    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // The app ALWAYS has the level meters on: every chain subscribes a
+    // per-stream input tap + output tap pair that the audio path FEEDS EVERY
+    // SAMPLE, and a 30 Hz timer drains them. Replicate it for every chain.
+    let mut meter_rings: Vec<std::sync::Arc<engine::spsc::SpscRing<f32>>> = Vec::new();
+    for chain in &project.chains {
+        let n = controller.stream_count(&chain.id);
+        eprintln!(
+            "[#670 ENABLE] chain '{}' stream_count={n} enabled={}",
+            chain.id.0, chain.enabled
+        );
+        for i in 0..n.max(1) {
+            if let Some(r) = controller.subscribe_stream_input_tap(&chain.id, i, 8192) {
+                meter_rings.push(r);
+            }
+            if let Some([l, rr]) = controller.subscribe_stream_tap(&chain.id, i, 8192) {
+                meter_rings.push(l);
+                meter_rings.push(rr);
+            }
+        }
+    }
+    eprintln!("[#670 ENABLE] meter taps subscribed: {}", meter_rings.len());
+    let stop_meters = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let meter_thread = {
+        let stop = std::sync::Arc::clone(&stop_meters);
+        std::thread::spawn(move || {
+            // 30 Hz drain, like the GUI meter timer.
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                for ring in &meter_rings {
+                    while ring.pop().is_some() {}
+                }
+                std::thread::sleep(std::time::Duration::from_millis(33));
+            }
+        })
+    };
+
+    // The app's GUI (Slint/Metal render, meters) is a PERSISTENT load — keep
+    // a moderate synthetic one through the whole measurement so the worker
+    // lives at the same utilization edge as in the app.
+    let stop_load = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let loaders: Vec<_> = (0..6)
+        .map(|_| {
+            let stop = std::sync::Arc::clone(&stop_load);
+            std::thread::spawn(move || {
+                let mut x = 0.001f64;
+                while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                    x = (x.sin().cos() + 1.0001).sqrt();
+                    std::hint::black_box(x);
+                }
+            })
+        })
+        .collect();
+
+    // THE GESTURE 1: enable the chain with the preset (cold activation).
+    {
+        let chain = &mut project.chains[guitar_idx];
+        chain.enabled = true;
+    }
+    controller
+        .upsert_chain(&project, &project.chains[guitar_idx])
+        .expect("enable chain");
+    // The #672 activation installs on poll ticks — drive them like the GUI.
+    for _ in 0..100 {
+        controller.poll_pending_rebuilds();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        if controller.chain_runtime(&chain_id).is_some() {
+            break;
+        }
+    }
+    // The whole test is VOID if the chain didn't actually come up.
+    assert!(
+        controller.chain_runtime(&chain_id).is_some(),
+        "enable gesture failed: chain runtime never appeared"
+    );
+    let live_streams = controller.stream_count(&chain_id);
+    eprintln!("[#670 ENABLE] after enable: stream_count={live_streams}");
+    assert!(
+        live_streams > 0,
+        "enable gesture failed: no streams running"
+    );
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    let x0 = controller.chain_xrun_count(&chain_id);
+    let u0 = controller.chain_underrun_count(&chain_id);
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    let post_enable_x = controller.chain_xrun_count(&chain_id) - x0;
+    let post_enable_u = controller.chain_underrun_count(&chain_id) - u0;
+    eprintln!(
+        "[#670 ENABLE] 10s after enabling the preset chain: xruns={post_enable_x} underruns={post_enable_u}"
+    );
+
+    // THE GESTURE 2: DI on ("aí vira um desastre").
+    controller.set_chain_di_loop(&chain_id, Some(di));
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    let x1 = controller.chain_xrun_count(&chain_id);
+    let u1 = controller.chain_underrun_count(&chain_id);
+    std::thread::sleep(std::time::Duration::from_secs(20));
+    let post_di_x = controller.chain_xrun_count(&chain_id) - x1;
+    let post_di_u = controller.chain_underrun_count(&chain_id) - u1;
+    eprintln!("[#670 ENABLE] 20s after DI on: xruns={post_di_x} underruns={post_di_u}");
+
+    stop_load.store(true, std::sync::atomic::Ordering::Relaxed);
+    for l in loaders {
+        let _ = l.join();
+    }
+    stop_meters.store(true, std::sync::atomic::Ordering::Relaxed);
+    let _ = meter_thread.join();
+
+    assert_eq!(
+        (post_enable_x + post_enable_u, post_di_x + post_di_u),
+        (0, 0),
+        "BUG #670: the owner's gesture (enable the chain holding the Beat It \
+         preset on the running rig, then DI on) damaged the sound: \
+         enable={post_enable_x}x/{post_enable_u}u, di={post_di_x}x/{post_di_u}u."
+    );
 }
