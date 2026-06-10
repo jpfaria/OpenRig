@@ -890,3 +890,51 @@ fn beat_it_decay_tail_has_no_denormal_stall() {
         active / 1000,
     );
 }
+
+/// Issue #670 — same setup as beat_it_green_day_di_analysis (real Green Day DI
+/// through the full Beat It chain) but it catches xruns the SAME way the live
+/// app does: feed each buffer's wall-clock cost into `record_callback_load`
+/// (the exact engine call the cpal output handler makes) and assert the
+/// engine's own `xrun_count()` — the counter `meter_wiring` reads to emit the
+/// "audio overload" warning — stays zero.
+#[test]
+fn beat_it_green_day_di_records_no_xruns() {
+    init_registry();
+    let chain = beat_it_chain();
+    assert_no_faulted_blocks(&chain);
+    let rt = build(&chain);
+    let period_ns: u64 = (BUFFER as u64 * 1_000_000_000) / SR as u64; // 1333333 @64/48k
+
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    for _ in 0..256 {
+        process_input_f32(&rt, 0, &di[..BUFFER.min(di.len())], 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+    }
+    rt.reset_load_stats(); // don't count warmup
+
+    let mut buffers = 0usize;
+    for chunk in di.chunks(BUFFER) {
+        let mut input = vec![0.0_f32; BUFFER];
+        input[..chunk.len()].copy_from_slice(chunk);
+        let t0 = Instant::now();
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+        let elapsed = t0.elapsed().as_nanos() as u64;
+        rt.record_callback_load(elapsed, period_ns);
+        buffers += 1;
+    }
+
+    let xruns = rt.xrun_count();
+    eprintln!(
+        "[#670 XRUN] green_day, full Beat It chain: xruns={xruns}/{buffers}  peak_load={:.2}x",
+        rt.peak_callback_load(),
+    );
+    assert_eq!(
+        xruns, 0,
+        "BUG #670: the engine recorded {xruns} xruns playing the Green Day DI \
+         through the full chain (peak load {:.2}x the 64-frame deadline) — the \
+         exact 'audio overload on chain' the user sees.",
+        rt.peak_callback_load(),
+    );
+}
