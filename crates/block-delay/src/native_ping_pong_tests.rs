@@ -40,8 +40,14 @@ fn ping_pong_first_echo_lands_on_the_opposite_channel() {
 
     // The left input should appear FIRST on the right channel.
     let win = 600usize;
-    let r_energy: f32 = right[delay_samples - win..delay_samples + win].iter().map(|s| s * s).sum();
-    let l_energy: f32 = left[delay_samples - win..delay_samples + win].iter().map(|s| s * s).sum();
+    let r_energy: f32 = right[delay_samples - win..delay_samples + win]
+        .iter()
+        .map(|s| s * s)
+        .sum();
+    let l_energy: f32 = left[delay_samples - win..delay_samples + win]
+        .iter()
+        .map(|s| s * s)
+        .sum();
     assert!(
         r_energy > l_energy * 8.0,
         "first echo of a left input must bounce to the right: R={r_energy:.4} L={l_energy:.4}"

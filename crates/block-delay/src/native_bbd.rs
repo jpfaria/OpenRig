@@ -5,11 +5,11 @@ use block_core::param::{
 use block_core::{ModelAudioMode, MonoProcessor};
 
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
-use crate::DelayBackendKind;
 use crate::shared::{
     clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, soft_saturate, DelayLine,
     MAX_DELAY_MS, MAX_FEEDBACK, MIN_DELAY_MS,
 };
+use crate::DelayBackendKind;
 
 pub const MODEL_ID: &str = "bbd";
 pub const DISPLAY_NAME: &str = "BBD Analog Delay";
@@ -150,7 +150,10 @@ pub fn build_mono_processor(
     params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<Box<dyn MonoProcessor>> {
-    Ok(Box::new(BbdDelay::new(params_from_set(params)?, sample_rate)))
+    Ok(Box::new(BbdDelay::new(
+        params_from_set(params)?,
+        sample_rate,
+    )))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

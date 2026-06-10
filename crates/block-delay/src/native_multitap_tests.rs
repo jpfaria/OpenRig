@@ -43,7 +43,11 @@ fn multitap_taps_land_on_even_sub_divisions() {
     let out = dsp_probe::render_mono(&mut delay, &dsp_probe::impulse(30_000));
 
     let peaks = dsp_probe::peaks(&out, 0.02, 1_000);
-    assert!(peaks.len() >= 4, "need the full tap pattern, got {}", peaks.len());
+    assert!(
+        peaks.len() >= 4,
+        "need the full tap pattern, got {}",
+        peaks.len()
+    );
     for pair in peaks.windows(2) {
         let gap = pair[1].0 as i64 - pair[0].0 as i64;
         assert!(

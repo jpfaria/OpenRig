@@ -5,11 +5,11 @@ use block_core::param::{
 use block_core::{ModelAudioMode, MonoProcessor};
 
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
-use crate::DelayBackendKind;
 use crate::shared::{
     clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, sanitize, MAX_DELAY_MS, MAX_FEEDBACK,
     MIN_DELAY_MS,
 };
+use crate::DelayBackendKind;
 
 pub const MODEL_ID: &str = "granular";
 pub const DISPLAY_NAME: &str = "Granular Delay";
@@ -135,7 +135,10 @@ impl GranularDelay {
             spread_samples,
             // Two grains offset by half a grain → continuous Hann overlap-add.
             grains: [
-                Grain { read_pos: 0, age: 0 },
+                Grain {
+                    read_pos: 0,
+                    age: 0,
+                },
                 Grain {
                     read_pos: 0,
                     age: GRAIN_SIZE / 2,
