@@ -63,6 +63,10 @@ plugins:
     description: Granular delay — scatters the signal into a cloud of windowed grains for textured, smeared echoes.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  pitch_delay:
+    description: Pitch delay — each repeat is pitch-shifted (harmonized/shimmer); cascades with feedback.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
