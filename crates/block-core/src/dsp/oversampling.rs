@@ -54,15 +54,27 @@ fn build_hbf() -> [f32; HBF_LEN] {
 
 /// 2× oversampler. Use as:
 ///
-/// ```ignore
+/// ```
+/// use block_core::dsp::oversampling::Oversampler2x;
+///
+/// // The non-linearity you want to run alias-free (any saturator/clipper).
+/// fn saturate(x: f32) -> f32 {
+///     x.tanh()
+/// }
+///
+/// let input = [0.0_f32, 0.25, -0.5, 0.75, -1.0];
+/// let mut output = Vec::with_capacity(input.len());
+///
 /// let mut os = Oversampler2x::new();
-/// for &x in input {
+/// for &x in &input {
 ///     let [a, b] = os.up(x);          // 2 samples at 2 fs
 ///     let a2 = saturate(a);            // non-linear processing
 ///     let b2 = saturate(b);
 ///     let y = os.down([a2, b2]);       // back to fs, anti-aliased
 ///     output.push(y);
 /// }
+///
+/// assert_eq!(output.len(), input.len());
 /// ```
 pub struct Oversampler2x {
     taps: [f32; HBF_LEN],
