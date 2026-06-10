@@ -55,6 +55,10 @@ plugins:
     description: Analog echo with an internal chorus sweeping the repeats, plus bucket-brigade tone and saturation.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  rhythmic:
+    description: Rhythmic delay — echoes on a syncopated grid (dotted-eighth, triplet, or eighth) relative to the beat.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.

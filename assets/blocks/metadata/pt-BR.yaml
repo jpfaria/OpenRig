@@ -55,6 +55,10 @@ plugins:
     description: Echo analógico com chorus interno modulando as repetições, mais tom e saturação bucket-brigade.
     license: Proprietário - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  rhythmic:
+    description: Delay rítmico — ecos num grid sincopado (colcheia pontuada, tercina ou colcheia) relativo ao tempo.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Compressor de estúdio transparente com threshold, ratio, ataque,
       release, makeup gain e mix paralelo.
