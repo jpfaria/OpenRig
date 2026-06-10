@@ -150,15 +150,22 @@ impl LocalDispatcher {
     ///    pointer (currently a hardcoded `./presets`).
     /// 4. The sibling `presets/` directory so the chain-preset save
     ///    path has somewhere to write.
+    /// #693: serialization stays on the dispatching thread (cheap,
+    /// in-memory, needs the `Rc` state); every disk touch is queued to
+    /// the persist worker so the caller — in practice the GUI thread —
+    /// never waits on I/O. Job order inside one save is preserved by
+    /// the single worker. Write errors surface via `log::error!`;
+    /// `persist_worker::flush()` is the durability barrier.
     fn save_project_to_disk(&self, project_path: &PathBuf) -> Result<()> {
-        eprintln!("Command::SaveProject: writing to {project_path:?}");
+        log::info!("Command::SaveProject: queueing write to {project_path:?}");
 
         let parent_dir = project_path
             .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
-        std::fs::create_dir_all(&parent_dir)
-            .map_err(|e| anyhow!("failed to create project parent {parent_dir:?}: {e}"))?;
+        crate::persist_worker::enqueue(crate::persist_worker::PersistJob::EnsureDir(
+            parent_dir.clone(),
+        ));
 
         // #555: flush any pending GUI-side rig edits back into the rig
         // before serializing. The GUI used to do this implicitly inside
@@ -182,16 +189,22 @@ impl LocalDispatcher {
         } else {
             project_path.with_extension("openrig")
         };
-        infra_yaml::save_rig_project_file(&openrig_path, &rig_to_save)
-            .map_err(|e| anyhow!("failed to write {openrig_path:?}: {e}"))?;
+        let openrig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
+            .map_err(|e| anyhow!("failed to serialize {openrig_path:?}: {e}"))?;
+        crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
+            openrig_path.clone(),
+            openrig_yaml.into_bytes(),
+        ));
 
         // Legacy `.yaml` sidecar — only when the user-visible path
         // isn't already the `.openrig` itself.
         if openrig_path != *project_path {
             let legacy = infra_yaml::serialize_project(&project_snapshot)
                 .map_err(|e| anyhow!("failed to serialize legacy snapshot: {e}"))?;
-            std::fs::write(project_path, legacy)
-                .map_err(|e| anyhow!("failed to write {project_path:?}: {e}"))?;
+            crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
+                project_path.clone(),
+                legacy.into_bytes(),
+            ));
         }
 
         // Sidecar config.yaml (the in-project pointer to the preset
@@ -203,10 +216,13 @@ impl LocalDispatcher {
             .clone()
             .unwrap_or_else(|| parent_dir.join("config.yaml"));
         let config_yaml = "presets_path: ./presets\n";
-        std::fs::write(&config_path, config_yaml)
-            .map_err(|e| anyhow!("failed to write {config_path:?}: {e}"))?;
-        std::fs::create_dir_all(parent_dir.join("presets"))
-            .map_err(|e| anyhow!("failed to create sibling presets dir: {e}"))?;
+        crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
+            config_path,
+            config_yaml.as_bytes().to_vec(),
+        ));
+        crate::persist_worker::enqueue(crate::persist_worker::PersistJob::EnsureDir(
+            parent_dir.join("presets"),
+        ));
         Ok(())
     }
 }

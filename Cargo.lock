@@ -352,6 +352,7 @@ dependencies = [
  "hound",
  "infra-filesystem",
  "infra-yaml",
+ "log",
  "plugin-loader",
  "project",
  "schemars 0.8.22",

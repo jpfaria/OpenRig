@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
         || std::env::var("OPENRIG_FULLSCREEN")
             .ok()
             .map_or(false, |v| v == "1" || v.eq_ignore_ascii_case("true"));
-    run_desktop_app(
+    let result = run_desktop_app(
         runtime_mode,
         interaction_mode,
         cli_project_path,
@@ -78,5 +78,9 @@ fn main() -> anyhow::Result<()> {
         fullscreen,
         mcp_addr,
         midi_map,
-    )
+    );
+    // #693: saves are queued to the persist worker — wait for
+    // durability before the process exits.
+    application::persist_worker::flush();
+    result
 }

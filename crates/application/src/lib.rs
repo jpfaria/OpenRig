@@ -18,6 +18,9 @@ pub mod command_schema;
 pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
+/// #693: command side-effect writes run on a dedicated worker thread —
+/// `flush()` is the durability barrier for shutdown and round-trips.
+pub mod persist_worker;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;

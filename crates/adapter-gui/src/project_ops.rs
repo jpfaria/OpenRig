@@ -473,10 +473,14 @@ pub(crate) fn save_project_session(
     session
         .dispatcher
         .attach_config_path(session.config_path.clone());
-    session
+    let result = session
         .dispatcher
         .dispatch(Command::SaveProject)
-        .map(|_| ())
+        .map(|_| ());
+    // #693: writes are queued to the persist worker; the round-trip
+    // suites reload right after saving, so wait for durability here.
+    application::persist_worker::flush();
+    result
 }
 
 // `save_chain_blocks_to_preset` was moved to
