@@ -66,6 +66,17 @@ project:
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
 | `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003 / #499. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
+### Edit capture: scene diff vs preset base (#690)
+
+`write_back_processing_blocks` (run by `Command::CaptureRigEdits` and the
+save path) captures edits made on the projected chain back into the active
+preset. **Float** param edits become the active scene's f32 override
+(Helix Snapshot rule — the key is auto-marked in `scene-params`).
+**Non-float** params (Bool/Int/String — e.g. a NAM noise-gate toggle)
+cannot live in the f32 scene diff: they are written into the preset base
+`blocks`, shared by every scene. Before #690 these edits were silently
+dropped and reverted on save+reload.
+
 ## Validation
 
 `RigProject::validate() -> Result<(), String>` is run by `parse_rig_project`
