@@ -12,7 +12,7 @@
 //! Release-gated only because the analysis FFT is slow in debug; the bug
 //! itself is deterministic.
 
-#![cfg_attr(debug_assertions, allow(unused))]
+#![cfg(not(debug_assertions))]
 
 use std::path::PathBuf;
 use std::sync::Once;
@@ -95,7 +95,6 @@ fn band(mag: &[f32], bin_hz: f32, f: f32) -> f32 {
 }
 
 #[test]
-#[cfg_attr(debug_assertions, ignore = "analysis FFT is slow in debug")]
 fn ir_output_is_clean_no_partition_rate_buzz() {
     init();
     let chain = io_wrap(ir_block_from_preset());

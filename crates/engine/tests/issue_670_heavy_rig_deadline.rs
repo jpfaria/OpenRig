@@ -1,3 +1,4 @@
+#![cfg(not(debug_assertions))]
 //! Issue #670 — RED-first repro: a heavy multi-block rig must meet its
 //! audio-thread deadline at the tightest realistic buffer (64 frames @
 //! 48 kHz). The user reports crackle / "clipping" at buffer 64 with a
@@ -29,7 +30,7 @@
 //! LV2 reverbs/delays + a pitch autotune/harmonizer, which only add more
 //! cost on top.
 //!
-//! GATING: `#[cfg_attr(debug_assertions, ignore)]` — timing is only
+//! GATING: `#![cfg(not(debug_assertions))]` — compiled out in debug, not ignored;
 //! meaningful in release (debug has no inlining; every call is real).
 //! This matches the established convention in
 //! `crates/engine/src/audio_deadline_tests.rs`. Run with:

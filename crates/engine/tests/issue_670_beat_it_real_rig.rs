@@ -1,3 +1,4 @@
+#![cfg(not(debug_assertions))]
 //! Issue #670 — RED repro of the user's ACTUAL crackle, with the user's
 //! ACTUAL plugins (no synthetic fixtures, no supposing).
 //!
@@ -19,7 +20,7 @@
 //! (copied from the user's plugins tree) so the test is self-contained and
 //! the absolute microseconds are the user's real amps, not a fraction.
 //!
-//! GATING: `#[cfg_attr(debug_assertions, ignore)]` — timing is only
+//! GATING: `#![cfg(not(debug_assertions))]` — compiled out in debug, not ignored;
 //! meaningful in release. Run:
 //!   cargo test -p engine --release --test issue_670_beat_it_real_rig -- --nocapture
 
@@ -265,7 +266,6 @@ mod rt {
 /// structure with the REAL chains and measures the input callback's overrun
 /// rate, the way the live meter reports `rig:input-3` overloading.
 #[test]
-#[cfg_attr(debug_assertions, ignore = "timing requires --release")]
 #[cfg(target_os = "macos")]
 fn live_thread_soup_reproduces_input_xruns() {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -402,7 +402,6 @@ fn live_thread_soup_reproduces_input_xruns() {
 /// be decaying to silence. The user proved disabling the IR stops it, so the
 /// difference must be in the rendered audio, not the timing.
 #[test]
-#[cfg_attr(debug_assertions, ignore = "render is slow in debug")]
 fn beat_it_output_tail_is_clean_with_ir() {
     init_registry();
 
@@ -472,7 +471,6 @@ fn beat_it_output_tail_is_clean_with_ir() {
 /// beehive. The IR adds latency; if that desyncs the elastic so the output
 /// pops silence/stale frames mid-tone, the result is a buzzy click-train.
 #[test]
-#[cfg_attr(debug_assertions, ignore = "timing/render slow in debug")]
 fn beat_it_elastic_output_is_clean_with_ir() {
     init_registry();
 
@@ -523,5 +521,326 @@ fn beat_it_elastic_output_is_clean_with_ir() {
         "BUG #670: with the IR the live output has {sil_ir} silent dropout frames \
          vs {sil_no} without it (>1% more) — the IR desyncs the elastic buffer and \
          the output pops silence mid-tone (the buzz)."
+    );
+}
+
+/// Issue #670: the user pinned the beehive to NAM A2 + IR/CAB TOGETHER. Test
+/// that combination under cold-cache pressure (the live UI eviction): build
+/// input -> NAM -> IR -> output and measure per-buffer cost HOT vs with the
+/// cache evicted before each callback, and compare NAM-only / IR-only / both.
+/// If "both" is super-linear under cold cache, they evict each other's working
+/// set and reload from memory every buffer.
+#[test]
+fn nam_plus_ir_cold_cache_cost() {
+    init_registry();
+    let blocks = beat_it_blocks();
+    let nam = blocks
+        .iter()
+        .find(|b| block_model(b).starts_with("nam_fender_deluxe"))
+        .or_else(|| blocks.iter().find(|b| matches!(&b.kind, AudioBlockKind::Nam(_))))
+        .expect("preset has a NAM")
+        .clone();
+    let ir = blocks
+        .iter()
+        .find(|b| block_model(b).starts_with("ir_"))
+        .expect("preset has an IR")
+        .clone();
+
+    let chain = |bs: Vec<AudioBlock>| -> Chain {
+        let mut blocks = vec![input_mono()];
+        blocks.extend(bs);
+        blocks.push(output_stereo());
+        Chain {
+            id: ChainId("nam-ir".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            blocks,
+        }
+    };
+
+    let measure = |label: &str, c: &Chain| {
+        let rt = build(c);
+        let input = vec![0.1_f32; BUFFER];
+        let mut out = vec![0.0_f32; BUFFER * 2];
+        for _ in 0..256 {
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+        }
+        let mut p50 = |pollute: &mut [u8]| -> u128 {
+            let mut s = Vec::with_capacity(2000);
+            for _ in 0..2000 {
+                if !pollute.is_empty() {
+                    let mut x = 1u8;
+                    let mut i = 0;
+                    while i < pollute.len() {
+                        pollute[i] = pollute[i].wrapping_add(x);
+                        x = x.wrapping_add(13);
+                        i += 64;
+                    }
+                    std::hint::black_box(&pollute);
+                }
+                let t0 = Instant::now();
+                process_input_f32(&rt, 0, &input, 1);
+                process_output_f32(&rt, 0, &mut out, 2);
+                s.push(t0.elapsed().as_nanos());
+            }
+            s.sort_unstable();
+            s[s.len() / 20]
+        };
+        let hot = p50(&mut []);
+        let mut big = vec![0u8; 64 * 1024 * 1024];
+        let cold = p50(&mut big);
+        eprintln!(
+            "[#670 NAM+IR] {label:<10} hot={}us cold={}us ratio={:.1}x",
+            hot / 1000,
+            cold / 1000,
+            cold as f64 / hot.max(1) as f64
+        );
+    };
+
+    measure("NAM only", &chain(vec![nam.clone()]));
+    measure("IR only", &chain(vec![ir.clone()]));
+    measure("NAM+IR", &chain(vec![nam.clone(), ir.clone()]));
+}
+
+/// Issue #670 — the user's test, their way: wire the REAL Beat It chain
+/// (2 NAM A2 + IR + reverb…) through the internal runtime, play a note that
+/// DECAYS to silence (a real pluck ringing out — the chain's reverb/IR/NAM
+/// tails decay through the subnormal float range), process buffer-by-buffer at
+/// 64 frames, and assert NO buffer blows the 64-frame deadline. A blown buffer
+/// IS the "audio overload" warning the user sees. A steady tone never reaches
+/// the subnormal regime; a decaying tail does.
+#[test]
+fn beat_it_decaying_note_never_overruns_the_deadline() {
+    init_registry();
+    let chain = beat_it_chain();
+    // Prove the COMPLETE preset is live — a faulted block degrades to a cheap
+    // pass-through and would understate the cost.
+    assert_no_faulted_blocks(&chain);
+    let live: Vec<&str> = chain.blocks.iter().map(block_model).filter(|m| !m.is_empty()).collect();
+    eprintln!("[#670 DECAY] live blocks ({}): {:?}", live.len(), live);
+    let rt = build(&chain);
+    let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128; // 1333us @64/48k
+
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    // Warm up.
+    for _ in 0..256 {
+        let warm = vec![0.1_f32; BUFFER];
+        process_input_f32(&rt, 0, &warm, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+    }
+
+    // ~3 s: a 110 Hz note plucked at 0.6 and decaying exponentially down
+    // THROUGH the subnormal range, exactly like letting a chord ring out.
+    let total_buffers = (SR as usize * 3) / BUFFER;
+    let mut phase = 0usize;
+    let mut worst_ns = 0u128;
+    let mut overruns = 0usize;
+    let mut worst_at_s = 0.0f64;
+
+    for b in 0..total_buffers {
+        let t0_s = (b * BUFFER) as f32 / SR;
+        let input: Vec<f32> = (0..BUFFER)
+            .map(|_| {
+                let t = phase as f32 / SR;
+                let env = (-t * 6.0).exp(); // 0.6 -> subnormal over ~3 s
+                let s = 0.6 * env * (2.0 * std::f32::consts::PI * 110.0 * phase as f32 / SR).sin();
+                phase += 1;
+                s
+            })
+            .collect();
+
+        let t0 = Instant::now();
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+        let ns = t0.elapsed().as_nanos();
+
+        if ns > worst_ns {
+            worst_ns = ns;
+            worst_at_s = t0_s as f64;
+        }
+        if ns > deadline_ns {
+            overruns += 1;
+        }
+    }
+
+    eprintln!(
+        "[#670 DECAY] 2 NAM A2 + IR, decaying note: worst buffer={}us @{:.2}s  deadline={}us  overruns={}/{}  recorded_xruns={}",
+        worst_ns / 1000,
+        worst_at_s,
+        deadline_ns / 1000,
+        overruns,
+        total_buffers,
+        rt.xrun_count(),
+    );
+
+    assert_eq!(
+        overruns, 0,
+        "BUG #670: the Beat It chain (2 NAM A2 + IR) blew the 64-frame deadline \
+         on {overruns} buffers while a note decayed to silence (worst {}us vs \
+         {}us budget @{:.2}s into the decay) — the audio overload the user hears. \
+         A decaying tail generates subnormals; if any block runs them without \
+         flush-to-zero the FP stall blows the buffer.",
+        worst_ns / 1000,
+        deadline_ns / 1000,
+        worst_at_s,
+    );
+}
+
+fn load_di_loop_mono(name: &str) -> Vec<f32> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/di-loops")
+        .join(name);
+    let mut reader = hound::WavReader::open(&path)
+        .unwrap_or_else(|e| panic!("open DI loop {}: {e}", path.display()));
+    let spec = reader.spec();
+    let interleaved: Vec<f32> = match spec.sample_format {
+        hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
+        hound::SampleFormat::Int => {
+            let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
+            reader.samples::<i32>().map(|s| s.unwrap() as f32 / max).collect()
+        }
+    };
+    if spec.channels == 2 {
+        interleaved.iter().step_by(2).copied().collect()
+    } else {
+        interleaved
+    }
+}
+
+/// Issue #670 — the user's way: drive the COMPLETE Beat It chain through the
+/// internal runtime feeding a REAL guitar DI recording (not a synthetic tone),
+/// at 64 frames, and fail if ANY buffer blows the deadline (the audio
+/// overload). Real playing has the transients, dynamics and decays a clean
+/// sine never produces.
+#[test]
+fn beat_it_real_guitar_di_never_overruns() {
+    init_registry();
+    let chain = beat_it_chain();
+    assert_no_faulted_blocks(&chain);
+    let rt = build(&chain);
+    let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128;
+
+    let di = load_di_loop_mono("clean-electric-guitar-loop.wav");
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    // Warm up.
+    for _ in 0..256 {
+        process_input_f32(&rt, 0, &di[..BUFFER], 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+    }
+
+    let mut worst_ns = 0u128;
+    let mut overruns = 0usize;
+    let mut buffers = 0usize;
+    // Play the loop 4 times (~22 s) so reverb/IR tails build and decay.
+    for _ in 0..4 {
+        for chunk in di.chunks(BUFFER) {
+            let mut input = vec![0.0_f32; BUFFER];
+            input[..chunk.len()].copy_from_slice(chunk);
+            let t0 = Instant::now();
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+            let ns = t0.elapsed().as_nanos();
+            worst_ns = worst_ns.max(ns);
+            if ns > deadline_ns {
+                overruns += 1;
+            }
+            buffers += 1;
+        }
+    }
+
+    eprintln!(
+        "[#670 GUITAR] real DI through full Beat It: worst buffer={}us  deadline={}us  overruns={}/{}  recorded_xruns={}",
+        worst_ns / 1000,
+        deadline_ns / 1000,
+        overruns,
+        buffers,
+        rt.xrun_count(),
+    );
+    assert_eq!(
+        overruns, 0,
+        "BUG #670: the full Beat It chain blew the deadline on {overruns} \
+         buffers playing a REAL guitar DI (worst {}us vs {}us) — the audio \
+         overload the user hears.",
+        worst_ns / 1000,
+        deadline_ns / 1000,
+    );
+}
+
+/// Issue #670 — play the Green Day DI through the full Beat It chain and
+/// ANALYZE which buffers are heavy: correlate each buffer's processing time
+/// with its input level, so a heavy buffer on a QUIET passage points to a
+/// denormal stall while a heavy buffer on a LOUD passage points to the NAM's
+/// nonlinear cost. Fails if any buffer blows the 64-frame deadline.
+#[test]
+fn beat_it_green_day_di_analysis() {
+    init_registry();
+    let chain = beat_it_chain();
+    assert_no_faulted_blocks(&chain);
+    let rt = build(&chain);
+    let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128;
+
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    eprintln!(
+        "[#670 GREENDAY] DI: {} samples ({:.1}s @48k), peak={:.3}",
+        di.len(),
+        di.len() as f32 / SR,
+        di.iter().fold(0.0f32, |a, &v| a.max(v.abs())),
+    );
+
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    for _ in 0..256 {
+        process_input_f32(&rt, 0, &di[..BUFFER.min(di.len())], 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+    }
+
+    // (time_ns, input_rms, second) per buffer.
+    let mut rows: Vec<(u128, f32, f32)> = Vec::new();
+    let mut overruns = 0usize;
+    for pass in 0..1 {
+        for (ci, chunk) in di.chunks(BUFFER).enumerate() {
+            let mut input = vec![0.0_f32; BUFFER];
+            input[..chunk.len()].copy_from_slice(chunk);
+            let rms = (input.iter().map(|&v| v * v).sum::<f32>() / BUFFER as f32).sqrt();
+            let t0 = Instant::now();
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+            let ns = t0.elapsed().as_nanos();
+            if ns > deadline_ns {
+                overruns += 1;
+            }
+            let sec = (pass * di.len() + ci * BUFFER) as f32 / SR;
+            rows.push((ns, rms, sec));
+        }
+    }
+
+    let total = rows.len();
+    let mut by_time = rows.clone();
+    by_time.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+    let p50 = {
+        let mut t: Vec<u128> = rows.iter().map(|r| r.0).collect();
+        t.sort_unstable();
+        t[t.len() / 2]
+    };
+    eprintln!(
+        "[#670 GREENDAY] {total} buffers  p50={}us  worst={}us  deadline={}us  overruns={overruns}  xruns={}",
+        p50 / 1000,
+        by_time[0].0 / 1000,
+        deadline_ns / 1000,
+        rt.xrun_count(),
+    );
+    eprintln!("[#670 GREENDAY] 12 heaviest buffers (time_us, input_rms, at_s):");
+    for r in by_time.iter().take(12) {
+        eprintln!("    {:>5}us  rms={:.5}  @{:.2}s", r.0 / 1000, r.1, r.2);
+    }
+
+    assert_eq!(
+        overruns, 0,
+        "BUG #670: Green Day DI blew the deadline on {overruns}/{total} buffers \
+         (worst {}us vs {}us).",
+        by_time[0].0 / 1000,
+        deadline_ns / 1000,
     );
 }
