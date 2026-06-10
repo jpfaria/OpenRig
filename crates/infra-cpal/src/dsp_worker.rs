@@ -235,7 +235,7 @@ pub(crate) fn spawn(
                 // preemption. Worker thread (not the HAL callback); fires only
                 // on the rare late buffer.
                 if elapsed.as_nanos() as u64 > buf_period_ns {
-                    log::debug!(
+                    log::trace!(
                         "[#670 worker] late buffer: {}us (period {}us, backlog {})",
                         elapsed.as_micros(),
                         buf_period_ns / 1000,
