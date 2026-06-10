@@ -39,6 +39,10 @@ plugins:
     description: Delay with pitch modulation on the repeats.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  multitap:
+    description: Multi-tap delay — several rhythmic echoes on even sub-divisions of the base time.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
