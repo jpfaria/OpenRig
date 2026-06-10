@@ -128,17 +128,34 @@ fn non_convolution_chain_is_not_primed() {
 }
 
 #[test]
-fn ir_chain_rebuild_does_not_reprime() {
-    // The initial build primes; a subsequent in-place edit (rebuild) runs
-    // warm and must NOT re-prime — re-priming on every knob turn would add
-    // a silence cushion (latency/gap) on each edit.
+fn ir_chain_rebuild_preserves_cushion_without_repriming() {
+    // The #592 intent: an edit (rebuild) must not INJECT new silence —
+    // re-priming on every knob turn would add a fresh cushion (latency/gap)
+    // per edit. The original assertion (`len == 0` after rebuild) encoded
+    // the old implementation — a brand-new EMPTY buffer — which was itself
+    // the #670 edit-click bug: it discarded the in-flight audio and left the
+    // chain permanently fragile (the cushion never refills in lockstep).
+    // The rebuild now REUSES the route, so the fill must be exactly what it
+    // was before the edit: not reset to 0, not re-primed upward.
     let conv_chain = chain("issue-592-ir-edit", vec![input(), cab("cab"), output()]);
     let rt = Arc::new(build_chain_runtime_state(&conv_chain, SR, &[64]).expect("initial build"));
+    // Drain part of the initial prime so "preserved" and "re-primed" differ.
+    let before_route = &rt.output_routes.load()[0];
+    for _ in 0..100 {
+        let _ = before_route.buffer.pop();
+    }
+    let before_edit = rt.output_routes.load()[0].buffer.len();
+    assert!(
+        before_edit > 0,
+        "test setup: drained prime should remain > 0"
+    );
     update_chain_runtime_state(&rt, &conv_chain, SR, false, &[64]).expect("rebuild");
     let after_edit = rt.output_routes.load()[0].buffer.len();
     assert_eq!(
-        after_edit, 0,
-        "a rebuild/edit must not re-prime the output buffer (it runs warm); \
-         got len {after_edit} after a no-op edit"
+        after_edit, before_edit,
+        "a rebuild/edit must PRESERVE the output buffer exactly — no re-prime \
+         (would add latency per edit) and no reset to empty (discards \
+         in-flight audio and leaves the chain fragile: the #670 edit click); \
+         got len {after_edit} after a no-op edit (was {before_edit})"
     );
 }
