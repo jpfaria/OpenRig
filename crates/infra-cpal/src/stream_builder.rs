@@ -142,16 +142,20 @@ pub(crate) fn build_input_stream_for_input(
     );
     let device = resolved_input_device.device;
     let stream = match sample_format {
-        SampleFormat::F32 => {
+        SampleFormat::F32 if cfg!(target_os = "macos") => {
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            // #670: the chain DSP does NOT run in this callback. The HAL
-            // thread sleeps between cycles, the NAM working set cools, and
-            // the cold-cache inference tail sporadically crossed the cycle
-            // (CoreAudio then drops input — the click). The callback only
-            // copies the buffer into the worker's lock-free ring
-            // (microseconds); the per-stream dsp_worker runs the chain and
-            // records the deadline metric (same xrun semantics).
+            // #670 (macOS ONLY — cross-platform law: a fix for one OS stays
+            // behind a guard): the chain DSP does NOT run in this callback.
+            // The HAL thread sleeps between cycles, the NAM working set
+            // cools, and the cold-cache inference tail sporadically crossed
+            // the cycle (CoreAudio then drops input — the click). The
+            // callback only copies the buffer into the worker's lock-free
+            // ring (microseconds); the per-stream dsp_worker runs the chain.
+            // Windows / Linux-cpal keep the proven inline path below: the
+            // worker's realtime promotion is mach-specific, and an
+            // UNPROMOTED busy worker measured catastrophically worse
+            // (167 xruns + 256 underruns per 60 s) than inline DSP.
             let worker = crate::dsp_worker::spawn(
                 format!("{}:{input_index}", chain_id.0),
                 slot.handle(),
@@ -167,6 +171,29 @@ pub(crate) fn build_input_stream_for_input(
                     // workgroup so its cache (NAM weights) stays warm.
                     crate::audio_workgroup::ensure_joined_input();
                     worker.push(data);
+                },
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
+        SampleFormat::F32 => {
+            let slot_for_data = slot.handle();
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[f32], _| {
+                    // Inline DSP (non-macOS cpal path; see the macOS arm above).
+                    let callback_start = std::time::Instant::now();
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_buffer(&slot_for_data, input_index, data, channels);
+                    }));
+                    record_callback_deadline(
+                        &slot_for_data.load(),
+                        callback_start.elapsed(),
+                        data.len() / channels,
+                        sample_rate,
+                    );
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
