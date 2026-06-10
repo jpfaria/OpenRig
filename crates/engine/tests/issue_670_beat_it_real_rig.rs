@@ -1230,3 +1230,76 @@ fn live_param_update_applies_slim() {
         full / 1000,
     );
 }
+
+/// Issue #670 — THE LIVE SHAPE: on macOS, every stream registered on one
+/// device runs its IOProc SEQUENTIALLY on that device's single I/O thread —
+/// so with N chains on the interface the 64-frame deadline must fit the SUM
+/// of all chains' DSP, not each one. The user's rig has 3+ inputs; one Beat
+/// It-class chain is ~500-900 us paced, so three together blow 1.333 ms (and
+/// 2x that still blows the 2.666 ms budget at buffer 128 — matching "fails
+/// even at 128"). This drives 3 real chains sequentially per paced RT cycle,
+/// exactly like the shared device I/O thread, and records the COMBINED cycle
+/// against the engine's own xrun counter.
+#[cfg(target_os = "macos")]
+#[test]
+fn three_chains_share_one_device_cycle() {
+    init_registry();
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    let period_ns = (BUFFER as u64 * 1_000_000_000) / SR as u64;
+
+    let chains: Vec<Arc<ChainRuntimeState>> = (0..3).map(|_| build(&beat_it_chain())).collect();
+    let counter = build(&beat_it_chain()); // independent state for counting only
+
+    rt::promote_with_computation(period_ns, period_ns * 85 / 100);
+    let period = std::time::Duration::from_nanos(period_ns);
+    let spin = std::time::Duration::from_micros(200);
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    let mut input = vec![0.0_f32; BUFFER];
+    for _ in 0..256 {
+        input.copy_from_slice(&di[..BUFFER]);
+        for rt_chain in &chains {
+            process_input_f32(rt_chain, 0, &input, 1);
+            process_output_f32(rt_chain, 0, &mut out, 2);
+        }
+    }
+
+    let n = ((SR as usize * 30) / BUFFER).min(di.len() / BUFFER);
+    let mut next = Instant::now();
+    for k in 0..n {
+        next += period;
+        input.copy_from_slice(&di[k * BUFFER..(k + 1) * BUFFER]);
+        let t0 = Instant::now();
+        // The device I/O thread runs every registered IOProc back-to-back.
+        for rt_chain in &chains {
+            process_input_f32(rt_chain, 0, &input, 1);
+            process_output_f32(rt_chain, 0, &mut out, 2);
+        }
+        counter.record_callback_load(t0.elapsed().as_nanos() as u64, period_ns);
+        loop {
+            let now = Instant::now();
+            if now >= next {
+                break;
+            }
+            if next - now > spin + spin {
+                std::thread::sleep(next - now - spin);
+            } else {
+                std::hint::spin_loop();
+            }
+        }
+    }
+
+    let xruns = counter.xrun_count();
+    eprintln!(
+        "[#670 3CHAINS] 3 Beat It chains per device cycle (live shape): xruns={xruns}/{n}  peak_load={:.2}x",
+        counter.peak_callback_load(),
+    );
+    assert_eq!(
+        xruns,
+        0,
+        "BUG #670: with 3 chains sharing one device I/O cycle (the live macOS \
+         shape) the combined DSP blew the 64-frame deadline {xruns}/{n} times \
+         (peak {:.2}x) — the user's live xruns. The chains' DSP cannot run \
+         inline on the shared device I/O thread.",
+        counter.peak_callback_load(),
+    );
+}
