@@ -939,3 +939,38 @@ fn beat_it_green_day_di_records_no_xruns() {
         rt.peak_callback_load(),
     );
 }
+
+/// Issue #670 — which block causes the SPORADIC multi-ms spikes? Run each
+/// preset block in ISOLATION under the faithful environment (paced cadence +
+/// preemptible RT) over ~40 s of the Green Day DI and report its worst buffer
+/// and how many crossed the full-chain deadline. The block whose isolated
+/// worst is in the milliseconds is the spike source.
+#[cfg(target_os = "macos")]
+#[test]
+fn beat_it_paced_per_block_spikes() {
+    init_registry();
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128;
+    let n = ((SR as usize * 40) / BUFFER).min(di.len() / BUFFER);
+
+    for block in beat_it_blocks() {
+        let model = block_model(&block).to_string();
+        if model.is_empty() {
+            continue;
+        }
+        let rt = build(&isolated(&model, block));
+        let times = run_paced(&rt, n, |k, input| {
+            input.copy_from_slice(&di[k * BUFFER..(k + 1) * BUFFER]);
+        });
+        let worst = times.iter().copied().max().unwrap_or(0);
+        let over = times.iter().filter(|&&t| t > deadline_ns).count();
+        let mut s = times.clone();
+        s.sort_unstable();
+        eprintln!(
+            "[#670 SPIKE] {model:<32} p50={:>4}us p99.9={:>5}us worst={:>6}us over_deadline={over}/{n}",
+            s[s.len() / 2] / 1000,
+            s[s.len() * 999 / 1000] / 1000,
+            worst / 1000,
+        );
+    }
+}
