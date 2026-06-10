@@ -43,6 +43,10 @@ plugins:
     description: Multi-tap delay — several rhythmic echoes on even sub-divisions of the base time.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  bbd:
+    description: Bucket-brigade analog delay — steep per-repeat high-frequency loss and gentle saturation.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
