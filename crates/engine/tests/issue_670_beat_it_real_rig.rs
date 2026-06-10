@@ -295,7 +295,8 @@ fn live_thread_soup_reproduces_input_xruns() {
             let _ = measure(&m, &build(&isolated(&m, b)));
         }
     }
-    let (light_p50, _, period_m, _) = measure("FULL chain (no contention)", &build(&beat_it_chain()));
+    let (light_p50, _, period_m, _) =
+        measure("FULL chain (no contention)", &build(&beat_it_chain()));
     assert!(
         light_p50 <= period_m,
         "the Beat It chain's median per-buffer cost {}us must fit the 64-frame \
@@ -467,7 +468,10 @@ fn beat_it_output_tail_is_clean_with_ir() {
          no-IR: peak={peak_no:.4} rms={rms_no:.5} buzz={buzz_no:.3} nan={nan_no}"
     );
 
-    assert_eq!(nan_ir, 0, "BUG #670: IR tail has non-finite samples (NaN/Inf)");
+    assert_eq!(
+        nan_ir, 0,
+        "BUG #670: IR tail has non-finite samples (NaN/Inf)"
+    );
     assert!(
         buzz_ir < buzz_no.max(0.05) * 2.0,
         "BUG #670: with the IR the output tail is much buzzier (buzz={buzz_ir:.3}) \
@@ -548,7 +552,11 @@ fn nam_plus_ir_cold_cache_cost() {
     let nam = blocks
         .iter()
         .find(|b| block_model(b).starts_with("nam_fender_deluxe"))
-        .or_else(|| blocks.iter().find(|b| matches!(&b.kind, AudioBlockKind::Nam(_))))
+        .or_else(|| {
+            blocks
+                .iter()
+                .find(|b| matches!(&b.kind, AudioBlockKind::Nam(_)))
+        })
         .expect("preset has a NAM")
         .clone();
     let ir = blocks
@@ -686,7 +694,12 @@ fn beat_it_decaying_note_never_overruns_the_deadline() {
     // Prove the COMPLETE preset is live — a faulted block degrades to a cheap
     // pass-through and would understate the cost.
     assert_no_faulted_blocks(&chain);
-    let live: Vec<&str> = chain.blocks.iter().map(block_model).filter(|m| !m.is_empty()).collect();
+    let live: Vec<&str> = chain
+        .blocks
+        .iter()
+        .map(block_model)
+        .filter(|m| !m.is_empty())
+        .collect();
     eprintln!("[#670 DECAY] live blocks ({}): {:?}", live.len(), live);
     let rt = build(&chain);
     let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128; // 1333us @64/48k
@@ -714,7 +727,8 @@ fn beat_it_decaying_note_never_overruns_the_deadline() {
     );
 
     assert_eq!(
-        overruns, 0,
+        overruns,
+        0,
         "BUG #670: the Beat It chain (2 NAM A2 + IR) blew the 64-frame deadline \
          on {overruns} buffers while a note decayed to silence (worst {}us vs \
          {}us budget) — the audio overload the user hears. A decaying tail \
@@ -736,7 +750,10 @@ fn load_di_loop_mono(name: &str) -> Vec<f32> {
         hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
         hound::SampleFormat::Int => {
             let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
-            reader.samples::<i32>().map(|s| s.unwrap() as f32 / max).collect()
+            reader
+                .samples::<i32>()
+                .map(|s| s.unwrap() as f32 / max)
+                .collect()
         }
     };
     if spec.channels == 2 {
@@ -779,7 +796,8 @@ fn beat_it_real_guitar_di_never_overruns() {
         buffers,
     );
     assert_eq!(
-        overruns, 0,
+        overruns,
+        0,
         "BUG #670: the full Beat It chain blew the deadline on {overruns} \
          buffers playing a REAL guitar DI (worst {}us vs {}us) — the audio \
          overload the user hears.",
@@ -846,7 +864,8 @@ fn beat_it_green_day_di_analysis() {
     }
 
     assert_eq!(
-        overruns, 0,
+        overruns,
+        0,
         "BUG #670: Green Day DI blew the deadline on {overruns}/{total} buffers \
          (worst {}us vs {}us).",
         by_time[0].0 / 1000,
@@ -932,7 +951,8 @@ fn beat_it_green_day_di_records_no_xruns() {
         rt.peak_callback_load(),
     );
     assert_eq!(
-        xruns, 0,
+        xruns,
+        0,
         "BUG #670: the engine recorded {xruns} xruns playing the Green Day DI \
          through the full chain (peak load {:.2}x the 64-frame deadline) — the \
          exact 'audio overload on chain' the user sees.",
@@ -973,4 +993,174 @@ fn beat_it_paced_per_block_spikes() {
             worst / 1000,
         );
     }
+}
+
+/// Thread CPU time via libSystem's clock_gettime(CLOCK_THREAD_CPUTIME_ID) —
+/// no libc crate needed.
+#[cfg(target_os = "macos")]
+fn thread_cpu_ns() -> u128 {
+    #[repr(C)]
+    struct Timespec {
+        tv_sec: i64,
+        tv_nsec: i64,
+    }
+    extern "C" {
+        fn clock_gettime(clock_id: i32, ts: *mut Timespec) -> i32;
+    }
+    const CLOCK_THREAD_CPUTIME_ID: i32 = 16;
+    let mut ts = Timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    unsafe { clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut ts) };
+    ts.tv_sec as u128 * 1_000_000_000 + ts.tv_nsec as u128
+}
+
+/// Issue #670 — are the NAM A2 spikes real COMPUTE (cache reload: cpu ≈ wall)
+/// or a BLOCK (allocation/lock/syscall inside the wrapper: wall ≫ cpu, an
+/// invariant-#8 violation we can fix)? Run one NAM isolated, paced + RT, and
+/// print wall vs thread-CPU for every buffer that crossed the deadline.
+#[cfg(target_os = "macos")]
+#[test]
+fn nam_spike_cpu_vs_wall() {
+    init_registry();
+    let di = load_di_loop_mono("phil-STRATO-green_day.wav");
+    let deadline_ns: u128 = (BUFFER as u128 * 1_000_000_000) / SR as u128;
+    let nam = beat_it_blocks()
+        .into_iter()
+        .find(|b| block_model(b) == "nam_maxon_od808_a2")
+        .expect("od808");
+    let rt = build(&isolated("od808", nam));
+    let n = ((SR as usize * 40) / BUFFER).min(di.len() / BUFFER);
+
+    // Paced + RT like run_paced, but capturing (wall, cpu) per buffer.
+    let period_ns = (BUFFER as u64 * 1_000_000_000) / SR as u64;
+    rt::promote_with_computation(period_ns, period_ns * 85 / 100);
+    let period = std::time::Duration::from_nanos(period_ns);
+    let spin = std::time::Duration::from_micros(200);
+    let mut out = vec![0.0_f32; BUFFER * 2];
+    let mut input = vec![0.0_f32; BUFFER];
+    for _ in 0..256 {
+        input.copy_from_slice(&di[..BUFFER]);
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+    }
+    let mut rows: Vec<(u128, u128, usize)> = Vec::new();
+    let mut next = Instant::now();
+    for k in 0..n {
+        next += period;
+        input.copy_from_slice(&di[k * BUFFER..(k + 1) * BUFFER]);
+        let c0 = thread_cpu_ns();
+        let t0 = Instant::now();
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+        let wall = t0.elapsed().as_nanos();
+        let cpu = thread_cpu_ns() - c0;
+        rows.push((wall, cpu, k));
+        loop {
+            let now = Instant::now();
+            if now >= next {
+                break;
+            }
+            if next - now > spin + spin {
+                std::thread::sleep(next - now - spin);
+            } else {
+                std::hint::spin_loop();
+            }
+        }
+    }
+
+    let over: Vec<_> = rows.iter().filter(|(w, _, _)| *w > deadline_ns).collect();
+    eprintln!(
+        "[#670 NAMSPIKE] single NAM A2, paced+RT: {} of {n} buffers over the {}us deadline",
+        over.len(),
+        deadline_ns / 1000,
+    );
+    for (w, c, k) in over.iter().take(15) {
+        eprintln!(
+            "    buffer {k:>5}: wall={:>5}us cpu={:>5}us  {}",
+            w / 1000,
+            c / 1000,
+            if *w > c * 2 {
+                "← BLOCKED (wall>>cpu)"
+            } else {
+                "← real compute"
+            }
+        );
+    }
+}
+
+/// Issue #670 — the user set slim=0 on both A2 NAMs LIVE and the cost did not
+/// drop. The FFI knob works at creation (slim=0 is ~1/3 the cost in the
+/// nam-crate test); so verify the ENGINE path: build the preset's od808 block
+/// through the registry exactly as the chain runtime does, with slim=0 in its
+/// ParameterSet, and compare per-buffer cost against the default (full) size.
+/// RED if the registry/runtime path ignores the slim parameter.
+#[test]
+fn slim_zero_reaches_the_runtime_nam() {
+    init_registry();
+    use domain::value_objects::ParameterValue;
+
+    let mk = |slim: Option<f32>| -> Chain {
+        let mut block = beat_it_blocks()
+            .into_iter()
+            .find(|b| block_model(b) == "nam_maxon_od808_a2")
+            .expect("od808 in preset");
+        match &mut block.kind {
+            AudioBlockKind::Nam(n) => {
+                eprintln!("[#670 SLIMRT] block kind: Nam({})", n.model);
+                if let Some(s) = slim {
+                    n.params.insert("slim", ParameterValue::Float(s));
+                }
+            }
+            AudioBlockKind::Core(c) => {
+                eprintln!(
+                    "[#670 SLIMRT] block kind: Core({}, {})",
+                    c.effect_type, c.model
+                );
+                if let Some(s) = slim {
+                    c.params.insert("slim", ParameterValue::Float(s));
+                }
+            }
+            other => panic!("unexpected od808 kind: {other:?}"),
+        }
+        isolated("slim-test", block)
+    };
+
+    let cost = |chain: &Chain| -> u128 {
+        let rt = build(chain);
+        let input = vec![0.1_f32; BUFFER];
+        let mut out = vec![0.0_f32; BUFFER * 2];
+        for _ in 0..512 {
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+        }
+        let mut s = Vec::with_capacity(2000);
+        for _ in 0..2000 {
+            let t0 = Instant::now();
+            process_input_f32(&rt, 0, &input, 1);
+            process_output_f32(&rt, 0, &mut out, 2);
+            s.push(t0.elapsed().as_nanos());
+        }
+        s.sort_unstable();
+        s[s.len() / 2]
+    };
+
+    let full = cost(&mk(None));
+    let slim0 = cost(&mk(Some(0.0)));
+    eprintln!(
+        "[#670 SLIMRT] od808 via registry: default -> {}us  slim=0 -> {}us  ratio={:.2}x",
+        full / 1000,
+        slim0 / 1000,
+        slim0 as f64 / full.max(1) as f64,
+    );
+    assert!(
+        slim0 * 10 < full * 8,
+        "BUG #670: with slim=0 in the block's ParameterSet the runtime NAM \
+         still costs {}us vs {}us default (>80%) — the slim parameter is LOST \
+         between the block params and the NAM creation (the user's live slim=0 \
+         changed nothing).",
+        slim0 / 1000,
+        full / 1000,
+    );
 }
