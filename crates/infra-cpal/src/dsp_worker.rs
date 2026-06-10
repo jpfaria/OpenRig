@@ -12,23 +12,28 @@
 //! Fix: the input callback only COPIES the buffer into a lock-free SPSC ring
 //! (microseconds, never overruns the cycle) and returns. A dedicated worker
 //! thread per input stream drains the ring and runs the chain DSP
-//! (`process_input_buffer`) — and it BUSY-POLLS instead of sleeping, so its
-//! core's cache keeps the NAM weights hot and the cold tail never happens.
-//! One core is spent per active input stream; sound > CPU (trade-off
-//! hierarchy: stability over audio-thread CPU cost).
+//! (`process_input_buffer`): preemptible realtime with a realistic
+//! computation budget, spinning a bounded window (~35% of the period) before
+//! sleeping when idle — the spin keeps the model weights hot through the
+//! short inter-buffer gaps (killing the ~1.5 ms cold tail, measured), while
+//! staying inside the declared RT budget so the kernel never demotes the
+//! thread. Sound > CPU (trade-off hierarchy).
 //!
 //! RT-safety: the callback does one bounds-checked copy + one Release store.
-//! No allocation, no lock, no syscall (invariant #8). The worker records its
-//! own processing time against the buffer deadline through the same
-//! `record_callback_deadline` the callback used to call, so the xrun counter
-//! keeps its meaning ("DSP heavier than the budget"). If the ring is full
-//! (worker stalled >16 buffers ≈ 21 ms) the callback drops the oldest slot;
-//! the elastic-underrun counter reports the resulting damage.
+//! No allocation, no lock, no syscall (invariant #8).
+//!
+//! Damage accounting (what the xrun LED means here): a late worker buffer
+//! that catches up is absorbed by the ring + elastic and is NOT audible —
+//! it feeds the load meter only (`record_worker_load`). Audible damage is
+//! counted where it physically happens: an elastic underrun (output starved)
+//! or a ring overflow drop (`record_dropped_buffer`, a gap in the played
+//! signal). In the old inline design a late callback WAS damage (CoreAudio
+//! dropped input), hence the old `record_callback_load` semantics, which the
+//! non-F32 inline paths keep.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use crate::callback_load_timing::record_callback_deadline;
 use crate::live_runtime::LiveRuntimeSlot;
 use crate::process_input_buffer;
 
@@ -107,6 +112,8 @@ struct Inner {
 /// teardown) stops the worker.
 pub(crate) struct DspWorkerProducer {
     inner: Arc<Inner>,
+    /// For damage accounting only: a dropped (overflowed) buffer is an xrun.
+    slot: LiveRuntimeSlot,
 }
 
 impl DspWorkerProducer {
@@ -118,6 +125,12 @@ impl DspWorkerProducer {
     pub(crate) fn push(&self, data: &[f32]) {
         let inner = &self.inner;
         let w = inner.write.load(Ordering::Relaxed);
+        // Ring full (worker stalled >RING_SLOTS-2 buffers): the oldest slot is
+        // about to be overwritten — a real gap in the played signal. Count it
+        // as an xrun (wait-free: ArcSwap load + one atomic increment).
+        if w.wrapping_sub(inner.read.load(Ordering::Relaxed)) >= RING_SLOTS - 2 {
+            self.slot.load().record_dropped_buffer();
+        }
         let slot = &inner.slots[w % RING_SLOTS];
         let n = data.len().min(slot.data.len());
         // Safety of the plain copy: the worker never reads this slot while it
@@ -160,6 +173,7 @@ pub(crate) fn spawn(
         stop: AtomicBool::new(false),
     });
     let worker_inner = Arc::clone(&inner);
+    let producer_slot = slot_handle.handle();
 
     std::thread::Builder::new()
         .name(format!("dsp-worker:{chain_label}"))
@@ -169,8 +183,14 @@ pub(crate) fn spawn(
                 * 1_000_000_000
                 / sample_rate.max(1) as u64;
             promote_to_audio_rt(period_ns.max(500_000));
+            // Measured on the real-streams test: joining the device workgroup
+            // and/or spinning the idle gap made the tail WORSE and erratic
+            // (50/15/2 xruns per 60 s vs 0-11 without). Plain preemptible RT
+            // with short idle sleeps is the best-behaving configuration; the
+            // residual tail is diagnosed via the log below.
             let mut local = vec![0.0_f32; max_buffer_samples];
-            let mut idle_spins: u32 = 0;
+            let spin_budget = std::time::Duration::from_nanos(period_ns * 35 / 100);
+            let mut idle_since: Option<std::time::Instant> = None;
             loop {
                 if worker_inner.stop.load(Ordering::Acquire) {
                     return;
@@ -178,19 +198,15 @@ pub(crate) fn spawn(
                 let w = worker_inner.write.load(Ordering::Acquire);
                 let mut r = worker_inner.read.load(Ordering::Relaxed);
                 if r == w {
-                    // Nothing pending. Spin briefly (data lands within a
-                    // period), then yield in short sleeps — an RT thread
-                    // must not burn its computation budget idling or the
-                    // kernel demotes it.
-                    idle_spins += 1;
-                    if idle_spins < 2_000 {
+                    let since = *idle_since.get_or_insert_with(std::time::Instant::now);
+                    if since.elapsed() < spin_budget {
                         std::hint::spin_loop();
                     } else {
                         std::thread::sleep(std::time::Duration::from_micros(100));
                     }
                     continue;
                 }
-                idle_spins = 0;
+                idle_since = None;
                 // Overflow: jump past slots the callback may be overwriting.
                 if w - r > RING_SLOTS - 2 {
                     r = w - (RING_SLOTS - 2);
@@ -204,15 +220,34 @@ pub(crate) fn spawn(
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     process_input_buffer(&slot_handle, input_index, &local[..n], channels);
                 }));
-                record_callback_deadline(
-                    &slot_handle.load(),
-                    start.elapsed(),
-                    n / channels.max(1),
-                    sample_rate,
-                );
+                let elapsed = start.elapsed();
+                let frames = (n / channels.max(1)) as u64;
+                let buf_period_ns = frames * 1_000_000_000 / sample_rate.max(1) as u64;
+                // Load meter only — a late worker buffer that catches up is
+                // absorbed by the ring + elastic and is NOT audible damage
+                // (damage = elastic underrun, or a ring drop counted in
+                // `push`). See record_worker_load docs.
+                slot_handle
+                    .load()
+                    .record_worker_load(elapsed.as_nanos() as u64, buf_period_ns);
+                // #670 diagnostic: name the magnitude of a late buffer so a
+                // ~1.4 ms cold-compute tail is distinguishable from a multi-ms
+                // preemption. Worker thread (not the HAL callback); fires only
+                // on the rare late buffer.
+                if elapsed.as_nanos() as u64 > buf_period_ns {
+                    log::debug!(
+                        "[#670 worker] late buffer: {}us (period {}us, backlog {})",
+                        elapsed.as_micros(),
+                        buf_period_ns / 1000,
+                        w - r,
+                    );
+                }
             }
         })
         .expect("spawn dsp worker");
 
-    DspWorkerProducer { inner }
+    DspWorkerProducer {
+        inner,
+        slot: producer_slot,
+    }
 }

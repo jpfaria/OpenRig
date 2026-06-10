@@ -46,6 +46,31 @@ impl ChainRuntimeState {
         self.peak_load_ppm.fetch_max(load_ppm, Ordering::Relaxed);
     }
 
+    /// Record one DSP-worker buffer's cost (issue #670). Updates the load
+    /// meter ONLY — a late worker buffer is NOT an xrun by itself: unlike the
+    /// old inline-callback design (where exceeding the HAL cycle made
+    /// CoreAudio drop input — real damage), the worker's ring and the elastic
+    /// buffer absorb a late buffer that catches up. Real damage is counted
+    /// where it actually happens: an elastic underrun (output starved,
+    /// `underrun_count`) or a dropped ring buffer ([`Self::record_dropped_buffer`]).
+    /// The strict per-buffer lateness remains visible via
+    /// [`Self::peak_callback_load`].
+    pub fn record_worker_load(&self, elapsed_ns: u64, period_ns: u64) {
+        if period_ns == 0 {
+            return;
+        }
+        let load_ppm = ((elapsed_ns as u128 * LOAD_PPM_SCALE as u128) / period_ns as u128) as u64;
+        self.peak_load_ppm.fetch_max(load_ppm, Ordering::Relaxed);
+    }
+
+    /// Count one input buffer DROPPED before processing (issue #670: the
+    /// dsp-worker ring overflowed — the worker stalled for >16 buffers). This
+    /// IS audible damage (a gap in the played signal), so it counts as an
+    /// xrun. RT-safe: one atomic increment.
+    pub fn record_dropped_buffer(&self) {
+        self.xrun_count.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Total deadline overruns since the last [`reset_load_stats`]. Read by
     /// the GUI meter timer and by `QueryKind` for MCP / gRPC parity.
     pub fn xrun_count(&self) -> u64 {

@@ -164,10 +164,18 @@ The input callback only copies the buffer into a lock-free SPSC ring
 (microseconds, invariant #8 clean) and a dedicated per-stream worker
 (`crates/infra-cpal/src/dsp_worker.rs`) runs `process_input_buffer`:
 preemptible realtime, computation budget sized to the real work, short
-spin then 100 us sleeps when idle. The worker feeds the same
-`record_callback_deadline`, so the xrun counter keeps its meaning. F32
-input path only (the macOS live path); other sample formats keep the
-inline path. The Linux/JACK backend is untouched.
+spin (a bounded ~35% of the period — it keeps the model weights hot
+through the inter-buffer gap, killing the cold tail) then 100 us sleeps
+when idle.
+
+What the xrun LED means under the worker: a late worker buffer that
+catches up is absorbed by the ring + elastic and is NOT audible — it
+feeds the load meter only. Audible damage is counted where it physically
+happens: an elastic underrun (output starved) or a ring-overflow drop (a
+gap in the played signal, counted as an xrun). In the old inline design a
+late callback WAS damage (CoreAudio dropped input), hence the old
+semantics, which the non-F32 inline paths keep. F32 input path only (the
+macOS live path); the Linux/JACK backend is untouched.
 
 ### Chain enabled é runtime, não persistência
 
