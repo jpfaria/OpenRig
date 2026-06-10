@@ -39,9 +39,9 @@ use engine::runtime::ChainRuntimeState;
 use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 
+use crate::active_runtime::ActiveChainRuntime;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::callback_load_timing::record_callback_deadline;
-use crate::active_runtime::ActiveChainRuntime;
 use crate::resolved::ResolvedChainAudioConfig;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::{
