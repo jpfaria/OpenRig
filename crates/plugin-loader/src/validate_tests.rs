@@ -20,6 +20,7 @@ fn nam_manifest(parameters: Vec<GridParameter>, captures: Vec<GridCapture>) -> P
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
@@ -46,6 +47,7 @@ fn lv2_manifest() -> PluginManifest {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::GainPedal,
         backend: Backend::Lv2 {
@@ -65,6 +67,7 @@ fn capture_with(values: &[(&str, f64)], file: &str) -> GridCapture {
             .map(|(name, value)| ((*name).to_string(), ParameterValue::Number(*value)))
             .collect(),
         output_gain_db: None,
+        noise_gate: None,
         file: PathBuf::from(file),
     }
 }
@@ -276,6 +279,7 @@ fn accepts_sparse_grid() {
                 ]),
                 file: PathBuf::from("a.wav"),
                 output_gain_db: None,
+                noise_gate: None,
             },
             GridCapture {
                 values: BTreeMap::from([
@@ -287,6 +291,7 @@ fn accepts_sparse_grid() {
                 ]),
                 file: PathBuf::from("b.wav"),
                 output_gain_db: None,
+                noise_gate: None,
             },
             GridCapture {
                 values: BTreeMap::from([
@@ -298,6 +303,7 @@ fn accepts_sparse_grid() {
                 ]),
                 file: PathBuf::from("c.wav"),
                 output_gain_db: None,
+                noise_gate: None,
             },
         ],
     );
@@ -375,6 +381,7 @@ fn accepts_ir_with_no_parameters_and_one_capture() {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture: None,
         block_type: BlockType::Cab,
         backend: Backend::Ir {

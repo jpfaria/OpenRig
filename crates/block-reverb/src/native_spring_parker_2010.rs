@@ -24,8 +24,13 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "spring_parker_2010";
 pub const DISPLAY_NAME: &str = "Spring (Parker 2010)";
 
-const N_ALLPASS: usize = 80;
-const ALLPASS_COEF: f32 = 0.6;
+// Dispersion strength. The "boing" is the frequency-dependent group delay
+// of this allpass cascade; 80 stages at g=0.6 only spread the audio band by
+// ~3.5 ms — too subtle to read as a spring. More stages and a higher
+// coefficient widen the chirp to ~7 ms across the band (high frequencies
+// arriving clearly ahead of low), which is the spring's signature.
+const N_ALLPASS: usize = 120;
+const ALLPASS_COEF: f32 = 0.72;
 
 struct Params {
     decay_pct: f32,

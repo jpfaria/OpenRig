@@ -22,10 +22,10 @@
 //! successfully (routes to the NAM processor) regardless of the categorical
 //! `effect_type` the catalog filed it under.
 //!
-//! Uses `nam_maxon_od808` from OpenRig-plugins (manifest `type: gain_pedal`,
-//! `backend: nam`) — structurally identical to the user's
-//! `nam_lovepedal_eternity_burst`. If the plugin tree is absent the test
-//! fails loudly, like the sibling #537 disk-package repro.
+//! Uses the in-repo `nam_grid_drive` fixture (`tests/fixtures/plugins/nam/grid_drive`,
+//! manifest `type: gain_pedal`, `backend: nam`) — structurally identical to the
+//! user's `nam_lovepedal_eternity_burst`. Self-contained: no dependency on the
+//! external OpenRig-plugins tree.
 
 use std::path::PathBuf;
 use std::sync::Once;
@@ -37,27 +37,18 @@ use project::chain::Chain;
 use project::param::ParameterSet;
 
 /// A NAM gain-pedal capture filed under the "gain" family in the catalog.
-const NAM_GAIN_MODEL: &str = "nam_maxon_od808";
+const NAM_GAIN_MODEL: &str = "nam_grid_drive";
+
+fn fixture_plugins_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins")
+}
 
 fn init_plugins() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         nam::register_builder();
         ir::register_builder();
-        let candidates = [
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../../../OpenRig-plugins/plugins/source"),
-            PathBuf::from(
-                "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-            ),
-        ];
-        let roots: Vec<PathBuf> = candidates.into_iter().filter(|p| p.is_dir()).collect();
-        assert!(
-            !roots.is_empty(),
-            "issue #606 repro requires OpenRig-plugins/plugins/source on disk — \
-             none of the candidate roots resolved"
-        );
-        plugin_loader::registry::init_many(&roots);
+        plugin_loader::registry::init(&fixture_plugins_root());
     });
 }
 

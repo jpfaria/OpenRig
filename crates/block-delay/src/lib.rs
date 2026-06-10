@@ -95,5 +95,8 @@ pub fn is_delay_model_available(model: &str) -> bool {
 }
 
 #[cfg(test)]
+mod dsp_probe;
+
+#[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;

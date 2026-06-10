@@ -2,8 +2,7 @@
 
 use super::package_type_label;
 use plugin_loader::manifest::{
-    Backend, BlockType, GridCapture, GridParameter, NamArchitecture, ParameterValue,
-    PluginManifest,
+    Backend, BlockType, GridCapture, GridParameter, NamArchitecture, ParameterValue, PluginManifest,
 };
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -25,6 +24,7 @@ fn nam_manifest(architecture: Option<NamArchitecture>) -> PluginManifest {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
         architecture,
         block_type: BlockType::Amp,
         backend: Backend::Nam {
@@ -37,6 +37,7 @@ fn nam_manifest(architecture: Option<NamArchitecture>) -> PluginManifest {
                 values: BTreeMap::from([("gain".to_string(), ParameterValue::Number(5.0))]),
                 file: PathBuf::from("captures/g5.nam"),
                 output_gain_db: None,
+                noise_gate: None,
             }],
         },
     }
@@ -51,6 +52,7 @@ fn ir_manifest() -> PluginManifest {
                 values: BTreeMap::new(),
                 file: PathBuf::from("ir/cab.wav"),
                 output_gain_db: None,
+                noise_gate: None,
             }],
         },
         ..nam_manifest(None)
