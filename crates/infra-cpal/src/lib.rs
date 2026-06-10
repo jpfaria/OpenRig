@@ -90,6 +90,7 @@ mod validation;
 
 mod audio_workgroup;
 mod callback_load_timing;
+mod dsp_worker;
 mod stream_builder;
 mod stream_config;
 pub use stream_builder::build_streams_for_project;
