@@ -44,6 +44,21 @@ jobs:
           lfs: true
           fetch-depth: 1
 
+      # Issue #683: the gate is comparative + --force-full, so it fully builds
+      # the baseline tree (the PR's base commit) too — the biggest uncached
+      # cost. The baseline is identical for every PR on the same develop tip,
+      # so cache its whole build keyed on the base SHA: the first PR after a
+      # develop advance populates it, the rest reuse it. Best-effort by design
+      # — a cache miss or a GitHub cache outage just rebuilds, never fails the
+      # gate (unlike a RUSTC_WRAPPER, which hard-fails when the backend is down).
+      - name: Cache baseline build
+        uses: actions/cache@v4
+        with:
+          path: baseline/target
+          key: baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('baseline/Cargo.lock') }}
+          restore-keys: |
+            baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
