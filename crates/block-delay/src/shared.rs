@@ -115,6 +115,13 @@ pub fn mix_dry_wet(dry: f32, wet: f32, mix: f32) -> f32 {
     (1.0 - clamp_mix(mix)).mul_add(dry, clamp_mix(mix) * wet)
 }
 
+/// `tanh` soft saturation with unity small-signal gain. `drive` sets the knee:
+/// higher = earlier compression and more odd harmonics. Branch-free, RT-safe.
+pub fn soft_saturate(input: f32, drive: f32) -> f32 {
+    let drive = drive.max(1e-6);
+    (input * drive).tanh() / drive
+}
+
 pub fn lowpass_step(state: &mut f32, input: f32, cutoff_hz: f32, sample_rate: f32) -> f32 {
     let cutoff_hz = cutoff_hz.clamp(20.0, (sample_rate * 0.45).max(20.0));
     let alpha = 1.0 - (-2.0 * std::f32::consts::PI * cutoff_hz / sample_rate).exp();

@@ -7,12 +7,18 @@ use block_core::{ModelAudioMode, MonoProcessor};
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
 use crate::DelayBackendKind;
 use crate::shared::{
-    clamp_feedback, clamp_mix, clamp_time_ms, process_simple_delay, DelayLine, MAX_DELAY_MS,
-    MAX_FEEDBACK, MIN_DELAY_MS,
+    clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, soft_saturate, DelayLine,
+    MAX_DELAY_MS, MAX_FEEDBACK, MIN_DELAY_MS,
 };
 
 pub const MODEL_ID: &str = "slapback";
 pub const DISPLAY_NAME: &str = "Slapback Delay";
+
+/// Tape-style high-frequency roll-off on the repeat — what makes a slapback
+/// sound analog instead of a pristine digital tap.
+const TONE_CUTOFF_HZ: f32 = 2_800.0;
+/// Gentle analog warmth on the repeat.
+const SATURATION_DRIVE: f32 = 2.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SlapbackParams {
@@ -86,6 +92,7 @@ pub fn params_from_set(params: &ParameterSet) -> Result<SlapbackParams> {
 pub struct SlapbackDelay {
     params: SlapbackParams,
     line: DelayLine,
+    tone_state: f32,
 }
 
 impl SlapbackDelay {
@@ -98,13 +105,20 @@ impl SlapbackDelay {
         Self {
             line: DelayLine::new(params.time_ms, sample_rate),
             params,
+            tone_state: 0.0,
         }
     }
 }
 
 impl MonoProcessor for SlapbackDelay {
     fn process_sample(&mut self, input: f32) -> f32 {
-        process_simple_delay(&mut self.line, input, self.params.feedback, self.params.mix)
+        let sample_rate = self.line.sample_rate();
+        let delayed = self.line.read();
+        // Tape-style darkening + analog warmth on the repeat — the slap's identity.
+        let darkened = lowpass_step(&mut self.tone_state, delayed, TONE_CUTOFF_HZ, sample_rate);
+        let colored = soft_saturate(darkened, SATURATION_DRIVE);
+        self.line.write(input + colored * self.params.feedback);
+        mix_dry_wet(input, colored, self.params.mix)
     }
 }
 

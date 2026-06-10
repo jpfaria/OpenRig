@@ -10,3 +10,4 @@ lv2 = { path = "../lv2" }
 vst3-host = { path = "../vst3" }
 [dev-dependencies]
 domain = { path = "../domain" }
+realfft = "3"

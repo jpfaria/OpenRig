@@ -7,10 +7,13 @@ use block_core::{ModelAudioMode, MonoProcessor};
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
 use crate::DelayBackendKind;
 use crate::shared::{
-    clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, DelayLine, MAX_DELAY_MS,
-    MAX_FEEDBACK, MIN_DELAY_MS,
+    clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, soft_saturate, DelayLine,
+    MAX_DELAY_MS, MAX_FEEDBACK, MIN_DELAY_MS,
 };
 use std::f32::consts::TAU;
+
+/// Magnetic-tape saturation on the repeat — rounds the echo the way tape does.
+const SATURATION_DRIVE: f32 = 2.5;
 
 pub const MODEL_ID: &str = "tape_vintage";
 pub const DISPLAY_NAME: &str = "Tape Vintage Delay";
@@ -160,8 +163,10 @@ impl MonoProcessor for TapeVintageDelay {
         let cutoff_hz = self.cutoff_hz();
         let sample_rate = self.line.sample_rate();
         let filtered = lowpass_step(&mut self.tone_state, delayed, cutoff_hz, sample_rate);
-        self.line.write(input + filtered * self.params.feedback);
-        mix_dry_wet(input, filtered, self.params.mix)
+        // Magnetic saturation: tape rounds the repeat instead of copying it cleanly.
+        let colored = soft_saturate(filtered, SATURATION_DRIVE);
+        self.line.write(input + colored * self.params.feedback);
+        mix_dry_wet(input, colored, self.params.mix)
     }
 }
 
