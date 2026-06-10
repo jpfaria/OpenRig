@@ -51,6 +51,10 @@ plugins:
     description: Hot tape echo — random-walk wow/flutter, heavy magnetic saturation, and tape tone.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  chorus_echo:
+    description: Analog echo with an internal chorus sweeping the repeats, plus bucket-brigade tone and saturation.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
