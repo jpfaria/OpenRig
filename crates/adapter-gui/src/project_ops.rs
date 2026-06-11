@@ -39,7 +39,13 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
     let changed = sync_recent_projects(&mut config);
     if changed {
-        let _ = FilesystemStorage::save_app_config(&config);
+        // #693: boot-time migration write goes to the persist worker.
+        let snapshot = config.clone();
+        application::persist_worker::run(move || {
+            if let Err(e) = FilesystemStorage::save_app_config(&snapshot) {
+                log::error!("save_app_config (recents sync) failed: {e}");
+            }
+        });
     }
     Ok(config)
 }

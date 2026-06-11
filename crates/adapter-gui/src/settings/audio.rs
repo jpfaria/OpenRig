@@ -209,8 +209,21 @@ pub(crate) fn wire(
                         );
                         return;
                     }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
+                    // #693: the settings write runs on the persist worker —
+                    // the GUI thread never waits on disk; errors go to the
+                    // non-blocking logger.
+                    {
+                        let settings_for_write = settings.clone();
+                        application::persist_worker::run(move || {
+                            if let Err(e) =
+                                FilesystemStorage::save_gui_audio_settings(&settings_for_write)
+                            {
+                                log::error!("save_gui_audio_settings failed: {e}");
+                            }
+                        });
+                    }
+                    {
+                        {
                             // #627: mirror the applied device lists into the shared
                             // in-memory AppConfig so a subsequent whole-config re-save
                             // (project-open / register-recent) does not clobber them.
@@ -252,7 +265,6 @@ pub(crate) fn wire(
                             clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                         }
-                        Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
                     }
                 }
                 AudioSettingsMode::Project => {
@@ -396,21 +408,27 @@ pub(crate) fn wire(
                         );
                         return;
                     }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
-                            // #627: mirror into the shared in-memory AppConfig.
-                            apply_audio_override(
-                                &mut app_config.borrow_mut(),
-                                &settings.input_devices,
-                                &settings.output_devices,
-                            );
-                            // #513: Apply restarts the audio runtime but keeps
-                            // the Settings window open. User dismisses via FECHAR.
-                            settings_window.set_status_message("".into());
-                            clear_status(&window, &toast_timer);
-                        }
-                        Err(error) => settings_window.set_status_message(error.to_string().into()),
+                    // #693: write on the persist worker; errors to the log.
+                    {
+                        let settings_for_write = settings.clone();
+                        application::persist_worker::run(move || {
+                            if let Err(e) =
+                                FilesystemStorage::save_gui_audio_settings(&settings_for_write)
+                            {
+                                log::error!("save_gui_audio_settings failed: {e}");
+                            }
+                        });
                     }
+                    // #627: mirror into the shared in-memory AppConfig.
+                    apply_audio_override(
+                        &mut app_config.borrow_mut(),
+                        &settings.input_devices,
+                        &settings.output_devices,
+                    );
+                    // #513: Apply restarts the audio runtime but keeps
+                    // the Settings window open. User dismisses via FECHAR.
+                    settings_window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                 }
                 AudioSettingsMode::Project => {
                     // config.yaml persistence is owned by the dispatcher's
