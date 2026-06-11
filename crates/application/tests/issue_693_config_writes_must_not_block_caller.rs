@@ -65,3 +65,60 @@ fn issue_693_save_audio_settings_returns_immediately_with_stuck_config() {
          persistence belongs to the persist worker (issue #693)"
     );
 }
+
+#[test]
+fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
+    use domain::ids::ChainId;
+    use project::chain::Chain;
+
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let presets = tmp.path().join("presets");
+    std::fs::create_dir_all(&presets).expect("presets dir");
+    // `SaveChainPreset { name: "p" }` resolves to `<presets>/p.yaml`.
+    let preset_file = presets.join("p.yaml");
+    let status = std::process::Command::new("mkfifo")
+        .arg(&preset_file)
+        .status()
+        .expect("run mkfifo");
+    assert!(status.success(), "mkfifo failed");
+
+    let (done_tx, done_rx) = mpsc::channel();
+    let presets_for_caller = presets.clone();
+    std::thread::spawn(move || {
+        let chain_id = ChainId("c1".into());
+        let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![Chain {
+                id: chain_id.clone(),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: false,
+                volume: 1.0,
+                blocks: Vec::new(),
+            }],
+            midi: None,
+        })));
+        dispatcher.attach_presets_path(presets_for_caller);
+        let t0 = Instant::now();
+        let _ = dispatcher.dispatch(Command::SaveChainPreset {
+            chain: chain_id,
+            name: "p".into(),
+        });
+        let _ = done_tx.send(t0.elapsed());
+    });
+
+    let result = done_rx.recv_timeout(Duration::from_secs(2));
+    // Pair the write-open with a read-open so blocked threads release.
+    let _ = std::fs::OpenOptions::new().read(true).open(&preset_file);
+
+    let elapsed = result.expect(
+        "dispatch(SaveChainPreset) is stuck on the preset file I/O — the \
+         handler writes inline on the calling thread (issue #693)",
+    );
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "SaveChainPreset held the caller for {elapsed:?} — preset \
+         persistence belongs to the persist worker (issue #693)"
+    );
+}
