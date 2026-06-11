@@ -34,9 +34,18 @@ fn catalog_loads_and_emits_event() {
     let project = empty_project_rc();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     
-    let events = dispatcher
+    let mut events = dispatcher
         .dispatch(Command::ReloadPluginCatalog)
         .expect("dispatch ReloadPluginCatalog");
+    // #693: rescan runs on its own task — completion arrives via poll.
+    {
+        use application::dispatcher::CommandDispatcher as _;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while events.is_empty() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            events = dispatcher.poll_async_results();
+        }
+    }
     
     // Verify that a PluginCatalogReloaded event was emitted
     let found_reload_event = events.iter().any(|e| {

@@ -98,6 +98,16 @@ fn loaded_len_at(device_sr: u32, wav: &Path) -> usize {
             source: DiLoopSource::File(wav.to_path_buf()),
         })
         .expect("SetChainDiLoopSource must succeed");
+    // #693: wait for the off-thread decode to land via the poll tick.
+    {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while dispatcher.di_loop_for_chain(&chain_id).is_none()
+            && std::time::Instant::now() < deadline
+        {
+            let _ = dispatcher.poll_async_results();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
 
     dispatcher
         .di_loop_for_chain(&chain_id)

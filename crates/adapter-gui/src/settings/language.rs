@@ -84,9 +84,16 @@ pub fn wire(
                     log::warn!("[language] Command::SetLanguage falhou: {e}");
                 }
             }
-            if let Err(e) = FilesystemStorage::save_gui_language(lang.clone()) {
-                log::warn!("failed to persist language preference: {e}");
-                return;
+            // #693: persistence runs on the persist worker; the live i18n
+            // swap below proceeds regardless (failure only costs the
+            // preference surviving a restart, reported via log).
+            {
+                let lang_for_write = lang.clone();
+                application::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_gui_language(lang_for_write) {
+                        log::error!("failed to persist language preference: {e}");
+                    }
+                });
             }
             // Live update: re-select the bundled translation so visible strings
             // reflect the new locale immediately. No restart needed for Slint

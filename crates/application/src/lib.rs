@@ -18,6 +18,12 @@ pub mod command_schema;
 pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
+/// #693: command side-effect writes run on a dedicated worker thread —
+/// `flush()` is the durability barrier for shutdown and round-trips.
+pub mod persist_worker;
+/// #693: published immutable state snapshot — transports serve reads
+/// concurrently on their own thread (API-style), never via the GUI tick.
+pub mod snapshot;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;

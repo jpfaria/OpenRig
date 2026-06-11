@@ -2632,6 +2632,9 @@ fn save_audio_settings_persists_input_and_output_separately() {
             output_devices: vec![make_device_settings("dev:out")],
         });
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        // #693: the config write is queued to the persist worker — wait
+        // for durability before reading it back.
+        crate::persist_worker::flush();
 
         let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
         let in_ids: Vec<&str> = config

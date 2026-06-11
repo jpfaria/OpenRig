@@ -27,6 +27,21 @@ const DEFAULT_BLOCK_SIZE: usize = 256;
 const DEFAULT_BIT_DEPTH: u8 = 24;
 const DEFAULT_TAIL_MS: u32 = 2_000;
 
+/// #693: cheap synchronous validation run by the dispatch arm BEFORE
+/// spawning the render task — bad arguments and a missing input keep
+/// the immediate `Err` contract; only the actual render is deferred.
+pub fn precheck(bit_depth: Option<u8>, input_path: &str) -> Result<()> {
+    let bit_depth = bit_depth.unwrap_or(DEFAULT_BIT_DEPTH);
+    if !matches!(bit_depth, 16 | 24 | 32) {
+        return Err(anyhow!("bit_depth must be 16|24|32 (got {bit_depth})"));
+    }
+    let input = PathBuf::from(input_path);
+    if !input.exists() {
+        return Err(anyhow!("input WAV not found: {input:?}"));
+    }
+    Ok(())
+}
+
 /// Run an offline render for a `Command::RenderChain` payload.
 ///
 /// `bit_depth` is validated up-front (only 16/24/32 are valid output

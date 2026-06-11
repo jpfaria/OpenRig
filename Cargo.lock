@@ -343,6 +343,7 @@ version = "0.1.0"
 dependencies = [
  "adapter-render",
  "anyhow",
+ "arc-swap",
  "block-core",
  "block-delay",
  "block-reverb",
@@ -352,6 +353,7 @@ dependencies = [
  "hound",
  "infra-filesystem",
  "infra-yaml",
+ "log",
  "plugin-loader",
  "project",
  "schemars 0.8.22",
