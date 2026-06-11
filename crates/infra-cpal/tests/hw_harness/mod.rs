@@ -6,6 +6,11 @@
 //! meaningful on an otherwise idle machine (docs/testing.md →
 //! "Real-hardware battery").
 
+// Each `--test` binary compiles this module independently and uses a subset
+// of the helpers; the unused ones are not dead code, they belong to the
+// sibling binaries.
+#![allow(dead_code)]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Once;
@@ -21,6 +26,15 @@ use project::project::Project;
 pub const BUFFER: u32 = 64;
 
 pub fn init_registry() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/tests/fixtures/plugins");
+    init_registry_with_root(&root);
+}
+
+/// Register all block builders and point the plugin registry at `root`.
+/// The registry initializes once per process: the FIRST caller's root wins,
+/// so a test needing a non-fixture root must run in its own process (cargo
+/// gives every `--test` target one).
+pub fn init_registry_with_root(root: &std::path::Path) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         nam::register_builder();
@@ -36,9 +50,7 @@ pub fn init_registry() {
         block_delay::register_natives();
         block_mod::register_natives();
         block_pitch::register_natives();
-        let root =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/tests/fixtures/plugins");
-        plugin_loader::registry::init(&root);
+        plugin_loader::registry::init(root);
     });
 }
 
@@ -46,6 +58,19 @@ pub fn rig_project(
     preset_file: &str,
     input: &infra_cpal::AudioDeviceDescriptor,
     output: &infra_cpal::AudioDeviceDescriptor,
+) -> (Project, ChainId) {
+    rig_project_with(preset_file, input, output, 48_000, BUFFER)
+}
+
+/// `rig_project` with explicit device rate/buffer — the owner runs the
+/// Scarlett at 44.1 kHz / 128 frames (2.9 ms period), the battery default
+/// is 48 kHz / 64.
+pub fn rig_project_with(
+    preset_file: &str,
+    input: &infra_cpal::AudioDeviceDescriptor,
+    output: &infra_cpal::AudioDeviceDescriptor,
+    sample_rate: u32,
+    buffer_frames: u32,
 ) -> (Project, ChainId) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
@@ -85,14 +110,14 @@ pub fn rig_project(
         device_settings: vec![
             DeviceSettings {
                 device_id: DeviceId(input.id.clone()),
-                sample_rate: 48_000,
-                buffer_size_frames: BUFFER,
+                sample_rate,
+                buffer_size_frames: buffer_frames,
                 bit_depth: 32,
             },
             DeviceSettings {
                 device_id: DeviceId(output.id.clone()),
-                sample_rate: 48_000,
-                buffer_size_frames: BUFFER,
+                sample_rate,
+                buffer_size_frames: buffer_frames,
                 bit_depth: 32,
             },
         ],
