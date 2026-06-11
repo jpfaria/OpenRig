@@ -216,3 +216,54 @@ fn issue_693_reload_plugin_catalog_completes_via_poll() {
         "expected PluginCatalogReloaded via poll, got {done:?}"
     );
 }
+
+#[test]
+fn issue_693_render_chain_returns_immediately_with_stuck_chain_file() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let chain_yaml = tmp.path().join("chain.yaml");
+    let status = std::process::Command::new("mkfifo")
+        .arg(&chain_yaml)
+        .status()
+        .expect("run mkfifo");
+    assert!(status.success(), "mkfifo failed");
+    let input = tmp.path().join("in.wav");
+    let output = tmp.path().join("out.wav");
+
+    let (done_tx, done_rx) = mpsc::channel();
+    let chain_for_caller = chain_yaml.clone();
+    std::thread::spawn(move || {
+        let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: Vec::new(),
+            midi: None,
+        })));
+        let t0 = Instant::now();
+        let _ = dispatcher.dispatch(Command::RenderChain {
+            chain_path: chain_for_caller.to_string_lossy().to_string(),
+            input_path: input.to_string_lossy().to_string(),
+            output_path: output.to_string_lossy().to_string(),
+            start_s: None,
+            end_s: None,
+            sample_rate_hz: None,
+            block_size: None,
+            bit_depth: None,
+            tail_ms: None,
+        });
+        let _ = done_tx.send(t0.elapsed());
+    });
+
+    let result = done_rx.recv_timeout(Duration::from_secs(2));
+    // Pair the renderer's read-open with a write-open (drop = EOF).
+    let _ = std::fs::OpenOptions::new().write(true).open(&chain_yaml);
+
+    let elapsed = result.expect(
+        "dispatch(RenderChain) is stuck on the offline render I/O — the \
+         render runs inline on the calling thread (issue #693)",
+    );
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "RenderChain held the caller for {elapsed:?} — the offline render \
+         belongs to its own task (issue #693)"
+    );
+}

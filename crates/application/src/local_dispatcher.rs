@@ -322,18 +322,39 @@ impl CommandDispatcher for LocalDispatcher {
                 block_size,
                 bit_depth,
                 tail_ms,
-            } => crate::render_handler::run(
-                chain_path,
-                input_path,
-                output_path,
-                start_s,
-                end_s,
-                sample_rate_hz,
-                block_size,
-                bit_depth,
-                tail_ms,
-            )
-            .map(|ev| vec![ev]),
+            } => {
+                // #693: bad args / missing input still error immediately
+                // (cheap checks); only the render itself is deferred.
+                crate::render_handler::precheck(bit_depth, &input_path)?;
+                // #693: the offline render (file reads + full engine pass +
+                // WAV write) runs on its own task. Completion — success or
+                // failure — surfaces via poll_async_results as
+                // RenderCompleted / Event::Error.
+                let tx = self.async_done_tx.clone();
+                std::thread::Builder::new()
+                    .name("render-chain".into())
+                    .spawn(move || {
+                        let done = match crate::render_handler::run(
+                            chain_path,
+                            input_path,
+                            output_path,
+                            start_s,
+                            end_s,
+                            sample_rate_hz,
+                            block_size,
+                            bit_depth,
+                            tail_ms,
+                        ) {
+                            Ok(ev) => ev,
+                            Err(e) => Event::Error {
+                                message: format!("RenderChain failed: {e}"),
+                            },
+                        };
+                        let _ = tx.send(AsyncDone::Events(vec![done]));
+                    })
+                    .map_err(|e| anyhow::anyhow!("failed to spawn render-chain task: {e}"))?;
+                Ok(vec![])
+            }
 
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
