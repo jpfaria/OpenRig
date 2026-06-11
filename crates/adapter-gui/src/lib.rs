@@ -122,6 +122,8 @@ mod eq;
 pub mod graph_view_model;
 mod helpers;
 mod io_groups;
+#[cfg(test)]
+mod issue_692_project_open_time_tests;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod latency_probe;

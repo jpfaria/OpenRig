@@ -73,6 +73,11 @@ fn issue_692_load_project_session_stays_within_parse_budget() {
 /// the budget, localizing the user-visible stall.
 #[test]
 fn issue_692_runtime_start_probe() {
+    // Real-hardware battery gate: opens the physical audio interface.
+    if std::env::var_os("OPENRIG_HW_TESTS").is_none() {
+        eprintln!("issue_692: SKIPPED — set OPENRIG_HW_TESTS=1 on an idle machine");
+        return;
+    }
     let home = match std::env::var("HOME") {
         Ok(h) => PathBuf::from(h),
         Err(_) => return,
