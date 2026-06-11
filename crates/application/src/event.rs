@@ -269,6 +269,14 @@ pub enum Event {
         id: String,
     },
 
+    /// #693: `Command::LoadPlugin` runs its root scan on its own task —
+    /// a failure (unknown id, unreadable root) surfaces as this event
+    /// via the async-completion poll instead of a synchronous `Err`.
+    PluginLoadFailed {
+        id: String,
+        reason: String,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -375,6 +383,7 @@ impl Event {
             // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
             | Event::PluginLoaded { .. }
             | Event::PluginUnloaded { .. }
+            | Event::PluginLoadFailed { .. }
             // #576: offline render does not touch any chain in the live project.
             | Event::RenderCompleted { .. }
             | Event::Error { .. } => None,

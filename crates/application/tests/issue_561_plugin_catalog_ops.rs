@@ -53,6 +53,28 @@ fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
     let _ = dispatcher
         .dispatch(Command::ReloadPluginCatalog)
         .expect("reload to seed natives");
+    // #693: the rescan runs on its own task — wait for the completion.
+    wait_async(dispatcher, |e| {
+        matches!(e, Event::PluginCatalogReloaded { .. })
+    });
+}
+
+/// #693 helper: poll async completions until `pred` matches (2s cap);
+/// returns every event drained along the way.
+fn wait_async(
+    dispatcher: &LocalDispatcher,
+    pred: impl Fn(&Event) -> bool,
+) -> Vec<Event> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut all = Vec::new();
+    while std::time::Instant::now() < deadline {
+        all.extend(dispatcher.poll_async_results());
+        if all.iter().any(&pred) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    all
 }
 
 /// Extract the first `"id": "<x>"` value found in a JSON listing.
@@ -151,15 +173,27 @@ fn load_plugin_command_errors_when_id_is_unknown_on_disk() {
     let project = empty_project_rc();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let err = dispatcher
+    // #693: the root scan runs on its own task — the failure surfaces
+    // as Event::PluginLoadFailed via the async-completion poll.
+    let events = dispatcher
         .dispatch(Command::LoadPlugin {
             id: "definitely_not_a_real_plugin_id_561".into(),
         })
-        .expect_err("loading an unknown id must error cleanly");
-    let msg = err.to_string();
+        .expect("dispatch only enqueues the scan");
+    assert!(events.is_empty(), "scan must run off-thread, got {events:?}");
+    let done = wait_async(&dispatcher, |e| {
+        matches!(e, Event::PluginLoadFailed { .. })
+    });
+    let msg = done
+        .iter()
+        .find_map(|e| match e {
+            Event::PluginLoadFailed { reason, .. } => Some(reason.clone()),
+            _ => None,
+        })
+        .expect("expected PluginLoadFailed via poll");
     assert!(
         msg.contains("not found") || msg.contains("unknown"),
-        "expected a 'not found / unknown' message, got: {msg}"
+        "expected a 'not found / unknown' reason, got: {msg}"
     );
 }
 
@@ -178,14 +212,16 @@ fn load_plugin_command_with_known_native_id_emits_plugin_loaded_event() {
     let events = dispatcher
         .dispatch(Command::LoadPlugin { id: id.clone() })
         .expect("load known id");
-    let loaded = events.iter().any(|e| {
-        matches!(
-            e,
-            Event::PluginLoaded { id: ev_id } if ev_id == &id
-        )
+    assert!(events.is_empty(), "scan must run off-thread, got {events:?}");
+    // #693: the confirmation arrives via the async-completion poll.
+    let done = wait_async(&dispatcher, |e| {
+        matches!(e, Event::PluginLoaded { id: ev_id } if ev_id == &id)
     });
     assert!(
-        loaded,
-        "expected Event::PluginLoaded {{ id={id} }}, got: {events:?}"
+        done.iter().any(|e| matches!(
+            e,
+            Event::PluginLoaded { id: ev_id } if ev_id == &id
+        )),
+        "expected Event::PluginLoaded {{ id={id} }} via poll, got: {done:?}"
     );
 }

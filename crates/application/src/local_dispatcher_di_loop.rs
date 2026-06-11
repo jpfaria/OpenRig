@@ -56,12 +56,14 @@ impl LocalDispatcher {
                 // installs the loop into `di_loop_state` and emits
                 // `ChainDiLoopSourceChanged`.
                 let engine_sr = *self.engine_sr.borrow();
-                let tx = self.di_load_tx.clone();
+                let tx = self.async_done_tx.clone();
                 std::thread::Builder::new()
                     .name("di-load".into())
                     .spawn(move || {
                         let result = load_di_loop(&source, engine_sr);
-                        let _ = tx.send((chain, source, result));
+                        let _ = tx.send(crate::local_dispatcher::AsyncDone::DiLoad(
+                            chain, source, result,
+                        ));
                     })
                     .map_err(|e| anyhow::anyhow!("failed to spawn di-load task: {e}"))?;
 

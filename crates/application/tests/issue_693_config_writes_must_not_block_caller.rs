@@ -176,3 +176,43 @@ fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
          decode belongs to its own task (issue #693)"
     );
 }
+
+#[test]
+fn issue_693_reload_plugin_catalog_completes_via_poll() {
+    use application::event::Event;
+
+    // Empty plugin roots under a temp HOME — the scan itself is trivial
+    // here; the contract under test is WHERE it runs: the dispatch must
+    // only enqueue (empty return) and the completion event must arrive
+    // via poll_async_results, like every other off-thread command.
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    std::env::set_var("HOME", tmp.path());
+
+    let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: Vec::new(),
+        midi: None,
+    })));
+
+    let events = dispatcher
+        .dispatch(Command::ReloadPluginCatalog)
+        .expect("ReloadPluginCatalog dispatch");
+    assert!(
+        events.is_empty(),
+        "dispatch must only enqueue the rescan (its own task); got \
+         synchronous events {events:?} (issue #693)"
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut done = Vec::new();
+    while done.is_empty() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+        done = dispatcher.poll_async_results();
+    }
+    assert!(
+        done.iter()
+            .any(|e| matches!(e, Event::PluginCatalogReloaded { .. })),
+        "expected PluginCatalogReloaded via poll, got {done:?}"
+    );
+}

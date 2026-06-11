@@ -95,17 +95,22 @@ pub struct LocalDispatcher {
     /// `attach_engine_sr` once the audio stream is running.
     pub(crate) engine_sr: RefCell<u32>,
 
-    /// #693: completion channel for DI-loop decodes running on their own
-    /// task. The handler spawns a decode thread with a clone of the
-    /// sender; `poll_async_results` (frontend tick) drains the receiver,
-    /// installs the loop into `di_loop_state` and emits the
-    /// `ChainDiLoopSourceChanged` event.
-    pub(crate) di_load_tx: std::sync::mpsc::Sender<DiLoadResult>,
-    pub(crate) di_load_rx: std::sync::mpsc::Receiver<DiLoadResult>,
+    /// #693: completion channel for command work running on its own
+    /// task (DI decode, catalog rescan, ...). Handlers spawn a task
+    /// with a clone of the sender; `poll_async_results` (frontend
+    /// tick) drains the receiver, applies state and emits the events.
+    pub(crate) async_done_tx: std::sync::mpsc::Sender<AsyncDone>,
+    pub(crate) async_done_rx: std::sync::mpsc::Receiver<AsyncDone>,
 }
 
-/// Result of an off-thread DI-loop decode (#693).
-pub(crate) type DiLoadResult = (ChainId, DiLoopSource, Result<Arc<DiLoop>, String>);
+/// Completed off-thread command work (#693).
+pub(crate) enum AsyncDone {
+    /// DI-loop decode: install into `di_loop_state` + emit the event.
+    DiLoad(ChainId, DiLoopSource, Result<Arc<DiLoop>, String>),
+    /// Work whose state lives elsewhere (e.g. the global plugin
+    /// registry): just surface the completion events.
+    Events(Vec<Event>),
+}
 
 impl LocalDispatcher {
     /// Create a dispatcher that operates on the given shared `Project` handle.
@@ -114,7 +119,7 @@ impl LocalDispatcher {
     /// its own project handle and pass it here so both sides share the same
     /// allocation.
     pub fn new(project: Rc<RefCell<Project>>) -> Self {
-        let (di_load_tx, di_load_rx) = std::sync::mpsc::channel();
+        let (async_done_tx, async_done_rx) = std::sync::mpsc::channel();
         Self {
             project,
             rig: RefCell::new(None),
@@ -125,8 +130,8 @@ impl LocalDispatcher {
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),
-            di_load_tx,
-            di_load_rx,
+            async_done_tx,
+            async_done_rx,
         }
     }
 
@@ -431,15 +436,18 @@ impl CommandDispatcher for LocalDispatcher {
     /// as every other async side-effect.
     fn poll_async_results(&self) -> Vec<Event> {
         let mut events = Vec::new();
-        while let Ok((chain, source, result)) = self.di_load_rx.try_recv() {
-            match result {
-                Ok(arc) => {
-                    self.di_loop_state
-                        .borrow_mut()
-                        .insert(chain.clone(), (source, arc));
-                    events.push(Event::ChainDiLoopSourceChanged { chain });
-                }
-                Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+        while let Ok(done) = self.async_done_rx.try_recv() {
+            match done {
+                AsyncDone::DiLoad(chain, source, result) => match result {
+                    Ok(arc) => {
+                        self.di_loop_state
+                            .borrow_mut()
+                            .insert(chain.clone(), (source, arc));
+                        events.push(Event::ChainDiLoopSourceChanged { chain });
+                    }
+                    Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+                },
+                AsyncDone::Events(completed) => events.extend(completed),
             }
         }
         events
