@@ -141,3 +141,103 @@ fn cursor_advances_by_num_frames_and_wraps() {
         "after second callback cursor should wrap to 56 (256 % 200)"
     );
 }
+
+/// Build a passthrough runtime whose InputBlock has TWO mono sources on the
+/// same device (ch0 + ch1) — the "two guitars, one chain" rig from issue
+/// #699. Both entries become parallel segments inside one runtime.
+fn two_source_runtime() -> Arc<super::ChainRuntimeState> {
+    let chain = Chain {
+        id: ChainId("di-test-multi".into()),
+        description: Some("DI multi-source test".into()),
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![
+            AudioBlock {
+                id: BlockId("input:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    entries: vec![
+                        InputEntry {
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        },
+                        InputEntry {
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![1],
+                        },
+                    ],
+                }),
+            },
+            AudioBlock {
+                id: BlockId("output:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("dev".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    };
+    Arc::new(
+        build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET])
+            .expect("two-source runtime should build"),
+    )
+}
+
+/// Issue #699 — a chain with two input sources must play an armed DI loop
+/// exactly ONCE. Today every segment substitutes the loop for its device
+/// frames, so the two passthrough copies sum to double the loop amplitude
+/// at the output.
+#[test]
+fn di_loop_plays_once_on_multi_source_chain() {
+    let runtime = two_source_runtime();
+    let di = Arc::new(DiLoop::from_samples(&[0.5; 256], SR, 1, SR, 0));
+    runtime.set_di_loop(Some(di));
+
+    let (frames, channels) = (128usize, 2usize);
+    let device_in = vec![0.0f32; frames * channels];
+
+    process_input_f32(&runtime, 0, &device_in, channels);
+    let mut out = vec![0.0f32; frames * channels];
+    process_output_f32(&runtime, 0, &mut out, channels);
+
+    let peak = out.iter().cloned().fold(0.0f32, |m, s| m.max(s.abs()));
+    assert!(
+        (peak - 0.5).abs() < 1e-3,
+        "DI loop must play exactly once on a two-source chain: expected peak \
+         ~0.5 (one copy), got {peak} (issue #699 — every segment injected the loop)"
+    );
+}
+
+/// Issue #699 — while the DI loop is armed, the chain's OTHER segments must
+/// be silent (DI playback replaces ALL live input, it does not leave the
+/// second source bleeding through).
+#[test]
+fn di_loop_silences_other_segments_live_input() {
+    let runtime = two_source_runtime();
+    let di = Arc::new(DiLoop::from_samples(&[0.0; 256], SR, 1, SR, 0));
+    runtime.set_di_loop(Some(di));
+
+    // Hot live signal on BOTH device channels — with a silent loop armed,
+    // none of it may reach the output.
+    let (frames, channels) = (128usize, 2usize);
+    let device_in = vec![0.8f32; frames * channels];
+
+    process_input_f32(&runtime, 0, &device_in, channels);
+    let mut out = vec![0.0f32; frames * channels];
+    process_output_f32(&runtime, 0, &mut out, channels);
+
+    let peak = out.iter().cloned().fold(0.0f32, |m, s| m.max(s.abs()));
+    assert!(
+        peak < 1e-6,
+        "live input bled through while a DI loop was armed: peak {peak}"
+    );
+}

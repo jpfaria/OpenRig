@@ -38,14 +38,21 @@ use crate::live_runtime::LiveRuntimeSlot;
 use crate::process_input_buffer;
 
 /// Promote the worker to the macOS realtime (time-constraint) class:
-/// PREEMPTIBLE, computation budget sized to the real chain work (~85% of the
-/// buffer period). An unpromoted busy thread is demoted to E-cores by macOS
-/// (measured: 167 xruns/256 underruns in the 60 s real-streams test); an RT
-/// thread that overruns a too-small budget is demoted too (the reverted #670
-/// promotion). These parameters were validated offline: the full Beat It
-/// chain paced at the live cadence ran 56 572 buffers with zero xruns.
+/// PREEMPTIBLE, with an explicit computation budget. An unpromoted busy
+/// thread is demoted to E-cores by macOS (measured: 167 xruns/256
+/// underruns in the 60 s real-streams test); an RT thread that overruns a
+/// too-small budget is demoted too (the reverted #670 promotion).
+///
+/// Issue #698: the budget must reflect the chain's REAL cost, not a fixed
+/// fraction. Five chains each declaring 85% of the period overcommit the
+/// time-constraint band and the kernel demotes workers — measured headless
+/// as 61 underruns/20 s with the owner's five-chain project, while the
+/// same chains ran clean solo and dual. The worker starts at 85% (a cold
+/// chain's cost is unknown and an undersized budget also demotes — the
+/// reverted #670 attempt) and then re-declares from its own measured cost
+/// (see `BudgetTracker`), so concurrent chains fit the band together.
 #[cfg(target_os = "macos")]
-fn promote_to_audio_rt(period_ns: u64) {
+fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
     #[repr(C)]
     struct Timebase {
         numer: u32,
@@ -72,7 +79,7 @@ fn promote_to_audio_rt(period_ns: u64) {
         let to_mach = |ns: u64| ((ns as u128 * tb.denom as u128) / tb.numer as u128) as u32;
         let policy = TimeConstraint {
             period: to_mach(period_ns),
-            computation: to_mach(period_ns * 85 / 100),
+            computation: to_mach(computation_ns.min(period_ns * 85 / 100)),
             constraint: to_mach(period_ns),
             preemptible: 1,
         };
@@ -87,7 +94,73 @@ fn promote_to_audio_rt(period_ns: u64) {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn promote_to_audio_rt(_period_ns: u64) {}
+fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
+
+/// Issue #698 — adaptive RT computation budget. Buffers measured per
+/// window; at each window boundary the worker re-declares its
+/// time-constraint computation from the measured worst case plus
+/// headroom, so N concurrent chains together stay inside what the
+/// kernel's admission will schedule. Plain data, worker-thread only.
+struct BudgetTracker {
+    window_max_ns: u64,
+    window_count: u32,
+    declared_ns: u64,
+}
+
+impl BudgetTracker {
+    /// ≈3 s of buffers at 64 frames / 44.1 kHz between re-declarations.
+    const WINDOW: u32 = 2048;
+
+    fn new(declared_ns: u64) -> Self {
+        Self {
+            window_max_ns: 0,
+            window_count: 0,
+            declared_ns,
+        }
+    }
+
+    /// Record one processed buffer's cost; returns the new computation
+    /// budget when the window closes AND it differs meaningfully from the
+    /// declared one (hysteresis: 10% of the period).
+    ///
+    /// Fast up-correction: a single buffer OVER the declared budget means
+    /// the chain just got heavier (live rebuild, block added) and the
+    /// kernel will demote an over-budget RT thread — re-declare the
+    /// conservative 85% immediately instead of waiting for the window
+    /// (measured: 128 underruns in the post-rebuild stretch of
+    /// `rebuild_while_playing_keeps_the_cushion` without this).
+    fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
+        if elapsed_ns > self.declared_ns && self.declared_ns < period_ns * 85 / 100 {
+            return Some(self.reset(period_ns));
+        }
+        self.window_max_ns = self.window_max_ns.max(elapsed_ns);
+        self.window_count += 1;
+        if self.window_count < Self::WINDOW {
+            return None;
+        }
+        // Measured worst case + 25% headroom, floored at 10% of the
+        // period (an undersized budget also demotes — the reverted #670
+        // attempt) and capped at the validated 85%.
+        let target = (self.window_max_ns + self.window_max_ns / 4)
+            .clamp(period_ns / 10, period_ns * 85 / 100);
+        self.window_max_ns = 0;
+        self.window_count = 0;
+        if target.abs_diff(self.declared_ns) > period_ns / 10 {
+            self.declared_ns = target;
+            return Some(target);
+        }
+        None
+    }
+
+    /// After a saturation spiral the chain's cost is unknown again —
+    /// restart from the conservative cold-start budget.
+    fn reset(&mut self, period_ns: u64) -> u64 {
+        self.window_max_ns = 0;
+        self.window_count = 0;
+        self.declared_ns = period_ns * 85 / 100;
+        self.declared_ns
+    }
+}
 
 /// Slots in the ring. 16 buffers ≈ 21 ms at 64 frames — far beyond any
 /// transient worker stall that wouldn't already be audible.
@@ -215,7 +288,13 @@ pub(crate) fn spawn(
             let period_ns = (max_buffer_samples as u64 / 8 / channels.max(1) as u64)
                 * 1_000_000_000
                 / sample_rate.max(1) as u64;
-            promote_to_audio_rt(period_ns.max(500_000));
+            let rt_period_ns = period_ns.max(500_000);
+            // Cold start: the chain's cost is unknown, declare the
+            // validated 85% (#670); the BudgetTracker then re-declares
+            // from measured cost so concurrent chains fit the RT band
+            // together (#698).
+            let mut budget = BudgetTracker::new(rt_period_ns * 85 / 100);
+            promote_to_audio_rt(rt_period_ns, budget.declared_ns);
             // Measured on the real-streams test: joining the device workgroup
             // and/or spinning the idle gap made the tail WORSE and erratic
             // (50/15/2 xruns per 60 s vs 0-11 without). Plain preemptible RT
@@ -254,7 +333,7 @@ pub(crate) fn spawn(
                     // Re-assert the realtime promotion and drop the backlog
                     // to ONE buffer so latency is bounded again. Worker
                     // thread, rare event — the log is allowed.
-                    promote_to_audio_rt(period_ns.max(500_000));
+                    promote_to_audio_rt(rt_period_ns, budget.reset(rt_period_ns));
                     r = w.saturating_sub(1);
                     log::warn!(
                         "[#670 worker] saturation spiral: re-promoted realtime and dropped backlog"
@@ -279,6 +358,13 @@ pub(crate) fn spawn(
                 slot_handle
                     .load()
                     .record_worker_load(elapsed.as_nanos() as u64, buf_period_ns);
+                // #698: re-declare the RT computation budget from measured
+                // cost at window boundaries so N concurrent workers fit the
+                // kernel's time-constraint admission together. Rare (≥3 s
+                // apart, only on meaningful change), between buffers.
+                if let Some(comp_ns) = budget.observe(elapsed.as_nanos() as u64, rt_period_ns) {
+                    promote_to_audio_rt(rt_period_ns, comp_ns);
+                }
                 // #670 diagnostic: name the magnitude of a late buffer so a
                 // ~1.4 ms cold-compute tail is distinguishable from a multi-ms
                 // preemption. Worker thread (not the HAL callback); fires only
