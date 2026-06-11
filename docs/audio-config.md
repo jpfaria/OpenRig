@@ -149,6 +149,35 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. On a chain with **multiple input sources**, the loop plays exactly **once** (through the first source segment); the remaining segments are muted while the loop is armed, so playback is never doubled at the output (#699). The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
 
+### Per-entry stream isolation (issues #350 / #703)
+
+Every **raw input entry** of a chain owns its own isolated
+`ChainRuntimeState` (CLAUDE.md invariant #4): its own `processing` Mutex,
+`output_routes` (+ `ElasticBuffer`), `input_taps`, scratch. The
+`RuntimeGraph` is keyed by `(ChainId, entry group)`; "chain" in the YAML
+is only logical grouping.
+
+- **Two devices** (#350 phase 3): one cpal stream per device, each bound
+  to its own runtime; the shared output device sums them at the backend
+  (the only mix point invariant #4 permits).
+- **Two entries on ONE device** (#703): Core Audio cannot open two
+  streams on one device (a previous attempt produced total silence), so
+  the device keeps ONE cpal stream whose callback fans out to every
+  per-entry runtime bound to that cpal index. On macOS each entry gets
+  its own `dsp_worker` realtime thread, so a heavy entry cannot starve
+  its sibling. State isolation is the contract; the hardware deadline of
+  one device callback is inherently shared.
+- **Split-mono siblings** (one entry, `mode: mono, channels: [a, b]`)
+  stay in ONE runtime: the pinned volume invariants (g02/g03) require
+  siblings to sum before the per-runtime limiter.
+- **Insert chains** are a single runtime (the send/return pipeline spans
+  cpal indices); **Linux/JACK** keeps the per-device grouping behind the
+  `jack` cfg because the JACK-direct client binds one runtime.
+
+Contract tests: `crates/engine/src/stream_isolation_tests.rs` +
+`stream_isolation_same_device_tests.rs`; cpal binding in
+`crates/infra-cpal/src/tests_regression.rs`.
+
 ### DSP worker per input stream (issue #670, macOS)
 
 The chain DSP does NOT run inside the CoreAudio input callback. The HAL
