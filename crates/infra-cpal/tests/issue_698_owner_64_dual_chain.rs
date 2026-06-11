@@ -89,6 +89,45 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
          chain2 xruns={dual2_x} underruns={dual2_u}"
     );
 
+    // ── Phase 3: the owner's REAL project shape — FIVE chains, five RT
+    // workers each declaring an 85%-of-period computation budget. If the
+    // kernel's time-constraint admission demotes workers under this
+    // overcommit, damage appears here that two chains never show (the
+    // owner's "everything interferes" with his 5-chain project).
+    drop(controller);
+    let mut five = project.clone();
+    for i in 3..6 {
+        let mut extra = five.chains[0].clone();
+        extra.id = ChainId(format!("issue-698-five-{i}"));
+        five.chains.push(extra);
+    }
+    let controller = ProjectRuntimeController::start(&five).expect("start 5-chain streams");
+    let all_ids: Vec<ChainId> = five.chains.iter().map(|c| c.id.clone()).collect();
+    for id in &all_ids {
+        let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
+        controller.set_chain_di_loop(id, Some(di));
+    }
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    let base: Vec<(u64, u64)> = all_ids
+        .iter()
+        .map(|id| {
+            (
+                controller.chain_xrun_count(id),
+                controller.chain_underrun_count(id),
+            )
+        })
+        .collect();
+    std::thread::sleep(std::time::Duration::from_secs(20));
+    let mut five_x = 0u64;
+    let mut five_u = 0u64;
+    for (id, (x0, u0)) in all_ids.iter().zip(base) {
+        five_x += controller.chain_xrun_count(id) - x0;
+        five_u += controller.chain_underrun_count(id) - u0;
+    }
+    eprintln!(
+        "[#698 FIVE-64] five chains playing 20s: total xruns={five_x} underruns={five_u}"
+    );
+
     assert_eq!(
         (solo_x, solo_u),
         (0, 0),
@@ -103,5 +142,14 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
          interfere — chain1 {dual1_x}/{dual1_u}, chain2 {dual2_x}/{dual2_u} \
          xruns/underruns in 20 s. Each stream is supposed to be an isolated \
          runtime; cross-stream timing pressure is damage."
+    );
+    assert_eq!(
+        (five_x, five_u),
+        (0, 0),
+        "BUG #698: with FIVE chains playing (the owner's real project shape) \
+         the chains recorded {five_x} xruns / {five_u} underruns in 20 s — \
+         five RT workers each declaring 85% of the period overcommit the \
+         time-constraint band and the kernel demotes them to E-cores, where \
+         the chain no longer fits the budget."
     );
 }

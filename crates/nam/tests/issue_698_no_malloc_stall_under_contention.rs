@@ -33,6 +33,54 @@ fn od808() -> String {
     )
 }
 
+/// Promote the measuring thread to the macOS realtime (time-constraint)
+/// class, exactly like the production dsp-worker. Without this the test
+/// thread is preempted by the storm threads (and anything else on the
+/// machine) and the measurement captures SCHEDULING noise; with it, only
+/// what the production worker also suffers — a lock held by a lower
+/// priority thread (the malloc zone lock) — can stall the loop. That
+/// inheritance is precisely the defect under test.
+fn promote_to_audio_rt(period_ns: u64) {
+    #[repr(C)]
+    struct Timebase {
+        numer: u32,
+        denom: u32,
+    }
+    #[repr(C)]
+    struct TimeConstraint {
+        period: u32,
+        computation: u32,
+        constraint: u32,
+        preemptible: u32,
+    }
+    extern "C" {
+        fn mach_thread_self() -> u32;
+        fn mach_timebase_info(info: *mut Timebase) -> i32;
+        fn thread_policy_set(thread: u32, flavor: i32, policy: *const u32, count: u32) -> i32;
+    }
+    const THREAD_TIME_CONSTRAINT_POLICY: i32 = 2;
+    unsafe {
+        let mut tb = Timebase { numer: 0, denom: 0 };
+        if mach_timebase_info(&mut tb) != 0 || tb.numer == 0 {
+            return;
+        }
+        let to_mach = |ns: u64| ((ns as u128 * tb.denom as u128) / tb.numer as u128) as u32;
+        let policy = TimeConstraint {
+            period: to_mach(period_ns),
+            computation: to_mach(period_ns * 85 / 100),
+            constraint: to_mach(period_ns),
+            preemptible: 1,
+        };
+        let rc = thread_policy_set(
+            mach_thread_self(),
+            THREAD_TIME_CONSTRAINT_POLICY,
+            &policy as *const _ as *const u32,
+            4,
+        );
+        eprintln!("[#698 MALLOC-STORM] measuring-thread realtime promotion rc={rc}");
+    }
+}
+
 #[test]
 fn nam_block_holds_the_64_frame_budget_under_allocator_contention() {
     let mut params = DEFAULT_PLUGIN_PARAMS;
@@ -46,6 +94,7 @@ fn nam_block_holds_the_64_frame_budget_under_allocator_contention() {
     for _ in 0..512 {
         proc.process_block(&mut buf);
     }
+    promote_to_audio_rt(PERIOD_NS as u64);
 
     // The GUI process in miniature: threads that allocate and free
     // continuously (Slint props, tokio tasks, meter strings, log lines).
