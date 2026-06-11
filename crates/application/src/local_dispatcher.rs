@@ -137,6 +137,17 @@ impl LocalDispatcher {
         *self.rig.borrow_mut() = Some(rig);
     }
 
+    /// #693: clone the current state into an immutable snapshot for
+    /// API-style reads (`crate::snapshot`). Called by
+    /// `PublishingDispatcher` after every dispatch — the cost is one
+    /// deep clone per command, paid on the writer thread, so readers
+    /// never borrow the live `Rc` state.
+    pub fn publish_state_snapshot(&self) {
+        let project = self.project.borrow().clone();
+        let rig = self.rig.borrow().as_ref().map(|rig| rig.borrow().clone());
+        crate::snapshot::publish(crate::snapshot::StateSnapshot { project, rig });
+    }
+
     /// #555: configure the preset library directory. Called by the
     /// session bootstrap once the resolved `presets_path` is known.
     /// Idempotent — calling this again replaces the path.

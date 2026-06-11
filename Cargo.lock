@@ -343,6 +343,7 @@ version = "0.1.0"
 dependencies = [
  "adapter-render",
  "anyhow",
+ "arc-swap",
  "block-core",
  "block-delay",
  "block-reverb",

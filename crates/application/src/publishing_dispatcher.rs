@@ -28,6 +28,10 @@ impl CommandDispatcher for PublishingDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
         let events = self.inner.dispatch(cmd)?;
         self.sink.publish(&events);
+        // #693: refresh the read snapshot after every state change so
+        // transports serve reads API-style on their own thread instead
+        // of hopping to this (frontend) one.
+        self.inner.publish_state_snapshot();
         Ok(events)
     }
 
