@@ -5,6 +5,7 @@
 | `openrig --project /path/project.openrig` | Abre o projeto direto, pula launcher (forma documentada do #436) |
 | `openrig /path/project.yaml` (posicional) | Idem (forma legada, ainda aceita) |
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
+| `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
 | `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
 | `--mcp` | Sobe servidor MCP em `http://127.0.0.1:4123` (GUI continua) — ver `docs/mcp.md` |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`) |

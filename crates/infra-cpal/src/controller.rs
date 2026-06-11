@@ -18,8 +18,6 @@
 //! tap subscriptions). Splitting by method group would force every
 //! caller of an inherent method to pull in a trait.
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use anyhow::anyhow;
 use anyhow::Result;
 use std::collections::HashMap;
 
@@ -78,16 +76,17 @@ pub struct ProjectRuntimeController {
         Receiver<Result<Vec<(usize, Arc<ChainRuntimeState>)>>>,
     )>,
     /// Issue #672 — in-flight cold activations (single-device chains). The
-    /// worker builds the runtimes off-thread (the NAM/IR load);
+    /// worker builds the runtimes off-thread; since #693 it also validates
+    /// and resolves the device config there (CoreAudio property queries cost
+    /// hundreds of ms and must not hold the frontend). The resolved config
+    /// comes back with the runtimes (issue #703: one per input-entry group);
     /// `poll_pending_rebuilds` then creates the cpal streams on the frontend
-    /// (they are `!Send`) and installs the chain. Holds the resolved IO
-    /// config + chain needed to build the streams once the runtimes are ready.
+    /// (they are `!Send`) and installs the chain.
     #[allow(clippy::type_complexity)]
     pub(crate) pending_activations: Vec<(
         ChainId,
         Chain,
-        ResolvedChainAudioConfig,
-        Receiver<Result<Vec<(usize, Arc<ChainRuntimeState>)>>>,
+        Receiver<Result<(Vec<(usize, Arc<ChainRuntimeState>)>, ResolvedChainAudioConfig)>>,
     )>,
     /// Sample rate (Hz) the live streams were built at, captured from the last
     /// resolved chain config. The DI-loop loader reads this (via the
@@ -265,9 +264,9 @@ impl ProjectRuntimeController {
         // cpal streams on THIS (frontend) thread — cpal `Stream` is `!Send` — and
         // install the chain.
         let mut still_activating = Vec::new();
-        for (chain_id, chain, resolved, rx) in std::mem::take(&mut self.pending_activations) {
+        for (chain_id, chain, rx) in std::mem::take(&mut self.pending_activations) {
             match rx.try_recv() {
-                Ok(Ok(runtimes)) => {
+                Ok(Ok((runtimes, resolved))) => {
                     // Issue #703: install every per-entry runtime — a
                     // single-device chain may own N isolated runtimes (one
                     // per input entry) all fed by the one device stream.
@@ -281,6 +280,10 @@ impl ProjectRuntimeController {
                         self.chain_slots
                             .insert((chain_id.clone(), *group), slot.handle());
                     }
+                    // #669/#693: the worker resolved the real device rate —
+                    // mirror it like the synchronous upsert path does, so DI
+                    // loops resample to the live rate.
+                    self.sample_rate = resolved.sample_rate as u32;
                     match crate::build_active_chain_runtime(&chain_id, &chain, resolved, slots) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
@@ -294,7 +297,7 @@ impl ProjectRuntimeController {
                 }
                 Ok(Err(e)) => log::error!("chain '{}' activation build failed: {e}", chain_id.0),
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    still_activating.push((chain_id, chain, resolved, rx))
+                    still_activating.push((chain_id, chain, rx))
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     log::error!("chain '{}' activation worker disconnected", chain_id.0)
@@ -482,8 +485,21 @@ impl ProjectRuntimeController {
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
         {
             let host = get_host();
-            validate_channels_against_devices(project, host)?;
-            let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
+            // #693: on a cold start (nothing active, nothing pending) every
+            // enabled chain goes through the off-thread activation, which
+            // validates + resolves on the control worker — skip the
+            // hundreds-of-ms CoreAudio queries here so the caller (the GUI
+            // thread) returns immediately. Live syncs keep the upfront
+            // validation so errors still surface synchronously.
+            let cold_start = self.active_chains.is_empty()
+                && self.pending_activations.is_empty()
+                && self.pending_rebuilds.is_empty();
+            let mut resolved_chains = if cold_start {
+                HashMap::new()
+            } else {
+                validate_channels_against_devices(project, host)?;
+                resolve_enabled_chain_audio_configs(host, project)?
+            };
 
             let removed_chain_ids = self
                 .active_chains
@@ -506,9 +522,24 @@ impl ProjectRuntimeController {
                     continue;
                 }
 
-                let resolved = resolved_chains.remove(&chain.id).ok_or_else(|| {
-                    anyhow!("chain '{}' missing resolved audio config", chain.id.0)
-                })?;
+                // #693: a cold bring-up must not hold the caller (the GUI
+                // thread) — reuse the #672 off-thread activation: validate +
+                // resolve + heavy build (NAM/IR, routes) on the control
+                // worker, streams installed by the poll tick.
+                // Already-streaming and multi-input chains keep the
+                // synchronous path.
+                if self.schedule_chain_activation(project, chain)? {
+                    continue;
+                }
+                let resolved = match resolved_chains.remove(&chain.id) {
+                    Some(resolved) => resolved,
+                    None => {
+                        // Cold start skipped the upfront resolve; this is the
+                        // rare synchronous fallback (multi-input chain).
+                        validate_chain_channels_against_devices(host, chain)?;
+                        resolve_chain_audio_config(host, project, chain)?
+                    }
+                };
                 self.upsert_chain_with_resolved(chain, resolved, false)?;
             }
 
@@ -691,18 +722,25 @@ impl ProjectRuntimeController {
             return Ok(false);
         }
 
-        let host = get_host();
-        validate_chain_channels_against_devices(host, chain)?;
-        let resolved = resolve_chain_audio_config(host, project, chain)?;
-        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
-        let request = BuildRequest {
-            chain: chain.clone(),
-            sample_rate: resolved.sample_rate,
-            buffer_sizes: elastic_targets,
-        };
-        let rx = self.worker.submit(move || build_chain_runtime(&request));
+        // #693: validation + device resolution are CoreAudio property
+        // queries costing hundreds of ms — they run on the control worker
+        // together with the heavy build, never on the calling thread.
+        let project_for_build = project.clone();
+        let chain_for_build = chain.clone();
+        let rx = self.worker.submit(move || {
+            let host = get_host();
+            validate_chain_channels_against_devices(host, &chain_for_build)?;
+            let resolved = resolve_chain_audio_config(host, &project_for_build, &chain_for_build)?;
+            let elastic_targets = compute_elastic_targets_for_chain(&chain_for_build, &resolved);
+            let request = BuildRequest {
+                chain: chain_for_build,
+                sample_rate: resolved.sample_rate,
+                buffer_sizes: elastic_targets,
+            };
+            Ok((build_chain_runtime(&request)?, resolved))
+        });
         self.pending_activations
-            .push((chain.id.clone(), chain.clone(), resolved, rx));
+            .push((chain.id.clone(), chain.clone(), rx));
         Ok(true)
     }
 

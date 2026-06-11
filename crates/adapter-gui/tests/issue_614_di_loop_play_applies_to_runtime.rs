@@ -107,6 +107,16 @@ fn play_chain_di_loop_arms_runtime() {
             source: DiLoopSource::File(wav),
         })
         .expect("SetChainDiLoopSource must succeed");
+    // #693: wait for the off-thread decode to land before playing.
+    {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while dispatcher.di_loop_for_chain(&chain_id).is_none()
+            && std::time::Instant::now() < deadline
+        {
+            let _ = dispatcher.poll_async_results();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
 
     // Precondition: runtime is unarmed.
     assert!(
@@ -155,6 +165,16 @@ fn stop_chain_di_loop_disarms_runtime() {
             source: DiLoopSource::File(wav),
         })
         .expect("SetChainDiLoopSource must succeed");
+    // #693: wait for the off-thread decode to land before playing.
+    {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while dispatcher.di_loop_for_chain(&chain_id).is_none()
+            && std::time::Instant::now() < deadline
+        {
+            let _ = dispatcher.poll_async_results();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
 
     adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
 

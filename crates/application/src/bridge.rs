@@ -111,11 +111,65 @@ struct QueryRequest {
 }
 
 impl CommandBridge {
-    /// Queue a read-only query. Resolves once the frontend services it.
+    /// Read-only query, served API-style (#693): kinds derivable from
+    /// the published [`crate::snapshot`] (or from process-global
+    /// catalogs) resolve INLINE on the caller's thread — concurrent,
+    /// never queued behind the frontend tick. Only runtime-coupled
+    /// kinds (`Devices`, `ChainMeters`) still queue for the frontend,
+    /// as does everything before the first snapshot exists.
     pub fn query(&self, kind: QueryKind) -> oneshot::Receiver<Result<String, String>> {
+        if let Some(result) = Self::resolve_off_frontend(&kind) {
+            let (reply, rx) = oneshot::channel();
+            let _ = reply.send(result);
+            return rx;
+        }
         let (reply, rx) = oneshot::channel();
         let _ = self.qtx.send(QueryRequest { kind, reply });
         rx
+    }
+
+    /// Resolve a query without the frontend, when possible. `None` ⇒
+    /// the kind needs live runtime/GUI state (or no snapshot yet) and
+    /// falls back to the frontend queue.
+    fn resolve_off_frontend(kind: &QueryKind) -> Option<Result<String, String>> {
+        use crate::query as q;
+        // Catalog / filesystem kinds never touch dispatcher state.
+        match kind {
+            QueryKind::ListPluginCatalog => return Some(Ok(q::list_plugin_catalog())),
+            QueryKind::GetPlugin { id } => return Some(Ok(q::get_plugin(id))),
+            QueryKind::FindPlugins { query } => return Some(Ok(q::find_plugins(query))),
+            QueryKind::GetPluginParams { plugin_id } => {
+                return Some(Ok(q::get_plugin_params(plugin_id)))
+            }
+            QueryKind::Paths => return Some(Ok(q::resolved_paths_json())),
+            _ => {}
+        }
+        let snap = crate::snapshot::latest()?;
+        match kind {
+            QueryKind::ProjectYaml => {
+                Some(infra_yaml::serialize_project(&snap.project).map_err(|e| e.to_string()))
+            }
+            QueryKind::Ids => Some(Ok(q::list_ids(&snap.project))),
+            QueryKind::ListChainPresets { chain } => Some(match &snap.rig {
+                Some(rig) => q::list_chain_presets(rig, chain),
+                None => Err("no rig attached to the session".to_string()),
+            }),
+            QueryKind::ListProjectPresets => Some(match &snap.rig {
+                Some(rig) => Ok(q::list_project_presets(rig)),
+                None => Err("no rig attached to the session".to_string()),
+            }),
+            QueryKind::GetBlockParams { chain, block } => {
+                Some(q::get_block_params(&snap.project, chain, block))
+            }
+            // Live runtime / GUI-coupled reads keep the frontend path.
+            QueryKind::Devices | QueryKind::ChainMeters => None,
+            // Handled above; unreachable here.
+            QueryKind::ListPluginCatalog
+            | QueryKind::GetPlugin { .. }
+            | QueryKind::FindPlugins { .. }
+            | QueryKind::GetPluginParams { .. }
+            | QueryKind::Paths => None,
+        }
     }
 }
 

@@ -94,6 +94,22 @@ pub struct LocalDispatcher {
     /// Defaults to 48 000 Hz; the adapter sets the real value via
     /// `attach_engine_sr` once the audio stream is running.
     pub(crate) engine_sr: RefCell<u32>,
+
+    /// #693: completion channel for command work running on its own
+    /// task (DI decode, catalog rescan, ...). Handlers spawn a task
+    /// with a clone of the sender; `poll_async_results` (frontend
+    /// tick) drains the receiver, applies state and emits the events.
+    pub(crate) async_done_tx: std::sync::mpsc::Sender<AsyncDone>,
+    pub(crate) async_done_rx: std::sync::mpsc::Receiver<AsyncDone>,
+}
+
+/// Completed off-thread command work (#693).
+pub(crate) enum AsyncDone {
+    /// DI-loop decode: install into `di_loop_state` + emit the event.
+    DiLoad(ChainId, DiLoopSource, Result<Arc<DiLoop>, String>),
+    /// Work whose state lives elsewhere (e.g. the global plugin
+    /// registry): just surface the completion events.
+    Events(Vec<Event>),
 }
 
 impl LocalDispatcher {
@@ -103,6 +119,7 @@ impl LocalDispatcher {
     /// its own project handle and pass it here so both sides share the same
     /// allocation.
     pub fn new(project: Rc<RefCell<Project>>) -> Self {
+        let (async_done_tx, async_done_rx) = std::sync::mpsc::channel();
         Self {
             project,
             rig: RefCell::new(None),
@@ -113,6 +130,8 @@ impl LocalDispatcher {
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),
+            async_done_tx,
+            async_done_rx,
         }
     }
 
@@ -135,6 +154,17 @@ impl LocalDispatcher {
     /// mutate the same allocation the GUI renders from. Idempotent.
     pub fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
         *self.rig.borrow_mut() = Some(rig);
+    }
+
+    /// #693: clone the current state into an immutable snapshot for
+    /// API-style reads (`crate::snapshot`). Called by
+    /// `PublishingDispatcher` after every dispatch — the cost is one
+    /// deep clone per command, paid on the writer thread, so readers
+    /// never borrow the live `Rc` state.
+    pub fn publish_state_snapshot(&self) {
+        let project = self.project.borrow().clone();
+        let rig = self.rig.borrow().as_ref().map(|rig| rig.borrow().clone());
+        crate::snapshot::publish(crate::snapshot::StateSnapshot { project, rig });
     }
 
     /// #555: configure the preset library directory. Called by the
@@ -292,18 +322,39 @@ impl CommandDispatcher for LocalDispatcher {
                 block_size,
                 bit_depth,
                 tail_ms,
-            } => crate::render_handler::run(
-                chain_path,
-                input_path,
-                output_path,
-                start_s,
-                end_s,
-                sample_rate_hz,
-                block_size,
-                bit_depth,
-                tail_ms,
-            )
-            .map(|ev| vec![ev]),
+            } => {
+                // #693: bad args / missing input still error immediately
+                // (cheap checks); only the render itself is deferred.
+                crate::render_handler::precheck(bit_depth, &input_path)?;
+                // #693: the offline render (file reads + full engine pass +
+                // WAV write) runs on its own task. Completion — success or
+                // failure — surfaces via poll_async_results as
+                // RenderCompleted / Event::Error.
+                let tx = self.async_done_tx.clone();
+                std::thread::Builder::new()
+                    .name("render-chain".into())
+                    .spawn(move || {
+                        let done = match crate::render_handler::run(
+                            chain_path,
+                            input_path,
+                            output_path,
+                            start_s,
+                            end_s,
+                            sample_rate_hz,
+                            block_size,
+                            bit_depth,
+                            tail_ms,
+                        ) {
+                            Ok(ev) => ev,
+                            Err(e) => Event::Error {
+                                message: format!("RenderChain failed: {e}"),
+                            },
+                        };
+                        let _ = tx.send(AsyncDone::Events(vec![done]));
+                    })
+                    .map_err(|e| anyhow::anyhow!("failed to spawn render-chain task: {e}"))?;
+                Ok(vec![])
+            }
 
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
@@ -399,6 +450,28 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn subscribe(&self) -> EventStream {
         // Phase 2 will return a real event stream. For now this is a no-op.
+    }
+
+    /// #693: install completed off-thread DI decodes and emit their
+    /// events. Failures are logged (non-blocking logger) — same policy
+    /// as every other async side-effect.
+    fn poll_async_results(&self) -> Vec<Event> {
+        let mut events = Vec::new();
+        while let Ok(done) = self.async_done_rx.try_recv() {
+            match done {
+                AsyncDone::DiLoad(chain, source, result) => match result {
+                    Ok(arc) => {
+                        self.di_loop_state
+                            .borrow_mut()
+                            .insert(chain.clone(), (source, arc));
+                        events.push(Event::ChainDiLoopSourceChanged { chain });
+                    }
+                    Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+                },
+                AsyncDone::Events(completed) => events.extend(completed),
+            }
+        }
+        events
     }
 }
 
@@ -499,19 +572,31 @@ impl LocalDispatcher {
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
         use infra_filesystem::FilesystemStorage;
         match cmd {
+            // #693: path persistence runs on the persist worker — the
+            // dispatching thread never waits on disk; errors go to the
+            // non-blocking logger.
             Command::SetPresetsPath { path } => {
-                FilesystemStorage::save_presets_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_presets_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_presets_path(path) {
+                        log::error!("save_presets_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetPluginsPath { path } => {
-                FilesystemStorage::save_plugins_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_plugins_path(path) {
+                        log::error!("save_plugins_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetEvaluationsPath { path } => {
-                FilesystemStorage::save_evaluations_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_evaluations_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_evaluations_path(path) {
+                        log::error!("save_evaluations_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             other => {

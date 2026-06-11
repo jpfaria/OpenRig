@@ -26,11 +26,12 @@ impl LocalDispatcher {
     /// working without a tempdir.
     pub(crate) fn handle_chain_preset(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
+            // #693: the preset snapshot is built in memory here; every
+            // disk touch runs on the persist worker so the dispatching
+            // thread never waits on I/O. Errors surface via the
+            // non-blocking logger.
             Command::SaveChainPreset { chain, name } => {
-                if let Some(dir) = self.presets_path.borrow().as_ref() {
-                    std::fs::create_dir_all(dir).map_err(|e| {
-                        anyhow::anyhow!("failed to create presets dir {dir:?}: {e}")
-                    })?;
+                if let Some(dir) = self.presets_path.borrow().clone() {
                     let project = self.project.borrow();
                     let target =
                         project
@@ -42,7 +43,7 @@ impl LocalDispatcher {
                                 "Command::SaveChainPreset: chain {chain:?} not found in project"
                             )
                             })?;
-                    let path = preset_save_path(dir, &name);
+                    let path = preset_save_path(&dir, &name);
                     let preset = ChainBlocksPreset {
                         id: preset_id_from_path(&path),
                         name: target.description.clone(),
@@ -50,24 +51,32 @@ impl LocalDispatcher {
                         instrument: target.instrument.clone(),
                         blocks: strip_io_blocks(&target.blocks),
                     };
-                    save_chain_preset_file(&path, &preset).map_err(|e| {
-                        anyhow::anyhow!("failed to write preset file {path:?}: {e}")
-                    })?;
+                    crate::persist_worker::run(move || {
+                        if let Err(e) = std::fs::create_dir_all(&dir) {
+                            log::error!("failed to create presets dir {dir:?}: {e}");
+                            return;
+                        }
+                        if let Err(e) = save_chain_preset_file(&path, &preset) {
+                            log::error!("failed to write preset file {path:?}: {e}");
+                        }
+                    });
                 }
                 Ok(vec![Event::ChainPresetSaved { name }])
             }
             Command::DeleteChainPreset { name } => {
                 if let Some(dir) = self.presets_path.borrow().as_ref() {
                     let path = preset_save_path(dir, &name);
-                    if path.exists() {
-                        std::fs::remove_file(&path).map_err(|e| {
-                            anyhow::anyhow!("failed to remove preset file {path:?}: {e}")
-                        })?;
-                    }
-                    // missing file is a silent no-op — same UX as the
-                    // GUI's previous fs::remove_file path. Observers
-                    // still get the event so they can refresh the
-                    // picker.
+                    crate::persist_worker::run(move || {
+                        // missing file is a silent no-op — same UX as the
+                        // GUI's previous fs::remove_file path. Observers
+                        // still get the event so they can refresh the
+                        // picker.
+                        if path.exists() {
+                            if let Err(e) = std::fs::remove_file(&path) {
+                                log::error!("failed to remove preset file {path:?}: {e}");
+                            }
+                        }
+                    });
                 }
                 Ok(vec![Event::ChainPresetDeleted { name }])
             }

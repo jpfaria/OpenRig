@@ -14,7 +14,9 @@ use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // #693: non-blocking logger — log calls must never stall the GUI
+    // thread on a slow stderr consumer.
+    adapter_gui::logging::init_logging();
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.
@@ -68,7 +70,7 @@ fn main() -> anyhow::Result<()> {
         || std::env::var("OPENRIG_FULLSCREEN")
             .ok()
             .map_or(false, |v| v == "1" || v.eq_ignore_ascii_case("true"));
-    run_desktop_app(
+    let result = run_desktop_app(
         runtime_mode,
         interaction_mode,
         cli_project_path,
@@ -76,5 +78,9 @@ fn main() -> anyhow::Result<()> {
         fullscreen,
         mcp_addr,
         midi_map,
-    )
+    );
+    // #693: saves are queued to the persist worker — wait for
+    // durability before the process exits.
+    application::persist_worker::flush();
+    result
 }

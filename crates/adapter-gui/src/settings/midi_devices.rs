@@ -251,7 +251,15 @@ pub(crate) fn replace_model(model: &VecModel<MidiDeviceRow>, rows: &[MidiDeviceS
 /// AppConfig field. Read-modify-write because `AppConfig` carries
 /// audio devices, language, recent projects and asset paths too.
 pub fn persist(rows: &[MidiDeviceSelection]) -> anyhow::Result<()> {
-    let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
-    config.midi_devices = rows.to_vec();
-    FilesystemStorage::save_app_config(&config)
+    // #693: the read-modify-write runs ordered on the persist worker —
+    // the GUI thread never waits on disk; errors go to the log.
+    let rows = rows.to_vec();
+    application::persist_worker::run(move || {
+        let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+        config.midi_devices = rows;
+        if let Err(e) = FilesystemStorage::save_app_config(&config) {
+            log::error!("failed to persist MIDI devices: {e}");
+        }
+    });
+    Ok(())
 }

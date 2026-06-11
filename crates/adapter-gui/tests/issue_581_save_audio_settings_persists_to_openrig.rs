@@ -105,6 +105,9 @@ fn issue_581_save_audio_settings_persists_into_config_yaml() {
                 output_devices: vec![],
             })
             .expect("SaveAudioSettings dispatch");
+        // #693: the config write runs on the persist worker — wait for
+        // durability before reading config.yaml back.
+        application::persist_worker::flush();
 
         // Simulate the next cold start: re-read the per-machine
         // `config.yaml` from disk fresh — this is what

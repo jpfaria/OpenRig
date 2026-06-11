@@ -30,6 +30,8 @@ fn save_chain_preset_emits_event_with_name() {
             name: "lead".to_string(),
         })
         .expect("SaveChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(
         events
             .iter()
@@ -74,6 +76,8 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             name: preset_name.to_string(),
         })
         .expect("SaveChainPreset should succeed");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, preset_name);
     assert!(
@@ -92,6 +96,8 @@ fn delete_chain_preset_emits_event_with_name() {
             name: "old".to_string(),
         })
         .expect("DeleteChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(
         events
             .iter()
@@ -123,6 +129,8 @@ fn delete_chain_preset_removes_file_when_presets_path_attached() {
             name: preset_name.to_string(),
         })
         .expect("DeleteChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     assert!(
         !preset_path.exists(),
@@ -165,6 +173,8 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             name: "Violao Clean".to_string(),
         })
         .expect("SaveChainPreset should succeed");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, "Violao Clean");
     assert!(preset_path.exists(), "preset file must be written");
@@ -315,6 +325,8 @@ fn delete_chain_preset_is_idempotent_when_file_missing() {
             name: "does-not-exist".to_string(),
         })
         .expect("DeleteChainPreset of missing file is a no-op");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(events
         .iter()
         .any(|e| matches!(e, Event::ChainPresetDeleted { name } if name == "does-not-exist")));

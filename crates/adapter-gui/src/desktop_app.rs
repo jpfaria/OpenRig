@@ -49,6 +49,39 @@ pub fn run_desktop_app(
         runtime_mode,
         interaction_mode
     );
+    // #693 diagnostic: UI event-loop watchdog. A background thread posts a
+    // heartbeat into the Slint event loop every 250 ms; if the loop stops
+    // answering past ~600 ms a `[ui-stall]` warn names the freeze with its
+    // duration — real-session stalls become self-reporting.
+    {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::Arc;
+        let beat = Arc::new(AtomicU64::new(0));
+        let beat_bg = Arc::clone(&beat);
+        std::thread::Builder::new()
+            .name("ui-watchdog".into())
+            .spawn(move || {
+                let start = std::time::Instant::now();
+                let mut warned_at: u64 = 0;
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+                    let now_ms = start.elapsed().as_millis() as u64;
+                    let seen = beat_bg.load(Ordering::Relaxed);
+                    let gap = now_ms.saturating_sub(seen);
+                    if seen > 0 && gap > 600 && seen != warned_at {
+                        log::warn!("[ui-stall] event loop unresponsive for ~{gap}ms");
+                        warned_at = seen;
+                    }
+                    let beat_ui = Arc::clone(&beat_bg);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        // Runs ON the event loop: the stored instant is the
+                        // moment the loop actually answered.
+                        beat_ui.store(start.elapsed().as_millis() as u64, Ordering::Relaxed);
+                    });
+                }
+            })
+            .ok();
+    }
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -66,6 +99,16 @@ pub fn run_desktop_app(
     //      defaults to <config_dir>/plugins next to the GUI config file.
     // Block-* crates query the merged catalog to surface plugin
     // manifests in the GUI.
+    // #693: warm the device cache off-thread so the first project open /
+    // IO window never pays the ~2s CoreAudio enumeration on the GUI
+    // thread (measured: the [ui-stall] 760ms at boot + the open delay).
+    std::thread::Builder::new()
+        .name("device-cache-warmer".into())
+        .spawn(|| {
+            let _ = infra_cpal::list_input_device_descriptors();
+            let _ = infra_cpal::list_output_device_descriptors();
+        })
+        .ok();
     let bundled_root = infra_filesystem::detect_data_root().join("plugins");
     let user_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!(
@@ -884,7 +927,13 @@ pub fn run_desktop_app(
                     let Some(session) = session_borrow.as_ref() else {
                         return;
                     };
-                    let events = drain.drain(session.dispatcher.as_ref(), 32);
+                    let mut events = drain.drain(session.dispatcher.as_ref(), 32);
+                    // #693: completions of off-thread command work (DI
+                    // decode, ...) ride the same event path as a dispatch.
+                    {
+                        use application::dispatcher::CommandDispatcher as _;
+                        events.extend(session.dispatcher.poll_async_results());
+                    }
                     let project = &session.project;
                     drain.serve_queries(
                         |kind| match kind {

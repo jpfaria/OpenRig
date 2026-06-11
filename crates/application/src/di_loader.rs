@@ -66,7 +66,7 @@ pub fn load_di_loop(source: &DiLoopSource, engine_sr: u32) -> Result<Arc<DiLoop>
 }
 
 /// Resolve a [`DiLoopSource`] to an absolute file path.
-fn resolve_path(source: &DiLoopSource) -> Result<PathBuf, String> {
+pub(crate) fn resolve_path(source: &DiLoopSource) -> Result<PathBuf, String> {
     match source {
         DiLoopSource::File(p) => Ok(p.clone()),
         DiLoopSource::Bundled(id) => {
