@@ -67,13 +67,18 @@ cargo test --workspace
 
 (~1100+ testes)
 
-## Real-hardware battery (issue #670)
+## Real-hardware battery (issues #670 / #698)
 
-`crates/infra-cpal/tests/issue_670_cab_swap.rs` and
-`crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs` open the REAL
+`crates/infra-cpal/tests/issue_670_cab_swap.rs`,
+`crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs`,
+`crates/infra-cpal/tests/issue_698_pitch_shifter_live.rs` and
+`crates/infra-cpal/tests/issue_698_owner_64_dual_chain.rs` open the REAL
 audio interface (CoreAudio streams, the owner's presets and DI takes) and
 assert real-time deadlines through the engine's own xrun/underrun counters.
-They are the full-fidelity reproduction harness for the #670 crackle.
+They are the full-fidelity reproduction harness for the #670 crackle and
+the #698 multi-chain RT-budget overcommit (shared helpers live in
+`tests/hw_harness/`). The #698 owner-recipe tests additionally need the
+real capture library via `OPENRIG_OWNER_PLUGINS=<plugins/source>`.
 
 They are only meaningful on an otherwise idle machine, so they are gated by
 an environment variable and return immediately (with a loud notice on
@@ -84,9 +89,11 @@ changes:**
 
 ```sh
 OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
-    --test issue_670_cab_swap --test issue_670_real_streams_no_xruns
+    --test issue_670_cab_swap --test issue_670_real_streams_no_xruns \
+    --test issue_698_pitch_shifter_live --test issue_698_owner_64_dual_chain
 ```
 
 Requirements: macOS, a real input/output interface connected (the suite
-looks for the Scarlett by name), an idle machine, and ~8 minutes. The tests
-serialize access to the physical device across processes via a lock file.
+looks for the Scarlett by name), an idle machine, and ~12 minutes. The
+tests serialize access to the physical device across processes via a lock
+file.
