@@ -927,7 +927,13 @@ pub fn run_desktop_app(
                     let Some(session) = session_borrow.as_ref() else {
                         return;
                     };
-                    let events = drain.drain(session.dispatcher.as_ref(), 32);
+                    let mut events = drain.drain(session.dispatcher.as_ref(), 32);
+                    // #693: completions of off-thread command work (DI
+                    // decode, ...) ride the same event path as a dispatch.
+                    {
+                        use application::dispatcher::CommandDispatcher as _;
+                        events.extend(session.dispatcher.poll_async_results());
+                    }
                     let project = &session.project;
                     drain.serve_queries(
                         |kind| match kind {

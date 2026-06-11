@@ -83,6 +83,9 @@ fn issue_540_set_plugins_path_persists_to_config_yaml() {
                 path: Some(picked.clone()),
             })
             .expect("dispatch must succeed");
+        // #693: path persistence runs on the persist worker — wait for
+        // durability before reading config.yaml back.
+        application::persist_worker::flush();
 
         assert!(!events.is_empty(), "dispatch must emit at least one event");
 
@@ -109,6 +112,9 @@ fn issue_540_set_presets_path_persists_to_config_yaml() {
                 path: Some(picked.clone()),
             })
             .expect("dispatch must succeed");
+        // #693: path persistence runs on the persist worker — wait for
+        // durability before reading config.yaml back.
+        application::persist_worker::flush();
 
         assert!(!events.is_empty(), "dispatch must emit at least one event");
 

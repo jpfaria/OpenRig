@@ -22,7 +22,6 @@
 //! event; adapter-gui applies the change to the audio runtime.
 
 use anyhow::Result;
-use std::sync::Arc;
 
 use crate::command::Command;
 use crate::di_loader::load_di_loop;
@@ -42,16 +41,31 @@ impl LocalDispatcher {
                     }
                 }
 
-                let engine_sr = *self.engine_sr.borrow();
-                let arc = load_di_loop(&source, engine_sr)
+                // Cheap sync validation (one stat): a missing file still
+                // errors immediately — MCP/GUI callers keep the Err
+                // contract. Only the decode is deferred.
+                let path = crate::di_loader::resolve_path(&source)
                     .map_err(|e| anyhow::anyhow!("{e}"))?;
+                if !path.exists() {
+                    return Err(anyhow::anyhow!("DI loop file not found: {path:?}"));
+                }
 
-                // Store in ephemeral map — not written to the project.
-                self.di_loop_state
-                    .borrow_mut()
-                    .insert(chain.clone(), (source, Arc::clone(&arc)));
+                // #693: the WAV decode runs on its own task — the
+                // dispatching thread returns immediately. The completion
+                // lands in `poll_async_results` (frontend tick), which
+                // installs the loop into `di_loop_state` and emits
+                // `ChainDiLoopSourceChanged`.
+                let engine_sr = *self.engine_sr.borrow();
+                let tx = self.di_load_tx.clone();
+                std::thread::Builder::new()
+                    .name("di-load".into())
+                    .spawn(move || {
+                        let result = load_di_loop(&source, engine_sr);
+                        let _ = tx.send((chain, source, result));
+                    })
+                    .map_err(|e| anyhow::anyhow!("failed to spawn di-load task: {e}"))?;
 
-                Ok(vec![Event::ChainDiLoopSourceChanged { chain }])
+                Ok(vec![])
             }
 
             Command::SetChainDiLoopEnabled { chain, enabled } => {

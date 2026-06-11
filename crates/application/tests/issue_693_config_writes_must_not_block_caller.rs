@@ -122,3 +122,57 @@ fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
          persistence belongs to the persist worker (issue #693)"
     );
 }
+
+#[test]
+fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
+    use application::di_loader::DiLoopSource;
+    use domain::ids::ChainId;
+    use project::chain::Chain;
+
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let wav = tmp.path().join("loop.wav");
+    let status = std::process::Command::new("mkfifo")
+        .arg(&wav)
+        .status()
+        .expect("run mkfifo");
+    assert!(status.success(), "mkfifo failed");
+
+    let (done_tx, done_rx) = mpsc::channel();
+    let wav_for_caller = wav.clone();
+    std::thread::spawn(move || {
+        let chain_id = ChainId("c1".into());
+        let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![Chain {
+                id: chain_id.clone(),
+                description: None,
+                instrument: "electric_guitar".into(),
+                enabled: false,
+                volume: 1.0,
+                blocks: Vec::new(),
+            }],
+            midi: None,
+        })));
+        let t0 = Instant::now();
+        let _ = dispatcher.dispatch(Command::SetChainDiLoopSource {
+            chain: chain_id,
+            source: DiLoopSource::File(wav_for_caller),
+        });
+        let _ = done_tx.send(t0.elapsed());
+    });
+
+    let result = done_rx.recv_timeout(Duration::from_secs(2));
+    // Pair the decoder's read-open with a write-open (drop = EOF).
+    let _ = std::fs::OpenOptions::new().write(true).open(&wav);
+
+    let elapsed = result.expect(
+        "dispatch(SetChainDiLoopSource) is stuck decoding the WAV — the \
+         handler loads the DI loop inline on the calling thread (issue #693)",
+    );
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "SetChainDiLoopSource held the caller for {elapsed:?} — the DI \
+         decode belongs to its own task (issue #693)"
+    );
+}

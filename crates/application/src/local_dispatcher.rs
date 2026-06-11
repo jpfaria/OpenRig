@@ -94,7 +94,18 @@ pub struct LocalDispatcher {
     /// Defaults to 48 000 Hz; the adapter sets the real value via
     /// `attach_engine_sr` once the audio stream is running.
     pub(crate) engine_sr: RefCell<u32>,
+
+    /// #693: completion channel for DI-loop decodes running on their own
+    /// task. The handler spawns a decode thread with a clone of the
+    /// sender; `poll_async_results` (frontend tick) drains the receiver,
+    /// installs the loop into `di_loop_state` and emits the
+    /// `ChainDiLoopSourceChanged` event.
+    pub(crate) di_load_tx: std::sync::mpsc::Sender<DiLoadResult>,
+    pub(crate) di_load_rx: std::sync::mpsc::Receiver<DiLoadResult>,
 }
+
+/// Result of an off-thread DI-loop decode (#693).
+pub(crate) type DiLoadResult = (ChainId, DiLoopSource, Result<Arc<DiLoop>, String>);
 
 impl LocalDispatcher {
     /// Create a dispatcher that operates on the given shared `Project` handle.
@@ -103,6 +114,7 @@ impl LocalDispatcher {
     /// its own project handle and pass it here so both sides share the same
     /// allocation.
     pub fn new(project: Rc<RefCell<Project>>) -> Self {
+        let (di_load_tx, di_load_rx) = std::sync::mpsc::channel();
         Self {
             project,
             rig: RefCell::new(None),
@@ -113,6 +125,8 @@ impl LocalDispatcher {
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),
+            di_load_tx,
+            di_load_rx,
         }
     }
 
@@ -410,6 +424,25 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn subscribe(&self) -> EventStream {
         // Phase 2 will return a real event stream. For now this is a no-op.
+    }
+
+    /// #693: install completed off-thread DI decodes and emit their
+    /// events. Failures are logged (non-blocking logger) — same policy
+    /// as every other async side-effect.
+    fn poll_async_results(&self) -> Vec<Event> {
+        let mut events = Vec::new();
+        while let Ok((chain, source, result)) = self.di_load_rx.try_recv() {
+            match result {
+                Ok(arc) => {
+                    self.di_loop_state
+                        .borrow_mut()
+                        .insert(chain.clone(), (source, arc));
+                    events.push(Event::ChainDiLoopSourceChanged { chain });
+                }
+                Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+            }
+        }
+        events
     }
 }
 

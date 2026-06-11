@@ -133,6 +133,10 @@ pub fn play_chain_di_loop(
     chain: &ChainId,
 ) {
     use application::dispatcher::CommandDispatcher;
+    // #693: the DI decode runs on its own task — apply any completion
+    // that already landed before arming, so play right after picking a
+    // source uses the freshly decoded loop.
+    let _ = dispatcher.poll_async_results();
     let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: true,

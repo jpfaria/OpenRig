@@ -50,6 +50,17 @@ impl CommandDispatcher for PublishingDispatcher {
     fn subscribe(&self) -> EventStream {
         self.inner.subscribe()
     }
+
+    /// #693: async completions flow through the same fan-out a
+    /// synchronous dispatch gets — transports see them as events.
+    fn poll_async_results(&self) -> Vec<Event> {
+        let events = self.inner.poll_async_results();
+        if !events.is_empty() {
+            self.sink.publish(&events);
+            self.inner.publish_state_snapshot();
+        }
+        events
+    }
 }
 
 #[cfg(test)]
