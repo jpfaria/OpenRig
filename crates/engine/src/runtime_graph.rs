@@ -97,11 +97,18 @@ fn chain_has_enabled_insert(chain: &Chain) -> bool {
         .any(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
 }
 
-/// Partition a chain's segments into per-effective-input groups. Each
-/// group becomes one isolated `ChainRuntimeState`. The group id is the
-/// CPAL stream index shared by the segments of one effective input
-/// (segments split from the same effective input — e.g. one OutputBlock
-/// per output entry — keep the same cpal index, so they stay together).
+/// Partition a chain's segments into per-RAW-input-entry groups (issue
+/// #703). Each group becomes one isolated `ChainRuntimeState`. The group
+/// id is the raw `InputEntry` index the segments came from: two entries
+/// reading the SAME physical device are still two isolated runtimes (the
+/// device's single cpal stream fans out to all of them), while split-mono
+/// siblings (one raw entry, `mode: mono, channels: [a, b]`) share a group
+/// — separating them would double-limit the pinned g02/g03 sum.
+///
+/// Linux/JACK keeps the per-device (cpal index) grouping behind a cfg
+/// guard: the JACK-direct client binds ONE runtime, so a per-entry split
+/// would silence every entry but the first there. Cross-platform law —
+/// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
 /// Insert chains are NOT partitioned (single group `0`) — see
 /// `chain_has_enabled_insert`.
@@ -112,12 +119,16 @@ fn group_segments_by_input(
     if chain_has_enabled_insert(chain) || segments.is_empty() {
         return vec![(0, segments)];
     }
-    // Preserve first-seen order of cpal indices so runtime 0 is the first
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    let key_of = |seg: &ChainSegment| seg.cpal_input_index;
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    let key_of = |seg: &ChainSegment| seg.entry_group;
+    // Preserve first-seen order of group keys so runtime 0 is the first
     // input, runtime 1 the second, etc. (stable across rebuilds).
     let mut order: Vec<usize> = Vec::new();
     let mut groups: HashMap<usize, Vec<ChainSegment>> = HashMap::new();
     for seg in segments {
-        let key = seg.cpal_input_index;
+        let key = key_of(&seg);
         if !groups.contains_key(&key) {
             order.push(key);
         }
@@ -166,19 +177,25 @@ fn build_per_input_runtimes(
     sample_rate: f32,
     elastic_targets: &[usize],
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
     );
     let groups = group_segments_by_input(chain, all_segments);
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
-        let state = assemble_chain_runtime_state(
+        // All segments of a group share one effective input, hence one
+        // cpal stream — record it so infra-cpal can fan a shared device
+        // callback out to every per-entry runtime it feeds (issue #703).
+        let cpal_input_index = segments.first().map(|s| s.cpal_input_index).unwrap_or(0);
+        let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
             &eff_outputs,
@@ -186,9 +203,31 @@ fn build_per_input_runtimes(
             elastic_targets,
             None,
         )?;
+        state.owned_entry = Some((group, cpal_input_index));
         out.push((group, state));
     }
     Ok(out)
+}
+
+/// Issue #703: public seam for infra layers that build a chain's runtimes
+/// off-thread (cold activation, live rebuild). One isolated
+/// `ChainRuntimeState` per input-entry group — the same shape
+/// `RuntimeGraph` holds, so the caller can publish each runtime into its
+/// `(chain, group)` slot. Single-entry chains return exactly one
+/// `(0, state)` pair (the legacy whole-chain shape, byte-identical).
+///
+/// # Errors
+/// Propagates any failure from chain-runtime assembly (e.g. a model that
+/// fails to load).
+pub fn build_per_input_runtime_states(
+    chain: &Chain,
+    sample_rate: f32,
+    elastic_targets: &[usize],
+) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
+    Ok(build_per_input_runtimes(chain, sample_rate, elastic_targets)?
+        .into_iter()
+        .map(|(group, state)| (group, Arc::new(state)))
+        .collect())
 }
 
 /// The per-input group ids a chain would produce, WITHOUT instantiating any
@@ -199,13 +238,15 @@ fn build_per_input_runtimes(
 /// the chain's input/output endpoints and segment split, never on the built
 /// processors, so it can be derived directly.
 fn input_group_ids(chain: &Chain) -> Vec<usize> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
     );
     group_segments_by_input(chain, all_segments)
@@ -228,7 +269,8 @@ pub fn build_chain_runtime_state(
     sample_rate: f32,
     elastic_targets: &[usize],
 ) -> Result<ChainRuntimeState> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
@@ -237,7 +279,7 @@ pub fn build_chain_runtime_state(
             "    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}",
             i,
             i,
-            inp.device_id.0.split(':').last().unwrap_or("?"),
+            inp.device_id.0.split(':').next_back().unwrap_or("?"),
             inp.channels,
             eff_input_cpal_indices[i]
         );
@@ -248,7 +290,7 @@ pub fn build_chain_runtime_state(
             "    output[{}]: 'output #{}' dev='{}' ch={:?}",
             i,
             i,
-            out.device_id.0.split(':').last().unwrap_or("?"),
+            out.device_id.0.split(':').next_back().unwrap_or("?"),
             out.channels
         );
     }
@@ -257,6 +299,7 @@ pub fn build_chain_runtime_state(
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
     );
     log::info!("  segments: {}", segments.len());
@@ -409,6 +452,9 @@ fn assemble_chain_runtime_state(
     let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
 
     Ok(ChainRuntimeState {
+        // Whole-chain by default; `build_per_input_runtimes` stamps the
+        // per-entry identity right after assembly (issue #703).
+        owned_entry: None,
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
@@ -625,16 +671,39 @@ fn update_chain_runtime_state_impl(
     elastic_targets: &[usize],
     spillover: bool,
 ) -> Result<()> {
-    let (effective_ins, eff_input_cpal_indices, effective_split_positions) =
+    let (effective_ins, eff_input_cpal_indices, effective_split_positions, eff_entry_groups) =
         effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(
+    let all_segments = split_chain_into_segments(
         chain,
         &effective_ins,
         &eff_input_cpal_indices,
         &effective_split_positions,
+        &eff_entry_groups,
         &effective_outs,
     );
+    // Issue #703: a per-entry isolated runtime is refilled with ONLY its
+    // own entry's segments. Both entries of a shared device dispatch on
+    // the same cpal index, so refilling every runtime with ALL segments
+    // would make the one device callback process the same guitar in every
+    // sibling runtime — summed at the backend mix (audible double volume).
+    // A whole-chain runtime (`owned_entry == None`: probe, offline, JACK)
+    // keeps every segment, exactly as before.
+    let segments: Vec<ChainSegment> = match runtime.owned_entry {
+        Some((group, _)) => group_segments_by_input(chain, all_segments)
+            .into_iter()
+            .find(|(g, _)| *g == group)
+            .map(|(_, segs)| segs)
+            .ok_or_else(|| {
+                anyhow!(
+                    "chain '{}' in-place update: entry group {} no longer exists \
+                     (topology change must take the full-rebuild path)",
+                    chain.id.0,
+                    group
+                )
+            })?,
+        None => all_segments,
+    };
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {

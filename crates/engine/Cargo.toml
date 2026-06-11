@@ -2,6 +2,13 @@
 name = "engine"
 version.workspace = true
 edition.workspace = true
+
+[features]
+# Issue #703: Linux/JACK keeps the per-device runtime grouping (the
+# JACK-direct client binds one runtime per chain); enabled transitively
+# by infra-cpal's `jack` feature.
+jack = []
+
 [dependencies]
 log.workspace = true
 anyhow.workspace = true

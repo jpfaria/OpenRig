@@ -116,12 +116,16 @@ pub fn build_streams_for_project(
     }
 }
 
+/// Issue #703: `slots` is every per-entry runtime this device's single
+/// stream feeds (two input entries on one interface are two isolated
+/// runtimes sharing the stream). The callback fans the buffer out to each
+/// slot; one-slot chains keep the historical single-runtime shape.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn build_input_stream_for_input(
     chain_id: &ChainId,
     input_index: usize,
     resolved_input_device: ResolvedInputDevice,
-    slot: LiveRuntimeSlot,
+    slots: Vec<LiveRuntimeSlot>,
 ) -> Result<Stream> {
     log::debug!(
         "building input stream for chain '{}' input_index={}",
@@ -156,28 +160,39 @@ pub(crate) fn build_input_stream_for_input(
             // worker's realtime promotion is mach-specific, and an
             // UNPROMOTED busy worker measured catastrophically worse
             // (167 xruns + 256 underruns per 60 s) than inline DSP.
-            let worker = crate::dsp_worker::spawn(
-                format!("{}:{input_index}", chain_id.0),
-                slot.handle(),
-                input_index,
-                channels,
-                sample_rate,
-                (buffer_size_frames as usize).max(64) * channels * 8,
-            );
+            // Issue #703: one worker PER per-entry runtime — each entry's
+            // chain DSP runs on its own realtime thread, so a heavy entry
+            // cannot starve its sibling sharing this device stream.
+            let workers: Vec<_> = slots
+                .iter()
+                .enumerate()
+                .map(|(k, slot)| {
+                    crate::dsp_worker::spawn(
+                        format!("{}:{input_index}:{k}", chain_id.0),
+                        slot.handle(),
+                        input_index,
+                        channels,
+                        sample_rate,
+                        (buffer_size_frames as usize).max(64) * channels * 8,
+                    )
+                })
+                .collect();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
                     // #670: co-schedule this callback thread with the audio I/O
                     // workgroup so its cache (NAM weights) stays warm.
                     crate::audio_workgroup::ensure_joined_input();
-                    worker.push(data);
+                    for worker in &workers {
+                        worker.push(data);
+                    }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::F32 => {
-            let slot_for_data = slot.handle();
+            let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
@@ -186,21 +201,26 @@ pub(crate) fn build_input_stream_for_input(
                     // Inline DSP (non-macOS cpal path; see the macOS arm above).
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_buffer(&slot_for_data, input_index, data, channels);
+                        for slot in &slots_for_data {
+                            process_input_buffer(slot, input_index, data, channels);
+                        }
                     }));
-                    record_callback_deadline(
-                        &slot_for_data.load(),
-                        callback_start.elapsed(),
-                        data.len() / channels,
-                        sample_rate,
-                    );
+                    let elapsed = callback_start.elapsed();
+                    for slot in &slots_for_data {
+                        record_callback_deadline(
+                            &slot.load(),
+                            elapsed,
+                            data.len() / channels,
+                            sample_rate,
+                        );
+                    }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::I16 => {
-            let slot_for_data = slot.handle();
+            let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -214,21 +234,26 @@ pub(crate) fn build_input_stream_for_input(
                     }
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
+                        for slot in &slots_for_data {
+                            process_input_buffer(slot, input_index, &converted, channels);
+                        }
                     }));
-                    record_callback_deadline(
-                        &slot_for_data.load(),
-                        callback_start.elapsed(),
-                        converted.len() / channels,
-                        sample_rate,
-                    );
+                    let elapsed = callback_start.elapsed();
+                    for slot in &slots_for_data {
+                        record_callback_deadline(
+                            &slot.load(),
+                            elapsed,
+                            converted.len() / channels,
+                            sample_rate,
+                        );
+                    }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::U16 => {
-            let slot_for_data = slot.handle();
+            let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -242,21 +267,26 @@ pub(crate) fn build_input_stream_for_input(
                     }
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
+                        for slot in &slots_for_data {
+                            process_input_buffer(slot, input_index, &converted, channels);
+                        }
                     }));
-                    record_callback_deadline(
-                        &slot_for_data.load(),
-                        callback_start.elapsed(),
-                        converted.len() / channels,
-                        sample_rate,
-                    );
+                    let elapsed = callback_start.elapsed();
+                    for slot in &slots_for_data {
+                        record_callback_deadline(
+                            &slot.load(),
+                            elapsed,
+                            converted.len() / channels,
+                            sample_rate,
+                        );
+                    }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::I32 => {
-            let slot_for_data = slot.handle();
+            let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut converted = Vec::new();
@@ -270,14 +300,19 @@ pub(crate) fn build_input_stream_for_input(
                     }
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_buffer(&slot_for_data, input_index, &converted, channels);
+                        for slot in &slots_for_data {
+                            process_input_buffer(slot, input_index, &converted, channels);
+                        }
                     }));
-                    record_callback_deadline(
-                        &slot_for_data.load(),
-                        callback_start.elapsed(),
-                        converted.len() / channels,
-                        sample_rate,
-                    );
+                    let elapsed = callback_start.elapsed();
+                    for slot in &slots_for_data {
+                        record_callback_deadline(
+                            &slot.load(),
+                            elapsed,
+                            converted.len() / channels,
+                            sample_rate,
+                        );
+                    }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -495,26 +530,25 @@ fn build_chain_streams(
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
-    // group_id -> live runtime slot, for binding each physical input device to
-    // the isolated runtime that owns its cpal index. Issue #672: the callbacks
-    // read the slot live so a worker-published rebuild takes effect without a
-    // stream rebuild.
-    let slot_by_group: std::collections::HashMap<usize, LiveRuntimeSlot> =
-        slots.iter().map(|(g, s)| (*g, s.handle())).collect();
-    // Flat list (group order) for the backend output mix.
+    // Flat list (group order) for the backend output mix. Issue #672: the
+    // callbacks read each slot live so a worker-published rebuild takes
+    // effect without a stream rebuild.
     let all_slots: Vec<LiveRuntimeSlot> = slots.iter().map(|(_, s)| s.handle()).collect();
     // Fallback used only if a chain somehow has no per-input runtime for a
-    // given group (degenerate config) — keeps behaviour defined instead of
-    // panicking on the audio-setup path.
+    // given cpal index (degenerate config) — keeps behaviour defined
+    // instead of panicking on the audio-setup path.
     let first_slot = all_slots.first().cloned();
 
     // Deduplicate input streams by device: one CPAL stream per unique
     // device. Iteration order over resolved.inputs matches the engine's
     // first-seen-device cpal-index assignment, so the Nth distinct device
-    // is group N and binds to runtime (chain, N).
+    // is cpal index N. Issue #703: that one stream binds EVERY per-entry
+    // runtime fed by this device (two entries on one interface are two
+    // isolated runtimes sharing the stream) — `slots_for_input_stream`
+    // resolves the set.
     let mut input_streams = Vec::new();
     let mut seen_devices: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut next_group: usize = 0;
+    let mut next_cpal_index: usize = 0;
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
         let device_key = resolved_input
             .device
@@ -529,20 +563,20 @@ fn build_chain_streams(
             );
             continue;
         }
-        let group = next_group;
-        next_group += 1;
-        let slot = slot_by_group
-            .get(&group)
-            .cloned()
-            .or_else(|| first_slot.clone())
-            .ok_or_else(|| {
+        let cpal_index = next_cpal_index;
+        next_cpal_index += 1;
+        let mut bound = crate::slot_processing::slots_for_input_stream(&slots, cpal_index);
+        if bound.is_empty() {
+            let fallback = first_slot.as_ref().map(|s| s.handle()).ok_or_else(|| {
                 anyhow!(
-                    "chain '{}' input group {} has no per-input runtime",
+                    "chain '{}' cpal input {} has no per-input runtime",
                     chain_id.0,
-                    group
+                    cpal_index
                 )
             })?;
-        let stream = build_input_stream_for_input(chain_id, group, resolved_input, slot)?;
+            bound.push(fallback);
+        }
+        let stream = build_input_stream_for_input(chain_id, cpal_index, resolved_input, bound)?;
         input_streams.push(stream);
     }
 

@@ -1,8 +1,8 @@
 //! Issue #672 — `build_chain_runtime` is the worker-runnable, `Send` entry that
-//! produces a fresh `Arc<ChainRuntimeState>` off the frontend thread. It wraps
-//! the heavy `engine::runtime::build_chain_runtime_state` (NAM loads, segment +
-//! route assembly) behind an owned `Send` `BuildRequest` so `ControlWorker` can
-//! run it.
+//! produces fresh `Arc<ChainRuntimeState>`s off the frontend thread. It wraps
+//! the heavy `engine::runtime::build_per_input_runtime_states` (NAM loads,
+//! segment + route assembly) behind an owned `Send` `BuildRequest` so
+//! `ControlWorker` can run it. Issue #703: one runtime per input-entry group.
 
 use domain::ids::ChainId;
 use infra_cpal::{build_chain_runtime, BuildRequest};
@@ -26,9 +26,14 @@ fn build_chain_runtime_produces_a_runnable_runtime() {
         sample_rate: 48_000.0,
         buffer_sizes: vec![1024],
     };
-    let runtime = build_chain_runtime(&req).expect("build must succeed for an empty chain");
+    let runtimes = build_chain_runtime(&req).expect("build must succeed for an empty chain");
+    assert_eq!(
+        runtimes.len(),
+        1,
+        "an empty chain produces exactly one (fallback-input) runtime"
+    );
     assert!(
-        !runtime.is_draining(),
+        !runtimes[0].1.is_draining(),
         "a freshly built runtime starts active (not draining)"
     );
 }

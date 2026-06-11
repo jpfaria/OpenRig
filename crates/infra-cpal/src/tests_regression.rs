@@ -420,3 +420,136 @@ fn two_device_inputs_each_wire_their_own_runtime() {
         "single-runtime path must behave like the legacy process_output_f32"
     );
 }
+
+// ── Issue #703: same-device input entries each wire their own runtime ──
+//
+// Follow-up of the #350 phase-3 case above: TWO input entries on ONE
+// physical device (Scarlett ch0 + ch1, the "two guitars, one interface"
+// rig). macOS Core Audio cannot open two streams on one device (the
+// reverted 7764333e/68deee75 attempt produced total silence), so the fix
+// keeps ONE cpal stream per device and fans its callback out to every
+// per-entry runtime bound to that cpal index. This test pins the binding
+// helper the production `build_chain_streams` uses: every runtime the
+// engine declares for a cpal index must be fed by that device's stream —
+// a missing binding is a silent guitar.
+/// Fixture: a chain with two `InputBlock`s on the SAME physical device
+/// (channels 0 and 1), both feeding one stereo `OutputBlock`.
+fn same_device_chain() -> project::chain::Chain {
+    use domain::ids::{BlockId, ChainId, DeviceId};
+    use project::block::{
+        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+    };
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+
+    let input = |id: &str, ch: usize| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            entries: vec![InputEntry {
+                device_id: DeviceId("scarlett_2i2".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![ch],
+            }],
+        }),
+    };
+    Chain {
+        id: ChainId("same_dev".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![
+            input("same_dev:in:0", 0),
+            input("same_dev:in:1", 1),
+            AudioBlock {
+                id: BlockId("same_dev:out:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("scarlett_2i2".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }],
+                }),
+            },
+        ],
+    }
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[test]
+fn same_device_entries_both_bind_to_the_one_device_stream() {
+    use project::project::Project;
+    use std::collections::HashMap;
+
+    let chain = same_device_chain();
+    let project = Project {
+        name: Some("same_dev_test".into()),
+        chains: vec![chain.clone()],
+        device_settings: Vec::new(),
+        midi: None,
+    };
+    let mut sample_rates = HashMap::new();
+    sample_rates.insert(chain.id.clone(), 48_000.0_f32);
+    let graph = engine::runtime::build_runtime_graph(&project, &sample_rates, &HashMap::new())
+        .expect("same-device chain must build");
+
+    let runtimes = graph.runtimes_with_groups_for(&chain.id);
+    assert_eq!(
+        runtimes.len(),
+        2,
+        "two raw entries on one device => two isolated per-entry runtimes"
+    );
+
+    let slots = crate::build_chain_slots(&runtimes);
+
+    // ONE physical device => the single stream for cpal index 0 must feed
+    // BOTH per-entry runtimes; a runtime left unbound is a silent guitar.
+    let bound = crate::slot_processing::slots_for_input_stream(&slots, 0);
+    assert_eq!(
+        bound.len(),
+        2,
+        "device stream (cpal index 0) must fan out to BOTH per-entry runtimes"
+    );
+
+    // No phantom second stream: nothing binds to cpal index 1.
+    let phantom = crate::slot_processing::slots_for_input_stream(&slots, 1);
+    assert!(
+        phantom.is_empty(),
+        "one physical device => no runtime may bind to a second cpal stream"
+    );
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[test]
+fn two_device_entries_still_bind_one_runtime_per_stream() {
+    use project::project::Project;
+    use std::collections::HashMap;
+
+    let chain = two_device_chain();
+    let project = Project {
+        name: Some("two_dev_binding_test".into()),
+        chains: vec![chain.clone()],
+        device_settings: Vec::new(),
+        midi: None,
+    };
+    let mut sample_rates = HashMap::new();
+    sample_rates.insert(chain.id.clone(), 48_000.0_f32);
+    let graph = engine::runtime::build_runtime_graph(&project, &sample_rates, &HashMap::new())
+        .expect("two-device chain must build");
+    let runtimes = graph.runtimes_with_groups_for(&chain.id);
+    assert_eq!(runtimes.len(), 2);
+
+    let slots = crate::build_chain_slots(&runtimes);
+    for cpal_idx in [0usize, 1] {
+        let bound = crate::slot_processing::slots_for_input_stream(&slots, cpal_idx);
+        assert_eq!(
+            bound.len(),
+            1,
+            "distinct devices keep exactly one runtime per device stream \
+             (cpal index {cpal_idx})"
+        );
+    }
+}

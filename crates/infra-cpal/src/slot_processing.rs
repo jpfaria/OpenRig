@@ -28,6 +28,25 @@ pub fn build_chain_slots(
         .collect()
 }
 
+/// The slots a physical input device's stream must feed (issue #703):
+/// every per-entry runtime whose cpal input index equals the stream's
+/// device order. Two entries reading ONE device are two isolated runtimes
+/// bound to the SAME stream — macOS Core Audio cannot open two streams on
+/// one device, so the single callback fans out to all of them. Runtimes
+/// without a per-entry identity (legacy whole-chain shape) fall back to
+/// their group id, which historically WAS the cpal index.
+#[must_use]
+pub(crate) fn slots_for_input_stream(
+    slots: &[(usize, LiveRuntimeSlot)],
+    cpal_index: usize,
+) -> Vec<LiveRuntimeSlot> {
+    slots
+        .iter()
+        .filter(|(group, slot)| slot.load().input_cpal_index().unwrap_or(*group) == cpal_index)
+        .map(|(_, slot)| slot.handle())
+        .collect()
+}
+
 /// Process one input buffer through the chain's live input runtime.
 ///
 /// Wait-free: one `slot.load()` then the existing `process_input_f32`.

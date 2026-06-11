@@ -68,19 +68,26 @@ pub struct ProjectRuntimeController {
     pub(crate) worker: ControlWorker,
     /// Issue #672 — in-flight off-thread rebuilds. The worker only *builds*;
     /// `poll_pending_rebuilds` (called on the frontend tick) applies a finished
-    /// build by swapping the slot and `runtime_graph` in lock-step so they stay
-    /// consistent, and drops the superseded runtime back on the worker.
-    pub(crate) pending_rebuilds: Vec<((ChainId, usize), Receiver<Result<Arc<ChainRuntimeState>>>)>,
-    /// Issue #672 — in-flight cold activations (single-input chains). The worker
-    /// builds the runtime off-thread (the NAM/IR load); `poll_pending_rebuilds`
-    /// then creates the cpal streams on the frontend (they are `!Send`) and
-    /// installs the chain. Holds the resolved IO config + chain needed to build
-    /// the streams once the runtime is ready.
+    /// build by swapping the slots and `runtime_graph` in lock-step so they
+    /// stay consistent, and drops the superseded runtimes back on the worker.
+    /// Issue #703: a build yields one runtime per input-entry group, each
+    /// published into its own `(chain, group)` slot.
+    #[allow(clippy::type_complexity)]
+    pub(crate) pending_rebuilds: Vec<(
+        ChainId,
+        Receiver<Result<Vec<(usize, Arc<ChainRuntimeState>)>>>,
+    )>,
+    /// Issue #672 — in-flight cold activations (single-device chains). The
+    /// worker builds the runtimes off-thread (the NAM/IR load);
+    /// `poll_pending_rebuilds` then creates the cpal streams on the frontend
+    /// (they are `!Send`) and installs the chain. Holds the resolved IO
+    /// config + chain needed to build the streams once the runtimes are ready.
+    #[allow(clippy::type_complexity)]
     pub(crate) pending_activations: Vec<(
         ChainId,
         Chain,
         ResolvedChainAudioConfig,
-        Receiver<Result<Arc<ChainRuntimeState>>>,
+        Receiver<Result<Vec<(usize, Arc<ChainRuntimeState>)>>>,
     )>,
     /// Sample rate (Hz) the live streams were built at, captured from the last
     /// resolved chain config. The DI-loop loader reads this (via the
@@ -178,13 +185,22 @@ impl ProjectRuntimeController {
         sample_rate: f32,
         buffer_sizes: Vec<usize>,
     ) {
-        let key = (chain.id.clone(), 0);
-        // Seed the slot from the current graph runtime if it has not been
-        // created yet (chain built before its slot was wired).
-        if !self.chain_slots.contains_key(&key) {
-            if let Some(runtime) = self.runtime_graph.chains.get(&key).map(Arc::clone) {
-                self.chain_slots
-                    .insert(key.clone(), LiveRuntimeSlot::new(runtime));
+        // Seed the slots from the current graph runtimes if they have not
+        // been created yet (chain built before its slots were wired). Issue
+        // #703: a chain owns one slot per input-entry group.
+        let groups: Vec<usize> = self
+            .runtime_graph
+            .chains
+            .keys()
+            .filter(|(cid, _)| cid == &chain.id)
+            .map(|(_, g)| *g)
+            .collect();
+        for group in groups {
+            let key = (chain.id.clone(), group);
+            if !self.chain_slots.contains_key(&key) {
+                if let Some(runtime) = self.runtime_graph.chains.get(&key).map(Arc::clone) {
+                    self.chain_slots.insert(key, LiveRuntimeSlot::new(runtime));
+                }
             }
         }
 
@@ -194,7 +210,7 @@ impl ProjectRuntimeController {
             buffer_sizes,
         };
         let rx = self.worker.submit(move || build_chain_runtime(&request));
-        self.pending_rebuilds.push((key, rx));
+        self.pending_rebuilds.push((chain.id.clone(), rx));
     }
 
     /// Issue #672 — apply any finished off-thread rebuilds (call on the frontend
@@ -207,24 +223,39 @@ impl ProjectRuntimeController {
     pub fn poll_pending_rebuilds(&mut self) -> usize {
         let mut applied = 0;
         let mut still_pending = Vec::new();
-        for (key, rx) in std::mem::take(&mut self.pending_rebuilds) {
+        for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
             match rx.try_recv() {
-                Ok(Ok(runtime)) => {
-                    if let Some(slot) = self.chain_slots.get(&key) {
-                        let graph_runtime = Arc::clone(&runtime);
-                        let superseded = slot.publish(runtime);
-                        self.runtime_graph.chains.insert(key.clone(), graph_runtime);
-                        // Drop the old runtime off the audio/frontend thread.
-                        let _ = self.worker.submit(move || drop(superseded));
-                        applied += 1;
+                Ok(Ok(runtimes)) => {
+                    // Issue #703: publish each per-entry runtime into ITS
+                    // OWN (chain, group) slot. Publishing a single runtime
+                    // into group 0 (the old shape) would leave sibling
+                    // entries stale — or, on a shared device, double-process
+                    // the buffer (the stream feeds every bound slot).
+                    for (group, runtime) in runtimes {
+                        let key = (chain_id.clone(), group);
+                        if let Some(slot) = self.chain_slots.get(&key) {
+                            let graph_runtime = Arc::clone(&runtime);
+                            let superseded = slot.publish(runtime);
+                            self.runtime_graph.chains.insert(key, graph_runtime);
+                            // Drop the old runtime off the audio/frontend thread.
+                            let _ = self.worker.submit(move || drop(superseded));
+                            applied += 1;
+                        } else {
+                            log::error!(
+                                "chain '{}' rebuild produced entry group {} with no live \
+                                 slot — the edit needs a stream rebuild to be heard",
+                                chain_id.0,
+                                group
+                            );
+                        }
                     }
                 }
                 Ok(Err(e)) => {
-                    log::error!("chain '{}' off-thread rebuild failed: {e}", key.0 .0);
+                    log::error!("chain '{}' off-thread rebuild failed: {e}", chain_id.0);
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => still_pending.push((key, rx)),
+                Err(std::sync::mpsc::TryRecvError::Empty) => still_pending.push((chain_id, rx)),
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    log::error!("chain '{}' rebuild worker disconnected", key.0 .0);
+                    log::error!("chain '{}' rebuild worker disconnected", chain_id.0);
                 }
             }
         }
@@ -236,13 +267,20 @@ impl ProjectRuntimeController {
         let mut still_activating = Vec::new();
         for (chain_id, chain, resolved, rx) in std::mem::take(&mut self.pending_activations) {
             match rx.try_recv() {
-                Ok(Ok(runtime)) => {
-                    let key = (chain_id.clone(), 0);
-                    self.runtime_graph
-                        .chains
-                        .insert(key.clone(), Arc::clone(&runtime));
-                    let slots = crate::build_chain_slots(&[(0, runtime)]);
-                    self.chain_slots.insert(key, slots[0].1.handle());
+                Ok(Ok(runtimes)) => {
+                    // Issue #703: install every per-entry runtime — a
+                    // single-device chain may own N isolated runtimes (one
+                    // per input entry) all fed by the one device stream.
+                    for (group, runtime) in &runtimes {
+                        self.runtime_graph
+                            .chains
+                            .insert((chain_id.clone(), *group), Arc::clone(runtime));
+                    }
+                    let slots = crate::build_chain_slots(&runtimes);
+                    for (group, slot) in &slots {
+                        self.chain_slots
+                            .insert((chain_id.clone(), *group), slot.handle());
+                    }
                     match crate::build_active_chain_runtime(&chain_id, &chain, resolved, slots) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
@@ -638,9 +676,11 @@ impl ProjectRuntimeController {
         if self.active_chains.contains_key(&chain.id) {
             return Ok(false); // already streaming — not a cold activation
         }
-        // Only a single input device maps to the one ChainRuntimeState that
-        // build_chain_runtime produces. Multi-device chains need N per-device
-        // runtimes, so defer them to the synchronous build.
+        // Single-device chains only (issue #703: the device may still carry
+        // N input entries — build_chain_runtime returns one runtime per
+        // entry and the one device stream feeds them all). Multi-device
+        // chains need one stream per device wired through the synchronous
+        // build, so defer them.
         let input_devices: std::collections::HashSet<&str> = chain
             .input_blocks()
             .iter()
@@ -771,8 +811,6 @@ impl ProjectRuntimeController {
             }
         }
     }
-
-    /// Returns stream data for a block in any running chain.
 
     fn upsert_chain_with_resolved(
         &mut self,
