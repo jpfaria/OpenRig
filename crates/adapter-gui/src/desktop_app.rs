@@ -99,6 +99,16 @@ pub fn run_desktop_app(
     //      defaults to <config_dir>/plugins next to the GUI config file.
     // Block-* crates query the merged catalog to surface plugin
     // manifests in the GUI.
+    // #693: warm the device cache off-thread so the first project open /
+    // IO window never pays the ~2s CoreAudio enumeration on the GUI
+    // thread (measured: the [ui-stall] 760ms at boot + the open delay).
+    std::thread::Builder::new()
+        .name("device-cache-warmer".into())
+        .spawn(|| {
+            let _ = infra_cpal::list_input_device_descriptors();
+            let _ = infra_cpal::list_output_device_descriptors();
+        })
+        .ok();
     let bundled_root = infra_filesystem::detect_data_root().join("plugins");
     let user_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!(
