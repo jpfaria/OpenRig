@@ -95,7 +95,8 @@ pub fn spectral_centroid(segment: &[f32], sample_rate: f32) -> f32 {
 pub fn harmonic_ratio(signal: &[f32], f0: f32, sample_rate: f32) -> f32 {
     let spectrum = magnitude_spectrum(signal);
     let n = (spectrum.len() - 1) * 2;
-    let bin = |freq: f32| ((freq * n as f32 / sample_rate).round() as usize).min(spectrum.len() - 1);
+    let bin =
+        |freq: f32| ((freq * n as f32 / sample_rate).round() as usize).min(spectrum.len() - 1);
     let at = |freq: f32| {
         let b = bin(freq);
         // take the local max over ±1 bin to tolerate rounding/leakage

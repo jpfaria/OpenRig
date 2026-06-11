@@ -39,6 +39,38 @@ plugins:
     description: Delay with pitch modulation on the repeats.
     license: Proprietary - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  multitap:
+    description: Multi-tap delay — several rhythmic echoes on even sub-divisions of the base time.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  bbd:
+    description: Bucket-brigade analog delay — steep per-repeat high-frequency loss and gentle saturation.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  tape_echo:
+    description: Hot tape echo — random-walk wow/flutter, heavy magnetic saturation, and tape tone.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  chorus_echo:
+    description: Analog echo with an internal chorus sweeping the repeats, plus bucket-brigade tone and saturation.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  rhythmic:
+    description: Rhythmic delay — echoes on a syncopated grid (dotted-eighth, triplet, or eighth) relative to the beat.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  granular:
+    description: Granular delay — scatters the signal into a cloud of windowed grains for textured, smeared echoes.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  pitch_delay:
+    description: Pitch delay — each repeat is pitch-shifted (harmonized/shimmer); cascades with feedback.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  ping_pong:
+    description: Ping-pong delay — true-stereo echo that bounces left-to-right with cross-feedback.
+    license: Proprietary - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Transparent studio compressor with threshold, ratio, attack, release,
       makeup gain, and parallel mix.
