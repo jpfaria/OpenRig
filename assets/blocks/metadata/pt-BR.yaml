@@ -39,6 +39,38 @@ plugins:
     description: Delay com modulação de pitch nas repetições.
     license: Proprietário - OpenRig
     homepage: https://github.com/jpfaria/OpenRig
+  multitap:
+    description: Delay multi-tap — vários ecos rítmicos em subdivisões iguais do tempo base.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  bbd:
+    description: Delay analógico bucket-brigade — perda acentuada de agudos a cada repetição e saturação suave.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  tape_echo:
+    description: Tape echo quente — wow/flutter por random-walk, saturação magnética forte e tom de fita.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  chorus_echo:
+    description: Echo analógico com chorus interno modulando as repetições, mais tom e saturação bucket-brigade.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  rhythmic:
+    description: Delay rítmico — ecos num grid sincopado (colcheia pontuada, tercina ou colcheia) relativo ao tempo.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  granular:
+    description: Delay granular — espalha o sinal numa nuvem de grãos janelados, gerando ecos texturizados e difusos.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  pitch_delay:
+    description: Pitch delay — cada repetição é transposta (harmonizado/shimmer); cascateia com o feedback.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
+  ping_pong:
+    description: Delay ping-pong — eco estéreo de verdade que quica da esquerda para a direita com cross-feedback.
+    license: Proprietário - OpenRig
+    homepage: https://github.com/jpfaria/OpenRig
   compressor_studio_clean:
     description: Compressor de estúdio transparente com threshold, ratio, ataque,
       release, makeup gain e mix paralelo.
