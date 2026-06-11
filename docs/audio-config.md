@@ -147,7 +147,7 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 ### Virtual DI loop (per-chain, ephemeral)
 
-A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
+A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. On a chain with **multiple input sources**, the loop plays exactly **once** (through the first source segment); the remaining segments are muted while the loop is armed, so playback is never doubled at the output (#699). The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
 
 ### DSP worker per input stream (issue #670, macOS)
 

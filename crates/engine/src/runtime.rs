@@ -212,9 +212,20 @@ pub fn process_input_f32(
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.
+    //
+    // Issue #699: an armed DI loop plays exactly ONCE per chain — only the
+    // chain's first segment (seg_idx 0) substitutes the loop for its device
+    // frames. Every other segment is fed silence while the loop is armed
+    // (DI playback replaces ALL live input; before this fix every segment
+    // played its own copy of the loop and the copies summed at the output).
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
+        let feed = match di_for_seg {
+            Some((d, pos)) if seg_idx == 0 => SegmentFeed::Loop(d, pos),
+            Some(_) => SegmentFeed::Silence,
+            None => SegmentFeed::Live,
+        };
         process_single_segment(
             input_states,
             &mut scratch,
@@ -224,7 +235,7 @@ pub fn process_input_f32(
             num_frames,
             &runtime.error_queue,
             &stream_taps,
-            di_for_seg,
+            feed,
         );
     }
 
@@ -233,11 +244,15 @@ pub fn process_input_f32(
     // loop length. The cursor is advanced here — not inside the segment
     // loop — so that parallel segments sharing the same input callback all
     // read the same window of the loop (consistent with SPSC single-producer
-    // invariant and stream isolation).
+    // invariant and stream isolation). #699: only the callback that owns the
+    // playing segment (seg 0) advances — a second device stream feeding
+    // other segments of this runtime must not double-step the cursor.
     if let Some(d) = di_ref {
-        let len = d.len().max(1);
-        let next = di_start.wrapping_add(num_frames) % len;
-        runtime.di_loop_pos.store(next, Ordering::Relaxed);
+        if scratch.segment_indices.contains(&0) {
+            let len = d.len().max(1);
+            let next = di_start.wrapping_add(num_frames) % len;
+            runtime.di_loop_pos.store(next, Ordering::Relaxed);
+        }
     }
 
     // Snapshot current output routes via ArcSwap — no lock.
@@ -324,6 +339,17 @@ fn mix_outgoing_tail(
     }
 }
 
+/// What fills a segment's frame buffer for one callback (issue #699).
+/// `Live` reads the device frames; `Loop` substitutes the armed DI loop
+/// (first segment only); `Silence` mutes the segment while a loop is
+/// armed elsewhere in the chain.
+#[derive(Clone, Copy)]
+enum SegmentFeed<'a> {
+    Live,
+    Loop(&'a crate::di_loop::DiLoop, usize),
+    Silence,
+}
+
 fn process_single_segment(
     input_states: &mut [InputProcessingState],
     scratch: &mut InputCallbackScratch,
@@ -333,7 +359,7 @@ fn process_single_segment(
     num_frames: usize,
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
-    di: Option<(&crate::di_loop::DiLoop, usize)>,
+    feed: SegmentFeed<'_>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -357,8 +383,20 @@ fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
-    match di {
-        Some((di_loop, start_pos)) => {
+    match feed {
+        SegmentFeed::Silence => {
+            // #699: a DI loop is armed and plays in another segment — this
+            // segment is muted for the callback (DI replaces ALL live input).
+            let silent = match *processing_layout {
+                AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+                AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
+            };
+            for _ in 0..num_frames {
+                frame_buffer.push(silent);
+            }
+            let _ = (input_read_layout, input_channels);
+        }
+        SegmentFeed::Loop(di_loop, start_pos) => {
             use crate::di_loop::DiFrame;
             for i in 0..num_frames {
                 let f = di_loop.frame_at(start_pos.wrapping_add(i));
@@ -374,7 +412,7 @@ fn process_single_segment(
             }
             let _ = (input_read_layout, input_channels);
         }
-        None => {
+        SegmentFeed::Live => {
             for frame in data.chunks(input_total_channels).take(num_frames) {
                 let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
                 let chain_frame = match (*input_read_layout, *processing_layout) {
