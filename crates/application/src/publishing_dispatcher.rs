@@ -26,7 +26,19 @@ impl PublishingDispatcher {
 
 impl CommandDispatcher for PublishingDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
+        // #693 diagnostic: name any command that holds the dispatching
+        // (frontend) thread past one frame, so real-session stalls are
+        // self-reporting instead of guessed at.
+        let label = {
+            let full = format!("{cmd:?}");
+            full.split([' ', '{']).next().unwrap_or("?").to_string()
+        };
+        let t0 = std::time::Instant::now();
         let events = self.inner.dispatch(cmd)?;
+        let elapsed = t0.elapsed();
+        if elapsed > std::time::Duration::from_millis(50) {
+            log::warn!("[ui-stall] Command::{label} held the dispatching thread for {elapsed:?}");
+        }
         self.sink.publish(&events);
         // #693: refresh the read snapshot after every state change so
         // transports serve reads API-style on their own thread instead
