@@ -510,19 +510,31 @@ impl LocalDispatcher {
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
         use infra_filesystem::FilesystemStorage;
         match cmd {
+            // #693: path persistence runs on the persist worker — the
+            // dispatching thread never waits on disk; errors go to the
+            // non-blocking logger.
             Command::SetPresetsPath { path } => {
-                FilesystemStorage::save_presets_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_presets_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_presets_path(path) {
+                        log::error!("save_presets_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetPluginsPath { path } => {
-                FilesystemStorage::save_plugins_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_plugins_path(path) {
+                        log::error!("save_plugins_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetEvaluationsPath { path } => {
-                FilesystemStorage::save_evaluations_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_evaluations_path failed: {e}"))?;
+                crate::persist_worker::run(move || {
+                    if let Err(e) = FilesystemStorage::save_evaluations_path(path) {
+                        log::error!("save_evaluations_path failed: {e}");
+                    }
+                });
                 Ok(vec![Event::PathsSaved])
             }
             other => {

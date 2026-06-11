@@ -23,6 +23,10 @@ pub(crate) enum PersistJob {
     EnsureDir(PathBuf),
     /// `fs::write(path, bytes)`.
     WriteFile(PathBuf, Vec<u8>),
+    /// Arbitrary persistence closure (#693: config read-modify-write).
+    /// Runs ordered with every other job — the single worker is what
+    /// makes concurrent config edits race-free.
+    Run(Box<dyn FnOnce() + Send>),
     /// Barrier: ack once every job queued before it has completed.
     Flush(SyncSender<()>),
 }
@@ -46,6 +50,7 @@ fn sender() -> &'static Mutex<Sender<PersistJob>> {
                                 log::error!("persist-worker: write {path:?} failed: {e}");
                             }
                         }
+                        PersistJob::Run(job) => job(),
                         PersistJob::Flush(ack) => {
                             let _ = ack.send(());
                         }
@@ -64,6 +69,13 @@ pub(crate) fn enqueue(job: PersistJob) {
     if tx.send(job).is_err() {
         log::error!("persist-worker: worker thread is gone; write lost");
     }
+}
+
+/// Queue an arbitrary persistence closure (config read-modify-write,
+/// adapter-side file effects). Never blocks the caller; runs ordered
+/// with all other persistence jobs on the single worker.
+pub fn run(job: impl FnOnce() + Send + 'static) {
+    enqueue(PersistJob::Run(Box::new(job)));
 }
 
 /// Block until every job queued so far has been written. Call on app

@@ -116,11 +116,20 @@ impl LocalDispatcher {
                         })
                         .collect::<Vec<GuiAudioDeviceSettings>>()
                 };
-                let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
-                config.input_devices = to_gui(&input_devices);
-                config.output_devices = to_gui(&output_devices);
-                FilesystemStorage::save_app_config(&config)
-                    .map_err(|e| anyhow!("failed to persist audio settings: {e}"))?;
+                // #693: the config read-modify-write runs on the persist
+                // worker — the dispatching (GUI/MCP) thread never waits on
+                // disk. Single worker ⇒ ordered with every other config
+                // write. Errors surface via the non-blocking logger.
+                let gui_inputs = to_gui(&input_devices);
+                let gui_outputs = to_gui(&output_devices);
+                crate::persist_worker::run(move || {
+                    let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+                    config.input_devices = gui_inputs;
+                    config.output_devices = gui_outputs;
+                    if let Err(e) = FilesystemStorage::save_app_config(&config) {
+                        log::error!("failed to persist audio settings: {e}");
+                    }
+                });
 
                 Ok(vec![Event::AudioSettingsSaved])
             }
