@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use block_core::AudioChannelLayout;
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
-use project::chain::Chain;
+use project::chain::{processing_layout, Chain, ProcessingLayout};
 use project::device::DeviceSettings;
 use project::project::Project;
 use std::collections::{HashMap, HashSet};
@@ -93,7 +93,6 @@ pub fn validate_project(project: &Project) -> Result<()> {
             }
         }
 
-        // Use first input entry's channel count for layout determination
         let first_input = input_blocks.first().expect("validated non-empty");
         let first_input_entry = first_input.1.entries.first().ok_or_else(|| {
             anyhow!(
@@ -102,7 +101,7 @@ pub fn validate_project(project: &Project) -> Result<()> {
                 first_input.1.model
             )
         })?;
-        let input_layout = layout_from_channel_count(
+        layout_from_channel_count(
             "chain input",
             &chain.id.0,
             first_input_entry.channels.len(),
@@ -120,6 +119,22 @@ pub fn validate_project(project: &Project) -> Result<()> {
             &chain.id.0,
             first_output_entry.channels.len(),
         )?;
+
+        // The internal bus layout must mirror what the engine builds
+        // (`runtime_graph` → `project::chain::processing_layout`): a mono
+        // physical input feeding a stereo output is broadcast to
+        // `Stereo([s, s])` before the block chain (invariant #5), so the
+        // validator must not derive the bus from the input channel count
+        // alone (#696).
+        let proc_layout = processing_layout(
+            &first_input_entry.channels,
+            &first_output_entry.channels,
+            first_input_entry.mode,
+        );
+        let input_layout = match proc_layout {
+            ProcessingLayout::Mono => AudioChannelLayout::Mono,
+            ProcessingLayout::Stereo | ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
+        };
 
         // Validate only audio blocks (non-I/O, non-Insert)
         let audio_blocks: Vec<&AudioBlock> = chain
