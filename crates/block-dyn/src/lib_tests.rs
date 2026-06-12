@@ -97,6 +97,61 @@ fn compressor_studio_clean_rejects_out_of_range() {
     assert!(ps.normalized_against(&schema).is_err());
 }
 
+/// #706 — "enabling the native compressor changes nothing in the sound".
+/// Reproduces with the user's exact rig params. A 4:1 compressor fed a
+/// signal that jumps from a quiet to a loud passage MUST reduce the
+/// dynamic range between the two passages — regardless of makeup gain,
+/// the loud/quiet output ratio has to come out smaller than it went in.
+#[test]
+fn issue_706_user_params_must_compress_dynamics() {
+    let schema = dynamics_model_schema("compressor_studio_clean").expect("schema");
+    let mut ps = ParameterSet::default();
+    ps.insert("attack_ms", ParameterValue::Float(10.0));
+    ps.insert("release_ms", ParameterValue::Float(80.0));
+    ps.insert("ratio", ParameterValue::Float(4.0));
+    ps.insert("threshold", ParameterValue::Float(70.0));
+    ps.insert("mix", ParameterValue::Float(100.0));
+    ps.insert("makeup_gain", ParameterValue::Float(50.0));
+    let params = ps.normalized_against(&schema).expect("user params normalize");
+
+    let sample_rate = 48_000.0_f32;
+    let mut proc = match build_dynamics_processor_for_layout(
+        "compressor_studio_clean",
+        &params,
+        sample_rate,
+        AudioChannelLayout::Mono,
+    )
+    .expect("build mono compressor")
+    {
+        BlockProcessor::Mono(p) => p,
+        BlockProcessor::Stereo(_) => panic!("expected mono"),
+    };
+
+    // 440 Hz sine: 0.5 s quiet (-26 dBFS) then 0.5 s loud (-2 dBFS).
+    let half = (sample_rate * 0.5) as usize;
+    let mut buf: Vec<f32> = (0..half * 2)
+        .map(|i| {
+            let amp = if i < half { 0.05 } else { 0.8 };
+            amp * (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sample_rate).sin()
+        })
+        .collect();
+    let input = buf.clone();
+    proc.process_block(&mut buf);
+
+    // Steady-state RMS windows away from the attack edge.
+    let rms = |s: &[f32]| (s.iter().map(|x| x * x).sum::<f32>() / s.len() as f32).sqrt();
+    let q = half / 2;
+    let in_ratio = rms(&input[half + q..]) / rms(&input[q..half]);
+    let out_ratio = rms(&buf[half + q..]) / rms(&buf[q..half]);
+
+    assert!(
+        out_ratio < in_ratio * 0.9,
+        "compressor with the user's params (ratio 4:1, threshold 70) did not \
+         reduce dynamic range: loud/quiet ratio in={in_ratio:.2} out={out_ratio:.2} \
+         — the block is audibly a no-op (issue #706)"
+    );
+}
+
 #[test]
 fn compressor_studio_clean_build_mono() {
     let params = default_params_for("compressor_studio_clean");
