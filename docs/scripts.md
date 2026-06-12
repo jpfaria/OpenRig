@@ -8,7 +8,7 @@
 | `scripts/flash-sd.sh` | Flasha SD card |
 | `scripts/coverage.sh` | Relatório HTML de cobertura |
 | `scripts/package-linux.sh` | Empacota Linux .tar.gz/.deb/.rpm/.AppImage (patchelf RUNPATH p/ libnam_wrapper + libseat) |
-| `scripts/package-macos.sh` | Empacota macOS (assina ad-hoc inside-out + gate de verificação) |
+| `scripts/package-macos.sh` | Empacota macOS (assina ad-hoc inside-out + gate de verificação). Plugins bundled: `OPENRIG_PLUGINS_DIR=/path/plugins/source` sobrescreve a origem (default `plugins/source`; override inexistente = erro fatal) |
 | `scripts/install-macos.sh` | Instalador one-liner via `curl` (baixa .dmg, copia pro /Applications, tira quarentena) |
 | `scripts/build-lib.sh` | Libs externas |
 
