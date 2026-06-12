@@ -1,11 +1,17 @@
 #!/bin/bash
 # Mirrors exactly what GitHub Actions does for the macOS build.
-# Usage: ./scripts/package-macos.sh [version]
+# Usage: [OPENRIG_PLUGINS_DIR=/path/to/plugins/source] ./scripts/package-macos.sh [version]
+# OPENRIG_PLUGINS_DIR overrides the bundled-plugins source (default: plugins/source).
 set -euo pipefail
 
 VERSION="${1:-dev}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+source scripts/lib/plugins-bundle.sh
+# Resolve (and validate) the plugins source up front — an invalid override
+# must fail here, not after two release builds.
+PLUGINS_SRC="$(plugins_src_dir)"
 
 # ── 1. Rust targets ──────────────────────────────────────────────────────────
 echo "==> Adding Rust targets..."
@@ -100,25 +106,11 @@ fi
 # Bundle plugins as a pre-extracted directory. plugin_loader::registry::
 # init_many scans <.app>/Contents/Resources/plugins (this path) plus the
 # user-writable root in parallel. No first-launch extraction step.
-# Skip silently in dev when the source tree isn't checked out alongside
-# OpenRig — registry::init falls back to the user root only.
-if [ -d plugins/source ]; then
-    cp -r plugins/source "$APP/Contents/Resources/plugins"
-    # Each LV2 plugin carries platform/{linux-*,macos-*,windows-*}
-    # binaries — macOS .app só carrega .dylib, então .so/.dll são MB
-    # inúteis. Drop tudo que não é macOS (issue #425).
-    dropped_dirs=0
-    for pattern in "linux-*" "windows-*"; do
-        while IFS= read -r dir; do
-            rm -rf "$dir"
-            dropped_dirs=$((dropped_dirs + 1))
-        done < <(find "$APP/Contents/Resources/plugins" -type d -path "*/platform/$pattern" 2>/dev/null)
-    done
-    PLUGIN_COUNT=$(find "$APP/Contents/Resources/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
-    echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-macOS platform dirs"
-else
-    echo "    NOTE: plugins/source/ not found — .app ships without bundled plugins"
-fi
+# Source dir comes from plugins_src_dir (OPENRIG_PLUGINS_DIR override or
+# plugins/source); a missing default is a NOTE — registry::init falls
+# back to the user root only. macOS .app only loads .dylib, so the
+# linux-*/windows-* platform dirs are dropped (issue #425).
+bundle_plugins "$PLUGINS_SRC" "$APP/Contents/Resources/plugins" "linux-*" "windows-*"
 
 # Bundle gettext .mo translations. build.rs writes per-locale catalogs
 # under crates/adapter-gui/translations/<lang>/LC_MESSAGES/; we mirror
