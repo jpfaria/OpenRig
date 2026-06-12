@@ -85,3 +85,9 @@ Identificação: o **corpo** começa com `> **Sibling issues (co-evoluem neste c
 ## Rastreabilidade — comentários na issue
 
 A issue é o log de auditoria. Comentar em: plano antes de começar; cada push (hash + arquivos + build/teste); mudança de plano; cada problema com evidência; análise técnica; merges; validação em hardware; resumo final. Após `git push` ou análise técnica, próximo comando é `gh issue comment <N>`. Opções A/B/C ao usuário vão na issue ANTES da pergunta.
+
+## Release mechanics
+
+- Tag `vX.Y.Z-dev.N` is created on **develop's tip** (not main). `release.yml` triggers on `v*` tag push and derives the version from `GITHUB_REF_NAME` (no `Cargo.toml` bump). `main` is updated by merging develop (API merge, not fast-forward). Re-trigger a failed release by deleting and recreating the tag ref at the new develop tip.
+- **Windows x64 + macOS universal are built ONLY at release-tag time** — PR CI skips them, so cross-platform build/packaging regressions surface one ~25-min failure at a time after the tag (v0.1.0-dev.24 needed five sequential fixes: MSVC flag guards, `/EHsc`, `WINDOWS_EXPORT_ALL_SYMBOLS`, macOS `Resources` mkdir — #639–#647). Treat MSVC + macOS packaging as the main release risk; Linux is already covered by PR CI.
+- The loudness audit (`qa_audit`, ~22 min) does NOT run in the release path (`QA_AUDIT_SKIP=1`, #641) — it belongs to OpenRig-plugins CI. Keep it that way.
