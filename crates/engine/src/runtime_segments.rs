@@ -36,6 +36,12 @@ pub(crate) struct ChainSegment {
     /// `None` for stereo / dual-mono / single-channel-mono / Insert-return
     /// segments — they keep the historical broadcast/sum behaviour.
     pub(crate) split_mono_sibling_count: Option<usize>,
+    /// RAW input-entry index this segment's effective input came from
+    /// (issue #703). The runtime graph partitions segments by this id:
+    /// distinct raw entries become isolated runtimes even on one shared
+    /// physical device, while split-mono siblings (same raw entry) stay
+    /// together so the pinned g02/g03 sum-before-limiter math holds.
+    pub(crate) entry_group: usize,
 }
 
 /// Split a chain into segments at enabled Insert block boundaries.
@@ -51,6 +57,7 @@ pub(crate) fn split_chain_into_segments(
     effective_ins: &[InputEntry],
     cpal_indices: &[usize],
     split_positions: &[Option<usize>],
+    entry_groups: &[usize],
     _effective_outs: &[OutputEntry],
 ) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries.
@@ -83,13 +90,20 @@ pub(crate) fn split_chain_into_segments(
         .collect();
 
     if insert_positions.is_empty() {
-        return segments_without_inserts(chain, effective_ins, cpal_indices, split_positions);
+        return segments_without_inserts(
+            chain,
+            effective_ins,
+            cpal_indices,
+            split_positions,
+            entry_groups,
+        );
     }
 
     segments_with_inserts(
         chain,
         effective_ins,
         split_positions,
+        entry_groups,
         &insert_positions,
         regular_input_count,
         regular_output_count,
@@ -104,6 +118,7 @@ fn segments_without_inserts(
     effective_ins: &[InputEntry],
     cpal_indices: &[usize],
     split_positions: &[Option<usize>],
+    entry_groups: &[usize],
 ) -> Vec<ChainSegment> {
     let mut output_positions: Vec<(usize, usize)> = Vec::new();
     let mut out_entry_idx = 0;
@@ -138,13 +153,14 @@ fn segments_without_inserts(
             .map(|(i, _)| i)
             .collect();
 
-        for in_idx in 0..input_count {
+        for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
             segments.push(ChainSegment {
-                input: effective_ins[in_idx].clone(),
+                input: input.clone(),
                 cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
                 block_indices: block_indices.clone(),
                 output_route_indices: vec![out_entry_idx],
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
+                entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
             });
         }
     }
@@ -158,6 +174,7 @@ fn segments_with_inserts(
     chain: &Chain,
     effective_ins: &[InputEntry],
     split_positions: &[Option<usize>],
+    entry_groups: &[usize],
     insert_positions: &[usize],
     regular_input_count: usize,
     regular_output_count: usize,
@@ -206,13 +223,14 @@ fn segments_with_inserts(
             } else {
                 1
             };
-            for i in 0..input_count {
+            for (i, input) in effective_ins.iter().take(input_count).enumerate() {
                 segments.push(ChainSegment {
-                    input: effective_ins[i].clone(),
+                    input: input.clone(),
                     cpal_input_index: i,
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
                     split_mono_sibling_count: split_positions.get(i).copied().unwrap_or(None),
+                    entry_group: entry_groups.get(i).copied().unwrap_or(i),
                 });
             }
         } else {
@@ -224,6 +242,10 @@ fn segments_with_inserts(
                 block_indices,
                 output_route_indices: output_indices,
                 split_mono_sibling_count: None,
+                entry_group: entry_groups
+                    .get(prev_return_idx)
+                    .copied()
+                    .unwrap_or(prev_return_idx),
             });
         }
 
@@ -272,6 +294,10 @@ fn segments_with_inserts(
         block_indices,
         output_route_indices: output_indices,
         split_mono_sibling_count: None,
+        entry_group: entry_groups
+            .get(last_return_idx)
+            .copied()
+            .unwrap_or(last_return_idx),
     });
 
     segments

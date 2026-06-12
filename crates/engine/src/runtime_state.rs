@@ -251,6 +251,14 @@ pub(crate) struct OutgoingTail {
 /// the assorted atomics + queues that drive UI ↔ audio-thread communication
 /// (probe state, error queue, drain flag, output mute, observability taps).
 pub struct ChainRuntimeState {
+    /// Issue #703: set when this runtime is one isolated per-entry runtime
+    /// — `(entry_group, cpal_input_index)`. `entry_group` is the raw
+    /// `InputEntry` index this runtime owns (the `RuntimeGraph` key);
+    /// `cpal_input_index` is the device stream that feeds it — SHARED with
+    /// sibling runtimes when two entries read the same physical device.
+    /// `None` for whole-chain runtimes (probe, offline render, JACK).
+    /// Written once at graph assembly, before the state is shared.
+    pub(crate) owned_entry: Option<(usize, usize)>,
     pub(crate) processing: Mutex<ChainProcessingState>,
     /// Per-route output state. Swapped atomically on chain rebuild so the
     /// RT callback sees a fresh snapshot without taking any lock.
@@ -384,6 +392,15 @@ pub struct ChainRuntimeState {
 }
 
 impl ChainRuntimeState {
+    /// Issue #703: the cpal input-stream index that feeds this runtime,
+    /// when it is a per-entry isolated runtime. Two entries reading the
+    /// same physical device are two runtimes with the SAME index — the
+    /// cpal layer fans that device's single callback out to all of them.
+    /// `None` for whole-chain runtimes (probe, offline render, JACK).
+    pub fn input_cpal_index(&self) -> Option<usize> {
+        self.owned_entry.map(|(_, cpal_idx)| cpal_idx)
+    }
+
     /// Signal the audio callback to stop processing blocks.
     /// Must be called before deactivating JACK or dropping block processors.
     pub fn set_draining(&self) {

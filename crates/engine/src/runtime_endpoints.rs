@@ -29,7 +29,7 @@ use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
 /// Resolve effective inputs for a chain.
 ///
-/// Returns `(entries, cpal_indices, split_positions)` where:
+/// Returns `(entries, cpal_indices, split_positions, entry_groups)` where:
 /// - `entries[i]` is the `i`-th effective input — one per processing stream.
 /// - `cpal_indices[i]` is the CPAL stream index for `entries[i]`. Multiple
 ///   effective inputs sharing the same device get the same CPAL stream
@@ -43,7 +43,16 @@ use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 ///   to both channels" is preserved. `None` for stereo / dual-mono /
 ///   single-channel mono / Insert-return entries — they keep the historical
 ///   broadcast/sum behaviour.
-pub(crate) fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, Vec<Option<usize>>) {
+/// - `entry_groups[i]` is the RAW input-entry index `entries[i]` came from
+///   (issue #703). Split-mono siblings share their originating entry's
+///   group — they must stay in ONE runtime so the pinned volume invariants
+///   (g02/g03: siblings sum before the per-runtime limiter) keep their
+///   exact math. Distinct raw entries get distinct groups even when they
+///   read the same physical device — each becomes its own isolated
+///   runtime. Insert-return entries get unique groups after the raw ones.
+pub(crate) fn effective_inputs(
+    chain: &Chain,
+) -> (Vec<InputEntry>, Vec<usize>, Vec<Option<usize>>, Vec<usize>) {
     let raw_entries: Vec<InputEntry> = chain
         .blocks
         .iter()
@@ -58,10 +67,11 @@ pub(crate) fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, V
     let mut entries: Vec<InputEntry> = Vec::new();
     let mut cpal_indices: Vec<usize> = Vec::new();
     let mut split_positions: Vec<Option<usize>> = Vec::new();
+    let mut entry_groups: Vec<usize> = Vec::new();
     let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
     let mut next_cpal_idx: usize = 0;
 
-    for entry in raw_entries.iter() {
+    for (raw_idx, entry) in raw_entries.iter().enumerate() {
         let device_key = entry.device_id.0.clone();
         let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
             let idx = next_cpal_idx;
@@ -83,11 +93,13 @@ pub(crate) fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, V
                 });
                 cpal_indices.push(cpal_idx);
                 split_positions.push(Some(n));
+                entry_groups.push(raw_idx);
             }
         } else {
             entries.push(entry.clone());
             cpal_indices.push(cpal_idx);
             split_positions.push(None);
+            entry_groups.push(raw_idx);
         }
     }
 
@@ -105,11 +117,12 @@ pub(crate) fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, V
     for (i, ret) in insert_returns.into_iter().enumerate() {
         cpal_indices.push(insert_return_base + i);
         split_positions.push(None);
+        entry_groups.push(insert_return_base + i);
         entries.push(ret);
     }
 
     if !entries.is_empty() {
-        return (entries, cpal_indices, split_positions);
+        return (entries, cpal_indices, split_positions, entry_groups);
     }
     // Fallback — no InputBlocks defined.
     (
@@ -120,6 +133,7 @@ pub(crate) fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>, V
         }],
         vec![0],
         vec![None],
+        vec![0],
     )
 }
 

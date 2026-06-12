@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use engine::runtime::{build_chain_runtime_state, ChainRuntimeState};
+use engine::runtime::{build_per_input_runtime_states, ChainRuntimeState};
 use project::chain::Chain;
 
 /// Owned, `Send` description of a chain runtime to (re)build off the frontend
@@ -24,13 +24,15 @@ pub struct BuildRequest {
     pub buffer_sizes: Vec<usize>,
 }
 
-/// Build a fresh chain runtime from `req`. Worker-runnable: this is the heavy
-/// DSP-assembly step that must not run on the frontend thread (issue #672).
+/// Build the fresh per-entry chain runtimes from `req`. Worker-runnable: this
+/// is the heavy DSP-assembly step that must not run on the frontend thread
+/// (issue #672). Issue #703: one isolated runtime per input-entry group —
+/// the caller publishes each into its `(chain, group)` slot; single-entry
+/// chains get exactly one `(0, runtime)` pair (the legacy shape).
 ///
 /// # Errors
 /// Propagates any failure from `engine`'s chain-runtime assembly (e.g. a model
 /// that fails to load).
-pub fn build_chain_runtime(req: &BuildRequest) -> Result<Arc<ChainRuntimeState>> {
-    let state = build_chain_runtime_state(&req.chain, req.sample_rate, &req.buffer_sizes)?;
-    Ok(Arc::new(state))
+pub fn build_chain_runtime(req: &BuildRequest) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
+    build_per_input_runtime_states(&req.chain, req.sample_rate, &req.buffer_sizes)
 }
