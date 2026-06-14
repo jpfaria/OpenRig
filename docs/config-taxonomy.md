@@ -33,6 +33,14 @@ page for the working rule.
   and is machine-local per ADR 0003 — never travels with
   `project.openrig`.
 - `input_devices` / `output_devices` — per-machine audio device defaults.
+- `midi_enabled` / `mcp_enabled` (#712) — master switches for the
+  MIDI/BLE-MIDI adapter and the MCP server. Both default `false`. Whether
+  a given machine drives OpenRig over MIDI or exposes the MCP server is a
+  per-machine call (a stage Mac wants MIDI; a CI box does not), so it lives
+  here, not in `project.openrig`. The `--midi` / `--mcp` CLI flags override
+  these for a single run (dev convenience). Distinct from the per-port
+  `midi_devices[].enabled` selection, which only picks *which* ports the
+  enabled adapter listens to.
 - MIDI device profile (`midi-profile.yaml`) — which controller port to listen to.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has
   no `midi:` field.

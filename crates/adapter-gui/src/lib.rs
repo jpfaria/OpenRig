@@ -101,7 +101,8 @@ pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub use cli::{
-    parse_cli_args_from, parse_mcp_addr, parse_midi_map, validate_project_path, MidiMapArg,
+    parse_cli_args_from, parse_mcp_addr, parse_midi_map, resolve_mcp_addr, resolve_midi_map,
+    validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,

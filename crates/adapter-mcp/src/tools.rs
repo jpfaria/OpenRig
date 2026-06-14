@@ -88,7 +88,9 @@ mod tests {
     /// #614 bumped to 63 with `SetChainDiLoopSource` and
     /// `SetChainDiLoopEnabled` — per-chain virtual DI loop (ephemeral,
     /// never persisted; distinct from #324 project-level DI config).
-    const COMMAND_VARIANT_COUNT: usize = 63;
+    /// #712 bumped to 65 with `SetMidiEnabled` and `SetMcpEnabled` —
+    /// per-machine master switches for the MIDI adapter / MCP server.
+    const COMMAND_VARIANT_COUNT: usize = 65;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

@@ -7,10 +7,12 @@
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
 | `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
 | `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
-| `--mcp` | Sobe servidor MCP em `http://127.0.0.1:4123` (GUI continua) — ver `docs/mcp.md` |
-| `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`) |
-| `--midi` | Start the MIDI/BLE-MIDI adapter using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. See `docs/midi.md`. |
-| `--midi=PATH` | Direct legacy-file load (no migration, no resolution). Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). |
+| `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |
+| `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`), overriding config for this run. |
+| `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
+| `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). |
+
+> **#712 — these flags are overrides, not the only switch.** Packaged builds launch the binary with no arguments, so MIDI/MCP enablement is driven by the per-machine `config.yaml` master switches `midi_enabled` / `mcp_enabled` (both default `false`; toggle them in Settings or by hand). A present `--midi` / `--mcp` flag forces the subsystem on for that single run regardless of config. See [`config-taxonomy.md`](config-taxonomy.md).
 
 For headless offline rendering, see the **`openrig-render`** binary documented in [`render.md`](render.md). It is a separate executable shipped by `crates/adapter-render` — no GUI, no audio device, no MCP, no MIDI.
 

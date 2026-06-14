@@ -441,6 +441,10 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_toggle_active_block_neighbor_enabled()
             }
 
+            // #712: per-machine MIDI/MCP master switches → config.yaml.
+            Command::SetMidiEnabled { enabled } => self.handle_set_midi_enabled(enabled),
+            Command::SetMcpEnabled { enabled } => self.handle_set_mcp_enabled(enabled),
+
             // #614: per-chain virtual DI loop (ephemeral, never persisted).
             Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
                 self.handle_di_loop(cmd)

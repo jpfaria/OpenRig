@@ -42,8 +42,18 @@ fn main() -> anyhow::Result<()> {
     let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
     let (arg_project_path, arg_auto_save, arg_fullscreen) =
         adapter_gui::parse_cli_args_from(&raw_refs);
-    let mcp_addr = adapter_gui::parse_mcp_addr(&raw_refs);
-    let midi_map = adapter_gui::parse_midi_map(&raw_refs);
+    // #712: MIDI/MCP enablement is per-machine config (config.yaml), not a
+    // launch flag — so packaged builds (which start the binary with no args)
+    // can enable them. The CLI `--midi`/`--mcp` flags stay as a dev override
+    // that wins when present. Config-load failure → treat as disabled (the
+    // flags still work), never block startup.
+    let app_config = FilesystemStorage::load_app_config().unwrap_or_default();
+    let mcp_addr =
+        adapter_gui::resolve_mcp_addr(adapter_gui::parse_mcp_addr(&raw_refs), app_config.mcp_enabled);
+    let midi_map = adapter_gui::resolve_midi_map(
+        adapter_gui::parse_midi_map(&raw_refs),
+        app_config.midi_enabled,
+    );
     let cli_project_path = arg_project_path
         .or_else(|| {
             std::env::var("OPENRIG_PROJECT_PATH")

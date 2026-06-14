@@ -651,3 +651,21 @@ msgstr "Tocar loop DI"
 #: crates/adapter-gui/ui/components/chain_di_loop_button.slint
 msgid "di-loop-stop-label"
 msgstr "Parar loop DI"
+
+msgid "title-section-integrations"
+msgstr "Integrações"
+
+msgid "label-midi-enabled"
+msgstr "Controle MIDI"
+
+msgid "desc-midi-enabled"
+msgstr "Liga o adaptador MIDI/BLE-MIDI para pedais controlarem o OpenRig"
+
+msgid "label-mcp-enabled"
+msgstr "Servidor MCP"
+
+msgid "desc-mcp-enabled"
+msgstr "Expõe o servidor MCP em 127.0.0.1:4123 para agentes"
+
+msgid "hint-restart-to-apply"
+msgstr "Vale a partir do próximo início."

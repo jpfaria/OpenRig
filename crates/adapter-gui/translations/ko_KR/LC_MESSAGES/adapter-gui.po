@@ -562,3 +562,21 @@ msgstr "덮어쓰기"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr "통합"
+
+msgid "label-midi-enabled"
+msgstr "MIDI 제어"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDI 어댑터를 켜서 풋스위치로 OpenRig를 제어"
+
+msgid "label-mcp-enabled"
+msgstr "MCP 서버"
+
+msgid "desc-mcp-enabled"
+msgstr "에이전트용 MCP 서버를 127.0.0.1:4123에 노출"
+
+msgid "hint-restart-to-apply"
+msgstr "다음 실행 시 적용됩니다."

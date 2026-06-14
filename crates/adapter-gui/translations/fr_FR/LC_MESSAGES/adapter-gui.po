@@ -565,3 +565,21 @@ msgstr "Écraser"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr "Intégrations"
+
+msgid "label-midi-enabled"
+msgstr "Contrôle MIDI"
+
+msgid "desc-midi-enabled"
+msgstr "Active l'adaptateur MIDI/BLE-MIDI pour piloter OpenRig au pied"
+
+msgid "label-mcp-enabled"
+msgstr "Serveur MCP"
+
+msgid "desc-mcp-enabled"
+msgstr "Expose le serveur MCP sur 127.0.0.1:4123 pour les agents"
+
+msgid "hint-restart-to-apply"
+msgstr "Prend effet au prochain démarrage."

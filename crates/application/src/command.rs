@@ -470,6 +470,19 @@ pub enum Command {
     /// #548: toggle the compact-view UI mode for the active chain.
     SetCompactViewEnabled { enabled: bool },
 
+    /// #712: master switch for the MIDI/BLE-MIDI adapter, persisted into
+    /// the per-machine `config.yaml` (`midi_enabled`). Set from the
+    /// Settings toggle so packaged builds — launched with no CLI flags —
+    /// can bring MIDI up. Per-machine (ADR 0003), distinct from the
+    /// per-port `midi_devices[].enabled` selection. Takes effect on next
+    /// launch (the adapter is wired at bootstrap).
+    SetMidiEnabled { enabled: bool },
+
+    /// #712: master switch for the MCP server, persisted into
+    /// `config.yaml` (`mcp_enabled`). Same per-machine, restart-to-apply
+    /// contract as [`Command::SetMidiEnabled`].
+    SetMcpEnabled { enabled: bool },
+
     /// #548: toggle the block immediately AFTER the active block in
     /// the active chain (wraps to first). Backs MIDI slot
     /// `toggle_active_block_neighbor_enabled`.

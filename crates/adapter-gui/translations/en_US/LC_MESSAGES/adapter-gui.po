@@ -630,3 +630,21 @@ msgstr "Play DI loop"
 #: crates/adapter-gui/ui/components/chain_di_loop_button.slint
 msgid "di-loop-stop-label"
 msgstr "Stop DI loop"
+
+msgid "title-section-integrations"
+msgstr "Integrations"
+
+msgid "label-midi-enabled"
+msgstr "MIDI control surface"
+
+msgid "desc-midi-enabled"
+msgstr "Enable the MIDI/BLE-MIDI adapter so footswitches drive OpenRig"
+
+msgid "label-mcp-enabled"
+msgstr "MCP server"
+
+msgid "desc-mcp-enabled"
+msgstr "Expose the MCP server on 127.0.0.1:4123 for agents"
+
+msgid "hint-restart-to-apply"
+msgstr "Takes effect on the next launch."

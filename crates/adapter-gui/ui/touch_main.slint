@@ -189,6 +189,11 @@ export component TouchMain inherits Rectangle {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
+    // #712: System / Integrations master switches.
+    in property <bool> midi-enabled;
+    in property <bool> mcp-enabled;
+    callback set-midi-enabled(bool);
+    callback set-mcp-enabled(bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
     callback add-midi-binding();
     callback delete-midi-binding(int);
@@ -412,6 +417,8 @@ export component TouchMain inherits Rectangle {
         status-message <=> root.status-message;
         project-devices: root.project-devices;
         midi-devices: root.midi-devices;
+        midi-enabled: root.midi-enabled;
+        mcp-enabled: root.mcp-enabled;
         midi-bindings: root.midi-bindings;
         available-commands: root.available-commands;
         sample-rate-options: root.sample-rate-options;
@@ -432,6 +439,8 @@ export component TouchMain inherits Rectangle {
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        set-midi-enabled(on) => { root.set-midi-enabled(on); }
+        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
         add-midi-binding => { root.add-midi-binding(); }
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }

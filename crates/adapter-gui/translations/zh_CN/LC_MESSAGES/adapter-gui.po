@@ -562,3 +562,21 @@ msgstr "覆盖"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr "集成"
+
+msgid "label-midi-enabled"
+msgstr "MIDI 控制"
+
+msgid "desc-midi-enabled"
+msgstr "启用 MIDI/BLE-MIDI 适配器，让踏板控制 OpenRig"
+
+msgid "label-mcp-enabled"
+msgstr "MCP 服务器"
+
+msgid "desc-mcp-enabled"
+msgstr "在 127.0.0.1:4123 上为代理开放 MCP 服务器"
+
+msgid "hint-restart-to-apply"
+msgstr "将在下次启动时生效。"

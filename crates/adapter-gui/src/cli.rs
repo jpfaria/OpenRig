@@ -16,15 +16,19 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
+/// Default MCP bind address: bare `--mcp` and the config master switch
+/// (#712) both resolve to this. Single source of truth.
+pub const DEFAULT_MCP_ADDR: &str = "127.0.0.1:4123";
+
 /// Parse the opt-in MCP server flag.
 ///
-/// * `--mcp` → default `127.0.0.1:4123`
+/// * `--mcp` → default [`DEFAULT_MCP_ADDR`]
 /// * `--mcp=ADDR` → that socket address (invalid value → `None`, logged)
 /// * absent → `None` (server not started; zero overhead)
 pub fn parse_mcp_addr(args: &[&str]) -> Option<SocketAddr> {
     for arg in args.iter().skip(1) {
         if *arg == "--mcp" {
-            return Some("127.0.0.1:4123".parse().expect("valid default mcp addr"));
+            return Some(DEFAULT_MCP_ADDR.parse().expect("valid default mcp addr"));
         }
         if let Some(rest) = arg.strip_prefix("--mcp=") {
             return match rest.parse() {
@@ -64,6 +68,22 @@ pub fn parse_midi_map(args: &[&str]) -> Option<MidiMapArg> {
         }
     }
     None
+}
+
+/// #712: fold the per-machine config master switch into the CLI result
+/// for the MCP server. A present CLI flag (`Some`) is a dev override and
+/// always wins; otherwise `config_enabled` decides, binding the default
+/// address. Both off → `None` (server stays down).
+pub fn resolve_mcp_addr(cli: Option<SocketAddr>, config_enabled: bool) -> Option<SocketAddr> {
+    cli.or_else(|| {
+        config_enabled.then(|| DEFAULT_MCP_ADDR.parse().expect("valid default mcp addr"))
+    })
+}
+
+/// #712: same fold for the MIDI adapter. CLI flag wins; otherwise the
+/// config switch enables it with the default resolved map.
+pub fn resolve_midi_map(cli: Option<MidiMapArg>, config_enabled: bool) -> Option<MidiMapArg> {
+    cli.or_else(|| config_enabled.then_some(MidiMapArg::Default))
 }
 
 pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {

@@ -14,6 +14,7 @@ Pedalboard virtual: usuário monta cadeia de efeitos visualmente, ajusta parâme
     - **Audio interface** — input/output device, sample rate, buffer size, bit depth.
     - **Language** — UI locale override.
     - **MIDI devices** — enable/disable each port, edit per-device alias.
+    - **Integrations** (#712) — master switches for the MIDI/BLE-MIDI adapter and the MCP server (`config.yaml` `midi_enabled` / `mcp_enabled`, both default off). These gate whether the whole subsystem starts — distinct from the per-port MIDI-devices selection. Takes effect on next launch; `--midi` / `--mcp` override for a single run.
   - *Project* (persists to `.openrig`, travels with the rig):
     - **Project metadata** — name and other project-level fields.
     - **MIDI mapping** — binding editor: click **+ Add**, press a control on your MIDI device (MIDI Learn), then pick a Command. Bindings are stored under `midi.bindings` in the `.openrig`. The system-wide fallback (`midi-bindings.yaml`) is used when the open project has no `midi:` field.
