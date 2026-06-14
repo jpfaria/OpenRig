@@ -254,6 +254,18 @@ pub struct AppConfig {
     /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
     #[serde(default)]
     pub midi_devices: Vec<MidiDeviceSelection>,
+    /// Master switch for the MIDI/BLE-MIDI adapter (#712). Per-machine, so
+    /// it lives here, not in the project (ADR 0003). Default `false`: a
+    /// packaged build stays quiet until the user opts in (Settings toggle
+    /// or `--midi`, which overrides this for the run). Distinct from the
+    /// per-port `midi_devices[].enabled` selection — this gates the whole
+    /// subsystem.
+    #[serde(default)]
+    pub midi_enabled: bool,
+    /// Master switch for the MCP server (#712). Per-machine; default
+    /// `false`. `--mcp` / `--mcp=ADDR` overrides it for the run.
+    #[serde(default)]
+    pub mcp_enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

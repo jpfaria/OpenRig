@@ -229,6 +229,31 @@ fn app_config_deserialize_empty_yaml_uses_defaults() {
 }
 
 #[test]
+fn app_config_midi_mcp_master_switch_default_false() {
+    // #712: MIDI and MCP enablement is system config, not a CLI flag.
+    // A fresh / legacy config (no keys) must default both subsystems OFF
+    // — the packaged app stays quiet until the user opts in.
+    let config: AppConfig = serde_yaml::from_str("{}").unwrap();
+    assert!(!config.midi_enabled, "MIDI master switch must default to false");
+    assert!(!config.mcp_enabled, "MCP master switch must default to false");
+}
+
+#[test]
+fn app_config_midi_mcp_master_switch_roundtrips() {
+    // #712: once the user flips the switch it must persist across save/load.
+    let config = AppConfig {
+        midi_enabled: true,
+        mcp_enabled: true,
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    let restored: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert!(restored.midi_enabled);
+    assert!(restored.mcp_enabled);
+    assert_eq!(config, restored);
+}
+
+#[test]
 fn app_config_save_and_load_filesystem_roundtrip() {
     let dir = tmp_dir("app_config_roundtrip");
     let path = dir.join("config.yaml");
@@ -492,6 +517,7 @@ fn app_config_round_trips_midi_devices() {
             alias: "Foo".into(),
             enabled: true,
         }],
+        ..Default::default()
     };
     let yaml = serde_yaml::to_string(&config).unwrap();
     let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
@@ -558,6 +584,7 @@ fn app_config_serdes_unified_audio_and_language_fields() {
         output_devices: vec![make_device("out1", "Speakers")],
         language: Some("pt-BR".into()),
         midi_devices: vec![],
+        ..Default::default()
     };
     let yaml = serde_yaml::to_string(&cfg).unwrap();
     assert!(yaml.contains("input_devices"));
