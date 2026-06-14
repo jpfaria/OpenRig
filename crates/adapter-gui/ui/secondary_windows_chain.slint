@@ -38,6 +38,11 @@ export component ProjectSettingsWindow inherits Window {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
+    // #712: System / Integrations master switches.
+    in property <bool> midi-enabled;
+    in property <bool> mcp-enabled;
+    callback set-midi-enabled(bool);
+    callback set-mcp-enabled(bool);
     callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
     in property <string> presets-path;
@@ -72,6 +77,8 @@ export component ProjectSettingsWindow inherits Window {
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         midi-devices: root.midi-devices;
+        midi-enabled: root.midi-enabled;
+        mcp-enabled: root.mcp-enabled;
         project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
@@ -86,6 +93,8 @@ export component ProjectSettingsWindow inherits Window {
         refresh-midi-devices => { root.refresh-midi-devices(); }
         toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
+        set-midi-enabled(on) => { root.set-midi-enabled(on); }
+        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;

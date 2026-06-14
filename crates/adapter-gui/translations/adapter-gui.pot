@@ -732,3 +732,21 @@ msgstr ""
 msgctxt "ConfirmDeleteRecentProjectDialog"
 msgid "btn-remove"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr ""
+
+msgid "label-midi-enabled"
+msgstr ""
+
+msgid "desc-midi-enabled"
+msgstr ""
+
+msgid "label-mcp-enabled"
+msgstr ""
+
+msgid "desc-mcp-enabled"
+msgstr ""
+
+msgid "hint-restart-to-apply"
+msgstr ""

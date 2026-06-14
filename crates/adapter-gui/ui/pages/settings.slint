@@ -19,6 +19,7 @@ import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.sl
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
+import { SectionSystemIntegrations } from "settings/section_system_integrations.slint";
 import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
 
@@ -120,6 +121,11 @@ export component SettingsPage inherits Rectangle {
     callback refresh-midi-devices();
     callback toggle-midi-device(int, bool);
     callback edit-midi-device-alias(int, string);
+    // #712: System / Integrations master switches (per-machine config.yaml).
+    in property <bool> midi-enabled;
+    in property <bool> mcp-enabled;
+    callback set-midi-enabled(bool);
+    callback set-mcp-enabled(bool);
     callback add-midi-binding();
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
@@ -191,6 +197,11 @@ export component SettingsPage inherits Rectangle {
                     selected: root.selected-section == 3;
                     clicked => { root.selected-section = 3; }
                 }
+                NavRow {
+                    label: @tr("title-section-integrations");
+                    selected: root.selected-section == 5;
+                    clicked => { root.selected-section = 5; }
+                }
 
                 // Visual gap between groups (24px between unrelated
                 // groups per the spacing tokens).
@@ -244,6 +255,7 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 1 ? @tr("title-section-language")
                         : root.selected-section == 2 ? @tr("title-section-midi-devices")
                         : root.selected-section == 3 ? @tr("title-section-paths")
+                        : root.selected-section == 5 ? @tr("title-section-integrations")
                         : @tr("title-section-project-meta");
                     color: #dde3ec;
                     font-size: 18px;
@@ -298,6 +310,12 @@ export component SettingsPage inherits Rectangle {
                         pick-evaluations-path => { root.pick-evaluations-path(); }
                         reset-evaluations-path => { root.reset-evaluations-path(); }
                         reload-plugin-catalog => { root.reload-plugin-catalog(); }
+                    }
+                    if root.selected-section == 5 : SectionSystemIntegrations {
+                        midi-enabled: root.midi-enabled;
+                        mcp-enabled: root.mcp-enabled;
+                        set-midi-enabled(on) => { root.set-midi-enabled(on); }
+                        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
                     }
                     if root.selected-section == 4 : SectionProjectMeta {
                         project-name: root.project-name;

@@ -8,6 +8,7 @@
 //! profile-driven daemon shipped.)
 
 pub mod audio;
+pub mod integrations;
 pub mod language;
 pub mod midi_devices;
 pub mod paths;

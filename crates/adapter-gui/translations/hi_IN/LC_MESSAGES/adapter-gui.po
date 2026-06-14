@@ -562,3 +562,21 @@ msgstr "अधिलेखित करें"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr "एकीकरण"
+
+msgid "label-midi-enabled"
+msgstr "MIDI नियंत्रण"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDI एडाप्टर चालू करें ताकि फुटस्विच OpenRig को नियंत्रित करें"
+
+msgid "label-mcp-enabled"
+msgstr "MCP सर्वर"
+
+msgid "desc-mcp-enabled"
+msgstr "एजेंट के लिए MCP सर्वर को 127.0.0.1:4123 पर उपलब्ध कराएं"
+
+msgid "hint-restart-to-apply"
+msgstr "अगली बार शुरू करने पर लागू होगा।"

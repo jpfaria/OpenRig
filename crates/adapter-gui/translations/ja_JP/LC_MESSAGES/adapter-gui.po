@@ -566,3 +566,21 @@ msgstr "上書き"
 
 msgid "btn-save-audio-settings"
 msgstr ""
+
+msgid "title-section-integrations"
+msgstr "連携"
+
+msgid "label-midi-enabled"
+msgstr "MIDIコントロール"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDIアダプターを有効にしてフットスイッチでOpenRigを操作"
+
+msgid "label-mcp-enabled"
+msgstr "MCPサーバー"
+
+msgid "desc-mcp-enabled"
+msgstr "エージェント向けにMCPサーバーを127.0.0.1:4123で公開"
+
+msgid "hint-restart-to-apply"
+msgstr "次回の起動時に有効になります。"
