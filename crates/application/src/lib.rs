@@ -44,6 +44,7 @@ mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_selection;
+mod local_dispatcher_subsystems;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;

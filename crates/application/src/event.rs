@@ -209,6 +209,21 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #712: the MIDI/BLE-MIDI adapter master switch (`config.yaml`
+    /// `midi_enabled`) was toggled via `SetMidiEnabled`. Persisted by the
+    /// dispatcher; the adapter applies it on next launch (the subsystem is
+    /// wired at bootstrap), so the GUI uses this to surface a restart hint.
+    MidiEnabledChanged {
+        enabled: bool,
+    },
+
+    /// #712: the MCP server master switch (`config.yaml` `mcp_enabled`)
+    /// was toggled via `SetMcpEnabled`. Same restart-to-apply contract as
+    /// [`Event::MidiEnabledChanged`].
+    McpEnabledChanged {
+        enabled: bool,
+    },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
@@ -368,6 +383,8 @@ impl Event {
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
             | Event::CompactViewEnabledChanged { .. }
+            | Event::MidiEnabledChanged { .. }
+            | Event::McpEnabledChanged { .. }
             | Event::ProjectClosed
             // #513 / #493: MIDI device / mapping / learn events live at the
             // system or project root, not a single chain.

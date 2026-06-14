@@ -2660,6 +2660,81 @@ fn save_audio_settings_persists_input_and_output_separately() {
     });
 }
 
+// ── SetMidiEnabled / SetMcpEnabled tests (#712) ───────────────────────────────
+// The Settings toggle persists the per-machine master switch into
+// config.yaml so packaged builds (launched with no CLI flags) bring the
+// subsystem up on next launch. State change → Command (GUI/MCP/gRPC
+// parity), never a borrow_mut in the callback.
+
+#[test]
+fn set_midi_enabled_persists_true_to_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-midi-enabled-true", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SetMidiEnabled { enabled: true });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(config.midi_enabled, "midi_enabled must persist to config.yaml");
+    });
+}
+
+#[test]
+fn set_mcp_enabled_persists_true_to_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-mcp-enabled-true", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SetMcpEnabled { enabled: true });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(config.mcp_enabled, "mcp_enabled must persist to config.yaml");
+    });
+}
+
+#[test]
+fn set_midi_enabled_false_clears_the_switch_and_preserves_other_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-midi-enabled-false", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        // Seed mcp on, midi on; then turn midi off — mcp must stay on.
+        dispatcher
+            .dispatch(Command::SetMcpEnabled { enabled: true })
+            .unwrap();
+        dispatcher
+            .dispatch(Command::SetMidiEnabled { enabled: true })
+            .unwrap();
+        dispatcher
+            .dispatch(Command::SetMidiEnabled { enabled: false })
+            .unwrap();
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(!config.midi_enabled, "midi must be off");
+        assert!(config.mcp_enabled, "mcp must remain on — fields are independent");
+    });
+}
+
 // ── SaveProject tests ─────────────────────────────────────────────────────────
 
 #[test]
