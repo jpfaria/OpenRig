@@ -35,3 +35,23 @@ fn integrations_wiring_dispatches_set_mcp_enabled() {
          Command::SetMcpEnabled, not mutate config directly in the callback."
     );
 }
+
+#[test]
+fn integrations_wiring_syncs_the_in_memory_app_config_snapshot() {
+    // Regression: the toggle persisted to config.yaml but came back OFF
+    // after a restart. The GUI holds a boot-time `Rc<RefCell<AppConfig>>`
+    // that recent-projects/project-open wirings re-save WHOLESALE
+    // (`save_app_config(app_config.borrow().clone())`). A toggle that only
+    // writes disk (and skips this shared snapshot) is clobbered by the
+    // stale boot value the next time any project op fires. The fix mirrors
+    // `settings::audio`: mutate `app_config.borrow_mut()` so the snapshot
+    // carries the new value.
+    let src = read_src("settings/integrations.rs");
+    assert!(
+        src.contains("app_config") && src.contains("borrow_mut"),
+        "issue #712: the toggle must also update the shared in-memory \
+         AppConfig snapshot (mutate `app_config.borrow_mut()`), else the \
+         recent-projects wiring re-saves the stale boot snapshot and the \
+         switch resets on restart. See settings::audio for the pattern."
+    );
+}

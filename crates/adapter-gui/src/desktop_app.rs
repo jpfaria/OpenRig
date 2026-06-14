@@ -323,6 +323,7 @@ pub fn run_desktop_app(
         &window,
         &project_settings_window,
         project_session.clone(),
+        app_config.clone(),
     );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
