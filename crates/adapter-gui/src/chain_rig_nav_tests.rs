@@ -39,6 +39,8 @@ fn rig() -> RigProject {
             active_scene: 4,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
         },
     );
     RigProject {

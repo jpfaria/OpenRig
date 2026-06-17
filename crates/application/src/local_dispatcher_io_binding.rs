@@ -24,10 +24,10 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
-
+use anyhow::{anyhow, Result};
 use domain::io_binding::IoBinding;
 use infra_filesystem::{AppConfig, FilesystemStorage};
+use project::block::AudioBlockKind;
 
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -135,10 +135,30 @@ impl LocalDispatcher {
     /// Removes the binding with `id` from `config.yaml`. No-op when the id
     /// is not present (idempotent).
     ///
-    /// TODO(#716-task5): add a reference-check here — scan
-    /// `self.project.borrow().chains` for any block that references `id`
-    /// and return `Err` when found, naming the referencing chain.
+    /// Returns `Err` when any chain block in the current project references
+    /// the binding via `block.io == id`, naming the first referencing chain.
     pub(crate) fn handle_delete_io_binding(&self, id: String) -> Result<Vec<Event>> {
+        // O3: reject delete when any chain block references this binding id.
+        let referencing_chain = self.project.borrow().chains.iter().find_map(|chain| {
+            let referenced = chain.blocks.iter().any(|block| match &block.kind {
+                AudioBlockKind::Input(ib) => ib.io == id,
+                AudioBlockKind::Output(ob) => ob.io == id,
+                _ => false,
+            });
+            if referenced {
+                Some(chain.id.0.clone())
+            } else {
+                None
+            }
+        });
+        if let Some(chain_id) = referencing_chain {
+            return Err(anyhow!(
+                "cannot delete binding '{}': referenced by chain '{}'",
+                id,
+                chain_id
+            ));
+        }
+
         let config_path = resolve_config_path(self.config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {

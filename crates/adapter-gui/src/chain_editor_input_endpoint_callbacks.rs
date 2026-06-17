@@ -16,6 +16,7 @@ use slint::{ComponentHandle, VecModel};
 use domain::ids::{BlockId, DeviceId};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry};
+use project::chain::Chain;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -202,15 +203,37 @@ pub(crate) fn wire(
                             .collect()
                     };
                     all_input_blocks.push(new_input_block);
-                    if let Err(error) =
-                        session
+                    // TODO(#716): replace with binding-reference picker when
+                    // the I/O binding UI is ready. For now, persist device-level
+                    // block edits via SaveChain (replaces the whole chain).
+                    let updated_chain: Option<Chain> = {
+                        let proj = session.project.borrow();
+                        proj.chains.get(chain_index).map(|c| {
+                            let mut non_input: Vec<AudioBlock> = c
+                                .blocks
+                                .iter()
+                                .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
+                                .cloned()
+                                .collect();
+                            let mut merged = all_input_blocks.clone();
+                            merged.append(&mut non_input);
+                            Chain {
+                                id: c.id.clone(),
+                                description: c.description.clone(),
+                                instrument: c.instrument.clone(),
+                                enabled: c.enabled,
+                                volume: c.volume,
+                                blocks: merged,
+                            }
+                        })
+                    };
+                    if let Some(chain) = updated_chain {
+                        if let Err(error) = session
                             .dispatcher
-                            .dispatch(Command::SaveChainInputEndpoints {
-                                chain: real_chain_id.clone(),
-                                input_blocks: all_input_blocks,
-                            })
-                    {
-                        eprintln!("io block insert error: {error}");
+                            .dispatch(Command::SaveChain { chain })
+                        {
+                            eprintln!("io block insert error: {error}");
+                        }
                     }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &real_chain_id)
@@ -287,15 +310,38 @@ pub(crate) fn wire(
                         })
                         .collect()
                 };
-                if let Err(error) = session
-                    .dispatcher
-                    .dispatch(Command::SaveChainInputEndpoints {
-                        chain: chain_id.clone(),
-                        input_blocks: new_input_blocks,
+                // TODO(#716): replace with binding-reference picker when the
+                // I/O binding UI is ready. For now, persist device-level block
+                // edits via SaveChain.
+                let updated_chain: Option<Chain> = {
+                    let proj = session.project.borrow();
+                    proj.chains.get(index).map(|c| {
+                        let mut non_input: Vec<AudioBlock> = c
+                            .blocks
+                            .iter()
+                            .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
+                            .cloned()
+                            .collect();
+                        let mut merged = new_input_blocks.clone();
+                        merged.append(&mut non_input);
+                        Chain {
+                            id: c.id.clone(),
+                            description: c.description.clone(),
+                            instrument: c.instrument.clone(),
+                            enabled: c.enabled,
+                            volume: c.volume,
+                            blocks: merged,
+                        }
                     })
-                {
-                    eprintln!("input editor save error: {error}");
-                    return;
+                };
+                if let Some(chain) = updated_chain {
+                    if let Err(error) = session
+                        .dispatcher
+                        .dispatch(Command::SaveChain { chain })
+                    {
+                        eprintln!("input editor save error: {error}");
+                        return;
+                    }
                 }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("input editor save error: {error}");

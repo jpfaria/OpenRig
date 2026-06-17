@@ -25,7 +25,7 @@ use std::rc::Rc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+    AudioBlock, AudioBlockKind, InputEntry, OutputBlock, OutputEntry,
 };
 use project::chain::{ChainInputMode, ChainOutputMode};
 use project::rig::{RigInput, RigPreset, RigProject};
@@ -37,23 +37,6 @@ use application::local_dispatcher::LocalDispatcher;
 const INPUT_NAME: &str = "in";
 const CHAIN_ID: &str = "rig:in";
 const DEVICE: &str = "test:device";
-
-fn user_input() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("rig:in:in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
 
 fn user_output() -> AudioBlock {
     AudioBlock {
@@ -95,6 +78,8 @@ fn rig_with_input() -> RigProject {
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
         },
     );
     RigProject {
@@ -127,10 +112,21 @@ fn save_chain_output_endpoints_persists_through_rig_reload() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
 
-    // 1) User dispatches SaveChainOutputEndpoints with their output.
+    // 1) Seed an output block on the chain so SaveChainOutputEndpoints can
+    //    target it by index. The rig has no outputs yet, so we push it
+    //    into the projected chain directly (simulating the IO editor flow).
+    for c in project.borrow_mut().chains.iter_mut() {
+        if c.id.0 == CHAIN_ID {
+            c.blocks.push(user_output());
+        }
+    }
+    // The chain is now [Input(idx 0), Output(idx 1)].
+    // User dispatches SaveChainOutputEndpoints to bind the output.
     let res = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
-        output_blocks: vec![user_output()],
+        block_index: 1,
+        io: String::new(),
+        endpoint: String::new(),
     });
     assert!(
         res.is_ok(),
@@ -188,10 +184,13 @@ fn save_chain_io_persists_both_endpoints_through_rig_reload() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
 
+    // Chain is now [Input(idx 0), Output(idx 1)].
     let res = dispatcher.dispatch(Command::SaveChainIo {
         chain: ChainId(CHAIN_ID.into()),
-        input_block: user_input(),
-        output_block: user_output(),
+        input_block_index: 0,
+        output_block_index: 1,
+        io: String::new(),
+        endpoint: String::new(),
     });
     assert!(res.is_ok(), "SaveChainIo dispatch failed: {:?}", res.err());
 

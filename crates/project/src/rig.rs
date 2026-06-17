@@ -72,6 +72,13 @@ pub struct RigInput {
     /// compatibility with pre-#627 `.openrig` files that have no field.
     #[serde(default = "default_instrument")]
     pub instrument: String,
+    /// I/O binding id that this input's capture block references (#716).
+    /// Empty string means unbound (legacy / device-level entries only).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub io: String,
+    /// Endpoint name within the I/O binding that this input block uses (#716).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint: String,
 }
 
 /// One project output. Maps 1:1 onto the existing [`OutputEntry`].
@@ -81,6 +88,12 @@ pub struct RigOutput {
     pub label: Option<String>,
     #[serde(flatten)]
     pub entry: OutputEntry,
+    /// I/O binding id that this output block references (#716).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub io: String,
+    /// Endpoint name within the I/O binding (#716).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint: String,
 }
 
 /// One scene = only the *diff* over the base preset (Helix Snapshot style).

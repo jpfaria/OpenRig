@@ -177,37 +177,44 @@ pub enum Command {
     ToggleChainEnabled { chain: ChainId },
 
     // ── Chain I/O endpoints ───────────────────────────────────────────────────
-    /// Commit the input endpoint configuration for a chain.
+    /// Bind the input block at `block_index` in the named chain to an I/O
+    /// binding reference.
     ///
-    /// The caller supplies the fully-constructed list of `InputBlock`s to
-    /// replace the existing ones. The dispatcher locates the chain, removes
-    /// all existing `InputBlock` entries, inserts the provided blocks at the
-    /// head of the chain (inputs-first convention), and emits
-    /// `ChainInputEndpointsSaved`. An empty `input_blocks` vec clears all
-    /// inputs.
+    /// The dispatcher locates the chain, finds the input block at
+    /// `block_index`, and sets `block.io = io` and `block.endpoint = endpoint`.
+    /// Emits `ChainInputEndpointsSaved`. Returns `Err` when the chain or the
+    /// block index is not found, or when the target block is not an
+    /// `InputBlock`.
     SaveChainInputEndpoints {
         chain: ChainId,
-        input_blocks: Vec<AudioBlock>,
+        block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
-    /// Commit the output endpoint configuration for a chain.
+    /// Bind the output block at `block_index` in the named chain to an I/O
+    /// binding reference.
     ///
-    /// Same pattern as `SaveChainInputEndpoints` but for the output side.
-    /// The dispatcher removes all existing `OutputBlock` entries and appends
-    /// the provided blocks at the tail of the chain.
+    /// Same semantics as `SaveChainInputEndpoints` but for output blocks.
+    /// Emits `ChainOutputEndpointsSaved`.
     SaveChainOutputEndpoints {
         chain: ChainId,
-        output_blocks: Vec<AudioBlock>,
+        block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
-    /// Commit both input and output I/O configuration for a chain
-    /// (used in fullscreen I/O editor flow).
+    /// Bind both the input block at `input_block_index` and the output block
+    /// at `output_block_index` in the named chain to the same I/O binding
+    /// reference (used in the fullscreen I/O editor flow).
     ///
-    /// The caller supplies both the updated `InputBlock` and `OutputBlock`.
+    /// Emits both `ChainInputEndpointsSaved` and `ChainOutputEndpointsSaved`.
     SaveChainIo {
         chain: ChainId,
-        input_block: AudioBlock,
-        output_block: AudioBlock,
+        input_block_index: usize,
+        output_block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
     // ── Chain presets ─────────────────────────────────────────────────────────

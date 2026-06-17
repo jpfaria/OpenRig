@@ -121,6 +121,8 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
                         active_scene: 1,
                         routing: chain_routing,
                         instrument: chain.instrument.clone(),
+                        io: String::new(),
+                        endpoint: String::new(),
                     },
                 );
             }
@@ -201,6 +203,8 @@ fn resolve_chain_routing(
                         name.clone(),
                         RigOutput {
                             label: None,
+                            io: String::new(),
+                            endpoint: String::new(),
                             entry: entry.clone(),
                         },
                     );

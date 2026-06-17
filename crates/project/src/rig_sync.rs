@@ -103,6 +103,8 @@ mod tests {
                     active_scene: 1,
                     routing: Vec::new(),
                     instrument: "electric_guitar".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                 },
             );
             presets.insert(

@@ -18,6 +18,8 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
         active_scene: 1,
         routing: Vec::new(),
         instrument: "electric_guitar".to_string(),
+        io: String::new(),
+        endpoint: String::new(),
     };
     for (idx, name) in bank {
         input.bank.insert(idx, name.to_string());

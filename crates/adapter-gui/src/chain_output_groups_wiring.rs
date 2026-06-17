@@ -12,7 +12,8 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::chain::ChainOutputMode;
+use project::block::{AudioBlock, AudioBlockKind};
+use project::chain::{Chain, ChainOutputMode};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -277,15 +278,37 @@ pub(crate) fn wire(
                         }
                         (chain.id.clone(), block)
                     };
-                if let Err(error) = session
-                    .dispatcher
-                    .dispatch(Command::SaveChainOutputEndpoints {
-                        chain: chain_id.clone(),
-                        output_blocks: vec![new_output_block],
+                // TODO(#716): replace with binding-reference picker when the
+                // I/O binding UI is ready. For now, persist device-level block
+                // edits via SaveChain.
+                let updated_chain: Option<Chain> = {
+                    let proj = session.project.borrow();
+                    proj.chains.iter().find(|c| c.id == chain_id).map(|c| {
+                        let mut non_output: Vec<AudioBlock> = c
+                            .blocks
+                            .iter()
+                            .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
+                            .cloned()
+                            .collect();
+                        non_output.push(new_output_block.clone());
+                        Chain {
+                            id: c.id.clone(),
+                            description: c.description.clone(),
+                            instrument: c.instrument.clone(),
+                            enabled: c.enabled,
+                            volume: c.volume,
+                            blocks: non_output,
+                        }
                     })
-                {
-                    groups_window.set_status_message(error.to_string().into());
-                    return;
+                };
+                if let Some(chain) = updated_chain {
+                    if let Err(error) = session
+                        .dispatcher
+                        .dispatch(Command::SaveChain { chain })
+                    {
+                        groups_window.set_status_message(error.to_string().into());
+                        return;
+                    }
                 }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     groups_window.set_status_message(error.to_string().into());
