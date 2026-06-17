@@ -28,12 +28,26 @@
 //! file first (against an API that does not exist yet) is the RED that
 //! gates the implementation, per CLAUDE.md / docs/testing.md.
 
-use super::meter_wiring::{rebuild_stream_meters_row, StreamMeterReading};
+use super::meter_wiring::{rebuild_stream_meters_row, StreamMeterReading, METER_POLL_TICK_MS};
 use crate::StreamMeter;
 use engine::output_meter::SILENT_DBFS;
 
 fn reading(in_dbfs: f32, out_dbfs: f32) -> StreamMeterReading {
     StreamMeterReading { in_dbfs, out_dbfs }
+}
+
+/// #715: the meter poll must not run faster than ~20 Hz. Its per-frame memory
+/// traffic competes with the audio worker on the shared cache and evicts the
+/// NAM weights → cold-cache inference → late buffer → crackle (reproduced in
+/// engine/tests/issue_715_nam_cache_eviction). 30 Hz (33 ms) caused it; this
+/// guards against regressing back to a fast meter refresh.
+#[test]
+fn meter_poll_is_not_faster_than_20hz() {
+    assert!(
+        METER_POLL_TICK_MS >= 50,
+        "meter poll tick {METER_POLL_TICK_MS}ms is faster than 20 Hz — its memory \
+         traffic evicts the audio worker's NAM weights (issue #715 crackle)"
+    );
 }
 
 #[test]
