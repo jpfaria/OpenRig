@@ -34,6 +34,8 @@ fn input_block(mode: ChainInputMode, channels: Vec<usize>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId("dev".into()),
                 mode,
@@ -55,6 +57,8 @@ fn multi_input_block(entries: Vec<InputEntry>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries,
         }),
     }
@@ -74,6 +78,8 @@ fn output_block(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId("dev".into()),
                 mode,

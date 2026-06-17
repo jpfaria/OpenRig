@@ -44,6 +44,8 @@ fn user_input() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(DEVICE.into()),
                 mode: ChainInputMode::Mono,
@@ -59,6 +61,8 @@ fn user_output() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(DEVICE.into()),
                 mode: ChainOutputMode::Stereo,

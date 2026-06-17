@@ -31,6 +31,8 @@ fn input_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(device.into()),
                 mode: ChainInputMode::Mono,
@@ -46,6 +48,8 @@ fn output_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(device.into()),
                 mode: ChainOutputMode::Mono,
@@ -250,6 +254,8 @@ fn every_effective_input_index_has_at_least_one_segment() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -326,6 +332,8 @@ fn no_segment_is_orphaned_from_input_dispatch() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -463,6 +471,8 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -475,6 +485,8 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("monitor".into()),
                         mode: ChainOutputMode::Stereo,
@@ -539,6 +551,8 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -551,6 +565,8 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("monitor".into()),
                         mode: ChainOutputMode::Stereo,
@@ -627,6 +643,8 @@ fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -640,6 +658,8 @@ fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("monitor".into()),
                         mode: ChainOutputMode::Stereo,
@@ -692,6 +712,8 @@ fn dual_mono_segment_keeps_stereo_processing() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::DualMono,
@@ -704,6 +726,8 @@ fn dual_mono_segment_keeps_stereo_processing() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("monitor".into()),
                         mode: ChainOutputMode::Stereo,
