@@ -28,7 +28,19 @@ impl LocalDispatcher {
         binding: IoBinding,
     ) -> Result<Vec<Event>> {
         crate::persist_worker::run(move || {
-            let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+            let mut config = match FilesystemStorage::load_app_config() {
+                Ok(c) => c,
+                Err(e) => {
+                    let path = FilesystemStorage::app_config_path()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|_| "<unresolvable>".to_string());
+                    log::error!(
+                        "io_binding create/update: failed to load config from {path}: {e} — \
+                         proceeding with default (existing data may be lost)"
+                    );
+                    Default::default()
+                }
+            };
             if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
                 config.io_bindings[pos] = binding;
             } else {
@@ -51,7 +63,19 @@ impl LocalDispatcher {
     /// and return `Err` when found, naming the referencing chain.
     pub(crate) fn handle_delete_io_binding(&self, id: String) -> Result<Vec<Event>> {
         crate::persist_worker::run(move || {
-            let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+            let mut config = match FilesystemStorage::load_app_config() {
+                Ok(c) => c,
+                Err(e) => {
+                    let path = FilesystemStorage::app_config_path()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|_| "<unresolvable>".to_string());
+                    log::error!(
+                        "io_binding delete: failed to load config from {path}: {e} — \
+                         proceeding with default (existing data may be lost)"
+                    );
+                    Default::default()
+                }
+            };
             config.io_bindings.retain(|b| b.id != id);
             if let Err(e) = FilesystemStorage::save_app_config(&config) {
                 log::error!("failed to persist io_bindings after delete: {e}");

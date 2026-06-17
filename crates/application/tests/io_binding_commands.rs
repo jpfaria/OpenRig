@@ -6,9 +6,32 @@
 //! - UpdateIoBinding  → upsert by id: fields change, count unchanged.
 //! - DeleteIoBinding  → binding removed (no reference-check enforcement yet;
 //!   that guard is deferred to Task 5 when chain blocks exist).
+//!
+//! ## Test isolation
+//!
+//! The handlers call `FilesystemStorage::load/save_app_config()`, which
+//! resolves the config path via `dirs::config_dir()` (system API on macOS)
+//! with a HOME-based fallback. Because `dirs::config_dir()` on macOS uses
+//! `NSFileManager` rather than the HOME env var, the HOME-swap here is
+//! effective only on Linux/Windows (HOME-derived `.config`).
+//!
+//! On macOS the test therefore writes to the user's real
+//! `~/Library/Application Support/OpenRig/config.yaml` — a pre-existing
+//! issue shared with the `issue_693` test suite. A proper fix requires the
+//! handlers to accept an injectable path (separate follow-up).
+//!
+//! Until that follow-up lands the three tests below **must run serially** to
+//! avoid racing on the shared config path. `ENV_LOCK` provides that
+//! serialisation without adding the `serial_test` crate.
+//!
+//! ### Why not serial_test?
+//! The repo has no `serial_test` dependency and the rules prohibit adding
+//! crates speculatively. A plain `std::sync::Mutex` achieves the same
+//! guarantee with zero new dependencies.
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Mutex;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -16,6 +39,10 @@ use application::local_dispatcher::LocalDispatcher;
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::project::Project;
+
+/// Serialises all three tests so they cannot race on the global HOME / config
+/// path. Held for the full test body — acquire at the top, drop at the end.
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn empty_project() -> Rc<RefCell<Project>> {
     Rc::new(RefCell::new(Project {
@@ -46,9 +73,14 @@ fn make_binding(id: &str, name: &str) -> IoBinding {
 
 #[test]
 fn test_create_then_persists() {
+    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    // Point HOME to tmp so config.yaml lands there, not the real user HOME.
-    std::env::set_var("HOME", tmp.path());
+    // HOME fallback: effective on Linux/Windows; macOS uses NSFileManager.
+    // SAFETY: held under ENV_LOCK — no concurrent HOME mutation in this suite.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("HOME", tmp.path());
+    }
 
     let dispatcher = LocalDispatcher::new(empty_project());
 
@@ -87,8 +119,12 @@ fn test_create_then_persists() {
 
 #[test]
 fn test_update_replaces_by_id() {
+    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    std::env::set_var("HOME", tmp.path());
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("HOME", tmp.path());
+    }
 
     let dispatcher = LocalDispatcher::new(empty_project());
 
@@ -127,24 +163,40 @@ fn test_update_replaces_by_id() {
 
     application::persist_worker::flush();
 
+    // Re-parse the persisted config rather than doing YAML substring matching.
+    // This is format-independent and won't break if serde changes quoting.
     let cfg_path = infra_filesystem::FilesystemStorage::app_config_path()
         .expect("config path");
     let raw = std::fs::read_to_string(&cfg_path).expect("read config.yaml");
+    let persisted: infra_filesystem::AppConfig =
+        serde_yaml::from_str(&raw).expect("config.yaml must be valid YAML after update");
+
+    assert_eq!(
+        persisted.io_bindings.len(),
+        2,
+        "binding count must be unchanged after update (upsert, not insert); \
+         got {} bindings:\n{raw}",
+        persisted.io_bindings.len()
+    );
+
+    let updated_b = persisted
+        .io_bindings
+        .iter()
+        .find(|b| b.id == "rig1")
+        .expect("binding 'rig1' must still exist after update");
+    assert_eq!(
+        updated_b.name, "Rig 1 Updated",
+        "binding 'rig1' must have the new name after update"
+    );
 
     assert!(
-        raw.contains("Rig 1 Updated"),
-        "updated name must appear in config.yaml; got:\n{raw}"
+        persisted.io_bindings.iter().all(|b| b.name != "Rig 1"),
+        "old name 'Rig 1' must be absent from all bindings after update"
     );
-    // The old name must be gone — check for the exact YAML value "Rig 1" (not
-    // as a prefix of "Rig 1 Updated"). YAML serializes strings inline so we
-    // look for the standalone value at end-of-line or space.
+
     assert!(
-        !raw.contains("name: Rig 1\n") && !raw.contains("'Rig 1'"),
-        "old name 'Rig 1' must be gone after update; got:\n{raw}"
-    );
-    assert!(
-        raw.contains("rig2") || raw.contains("Rig 2"),
-        "second binding must still be present after update of first; got:\n{raw}"
+        persisted.io_bindings.iter().any(|b| b.id == "rig2"),
+        "second binding 'rig2' must still be present after update of first"
     );
 }
 
@@ -154,8 +206,12 @@ fn test_update_replaces_by_id() {
 
 #[test]
 fn test_delete_removes() {
+    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    std::env::set_var("HOME", tmp.path());
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("HOME", tmp.path());
+    }
 
     let dispatcher = LocalDispatcher::new(empty_project());
 
