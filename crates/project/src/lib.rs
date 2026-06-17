@@ -17,6 +17,7 @@ pub mod chain;
 pub mod device;
 pub mod midi;
 pub mod migrate;
+pub mod migrate_io_binding;
 pub mod param;
 pub mod project;
 pub mod project_disable_unavailable;

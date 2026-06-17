@@ -357,6 +357,15 @@ pub(crate) fn load_project_session(
         );
     }
 
+    // #716: migrate legacy chain I/O entries (device endpoints embedded
+    // directly in Input/Output blocks) into the per-machine io_bindings
+    // registry in config.yaml. This is idempotent — re-opening a project
+    // that was already migrated is a no-op.
+    if let Ok(mut app_config) = FilesystemStorage::load_app_config() {
+        project::migrate_io_binding::migrate_legacy_io(&mut project, &mut app_config.io_bindings);
+        let _ = FilesystemStorage::save_app_config(&app_config);
+    }
+
     let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),
