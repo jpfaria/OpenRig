@@ -178,6 +178,45 @@ Contract tests: `crates/engine/src/stream_isolation_tests.rs` +
 `stream_isolation_same_device_tests.rs`; cpal binding in
 `crates/infra-cpal/src/tests_regression.rs`.
 
+### Per-binding stream routing (issue #716)
+
+Chain Input/Output blocks are **ports**. An input port references an io
+binding (`io`) + an endpoint (`endpoint`); an output port likewise. The
+binding registry (`config.yaml` `io_bindings`, type
+`domain::io_binding::IoBinding`) resolves a port to its concrete device
+endpoint at build time — never on the audio thread.
+
+A **stream** is spawned for each `(input port, output port)` pair that
+belongs to the **same binding**, with input position ≤ output position in
+chain block order. The stream reads the input port's endpoint, runs ONLY
+the effect blocks strictly between the two ports, and writes the output
+port's endpoint. Because pairing is scoped to a binding, the input of
+binding A can **never** reach the output of binding B — structural
+isolation (CLAUDE.md invariant #4), not a runtime check.
+
+Worked examples (chain `A,B,C,D,E`):
+
+- io XYZ in {ch1@0, ch2@afterA}, out {ch3,4@end} → streams
+  `ch1: A B C D E → ch3,4` and `ch2: B C D E → ch3,4`.
+- io XYZ in {ch1@0}, out {ch3@end, ch4@afterC} → streams
+  `ch1: A B C D E → ch3` and `ch1: A B C → ch4`.
+
+Two streams that write the SAME output endpoint share one route (summed at
+the route); cross-binding sums never happen because the resolver forbids
+the pair. Each segment routes to ONLY its binding's output route — that
+single-output routing is what blocks the cross-binding bleed the
+chain-shared cartesian path produced.
+
+Resolution lives in `crates/engine/src/io_routing.rs`
+(`resolve_chain_streams`); the registry-aware graph build is
+`engine::runtime::build_io_runtime_graph` (in `runtime_io_graph.rs`).
+**Legacy / unbound** blocks (empty `io`, still carrying `entries`) keep the
+existing `entries`-based path — byte-identical to `build_runtime_graph`.
+
+Contract tests: `crates/engine/src/io_binding_isolation_tests.rs`
+(cross-binding bleed) + `io_binding_routing_tests.rs` (pairing + block
+ranges).
+
 ### DSP worker per input stream (issue #670, macOS)
 
 The chain DSP does NOT run inside the CoreAudio input callback. The HAL
