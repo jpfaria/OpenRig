@@ -15,6 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
+pub use domain::io_binding::IoBinding;
 use project::block::{AudioBlock, InsertEndpoint};
 use project::chain::Chain;
 pub use crate::di_loader::DiLoopSource;
@@ -548,6 +549,30 @@ pub enum Command {
         chain: ChainId,
         enabled: bool,
     },
+
+    // ── I/O binding registry (#716) ───────────────────────────────────────────
+
+    /// #716: add a new I/O binding to the per-machine registry in
+    /// `config.yaml`. The binding is identified by `binding.id`.
+    /// When an entry with the same `id` already exists it is replaced
+    /// (upsert semantics) so callers may treat create and update as one
+    /// operation. Persists via the async persist worker (no blocking).
+    CreateIoBinding { binding: IoBinding },
+
+    /// #716: update an existing I/O binding in the per-machine registry.
+    /// Locates the entry whose `id` matches `binding.id` and replaces it
+    /// in-place; if no entry with that `id` exists the binding is appended
+    /// (same upsert semantics as `CreateIoBinding`). Persists via the
+    /// async persist worker.
+    UpdateIoBinding { binding: IoBinding },
+
+    /// #716: remove an I/O binding from the per-machine registry.
+    ///
+    /// Note: reference-checking (reject when a chain block references `id`)
+    /// is deferred to Task 5. The handler below has a clear single point
+    /// marked `TODO(#716-task5)` where the guard can be inserted when chain
+    /// blocks reference bindings.
+    DeleteIoBinding { id: String },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.
