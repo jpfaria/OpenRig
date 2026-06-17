@@ -325,6 +325,13 @@ pub fn run_desktop_app(
         project_session.clone(),
         app_config.clone(),
     );
+    // #716: System / I/O bindings editor.
+    crate::settings::io_bindings::wire(
+        &window,
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+    );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
         &settings.input_devices,

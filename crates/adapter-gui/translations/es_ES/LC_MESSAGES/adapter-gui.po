@@ -661,3 +661,24 @@ msgstr "Expone el servidor MCP en 127.0.0.1:4123 para agentes"
 
 msgid "hint-restart-to-apply"
 msgstr "Tendrá efecto en el próximo inicio."
+
+msgid "title-section-io-bindings"
+msgstr "Conexiones de E/S"
+
+msgid "label-binding-name"
+msgstr "Nombre de la conexión"
+
+msgid "label-endpoint-input"
+msgstr "Punto de entrada"
+
+msgid "label-endpoint-output"
+msgstr "Punto de salida"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Estéreo"
+
+msgid "mode-dual-mono"
+msgstr "Mono dual"

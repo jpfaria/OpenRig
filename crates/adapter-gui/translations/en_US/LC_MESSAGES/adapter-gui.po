@@ -648,3 +648,24 @@ msgstr "Expose the MCP server on 127.0.0.1:4123 for agents"
 
 msgid "hint-restart-to-apply"
 msgstr "Takes effect on the next launch."
+
+msgid "title-section-io-bindings"
+msgstr "I/O Bindings"
+
+msgid "label-binding-name"
+msgstr "Binding name"
+
+msgid "label-endpoint-input"
+msgstr "Input endpoint"
+
+msgid "label-endpoint-output"
+msgstr "Output endpoint"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Stereo"
+
+msgid "mode-dual-mono"
+msgstr "Dual mono"

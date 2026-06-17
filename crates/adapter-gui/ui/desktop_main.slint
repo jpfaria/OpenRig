@@ -205,6 +205,16 @@ export component DesktopMain inherits Rectangle {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    in property <[string]> io-binding-ids;
+    in property <[string]> io-binding-names;
+    in-out property <string> io-binding-error: "";
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback add-input-endpoint(string, string, string, string, string);
+    callback add-output-endpoint(string, string, string, string, string);
+    callback remove-endpoint(string, string, bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
     callback add-midi-binding();
     callback delete-midi-binding(int);
@@ -415,6 +425,15 @@ export component DesktopMain inherits Rectangle {
             edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
             set-midi-enabled(on) => { root.set-midi-enabled(on); }
             set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+            io-binding-ids: root.io-binding-ids;
+            io-binding-names: root.io-binding-names;
+            io-binding-error <=> root.io-binding-error;
+            create-io-binding(name) => { return root.create-io-binding(name); }
+            delete-io-binding(id) => { return root.delete-io-binding(id); }
+            rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+            add-input-endpoint(id, en, dev, mode, ch) => { root.add-input-endpoint(id, en, dev, mode, ch); }
+            add-output-endpoint(id, en, dev, mode, ch) => { root.add-output-endpoint(id, en, dev, mode, ch); }
+            remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
             add-midi-binding => { root.add-midi-binding(); }
             delete-midi-binding(i) => { root.delete-midi-binding(i); }
             pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
@@ -596,6 +615,15 @@ export component DesktopMain inherits Rectangle {
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         set-midi-enabled(on) => { root.set-midi-enabled(on); }
         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+        io-binding-ids: root.io-binding-ids;
+        io-binding-names: root.io-binding-names;
+        io-binding-error <=> root.io-binding-error;
+        create-io-binding(name) => { return root.create-io-binding(name); }
+        delete-io-binding(id) => { return root.delete-io-binding(id); }
+        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+        add-input-endpoint(id, en, dev, mode, ch) => { root.add-input-endpoint(id, en, dev, mode, ch); }
+        add-output-endpoint(id, en, dev, mode, ch) => { root.add-output-endpoint(id, en, dev, mode, ch); }
+        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
         add-midi-binding => { root.add-midi-binding(); }
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }

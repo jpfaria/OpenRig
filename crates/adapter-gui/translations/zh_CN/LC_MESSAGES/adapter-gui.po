@@ -580,3 +580,24 @@ msgstr "在 127.0.0.1:4123 上为代理开放 MCP 服务器"
 
 msgid "hint-restart-to-apply"
 msgstr "将在下次启动时生效。"
+
+msgid "title-section-io-bindings"
+msgstr "输入/输出绑定"
+
+msgid "label-binding-name"
+msgstr "绑定名称"
+
+msgid "label-endpoint-input"
+msgstr "输入端点"
+
+msgid "label-endpoint-output"
+msgstr "输出端点"
+
+msgid "mode-mono"
+msgstr "单声道"
+
+msgid "mode-stereo"
+msgstr "立体声"
+
+msgid "mode-dual-mono"
+msgstr "双单声道"

@@ -580,3 +580,24 @@ msgstr "에이전트용 MCP 서버를 127.0.0.1:4123에 노출"
 
 msgid "hint-restart-to-apply"
 msgstr "다음 실행 시 적용됩니다."
+
+msgid "title-section-io-bindings"
+msgstr "I/O 바인딩"
+
+msgid "label-binding-name"
+msgstr "바인딩 이름"
+
+msgid "label-endpoint-input"
+msgstr "입력 엔드포인트"
+
+msgid "label-endpoint-output"
+msgstr "출력 엔드포인트"
+
+msgid "mode-mono"
+msgstr "모노"
+
+msgid "mode-stereo"
+msgstr "스테레오"
+
+msgid "mode-dual-mono"
+msgstr "듀얼 모노"

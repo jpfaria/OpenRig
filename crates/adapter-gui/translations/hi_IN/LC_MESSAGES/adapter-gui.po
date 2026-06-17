@@ -580,3 +580,24 @@ msgstr "एजेंट के लिए MCP सर्वर को 127.0.0.1:41
 
 msgid "hint-restart-to-apply"
 msgstr "अगली बार शुरू करने पर लागू होगा।"
+
+msgid "title-section-io-bindings"
+msgstr "इनपुट/आउटपुट बाइंडिंग"
+
+msgid "label-binding-name"
+msgstr "बाइंडिंग नाम"
+
+msgid "label-endpoint-input"
+msgstr "इनपुट एंडपॉइंट"
+
+msgid "label-endpoint-output"
+msgstr "आउटपुट एंडपॉइंट"
+
+msgid "mode-mono"
+msgstr "मोनो"
+
+msgid "mode-stereo"
+msgstr "स्टीरियो"
+
+msgid "mode-dual-mono"
+msgstr "दोहरा मोनो"

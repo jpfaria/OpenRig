@@ -22,6 +22,7 @@ import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.s
 import { SectionSystemIntegrations } from "settings/section_system_integrations.slint";
 import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
+import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
 
 // Sidebar nav row — selectable item with hover bg, active-state bg,
 // 2px brand-blue left accent when selected. Used inside the sidebar
@@ -126,6 +127,16 @@ export component SettingsPage inherits Rectangle {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    in property <[string]> io-binding-ids;
+    in property <[string]> io-binding-names;
+    in-out property <string> io-binding-error: "";
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback add-input-endpoint(string, string, string, string, string);
+    callback add-output-endpoint(string, string, string, string, string);
+    callback remove-endpoint(string, string, bool);
     callback add-midi-binding();
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
@@ -202,6 +213,11 @@ export component SettingsPage inherits Rectangle {
                     selected: root.selected-section == 5;
                     clicked => { root.selected-section = 5; }
                 }
+                NavRow {
+                    label: @tr("title-section-io-bindings");
+                    selected: root.selected-section == 6;
+                    clicked => { root.selected-section = 6; }
+                }
 
                 // Visual gap between groups (24px between unrelated
                 // groups per the spacing tokens).
@@ -256,6 +272,7 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 2 ? @tr("title-section-midi-devices")
                         : root.selected-section == 3 ? @tr("title-section-paths")
                         : root.selected-section == 5 ? @tr("title-section-integrations")
+                        : root.selected-section == 6 ? @tr("title-section-io-bindings")
                         : @tr("title-section-project-meta");
                     color: #dde3ec;
                     font-size: 18px;
@@ -316,6 +333,17 @@ export component SettingsPage inherits Rectangle {
                         mcp-enabled: root.mcp-enabled;
                         set-midi-enabled(on) => { root.set-midi-enabled(on); }
                         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+                    }
+                    if root.selected-section == 6 : SectionSystemIoBindings {
+                        io-binding-ids: root.io-binding-ids;
+                        io-binding-names: root.io-binding-names;
+                        io-binding-error <=> root.io-binding-error;
+                        create-io-binding(name) => { return root.create-io-binding(name); }
+                        delete-io-binding(id) => { return root.delete-io-binding(id); }
+                        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+                        add-input-endpoint(id, en, dev, mode, ch) => { root.add-input-endpoint(id, en, dev, mode, ch); }
+                        add-output-endpoint(id, en, dev, mode, ch) => { root.add-output-endpoint(id, en, dev, mode, ch); }
+                        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
                     }
                     if root.selected-section == 4 : SectionProjectMeta {
                         project-name: root.project-name;
