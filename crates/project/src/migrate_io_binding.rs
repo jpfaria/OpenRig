@@ -24,7 +24,7 @@ use std::hash::{Hash, Hasher};
 
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 
-use crate::block::{AudioBlockKind, InputBlock, OutputBlock};
+use crate::block::AudioBlockKind;
 use crate::project::Project;
 
 /// Migrate all legacy chain I/O entries in `project` into `io_bindings`.
@@ -44,35 +44,73 @@ pub fn migrate_legacy_io(project: &mut Project, io_bindings: &mut Vec<IoBinding>
         let mut input_migrations: Vec<(usize, Vec<IoEndpoint>)> = Vec::new();
         let mut output_migrations: Vec<(usize, Vec<IoEndpoint>)> = Vec::new();
 
+        // First pass: collect raw (device_id, mode, channels) tuples so we can
+        // assign chain-wide unique names before building endpoints.
+        // We do two separate passes: one to collect, one to build with names.
+
+        // Collect raw input entries across all legacy blocks.
+        let mut raw_inputs: Vec<(usize, RawEntry)> = Vec::new(); // (block_idx, entry)
+        let mut raw_outputs: Vec<(usize, RawEntry)> = Vec::new();
+
         for (idx, block) in chain.blocks.iter().enumerate() {
             match &block.kind {
                 AudioBlockKind::Input(ib) if ib.io.is_empty() && !ib.entries.is_empty() => {
-                    let endpoints = ib
-                        .entries
-                        .iter()
-                        .enumerate()
-                        .map(|(entry_idx, entry)| IoEndpoint {
-                            name: endpoint_name_for_input(&ib, entry_idx),
-                            device_id: entry.device_id.clone(),
-                            mode: ChannelMode::from(entry.mode),
-                            channels: entry.channels.clone(),
-                        })
-                        .collect();
-                    input_migrations.push((idx, endpoints));
+                    for entry in &ib.entries {
+                        raw_inputs.push((
+                            idx,
+                            RawEntry {
+                                device_id: entry.device_id.clone(),
+                                mode: ChannelMode::from(entry.mode),
+                                channels: entry.channels.clone(),
+                            },
+                        ));
+                    }
                 }
                 AudioBlockKind::Output(ob) if ob.io.is_empty() && !ob.entries.is_empty() => {
-                    let endpoints = ob
-                        .entries
+                    for entry in &ob.entries {
+                        raw_outputs.push((
+                            idx,
+                            RawEntry {
+                                device_id: entry.device_id.clone(),
+                                mode: ChannelMode::from(entry.mode),
+                                channels: entry.channels.clone(),
+                            },
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Build IoEndpoints with chain-wide unique names.
+        // Identical (device_id, channels, mode) tuples across different blocks share
+        // one endpoint; distinct tuples get distinct names including a suffix when
+        // two entries share the same device.
+        let named_inputs = assign_unique_names(&raw_inputs, Direction::Input);
+        let named_outputs = assign_unique_names(&raw_outputs, Direction::Output);
+
+        // Group by block index so we know which endpoint name each block gets.
+        for (idx, block) in chain.blocks.iter().enumerate() {
+            match &block.kind {
+                AudioBlockKind::Input(ib) if ib.io.is_empty() && !ib.entries.is_empty() => {
+                    let endpoints: Vec<IoEndpoint> = named_inputs
                         .iter()
-                        .enumerate()
-                        .map(|(entry_idx, entry)| IoEndpoint {
-                            name: endpoint_name_for_output(&ob, entry_idx),
-                            device_id: entry.device_id.clone(),
-                            mode: ChannelMode::from(entry.mode),
-                            channels: entry.channels.clone(),
-                        })
+                        .filter(|(bidx, _)| *bidx == idx)
+                        .map(|(_, ep)| ep.clone())
                         .collect();
-                    output_migrations.push((idx, endpoints));
+                    if !endpoints.is_empty() {
+                        input_migrations.push((idx, endpoints));
+                    }
+                }
+                AudioBlockKind::Output(ob) if ob.io.is_empty() && !ob.entries.is_empty() => {
+                    let endpoints: Vec<IoEndpoint> = named_outputs
+                        .iter()
+                        .filter(|(bidx, _)| *bidx == idx)
+                        .map(|(_, ep)| ep.clone())
+                        .collect();
+                    if !endpoints.is_empty() {
+                        output_migrations.push((idx, endpoints));
+                    }
                 }
                 _ => {}
             }
@@ -84,14 +122,11 @@ pub fn migrate_legacy_io(project: &mut Project, io_bindings: &mut Vec<IoBinding>
         }
 
         // Gather all endpoints for this chain into a single binding.
-        let all_inputs: Vec<IoEndpoint> = input_migrations
-            .iter()
-            .flat_map(|(_, eps)| eps.iter().cloned())
-            .collect();
-        let all_outputs: Vec<IoEndpoint> = output_migrations
-            .iter()
-            .flat_map(|(_, eps)| eps.iter().cloned())
-            .collect();
+        // Deduplicate: identical (device, channels, mode) tuples share one endpoint.
+        let all_inputs: Vec<IoEndpoint> =
+            dedup_endpoints(named_inputs.iter().map(|(_, ep)| ep.clone()));
+        let all_outputs: Vec<IoEndpoint> =
+            dedup_endpoints(named_outputs.iter().map(|(_, ep)| ep.clone()));
 
         // Find or create the binding (deduplicated by content).
         let binding_id =
@@ -201,28 +236,102 @@ fn endpoint_set_hash(inputs: &[IoEndpoint], outputs: &[IoEndpoint]) -> u64 {
     hasher.finish()
 }
 
-/// Generate a stable endpoint name for an input block entry.
-///
-/// Uses the entry index so that multiple entries in the same block
-/// get distinct names. The index is 1-based for readability.
-fn endpoint_name_for_input(block: &InputBlock, entry_idx: usize) -> String {
-    // If the block has exactly one entry, use a clean name without an index.
-    if block.entries.len() == 1 {
-        format!("In ({})", block.entries[0].device_id.0)
-    } else {
-        format!("In {} ({})", entry_idx + 1, block.entries[entry_idx].device_id.0)
-    }
+/// Raw entry data collected from a legacy block before naming.
+struct RawEntry {
+    device_id: domain::ids::DeviceId,
+    mode: ChannelMode,
+    channels: Vec<usize>,
 }
 
-/// Generate a stable endpoint name for an output block entry.
-fn endpoint_name_for_output(block: &OutputBlock, entry_idx: usize) -> String {
-    if block.entries.len() == 1 {
-        format!("Out ({})", block.entries[0].device_id.0)
-    } else {
-        format!(
-            "Out {} ({})",
-            entry_idx + 1,
-            block.entries[entry_idx].device_id.0
-        )
+/// Direction tag for building human-readable endpoint names.
+enum Direction {
+    Input,
+    Output,
+}
+
+/// Assign chain-wide unique names to a flat list of raw entries.
+///
+/// Entries with the **same** (device_id, channels, mode) receive the **same**
+/// name — they are genuinely identical and will be deduplicated into one
+/// `IoEndpoint`.  Entries that differ only in channel set get a numeric
+/// suffix (`In1`, `In2`, …) so the names remain distinct and stable.
+///
+/// Returns `Vec<(block_idx, IoEndpoint)>` in the same order as the input.
+fn assign_unique_names(
+    entries: &[(usize, RawEntry)],
+    direction: Direction,
+) -> Vec<(usize, IoEndpoint)> {
+    let prefix = match direction {
+        Direction::Input => "In",
+        Direction::Output => "Out",
+    };
+
+    // Count how many entries share each device_id so we know when a suffix
+    // is needed.  Two entries that are fully identical (same device + channels
+    // + mode) do NOT need a suffix — they will dedup later.  Only entries that
+    // differ by channel set need disambiguation.
+    //
+    // Strategy: for each device_id, collect the distinct (channels, mode)
+    // tuples.  If there is more than one distinct tuple for a device, assign
+    // a per-device counter.
+    use std::collections::HashMap;
+
+    // Map device_id → list of distinct (channels, mode) tuples (in order of
+    // first appearance).
+    let mut device_distinct: HashMap<&str, Vec<(&[usize], ChannelMode)>> = HashMap::new();
+    for (_, entry) in entries {
+        let device = entry.device_id.0.as_str();
+        let list = device_distinct.entry(device).or_default();
+        let already = list
+            .iter()
+            .any(|(ch, m)| *ch == entry.channels.as_slice() && *m == entry.mode);
+        if !already {
+            list.push((&entry.channels, entry.mode));
+        }
     }
+
+    // Now assign names: for each entry, look up whether its device has > 1
+    // distinct tuple.  If yes, find the 1-based index of this entry's tuple
+    // within that device's list and append it.
+    let mut result = Vec::with_capacity(entries.len());
+    for (block_idx, entry) in entries {
+        let device = entry.device_id.0.as_str();
+        let distinct = &device_distinct[device];
+        let name = if distinct.len() == 1 {
+            // Only one distinct tuple for this device — no suffix needed.
+            format!("{} ({})", prefix, entry.device_id.0)
+        } else {
+            // Multiple distinct tuples — find 1-based index of this one.
+            let pos = distinct
+                .iter()
+                .position(|(ch, m)| *ch == entry.channels.as_slice() && *m == entry.mode)
+                .unwrap_or(0);
+            format!("{}{} ({})", prefix, pos + 1, entry.device_id.0)
+        };
+        result.push((
+            *block_idx,
+            IoEndpoint {
+                name,
+                device_id: entry.device_id.clone(),
+                mode: entry.mode,
+                channels: entry.channels.clone(),
+            },
+        ));
+    }
+    result
+}
+
+/// Deduplicate endpoints by name, preserving first-occurrence order.
+///
+/// Two entries with the same name are genuinely identical (same device +
+/// channels + mode produced the same name via `assign_unique_names`).
+fn dedup_endpoints(iter: impl Iterator<Item = IoEndpoint>) -> Vec<IoEndpoint> {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for ep in iter {
+        if seen.insert(ep.name.clone()) {
+            out.push(ep);
+        }
+    }
+    out
 }

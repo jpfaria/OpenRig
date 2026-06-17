@@ -491,3 +491,173 @@ fn empty_project_is_noop() {
 
     assert!(bindings.is_empty(), "empty project must yield no bindings");
 }
+
+// ---------------------------------------------------------------------------
+// same_device_two_inputs_stay_two_endpoints (#716): two input blocks on the
+// same device but different channels must produce TWO distinct IoEndpoints,
+// not collapse to one.  Before the fix the endpoint name was derived from
+// device_id only, so both entries mapped to the same name and the second
+// input was lost.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn same_device_two_inputs_stay_two_endpoints() {
+    // Two guitars on one interface: device "coreaudio:in", ch[0] and ch[1].
+    let mut project = make_project(vec![make_chain(
+        "chain:0",
+        vec![
+            legacy_input("in:0", "coreaudio:in", vec![0], ChainInputMode::Mono),
+            legacy_input("in:1", "coreaudio:in", vec![1], ChainInputMode::Mono),
+            legacy_output("out:0", "coreaudio:out", vec![0, 1], ChainOutputMode::Stereo),
+        ],
+    )]);
+    let mut bindings: Vec<IoBinding> = vec![];
+
+    migrate_legacy_io(&mut project, &mut bindings);
+
+    assert_eq!(bindings.len(), 1, "one binding for one chain");
+    let binding = &bindings[0];
+
+    // TWO distinct input endpoints — one per channel set, not one shared name.
+    assert_eq!(
+        binding.inputs.len(),
+        2,
+        "two input blocks on same device/different channels → TWO endpoints; \
+         got {}: {:?}",
+        binding.inputs.len(),
+        binding.inputs.iter().map(|e| &e.name).collect::<Vec<_>>()
+    );
+
+    // The two endpoint names must be distinct.
+    let name0 = &binding.inputs[0].name;
+    let name1 = &binding.inputs[1].name;
+    assert_ne!(
+        name0, name1,
+        "endpoint names must be distinct; both are '{}'",
+        name0
+    );
+
+    // Each input block references a distinct endpoint name.
+    let chain = &project.chains[0];
+    let ib0 = get_input_block(&chain.blocks[0]);
+    let ib1 = get_input_block(&chain.blocks[1]);
+
+    assert_eq!(ib0.io, binding.id, "in:0 must reference the binding");
+    assert_eq!(ib1.io, binding.id, "in:1 must reference the binding");
+    assert_ne!(
+        ib0.endpoint, ib1.endpoint,
+        "in:0 and in:1 must reference DIFFERENT endpoints; \
+         both point at '{}'",
+        ib0.endpoint
+    );
+
+    assert!(
+        binding.inputs.iter().any(|ep| ep.name == ib0.endpoint),
+        "in:0 endpoint '{}' must exist in binding",
+        ib0.endpoint
+    );
+    assert!(
+        binding.inputs.iter().any(|ep| ep.name == ib1.endpoint),
+        "in:1 endpoint '{}' must exist in binding",
+        ib1.endpoint
+    );
+
+    // Entries drained.
+    assert!(ib0.entries.is_empty(), "in:0 entries must be drained");
+    assert!(ib1.entries.is_empty(), "in:1 entries must be drained");
+}
+
+// ---------------------------------------------------------------------------
+// same_device_two_outputs_stay_two_endpoints (#716): symmetric check for
+// outputs — two output blocks on the same device with different channels
+// produce TWO distinct IoEndpoints.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn same_device_two_outputs_stay_two_endpoints() {
+    let mut project = make_project(vec![make_chain(
+        "chain:0",
+        vec![
+            legacy_input("in:0", "coreaudio:in", vec![0], ChainInputMode::Mono),
+            legacy_output("out:0", "coreaudio:out", vec![0, 1], ChainOutputMode::Stereo),
+            legacy_output("out:1", "coreaudio:out", vec![2, 3], ChainOutputMode::Stereo),
+        ],
+    )]);
+    let mut bindings: Vec<IoBinding> = vec![];
+
+    migrate_legacy_io(&mut project, &mut bindings);
+
+    assert_eq!(bindings.len(), 1, "one binding for one chain");
+    let binding = &bindings[0];
+
+    assert_eq!(
+        binding.outputs.len(),
+        2,
+        "two output blocks on same device/different channels → TWO endpoints; \
+         got {}: {:?}",
+        binding.outputs.len(),
+        binding.outputs.iter().map(|e| &e.name).collect::<Vec<_>>()
+    );
+
+    let name0 = &binding.outputs[0].name;
+    let name1 = &binding.outputs[1].name;
+    assert_ne!(
+        name0, name1,
+        "output endpoint names must be distinct; both are '{}'",
+        name0
+    );
+
+    let chain = &project.chains[0];
+    let ob0 = get_output_block(&chain.blocks[1]);
+    let ob1 = get_output_block(&chain.blocks[2]);
+
+    assert_ne!(
+        ob0.endpoint, ob1.endpoint,
+        "out:0 and out:1 must reference DIFFERENT endpoints; \
+         both point at '{}'",
+        ob0.endpoint
+    );
+}
+
+// ---------------------------------------------------------------------------
+// same_device_same_channels_dedup_endpoints (#716): two input blocks on the
+// same device AND same channels should still collapse to ONE endpoint
+// (genuinely identical tuple → dedup is correct).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn same_device_same_channels_dedup_endpoints() {
+    let mut project = make_project(vec![make_chain(
+        "chain:0",
+        vec![
+            legacy_input("in:0", "coreaudio:in", vec![0], ChainInputMode::Mono),
+            legacy_input("in:1", "coreaudio:in", vec![0], ChainInputMode::Mono),
+            legacy_output("out:0", "coreaudio:out", vec![0, 1], ChainOutputMode::Stereo),
+        ],
+    )]);
+    let mut bindings: Vec<IoBinding> = vec![];
+
+    migrate_legacy_io(&mut project, &mut bindings);
+
+    assert_eq!(bindings.len(), 1, "one binding");
+    let binding = &bindings[0];
+
+    // Identical (device, channels, mode) → single endpoint, both blocks share it.
+    assert_eq!(
+        binding.inputs.len(),
+        1,
+        "genuinely identical input entries must dedup to ONE endpoint; \
+         got {}: {:?}",
+        binding.inputs.len(),
+        binding.inputs.iter().map(|e| &e.name).collect::<Vec<_>>()
+    );
+
+    let chain = &project.chains[0];
+    let ib0 = get_input_block(&chain.blocks[0]);
+    let ib1 = get_input_block(&chain.blocks[1]);
+
+    assert_eq!(
+        ib0.endpoint, ib1.endpoint,
+        "identical entries must share one endpoint name"
+    );
+}
