@@ -32,6 +32,8 @@ use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::selected_device_settings;
+use crate::default_io_binding::DEFAULT_BINDING_ID;
+use crate::device_settings_wiring::wizard_create_or_update_default_binding;
 use crate::helpers::{clear_status, set_status_error, set_status_warning};
 use crate::project_ops::{
     build_device_settings_from_gui, project_title_for_path, sync_project_dirty,
@@ -257,6 +259,25 @@ pub(crate) fn wire(
                                         settings.output_devices.clone(),
                                     ),
                                 });
+                                // #716 Task 13: create/update the "default" I/O
+                                // binding when the audio wizard finishes.
+                                if let (Some(input), Some(output)) = (
+                                    settings.input_devices.first(),
+                                    settings.output_devices.first(),
+                                ) {
+                                    let existing = app_config
+                                        .borrow()
+                                        .io_bindings
+                                        .iter()
+                                        .find(|b| b.id == DEFAULT_BINDING_ID)
+                                        .cloned();
+                                    let cmd = wizard_create_or_update_default_binding(
+                                        &input.device_id,
+                                        &output.device_id,
+                                        existing.as_ref(),
+                                    );
+                                    let _ = session.dispatcher.dispatch(cmd);
+                                }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
                                     return;

@@ -113,6 +113,7 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+mod default_io_binding;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;

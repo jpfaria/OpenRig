@@ -495,6 +495,7 @@ pub fn run_desktop_app(
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
             toast_timer: toast_timer.clone(),
+            app_config: app_config.clone(),
         },
     );
     // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---
