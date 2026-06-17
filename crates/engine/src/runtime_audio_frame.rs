@@ -673,4 +673,63 @@ mod elastic_tests {
             assert_eq!(unwrap_stereo(b.pop()), (l, r));
         }
     }
+
+    // ── The underrun COUNTER (not just the silent frame). A starved output
+    //    pop is the single-chain crackle; pin that it is COUNTED, every time.
+    #[test]
+    fn r31_empty_pop_increments_underrun_count_each_time() {
+        let b = ElasticBuffer::new(16, AudioChannelLayout::Mono);
+        assert_eq!(b.underrun_count(), 0);
+        for i in 1..=6u64 {
+            let _ = b.pop();
+            assert_eq!(b.underrun_count(), i, "each empty pop counts one underrun");
+        }
+    }
+    #[test]
+    fn r32_pop_with_data_does_not_increment_underrun_count() {
+        let b = ElasticBuffer::new(16, AudioChannelLayout::Mono);
+        b.push(mono(0.5));
+        let _ = b.pop();
+        assert_eq!(b.underrun_count(), 0, "a fed pop is not an underrun");
+    }
+    #[test]
+    fn r33_consumer_ahead_of_producer_underruns_exactly_the_deficit() {
+        // Producer delivered 2 frames; consumer pops 5 → 3 underruns. This is
+        // the elastic STARVE that the user hears as crackle on a single chain.
+        let b = ElasticBuffer::new(16, AudioChannelLayout::Mono);
+        b.push(mono(0.5));
+        b.push(mono(0.6));
+        for _ in 0..5 {
+            let _ = b.pop();
+        }
+        assert_eq!(b.underrun_count(), 3, "exactly the popped-minus-pushed deficit");
+    }
+    #[test]
+    fn r34_primed_cushion_drains_as_silence_without_underrun() {
+        // Priming pre-fills with silence so early pops are NOT underruns — the
+        // #592/#670 cold-start cushion that protects an IR chain's first
+        // partitions from starving.
+        let b = ElasticBuffer::new(64, AudioChannelLayout::Mono);
+        b.prime(10);
+        assert_eq!(b.len(), 10);
+        for _ in 0..10 {
+            assert_eq!(unwrap_mono(b.pop()), 0.0);
+        }
+        assert_eq!(b.underrun_count(), 0, "draining the primed cushion is not a starve");
+        assert_eq!(b.len(), 0);
+    }
+
+    // ── elastic_target_for_buffer: the device→capacity sizing. Pure, was
+    //    untested. Floor is ELASTIC_TARGET_FLOOR (64).
+    #[test]
+    fn elastic_target_floors_and_scales_by_multiplier() {
+        // CPAL multiplier 2; JACK multiplier 8.
+        assert_eq!(elastic_target_for_buffer(0, 2), ELASTIC_TARGET_FLOOR); // floor
+        assert_eq!(elastic_target_for_buffer(32, 2), 64); // 64 == floor
+        assert_eq!(elastic_target_for_buffer(64, 2), 128); // common cpal case
+        assert_eq!(elastic_target_for_buffer(256, 2), 512);
+        assert_eq!(elastic_target_for_buffer(64, 8), 512); // jack
+        // Pathological huge buffer saturates instead of overflowing.
+        assert!(elastic_target_for_buffer(u32::MAX, 8) >= ELASTIC_TARGET_FLOOR);
+    }
 }

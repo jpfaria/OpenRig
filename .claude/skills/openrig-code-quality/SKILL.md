@@ -443,6 +443,23 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 
 ---
 
+## LEI — bug de áudio se acha e se prova por TESTE AUTOMÁTICO. NUNCA validação de ouvido.
+
+**PROIBIDO pedir ao usuário pra ouvir e confirmar ("rode e me diz se o estalo sumiu").** O usuário recusou e foi enfático (2026-06-17): *"me recuso a testar, é obrigação sua"*, *"testes de ouvido têm regressão no futuro"*, *"NUNCA mais me peça para testar de ouvido"*. Achar o defeito E provar o fix é trabalho do agente, via teste determinístico — não do ouvido do usuário.
+
+**Why:** ouvido não é teste — não é determinístico, não deixa guarda de regressão, e empurra a obrigação do engenheiro pro usuário. Bug "confirmado de ouvido" volta calado.
+
+**How to apply (áudio / real-time / scheduling):** reduza o defeito a uma propriedade que um teste assere **sem hardware e sem ouvir**:
+- **Lógica pura:** `BudgetTracker` (#698 RT budget churn), math de bloco DSP, routing, mixdown → teste de unidade na função direto.
+- **Propriedade de sinal** no buffer renderizado: NaN/Inf, clique (salto sample-a-sample > limite de banda), run de hard-clip, DC, nível → `engine/src/audio_signal_integrity_tests.rs`.
+- **Contadores/accounting:** asserir o invariante (ex.: overload TEM que incrementar um contador surfaced), não o som.
+- **Quando o dano é timing** (worker stall, late buffer), teste a LÓGICA que o dispara (ex.: o budget re-declarando em spike transitório de wall-clock), que é determinística, em vez da magnitude wall-clock flaky.
+- A bateria de hardware (`OPENRIG_HW_TESTS=1`) é pro AGENTE rodar e observar — nunca substitui a guarda determinística, nunca é julgada de ouvido pelo usuário.
+
+**Caso real (2026-06-17, estalo single-chain):** o usuário reproduz o estalo com UMA chain / UM input (não é custo de multi-chain — eu supus isso e errei). Numa Mac M4/16GB o DSP custa microssegundos: "load" de 1.5–9× o deadline é **scheduling**, não CPU. Observado (rc=0, promoção RT OK; worker preemptado 2-3ms mid-DSP; #698 re-declara a política RT 10-13×/25s reagindo a wall-clock inflado por preempção = churn). A/B (re-budget on/off) derrubou o pico de ~9× pra <1.6× → causa = churn do #698. Provado por **teste de unidade determinístico** no `BudgetTracker` (spike transitório NÃO pode re-declarar o budget), não de ouvido.
+
+---
+
 ## Audio runtime / DSP facts (hard-won — verify before touching these areas)
 
 - **`ChainRuntimeState` locks (#580):** the audio thread takes `processing.try_lock()` in `process_input_f32` and emits a SILENT buffer on failure. Any accessor the GUI calls repeatedly (meter timer at 30 Hz, spectrum, tuner) must NEVER take `processing.lock()` — mirror the value as an atomic (`AtomicUsize` etc.) updated at the rare write sites (`build_chain_runtime_state` + the rebuild path in `runtime_graph.rs`). Symptom of a violation is buffer-size dependent (32–64 glitches, 256+ absorbs); offline single-threaded tests pass while production clicks. Pinned by `crates/engine/src/stream_count_contention_tests.rs`.
