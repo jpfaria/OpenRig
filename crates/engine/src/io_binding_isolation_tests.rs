@@ -130,6 +130,22 @@ fn build_graph() -> super::RuntimeGraph {
         .expect("two-binding chain must build")
 }
 
+/// The per-input runtime that owns cpal input `cpal`. Each input PORT is its
+/// own isolated runtime (issue #716 fix), so the two bindings' inputs land in
+/// two distinct runtimes — cross-binding isolation is now structural at the
+/// runtime level, not just route routing within one runtime.
+fn runtime_for_cpal(
+    graph: &super::RuntimeGraph,
+    cpal: usize,
+) -> std::sync::Arc<super::ChainRuntimeState> {
+    graph
+        .chains
+        .values()
+        .find(|rt| rt.input_cpal_index() == Some(cpal))
+        .unwrap_or_else(|| panic!("no runtime owns cpal input {cpal}"))
+        .clone()
+}
+
 /// Pump `frames` blocks of `level` through input `in_cpal`, then drain output
 /// route `out_route`. Returns the summed absolute energy of the drained output.
 fn energy_through(
@@ -156,21 +172,18 @@ fn energy_through(
 #[test]
 fn signal_into_binding_a_does_not_reach_binding_b_output() {
     let graph = build_graph();
-    let runtime = graph
-        .chains
-        .values()
-        .next()
-        .expect("expected at least one runtime")
-        .clone();
     let (in_a, out_a, _in_b, out_b) = ab_indices();
+    // Each binding's input is its own per-input runtime.
+    let rt_a = runtime_for_cpal(&graph, in_a);
+    let rt_b = runtime_for_cpal(&graph, _in_b);
 
-    // Feed a strong signal into A's input only.
-    let energy_a = energy_through(&runtime, in_a, 0.5, out_a);
-    // Drain B's output without ever feeding B's input.
+    // Feed a strong signal into A's input only (on A's runtime).
+    let energy_a = energy_through(&rt_a, in_a, 0.5, out_a);
+    // Drain B's output on B's runtime, which was never fed.
     let mut out = vec![0.0_f32; 64];
     let mut energy_b = 0.0_f32;
     for _ in 0..16 {
-        process_output_f32(&runtime, out_b, &mut out, 1);
+        process_output_f32(&rt_b, out_b, &mut out, 1);
         energy_b += out.iter().map(|s| s.abs()).sum::<f32>();
     }
 
@@ -188,19 +201,15 @@ fn signal_into_binding_a_does_not_reach_binding_b_output() {
 #[test]
 fn signal_into_binding_b_does_not_reach_binding_a_output() {
     let graph = build_graph();
-    let runtime = graph
-        .chains
-        .values()
-        .next()
-        .expect("expected at least one runtime")
-        .clone();
-    let (_in_a, out_a, in_b, out_b) = ab_indices();
+    let (in_a, out_a, in_b, out_b) = ab_indices();
+    let rt_a = runtime_for_cpal(&graph, in_a);
+    let rt_b = runtime_for_cpal(&graph, in_b);
 
-    let energy_b = energy_through(&runtime, in_b, 0.5, out_b);
+    let energy_b = energy_through(&rt_b, in_b, 0.5, out_b);
     let mut out = vec![0.0_f32; 64];
     let mut energy_a = 0.0_f32;
     for _ in 0..16 {
-        process_output_f32(&runtime, out_a, &mut out, 1);
+        process_output_f32(&rt_a, out_a, &mut out, 1);
         energy_a += out.iter().map(|s| s.abs()).sum::<f32>();
     }
 

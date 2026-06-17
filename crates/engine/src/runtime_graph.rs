@@ -90,7 +90,7 @@ pub struct RuntimeGraph {
 /// keeps Insert chains as a single runtime (byte-identical to pre-#350);
 /// the structural per-input isolation targets the no-Insert multi-input
 /// case (the user-visible "two guitars, one chain" scenario).
-fn chain_has_enabled_insert(chain: &Chain) -> bool {
+pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
     chain
         .blocks
         .iter()

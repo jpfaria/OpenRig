@@ -846,6 +846,10 @@ mod io_binding_isolation;
 mod io_binding_routing;
 
 #[cfg(test)]
+#[path = "io_binding_input_isolation_tests.rs"]
+mod io_binding_input_isolation;
+
+#[cfg(test)]
 #[path = "stream_isolation_same_device_tests.rs"]
 mod stream_isolation_same_device;
 

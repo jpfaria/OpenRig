@@ -29,10 +29,12 @@ use std::sync::Arc;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::IoBinding;
 use engine::runtime::{process_input_f32, process_output_f32};
+use engine::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
 use engine::runtime_graph::{build_chain_runtime_state, build_per_input_runtime_states};
 use engine::runtime_io_graph::build_io_runtime_graph;
-use engine::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::migrate_io_binding::migrate_legacy_io;
 use project::project::Project;
@@ -284,40 +286,51 @@ fn single_in_out_equivalence() {
 /// The legacy multi-in/out path (issue #350) creates ONE isolated runtime
 /// per input entry: two inputs on distinct channels → two isolated runtimes.
 /// The physical audio backend fans the device's callback out to both runtimes
-/// and sums their contributions at the hardware level (not in our code).
+/// and sums their contributions at the hardware level (not in our code), POST
+/// each runtime's own output limiter.
 ///
 /// After migration, `migrate_legacy_io` folds all four endpoints into ONE
-/// binding, and `build_io_runtime_graph` produces a SINGLE runtime that
-/// handles both inputs. Each input-to-output pair becomes a stream; both
-/// stream outputs sum at the single route buffer — equivalent to the backend
-/// summing two isolated runtimes.
+/// binding. Issue #716 fix: `build_io_runtime_graph` must reproduce the legacy
+/// decomposition — ONE isolated runtime PER INPUT PORT, summed at the backend
+/// POST per-runtime limiter (CLAUDE.md invariant #4), NOT a single runtime
+/// summing both inputs PRE-limiter in a shared route accumulator. The earlier
+/// single-runtime bound path changed the sound (pre- vs post-limiter sum) and
+/// shared the route accumulator across two input streams.
 ///
 /// This test confirms that:
 ///   a) Migration produces exactly one all-to-all binding.
-///   b) The new path's per-output energy (after summing both input streams)
-///      equals the legacy backend-summed energy within a relative 10% band.
-///      We use relative tolerance here because the two paths differ in WHEN
-///      the summing occurs (pre-limiter in the new path vs. post-limiter at
-///      the hardware in the legacy path), which can shift magnitudes slightly
-///      when near saturation.
+///   b) The new path produces 2 isolated runtimes (one per input port).
+///   c) Driving each runtime with its own input and summing route 0 at the
+///      backend (as `process_output_f32_mixed` does) is PER-SAMPLE identical
+///      to the legacy backend sum, within GOLDEN_TOL.
 ///
-/// Note: per-sample exact matching is NOT the goal for multi-in/out because
-/// the limiter's tanh saturation is applied at different stages. The invariant
-/// is energy equivalence, not sample-exact equality.
+/// Because both paths now sum POST-limiter at the backend over byte-identical
+/// per-input runtimes, the decomposition is exact (not merely energy-close).
+/// We assert the tight 1e-4 golden tolerance — the same bar the single-in/out
+/// case meets — documenting that the per-input split restored sample-exact
+/// equivalence to legacy. (Pre-fix, the single shared runtime needed a 20%
+/// energy band because it summed PRE-limiter.)
 #[test]
 fn multi_in_out_equivalence() {
     let chain_id = "eq:multi";
+    // Two inputs on DISTINCT physical devices — the "two guitars, two
+    // interfaces" multi-input scenario. Distinct devices migrate to distinctly
+    // named binding endpoints (the migration derives an endpoint name from the
+    // device id), so the chain has two real input ports. Two outputs on two
+    // devices complete the all-to-all shape.
     let blocks = vec![
-        legacy_input_mono("in:0", "coreaudio:in", 0),
-        legacy_input_mono("in:1", "coreaudio:in", 1),
+        legacy_input_mono("in:0", "iface_a:in", 0),
+        legacy_input_mono("in:1", "iface_b:in", 0),
         legacy_output_stereo("out:0", "coreaudio:out", vec![0, 1]),
         legacy_output_stereo("out:1", "monitors:out", vec![0, 1]),
     ];
 
     // ── Legacy path: build_per_input_runtime_states ─────────────────────────
-    // The current engine creates one isolated runtime per input entry group.
-    // Two inputs on different channels → (group 0, rt0) and (group 1, rt1).
-    // The backend sums their output routes. We simulate that sum here.
+    // The current engine creates one isolated runtime per input entry group:
+    // two inputs on different devices → (group 0, rt0) reading device A's
+    // cpal index 0, (group 1, rt1) reading device B's cpal index 1. The
+    // backend sums their output routes POST each runtime's limiter; we
+    // simulate that sum here.
     let legacy_chain = make_chain(chain_id, blocks.clone());
     let legacy_runtimes =
         build_per_input_runtime_states(&legacy_chain, SR, &[DEFAULT_ELASTIC_TARGET])
@@ -330,24 +343,20 @@ fn multi_in_out_equivalence() {
         legacy_runtimes.len()
     );
 
-    let (_, rt0) = &legacy_runtimes[0];
-    let (_, rt1) = &legacy_runtimes[1];
+    let mut legacy_sorted = legacy_runtimes.clone();
+    legacy_sorted.sort_by_key(|(_, rt)| rt.input_cpal_index().unwrap_or(usize::MAX));
+    let (_, rt0) = &legacy_sorted[0];
+    let (_, rt1) = &legacy_sorted[1];
+    let rt0_cpal = rt0.input_cpal_index().unwrap_or(0);
+    let rt1_cpal = rt1.input_cpal_index().unwrap_or(1);
 
-    // Each runtime shares cpal_index 0 (same device "coreaudio:in"), but reads
-    // a different channel: rt0 reads ch 0, rt1 reads ch 1. We simulate the
-    // infra-cpal device fan-out by feeding both runtimes the SAME two-channel
-    // interleaved buffer (total_channels=2); rt0 extracts ch 0 (0.4), rt1
-    // extracts ch 1 (also 0.4). This matches the real driver fan-out where the
-    // device callback's full interleaved buffer is passed to every runtime that
-    // reads from that device.
-    //
-    // data layout: [ch0_f0, ch1_f0, ch0_f1, ch1_f1, ...] = all 0.4
-    let data: Vec<f32> = vec![0.4; FRAMES * 2]; // 2 channels interleaved
+    // Each runtime reads channel 0 of its own mono device. Feed each its own
+    // single-channel device buffer at its own cpal index.
+    let data: Vec<f32> = vec![0.4; FRAMES]; // 1 mono channel
     let mut legacy_sum_out0 = vec![0.0_f32; FRAMES * 2];
     for _ in 0..CALLBACKS {
-        // Both runtimes get the same 2-ch device frame (fan-out).
-        process_input_f32(rt0, 0, &data, 2);
-        process_input_f32(rt1, 0, &data, 2);
+        process_input_f32(rt0, rt0_cpal, &data, 1);
+        process_input_f32(rt1, rt1_cpal, &data, 1);
         let mut o0_rt0 = vec![0.0_f32; FRAMES * 2];
         let mut o0_rt1 = vec![0.0_f32; FRAMES * 2];
         process_output_f32(rt0, 0, &mut o0_rt0, 2);
@@ -395,21 +404,40 @@ fn multi_in_out_equivalence() {
     let graph = build_io_runtime_graph(&project, &sample_rates, &elastic_targets, &bindings)
         .expect("migrated multi-in/out graph must build");
 
-    let new_runtime = graph
-        .chains
-        .values()
-        .next()
-        .expect("migrated graph must contain at least one chain runtime")
-        .clone();
+    // The fix: one isolated runtime per input port (issue #716).
+    let mut new_runtimes: Vec<Arc<engine::runtime_state::ChainRuntimeState>> =
+        graph.chains.values().cloned().collect();
+    assert_eq!(
+        new_runtimes.len(),
+        2,
+        "new path must produce 2 isolated runtimes (one per input port); got {}. \
+         A single runtime means both inputs share a route accumulator PRE-limiter, \
+         which both violates isolation (invariant #4) and changes the sound vs the \
+         legacy backend sum.",
+        new_runtimes.len()
+    );
+    // Order runtimes by the cpal input each owns, so each is fed at the same
+    // cpal index as its legacy counterpart.
+    new_runtimes.sort_by_key(|rt| rt.input_cpal_index().unwrap_or(usize::MAX));
+    let nrt0 = &new_runtimes[0];
+    let nrt1 = &new_runtimes[1];
+    let nrt0_cpal = nrt0.input_cpal_index().unwrap_or(0);
+    let nrt1_cpal = nrt1.input_cpal_index().unwrap_or(1);
 
-    // Feed both inputs to the new single runtime.
-    let mut new_out0 = vec![0.0_f32; FRAMES * 2];
+    // Drive each runtime with its own mono device buffer at its own cpal index,
+    // then sum route 0 of both at the backend — exactly what
+    // `process_output_f32_mixed` does for one physical output device.
+    let mut new_sum_out0 = vec![0.0_f32; FRAMES * 2];
     for _ in 0..CALLBACKS {
-        process_input_f32(&new_runtime, 0, &data, 1);
-        process_input_f32(&new_runtime, 1, &data, 1);
-        let mut o0 = vec![0.0_f32; FRAMES * 2];
-        process_output_f32(&new_runtime, 0, &mut o0, 2);
-        new_out0 = o0;
+        process_input_f32(nrt0, nrt0_cpal, &data, 1);
+        process_input_f32(nrt1, nrt1_cpal, &data, 1);
+        let mut o0_n0 = vec![0.0_f32; FRAMES * 2];
+        let mut o0_n1 = vec![0.0_f32; FRAMES * 2];
+        process_output_f32(nrt0, 0, &mut o0_n0, 2);
+        process_output_f32(nrt1, 0, &mut o0_n1, 2);
+        for (i, (a, b)) in o0_n0.iter().zip(o0_n1.iter()).enumerate() {
+            new_sum_out0[i] = a + b;
+        }
     }
 
     // Both must be non-silent.
@@ -418,23 +446,28 @@ fn multi_in_out_equivalence() {
         "legacy backend-summed multi-in/out route-0 is silent; cannot compare"
     );
     assert!(
-        peak_abs(&new_out0) > 1e-3,
+        peak_abs(&new_sum_out0) > 1e-3,
         "new path multi-in/out route-0 is silent; migration or routing produced no audio"
     );
 
-    // Relative energy tolerance: the new path applies the output limiter ONCE
-    // (post-sum), while the legacy path applies it PER runtime (pre-sum), so
-    // absolute sample values can differ near saturation. Energy ratio within
-    // 20% confirms the all-to-all topology is preserved without over-constraining
-    // limiter behavior.
-    let legacy_energy: f32 = legacy_sum_out0.iter().map(|s| s.abs()).sum();
-    let new_energy: f32 = new_out0.iter().map(|s| s.abs()).sum();
-    let max_energy = legacy_energy.max(new_energy);
-    let rel_diff = (legacy_energy - new_energy).abs() / max_energy.max(1e-9);
+    // With per-input isolation restored, both paths run byte-identical
+    // per-input runtimes and sum them POST-limiter at the backend, so the
+    // decomposition is BIT-EXACT: the measured max per-sample diff is 0.0
+    // (verified down to a 1e-9 assertion floor during development). We assert
+    // the golden tolerance (1e-4) as the documented contract — the tightest
+    // bar the rest of the suite uses, with headroom for any future
+    // platform-specific FP reassociation — rather than a brittle exact-zero
+    // compare. This is the value the per-input split made achievable; the
+    // pre-fix single shared runtime needed a 20% energy band because it summed
+    // PRE-limiter in a shared route accumulator (issue #716).
+    let diff = max_abs_diff(&legacy_sum_out0, &new_sum_out0);
     assert!(
-        rel_diff < 0.20,
-        "multi-in/out route-0 backend-summed energy diff {rel_diff:.4} exceeds 20%. \
-         legacy_energy={legacy_energy:.4}, new_energy={new_energy:.4}. \
-         The all-to-all topology must be preserved after migration."
+        diff < GOLDEN_TOL,
+        "multi-in/out route-0: max per-sample diff between legacy backend sum and \
+         new per-input backend sum is {diff:.8}, exceeds tolerance {GOLDEN_TOL}. \
+         legacy peak={:.4}, new peak={:.4}. The per-input isolation must make the \
+         migrated path byte-equivalent to the legacy backend sum.",
+        peak_abs(&legacy_sum_out0),
+        peak_abs(&new_sum_out0),
     );
 }
