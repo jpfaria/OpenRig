@@ -191,6 +191,8 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
                         mode: ChainInputMode::Mono,
                         channels: vec![0],
                     }],
+                    io: String::new(),
+                    endpoint: String::new(),
                 }),
             },
             AudioBlock {
@@ -203,6 +205,8 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
                         mode: ChainOutputMode::Stereo,
                         channels: vec![0, 1],
                     }],
+                    io: String::new(),
+                    endpoint: String::new(),
                 }),
             },
         ],

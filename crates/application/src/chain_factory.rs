@@ -89,6 +89,8 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: input_entries,
         }),
     });
@@ -112,6 +114,8 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: output_entries,
         }),
     });

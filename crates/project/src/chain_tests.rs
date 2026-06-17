@@ -21,6 +21,8 @@ fn make_input_block(
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(device.into()),
                 mode,
@@ -41,6 +43,8 @@ fn make_output_block(
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(device.into()),
                 mode,
@@ -364,6 +368,8 @@ fn validate_channel_conflicts_input_conflict_detected() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -376,6 +382,8 @@ fn validate_channel_conflicts_input_conflict_detected() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -406,6 +414,8 @@ fn validate_channel_conflicts_output_conflict_detected() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("speakers".into()),
                         mode: ChainOutputMode::Stereo,
@@ -418,6 +428,8 @@ fn validate_channel_conflicts_output_conflict_detected() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("speakers".into()),
                         mode: ChainOutputMode::Mono,
@@ -456,6 +468,8 @@ fn validate_channel_conflicts_different_devices_ok() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -468,6 +482,8 @@ fn validate_channel_conflicts_different_devices_ok() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("macbook".into()),
                         mode: ChainInputMode::Mono,
@@ -502,6 +518,8 @@ fn validate_channel_conflicts_within_single_input_multi_entry() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![
                         InputEntry {
                             device_id: DeviceId("dev".into()),

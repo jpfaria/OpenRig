@@ -30,6 +30,8 @@ fn input_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId("dev".into()),
                 mode: ChainInputMode::Mono,

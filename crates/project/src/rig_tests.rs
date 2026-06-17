@@ -32,6 +32,8 @@ fn io_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![source("dev", vec![0])],
         }),
     }

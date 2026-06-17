@@ -34,6 +34,8 @@ fn input_block(id: &str) -> AudioBlock {
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -49,6 +51,8 @@ fn output_block(id: &str) -> AudioBlock {
                 mode: ChainOutputMode::Stereo,
                 channels: vec![0, 1],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }

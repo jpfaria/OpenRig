@@ -163,6 +163,8 @@ pub(crate) fn wire(
                                 mode: input_group.mode,
                                 channels: input_group.channels.clone(),
                             }],
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     };
                     let mut all_input_blocks: Vec<AudioBlock> = {
@@ -506,6 +508,8 @@ pub(crate) fn wire(
                                 mode: output_group.mode,
                                 channels: output_group.channels.clone(),
                             }],
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     };
                     let mut all_output_blocks: Vec<AudioBlock> = {

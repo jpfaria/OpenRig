@@ -82,6 +82,8 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: input.sources.clone(),
             }),
         });
@@ -98,6 +100,8 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: routed,
                 }),
             });

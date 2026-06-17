@@ -99,6 +99,8 @@ mod tests {
                         mode: ChainInputMode::Mono,
                         channels: vec![0],
                     }],
+                    io: String::new(),
+                    endpoint: String::new(),
                 })
             } else {
                 AudioBlockKind::Output(OutputBlock {
@@ -108,6 +110,8 @@ mod tests {
                         mode: ChainOutputMode::default(),
                         channels: vec![0],
                     }],
+                    io: String::new(),
+                    endpoint: String::new(),
                 })
             },
         }

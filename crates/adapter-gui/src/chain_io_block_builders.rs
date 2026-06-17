@@ -35,6 +35,8 @@ pub(crate) fn build_input_block_from_draft(
         kind: AudioBlockKind::Input(InputBlock {
             model: STANDARD_IO_MODEL.to_string(),
             entries,
+            io: String::new(),
+            endpoint: String::new(),
         }),
     })
 }
@@ -60,6 +62,8 @@ pub(crate) fn build_output_block_from_draft(
         kind: AudioBlockKind::Output(OutputBlock {
             model: STANDARD_IO_MODEL.to_string(),
             entries,
+            io: String::new(),
+            endpoint: String::new(),
         }),
     })
 }

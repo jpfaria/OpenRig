@@ -328,6 +328,8 @@ fn two_device_chain() -> project::chain::Chain {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(dev.into()),
                 mode: ChainInputMode::Mono,
@@ -349,6 +351,8 @@ fn two_device_chain() -> project::chain::Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("scarlett_2i2".into()),
                         mode: ChainOutputMode::Stereo,
@@ -446,6 +450,8 @@ fn same_device_chain() -> project::chain::Chain {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId("scarlett_2i2".into()),
                 mode: ChainInputMode::Mono,
@@ -467,6 +473,8 @@ fn same_device_chain() -> project::chain::Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("scarlett_2i2".into()),
                         mode: ChainOutputMode::Stereo,

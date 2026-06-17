@@ -120,6 +120,16 @@ pub struct OutputEntry {
 pub struct InputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
+    /// Registry binding id this block reads from (new schema, Task 5).
+    /// Empty string signals a legacy block that still uses `entries`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub io: String,
+    /// Endpoint name within the referenced binding (new schema, Task 5).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint: String,
+    /// Legacy device entries — kept for back-compat so old YAML still loads.
+    /// Task 6 migration consumes and drains this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entries: Vec<InputEntry>,
 }
 
@@ -127,6 +137,16 @@ pub struct InputBlock {
 pub struct OutputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
+    /// Registry binding id this block writes to (new schema, Task 5).
+    /// Empty string signals a legacy block that still uses `entries`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub io: String,
+    /// Endpoint name within the referenced binding (new schema, Task 5).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint: String,
+    /// Legacy device entries — kept for back-compat so old YAML still loads.
+    /// Task 6 migration consumes and drains this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entries: Vec<OutputEntry>,
 }
 

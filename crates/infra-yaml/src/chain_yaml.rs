@@ -192,6 +192,8 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: inp.model,
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries,
                     }),
                 }
@@ -226,6 +228,8 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: out.model,
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries,
                     }),
                 }
@@ -241,6 +245,8 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![InputEntry {
                             device_id: DeviceId(legacy_device),
                             mode: self.input_mode,
@@ -264,6 +270,8 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![OutputEntry {
                             device_id: DeviceId(legacy_device),
                             mode,

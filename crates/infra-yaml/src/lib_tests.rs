@@ -40,6 +40,8 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![InputEntry {
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
@@ -52,6 +54,8 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![OutputEntry {
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
@@ -643,6 +647,8 @@ fn chain_with_only_io_blocks_roundtrips() {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![InputEntry {
                             device_id: DeviceId("dev-in".into()),
                             mode: ChainInputMode::Mono,
@@ -655,6 +661,8 @@ fn chain_with_only_io_blocks_roundtrips() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![OutputEntry {
                             device_id: DeviceId("dev-out".into()),
                             mode: ChainOutputMode::Mono,
@@ -963,6 +971,8 @@ fn serialize_project_produces_valid_yaml_string() {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: Vec::new(),
                     }),
                 },
@@ -971,6 +981,8 @@ fn serialize_project_produces_valid_yaml_string() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: Vec::new(),
                     }),
                 },
@@ -1057,6 +1069,8 @@ fn preset_roundtrips_with_input_output_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("mic-dev".into()),
                         mode: ChainInputMode::Mono,
@@ -1069,6 +1083,8 @@ fn preset_roundtrips_with_input_output_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("spk-dev".into()),
                         mode: ChainOutputMode::Stereo,
@@ -1378,6 +1394,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
+                            io: String::new(),
+                            endpoint: String::new(),
                             entries: Vec::new(),
                         }),
                     },
@@ -1386,6 +1404,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
+                            io: String::new(),
+                            endpoint: String::new(),
                             entries: Vec::new(),
                         }),
                     },
@@ -1403,6 +1423,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
+                            io: String::new(),
+                            endpoint: String::new(),
                             entries: Vec::new(),
                         }),
                     },
@@ -1411,6 +1433,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
+                            io: String::new(),
+                            endpoint: String::new(),
                             entries: Vec::new(),
                         }),
                     },

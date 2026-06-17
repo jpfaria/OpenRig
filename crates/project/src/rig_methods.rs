@@ -398,6 +398,8 @@ impl RigProject {
             }
             InputBlock {
                 model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: input.sources.clone(),
             }
             .validate_channel_conflicts()

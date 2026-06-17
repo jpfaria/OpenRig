@@ -331,6 +331,8 @@ fn validate_project_input_entry_empty_name_uses_model_in_error() {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId("".to_string()),
                 mode: ChainInputMode::Mono,
@@ -354,6 +356,8 @@ fn validate_project_output_entry_empty_name_uses_model_in_error() {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId("".to_string()),
                 mode: ChainOutputMode::Stereo,
@@ -378,6 +382,8 @@ fn validate_project_input_no_entries_fails() {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![],
         }),
     };
@@ -397,6 +403,8 @@ fn validate_project_output_no_entries_fails() {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![],
         }),
     };

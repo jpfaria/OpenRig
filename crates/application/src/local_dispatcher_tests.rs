@@ -1051,6 +1051,8 @@ fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool)
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![InputEntry {
                     device_id: DeviceId(dev_id.to_string()),
                     mode: ChainInputMode::Mono,
@@ -1689,6 +1691,8 @@ fn make_input_block(dev_id: &str, ch: usize) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(dev_id.to_string()),
                 mode: ChainInputMode::Mono,
@@ -1704,6 +1708,8 @@ fn make_output_block(dev_id: &str, ch: usize) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(dev_id.to_string()),
                 mode: ChainOutputMode::Stereo,

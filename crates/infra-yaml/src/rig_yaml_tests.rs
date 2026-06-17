@@ -221,6 +221,8 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("sc".into()),
                         mode: ChainInputMode::Mono,
@@ -242,6 +244,8 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("sc".into()),
                         mode: ChainOutputMode::Stereo,

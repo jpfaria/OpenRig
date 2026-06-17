@@ -66,6 +66,8 @@ fn two_stream_mono_chain(id: &str, input_device: &str, output_device: &str) -> C
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId(input_device.into()),
                         mode: ChainInputMode::Mono,
@@ -78,6 +80,8 @@ fn two_stream_mono_chain(id: &str, input_device: &str, output_device: &str) -> C
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId(output_device.into()),
                         mode: ChainOutputMode::Stereo,
@@ -105,6 +109,8 @@ fn single_stream_on_channel_one(id: &str, input_device: &str, output_device: &st
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId(input_device.into()),
                         mode: ChainInputMode::Mono,
@@ -117,6 +123,8 @@ fn single_stream_on_channel_one(id: &str, input_device: &str, output_device: &st
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId(output_device.into()),
                         mode: ChainOutputMode::Stereo,

@@ -19,6 +19,8 @@ fn input_block(entries: Vec<InputEntry>) -> AudioBlock {
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
             entries,
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }

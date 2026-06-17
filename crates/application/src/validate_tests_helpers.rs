@@ -28,6 +28,8 @@ pub(super) fn test_input_block(device_id: &str, channels: Vec<usize>) -> AudioBl
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![test_input_entry("Input 1", device_id, channels)],
         }),
     }
@@ -47,6 +49,8 @@ pub(super) fn test_output_block(device_id: &str, channels: Vec<usize>) -> AudioB
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             entries: vec![test_output_entry("Output 1", device_id, channels)],
         }),
     }
