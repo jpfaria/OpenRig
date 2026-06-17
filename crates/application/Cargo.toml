@@ -9,6 +9,7 @@ arc-swap.workspace = true
 log.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
 schemars.workspace = true
 futures.workspace = true
 project = { path = "../project" }

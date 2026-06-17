@@ -1,37 +1,21 @@
 //! Task 3 — CreateIoBinding / UpdateIoBinding / DeleteIoBinding commands.
 //!
 //! Contract:
-//! - CreateIoBinding  → binding stored in in-memory AppConfig snapshot AND
-//!   persisted to config.yaml; reload reads it back.
+//! - CreateIoBinding  → binding stored in config.yaml; reload reads it back.
 //! - UpdateIoBinding  → upsert by id: fields change, count unchanged.
 //! - DeleteIoBinding  → binding removed (no reference-check enforcement yet;
 //!   that guard is deferred to Task 5 when chain blocks exist).
 //!
 //! ## Test isolation
 //!
-//! The handlers call `FilesystemStorage::load/save_app_config()`, which
-//! resolves the config path via `dirs::config_dir()` (system API on macOS)
-//! with a HOME-based fallback. Because `dirs::config_dir()` on macOS uses
-//! `NSFileManager` rather than the HOME env var, the HOME-swap here is
-//! effective only on Linux/Windows (HOME-derived `.config`).
-//!
-//! On macOS the test therefore writes to the user's real
-//! `~/Library/Application Support/OpenRig/config.yaml` — a pre-existing
-//! issue shared with the `issue_693` test suite. A proper fix requires the
-//! handlers to accept an injectable path (separate follow-up).
-//!
-//! Until that follow-up lands the three tests below **must run serially** to
-//! avoid racing on the shared config path. `ENV_LOCK` provides that
-//! serialisation without adding the `serial_test` crate.
-//!
-//! ### Why not serial_test?
-//! The repo has no `serial_test` dependency and the rules prohibit adding
-//! crates speculatively. A plain `std::sync::Mutex` achieves the same
-//! guarantee with zero new dependencies.
+//! Each test creates a `TempDir` and calls `attach_config_path` with a path
+//! inside it, so all reads and writes stay inside the temp directory.
+//! The real OS config file (`~/Library/Application Support/OpenRig/config.yaml`
+//! on macOS, `~/.config/OpenRig/config.yaml` on Linux) is never touched.
+//! No `std::env::set_var("HOME", …)` — no global env mutation at all.
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Mutex;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -39,10 +23,6 @@ use application::local_dispatcher::LocalDispatcher;
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::project::Project;
-
-/// Serialises all three tests so they cannot race on the global HOME / config
-/// path. Held for the full test body — acquire at the top, drop at the end.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn empty_project() -> Rc<RefCell<Project>> {
     Rc::new(RefCell::new(Project {
@@ -73,16 +53,11 @@ fn make_binding(id: &str, name: &str) -> IoBinding {
 
 #[test]
 fn test_create_then_persists() {
-    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    // HOME fallback: effective on Linux/Windows; macOS uses NSFileManager.
-    // SAFETY: held under ENV_LOCK — no concurrent HOME mutation in this suite.
-    #[allow(unused_unsafe)]
-    unsafe {
-        std::env::set_var("HOME", tmp.path());
-    }
+    let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
 
     let binding = make_binding("main", "Main");
     dispatcher
@@ -94,9 +69,6 @@ fn test_create_then_persists() {
     // Flush the persist worker so the disk write completes before we read.
     application::persist_worker::flush();
 
-    // Verify: config.yaml must exist and contain the binding.
-    let cfg_path = infra_filesystem::FilesystemStorage::app_config_path()
-        .expect("config path resolvable");
     assert!(
         cfg_path.exists(),
         "config.yaml must exist after CreateIoBinding — persistence not wired"
@@ -119,14 +91,11 @@ fn test_create_then_persists() {
 
 #[test]
 fn test_update_replaces_by_id() {
-    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    #[allow(unused_unsafe)]
-    unsafe {
-        std::env::set_var("HOME", tmp.path());
-    }
+    let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
 
     let original = make_binding("rig1", "Rig 1");
     dispatcher
@@ -164,9 +133,6 @@ fn test_update_replaces_by_id() {
     application::persist_worker::flush();
 
     // Re-parse the persisted config rather than doing YAML substring matching.
-    // This is format-independent and won't break if serde changes quoting.
-    let cfg_path = infra_filesystem::FilesystemStorage::app_config_path()
-        .expect("config path");
     let raw = std::fs::read_to_string(&cfg_path).expect("read config.yaml");
     let persisted: infra_filesystem::AppConfig =
         serde_yaml::from_str(&raw).expect("config.yaml must be valid YAML after update");
@@ -206,14 +172,11 @@ fn test_update_replaces_by_id() {
 
 #[test]
 fn test_delete_removes() {
-    let _guard = ENV_LOCK.lock().expect("ENV_LOCK poisoned");
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    #[allow(unused_unsafe)]
-    unsafe {
-        std::env::set_var("HOME", tmp.path());
-    }
+    let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
 
     let b1 = make_binding("del-me", "Delete Me");
     let b2 = make_binding("keep-me", "Keep Me");
@@ -232,8 +195,6 @@ fn test_delete_removes() {
 
     application::persist_worker::flush();
 
-    let cfg_path = infra_filesystem::FilesystemStorage::app_config_path()
-        .expect("config path");
     let raw = std::fs::read_to_string(&cfg_path).expect("read config.yaml");
 
     assert!(
