@@ -604,3 +604,42 @@ fn app_config_deserializes_yaml_without_audio_fields() {
     assert!(cfg.output_devices.is_empty());
     assert!(cfg.language.is_none());
 }
+
+// ── io_bindings in AppConfig (#716) ────────────────────────────────────
+
+#[test]
+fn app_config_io_bindings_round_trip() {
+    let binding = IoBinding {
+        id: "main".into(),
+        name: "Scarlett 2i2".into(),
+        inputs: vec![IoEndpoint {
+            name: "Guitar In 1".into(),
+            device_id: "dev-001".into(),
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "Monitor Out".into(),
+            device_id: "dev-001".into(),
+            channels: vec![0, 1],
+        }],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings, vec![binding]);
+}
+
+#[test]
+fn legacy_app_config_without_io_bindings_loads_with_empty_vec() {
+    // A minimal legacy config.yaml that predates the io_bindings field.
+    let yaml = "recent_projects: []\npaths: {}\ninput_devices: []\noutput_devices: []\n";
+    let config: AppConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(
+        config.io_bindings.is_empty(),
+        "expected empty io_bindings on legacy config, got {:?}",
+        config.io_bindings
+    );
+}

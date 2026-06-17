@@ -223,6 +223,40 @@ pub fn asset_paths() -> &'static AssetPaths {
 
 pub struct FilesystemStorage;
 
+// ── I/O binding registry (#716) ────────────────────────────────────────────
+
+/// A single named endpoint (input or output channel group) on a physical device.
+///
+/// Stored in the per-machine system config (`config.yaml`) so that projects
+/// can reference endpoints by name without hardcoding device paths (ADR 0003).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IoEndpoint {
+    /// Human-readable label (e.g. `"Guitar In 1"`).
+    pub name: String,
+    /// Opaque stable identifier of the physical device that owns this endpoint.
+    pub device_id: String,
+    /// Zero-based channel indices on the device.
+    pub channels: Vec<usize>,
+}
+
+/// A complete I/O binding: a named group of input + output endpoints, identified
+/// by a stable `id`.
+///
+/// Stored in [`AppConfig::io_bindings`] (per-machine registry). Projects
+/// reference bindings by `id`, not by device path, so `.openrig` files stay
+/// portable across machines.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IoBinding {
+    /// Stable registry key (e.g. `"main"`, `"monitor"`).
+    pub id: String,
+    /// Human-readable display name (e.g. `"Scarlett 2i2"`).
+    pub name: String,
+    /// Input endpoints exposed by this binding.
+    pub inputs: Vec<IoEndpoint>,
+    /// Output endpoints exposed by this binding.
+    pub outputs: Vec<IoEndpoint>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
     pub project_path: String,
@@ -266,6 +300,14 @@ pub struct AppConfig {
     /// `false`. `--mcp` / `--mcp=ADDR` overrides it for the run.
     #[serde(default)]
     pub mcp_enabled: bool,
+    /// Per-machine I/O binding registry (#716). Maps stable binding ids to
+    /// the physical device endpoints they represent, so projects can reference
+    /// endpoints by name and remain portable across machines.
+    ///
+    /// `#[serde(default)]` ensures legacy `config.yaml` files that predate
+    /// this field still deserialize correctly (field absent → empty `Vec`).
+    #[serde(default)]
+    pub io_bindings: Vec<IoBinding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
