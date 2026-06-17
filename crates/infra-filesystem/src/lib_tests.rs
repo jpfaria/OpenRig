@@ -609,17 +609,20 @@ fn app_config_deserializes_yaml_without_audio_fields() {
 
 #[test]
 fn app_config_io_bindings_round_trip() {
+    use domain::ids::DeviceId;
     let binding = IoBinding {
         id: "main".into(),
         name: "Scarlett 2i2".into(),
         inputs: vec![IoEndpoint {
             name: "Guitar In 1".into(),
-            device_id: "dev-001".into(),
+            device_id: DeviceId("dev-001".into()),
+            mode: Default::default(),
             channels: vec![0],
         }],
         outputs: vec![IoEndpoint {
             name: "Monitor Out".into(),
-            device_id: "dev-001".into(),
+            device_id: DeviceId("dev-001".into()),
+            mode: Default::default(),
             channels: vec![0, 1],
         }],
     };
