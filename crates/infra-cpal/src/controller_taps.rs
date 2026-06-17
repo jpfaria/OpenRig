@@ -21,6 +21,8 @@
 use std::sync::Arc;
 
 use domain::ids::ChainId;
+use engine::runtime::ChainRuntimeState;
+use engine::DiLoop;
 
 use crate::controller::ProjectRuntimeController;
 
@@ -307,9 +309,7 @@ impl ProjectRuntimeController {
     /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
     /// retrieved from the dispatcher's ephemeral store (not persisted).
     pub fn set_chain_di_loop(&self, chain_id: &ChainId, di: Option<Arc<engine::DiLoop>>) {
-        for runtime in self.runtime_graph.runtimes_for(chain_id) {
-            runtime.set_di_loop(di.clone());
-        }
+        arm_di_loop_on_first(&self.runtime_graph.runtimes_for(chain_id), di);
     }
 
     /// Returns `true` when at least one `ChainRuntimeState` for `chain_id`
@@ -323,5 +323,129 @@ impl ProjectRuntimeController {
             .runtimes_for(chain_id)
             .iter()
             .any(|rt| rt.has_di_loop())
+    }
+}
+
+/// Arm a chain's DI loop on its FIRST per-input-entry runtime only.
+///
+/// #715: since #703 a chain has one isolated runtime PER input entry, each
+/// writing to the same output device — where the backend SUMS them (CLAUDE.md
+/// invariant: mixing happens in the backend, not our code). Arming the same
+/// loop on EVERY runtime plays the signal once per entry, so the device sums N
+/// copies and the loop is heard at N× level (the user-reported "som dobrando"
+/// on a 2-input-entry chain). A DI loop is a single test source: arm it on the
+/// first runtime and CLEAR it on the rest (so a stale loop cannot linger on
+/// entry 2+). A single-entry chain (the common case) is unchanged.
+pub(crate) fn arm_di_loop_on_first(runtimes: &[Arc<ChainRuntimeState>], di: Option<Arc<DiLoop>>) {
+    for (i, runtime) in runtimes.iter().enumerate() {
+        runtime.set_di_loop(if i == 0 { di.clone() } else { None });
+    }
+}
+
+#[cfg(test)]
+mod di_loop_doubling_tests {
+    use super::arm_di_loop_on_first;
+    use crate::{build_chain_runtime, BuildRequest};
+    use domain::ids::{BlockId, ChainId, DeviceId};
+    use engine::DiLoop;
+    use project::block::{
+        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+    };
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+    use std::sync::Arc;
+
+    /// A chain whose input block has TWO entries on the same device (ch0 + ch1)
+    /// — the "two inputs, one interface" shape. #703 builds one runtime per
+    /// entry.
+    fn two_entry_chain() -> Chain {
+        Chain {
+            id: ChainId("dbl".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId("in".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![
+                            InputEntry {
+                                device_id: DeviceId("dev".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![0],
+                            },
+                            InputEntry {
+                                device_id: DeviceId("dev".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![1],
+                            },
+                        ],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("out".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".into(),
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn two_entry_chain_builds_two_runtimes() {
+        // Pins the doubling PREMISE: a 2-entry chain is two isolated runtimes.
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            buffer_sizes: vec![64],
+        };
+        let runtimes = build_chain_runtime(&req).expect("build 2-entry chain");
+        assert_eq!(runtimes.len(), 2, "#703: one runtime per input entry");
+    }
+
+    #[test]
+    fn di_loop_is_armed_on_the_first_runtime_only() {
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            buffer_sizes: vec![64],
+        };
+        let built = build_chain_runtime(&req).expect("build 2-entry chain");
+        let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
+        assert_eq!(runtimes.len(), 2);
+
+        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2, 0.3, 0.4], 48_000, 1, 48_000, 0));
+        arm_di_loop_on_first(&runtimes, Some(di));
+
+        assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
+        assert!(
+            !runtimes[1].has_di_loop(),
+            "the loop must NOT also play on the second entry's runtime — that is \
+             the doubling: two runtimes sum at the output device (#715)"
+        );
+    }
+
+    #[test]
+    fn clearing_disarms_every_runtime() {
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            buffer_sizes: vec![64],
+        };
+        let built = build_chain_runtime(&req).expect("build");
+        let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
+        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2], 48_000, 1, 48_000, 0));
+        arm_di_loop_on_first(&runtimes, Some(di));
+        arm_di_loop_on_first(&runtimes, None);
+        assert!(!runtimes[0].has_di_loop() && !runtimes[1].has_di_loop());
     }
 }

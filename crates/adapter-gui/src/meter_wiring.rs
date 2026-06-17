@@ -379,8 +379,15 @@ pub fn poll_per_stream(
         .collect()
 }
 
-/// Lifecycle wiring: starts a Slint Timer that, at ~30 Hz, picks up
-/// the current chain list from the project session, ensures every
+/// Meter polling interval in milliseconds. #715: this timer's per-frame work
+/// (draining taps, rebuilding rows, the Slint re-render it triggers) is memory
+/// traffic that competes with the audio worker on the shared cache and evicts
+/// the NAM weights → cold-cache inference → late buffer → crackle. It must NOT
+/// run faster than ~20 Hz (≥ 50 ms); 30 Hz (33 ms) is what caused the crackle.
+pub(crate) const METER_POLL_TICK_MS: u64 = 66; // ~15 Hz
+
+/// Lifecycle wiring: starts a Slint Timer that, at the meter poll rate, picks
+/// up the current chain list from the project session, ensures every
 /// chain has its meter taps subscribed, polls them, and writes the
 /// per-chain peak dBFS into the matching `ProjectChainItem` rows of
 /// the `project_chains` VecModel. Timer is leaked (lives for the
@@ -391,8 +398,15 @@ pub fn start_meter_polling(
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
 ) {
     use slint::{Model, TimerMode};
-    const TICK: std::time::Duration = std::time::Duration::from_millis(33); // ~30 Hz
-    const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
+    // #715: ~15 Hz, not 30 Hz. The per-frame work of this timer (draining taps,
+    // rebuilding the meter rows, and the Slint re-render it triggers) is memory
+    // traffic that competes with the audio worker on the shared cache and
+    // evicts the NAM weights → cold-cache inference → late buffer → crackle.
+    // Halving the rate halves that contention. 15 Hz is still smooth for level
+    // meters. (RING_CAPACITY 4096 still covers a 15 Hz drain: 48 kHz / 15 ≈
+    // 3200 samples per tick.)
+    const TICK: std::time::Duration = std::time::Duration::from_millis(METER_POLL_TICK_MS);
+    const RING_CAPACITY: usize = 4096; // 15 Hz poll @ 48 kHz ⇒ ~3200 samples per drain
 
     let store = new_meter_store_per_stream();
     // Per-chain "runtime layout" signature snapshot from the previous
@@ -594,14 +608,39 @@ pub fn start_meter_polling(
                     row.di_loop_selected_index = di_selected_now;
                 }
                 if stream_meters_changed {
-                    let model = std::rc::Rc::new(slint::VecModel::default());
-                    for r in &per_stream_rows {
-                        model.push(crate::StreamMeter {
-                            in_dbfs: r.in_dbfs,
-                            out_dbfs: r.out_dbfs,
-                        });
+                    // #715: mutate the existing per-stream model IN PLACE when
+                    // the row COUNT is unchanged (the common case while playing:
+                    // only the dB values move every tick). Allocating a fresh
+                    // VecModel each tick adds allocator memory traffic that helps
+                    // evict the audio worker's NAM weights from the shared cache
+                    // (the crackle). Only allocate when the stream count changes.
+                    let reused = row
+                        .stream_meters
+                        .as_any()
+                        .downcast_ref::<slint::VecModel<crate::StreamMeter>>()
+                        .filter(|vm| vm.row_count() == per_stream_rows.len())
+                        .map(|vm| {
+                            for (i, r) in per_stream_rows.iter().enumerate() {
+                                vm.set_row_data(
+                                    i,
+                                    crate::StreamMeter {
+                                        in_dbfs: r.in_dbfs,
+                                        out_dbfs: r.out_dbfs,
+                                    },
+                                );
+                            }
+                        })
+                        .is_some();
+                    if !reused {
+                        let model = std::rc::Rc::new(slint::VecModel::default());
+                        for r in &per_stream_rows {
+                            model.push(crate::StreamMeter {
+                                in_dbfs: r.in_dbfs,
+                                out_dbfs: r.out_dbfs,
+                            });
+                        }
+                        row.stream_meters = slint::ModelRc::from(model);
                     }
-                    row.stream_meters = slint::ModelRc::from(model);
                 }
                 project_chains.set_row_data(idx, row);
             }

@@ -132,3 +132,41 @@ fn primes_only_on_initial_convolution_build() {
         "non-IR: no prime"
     );
 }
+
+#[test]
+fn prime_frames_full_truth_table() {
+    // (target, is_initial_build, has_convolution) → expected. Only the
+    // initial-build-AND-convolution corner primes; every other corner is 0.
+    let cases = [
+        (512usize, true, true, 512usize),
+        (512, true, false, 0),
+        (512, false, true, 0),
+        (512, false, false, 0),
+        (0, true, true, 0),   // initial convolution but nothing to prime
+        (1, true, true, 1),   // minimal prime survives
+        (256, false, false, 0),
+        (usize::MAX, true, true, usize::MAX), // oversized prime is passed through
+    ];
+    for (target, init, conv, expected) in cases {
+        assert_eq!(
+            elastic_prime_frames(target, init, conv),
+            expected,
+            "elastic_prime_frames({target}, {init}, {conv})"
+        );
+    }
+}
+
+#[test]
+fn capacity_target_boundaries_around_the_cushion() {
+    let floor = IR_COLD_START_CUSHION_FRAMES; // 512
+    // Convolution chains floor at the cushion; values around the boundary.
+    assert_eq!(elastic_capacity_target(0, true), floor);
+    assert_eq!(elastic_capacity_target(floor - 1, true), floor);
+    assert_eq!(elastic_capacity_target(floor, true), floor);
+    assert_eq!(elastic_capacity_target(floor + 1, true), floor + 1);
+    assert_eq!(elastic_capacity_target(usize::MAX, true), usize::MAX);
+    // Non-convolution keeps the lean base verbatim — no floor.
+    assert_eq!(elastic_capacity_target(0, false), 0);
+    assert_eq!(elastic_capacity_target(64, false), 64);
+    assert_eq!(elastic_capacity_target(usize::MAX, false), usize::MAX);
+}

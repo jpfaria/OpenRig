@@ -96,26 +96,87 @@ fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
 #[cfg(not(target_os = "macos"))]
 fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
 
+/// Per-thread CPU time in nanoseconds — the time THIS thread actually spent
+/// executing on a CPU, EXCLUDING any interval it was descheduled/preempted.
+///
+/// The worker's RT budget (#698) must be measured in COMPUTE time, not
+/// wall-clock: a preemption stall (the kernel pulls the worker off-core
+/// mid-DSP) inflates a wall-clock `Instant::elapsed` to multi-ms even though
+/// the real DSP cost is microseconds. Feeding that inflated wall-clock to the
+/// budget makes it re-declare the RT policy on every stall (a
+/// `thread_policy_set` syscall that itself perturbs scheduling → more stalls).
+/// `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` advances ONLY while the thread is
+/// running, so it is immune to preemption. `None` where unavailable (Windows);
+/// callers fall back to wall-clock there.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn thread_cpu_time_ns() -> Option<u64> {
+    #[repr(C)]
+    struct Timespec {
+        tv_sec: i64,
+        tv_nsec: i64,
+    }
+    extern "C" {
+        fn clock_gettime(clock_id: i32, ts: *mut Timespec) -> i32;
+    }
+    // CLOCK_THREAD_CPUTIME_ID: 16 on macOS (libSystem), 3 on Linux (glibc).
+    #[cfg(target_os = "macos")]
+    const CLOCK_THREAD_CPUTIME_ID: i32 = 16;
+    #[cfg(target_os = "linux")]
+    const CLOCK_THREAD_CPUTIME_ID: i32 = 3;
+    let mut ts = Timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    let rc = unsafe { clock_gettime(CLOCK_THREAD_CPUTIME_ID, &mut ts) };
+    if rc != 0 {
+        return None;
+    }
+    Some(ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+fn thread_cpu_time_ns() -> Option<u64> {
+    None
+}
+
 /// Issue #698 — adaptive RT computation budget. Buffers measured per
 /// window; at each window boundary the worker re-declares its
 /// time-constraint computation from the measured worst case plus
 /// headroom, so N concurrent chains together stay inside what the
 /// kernel's admission will schedule. Plain data, worker-thread only.
 struct BudgetTracker {
+    /// Highest and second-highest measured cost in the current window. The
+    /// budget is driven by the SECOND highest, so a single transient outlier
+    /// (a preemption stall — the worker descheduled mid-DSP, which inflates
+    /// the WALL-CLOCK measurement without being real compute cost) cannot move
+    /// the budget. A genuine sustained cost increase shows up in the second
+    /// highest too.
     window_max_ns: u64,
+    window_2nd_ns: u64,
     window_count: u32,
     declared_ns: u64,
+    /// Consecutive buffers measured over the declared budget. The fast
+    /// up-correction fires only when this is SUSTAINED, never on a lone spike.
+    consecutive_over: u32,
 }
 
 impl BudgetTracker {
     /// ≈3 s of buffers at 64 frames / 44.1 kHz between re-declarations.
     const WINDOW: u32 = 2048;
+    /// A genuine cost increase persists; a preemption stall is one isolated
+    /// buffer. Require this many CONSECUTIVE over-budget buffers before the
+    /// fast up-correction re-declares — so a transient stall does not churn
+    /// the RT policy (each re-declaration is a `thread_policy_set` syscall on
+    /// the worker that itself perturbs its scheduling → more stalls).
+    const SUSTAIN: u32 = 3;
 
     fn new(declared_ns: u64) -> Self {
         Self {
             window_max_ns: 0,
+            window_2nd_ns: 0,
             window_count: 0,
             declared_ns,
+            consecutive_over: 0,
         }
     }
 
@@ -123,27 +184,44 @@ impl BudgetTracker {
     /// budget when the window closes AND it differs meaningfully from the
     /// declared one (hysteresis: 10% of the period).
     ///
-    /// Fast up-correction: a single buffer OVER the declared budget means
-    /// the chain just got heavier (live rebuild, block added) and the
-    /// kernel will demote an over-budget RT thread — re-declare the
+    /// Fast up-correction: a SUSTAINED run of buffers over the declared budget
+    /// means the chain genuinely got heavier (live rebuild, block added) and
+    /// the kernel will demote an over-budget RT thread — re-declare the
     /// conservative 85% immediately instead of waiting for the window
     /// (measured: 128 underruns in the post-rebuild stretch of
-    /// `rebuild_while_playing_keeps_the_cushion` without this).
+    /// `rebuild_while_playing_keeps_the_cushion` without this). A SINGLE
+    /// over-budget buffer is a preemption stall, not a cost change, and is
+    /// ignored — otherwise the policy churns (the #698 single-chain crackle).
     fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
-        if elapsed_ns > self.declared_ns && self.declared_ns < period_ns * 85 / 100 {
+        if elapsed_ns > self.declared_ns {
+            self.consecutive_over += 1;
+        } else {
+            self.consecutive_over = 0;
+        }
+        if self.consecutive_over >= Self::SUSTAIN && self.declared_ns < period_ns * 85 / 100 {
+            self.consecutive_over = 0;
             return Some(self.reset(period_ns));
         }
-        self.window_max_ns = self.window_max_ns.max(elapsed_ns);
+
+        // Track the top two costs of the window.
+        if elapsed_ns > self.window_max_ns {
+            self.window_2nd_ns = self.window_max_ns;
+            self.window_max_ns = elapsed_ns;
+        } else if elapsed_ns > self.window_2nd_ns {
+            self.window_2nd_ns = elapsed_ns;
+        }
         self.window_count += 1;
         if self.window_count < Self::WINDOW {
             return None;
         }
-        // Measured worst case + 25% headroom, floored at 10% of the
-        // period (an undersized budget also demotes — the reverted #670
-        // attempt) and capped at the validated 85%.
-        let target = (self.window_max_ns + self.window_max_ns / 4)
-            .clamp(period_ns / 10, period_ns * 85 / 100);
+        // Second-highest cost + 25% headroom, floored at 10% of the period (an
+        // undersized budget also demotes — the reverted #670 attempt) and
+        // capped at the validated 85%. Using the SECOND highest makes one
+        // isolated preemption stall per window invisible to the budget.
+        let robust = self.window_2nd_ns;
+        let target = (robust + robust / 4).clamp(period_ns / 10, period_ns * 85 / 100);
         self.window_max_ns = 0;
+        self.window_2nd_ns = 0;
         self.window_count = 0;
         if target.abs_diff(self.declared_ns) > period_ns / 10 {
             self.declared_ns = target;
@@ -156,7 +234,9 @@ impl BudgetTracker {
     /// restart from the conservative cold-start budget.
     fn reset(&mut self, period_ns: u64) -> u64 {
         self.window_max_ns = 0;
+        self.window_2nd_ns = 0;
         self.window_count = 0;
+        self.consecutive_over = 0;
         self.declared_ns = period_ns * 85 / 100;
         self.declared_ns
     }
@@ -344,25 +424,36 @@ pub(crate) fn spawn(
                 local[..n].copy_from_slice(&slot.data[..n]);
                 worker_inner.read.store(r + 1, Ordering::Relaxed);
 
+                // Measure BOTH: thread CPU time (real compute, immune to
+                // preemption — drives the RT budget + load meter) and wall-clock
+                // (delivery latency — drives the late-buffer diagnostic).
+                let cpu0 = thread_cpu_time_ns();
                 let start = std::time::Instant::now();
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     process_input_buffer(&slot_handle, input_index, &local[..n], channels);
                 }));
                 let elapsed = start.elapsed();
+                let wall_ns = elapsed.as_nanos() as u64;
+                // Compute time = CPU the DSP actually used. If the thread was
+                // descheduled mid-DSP, wall_ns balloons but compute_ns does not.
+                // Fall back to wall-clock where thread CPU time is unavailable.
+                let compute_ns = match (cpu0, thread_cpu_time_ns()) {
+                    (Some(a), Some(b)) => b.saturating_sub(a),
+                    _ => wall_ns,
+                };
                 let frames = (n / channels.max(1)) as u64;
                 let buf_period_ns = frames * 1_000_000_000 / sample_rate.max(1) as u64;
-                // Load meter only — a late worker buffer that catches up is
-                // absorbed by the ring + elastic and is NOT audible damage
-                // (damage = elastic underrun, or a ring drop counted in
-                // `push`). See record_worker_load docs.
+                // Load meter = real CPU load (compute), not wall-clock. A
+                // wall-clock spike is preemption, not load; reporting it as
+                // "load" misreads as overload on a machine with headroom.
                 slot_handle
                     .load()
-                    .record_worker_load(elapsed.as_nanos() as u64, buf_period_ns);
-                // #698: re-declare the RT computation budget from measured
+                    .record_worker_load(compute_ns, buf_period_ns);
+                // #698: re-declare the RT computation budget from measured COMPUTE
                 // cost at window boundaries so N concurrent workers fit the
-                // kernel's time-constraint admission together. Rare (≥3 s
-                // apart, only on meaningful change), between buffers.
-                if let Some(comp_ns) = budget.observe(elapsed.as_nanos() as u64, rt_period_ns) {
+                // kernel's time-constraint admission together — and a preemption
+                // stall (wall-clock) never churns the policy. Rare, between buffers.
+                if let Some(comp_ns) = budget.observe(compute_ns, rt_period_ns) {
                     promote_to_audio_rt(rt_period_ns, comp_ns);
                 }
                 // #670 diagnostic: name the magnitude of a late buffer so a
@@ -384,5 +475,181 @@ pub(crate) fn spawn(
     DspWorkerProducer {
         inner,
         slot: producer_slot,
+    }
+}
+
+#[cfg(test)]
+mod budget_tracker_tests {
+    use super::BudgetTracker;
+
+    const PERIOD_NS: u64 = 1_451_000; // 64 frames @ 44.1 kHz
+    /// The real per-buffer DSP compute on an M4: microseconds. Far under any
+    /// sane budget.
+    const CHEAP_NS: u64 = 50_000;
+    /// A transient PREEMPTION spike: the worker was descheduled mid-DSP, so the
+    /// wall-clock `elapsed` reads multi-ms even though the COMPUTE was cheap.
+    const PREEMPT_SPIKE_NS: u64 = 3_000_000;
+
+    /// Count how many times `observe` re-declares the RT budget (returns Some)
+    /// over a run of `n` buffers whose cost is `cost(i)`.
+    fn count_redeclares(b: &mut BudgetTracker, n: usize, cost: impl Fn(usize) -> u64) -> usize {
+        (0..n)
+            .filter(|&i| b.observe(cost(i), PERIOD_NS).is_some())
+            .count()
+    }
+
+    /// Issue (2026-06-17): the macOS RT dsp-worker stalled 2-3 ms intermittently
+    /// on a SINGLE light chain on an idle M4 despite a successful RT promotion
+    /// (rc=0), crackling under real load. Root cause A/B-confirmed on the real
+    /// Scarlett (peak worker load ~9x → <1.6x with the re-budget disabled): the
+    /// #698 adaptive BudgetTracker re-declares the RT time-constraint policy
+    /// (`thread_policy_set`) on every buffer whose WALL-CLOCK cost spiked — but a
+    /// wall-clock spike is PREEMPTION, not a real DSP cost increase. Each
+    /// re-declaration is a syscall on the RT worker that perturbs its own
+    /// scheduling → more stalls (a feedback loop).
+    ///
+    /// A steady, cheap workload with occasional transient preemption spikes must
+    /// NOT churn the budget. (Deterministic, no hardware, no ear.)
+    #[test]
+    fn does_not_rebudget_on_transient_preemption_spikes() {
+        let mut b = BudgetTracker::new(PERIOD_NS * 85 / 100);
+
+        // Warm up to the real cheap cost. One legitimate down-declaration when
+        // the first window closes is expected and fine.
+        let _ = count_redeclares(&mut b, BudgetTracker::WINDOW as usize, |_| CHEAP_NS);
+
+        // Steady cheap stream with a single transient preemption spike ONCE PER
+        // window (one descheduled buffer every ~3 s of audio) — the realistic
+        // shape: most buffers cheap, an occasional multi-ms preemption. The
+        // workload did NOT get heavier; every spike is the worker being
+        // descheduled, not real cost.
+        let step = BudgetTracker::WINDOW as usize + 1;
+        let redeclares = count_redeclares(&mut b, BudgetTracker::WINDOW as usize * 8, |i| {
+            if i % step == 0 {
+                PREEMPT_SPIKE_NS
+            } else {
+                CHEAP_NS
+            }
+        });
+
+        assert!(
+            redeclares <= 1,
+            "BudgetTracker re-declared the RT budget {redeclares}x on a steady-cheap \
+             workload with only transient preemption spikes. Each re-declaration is a \
+             thread_policy_set on the RT worker that stalls it — the #698 single-chain \
+             crackle. A transient wall-clock spike is preemption, not a real cost \
+             increase, and must not re-budget."
+        );
+    }
+
+    /// The other half of the contract: a GENUINE sustained cost increase (a
+    /// block added, a real rebuild) MUST still re-declare promptly — the #698
+    /// behaviour we keep. This guards against "fix the churn by never adapting".
+    #[test]
+    fn still_rebudgets_on_a_sustained_real_cost_increase() {
+        let mut b = BudgetTracker::new(PERIOD_NS * 85 / 100);
+        let _ = count_redeclares(&mut b, BudgetTracker::WINDOW as usize, |_| CHEAP_NS);
+
+        // Now the chain genuinely gets heavier and STAYS heavier (sustained,
+        // not a one-off spike): ~60% of the period, every buffer.
+        let heavy = PERIOD_NS * 60 / 100;
+        let redeclares = count_redeclares(&mut b, BudgetTracker::WINDOW as usize, |_| heavy);
+        assert!(
+            redeclares >= 1,
+            "a sustained real cost increase must re-declare the RT budget (the #698 \
+             adaptation we keep), got {redeclares} re-declarations"
+        );
+    }
+
+    /// A steady cheap workload re-declares the budget DOWN exactly once (to the
+    /// real cost) and then SETTLES — the hysteresis must stop it re-declaring
+    /// every window. (Re-declaration is a `thread_policy_set` syscall on the RT
+    /// worker; needless ones perturb its scheduling.)
+    #[test]
+    fn steady_cheap_workload_settles_after_one_down_declaration() {
+        let mut b = BudgetTracker::new(PERIOD_NS * 85 / 100);
+        let redeclares = count_redeclares(&mut b, BudgetTracker::WINDOW as usize * 6, |_| CHEAP_NS);
+        assert_eq!(
+            redeclares, 1,
+            "a steady cheap workload re-declares once (down to real cost) then settles"
+        );
+    }
+
+    /// The RT budget must be measured in THREAD CPU TIME, not wall-clock, so a
+    /// preemption stall (the worker descheduled mid-DSP) cannot be mistaken for
+    /// DSP cost. This pins the property of `thread_cpu_time_ns`: a sleep (the
+    /// thread NOT running — a stand-in for preemption) does NOT advance thread
+    /// CPU time, while it fully advances wall-clock. Deterministic, no hardware.
+    #[test]
+    fn thread_cpu_time_excludes_preemption_sleep() {
+        let Some(c0) = super::thread_cpu_time_ns() else {
+            return; // platform without per-thread CPU clock — fallback path
+        };
+        let wall0 = std::time::Instant::now();
+
+        // Stand-in for preemption: the thread is descheduled (sleeping) — not
+        // computing — for 50 ms.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        // A little real compute so thread CPU time advances measurably.
+        let mut acc = 0u64;
+        for i in 0..2_000_000u64 {
+            acc = acc.wrapping_add(i.rotate_left(7));
+        }
+        std::hint::black_box(acc);
+
+        let compute_ns = super::thread_cpu_time_ns().unwrap() - c0;
+        let wall_ns = wall0.elapsed().as_nanos() as u64;
+
+        assert!(
+            wall_ns >= 50_000_000,
+            "wall-clock {wall_ns}ns must include the 50ms sleep"
+        );
+        assert!(
+            compute_ns < 40_000_000,
+            "thread CPU time {compute_ns}ns must EXCLUDE the 50ms preemption sleep — \
+             this is why the RT budget is measured in compute time: wall-clock would \
+             attribute a preemption stall as DSP cost and churn the budget."
+        );
+    }
+}
+
+#[cfg(test)]
+mod saturation_recovery_tests {
+    use super::SaturationRecovery;
+
+    /// Recovery (re-promote + drop backlog, #670 death-spiral break) must fire
+    /// ONLY after `threshold` CONSECUTIVE saturated drains, then reset — never
+    /// on a transient saturation that the ring recovers from on its own.
+    #[test]
+    fn fires_only_after_threshold_consecutive_saturations() {
+        let mut r = SaturationRecovery::new(3);
+        assert!(!r.observe(true), "1st saturation: not yet");
+        assert!(!r.observe(true), "2nd saturation: not yet");
+        assert!(r.observe(true), "3rd consecutive saturation: recover NOW");
+        // After firing it restarts the run.
+        assert!(!r.observe(true), "run restarted after firing");
+        assert!(!r.observe(true));
+        assert!(r.observe(true), "next 3-run fires again");
+    }
+
+    #[test]
+    fn a_single_healthy_drain_resets_the_run() {
+        let mut r = SaturationRecovery::new(3);
+        assert!(!r.observe(true));
+        assert!(!r.observe(true));
+        // A healthy (non-saturated) drain breaks the streak — the spiral
+        // resolved on its own, so recovery must NOT fire.
+        assert!(!r.observe(false), "healthy drain resets, no recovery");
+        assert!(!r.observe(true), "streak restarts from zero");
+        assert!(!r.observe(true));
+        assert!(r.observe(true), "needs a fresh full streak to fire");
+    }
+
+    #[test]
+    fn threshold_one_fires_on_every_saturation() {
+        let mut r = SaturationRecovery::new(1);
+        assert!(r.observe(true));
+        assert!(r.observe(true));
+        assert!(!r.observe(false));
     }
 }

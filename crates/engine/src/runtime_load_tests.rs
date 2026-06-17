@@ -179,3 +179,84 @@ fn underrun_count_rises_when_output_drains_an_empty_elastic_buffer() {
          GUI/log can distinguish a starve from a CPU xrun"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Worker-load vs callback-load semantics, ring drops, and deadline boundary.
+// The macOS DSP runs on a per-stream worker (#670/#698): a LATE worker buffer
+// is absorbed by the ring + elastic (NOT an xrun); a ring OVERFLOW drop IS a
+// gap (an xrun). These pin that distinction so a refactor cannot silently
+// conflate or drop a counter.
+// ─────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn worker_load_overrun_does_not_count_as_xrun() {
+    let rt = pipe_runtime();
+    // The worker took 2x its period — late, but the ring/elastic absorb it.
+    rt.record_worker_load(2_000_000, 1_000_000);
+    assert_eq!(
+        rt.xrun_count(),
+        0,
+        "a late worker buffer is absorbed by the ring/elastic — NOT an xrun"
+    );
+    assert!(
+        (rt.peak_callback_load() - 2.0).abs() < 0.01,
+        "but the lateness is still visible on the load meter, got {}",
+        rt.peak_callback_load()
+    );
+}
+
+#[test]
+fn worker_load_peak_is_monotone_keeps_worst() {
+    let rt = pipe_runtime();
+    rt.record_worker_load(500_000, 1_000_000); // 0.5
+    rt.record_worker_load(300_000, 1_000_000); // 0.3 — must not lower the peak
+    assert!((rt.peak_callback_load() - 0.5).abs() < 0.01);
+    rt.record_worker_load(1_200_000, 1_000_000); // 1.2 — new worst
+    assert!((rt.peak_callback_load() - 1.2).abs() < 0.01);
+}
+
+#[test]
+fn dropped_ring_buffer_counts_as_one_xrun_each() {
+    let rt = pipe_runtime();
+    assert_eq!(rt.xrun_count(), 0);
+    rt.record_dropped_buffer();
+    assert_eq!(rt.xrun_count(), 1, "a dropped input buffer is an audible gap");
+    rt.record_dropped_buffer();
+    rt.record_dropped_buffer();
+    assert_eq!(rt.xrun_count(), 3, "drops accumulate");
+    // A ring drop is an xrun, not an elastic underrun — distinct counters.
+    assert_eq!(rt.underrun_count(), 0);
+}
+
+#[test]
+fn exact_deadline_is_not_an_xrun_but_one_ns_over_is() {
+    let rt = pipe_runtime();
+    rt.record_callback_load(1_000_000, 1_000_000); // exactly on time
+    assert_eq!(rt.xrun_count(), 0, "meeting the deadline is on-time");
+    rt.record_callback_load(1_000_001, 1_000_000); // 1 ns over
+    assert_eq!(rt.xrun_count(), 1, "the smallest overrun is still an xrun");
+}
+
+#[test]
+fn peak_load_matches_elapsed_over_period_for_a_typical_buffer() {
+    let rt = pipe_runtime();
+    let period_ns = 64 * 1_000_000_000 / 48_000; // 64 frames @ 48 kHz ≈ 1333 us
+    rt.record_callback_load(2_000_000, period_ns); // 2 ms callback
+    let expected = 2_000_000.0 / period_ns as f32;
+    assert!(
+        (rt.peak_callback_load() - expected).abs() < 0.01,
+        "peak load {} should equal elapsed/period {expected}",
+        rt.peak_callback_load()
+    );
+}
+
+#[test]
+fn extreme_overload_does_not_panic_and_stays_finite() {
+    let rt = pipe_runtime();
+    // Pathological inputs (cannot happen in production — period comes from the
+    // buffer size) must not panic and must keep a finite, >1.0 load.
+    rt.record_callback_load(u64::MAX / 2, 1);
+    let peak = rt.peak_callback_load();
+    assert!(peak.is_finite(), "extreme overload must not produce NaN/Inf");
+    assert!(peak > 1.0, "extreme overload reads as an overload");
+}
