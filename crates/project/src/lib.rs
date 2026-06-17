@@ -10,6 +10,7 @@
 
 pub mod block;
 pub mod catalog;
+pub mod io_binding;
 mod catalog_label;
 pub mod chain;
 pub mod device;
