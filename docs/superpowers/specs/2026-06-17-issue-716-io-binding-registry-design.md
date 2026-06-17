@@ -169,14 +169,40 @@ endpoint tools.
 
 ## 7. UI / screens
 
-- **Settings → System → "I/O bindings"** (new section, next to Audio
-  interface): list/create/edit/delete bindings; per binding, add/remove input
-  and output endpoints (device + channels + mode pickers reused from today's
-  Input/Output block editor).
-- **Chain / Block editor**: Input and Output blocks replace the device/channel
-  fields with an **I/O picker** + an **endpoint picker** scoped to the chosen
-  io. The heavy device-enumeration UI lives in the registry editor (relevant to
-  #257, the slow block editor — out of scope but the move helps).
+This change touches **many** GUI surfaces (grep over `crates/adapter-gui`). Every
+one is listed so none is missed:
+
+- **Data bridge** (`models.slint`, `ui_state.rs`, `state.rs`): Slint structs for
+  bindings + a projector exposing them to all editors below.
+- **Settings → System → "I/O bindings"** (new section, next to Audio interface):
+  list/create/edit/delete bindings; per binding add/remove input+output
+  endpoints (device + channels + mode pickers reused from `settings/audio.rs`).
+- **Audio interface + audio wizard** (`settings/audio.rs`,
+  `device_settings_wiring.rs`, `device_refresh_wiring.rs`,
+  `audio_wizard_wiring.rs`): first-run/device-change flows create/update the
+  `default` binding (O4) and re-resolve bindings on device hot-swap (#354).
+- **Endpoint editor** (`chain_endpoint_editor.slint` +
+  `chain_editor_{input,output,meta}_*_callbacks.rs`): Input/Output blocks replace
+  device/channel/mode fields with an **I/O picker** + **endpoint picker** scoped
+  to the chosen binding.
+- **`chain_io_*` subsystem** (`chain_io_main/picker/save/fullscreen` +
+  `chain_io_block_builders.rs`, `io_groups.rs`,
+  `chain_{input,output}_groups_wiring.rs`): the fullscreen "configure I/O" flow
+  and the input/output groups operate on binding references; groups are shown
+  grouped by binding (this is where A→A vs B→B becomes visible). Helps #257.
+- **Compact view + chain list** (`compact_chain_view.slint`,
+  `compact_chain_block_handlers.rs`, `chain_row.slint`, `chain_chips.slint`,
+  `project_view.rs`): "configure I/O" routes to the new pickers; rows/chips show
+  the bound I/O name instead of raw device strings.
+- **Insert editor** (`chain_insert_editor.slint`, `insert_wiring.rs`): send/return
+  endpoints **stay raw** in this issue (inserts are a single-runtime send/return
+  pipeline, not a binding-paired stream); task is to verify they don't regress.
+- **Tuner / Spectrum** (`tuner_session.rs`, `spectrum_session.rs`): enumerate one
+  tuner per active input port and one analyzer per active output endpoint under
+  the new per-binding stream keys.
+- **Windows / touch parity** (`app-window.slint`, `desktop_main.slint`,
+  `touch_main.slint`, `secondary_windows_chain.slint`): wire the new components
+  into both layouts.
 - SVG icons only, translations refreshed (new `@tr` strings → run
   `extract-translations.sh` + fill all 9 catalogs in the same PR).
 
