@@ -165,9 +165,26 @@ pub(crate) fn resolve_multi_io_sample_rate(
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
 ) -> Result<f32> {
+    // Collect the per-device resolved rates (settings override or device
+    // default), then unify. The unification is pure (operates on the rate
+    // numbers only) so it can be unit-tested without real `cpal::Device`s.
+    let input_rates: Vec<u32> = inputs.iter().map(resolved_input_sample_rate).collect();
+    let output_rates: Vec<u32> = outputs.iter().map(resolved_output_sample_rate).collect();
+    unify_io_sample_rates(chain_id, &input_rates, &output_rates)
+}
+
+/// Pure unification of the resolved per-device rates: every input and every
+/// output of one chain must agree (one engine clock). Returns the agreed rate
+/// or a precise error naming whether the disagreement is input↔input or
+/// input↔output. Pure — no hardware — so it is directly unit-testable.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+pub(crate) fn unify_io_sample_rates(
+    chain_id: &str,
+    input_rates: &[u32],
+    output_rates: &[u32],
+) -> Result<f32> {
     let mut rate: Option<u32> = None;
-    for ri in inputs {
-        let sr = resolved_input_sample_rate(ri);
+    for &sr in input_rates {
         if let Some(prev) = rate {
             if prev != sr {
                 bail!(
@@ -180,8 +197,7 @@ pub(crate) fn resolve_multi_io_sample_rate(
         }
         rate = Some(sr);
     }
-    for ro in outputs {
-        let sr = resolved_output_sample_rate(ro);
+    for &sr in output_rates {
         if let Some(prev) = rate {
             if prev != sr {
                 bail!(
@@ -196,6 +212,51 @@ pub(crate) fn resolve_multi_io_sample_rate(
     }
     rate.map(|r| r as f32)
         .ok_or_else(|| anyhow!("chain '{}' has no inputs or outputs", chain_id))
+}
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod unify_rate_tests {
+    use super::unify_io_sample_rates;
+
+    #[test]
+    fn agreeing_rates_resolve_to_that_rate() {
+        assert_eq!(
+            unify_io_sample_rates("c", &[44_100, 44_100], &[44_100]).unwrap(),
+            44_100.0
+        );
+    }
+
+    #[test]
+    fn no_io_is_an_error() {
+        assert!(unify_io_sample_rates("c", &[], &[]).is_err());
+    }
+
+    #[test]
+    fn mismatched_inputs_error_names_inputs() {
+        let e = unify_io_sample_rates("c", &[48_000, 44_100], &[48_000])
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("across inputs"), "got: {e}");
+    }
+
+    #[test]
+    fn mismatched_input_vs_output_error_names_io() {
+        // Inputs agree (44.1k) but the output is 48k — the exact #669/#698
+        // crackle shape (engine clock disagreeing with the device). Must be a
+        // loud error, never a silent resample.
+        let e = unify_io_sample_rates("c", &[44_100], &[48_000])
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("across I/O"), "got: {e}");
+    }
+
+    #[test]
+    fn single_output_only_resolves() {
+        assert_eq!(
+            unify_io_sample_rates("c", &[], &[48_000]).unwrap(),
+            48_000.0
+        );
+    }
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
