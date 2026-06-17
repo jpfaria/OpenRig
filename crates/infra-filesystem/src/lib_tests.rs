@@ -646,3 +646,61 @@ fn legacy_app_config_without_io_bindings_loads_with_empty_vec() {
         config.io_bindings
     );
 }
+
+// ── ChannelMode wire-token round-trips (#716) ──────────────────────────────
+
+#[test]
+fn channel_mode_stereo_wire_token_round_trips_in_config() {
+    use domain::ids::DeviceId;
+    let binding = IoBinding {
+        id: "stereo-test".into(),
+        name: "Stereo Interface".into(),
+        inputs: vec![IoEndpoint {
+            name: "Stereo In".into(),
+            device_id: DeviceId("dev-stereo".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    // Wire token must be the exact snake_case string.
+    assert!(
+        yaml.contains("mode: stereo"),
+        "expected 'mode: stereo' in YAML, got:\n{yaml}"
+    );
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings[0].inputs[0].mode, ChannelMode::Stereo);
+}
+
+#[test]
+fn channel_mode_dual_mono_wire_token_round_trips_in_config() {
+    use domain::ids::DeviceId;
+    let binding = IoBinding {
+        id: "dual-mono-test".into(),
+        name: "Dual Guitar Interface".into(),
+        inputs: vec![IoEndpoint {
+            name: "Guitar Pair".into(),
+            device_id: DeviceId("dev-dual".into()),
+            mode: ChannelMode::DualMono,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    // Wire token must be the exact snake_case string.
+    assert!(
+        yaml.contains("mode: dual_mono"),
+        "expected 'mode: dual_mono' in YAML, got:\n{yaml}"
+    );
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings[0].inputs[0].mode, ChannelMode::DualMono);
+}

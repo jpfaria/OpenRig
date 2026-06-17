@@ -4,9 +4,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+pub mod io_bindings;
 pub mod midi_device;
 pub mod midi_migrate;
 pub mod midi_profile;
+pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
 pub use midi_device::{MidiDeviceSelection, MidiPortKey};
 
 #[cfg(test)]
@@ -223,11 +225,6 @@ pub fn asset_paths() -> &'static AssetPaths {
 
 pub struct FilesystemStorage;
 
-// ── I/O binding registry (#716) ────────────────────────────────────────────
-// Single source of truth lives in `domain::io_binding`; re-exported here so
-// `AppConfig::io_bindings` uses the canonical types.
-pub use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
     pub project_path: String,
@@ -436,56 +433,6 @@ impl FilesystemStorage {
             })
             .context("failed to resolve user config directory")?;
         Ok(base_dir.join("OpenRig").join("config.yaml"))
-    }
-
-    /// Per-OS path of the **legacy** single-file MIDI mapping (`adapter-midi`,
-    /// issue #22). macOS `~/Library/Application Support/OpenRig/midi-map.yaml`,
-    /// Windows `%APPDATA%\OpenRig\midi-map.yaml`, Linux
-    /// `~/.config/OpenRig/midi-map.yaml`. Never hardcoded — resolved like every
-    /// other OpenRig config file. After #499 this file is migrated on first
-    /// load into the system [`midi_profile_path`] + system [`midi_bindings_path`]
-    /// and then deleted; this getter survives only for the migration path.
-    pub fn midi_map_path() -> Result<PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-map.yaml"))
-    }
-
-    /// Per-OS path of the **MIDI device profile** (ADR 0003 / #499): which
-    /// controller to listen to. System layer; never overridden by the project.
-    /// macOS `~/Library/Application Support/OpenRig/midi-profile.yaml`,
-    /// Windows `%APPDATA%\OpenRig\midi-profile.yaml`, Linux
-    /// `~/.config/OpenRig/midi-profile.yaml`.
-    pub fn midi_profile_path() -> Result<PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-profile.yaml"))
-    }
-
-    /// Per-OS path of the **system-wide MIDI bindings fallback** (ADR 0003 /
-    /// #499). Used at resolve time when a project carries no `midi:` field;
-    /// the shipped default ships as `examples/midi-map.default.yaml` and the
-    /// system fallback overrides it when present. Same per-OS layout as the
-    /// other config files.
-    pub fn midi_bindings_path() -> Result<PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-bindings.yaml"))
     }
 
     /// Read GUI audio settings (input/output devices + language) from
