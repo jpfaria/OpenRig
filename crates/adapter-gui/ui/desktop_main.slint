@@ -523,16 +523,9 @@ export component DesktopMain inherits Rectangle {
             width: parent.width;
             height: parent.height;
             title: root.chain-io-editor-title;
-            device-options: root.chain-io-device-options;
-            selected-device-index <=> root.chain-io-selected-device-index;
-            channels: root.chain-io-channels;
+            io-binding-names: [];
+            endpoint-options: [];
             status-message <=> root.chain-io-editor-status;
-            show-mode-selector: root.chain-io-show-mode-selector;
-            mode-labels: root.chain-io-mode-labels;
-            selected-mode-index <=> root.chain-io-selected-mode-index;
-            select-device(index) => { root.chain-io-select-device(index); }
-            toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
-            select-mode(index) => { root.chain-io-select-mode(index); }
             save => { root.chain-io-save(); }
             cancel => { root.chain-io-cancel(); }
         }

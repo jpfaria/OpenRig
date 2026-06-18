@@ -234,6 +234,30 @@ fn channels_label(channels: &[usize]) -> String {
         .join(", ")
 }
 
+/// Returns the input endpoint names for the given binding.
+///
+/// Used by the endpoint picker to populate its list when the user selects
+/// a binding in the I/O picker (input block context).
+///
+/// Pure function — no side effects.
+pub(crate) fn endpoint_names_for_input_binding(binding: &IoBindingModel) -> Vec<String> {
+    binding.inputs.iter().map(|ep| ep.name.clone()).collect()
+}
+
+/// Returns the output endpoint names for the given binding.
+///
+/// Used by the endpoint picker to populate its list when the user selects
+/// a binding in the I/O picker (output block context).
+///
+/// Pure function — no side effects.
+pub(crate) fn endpoint_names_for_output_binding(binding: &IoBindingModel) -> Vec<String> {
+    binding.outputs.iter().map(|ep| ep.name.clone()).collect()
+}
+
 #[cfg(test)]
 #[path = "ui_state_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "endpoint_picker_tests.rs"]
+mod endpoint_picker_tests;

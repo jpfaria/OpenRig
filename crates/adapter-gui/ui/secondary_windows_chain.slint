@@ -163,6 +163,13 @@ export component ChainEditorWindow inherits Window {
     callback input-select-mode(int);
     callback input-save();
     callback input-cancel();
+    in property <[string]> input-io-binding-names;
+    in-out property <int> input-selected-io-index: -1;
+    in property <[string]> input-endpoint-options;
+    in-out property <string> input-selected-io-name: "";
+    in-out property <string> input-selected-endpoint-name: "";
+    callback input-select-io(int);
+    callback input-select-endpoint(string);
     // Inline output endpoint editor
     in property <bool> show-output-editor: false;
     in property <[string]> output-device-options;
@@ -175,6 +182,13 @@ export component ChainEditorWindow inherits Window {
     callback output-select-mode(int);
     callback output-save();
     callback output-cancel();
+    in property <[string]> output-io-binding-names;
+    in-out property <int> output-selected-io-index: -1;
+    in property <[string]> output-endpoint-options;
+    in-out property <string> output-selected-io-name: "";
+    in-out property <string> output-selected-endpoint-name: "";
+    callback output-select-io(int);
+    callback output-select-endpoint(string);
     title: @tr("title-window-chain-editor");
     min-width: 860px;
     min-height: 540px;
@@ -209,16 +223,13 @@ export component ChainEditorWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-input");
-        device-options: root.input-device-options;
-        selected-device-index <=> root.input-selected-device-index;
-        channels: root.input-channels;
+        io-binding-names: root.input-io-binding-names;
+        selected-io-index <=> root.input-selected-io-index;
+        endpoint-options: root.input-endpoint-options;
+        selected-endpoint-name <=> root.input-selected-endpoint-name;
         status-message <=> root.input-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.input-mode-index;
-        select-device(index) => { root.input-select-device(index); }
-        toggle-channel(index, selected) => { root.input-toggle-channel(index, selected); }
-        select-mode(index) => { root.input-select-mode(index); }
+        select-io(index) => { root.input-select-io(index); }
+        select-endpoint(name) => { root.input-select-endpoint(name); }
         save => { root.input-save(); }
         cancel => { root.input-cancel(); }
     }
@@ -227,16 +238,13 @@ export component ChainEditorWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-output");
-        device-options: root.output-device-options;
-        selected-device-index <=> root.output-selected-device-index;
-        channels: root.output-channels;
+        io-binding-names: root.output-io-binding-names;
+        selected-io-index <=> root.output-selected-io-index;
+        endpoint-options: root.output-endpoint-options;
+        selected-endpoint-name <=> root.output-selected-endpoint-name;
         status-message <=> root.output-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.output-mode-index;
-        select-device(index) => { root.output-select-device(index); }
-        toggle-channel(index, selected) => { root.output-toggle-channel(index, selected); }
-        select-mode(index) => { root.output-select-mode(index); }
+        select-io(index) => { root.output-select-io(index); }
+        select-endpoint(name) => { root.output-select-endpoint(name); }
         save => { root.output-save(); }
         cancel => { root.output-cancel(); }
     }
@@ -267,16 +275,9 @@ export component ChainInputWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-input");
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
+        io-binding-names: [];
+        endpoint-options: [];
         status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.selected-input-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-input-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
@@ -307,16 +308,9 @@ export component ChainOutputWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-output");
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
+        io-binding-names: [];
+        endpoint-options: [];
         status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.selected-output-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-output-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }

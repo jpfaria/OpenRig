@@ -690,3 +690,18 @@ msgstr "Estéreo"
 
 msgid "mode-dual-mono"
 msgstr "Mono duplo"
+
+msgid "label-io-binding"
+msgstr "Ligação de E/S"
+
+msgid "label-input-endpoint"
+msgstr "Endpoint de entrada"
+
+msgid "label-output-endpoint"
+msgstr "Endpoint de saída"
+
+msgid "label-resolved-info"
+msgstr "Informações resolvidas"
+
+msgid "placeholder-select-endpoint"
+msgstr "Selecione um endpoint"

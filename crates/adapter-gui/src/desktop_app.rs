@@ -731,6 +731,7 @@ pub fn run_desktop_app(
         open_compact_window: open_compact_window.clone(),
         vst3_editor_handles: vst3_editor_handles.clone(),
         toast_timer: toast_timer.clone(),
+        app_config: app_config.clone(),
         vst3_sample_rate,
         fullscreen,
         auto_save,
