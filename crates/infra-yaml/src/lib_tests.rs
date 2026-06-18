@@ -441,6 +441,69 @@ fn disabled_insert_block_yaml_roundtrip() {
     assert!(matches!(&restored.kind, AudioBlockKind::Insert(_)));
 }
 
+// ─── Guard: Insert block YAML must NOT contain io/endpoint fields (Task 5 leak guard) ───
+
+/// Regression guard for issue #716 Task 17.
+///
+/// Input/Output blocks gained `io` and `endpoint` fields in Task 5.
+/// Insert blocks must NOT be affected: their send/return endpoint model
+/// is raw (single-runtime send/return pipeline), and the io/endpoint
+/// registry concept must NOT leak into Insert serialization.
+///
+/// If this test fails after a schema change, it means io/endpoint leaked
+/// into Insert — restore the Insert serializer to the raw send/return model.
+#[test]
+fn insert_block_yaml_has_no_io_or_endpoint_fields() {
+    use project::block::{InsertBlock, InsertEndpoint};
+    let block = AudioBlock {
+        id: BlockId("chain:0:block:1".into()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(InsertBlock {
+            model: "standard".to_string(),
+            send: InsertEndpoint {
+                device_id: DeviceId("fx-loop-out".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![0, 1],
+            },
+            return_: InsertEndpoint {
+                device_id: DeviceId("fx-loop-in".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![0, 1],
+            },
+        }),
+    };
+    let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+    let value = serde_yaml::to_value(&yaml).expect("serialize to value");
+    let yaml_str = serde_yaml::to_string(&value).expect("serialize to string");
+
+    // Guard: insert YAML must use raw send/return — no io/endpoint leak from Task 5
+    assert!(
+        !yaml_str.contains("\nio:") && !yaml_str.contains("io: "),
+        "Insert block YAML must NOT contain an 'io' field (Task 5 io/endpoint leaked into insert): {yaml_str}"
+    );
+    assert!(
+        !yaml_str.contains("endpoint:"),
+        "Insert block YAML must NOT contain an 'endpoint' field (Task 5 io/endpoint leaked into insert): {yaml_str}"
+    );
+    // Guard: the raw send/return model must still be present
+    assert!(
+        yaml_str.contains("send:"),
+        "Insert block YAML must still contain 'send:' endpoint: {yaml_str}"
+    );
+    assert!(
+        yaml_str.contains("return:"),
+        "Insert block YAML must still contain 'return:' endpoint: {yaml_str}"
+    );
+    assert!(
+        yaml_str.contains("fx-loop-out"),
+        "Insert send device_id must survive serialization: {yaml_str}"
+    );
+    assert!(
+        yaml_str.contains("fx-loop-in"),
+        "Insert return device_id must survive serialization: {yaml_str}"
+    );
+}
+
 // ─── Helper: build a CoreBlock AudioBlock for a given effect type + model ───
 
 fn core_block(
