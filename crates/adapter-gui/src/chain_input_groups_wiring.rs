@@ -12,14 +12,13 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::{AudioBlock, AudioBlockKind};
-use project::chain::{Chain, ChainInputMode};
+use project::chain::ChainInputMode;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::{refresh_input_devices, refresh_output_devices};
-use crate::chain_io_block_builders::build_input_block_from_draft;
+use crate::chain_io_block_builders::{build_input_block_from_draft, build_input_endpoint_cmd};
 use crate::helpers::show_child_window;
 use crate::io_groups::{apply_chain_input_window_state, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
@@ -174,6 +173,8 @@ pub(crate) fn wire(
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
+                    io: String::new(),
+                    endpoint: String::new(),
                 });
                 draft.editing_input_index = Some(idx);
                 draft.adding_new_input = true;
@@ -262,8 +263,9 @@ pub(crate) fn wire(
             let editing_index = draft.editing_index;
 
             if let Some(chain_idx) = editing_index {
-                // Resolve chain positional index → chain_id and build new InputBlock.
-                let (chain_id, new_input_block) = {
+                // Resolve chain positional index → chain_id, build new InputBlock,
+                // and capture the block_index of the first InputBlock in the chain.
+                let (chain_id, new_input_block, input_block_index) = {
                     let proj = session.project.borrow();
                     let Some(chain) = proj.chains.get(chain_idx) else {
                         return;
@@ -273,52 +275,29 @@ pub(crate) fn wire(
                     };
                     // Pre-validate channel conflicts using a simulated chain state.
                     let mut simulated = chain.clone();
-                    if let Some(in_pos) = simulated
+                    let in_pos = simulated
                         .blocks
                         .iter()
-                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)))
-                    {
-                        simulated.blocks[in_pos] = block.clone();
+                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
+                    if let Some(pos) = in_pos {
+                        simulated.blocks[pos] = block.clone();
                     }
                     if let Err(msg) = simulated.validate_channel_conflicts() {
                         drop(proj);
                         groups_window.set_status_message(msg.into());
                         return;
                     }
-                    (chain.id.clone(), block)
+                    (chain.id.clone(), block, in_pos.unwrap_or(0))
                 };
-                // TODO(#716): replace with binding-reference picker when the
-                // I/O binding UI is ready. For now, persist device-level block
-                // edits via SaveChain.
-                let updated_chain: Option<Chain> = {
-                    let proj = session.project.borrow();
-                    proj.chains.iter().find(|c| c.id == chain_id).map(|c| {
-                        let mut non_input: Vec<AudioBlock> = c
-                            .blocks
-                            .iter()
-                            .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
-                            .cloned()
-                            .collect();
-                        let mut merged = vec![new_input_block.clone()];
-                        merged.append(&mut non_input);
-                        Chain {
-                            id: c.id.clone(),
-                            description: c.description.clone(),
-                            instrument: c.instrument.clone(),
-                            enabled: c.enabled,
-                            volume: c.volume,
-                            blocks: merged,
-                        }
-                    })
-                };
-                if let Some(chain) = updated_chain {
-                    if let Err(error) = session
-                        .dispatcher
-                        .dispatch(Command::SaveChain { chain })
-                    {
-                        groups_window.set_status_message(error.to_string().into());
-                        return;
-                    }
+                let _ = new_input_block; // retained for validation; binding ref drives the save
+                let io = draft.inputs.first().map(|g| g.io.as_str()).unwrap_or("");
+                let endpoint = draft.inputs.first().map(|g| g.endpoint.as_str()).unwrap_or("");
+                if let Err(error) = session
+                    .dispatcher
+                    .dispatch(build_input_endpoint_cmd(chain_id.clone(), input_block_index, io, endpoint))
+                {
+                    groups_window.set_status_message(error.to_string().into());
+                    return;
                 }
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     groups_window.set_status_message(error.to_string().into());

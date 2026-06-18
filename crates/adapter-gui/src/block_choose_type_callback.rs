@@ -238,6 +238,8 @@ pub(crate) fn wire(
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
+                    io: String::new(),
+                    endpoint: String::new(),
                 };
                 *chain_draft.borrow_mut() = Some(ChainDraft {
                     editing_index: Some(chain_index),
@@ -267,6 +269,8 @@ pub(crate) fn wire(
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
+                    io: String::new(),
+                    endpoint: String::new(),
                 };
                 *chain_draft.borrow_mut() = Some(ChainDraft {
                     editing_index: Some(chain_index),

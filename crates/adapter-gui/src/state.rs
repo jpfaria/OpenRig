@@ -88,6 +88,12 @@ pub(crate) struct InputGroupDraft {
     pub(crate) device_id: Option<String>,
     pub(crate) channels: Vec<usize>,
     pub(crate) mode: ChainInputMode,
+    /// I/O binding id — populated from `InputBlock.io` when the draft is built
+    /// from an existing chain.  Used by the save path to dispatch
+    /// `SaveChainInputEndpoints` instead of the legacy `SaveChain` stopgap.
+    pub(crate) io: String,
+    /// Endpoint name within the binding — populated from `InputBlock.endpoint`.
+    pub(crate) endpoint: String,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +101,12 @@ pub(crate) struct OutputGroupDraft {
     pub(crate) device_id: Option<String>,
     pub(crate) channels: Vec<usize>,
     pub(crate) mode: ChainOutputMode,
+    /// I/O binding id — populated from `OutputBlock.io` when the draft is built
+    /// from an existing chain.  Used by the save path to dispatch
+    /// `SaveChainOutputEndpoints` instead of the legacy `SaveChain` stopgap.
+    pub(crate) io: String,
+    /// Endpoint name within the binding — populated from `OutputBlock.endpoint`.
+    pub(crate) endpoint: String,
 }
 
 #[derive(Debug, Clone)]

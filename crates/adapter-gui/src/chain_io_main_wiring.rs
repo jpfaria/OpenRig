@@ -329,6 +329,8 @@ pub(crate) fn wire(
                                 },
                                 channels: e.channels.clone(),
                                 mode: e.mode,
+                                io: ib.io.clone(),
+                                endpoint: ib.endpoint.clone(),
                             })
                             .collect()
                     })
@@ -337,6 +339,8 @@ pub(crate) fn wire(
                             device_id: None,
                             channels: Vec::new(),
                             mode: ChainInputMode::Mono,
+                            io: String::new(),
+                            endpoint: String::new(),
                         }]
                     });
                 let draft = chain_draft_from_chain(index as usize, chain);
@@ -409,6 +413,8 @@ pub(crate) fn wire(
                                 },
                                 channels: e.channels.clone(),
                                 mode: e.mode,
+                                io: ob.io.clone(),
+                                endpoint: ob.endpoint.clone(),
                             })
                             .collect()
                     })
@@ -417,6 +423,8 @@ pub(crate) fn wire(
                             device_id: None,
                             channels: Vec::new(),
                             mode: ChainOutputMode::Stereo,
+                            io: String::new(),
+                            endpoint: String::new(),
                         }]
                     });
                 let draft = chain_draft_from_chain(index as usize, chain);
