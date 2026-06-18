@@ -176,3 +176,6 @@ mod tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;
+
+#[cfg(test)]
+mod chain_io_chip_label_tests;

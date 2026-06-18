@@ -171,6 +171,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             // The chains screen has its own preset/scene combobox model
             // (chain_rig_nav) — replace_project_chains alone leaves it

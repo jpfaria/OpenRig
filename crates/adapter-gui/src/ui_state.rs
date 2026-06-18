@@ -254,6 +254,49 @@ pub(crate) fn endpoint_names_for_output_binding(binding: &IoBindingModel) -> Vec
     binding.outputs.iter().map(|ep| ep.name.clone()).collect()
 }
 
+/// Returns the display label for the chain's head input or tail output chip.
+///
+/// Looks up the binding name from `io_bindings` using the `io` field of the
+/// chain's first Input block (for `is_input = true`) or last Output block
+/// (for `is_input = false`). Returns the binding's human-readable `name` field
+/// (e.g. `"Scarlett"`) so the chip shows a meaningful label instead of a raw
+/// device id string.
+///
+/// Returns `""` when:
+/// - The chain has no input/output block (`io` is unset), or
+/// - The `io` field is empty (unbound block), or
+/// - The binding id is not found in `io_bindings`.
+///
+/// Pure function — safe to call in tests without `AppWindow`.
+#[allow(dead_code)]
+pub fn chain_io_chip_label(chain: &Chain, config: &AppConfig, is_input: bool) -> String {
+    chain_io_chip_label_from_bindings(chain, &config.io_bindings, is_input)
+}
+
+/// Inner variant that takes the binding slice directly — used by
+/// `replace_project_chains` which has `&[IoBinding]` but not a full
+/// `AppConfig`.
+pub(crate) fn chain_io_chip_label_from_bindings(
+    chain: &Chain,
+    io_bindings: &[IoBinding],
+    is_input: bool,
+) -> String {
+    let io_ref = if is_input {
+        chain.first_input().map(|ib| ib.io.as_str())
+    } else {
+        chain.last_output().map(|ob| ob.io.as_str())
+    };
+    let io = match io_ref {
+        Some(s) if !s.is_empty() => s,
+        _ => return String::new(),
+    };
+    io_bindings
+        .iter()
+        .find(|b| b.id == io)
+        .map(|b| b.name.clone())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 #[path = "ui_state_tests.rs"]
 mod tests;
