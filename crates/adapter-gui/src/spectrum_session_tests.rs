@@ -240,3 +240,42 @@ fn spectrum_legacy_entries_path_still_enumerates_per_entry() {
         "legacy output entry must yield at least one spectrum row"
     );
 }
+
+// ── tap-key mapping — binding output row resolves to the same key as legacy ──
+
+/// A binding output endpoint (non-empty `io`) must resolve to stream_index=0 on
+/// its chain — the same tap key the legacy path uses for the first output entry.
+///
+/// This pins the session-layer mapping: both paths call
+/// `subscribe_stream_tap(chain_id, 0, …)`.  Without this, a binding-output row
+/// has no ring and the spectrum shows flat bars.
+#[test]
+fn binding_output_endpoint_maps_to_physical_tap_key() {
+    let binding_chain = chain_with_binding_output("chain:guitar", "binding-A", "Speaker");
+
+    let key = tap_stream_index_for_output_chain(&binding_chain);
+
+    assert_eq!(
+        key,
+        Some(0),
+        "binding output chain must map to stream_index=0 (its only stream); got {:?}",
+        key
+    );
+}
+
+/// A single-entry legacy output chain also resolves to stream_index=0 — the
+/// same value the binding path returns, confirming both paths agree on the tap
+/// key.
+#[test]
+fn legacy_single_output_maps_to_same_tap_key_as_binding() {
+    let legacy_chain = chain_with_legacy_output("chain:guitar", "coreaudio:Built-in Output");
+
+    let key = tap_stream_index_for_output_chain(&legacy_chain);
+
+    assert_eq!(
+        key,
+        Some(0),
+        "legacy single-output chain must also resolve to stream_index=0; got {:?}",
+        key
+    );
+}

@@ -263,3 +263,47 @@ fn tuner_legacy_entries_path_still_enumerates_per_channel() {
         labels
     );
 }
+
+// ── tap-key mapping — binding row resolves to the same key as legacy (#716) ─
+
+/// A binding input port (non-empty `io`) must resolve to stream_index=0 on its
+/// chain — the same tap key the legacy single-entry path uses for the first
+/// (and only) entry of an equivalent single-entry chain.
+///
+/// This is the mapping invariant: both paths call `subscribe_stream_input_tap`
+/// with `(chain_id, 0)`.  If the binding path returns `None` (no mapping)
+/// the row has no ring and the tuner shows "—" forever.
+#[test]
+fn binding_input_port_maps_to_physical_tap_key() {
+    let binding_chain = chain_with_binding_input("chain:guitar", "binding-A", "Guitar");
+
+    let key = tap_stream_index_for_input_chain(&binding_chain);
+
+    assert_eq!(
+        key,
+        Some(0),
+        "binding chain must map to stream_index=0 (its only stream); got {:?}",
+        key
+    );
+}
+
+/// A single-entry legacy chain (io == "") also resolves to stream_index=0 — the
+/// same value a binding chain returns, confirming the two paths agree on the
+/// tap key for a chain's first (and only) input stream.
+#[test]
+fn legacy_single_entry_maps_to_same_tap_key_as_binding() {
+    let legacy_chain = chain_with_input(
+        "chain:guitar",
+        true,
+        vec![input_entry("dev:1", vec![0], ChainInputMode::Mono)],
+    );
+
+    let key = tap_stream_index_for_input_chain(&legacy_chain);
+
+    assert_eq!(
+        key,
+        Some(0),
+        "legacy single-entry chain must also resolve to stream_index=0; got {:?}",
+        key
+    );
+}

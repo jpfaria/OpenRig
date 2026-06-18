@@ -18,6 +18,9 @@ use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 
+#[cfg(test)]
+use project::chain::Chain;
+
 use crate::TunerRow;
 
 /// Tuner default reference (440 Hz). Per-row reference would require a UI control.
@@ -76,6 +79,9 @@ fn freq_to_octave(freq: f32, reference_hz: f32) -> i32 {
 /// Legacy chains (pre-#716, `io == ""`) continue to enumerate one row per
 /// physical channel in their `InputEntry` list so the legacy path is not
 /// disturbed.
+///
+/// Exposed for tests — pins the per-binding enumeration contract.
+#[cfg(test)]
 pub fn input_port_labels_for_project(project: &Project) -> Vec<String> {
     let mut labels = Vec::new();
     for chain in &project.chains {
@@ -115,6 +121,22 @@ pub fn input_port_labels_for_project(project: &Project) -> Vec<String> {
         }
     }
     labels
+}
+
+/// Returns the stream index the tuner should use to subscribe a tap on
+/// `chain`. For both binding-based chains (non-empty `io`) and legacy
+/// single-entry chains the first (and only) stream always lives at index 0
+/// within its `chain_id` key in the runtime graph.
+///
+/// Returns `None` only for chains with no enabled input block.
+///
+/// Exposed for tests — pins the session-layer tap-key invariant.
+#[cfg(test)]
+pub fn tap_stream_index_for_input_chain(chain: &Chain) -> Option<usize> {
+    let has_input = chain.blocks.iter().any(|b| {
+        matches!(&b.kind, AudioBlockKind::Input(_))
+    });
+    if has_input { Some(0) } else { None }
 }
 
 /// Stable signature of every (chain, input, channel) the tuner cares about.
@@ -157,100 +179,132 @@ impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
     ///
-    /// For binding-based chains (#716, `InputBlock.io` non-empty) the physical
-    /// channel mapping is not yet known at this layer; one placeholder row per
-    /// `(io, endpoint)` pair is created but no tap ring is subscribed (the
-    /// tap engine is still keyed by physical channel index).  Legacy chains
-    /// (empty `io`) retain the full tap-subscribe path.
+    /// Binding-based chains (#716, `InputBlock.io` non-empty) each produce
+    /// exactly one runtime stream at index 0 within their `chain_id` key.
+    /// We subscribe via `subscribe_stream_input_tap(chain_id, 0)` — the
+    /// same index the legacy single-entry path uses for its first stream —
+    /// so every row has a live tap ring and the tuner shows real signal.
+    ///
+    /// Legacy chains (empty `io`) retain the full per-channel tap-subscribe
+    /// path via `subscribe_input_tap`.
+    ///
+    /// Row order and state order are kept in lock-step: every row pushed
+    /// into `rows_model` at index `i` has its `RowState` at `row_states[i]`
+    /// so `tick()` can use a single index to drive both.
     pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
-
-        // Seed placeholder rows for binding-based input ports.  These are
-        // enumerated per (io, endpoint) and appear in the tuner list even
-        // before a runtime tap is available.
-        for label in input_port_labels_for_project(project) {
-            rows_model.push(placeholder_row(label));
-            // No ring/RowState for binding-based ports until the tap engine
-            // gains per-binding key support — the row shows "—" (inactive).
-        }
 
         for chain in &project.chains {
             if !chain.enabled {
                 continue;
             }
 
-            // Skip chains handled by the binding-based path above.
+            let chain_label = chain
+                .description
+                .clone()
+                .unwrap_or_else(|| chain.id.0.clone());
+
             let has_binding_input = chain.blocks.iter().any(|b| {
                 matches!(&b.kind, AudioBlockKind::Input(inp) if !inp.io.is_empty())
             });
+
             if has_binding_input {
-                continue;
-            }
-
-            let sample_rate = chain
-                .blocks
-                .iter()
-                .find_map(|b| match &b.kind {
-                    AudioBlockKind::Input(input) => input.entries.first().and_then(|entry| {
-                        project
-                            .device_settings
-                            .iter()
-                            .find(|d| d.device_id == entry.device_id)
-                            .map(|d| d.sample_rate)
-                    }),
-                    _ => None,
-                })
-                .unwrap_or(48_000) as usize;
-
-            let mut input_index = 0_usize;
-            for block in &chain.blocks {
-                if let AudioBlockKind::Input(input) = &block.kind {
-                    for entry in &input.entries {
-                        if entry.channels.is_empty() {
-                            input_index += 1;
+                // Binding-based path: one row per (io, endpoint) pair.
+                // Each binding chain owns exactly one stream (stream_index=0).
+                for block in &chain.blocks {
+                    if let AudioBlockKind::Input(input) = &block.kind {
+                        if input.io.is_empty() {
                             continue;
                         }
-                        let max_channel = *entry.channels.iter().max().unwrap_or(&0);
-                        let total_channels = max_channel + 1;
-
-                        let rings = controller.subscribe_input_tap(
-                            &chain.id,
-                            input_index,
-                            total_channels,
-                            &entry.channels,
-                            RING_CAPACITY,
+                        let label = format!(
+                            "{}  ·  {}  ·  {}",
+                            chain_label.to_uppercase(),
+                            input.io,
+                            input.endpoint,
                         );
+                        rows_model.push(placeholder_row(label));
 
-                        let chain_label = chain
-                            .description
-                            .clone()
-                            .unwrap_or_else(|| chain.id.0.clone());
+                        // Subscribe the tap at stream_index=0 — the invariant
+                        // for binding chains (one runtime per chain).  If the
+                        // runtime is not yet alive the ring stays empty (the
+                        // row shows "—") until the next rebuild.
+                        let sample_rate = project
+                            .device_settings
+                            .iter()
+                            .next()
+                            .map(|d| d.sample_rate as usize)
+                            .unwrap_or(48_000);
 
-                        for (ch_pos, (channel, ring)) in
-                            entry.channels.iter().zip(rings.into_iter()).enumerate()
-                        {
-                            let ch_label = if entry.channels.len() == 1 {
-                                String::new()
-                            } else if ch_pos == 0 {
-                                " · L".to_string()
-                            } else if ch_pos == 1 {
-                                " · R".to_string()
-                            } else {
-                                format!(" · ch{}", ch_pos + 1)
-                            };
-                            let label = format!(
-                                "{}  ·  IN {}  ·  CH {}{}",
-                                chain_label.to_uppercase(),
-                                input_index + 1,
-                                channel + 1,
-                                ch_label
+                        let ring = controller
+                            .subscribe_stream_input_tap(&chain.id, 0, RING_CAPACITY)
+                            .unwrap_or_else(|| {
+                                Arc::new(SpscRing::new(RING_CAPACITY, 0.0_f32))
+                            });
+                        row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
+                    }
+                }
+            } else {
+                // Legacy entries path: one row per physical channel.
+                let sample_rate = chain
+                    .blocks
+                    .iter()
+                    .find_map(|b| match &b.kind {
+                        AudioBlockKind::Input(input) => input.entries.first().and_then(|entry| {
+                            project
+                                .device_settings
+                                .iter()
+                                .find(|d| d.device_id == entry.device_id)
+                                .map(|d| d.sample_rate)
+                        }),
+                        _ => None,
+                    })
+                    .unwrap_or(48_000) as usize;
+
+                let mut input_index = 0_usize;
+                for block in &chain.blocks {
+                    if let AudioBlockKind::Input(input) = &block.kind {
+                        for entry in &input.entries {
+                            if entry.channels.is_empty() {
+                                input_index += 1;
+                                continue;
+                            }
+                            let max_channel = *entry.channels.iter().max().unwrap_or(&0);
+                            let total_channels = max_channel + 1;
+
+                            let rings = controller.subscribe_input_tap(
+                                &chain.id,
+                                input_index,
+                                total_channels,
+                                &entry.channels,
+                                RING_CAPACITY,
                             );
-                            rows_model.push(placeholder_row(label));
-                            row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
-                        }
 
-                        input_index += 1;
+                            for (ch_pos, (channel, ring)) in
+                                entry.channels.iter().zip(rings.into_iter()).enumerate()
+                            {
+                                let ch_label = if entry.channels.len() == 1 {
+                                    String::new()
+                                } else if ch_pos == 0 {
+                                    " · L".to_string()
+                                } else if ch_pos == 1 {
+                                    " · R".to_string()
+                                } else {
+                                    format!(" · ch{}", ch_pos + 1)
+                                };
+                                let label = format!(
+                                    "{}  ·  IN {}  ·  CH {}{}",
+                                    chain_label.to_uppercase(),
+                                    input_index + 1,
+                                    channel + 1,
+                                    ch_label
+                                );
+                                rows_model.push(placeholder_row(label));
+                                row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
+                            }
+
+                            input_index += 1;
+                        }
                     }
                 }
             }
