@@ -252,9 +252,15 @@ export component TouchMain inherits Rectangle {
     in property <bool> chain-io-show-mode-selector: false;
     in property <[string]> chain-io-mode-labels;
     in-out property <int> chain-io-selected-mode-index: 0;
+    // #716: endpoint picker — io-binding + endpoint selection for inline editor.
+    in-out property <int> chain-io-selected-io-index: -1;
+    in property <[string]> chain-io-endpoint-options;
+    in-out property <string> chain-io-selected-endpoint-name: "";
     callback chain-io-select-device(int);
     callback chain-io-toggle-channel(int, bool);
     callback chain-io-select-mode(int);
+    callback chain-io-select-io(int);
+    callback chain-io-select-endpoint(string);
     callback chain-io-save();
     callback chain-io-cancel();
     in property <bool> show-preset-picker: false;
@@ -522,15 +528,20 @@ export component TouchMain inherits Rectangle {
         delete-block => { root.chain-io-groups-delete-block(); }
     }
 
-    // Inline I/O endpoint editor overlay (fullscreen mode)
+    // Inline I/O endpoint editor overlay (fullscreen mode).
+    // #716: forward io-binding-names from root so the endpoint picker is live.
     if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
         x: 0; y: 0;
         width: parent.width;
         height: parent.height;
         title: root.chain-io-editor-title;
-        io-binding-names: [];
-        endpoint-options: [];
+        io-binding-names: root.io-binding-names;
+        selected-io-index <=> root.chain-io-selected-io-index;
+        endpoint-options: root.chain-io-endpoint-options;
+        selected-endpoint-name <=> root.chain-io-selected-endpoint-name;
         status-message <=> root.chain-io-editor-status;
+        select-io(index) => { root.chain-io-select-io(index); }
+        select-endpoint(name) => { root.chain-io-select-endpoint(name); }
         save => { root.chain-io-save(); }
         cancel => { root.chain-io-cancel(); }
     }

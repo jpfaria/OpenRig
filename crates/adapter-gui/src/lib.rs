@@ -179,3 +179,6 @@ mod compact_block_search_wiring_tests;
 
 #[cfg(test)]
 mod chain_io_chip_label_tests;
+
+#[cfg(test)]
+mod touch_window_io_parity_tests;

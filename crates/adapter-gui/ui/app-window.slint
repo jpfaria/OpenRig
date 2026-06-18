@@ -138,6 +138,14 @@ export component AppWindow inherits Window {
     in property <bool> chain-io-show-mode-selector: false;
     in property <[string]> chain-io-mode-labels;
     in-out property <int> chain-io-selected-mode-index: 0;
+    // #716: endpoint picker properties for fullscreen inline chain-io editor.
+    // Mirror the ChainEditorWindow's input-io-binding-names / output-io-binding-names
+    // so the inline ChainEndpointEditorPage overlay can show the binding list.
+    in-out property <int> chain-io-selected-io-index: -1;
+    in property <[string]> chain-io-endpoint-options;
+    in-out property <string> chain-io-selected-endpoint-name: "";
+    callback chain-io-select-io(int);
+    callback chain-io-select-endpoint(string);
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -445,9 +453,14 @@ export component AppWindow inherits Window {
         chain-io-show-mode-selector: root.chain-io-show-mode-selector;
         chain-io-mode-labels: root.chain-io-mode-labels;
         chain-io-selected-mode-index <=> root.chain-io-selected-mode-index;
+        chain-io-selected-io-index <=> root.chain-io-selected-io-index;
+        chain-io-endpoint-options: root.chain-io-endpoint-options;
+        chain-io-selected-endpoint-name <=> root.chain-io-selected-endpoint-name;
         chain-io-select-device(index) => { root.chain-io-select-device(index); }
         chain-io-toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
+        chain-io-select-io(index) => { root.chain-io-select-io(index); }
+        chain-io-select-endpoint(name) => { root.chain-io-select-endpoint(name); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
         show-chain-io-groups: root.show-chain-io-groups;
@@ -839,9 +852,14 @@ export component AppWindow inherits Window {
         chain-io-show-mode-selector: root.chain-io-show-mode-selector;
         chain-io-mode-labels: root.chain-io-mode-labels;
         chain-io-selected-mode-index <=> root.chain-io-selected-mode-index;
+        chain-io-selected-io-index <=> root.chain-io-selected-io-index;
+        chain-io-endpoint-options: root.chain-io-endpoint-options;
+        chain-io-selected-endpoint-name <=> root.chain-io-selected-endpoint-name;
         chain-io-select-device(index) => { root.chain-io-select-device(index); }
         chain-io-toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
+        chain-io-select-io(index) => { root.chain-io-select-io(index); }
+        chain-io-select-endpoint(name) => { root.chain-io-select-endpoint(name); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
         plugin-info-visible: root.plugin-info-visible;

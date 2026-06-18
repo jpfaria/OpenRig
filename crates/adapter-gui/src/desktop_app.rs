@@ -801,6 +801,7 @@ pub fn run_desktop_app(
             chain_output_device_options: chain_output_device_options.clone(),
             chain_input_channels: chain_input_channels.clone(),
             chain_output_channels: chain_output_channels.clone(),
+            app_config: app_config.clone(),
         },
     );
     // --- on_save_chain + on_cancel_chain (extracted to chain_save_cancel_callbacks) ---
