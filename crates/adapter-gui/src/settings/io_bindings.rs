@@ -85,6 +85,19 @@ fn dispatch_if_session(ps: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
     }
 }
 
+/// Issue #716 — mirror the edited `AppConfig.io_bindings` into the open
+/// session so the live runtime resolves bound chains against the latest
+/// registry on its next sync (a new/edited binding takes effect without a
+/// project reopen).
+fn mirror_bindings_to_session(
+    ps: &Rc<RefCell<Option<ProjectSession>>>,
+    cfg: &Rc<RefCell<AppConfig>>,
+) {
+    if let Some(session) = ps.borrow().as_ref() {
+        *session.io_bindings.borrow_mut() = cfg.borrow().io_bindings.clone();
+    }
+}
+
 fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
     let cmd = Command::DeleteIoBinding { id: id.to_string() };
     if let Some(session) = ps.borrow().as_ref() {
@@ -118,7 +131,13 @@ fn make_id(name: &str) -> String {
     let slug: String = name
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
-        .map(|c| if c == ' ' { '-' } else { c.to_ascii_lowercase() })
+        .map(|c| {
+            if c == ' ' {
+                '-'
+            } else {
+                c.to_ascii_lowercase()
+            }
+        })
         .take(24)
         .collect();
 
@@ -144,11 +163,7 @@ pub fn wire(
 }
 
 /// Seed both surfaces from the in-memory `AppConfig` snapshot.
-fn seed_both(
-    window: &AppWindow,
-    psw: &ProjectSettingsWindow,
-    app_config: &Rc<RefCell<AppConfig>>,
-) {
+fn seed_both(window: &AppWindow, psw: &ProjectSettingsWindow, app_config: &Rc<RefCell<AppConfig>>) {
     use crate::ui_state::ui_bindings;
     use slint::{SharedString, VecModel};
 
@@ -199,6 +214,7 @@ fn install_on_window(
             let cmd = build_create_command(binding.clone());
             dispatch_if_session(&ps, cmd);
             cfg.borrow_mut().io_bindings.push(binding);
+            mirror_bindings_to_session(&ps, &cfg);
             slint::SharedString::from(id)
         });
     }
@@ -211,6 +227,7 @@ fn install_on_window(
             let msg = delete_reject_message(&ps, id.as_str());
             if msg.is_empty() {
                 cfg.borrow_mut().io_bindings.retain(|b| b.id != id.as_str());
+                mirror_bindings_to_session(&ps, &cfg);
             }
             slint::SharedString::from(msg)
         });
@@ -221,12 +238,15 @@ fn install_on_window(
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         window.on_rename_io_binding(move |id, new_name| {
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.name = new_name.to_string();
-                let cmd = Command::UpdateIoBinding { binding: b.clone() };
-                dispatch_if_session(&ps, cmd);
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.name = new_name.to_string();
+                    let cmd = Command::UpdateIoBinding { binding: b.clone() };
+                    dispatch_if_session(&ps, cmd);
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
 
@@ -235,12 +255,20 @@ fn install_on_window(
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         window.on_add_input_endpoint(move |id, ep_name, device, mode, channels| {
-            let ep = make_endpoint(ep_name.as_str(), device.as_str(), mode.as_str(), channels.as_str());
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.inputs.push(ep);
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+            let ep = make_endpoint(
+                ep_name.as_str(),
+                device.as_str(),
+                mode.as_str(),
+                channels.as_str(),
+            );
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.inputs.push(ep);
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
 
@@ -249,12 +277,20 @@ fn install_on_window(
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         window.on_add_output_endpoint(move |id, ep_name, device, mode, channels| {
-            let ep = make_endpoint(ep_name.as_str(), device.as_str(), mode.as_str(), channels.as_str());
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.outputs.push(ep);
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+            let ep = make_endpoint(
+                ep_name.as_str(),
+                device.as_str(),
+                mode.as_str(),
+                channels.as_str(),
+            );
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.outputs.push(ep);
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
 
@@ -263,15 +299,18 @@ fn install_on_window(
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         window.on_remove_endpoint(move |id, ep_name, is_input| {
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                if is_input {
-                    b.inputs.retain(|e| e.name != ep_name.as_str());
-                } else {
-                    b.outputs.retain(|e| e.name != ep_name.as_str());
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    if is_input {
+                        b.inputs.retain(|e| e.name != ep_name.as_str());
+                    } else {
+                        b.outputs.retain(|e| e.name != ep_name.as_str());
+                    }
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
                 }
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
 }
@@ -295,6 +334,7 @@ fn install_on_psw(
             let cmd = build_create_command(binding.clone());
             dispatch_if_session(&ps, cmd);
             cfg.borrow_mut().io_bindings.push(binding);
+            mirror_bindings_to_session(&ps, &cfg);
             slint::SharedString::from(id)
         });
     }
@@ -305,6 +345,7 @@ fn install_on_psw(
             let msg = delete_reject_message(&ps, id.as_str());
             if msg.is_empty() {
                 cfg.borrow_mut().io_bindings.retain(|b| b.id != id.as_str());
+                mirror_bindings_to_session(&ps, &cfg);
             }
             slint::SharedString::from(msg)
         });
@@ -313,51 +354,73 @@ fn install_on_psw(
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         psw.on_rename_io_binding(move |id, new_name| {
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.name = new_name.to_string();
-                let cmd = Command::UpdateIoBinding { binding: b.clone() };
-                dispatch_if_session(&ps, cmd);
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.name = new_name.to_string();
+                    let cmd = Command::UpdateIoBinding { binding: b.clone() };
+                    dispatch_if_session(&ps, cmd);
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         psw.on_add_input_endpoint(move |id, ep_name, device, mode, channels| {
-            let ep = make_endpoint(ep_name.as_str(), device.as_str(), mode.as_str(), channels.as_str());
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.inputs.push(ep);
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+            let ep = make_endpoint(
+                ep_name.as_str(),
+                device.as_str(),
+                mode.as_str(),
+                channels.as_str(),
+            );
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.inputs.push(ep);
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         psw.on_add_output_endpoint(move |id, ep_name, device, mode, channels| {
-            let ep = make_endpoint(ep_name.as_str(), device.as_str(), mode.as_str(), channels.as_str());
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                b.outputs.push(ep);
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+            let ep = make_endpoint(
+                ep_name.as_str(),
+                device.as_str(),
+                mode.as_str(),
+                channels.as_str(),
+            );
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    b.outputs.push(ep);
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
+                }
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
         psw.on_remove_endpoint(move |id, ep_name, is_input| {
-            let mut config = cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
-                if is_input {
-                    b.inputs.retain(|e| e.name != ep_name.as_str());
-                } else {
-                    b.outputs.retain(|e| e.name != ep_name.as_str());
+            {
+                let mut config = cfg.borrow_mut();
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id.as_str()) {
+                    if is_input {
+                        b.inputs.retain(|e| e.name != ep_name.as_str());
+                    } else {
+                        b.outputs.retain(|e| e.name != ep_name.as_str());
+                    }
+                    dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
                 }
-                dispatch_if_session(&ps, Command::UpdateIoBinding { binding: b.clone() });
             }
+            mirror_bindings_to_session(&ps, &cfg);
         });
     }
 }

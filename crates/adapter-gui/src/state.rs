@@ -36,6 +36,11 @@ pub(crate) struct ProjectSession {
     /// the legacy chains screen can switch preset/scene per input. `None`
     /// for sessions not loaded through the rig path (e.g. brand-new).
     pub(crate) rig: Option<Rc<RefCell<RigProject>>>,
+    /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`)
+    /// the runtime controller resolves bound chains against. Mirrored from
+    /// `AppConfig` when the session is created and refreshed on config edits;
+    /// the sync helpers push it into the controller before each (re)build.
+    pub(crate) io_bindings: Rc<RefCell<Vec<infra_filesystem::IoBinding>>>,
 }
 
 impl ProjectSession {
@@ -68,6 +73,7 @@ impl ProjectSession {
             config_path,
             presets_path,
             rig: None,
+            io_bindings: Rc::new(RefCell::new(Vec::new())),
         }
     }
 }

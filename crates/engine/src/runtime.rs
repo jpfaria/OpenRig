@@ -69,7 +69,9 @@ pub use crate::runtime_graph::{
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
-pub use crate::runtime_io_graph::build_io_runtime_graph;
+pub use crate::runtime_io_graph::{
+    build_io_runtime_graph, build_per_input_runtime_states_with_bindings,
+};
 #[cfg(test)]
 pub(crate) use crate::runtime_segments::split_chain_into_segments;
 

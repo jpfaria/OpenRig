@@ -25,6 +25,7 @@ fn build_chain_runtime_produces_a_runnable_runtime() {
         chain: empty_chain("c"),
         sample_rate: 48_000.0,
         buffer_sizes: vec![1024],
+        io_bindings: Vec::new(),
     };
     let runtimes = build_chain_runtime(&req).expect("build must succeed for an empty chain");
     assert_eq!(

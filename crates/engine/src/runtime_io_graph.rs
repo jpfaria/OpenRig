@@ -71,6 +71,99 @@ pub fn build_io_runtime_graph(
     Ok(RuntimeGraph { chains })
 }
 
+impl RuntimeGraph {
+    /// Issue #716 — binding-aware full rebuild for the synchronous live path
+    /// (multi-device chains, JACK, live edits). Drops every stale per-input
+    /// runtime for `chain` and rebuilds them via the per-binding router, then
+    /// returns the first (lowest-group) runtime.
+    ///
+    /// This is the bound-chain twin of [`RuntimeGraph::upsert_chain`]. The
+    /// legacy in-place fast path is `entries`-based, so it cannot serve a
+    /// bound chain whose `entries` are drained — the controller dispatches
+    /// bound chains here instead. A full rebuild on every edit is the same
+    /// cost the legacy path already pays on a topology change.
+    ///
+    /// # Errors
+    /// Propagates any failure from chain-runtime assembly, or if the bound
+    /// chain produced no runtimes (e.g. every port failed to resolve against
+    /// `io_bindings`).
+    pub fn upsert_bound_chain(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        elastic_targets: &[usize],
+        io_bindings: &[IoBinding],
+    ) -> Result<Arc<ChainRuntimeState>> {
+        let existing_groups: Vec<usize> = self
+            .chains
+            .keys()
+            .filter(|(cid, _)| cid == &chain.id)
+            .map(|(_, g)| *g)
+            .collect();
+        for g in &existing_groups {
+            self.chains.remove(&(chain.id.clone(), *g));
+        }
+        let mut first: Option<Arc<ChainRuntimeState>> = None;
+        for (group, state) in
+            build_bound_chain_runtimes(chain, io_bindings, sample_rate, elastic_targets)?
+        {
+            state.set_volume_pct(chain.volume);
+            let arc = Arc::new(state);
+            if first.is_none() {
+                first = Some(arc.clone());
+            }
+            self.chains.insert((chain.id.clone(), group), arc);
+        }
+        first.ok_or_else(|| {
+            anyhow!(
+                "bound chain '{}' produced no input runtimes (no port resolved against the registry)",
+                chain.id.0
+            )
+        })
+    }
+}
+
+/// Per-chain registry-aware build seam for the live audio path (issue #716).
+///
+/// This is the binding-aware twin of
+/// [`build_per_input_runtime_states`](crate::runtime_graph::build_per_input_runtime_states):
+/// infra-cpal's worker (`build_chain_runtime`) calls THIS so the per-binding
+/// routing engine runs in the running app, not only in tests.
+///
+/// - A chain with bound ports (any Input/Output block carrying a non-empty
+///   `io`) is routed PER BINDING via `resolve_chain_streams`: endpoints are
+///   resolved from `io_bindings`, cross-binding isolation is structural.
+/// - A chain whose ports are all legacy/unbound (`io` empty) takes the existing
+///   `entries`-based path, BYTE-IDENTICAL to the legacy build.
+///
+/// Returns one `(group, Arc<ChainRuntimeState>)` per isolated input runtime,
+/// the same shape the controller publishes into its `(chain, group)` slots.
+///
+/// # Errors
+/// Propagates any failure from chain-runtime assembly (e.g. a model that fails
+/// to load).
+pub fn build_per_input_runtime_states_with_bindings(
+    chain: &Chain,
+    sample_rate: f32,
+    elastic_targets: &[usize],
+    io_bindings: &[IoBinding],
+) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
+    let built = if chain_has_bound_ports(chain) {
+        build_bound_chain_runtimes(chain, io_bindings, sample_rate, elastic_targets)?
+    } else {
+        build_per_input_runtimes(chain, sample_rate, elastic_targets)?
+    };
+    Ok(built
+        .into_iter()
+        .map(|(group, state)| {
+            // Mirror the volume seeding the graph builders do so a runtime
+            // built through this seam matches one built via the graph path.
+            state.set_volume_pct(chain.volume);
+            (group, Arc::new(state))
+        })
+        .collect())
+}
+
 /// Assemble the isolated runtimes for a chain whose ports reference io
 /// bindings — ONE `ChainRuntimeState` per INPUT port (CLAUDE.md invariant #4),
 /// mirroring the legacy `build_per_input_runtimes` decomposition.

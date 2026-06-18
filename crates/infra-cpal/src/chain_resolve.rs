@@ -28,6 +28,7 @@ use anyhow::{bail, Context};
 use std::collections::HashMap;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -58,10 +59,16 @@ use anyhow::anyhow;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::get_host;
 
-pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
+pub fn resolve_project_chain_sample_rates(
+    project: &Project,
+    io_bindings: &[IoBinding],
+) -> Result<HashMap<ChainId, f32>> {
     // On Linux+JACK, get sample rate from JACK server directly — zero ALSA access.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
+        // JACK probes the server for the rate, not the registry; the binding
+        // set is only consulted on the cpal device-resolution path.
+        let _ = io_bindings;
         // Probe the first running named server via the libjack helper — no
         // cache involved; this is a one-off read for UI/display purposes.
         let cards = detect_all_usb_audio_cards();
@@ -90,8 +97,8 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
             if !chain.enabled {
                 continue;
             }
-            let inputs = resolve_chain_inputs(&host, project, chain)?;
-            let outputs = resolve_chain_outputs(&host, project, chain)?;
+            let inputs = resolve_chain_inputs(host, project, chain, io_bindings)?;
+            let outputs = resolve_chain_outputs(host, project, chain, io_bindings)?;
             let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
             sample_rates.insert(chain.id.clone(), sample_rate);
         }
@@ -230,14 +237,70 @@ pub(crate) fn resolve_output_device_for_chain_output(
     })
 }
 
+/// Issue #716 — the effective `InputEntry` an enabled `InputBlock` contributes.
+///
+/// A bound block (non-empty `io`) resolves its endpoint against `io_bindings`
+/// — the SAME conversion the engine's `io_routing` applies, so the physical
+/// device cpal opens matches the device the runtime routes. A legacy block
+/// keeps its embedded `entries`. A bound block whose binding/endpoint cannot
+/// be resolved contributes nothing (an honest absence, not a wrong device).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn input_entries_for_block(
+    ib: &project::block::InputBlock,
+    io_bindings: &[IoBinding],
+) -> Vec<InputEntry> {
+    if ib.io.is_empty() {
+        return ib.entries.clone();
+    }
+    io_bindings
+        .iter()
+        .find(|b| b.id == ib.io)
+        .and_then(|b| b.inputs.iter().find(|e| e.name == ib.endpoint))
+        .map(|ep| {
+            vec![InputEntry {
+                device_id: ep.device_id.clone(),
+                mode: project::chain::ChainInputMode::from(ep.mode),
+                channels: ep.channels.clone(),
+            }]
+        })
+        .unwrap_or_default()
+}
+
+/// Issue #716 — the effective `OutputEntry` an enabled `OutputBlock` contributes.
+/// Bound blocks resolve from `io_bindings` (`DualMono` falls back to stereo,
+/// mirroring the engine); legacy blocks keep their `entries`.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn output_entries_for_block(
+    ob: &project::block::OutputBlock,
+    io_bindings: &[IoBinding],
+) -> Vec<OutputEntry> {
+    use project::chain::ChainOutputMode;
+    if ob.io.is_empty() {
+        return ob.entries.clone();
+    }
+    io_bindings
+        .iter()
+        .find(|b| b.id == ob.io)
+        .and_then(|b| b.outputs.iter().find(|e| e.name == ob.endpoint))
+        .map(|ep| {
+            vec![OutputEntry {
+                device_id: ep.device_id.clone(),
+                mode: ChainOutputMode::try_from(ep.mode).unwrap_or(ChainOutputMode::Stereo),
+                channels: ep.channels.clone(),
+            }]
+        })
+        .unwrap_or_default()
+}
+
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_chain_inputs(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    io_bindings: &[IoBinding],
 ) -> Result<Vec<ResolvedInputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut input_entries: Vec<&InputEntry> = chain
+    let mut input_entries: Vec<InputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
@@ -245,7 +308,7 @@ pub(crate) fn resolve_chain_inputs(
             AudioBlockKind::Input(ib) => Some(ib),
             _ => None,
         })
-        .flat_map(|ib| ib.entries.iter())
+        .flat_map(|ib| input_entries_for_block(ib, io_bindings))
         .collect();
     // Include Insert block return endpoints as input streams
     let insert_return_entries: Vec<InputEntry> = chain
@@ -257,8 +320,7 @@ pub(crate) fn resolve_chain_inputs(
             _ => None,
         })
         .collect();
-    let insert_refs: Vec<&InputEntry> = insert_return_entries.iter().collect();
-    input_entries.extend(insert_refs);
+    input_entries.extend(insert_return_entries);
     if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
@@ -273,9 +335,10 @@ pub(crate) fn resolve_chain_outputs(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    io_bindings: &[IoBinding],
 ) -> Result<Vec<ResolvedOutputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut output_entries: Vec<&OutputEntry> = chain
+    let mut output_entries: Vec<OutputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
@@ -283,7 +346,7 @@ pub(crate) fn resolve_chain_outputs(
             AudioBlockKind::Output(ob) => Some(ob),
             _ => None,
         })
-        .flat_map(|ob| ob.entries.iter())
+        .flat_map(|ob| output_entries_for_block(ob, io_bindings))
         .collect();
     // Include Insert block send endpoints as output streams
     let insert_send_entries: Vec<OutputEntry> = chain
@@ -295,8 +358,7 @@ pub(crate) fn resolve_chain_outputs(
             _ => None,
         })
         .collect();
-    let insert_refs: Vec<&OutputEntry> = insert_send_entries.iter().collect();
-    output_entries.extend(insert_refs);
+    output_entries.extend(insert_send_entries);
     if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
     }
@@ -334,6 +396,7 @@ pub(crate) fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
 pub(crate) fn resolve_enabled_chain_audio_configs(
     host: &cpal::Host,
     project: &Project,
+    io_bindings: &[IoBinding],
 ) -> Result<HashMap<ChainId, ResolvedChainAudioConfig>> {
     let mut resolved = HashMap::new();
 
@@ -342,7 +405,7 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
             continue;
         }
 
-        let config = resolve_chain_audio_config(host, project, chain)?;
+        let config = resolve_chain_audio_config(host, project, chain, io_bindings)?;
         resolved.insert(chain.id.clone(), config);
     }
 
@@ -354,9 +417,10 @@ pub(crate) fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    io_bindings: &[IoBinding],
 ) -> Result<ResolvedChainAudioConfig> {
-    let inputs = resolve_chain_inputs(host, project, chain)?;
-    let outputs = resolve_chain_outputs(host, project, chain)?;
+    let inputs = resolve_chain_inputs(host, project, chain, io_bindings)?;
+    let outputs = resolve_chain_outputs(host, project, chain, io_bindings)?;
 
     // Validate sample rates: all inputs and outputs must agree
     let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;

@@ -160,6 +160,7 @@ fn controller_with_single_runtime(
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
         sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

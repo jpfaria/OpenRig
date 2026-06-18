@@ -411,6 +411,7 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: Vec::new(),
         };
         let runtimes = build_chain_runtime(&req).expect("build 2-entry chain");
         assert_eq!(runtimes.len(), 2, "#703: one runtime per input entry");
@@ -422,15 +423,25 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: Vec::new(),
         };
         let built = build_chain_runtime(&req).expect("build 2-entry chain");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
         assert_eq!(runtimes.len(), 2);
 
-        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2, 0.3, 0.4], 48_000, 1, 48_000, 0));
+        let di = Arc::new(DiLoop::from_samples(
+            &[0.1, 0.2, 0.3, 0.4],
+            48_000,
+            1,
+            48_000,
+            0,
+        ));
         arm_di_loop_on_first(&runtimes, Some(di));
 
-        assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
+        assert!(
+            runtimes[0].has_di_loop(),
+            "the loop plays on the first runtime"
+        );
         assert!(
             !runtimes[1].has_di_loop(),
             "the loop must NOT also play on the second entry's runtime — that is \
@@ -444,6 +455,7 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: Vec::new(),
         };
         let built = build_chain_runtime(&req).expect("build");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();

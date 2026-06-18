@@ -244,6 +244,11 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     }));
     session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
     session.rig = Some(rig);
+    // #716: hand the (possibly just-created) io_bindings registry to the
+    // session so a new project's bound chains route per binding from the start.
+    if let Ok(app_config) = FilesystemStorage::load_app_config() {
+        *session.io_bindings.borrow_mut() = app_config.io_bindings;
+    }
     session
 }
 
@@ -367,9 +372,15 @@ pub(crate) fn load_project_session(
     // directly in Input/Output blocks) into the per-machine io_bindings
     // registry in config.yaml. This is idempotent — re-opening a project
     // that was already migrated is a no-op.
+    //
+    // The resulting registry is also handed to the session so the live
+    // runtime resolves migrated (entries-drained) chains per binding — without
+    // it a migrated chain would build a silent fallback runtime (defect C2).
+    let mut migrated_bindings: Vec<infra_filesystem::IoBinding> = Vec::new();
     if let Ok(mut app_config) = FilesystemStorage::load_app_config() {
         project::migrate_io_binding::migrate_legacy_io(&mut project, &mut app_config.io_bindings);
         let _ = FilesystemStorage::save_app_config(&app_config);
+        migrated_bindings = app_config.io_bindings;
     }
 
     let mut session = ProjectSession::new(
@@ -382,6 +393,7 @@ pub(crate) fn load_project_session(
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
     );
+    *session.io_bindings.borrow_mut() = migrated_bindings;
     let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
     // #436: the dispatcher owns the rig so rig-nav goes through Command
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
@@ -536,7 +548,11 @@ fn ensure_default_io_binding(config_path: &Path) {
     };
 
     // Idempotent: do not add a second "default" binding.
-    if app_config.io_bindings.iter().any(|b| b.id == DEFAULT_BINDING_ID) {
+    if app_config
+        .io_bindings
+        .iter()
+        .any(|b| b.id == DEFAULT_BINDING_ID)
+    {
         return;
     }
 

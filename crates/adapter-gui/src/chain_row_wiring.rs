@@ -239,7 +239,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             sync_project_dirty(
                 &window,
@@ -314,7 +314,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
@@ -371,7 +371,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             sync_project_dirty(
                 &window,
@@ -414,7 +414,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             // The chain-row model now reflects the new order, but the
             // per-chain preset/scene model (`chain_rig_nav`) was still
@@ -473,7 +473,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             // Mirror of `on_move_chain_up`: the preset/scene combobox
             // model is independent from `project_chains` and would
@@ -649,6 +649,7 @@ mod tests {
             config_path: None,
             presets_path: PathBuf::from("./presets"),
             rig: None,
+            io_bindings: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
