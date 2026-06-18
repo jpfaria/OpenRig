@@ -265,19 +265,71 @@ chain por vez. O runtime valida isso em memória ao habilitar.
 - Cada Input cria stream paralelo isolado; Output é tap não-destrutivo
 - Insert divide a chain em segmentos; desabilitado = bypass (sinal passa direto)
 
-Exemplo YAML mínimo:
+### I/O binding registry (#716)
+
+Input/Output blocks are **ports** that reference an I/O binding defined in
+`config.yaml`. The binding holds the concrete device endpoint (device id,
+mode, channels); the chain carries only the stable `id` reference. This keeps
+`.openrig` files portable — moving them to another machine re-resolves the id
+against that machine's local registry.
+
+`config.yaml` schema (system scope):
+
+```yaml
+io_bindings:
+  - id: main                # stable id referenced by chains
+    name: "Scarlett"
+    inputs:
+      - { name: In1, device_id: "coreaudio:...", mode: mono, channels: [0] }
+    outputs:
+      - { name: Out1, device_id: "coreaudio:...", mode: stereo, channels: [0,1] }
+  - id: cab_b
+    name: "Interface B"
+    inputs:
+      - { name: In1, device_id: "B", mode: mono, channels: [0] }
+    outputs:
+      - { name: Out1, device_id: "B", mode: stereo, channels: [0,1] }
+```
+
+Chain block YAML using ports:
 
 ```yaml
 chains:
   - description: guitar 1
     instrument: electric_guitar
     blocks:
-      - { type: input,  model: standard, enabled: true, entries: [{ name: In1, device_id: "...", mode: mono, channels: [0] }] }
+      - { type: input,  io: main, endpoint: In1, enabled: true }
       - { type: preamp, model: marshall_jcm_800_2203, enabled: true, params: { volume: 70, gain: 40 } }
       - { type: insert, model: external_loop, enabled: true, send: {...}, return_: {...} }
       - { type: delay,  model: digital_clean, enabled: true, params: { time_ms: 350, feedback: 40, mix: 30 } }
-      - { type: output, model: standard, enabled: true, entries: [{ name: Out1, device_id: "...", mode: stereo, channels: [0,1] }] }
+      - { type: output, io: main, endpoint: Out1, enabled: true }
 ```
+
+Insert blocks are **not** migrated to the registry — they keep raw send/return
+endpoints because an insert is a single-runtime send/return pipeline, not a
+binding-paired stream. See ADR 0004.
+
+### Migration from legacy YAML
+
+Old chains embed device endpoints directly inside blocks
+(`entries: [{ name, device_id, mode, channels }]`). On project load, the
+engine auto-migrates:
+
+1. For each chain, collect all input and output entries.
+2. Create one generated I/O binding holding all of them (identical bindings
+   across chains are merged). Same-device entries get distinct endpoint names
+   (In1, In2, …).
+3. Rewrite the chain's input/output blocks to `{ io, endpoint }` references.
+
+Because one binding with multiple inputs + outputs pairs all-inputs ×
+all-outputs, the migrated routing is **all-to-all within that binding** —
+identical to the old behavior. Golden samples and volume invariants stay
+byte-identical after migration. The new capability is the user splitting into
+separate bindings to gain A→A / B→B isolation.
+
+Old `config.yaml` without `io_bindings` and old project YAML with embedded
+`entries` keep deserializing (back-compat; see
+`docs/superpowers/specs/2026-05-17-yaml-versioning-backcompat-design.md`).
 
 Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32. YAML antigo (`inputs:`/`outputs:` separados, `input_device_id`/`output_device_id` únicos) é migrado automaticamente.
 

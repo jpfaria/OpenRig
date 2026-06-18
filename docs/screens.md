@@ -11,15 +11,17 @@ Pedalboard virtual: usuário monta cadeia de efeitos visualmente, ajusta parâme
 - **Compact Chain View** — single-chain focused editor: power switches, quick model swap, preset/scene picker, volume, configure I/O, and a **measure-latency** button whose result renders as a badge **inside this view** (next to the sonar button), not on the chains list behind it (#613). Its block-type picker uses the same tiles as the Chains screen, so the icons match. Chain reorder (move up/down) is intentionally absent here — it lives only on the Chains list, which is the multi-chain view (#613).
 - **Settings** — unified configuration screen, reached from the top bar. Two scope headers:
   - *System* (persists to `config.yaml`, stays on the machine when you move the `.openrig`):
-    - **Audio interface** — input/output device, sample rate, buffer size, bit depth.
+    - **Audio interface** — input/output device, sample rate, buffer size, bit depth. The first-run audio wizard and device-change flow also create or update the `default` I/O binding so new chains always have a binding to reference.
+    - **I/O bindings** (#716) — list, create, edit, and delete named I/O bindings. Each binding groups a set of named input endpoints and output endpoints (device, channels, mode). The same device-and-channel pickers used in the Audio interface section are reused here. Deleting a binding that is still referenced by a chain is rejected with a message listing the referencing chains. A new project auto-creates a `default` binding from the system default input/output devices.
     - **Language** — UI locale override.
     - **MIDI devices** — enable/disable each port, edit per-device alias.
     - **Integrations** (#712) — master switches for the MIDI/BLE-MIDI adapter and the MCP server (`config.yaml` `midi_enabled` / `mcp_enabled`, both default off). These gate whether the whole subsystem starts — distinct from the per-port MIDI-devices selection. Takes effect on next launch; `--midi` / `--mcp` override for a single run.
   - *Project* (persists to `.openrig`, travels with the rig):
     - **Project metadata** — name and other project-level fields.
     - **MIDI mapping** — binding editor: click **+ Add**, press a control on your MIDI device (MIDI Learn), then pick a Command. Bindings are stored under `midi.bindings` in the `.openrig`. The system-wide fallback (`midi-bindings.yaml`) is used when the open project has no `midi:` field.
-- **Chain Editor** — nome, instrumento, I/O blocks
-- **Tuner** — janela com 1 tuner por canal ativo (`feature-dsp/pitch_yin.rs` + `engine/input_tap.rs` + `adapter-gui/tuner_session.rs`)
-- **Spectrum** — analisador 63-band 1/6 octava por canal de Output (`feature-dsp/spectrum_fft.rs` + `engine/output_tap.rs` + `adapter-gui/spectrum_session.rs`)
+- **Chain Editor** — name, instrument, I/O blocks. Input and Output blocks use an **I/O picker** (selects a binding by name) followed by an **endpoint picker** scoped to the chosen binding's input or output endpoints. The fullscreen "configure I/O" flow groups input and output blocks by binding, making the A-stream vs. B-stream grouping visible at a glance (closes #257). Insert blocks keep their raw send/return endpoint fields and are not migrated to the registry.
+- **Compact Chain View** — single-chain focused editor. The compact block chips and the chain-row header now display the **bound I/O name** (e.g. "Scarlett") instead of raw device strings. "Configure I/O" opens the binding-aware endpoint pickers described above.
+- **Tuner** — one tuner per active **input port** under the current per-binding stream keys (`feature-dsp/pitch_yin.rs` + `engine/input_tap.rs` + `adapter-gui/tuner_session.rs`). With multiple input ports across bindings, each port gets its own tuner panel.
+- **Spectrum** — one analyzer per active **output endpoint** under the per-binding stream keys, 63-band 1/6-octave (`feature-dsp/spectrum_fft.rs` + `engine/output_tap.rs` + `adapter-gui/spectrum_session.rs`).
 
 Janela principal inicia em **1100×620px lógicos**.
