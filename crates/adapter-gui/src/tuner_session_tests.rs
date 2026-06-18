@@ -164,3 +164,102 @@ fn row_state_starts_with_empty_buffer() {
     assert!(state.sample_buf.is_empty());
     assert!(state.sample_buf.capacity() >= BUFFER_SIZE * 2);
 }
+
+// ── input_port_labels_for_project — per-binding enumeration (#716) ───────
+
+fn binding_input_block(io: &str, endpoint: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId("chain:0:in".into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            entries: vec![],
+            io: io.to_string(),
+            endpoint: endpoint.to_string(),
+        }),
+    }
+}
+
+fn chain_with_binding_input(id: &str, io: &str, endpoint: &str) -> Chain {
+    Chain {
+        id: ChainId(id.into()),
+        description: None,
+        instrument: "electric_guitar".to_string(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![binding_input_block(io, endpoint)],
+    }
+}
+
+/// A chain with two bindings each contributing one input port must yield two
+/// separate placeholder rows — one per (binding_id, endpoint) pair, not merged.
+#[test]
+fn tuner_enumerates_one_per_binding_input_port() {
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![
+            chain_with_binding_input("chain:A", "binding-A", "Guitar"),
+            chain_with_binding_input("chain:B", "binding-B", "Guitar"),
+        ],
+        midi: None,
+    };
+
+    let labels = input_port_labels_for_project(&project);
+
+    assert_eq!(
+        labels.len(),
+        2,
+        "two binding-input chains → 2 tuner rows; got {:?}",
+        labels
+    );
+    assert!(
+        labels[0] != labels[1],
+        "rows must be labeled distinctly; both are {:?}",
+        labels[0]
+    );
+}
+
+/// Two bindings that share the same endpoint name must still appear as
+/// separate rows — no deduplication across distinct binding ids.
+#[test]
+fn tuner_does_not_merge_same_endpoint_from_different_bindings() {
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![
+            chain_with_binding_input("chain:A", "binding-A", "In1"),
+            chain_with_binding_input("chain:B", "binding-B", "In1"),
+        ],
+        midi: None,
+    };
+
+    let labels = input_port_labels_for_project(&project);
+
+    assert_eq!(
+        labels.len(),
+        2,
+        "same endpoint name, different bindings → 2 rows; got {:?}",
+        labels
+    );
+}
+
+/// Legacy chains (io == "") must still enumerate as before — one row per
+/// physical channel in the InputEntry list.
+#[test]
+fn tuner_legacy_entries_path_still_enumerates_per_channel() {
+    let entries = vec![
+        input_entry("dev:1", vec![0], ChainInputMode::Mono),
+        input_entry("dev:1", vec![1], ChainInputMode::Mono),
+    ];
+    let project = project_from_chain(chain_with_input("chain:0", true, entries));
+
+    let labels = input_port_labels_for_project(&project);
+
+    assert_eq!(
+        labels.len(),
+        2,
+        "two legacy entry channels → 2 tuner rows; got {:?}",
+        labels
+    );
+}

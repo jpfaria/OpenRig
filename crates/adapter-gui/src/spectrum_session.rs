@@ -126,6 +126,52 @@ fn short_device_label(device_id: &str) -> String {
         .unwrap_or_else(|| device_id.to_string())
 }
 
+/// Enumerate the display labels for every active output endpoint in the
+/// project — one label per spectrum analyzer row.
+///
+/// Under the per-binding routing model (Tasks 8/9, #716), each enabled
+/// chain's `OutputBlock` carries a non-empty `io` field (binding id) and an
+/// `endpoint` field.  Each `(io, endpoint)` pair maps to exactly one runtime
+/// output stream and therefore one spectrum analyzer.
+///
+/// Legacy chains (pre-#716, `io == ""`) continue to enumerate one label per
+/// `OutputEntry` so the legacy path is unaffected.
+pub fn output_endpoint_labels_for_project(project: &Project) -> Vec<String> {
+    let mut labels = Vec::new();
+    for chain in &project.chains {
+        if !chain.enabled {
+            continue;
+        }
+        let chain_label = chain
+            .description
+            .clone()
+            .unwrap_or_else(|| chain.id.0.clone());
+        for block in &chain.blocks {
+            if let AudioBlockKind::Output(output) = &block.kind {
+                if !output.io.is_empty() {
+                    // Binding-based path: one spectrum row per (io, endpoint).
+                    labels.push(format!(
+                        "{}  ·  {}  ·  {}",
+                        chain_label.to_uppercase(),
+                        output.io,
+                        output.endpoint,
+                    ));
+                } else {
+                    // Legacy entries path: one label per output entry.
+                    for entry in &output.entries {
+                        labels.push(format!(
+                            "{}  ·  OUT: {}",
+                            chain_label.to_uppercase(),
+                            short_device_label(&entry.device_id.0),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    labels
+}
+
 pub struct SpectrumSession {
     rows_model: Rc<VecModel<SpectrumRow>>,
     row_states: Vec<RowState>,
@@ -133,16 +179,45 @@ pub struct SpectrumSession {
 }
 
 impl SpectrumSession {
-    /// Build a spectrum session for the given project: subscribe one
-    /// stereo stream tap per InputEntry of every enabled chain, and
-    /// create two rows (L, R) for each tap.
+    /// Build a spectrum session for the given project.
+    ///
+    /// For chains with binding-based output blocks (#716, `OutputBlock.io`
+    /// non-empty) one placeholder `SpectrumRow` is created per
+    /// `(io, endpoint)` pair.  The output-tap engine is not yet keyed by
+    /// binding port, so no ring is subscribed for these rows (they show
+    /// flat bars until the tap layer gains per-binding support).
+    ///
+    /// Legacy chains (empty `io`) retain the full stream-tap subscribe path:
+    /// two rows (L, R) per input stream via `subscribe_stream_tap`.
     pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
         let rows_model: Rc<VecModel<SpectrumRow>> =
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
 
+        // Seed placeholder rows for binding-based output endpoints.
+        for label in output_endpoint_labels_for_project(project) {
+            let l_levels = make_zero_band_model();
+            let l_peaks = make_zero_band_model();
+            rows_model.push(SpectrumRow {
+                label: label.into(),
+                levels: ModelRc::from(l_levels),
+                peaks: ModelRc::from(l_peaks),
+                active: false,
+            });
+            // No RowState ring subscribed for binding-based outputs — the
+            // output tap engine is still keyed by physical stream index.
+        }
+
         for chain in &project.chains {
             if !chain.enabled {
+                continue;
+            }
+
+            // Skip chains handled by the binding-based path above.
+            let has_binding_output = chain.blocks.iter().any(|b| {
+                matches!(&b.kind, AudioBlockKind::Output(out) if !out.io.is_empty())
+            });
+            if has_binding_output {
                 continue;
             }
 

@@ -66,6 +66,57 @@ fn freq_to_octave(freq: f32, reference_hz: f32) -> i32 {
     midi / 12 - 1
 }
 
+/// Enumerate the display labels for every active input port in the project.
+///
+/// Under the per-binding routing model (Tasks 8/9, #716), each enabled
+/// chain's `InputBlock` carries a non-empty `io` field (binding id) and an
+/// `endpoint` field.  Each `(io, endpoint)` pair maps to exactly one runtime
+/// stream and therefore one tuner row.
+///
+/// Legacy chains (pre-#716, `io == ""`) continue to enumerate one row per
+/// physical channel in their `InputEntry` list so the legacy path is not
+/// disturbed.
+pub fn input_port_labels_for_project(project: &Project) -> Vec<String> {
+    let mut labels = Vec::new();
+    for chain in &project.chains {
+        if !chain.enabled {
+            continue;
+        }
+        let chain_label = chain
+            .description
+            .clone()
+            .unwrap_or_else(|| chain.id.0.clone());
+        let mut input_index = 0_usize;
+        for block in &chain.blocks {
+            if let AudioBlockKind::Input(input) = &block.kind {
+                if !input.io.is_empty() {
+                    // Binding-based path: one port per (io, endpoint) pair.
+                    labels.push(format!(
+                        "{}  ·  {}  ·  {}",
+                        chain_label.to_uppercase(),
+                        input.io,
+                        input.endpoint,
+                    ));
+                } else {
+                    // Legacy entries path: one label per channel.
+                    for entry in &input.entries {
+                        for &ch in &entry.channels {
+                            labels.push(format!(
+                                "{}  ·  IN {}  ·  CH {}",
+                                chain_label.to_uppercase(),
+                                input_index + 1,
+                                ch + 1,
+                            ));
+                        }
+                        input_index += 1;
+                    }
+                }
+            }
+        }
+    }
+    labels
+}
+
 /// Stable signature of every (chain, input, channel) the tuner cares about.
 /// Compared at every tick to detect when the user enables/disables chains
 /// or edits an InputBlock so we can tear down and rebuild the session
@@ -105,12 +156,35 @@ pub struct TunerSession {
 impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
+    ///
+    /// For binding-based chains (#716, `InputBlock.io` non-empty) the physical
+    /// channel mapping is not yet known at this layer; one placeholder row per
+    /// `(io, endpoint)` pair is created but no tap ring is subscribed (the
+    /// tap engine is still keyed by physical channel index).  Legacy chains
+    /// (empty `io`) retain the full tap-subscribe path.
     pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
 
+        // Seed placeholder rows for binding-based input ports.  These are
+        // enumerated per (io, endpoint) and appear in the tuner list even
+        // before a runtime tap is available.
+        for label in input_port_labels_for_project(project) {
+            rows_model.push(placeholder_row(label));
+            // No ring/RowState for binding-based ports until the tap engine
+            // gains per-binding key support — the row shows "—" (inactive).
+        }
+
         for chain in &project.chains {
             if !chain.enabled {
+                continue;
+            }
+
+            // Skip chains handled by the binding-based path above.
+            let has_binding_input = chain.blocks.iter().any(|b| {
+                matches!(&b.kind, AudioBlockKind::Input(inp) if !inp.io.is_empty())
+            });
+            if has_binding_input {
                 continue;
             }
 
