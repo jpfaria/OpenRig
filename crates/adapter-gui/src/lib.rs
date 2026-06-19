@@ -95,6 +95,7 @@ mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
 mod tuner_wiring;
+pub mod ui_stall;
 mod virtual_keyboard_wiring;
 mod vst3_editor_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
