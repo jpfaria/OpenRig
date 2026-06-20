@@ -10,14 +10,13 @@
 
 pub mod block;
 pub mod catalog;
-pub mod channel_mode_conv;
-pub mod io_binding;
 mod catalog_label;
 pub mod chain;
+pub mod channel_mode_conv;
 pub mod device;
+pub mod io_binding;
 pub mod midi;
 pub mod migrate;
-pub mod migrate_io_binding;
 pub mod param;
 pub mod project;
 pub mod project_disable_unavailable;

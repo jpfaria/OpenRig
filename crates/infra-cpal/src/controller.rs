@@ -555,6 +555,10 @@ impl ProjectRuntimeController {
                 if !chain.enabled {
                     continue;
                 }
+                // Binding-only routing (#716): an unbound chain opens nothing.
+                if !engine::io_routing::chain_has_bound_ports(chain) {
+                    continue;
+                }
 
                 // #693: a cold bring-up must not hold the caller (the GUI
                 // thread) — reuse the #672 off-thread activation: validate +
@@ -609,6 +613,10 @@ impl ProjectRuntimeController {
             if !chain.enabled {
                 continue;
             }
+            // Binding-only routing (#716): an unbound chain opens nothing.
+            if !engine::io_routing::chain_has_bound_ports(chain) {
+                continue;
+            }
             let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
             self.upsert_chain_with_resolved(chain, resolved, false)?;
         }
@@ -651,6 +659,10 @@ impl ProjectRuntimeController {
         // group 0, so chains with multiple physical input devices
         // stayed half-muted after toggle-on. Mirrors the fan-out in
         // `pause_chain`.
+        //
+        // This runs BEFORE the binding-only gate (#716): an already-streaming
+        // chain resumes its live runtimes in O(1) regardless — the gate below
+        // only governs whether a NOT-yet-active chain gets a fresh build.
         if self.active_chains.contains_key(&chain.id) {
             let runtimes = self.runtime_graph.runtimes_for(&chain.id);
             if let Some(first) = runtimes.first() {
@@ -666,6 +678,15 @@ impl ProjectRuntimeController {
                     return Ok(());
                 }
             }
+        }
+        // Binding-only routing (#716): an unbound chain opens no device. If it
+        // was bound before and the user cleared the binding, tear the stale
+        // runtime down so it goes silent.
+        if !engine::io_routing::chain_has_bound_ports(chain) {
+            if self.active_chains.contains_key(&chain.id) {
+                self.remove_chain(&chain.id);
+            }
+            return Ok(());
         }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]

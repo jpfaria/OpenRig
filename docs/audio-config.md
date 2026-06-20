@@ -210,8 +210,10 @@ chain-shared cartesian path produced.
 Resolution lives in `crates/engine/src/io_routing.rs`
 (`resolve_chain_streams`); the registry-aware graph build is
 `engine::runtime::build_io_runtime_graph` (in `runtime_io_graph.rs`).
-**Legacy / unbound** blocks (empty `io`, still carrying `entries`) keep the
-existing `entries`-based path — byte-identical to `build_runtime_graph`.
+Routing is **binding-only**: an **unbound** chain (empty `io` on every
+Input/Output block) produces NO runtime and opens no device — it must be
+reconfigured against the registry. There is no fallback to the old
+`entries`-based path (clean break, #716).
 
 Contract tests: `crates/engine/src/io_binding_isolation_tests.rs`
 (cross-binding bleed) + `io_binding_routing_tests.rs` (pairing + block
@@ -309,27 +311,19 @@ Insert blocks are **not** migrated to the registry — they keep raw send/return
 endpoints because an insert is a single-runtime send/return pipeline, not a
 binding-paired stream. See ADR 0004.
 
-### Migration from legacy YAML
+### Legacy projects open UNBOUND (clean break, #716)
 
-Old chains embed device endpoints directly inside blocks
-(`entries: [{ name, device_id, mode, channels }]`). On project load, the
-engine auto-migrates:
+There is **no migration**. Old chains that embedded device endpoints directly
+inside blocks (`entries: [{ name, device_id, mode, channels }]`) still
+**deserialize** — the project loads — but those `entries` are ignored for
+routing. A legacy chain has empty `io` on its Input/Output blocks, so it opens
+**unbound**: it produces no runtime and plays no audio until the user
+reconfigures its ports against an I/O binding in the Settings → I/O editor.
+New projects never persist `entries`; they serialize only `io`/`endpoint`.
 
-1. For each chain, collect all input and output entries.
-2. Create one generated I/O binding holding all of them (identical bindings
-   across chains are merged). Same-device entries get distinct endpoint names
-   (In1, In2, …).
-3. Rewrite the chain's input/output blocks to `{ io, endpoint }` references.
-
-Because one binding with multiple inputs + outputs pairs all-inputs ×
-all-outputs, the migrated routing is **all-to-all within that binding** —
-identical to the old behavior. Golden samples and volume invariants stay
-byte-identical after migration. The new capability is the user splitting into
-separate bindings to gain A→A / B→B isolation.
-
-Old `config.yaml` without `io_bindings` and old project YAML with embedded
-`entries` keep deserializing (back-compat; see
-`docs/superpowers/specs/2026-05-17-yaml-versioning-backcompat-design.md`).
+This is intentional: routing is binding-only, the registry (`config.yaml`)
+is the single source of truth for I/O, and a legacy file remains loadable
+without inventing device routing the user never confirmed on this machine.
 
 Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32. YAML antigo (`inputs:`/`outputs:` separados, `input_device_id`/`output_device_id` únicos) é migrado automaticamente.
 

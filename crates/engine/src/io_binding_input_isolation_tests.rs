@@ -1,10 +1,10 @@
 //! Per-INPUT-port isolation within ONE binding (issue #716, Task 9 fix).
 //!
-//! The legacy multi-input path (`build_per_input_runtimes`, issue #350)
-//! creates ONE fully isolated `ChainRuntimeState` per input port: two inputs
-//! → two runtimes, summed at the backend POST per-input limiter (CLAUDE.md
-//! invariant #4). The migration (`migrate_legacy_io`) folds every legacy
-//! multi-input chain into ONE binding with N input + M output endpoints.
+//! The per-input router creates ONE fully isolated `ChainRuntimeState` per
+//! input port: two inputs → two runtimes, summed at the backend POST per-input
+//! limiter (CLAUDE.md invariant #4). A user can place N input + M output
+//! endpoints on ONE binding (the all-to-all shape), e.g. two channels of the
+//! same interface.
 //!
 //! `build_io_runtime_graph` must therefore still produce N isolated runtimes
 //! for that single binding — one per INPUT port — NOT one shared runtime that
@@ -60,8 +60,8 @@ fn bound_output(id: &str, io: &str, endpoint: &str) -> AudioBlock {
 }
 
 /// ONE binding with two mono input endpoints (distinct channels on the same
-/// device) and two mono output endpoints — the all-to-all shape
-/// `migrate_legacy_io` produces from a legacy 2-in/2-out chain.
+/// device) and two mono output endpoints — the all-to-all 2-in/2-out shape a
+/// user can configure for a single interface.
 fn one_all_to_all_binding() -> Vec<IoBinding> {
     vec![IoBinding {
         id: "io_x".into(),

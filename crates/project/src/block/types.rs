@@ -127,9 +127,13 @@ pub struct InputBlock {
     /// Endpoint name within the referenced binding (new schema, Task 5).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub endpoint: String,
-    /// Legacy device entries — kept for back-compat so old YAML still loads.
-    /// Task 6 migration consumes and drains this field.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Legacy device entries. Clean break (#716): NEVER serialized — new
+    /// projects persist only `io`/`endpoint`. Still DESERIALIZES so an old
+    /// YAML with `entries:` loads without error; the values are ignored for
+    /// routing (the chain opens unbound until reconfigured via the registry).
+    /// Kept as an internal/test-only field so the pinned invariant tests
+    /// (volume_invariants, golden, stream isolation) build chains directly.
+    #[serde(default, skip_serializing)]
     pub entries: Vec<InputEntry>,
 }
 
@@ -144,9 +148,13 @@ pub struct OutputBlock {
     /// Endpoint name within the referenced binding (new schema, Task 5).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub endpoint: String,
-    /// Legacy device entries — kept for back-compat so old YAML still loads.
-    /// Task 6 migration consumes and drains this field.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Legacy device entries. Clean break (#716): NEVER serialized — new
+    /// projects persist only `io`/`endpoint`. Still DESERIALIZES so an old
+    /// YAML with `entries:` loads without error; the values are ignored for
+    /// routing (the chain opens unbound until reconfigured via the registry).
+    /// Kept as an internal/test-only field so the pinned invariant tests
+    /// (volume_invariants, golden, stream isolation) build chains directly.
+    #[serde(default, skip_serializing)]
     pub entries: Vec<OutputEntry>,
 }
 

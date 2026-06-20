@@ -10,9 +10,10 @@
 //! `inputPos <= outputPos`) becomes its own isolated stream running only the
 //! effect blocks between the ports, reading the input endpoint and writing the
 //! output endpoint. Input of binding A can never reach output of binding B
-//! (CLAUDE.md invariant #4). A chain whose ports are all legacy/unbound (`io`
-//! empty) falls back to the existing `entries`-based path — byte-identical to
-//! `build_runtime_graph`.
+//! (CLAUDE.md invariant #4). Clean break (#716): routing is binding-only — a
+//! chain whose ports are all unbound (`io` empty) produces NO runtime. There is
+//! no production fallback to the legacy `entries`-based path; a legacy project
+//! opens UNBOUND and must be reconfigured via the registry.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,15 +27,13 @@ use project::chain::Chain;
 use project::project::Project;
 
 use crate::io_routing::{chain_has_bound_ports, resolve_chain_streams};
-use crate::runtime_graph::{
-    assemble_chain_runtime_state, build_per_input_runtimes, chain_has_enabled_insert, RuntimeGraph,
-};
+use crate::runtime_graph::{assemble_chain_runtime_state, chain_has_enabled_insert, RuntimeGraph};
 use crate::runtime_segments::ChainSegment;
 use crate::runtime_state::ChainRuntimeState;
 
 /// Registry-aware graph build. Resolution happens here, off the audio thread;
 /// the audio path is unchanged. Bound chains take the per-binding routing path;
-/// legacy chains reuse `build_per_input_runtimes`.
+/// unbound chains produce no runtime (binding-only routing, #716).
 pub fn build_io_runtime_graph(
     project: &Project,
     chain_sample_rates: &HashMap<ChainId, f32>,
@@ -54,18 +53,18 @@ pub fn build_io_runtime_graph(
             .get(&chain.id)
             .unwrap_or(&default_targets);
 
-        if chain_has_bound_ports(chain) {
-            for (group, state) in
-                build_bound_chain_runtimes(chain, io_bindings, sample_rate, elastic_targets)?
-            {
-                state.set_volume_pct(chain.volume);
-                chains.insert((chain.id.clone(), group), Arc::new(state));
-            }
-        } else {
-            for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
-                state.set_volume_pct(chain.volume);
-                chains.insert((chain.id.clone(), group), Arc::new(state));
-            }
+        // Clean break (#716): routing is binding-only. A chain whose ports are
+        // all unbound (`io` empty) produces NO runtime — the user reconfigures
+        // it via the registry. No production fallback to the legacy
+        // `entries`-based all-to-all path.
+        if !chain_has_bound_ports(chain) {
+            continue;
+        }
+        for (group, state) in
+            build_bound_chain_runtimes(chain, io_bindings, sample_rate, elastic_targets)?
+        {
+            state.set_volume_pct(chain.volume);
+            chains.insert((chain.id.clone(), group), Arc::new(state));
         }
     }
     Ok(RuntimeGraph { chains })
@@ -133,8 +132,8 @@ impl RuntimeGraph {
 /// - A chain with bound ports (any Input/Output block carrying a non-empty
 ///   `io`) is routed PER BINDING via `resolve_chain_streams`: endpoints are
 ///   resolved from `io_bindings`, cross-binding isolation is structural.
-/// - A chain whose ports are all legacy/unbound (`io` empty) takes the existing
-///   `entries`-based path, BYTE-IDENTICAL to the legacy build.
+/// - A chain whose ports are all unbound (`io` empty) produces NO runtime —
+///   routing is binding-only (#716); a legacy project opens unbound.
 ///
 /// Returns one `(group, Arc<ChainRuntimeState>)` per isolated input runtime,
 /// the same shape the controller publishes into its `(chain, group)` slots.
@@ -148,10 +147,13 @@ pub fn build_per_input_runtime_states_with_bindings(
     elastic_targets: &[usize],
     io_bindings: &[IoBinding],
 ) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
+    // Clean break (#716): routing is binding-only. An unbound chain (`io`
+    // empty on every port) produces NO runtime — no fallback to the legacy
+    // `entries` all-to-all path. The user reconfigures it via the registry.
     let built = if chain_has_bound_ports(chain) {
         build_bound_chain_runtimes(chain, io_bindings, sample_rate, elastic_targets)?
     } else {
-        build_per_input_runtimes(chain, sample_rate, elastic_targets)?
+        Vec::new()
     };
     Ok(built
         .into_iter()

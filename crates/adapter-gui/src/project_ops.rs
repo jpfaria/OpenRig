@@ -368,20 +368,15 @@ pub(crate) fn load_project_session(
         );
     }
 
-    // #716: migrate legacy chain I/O entries (device endpoints embedded
-    // directly in Input/Output blocks) into the per-machine io_bindings
-    // registry in config.yaml. This is idempotent — re-opening a project
-    // that was already migrated is a no-op.
-    //
-    // The resulting registry is also handed to the session so the live
-    // runtime resolves migrated (entries-drained) chains per binding — without
-    // it a migrated chain would build a silent fallback runtime (defect C2).
-    let mut migrated_bindings: Vec<infra_filesystem::IoBinding> = Vec::new();
-    if let Ok(mut app_config) = FilesystemStorage::load_app_config() {
-        project::migrate_io_binding::migrate_legacy_io(&mut project, &mut app_config.io_bindings);
-        let _ = FilesystemStorage::save_app_config(&app_config);
-        migrated_bindings = app_config.io_bindings;
-    }
+    // #716: clean break from the old project format. Routing is binding-only —
+    // the per-machine io_bindings registry (config.yaml) is the single source
+    // of truth for I/O. There is NO legacy-entries migration: a legacy project
+    // (Input/Output blocks with `entries` but empty `io`) opens UNBOUND and
+    // must be reconfigured via the registry. Hand the existing registry to the
+    // session so the live runtime resolves bound chains per binding.
+    let registry_bindings: Vec<infra_filesystem::IoBinding> = FilesystemStorage::load_app_config()
+        .map(|cfg| cfg.io_bindings)
+        .unwrap_or_default();
 
     let mut session = ProjectSession::new(
         project,
@@ -393,7 +388,7 @@ pub(crate) fn load_project_session(
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
     );
-    *session.io_bindings.borrow_mut() = migrated_bindings;
+    *session.io_bindings.borrow_mut() = registry_bindings;
     let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
     // #436: the dispatcher owns the rig so rig-nav goes through Command
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.

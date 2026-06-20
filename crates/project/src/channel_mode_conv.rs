@@ -60,31 +60,11 @@ impl TryFrom<ChannelMode> for ChainOutputMode {
     }
 }
 
-// ── From<ChainInputMode> for ChannelMode ────────────────────────────────────
-// Lossless: every ChainInputMode has a ChannelMode counterpart.
-
-impl From<ChainInputMode> for ChannelMode {
-    fn from(mode: ChainInputMode) -> Self {
-        match mode {
-            ChainInputMode::Mono => ChannelMode::Mono,
-            ChainInputMode::Stereo => ChannelMode::Stereo,
-            ChainInputMode::DualMono => ChannelMode::DualMono,
-        }
-    }
-}
-
-// ── From<ChainOutputMode> for ChannelMode ───────────────────────────────────
-// Lossless: ChainOutputMode::Mono → ChannelMode::Mono, Stereo → Stereo.
-// (ChainOutputMode has no DualMono variant; that lives only on inputs.)
-
-impl From<ChainOutputMode> for ChannelMode {
-    fn from(mode: ChainOutputMode) -> Self {
-        match mode {
-            ChainOutputMode::Mono => ChannelMode::Mono,
-            ChainOutputMode::Stereo => ChannelMode::Stereo,
-        }
-    }
-}
+// The forward direction (`From<ChainInputMode>/From<ChainOutputMode> for
+// ChannelMode`) was only consumed by the legacy-entries migration, which the
+// clean break (#716) removed. The binding resolution path needs only the
+// reverse direction (`From<ChannelMode> for ChainInputMode` and
+// `TryFrom<ChannelMode> for ChainOutputMode`), kept above.
 
 #[cfg(test)]
 mod tests {
@@ -95,7 +75,10 @@ mod tests {
 
     #[test]
     fn channel_mode_mono_converts_to_chain_input_mono() {
-        assert_eq!(ChainInputMode::from(ChannelMode::Mono), ChainInputMode::Mono);
+        assert_eq!(
+            ChainInputMode::from(ChannelMode::Mono),
+            ChainInputMode::Mono
+        );
     }
 
     #[test]
@@ -140,44 +123,6 @@ mod tests {
             err.to_string().contains("dual-mono"),
             "error message should mention dual-mono: {}",
             err
-        );
-    }
-
-    // ── From<ChainInputMode> for ChannelMode ────────────────────────────────
-
-    #[test]
-    fn chain_input_mono_converts_to_channel_mode_mono() {
-        assert_eq!(ChannelMode::from(ChainInputMode::Mono), ChannelMode::Mono);
-    }
-
-    #[test]
-    fn chain_input_stereo_converts_to_channel_mode_stereo() {
-        assert_eq!(
-            ChannelMode::from(ChainInputMode::Stereo),
-            ChannelMode::Stereo
-        );
-    }
-
-    #[test]
-    fn chain_input_dual_mono_converts_to_channel_mode_dual_mono() {
-        assert_eq!(
-            ChannelMode::from(ChainInputMode::DualMono),
-            ChannelMode::DualMono
-        );
-    }
-
-    // ── From<ChainOutputMode> for ChannelMode ───────────────────────────────
-
-    #[test]
-    fn chain_output_mono_converts_to_channel_mode_mono() {
-        assert_eq!(ChannelMode::from(ChainOutputMode::Mono), ChannelMode::Mono);
-    }
-
-    #[test]
-    fn chain_output_stereo_converts_to_channel_mode_stereo() {
-        assert_eq!(
-            ChannelMode::from(ChainOutputMode::Stereo),
-            ChannelMode::Stereo
         );
     }
 }

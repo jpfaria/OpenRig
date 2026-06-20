@@ -26,8 +26,8 @@ pub struct BuildRequest {
     /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`),
     /// owned so it can cross to the worker thread. A chain whose Input/Output
     /// blocks carry a non-empty `io` is routed PER BINDING against this
-    /// registry; a pure-legacy chain (empty `io`) ignores it and keeps the
-    /// `entries`-based path. Empty for callers with no registry.
+    /// registry; an unbound chain (empty `io`) produces NO runtime — routing is
+    /// binding-only (#716). Empty for callers with no registry.
     pub io_bindings: Vec<IoBinding>,
 }
 
@@ -38,8 +38,8 @@ pub struct BuildRequest {
 /// chains get exactly one `(0, runtime)` pair (the legacy shape).
 ///
 /// Issue #716: a chain whose ports carry a non-empty `io` is routed PER BINDING
-/// against `req.io_bindings`; a pure-legacy chain (empty `io`) keeps the
-/// `entries`-based path byte-identical. The branch lives in the engine seam
+/// against `req.io_bindings`; an unbound chain (empty `io`) produces NO runtime
+/// — routing is binding-only. The branch lives in the engine seam
 /// `build_per_input_runtime_states_with_bindings` so this stays a thin worker
 /// wrapper.
 ///

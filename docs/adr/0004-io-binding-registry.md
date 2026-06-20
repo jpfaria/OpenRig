@@ -111,21 +111,22 @@ Reshaped chain-IO commands (`SaveChainInputEndpoints`,
 references instead of embedded endpoints. MCP tooling inherits the same variants
 (command-bus parity, CLAUDE.md Law 1).
 
-### Migration
+### Clean break — no migration (#716)
 
-Old chains with embedded `entries` are auto-migrated on project load:
+Routing is **binding-only**. There is no migration from the old embedded-`entries`
+format. An old project still **deserializes** (it loads), but its `entries` are
+ignored for routing: a legacy chain has empty `io` on its Input/Output blocks, so
+it opens **UNBOUND** — it produces no runtime and plays no audio until the user
+reconfigures its ports against an I/O binding in the Settings → I/O editor.
 
-1. Collect all input and output entries from the chain.
-2. Create one generated binding holding all of them (identical bindings across
-   chains are merged).
-3. Rewrite chain blocks to `{ io, endpoint }` references.
+New projects never persist `entries`; the block `entries` field is
+`#[serde(skip_serializing)]` (still deserializes so an old YAML loads). The field
+is retained only as an internal/test-only construct so the pinned invariant suites
+(`volume_invariants`, golden samples, stream isolation) can build chains directly.
 
-One binding with N inputs × M outputs pairs all-inputs × all-outputs, reproducing
-the old all-to-all behavior. Golden samples and volume invariants stay
-byte-identical after migration.
-
-Old `config.yaml` without `io_bindings` and old project YAML with embedded
-`entries` keep deserializing (back-compat per the YAML versioning ADR).
+This is deliberate: the registry (`config.yaml`) is the single source of truth for
+I/O, and OpenRig refuses to invent device routing the user never confirmed on this
+machine. A legacy file remains loadable without silently wiring it to devices.
 
 ## Consequences
 
@@ -133,8 +134,8 @@ Old `config.yaml` without `io_bindings` and old project YAML with embedded
   natural, default expression; cross-device routing cannot be authored.
 - **Portable projects.** The `.openrig` carries only stable binding ids; raw
   device ids live on the machine that owns them.
-- **Migration is silent and sound-preserving.** Legacy projects auto-migrate
-  with no user action and no audible change.
+- **Legacy projects open unbound.** No migration, no silent device wiring —
+  a legacy chain loads but plays no audio until reconfigured against the registry.
 - **Future settings have a written home.** Per ADR 0003, any new per-machine
   device reference belongs in `config.yaml` alongside the registry.
 - **Inserts are a known gap.** If a future issue adds insert-to-registry

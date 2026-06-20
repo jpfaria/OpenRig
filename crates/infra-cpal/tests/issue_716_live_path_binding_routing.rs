@@ -1,17 +1,13 @@
-//! Issue #716 — the per-binding routing engine must run on the LIVE build
-//! path, not only in the (previously dead) `build_io_runtime_graph` code.
+//! Issue #716 — the per-binding routing engine runs on the LIVE build path.
 //!
 //! The production seam is `BuildRequest` → `build_chain_runtime` (the worker
-//! payload the controller submits). Before this fix `build_chain_runtime`
-//! ignored `io_bindings` entirely and fed the chain through the legacy
-//! `entries`-based path, so:
-//!   - a bound chain whose `entries` are drained (the migrated shape) built a
-//!     single fallback runtime carrying no real audio, and
-//!   - the per-binding cross-binding isolation never ran.
+//! payload the controller submits). A BOUND chain is routed PER BINDING against
+//! `io_bindings`: one isolated runtime per input port, cross-binding isolation
+//! structural. Clean break (#716): routing is binding-only — an UNBOUND chain
+//! (empty `io`, even if it still carries legacy `entries`) builds NO runtime;
+//! there is no fallback to the legacy `entries` all-to-all path.
 //!
-//! These tests drive the LIVE seam with a registry and assert the per-binding
-//! behaviour, so they are RED on the dead-code state (the live path does not
-//! even accept an `io_bindings` registry there yet).
+//! These tests drive the LIVE seam with a registry and assert both behaviours.
 
 use std::sync::Arc;
 
@@ -160,6 +156,68 @@ fn live_path_builds_one_isolated_runtime_per_input_binding() {
     assert!(runtimes
         .iter()
         .any(|(_, rt)| rt.input_cpal_index() == Some(1)));
+}
+
+/// Clean break (#716): a legacy/unbound chain — Input/Output blocks with
+/// `entries` but empty `io` — must build NO runtime on the production seam.
+/// Routing is binding-only; the user reconfigures via the registry. The
+/// production fallback to the legacy `entries` all-to-all path is gone.
+#[test]
+fn live_path_unbound_chain_builds_no_runtime() {
+    use project::block::{InputEntry, OutputEntry};
+    use project::chain::{ChainInputMode, ChainOutputMode};
+
+    let legacy_chain = Chain {
+        id: ChainId("legacy".into()),
+        description: Some("legacy entries-only chain".into()),
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        blocks: vec![
+            AudioBlock {
+                id: BlockId("in:legacy".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
+                    entries: vec![InputEntry {
+                        device_id: DeviceId("dev_a".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0],
+                    }],
+                }),
+            },
+            AudioBlock {
+                id: BlockId("out:legacy".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("dev_a".into()),
+                        mode: ChainOutputMode::Mono,
+                        channels: vec![0],
+                    }],
+                }),
+            },
+        ],
+    };
+    let req = BuildRequest {
+        chain: legacy_chain,
+        sample_rate: 48_000.0,
+        buffer_sizes: vec![1024],
+        io_bindings: Vec::new(),
+    };
+    let runtimes = build_chain_runtime(&req)
+        .expect("unbound chain must build cleanly (no runtimes, no error)");
+    assert!(
+        runtimes.is_empty(),
+        "unbound (legacy entries-only) chain must produce NO runtime — routing is binding-only, \
+         got {} runtime(s)",
+        runtimes.len()
+    );
 }
 
 #[test]

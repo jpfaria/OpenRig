@@ -241,16 +241,18 @@ pub(crate) fn resolve_output_device_for_chain_output(
 ///
 /// A bound block (non-empty `io`) resolves its endpoint against `io_bindings`
 /// — the SAME conversion the engine's `io_routing` applies, so the physical
-/// device cpal opens matches the device the runtime routes. A legacy block
-/// keeps its embedded `entries`. A bound block whose binding/endpoint cannot
-/// be resolved contributes nothing (an honest absence, not a wrong device).
+/// device cpal opens matches the device the runtime routes. Clean break (#716):
+/// routing is binding-only — an UNBOUND block (`io` empty) contributes nothing,
+/// so cpal opens no device for it. A bound block whose binding/endpoint cannot
+/// be resolved likewise contributes nothing (an honest absence, not a wrong
+/// device).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn input_entries_for_block(
     ib: &project::block::InputBlock,
     io_bindings: &[IoBinding],
 ) -> Vec<InputEntry> {
     if ib.io.is_empty() {
-        return ib.entries.clone();
+        return Vec::new();
     }
     io_bindings
         .iter()
@@ -268,7 +270,8 @@ fn input_entries_for_block(
 
 /// Issue #716 — the effective `OutputEntry` an enabled `OutputBlock` contributes.
 /// Bound blocks resolve from `io_bindings` (`DualMono` falls back to stereo,
-/// mirroring the engine); legacy blocks keep their `entries`.
+/// mirroring the engine). Clean break (#716): routing is binding-only — an
+/// UNBOUND block (`io` empty) contributes nothing, so cpal opens no device.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn output_entries_for_block(
     ob: &project::block::OutputBlock,
@@ -276,7 +279,7 @@ fn output_entries_for_block(
 ) -> Vec<OutputEntry> {
     use project::chain::ChainOutputMode;
     if ob.io.is_empty() {
-        return ob.entries.clone();
+        return Vec::new();
     }
     io_bindings
         .iter()
@@ -402,6 +405,12 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
 
     for chain in &project.chains {
         if !chain.enabled {
+            continue;
+        }
+        // Clean break (#716): routing is binding-only. An unbound chain opens
+        // no device, so it is absent from the resolved map — the controller
+        // treats it as "nothing to stream" (and tears down any stale runtime).
+        if !engine::io_routing::chain_has_bound_ports(chain) {
             continue;
         }
 
