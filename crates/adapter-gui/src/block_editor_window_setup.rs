@@ -29,7 +29,9 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_editor, build_knob_overlays};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::project_view::{
     block_model_index_from_items, block_model_picker_items, block_model_picker_labels,
     block_type_index, block_type_picker_items,
@@ -152,8 +154,12 @@ pub(crate) fn create_and_wire(
         &model_id,
         &editor_data.params,
     )));
-    let (win_eq_total, win_eq_bands) =
-        compute_eq_curves(&effect_type, &model_id, &editor_data.params);
+    let (win_eq_total, win_eq_bands) = compute_eq_curves(
+        &effect_type,
+        &model_id,
+        &editor_data.params,
+        eq_viz_sample_rate(&project_runtime),
+    );
     let win_eq_band_curves = Rc::new(VecModel::from(
         win_eq_bands
             .into_iter()

@@ -37,7 +37,9 @@ use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, build_params_from_items,
     persist_block_editor_draft, schedule_block_editor_persist_for_block_win,
 };
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::show_child_window;
 use crate::plugin_info;
 use crate::project_ops::sync_project_dirty;
@@ -216,8 +218,12 @@ pub(crate) fn wire(
                 &model.model_id,
                 &default_params,
             ));
-            let (eq_total, eq_bands) =
-                compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
+            let (eq_total, eq_bands) = compute_eq_curves(
+                &model.effect_type,
+                &model.model_id,
+                &default_params,
+                eq_viz_sample_rate(&project_runtime),
+            );
             win_eq_band_curves.set_vec(
                 eq_bands
                     .into_iter()

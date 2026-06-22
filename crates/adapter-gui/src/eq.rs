@@ -1,4 +1,8 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::{CurveEditorPoint, MultiSliderPoint};
+use infra_cpal::ProjectRuntimeController;
 use project::block::schema_for_block_model;
 use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterWidget};
 
@@ -161,8 +165,26 @@ pub(crate) fn build_curve_editor_points(
 
 /// Number of frequency points for EQ curve rendering (20Hz–20kHz).
 pub(crate) const EQ_CURVE_POINTS: usize = 200;
-/// Sample rate assumed for EQ visualization.
-pub(crate) const EQ_VIZ_SAMPLE_RATE: f32 = 48_000.0;
+/// Reference rate used to draw the EQ curve only when NO live stream exists
+/// yet (the block editor can be open with audio stopped — the curve is then
+/// purely illustrative). Once a stream is running the curve is drawn at the
+/// real device rate via [`eq_viz_sample_rate`] so it matches the audible
+/// filter near Nyquist (issue #723). This is the sanctioned pre-device
+/// fallback, NOT an assumption baked into the live path.
+pub(crate) const EQ_VIZ_REFERENCE_SAMPLE_RATE: f32 = 48_000.0;
+
+/// The sample rate to draw EQ curves at: the live device rate when a runtime
+/// is active, else the reference (no audio running). Single source of truth so
+/// no call site re-bakes a fixed rate (issue #723).
+pub(crate) fn eq_viz_sample_rate(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> f32 {
+    project_runtime
+        .borrow()
+        .as_ref()
+        .map(|c| c.sample_rate() as f32)
+        .unwrap_or(EQ_VIZ_REFERENCE_SAMPLE_RATE)
+}
 /// SVG viewbox width (must match Slint CurveEditorControl viewbox).
 pub(crate) const EQ_SVG_W: f32 = 1000.0;
 /// SVG viewbox height.
@@ -233,6 +255,7 @@ pub(crate) fn compute_eq_curves(
     effect_type: &str,
     model_id: &str,
     params: &ParameterSet,
+    sample_rate: f32,
 ) -> (String, Vec<String>) {
     let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
         return (String::new(), Vec::new());
@@ -283,11 +306,11 @@ pub(crate) fn compute_eq_curves(
 
         let kind = biquad_kind_for_group(group);
         let filter =
-            block_core::BiquadFilter::new(kind, freq_hz, gain_db, q.max(0.01), EQ_VIZ_SAMPLE_RATE);
+            block_core::BiquadFilter::new(kind, freq_hz, gain_db, q.max(0.01), sample_rate);
 
         let band_dbs: Vec<f32> = freqs
             .iter()
-            .map(|&f| filter.magnitude_db(f, EQ_VIZ_SAMPLE_RATE))
+            .map(|&f| filter.magnitude_db(f, sample_rate))
             .collect();
 
         // Accumulate linear magnitudes for total curve

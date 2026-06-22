@@ -47,7 +47,7 @@ pub(crate) use crate::runtime_state::SelectRuntimeState;
 // runtime_probe.rs. Re-exports below preserve `crate::runtime::PROBE_*`
 // paths in runtime_graph.rs and probe.rs.
 use crate::runtime_probe::{PROBE_ARMED, PROBE_DETECT_THRESHOLD, PROBE_FIRED};
-pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_IDLE};
+pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_IDLE};
 
 // Slice 3: graph + block builders. External callers keep using
 // `engine::runtime::*` paths via these re-exports.
@@ -127,18 +127,15 @@ pub fn process_input_f32(
             .store(injected_at, Ordering::Relaxed);
         let mut buf = data.to_vec();
         let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
-        // The audible pitch of the beep is approximate — we use the
-        // nominal 48 kHz for the sine step. The measurement itself
-        // does not depend on the beep's frequency.
-        let sr = 48_000.0_f32;
-        for f in 0..beep_frames {
-            let t = f as f32 / sr;
-            let envelope = (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
-            let sample = (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
-            for ch in 0..input_total_channels {
-                buf[f * input_total_channels + ch] = sample;
-            }
-        }
+        // Synthesize the beep at the runtime's REAL rate (issue #723), not a
+        // hardcoded 48 kHz. The measurement is timing-based, but the audible
+        // pitch should still be a true 1 kHz on any device rate.
+        crate::runtime_probe::write_probe_beep(
+            &mut buf,
+            input_total_channels,
+            runtime.sample_rate,
+            beep_frames,
+        );
         Some(buf)
     } else {
         None
