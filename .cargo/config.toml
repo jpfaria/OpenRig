@@ -1,8 +1,15 @@
+# split-debuginfo=unpacked: on macOS the default ("packed") runs `dsymutil`
+# at the end of every link to serialize all DWARF into a .dSYM bundle — the
+# single biggest cost in the edit-compile loop. "unpacked" leaves the debug
+# info beside the .o files in target/, skipping dsymutil entirely. macOS-only
+# by construction (these target sections don't touch Linux/Windows, where the
+# global default stays correct — MSVC only supports "packed"). No-op in release
+# (debug=false → no DWARF to split); the .app bundle/codesign never reads .dSYM.
 [target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-Wl,-rpath,@executable_path"]
+rustflags = ["-C", "link-arg=-Wl,-rpath,@executable_path", "-C", "split-debuginfo=unpacked"]
 
 [target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-Wl,-rpath,@executable_path"]
+rustflags = ["-C", "link-arg=-Wl,-rpath,@executable_path", "-C", "split-debuginfo=unpacked"]
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "link-arg=-Wl,-rpath,$ORIGIN"]
