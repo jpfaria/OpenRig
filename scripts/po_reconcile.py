@@ -44,9 +44,13 @@ def main(path: str) -> None:
         if mid and mid.group(1) and re.search(r'^msgstr ""$', blk, re.M):
             repl = active.get(mid.group(1)) or obsolete.get(mid.group(1))
             if repl:
-                escaped = repl.replace("\\", "\\\\").replace('"', '\\"')
+                # `repl` is the raw on-disk form captured between the msgstr
+                # quotes — already gettext-escaped. Insert it verbatim; a
+                # re-escape would turn `\"` into the invalid `\\"` (issue #714).
+                # Use a replacement function so re.sub does not interpret
+                # backslashes in `repl` as group references.
                 blk = re.sub(
-                    r'^msgstr ""$', f'msgstr "{escaped}"', blk, flags=re.M
+                    r'^msgstr ""$', lambda _: f'msgstr "{repl}"', blk, flags=re.M
                 )
         out.append(blk)
 
