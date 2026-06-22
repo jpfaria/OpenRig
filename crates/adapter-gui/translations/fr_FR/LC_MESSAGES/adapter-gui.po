@@ -624,3 +624,30 @@ msgstr "Double mono"
 
 msgid "placeholder-binding-name"
 msgstr "Nom de la liaison…"
+
+msgid "label-channels-prefix"
+msgstr "Canaux"
+
+msgid "label-endpoint-device"
+msgstr "Périphérique"
+
+msgid "label-endpoint-mode"
+msgstr "Mode"
+
+msgid "label-endpoint-channels"
+msgstr "Canaux"
+
+msgid "btn-add-endpoint"
+msgstr "Ajouter un point d'E/S"
+
+msgid "label-group-inputs"
+msgstr "Entrées"
+
+msgid "label-group-outputs"
+msgstr "Sorties"
+
+msgid "empty-no-input-endpoints"
+msgstr "Aucune entrée pour l'instant"
+
+msgid "empty-no-output-endpoints"
+msgstr "Aucune sortie pour l'instant"

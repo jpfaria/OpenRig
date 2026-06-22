@@ -621,3 +621,30 @@ msgstr "दोहरा मोनो"
 
 msgid "placeholder-binding-name"
 msgstr "बाइंडिंग नाम…"
+
+msgid "label-channels-prefix"
+msgstr "चैनल"
+
+msgid "label-endpoint-device"
+msgstr "डिवाइस"
+
+msgid "label-endpoint-mode"
+msgstr "मोड"
+
+msgid "label-endpoint-channels"
+msgstr "चैनल"
+
+msgid "btn-add-endpoint"
+msgstr "एंडपॉइंट जोड़ें"
+
+msgid "label-group-inputs"
+msgstr "इनपुट"
+
+msgid "label-group-outputs"
+msgstr "आउटपुट"
+
+msgid "empty-no-input-endpoints"
+msgstr "अभी कोई इनपुट नहीं"
+
+msgid "empty-no-output-endpoints"
+msgstr "अभी कोई आउटपुट नहीं"

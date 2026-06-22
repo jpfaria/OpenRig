@@ -1019,3 +1019,53 @@ msgstr ""
 msgctxt "TouchMain"
 msgid "⌨"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "placeholder-binding-name"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_row.slint
+msgctxt "IoEndpointRow"
+msgid "label-channels-prefix"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-device"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-mode"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-channels"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "btn-add-endpoint"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "label-group-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "label-group-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "empty-no-input-endpoints"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "empty-no-output-endpoints"
+msgstr ""

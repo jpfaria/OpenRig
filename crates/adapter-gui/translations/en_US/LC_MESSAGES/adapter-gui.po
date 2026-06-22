@@ -689,3 +689,30 @@ msgstr "Dual mono"
 
 msgid "placeholder-binding-name"
 msgstr "Binding name…"
+
+msgid "label-channels-prefix"
+msgstr "Channels"
+
+msgid "label-endpoint-device"
+msgstr "Device"
+
+msgid "label-endpoint-mode"
+msgstr "Mode"
+
+msgid "label-endpoint-channels"
+msgstr "Channels"
+
+msgid "btn-add-endpoint"
+msgstr "Add endpoint"
+
+msgid "label-group-inputs"
+msgstr "Inputs"
+
+msgid "label-group-outputs"
+msgstr "Outputs"
+
+msgid "empty-no-input-endpoints"
+msgstr "No input endpoints yet"
+
+msgid "empty-no-output-endpoints"
+msgstr "No output endpoints yet"

@@ -621,3 +621,30 @@ msgstr "듀얼 모노"
 
 msgid "placeholder-binding-name"
 msgstr "바인딩 이름…"
+
+msgid "label-channels-prefix"
+msgstr "채널"
+
+msgid "label-endpoint-device"
+msgstr "장치"
+
+msgid "label-endpoint-mode"
+msgstr "모드"
+
+msgid "label-endpoint-channels"
+msgstr "채널"
+
+msgid "btn-add-endpoint"
+msgstr "엔드포인트 추가"
+
+msgid "label-group-inputs"
+msgstr "입력"
+
+msgid "label-group-outputs"
+msgstr "출력"
+
+msgid "empty-no-input-endpoints"
+msgstr "아직 입력이 없습니다"
+
+msgid "empty-no-output-endpoints"
+msgstr "아직 출력이 없습니다"

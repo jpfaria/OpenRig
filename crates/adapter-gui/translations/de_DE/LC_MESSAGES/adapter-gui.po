@@ -626,4 +626,31 @@ msgid "mode-dual-mono"
 msgstr "Dual mono"
 
 msgid "placeholder-binding-name"
-msgstr "Bindungsname…"
+msgstr "Name der Zuordnung…"
+
+msgid "label-channels-prefix"
+msgstr "Kanäle"
+
+msgid "label-endpoint-device"
+msgstr "Gerät"
+
+msgid "label-endpoint-mode"
+msgstr "Modus"
+
+msgid "label-endpoint-channels"
+msgstr "Kanäle"
+
+msgid "btn-add-endpoint"
+msgstr "Endpunkt hinzufügen"
+
+msgid "label-group-inputs"
+msgstr "Eingänge"
+
+msgid "label-group-outputs"
+msgstr "Ausgänge"
+
+msgid "empty-no-input-endpoints"
+msgstr "Noch keine Eingänge"
+
+msgid "empty-no-output-endpoints"
+msgstr "Noch keine Ausgänge"

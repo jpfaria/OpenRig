@@ -625,3 +625,30 @@ msgstr "デュアルモノ"
 
 msgid "placeholder-binding-name"
 msgstr "バインディング名…"
+
+msgid "label-channels-prefix"
+msgstr "チャンネル"
+
+msgid "label-endpoint-device"
+msgstr "デバイス"
+
+msgid "label-endpoint-mode"
+msgstr "モード"
+
+msgid "label-endpoint-channels"
+msgstr "チャンネル"
+
+msgid "btn-add-endpoint"
+msgstr "エンドポイントを追加"
+
+msgid "label-group-inputs"
+msgstr "入力"
+
+msgid "label-group-outputs"
+msgstr "出力"
+
+msgid "empty-no-input-endpoints"
+msgstr "入力はまだありません"
+
+msgid "empty-no-output-endpoints"
+msgstr "出力はまだありません"
