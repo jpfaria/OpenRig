@@ -18,6 +18,8 @@ fn input_block(entries: Vec<InputEntry>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries,
         }),
     }

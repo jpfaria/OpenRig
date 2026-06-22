@@ -92,7 +92,10 @@ mod tests {
     /// per-machine master switches for the MIDI adapter / MCP server.
     /// #716 bumped to 68 with `CreateIoBinding`, `UpdateIoBinding`, and
     /// `DeleteIoBinding` — per-machine I/O binding registry (Task 3/4).
-    const COMMAND_VARIANT_COUNT: usize = 68;
+    /// #716 bumped to 71 with the intent commands `RenameIoBinding`,
+    /// `AddIoEndpoint`, `RemoveIoEndpoint` — endpoint logic moved out of the
+    /// GUI into handlers (GUI is a pure dispatcher, LAW 1).
+    const COMMAND_VARIANT_COUNT: usize = 71;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

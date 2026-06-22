@@ -25,7 +25,8 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use domain::io_binding::IoBinding;
+use domain::ids::DeviceId;
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_filesystem::{AppConfig, FilesystemStorage};
 use project::block::AudioBlockKind;
 
@@ -174,4 +175,93 @@ impl LocalDispatcher {
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
+
+    /// Handle `Command::RenameIoBinding`: rename the entry whose `id` matches
+    /// and persist. No-op when the id is absent.
+    pub(crate) fn handle_rename_io_binding(&self, id: String, name: String) -> Result<Vec<Event>> {
+        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        crate::persist_worker::run(move || {
+            let Some(path) = config_path else {
+                log::error!("io_binding rename: config path unresolvable");
+                return;
+            };
+            let mut config = load_config_at(&path);
+            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
+                b.name = name;
+            }
+            save_config_at(&path, &config);
+        });
+        Ok(vec![Event::IoBindingRegistryChanged])
+    }
+
+    /// Handle `Command::AddIoEndpoint`: build the `IoEndpoint` (auto-assigned
+    /// "In N" / "Out N" name), append it to the binding's inputs (or outputs)
+    /// and persist. The GUI never constructs the domain endpoint.
+    pub(crate) fn handle_add_io_endpoint(
+        &self,
+        binding_id: String,
+        is_input: bool,
+        device_id: String,
+        channels: Vec<usize>,
+        mode: ChannelMode,
+    ) -> Result<Vec<Event>> {
+        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        crate::persist_worker::run(move || {
+            let Some(path) = config_path else {
+                log::error!("io_binding add endpoint: config path unresolvable");
+                return;
+            };
+            let mut config = load_config_at(&path);
+            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                let existing = if is_input { b.inputs.len() } else { b.outputs.len() };
+                let endpoint = IoEndpoint {
+                    name: next_endpoint_name(existing, is_input),
+                    device_id: DeviceId(device_id),
+                    mode,
+                    channels,
+                };
+                if is_input {
+                    b.inputs.push(endpoint);
+                } else {
+                    b.outputs.push(endpoint);
+                }
+            }
+            save_config_at(&path, &config);
+        });
+        Ok(vec![Event::IoBindingRegistryChanged])
+    }
+
+    /// Handle `Command::RemoveIoEndpoint`: drop the named endpoint from the
+    /// matching side and persist.
+    pub(crate) fn handle_remove_io_endpoint(
+        &self,
+        binding_id: String,
+        is_input: bool,
+        endpoint_name: String,
+    ) -> Result<Vec<Event>> {
+        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        crate::persist_worker::run(move || {
+            let Some(path) = config_path else {
+                log::error!("io_binding remove endpoint: config path unresolvable");
+                return;
+            };
+            let mut config = load_config_at(&path);
+            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                if is_input {
+                    b.inputs.retain(|e| e.name != endpoint_name);
+                } else {
+                    b.outputs.retain(|e| e.name != endpoint_name);
+                }
+            }
+            save_config_at(&path, &config);
+        });
+        Ok(vec![Event::IoBindingRegistryChanged])
+    }
+}
+
+/// Sequential endpoint name ("In N" / "Out N") so an added endpoint is always
+/// labelled without the GUI inventing a name.
+fn next_endpoint_name(existing: usize, is_input: bool) -> String {
+    let prefix = if is_input { "In" } else { "Out" };
+    format!("{prefix} {}", existing + 1)
 }

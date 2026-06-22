@@ -206,3 +206,120 @@ fn test_delete_removes() {
         "surviving binding must still be present after delete; got:\n{raw}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Intent commands (#716): AddIoEndpoint / RemoveIoEndpoint / RenameIoBinding.
+// ALL logic lives in the handler — these tests dispatch the raw intent (no GUI,
+// no domain construction by the caller) and assert the persisted state.
+// ---------------------------------------------------------------------------
+
+fn reload(cfg_path: &std::path::Path) -> infra_filesystem::AppConfig {
+    let raw = std::fs::read_to_string(cfg_path).expect("read config.yaml");
+    serde_yaml::from_str(&raw).expect("parse AppConfig")
+}
+
+fn empty_binding(id: &str, name: &str) -> IoBinding {
+    IoBinding {
+        id: id.to_string(),
+        name: name.to_string(),
+        inputs: vec![],
+        outputs: vec![],
+    }
+}
+
+#[test]
+fn test_add_input_endpoint_builds_and_persists() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let cfg_path = tmp.path().join("config.yaml");
+    let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
+
+    dispatcher
+        .dispatch(Command::CreateIoBinding {
+            binding: empty_binding("main", "Main"),
+        })
+        .expect("create ok");
+    // The GUI would only forward these raw picker values; the handler builds
+    // the IoEndpoint (name, domain types) and appends it.
+    dispatcher
+        .dispatch(Command::AddIoEndpoint {
+            binding_id: "main".into(),
+            is_input: true,
+            device_id: "devA".into(),
+            channels: vec![0, 1],
+            mode: ChannelMode::Stereo,
+        })
+        .expect("add ok");
+    application::persist_worker::flush();
+
+    let cfg = reload(&cfg_path);
+    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    assert_eq!(b.inputs.len(), 1, "handler must append the input endpoint");
+    let ep = &b.inputs[0];
+    assert_eq!(ep.name, "In 1", "handler assigns the sequential name");
+    assert_eq!(ep.device_id, DeviceId("devA".into()));
+    assert_eq!(ep.channels, vec![0, 1]);
+    assert_eq!(ep.mode, ChannelMode::Stereo);
+    assert!(b.outputs.is_empty());
+}
+
+#[test]
+fn test_remove_io_endpoint() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let cfg_path = tmp.path().join("config.yaml");
+    let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
+
+    dispatcher
+        .dispatch(Command::CreateIoBinding {
+            binding: empty_binding("main", "Main"),
+        })
+        .expect("create");
+    dispatcher
+        .dispatch(Command::AddIoEndpoint {
+            binding_id: "main".into(),
+            is_input: true,
+            device_id: "devA".into(),
+            channels: vec![0],
+            mode: ChannelMode::Mono,
+        })
+        .expect("add");
+    dispatcher
+        .dispatch(Command::RemoveIoEndpoint {
+            binding_id: "main".into(),
+            is_input: true,
+            endpoint_name: "In 1".into(),
+        })
+        .expect("remove");
+    application::persist_worker::flush();
+
+    let cfg = reload(&cfg_path);
+    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    assert!(b.inputs.is_empty(), "handler must remove the endpoint");
+}
+
+#[test]
+fn test_rename_io_binding() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let cfg_path = tmp.path().join("config.yaml");
+    let dispatcher = LocalDispatcher::new(empty_project());
+    dispatcher.attach_config_path(Some(cfg_path.clone()));
+
+    dispatcher
+        .dispatch(Command::CreateIoBinding {
+            binding: empty_binding("main", "Old"),
+        })
+        .expect("create");
+    dispatcher
+        .dispatch(Command::RenameIoBinding {
+            id: "main".into(),
+            name: "New Name".into(),
+        })
+        .expect("rename");
+    application::persist_worker::flush();
+
+    let cfg = reload(&cfg_path);
+    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    assert_eq!(b.name, "New Name");
+    assert_eq!(cfg.io_bindings.len(), 1, "rename must not change count");
+}

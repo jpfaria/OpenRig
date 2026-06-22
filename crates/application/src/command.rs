@@ -15,7 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
-pub use domain::io_binding::IoBinding;
+pub use domain::io_binding::{ChannelMode, IoBinding};
 use project::block::{AudioBlock, InsertEndpoint};
 use project::chain::Chain;
 pub use crate::di_loader::DiLoopSource;
@@ -580,6 +580,30 @@ pub enum Command {
     /// marked `TODO(#716-task5)` where the guard can be inserted when chain
     /// blocks reference bindings.
     DeleteIoBinding { id: String },
+
+    /// #716: rename an existing I/O binding. The handler renames the entry
+    /// whose `id` matches and persists; the GUI only forwards id + new name.
+    RenameIoBinding { id: String, name: String },
+
+    /// #716: add an endpoint to an I/O binding. The handler builds the
+    /// `IoEndpoint` (auto-assigned "In N" / "Out N" name), appends it to the
+    /// binding's inputs (or outputs) and persists. The GUI forwards only the
+    /// structured picker values — it does NOT construct the domain endpoint.
+    AddIoEndpoint {
+        binding_id: String,
+        is_input: bool,
+        device_id: String,
+        channels: Vec<usize>,
+        mode: ChannelMode,
+    },
+
+    /// #716: remove the named endpoint from a binding's inputs (or outputs)
+    /// and persist. The GUI forwards only the identifiers.
+    RemoveIoEndpoint {
+        binding_id: String,
+        is_input: bool,
+        endpoint_name: String,
+    },
 }
 
 /// What [`Command::ApplyRigNav`] does to the chain's rig input.

@@ -1,4 +1,7 @@
-use super::{endpoint_names_for_input_binding, endpoint_names_for_output_binding, IoBindingModel, IoEndpointModel};
+use super::{
+    endpoint_names_for_input_binding, endpoint_names_for_output_binding, IoBindingModel,
+    IoEndpointModel,
+};
 
 // ── endpoint_picker_lists_only_selected_binding_endpoints (#716) ──────────────
 
