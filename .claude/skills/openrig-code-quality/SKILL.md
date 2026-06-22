@@ -17,6 +17,16 @@ either here; cite them.
 
 ---
 
+## LEI — PROIBIDO supor/inventar layout de UI sem a skill de UI/UX
+
+O agente **não enxerga a tela renderizada**. Portanto é **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar a skill `ux-ui-mastery`** (`component-build` para construir, `design-review` / `ux-audit` para revisar) e **conduzir o trabalho por ela**: matriz de estados, hierarquia visual, espaçamento/tokens, alvos ≥44px, estados vazio/erro/carregando.
+
+- Chutar layout e mandar o usuário testar é **anti-padrão proibido** (já queimou um dia inteiro de tokens entregando telas tortas).
+- Tocou/criou tela → invocar `ux-ui-mastery` **ANTES da primeira linha de `.slint`**.
+- Como o agente não renderiza, o fechamento visual é em **loop curto com o usuário** (ele aponta o que está torto) — nunca "confia que ficou bom".
+
+---
+
 ## LEI — todo push entrega um bloco de handoff explícito
 
 **Após `git push` numa branch do agente, a resposta no chat para o usuário DEVE conter — no mesmo turno, sem ser pedido — dois blocos:**
