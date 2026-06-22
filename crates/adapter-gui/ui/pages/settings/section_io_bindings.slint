@@ -3,27 +3,32 @@
 // output audio endpoints under a shared name so chain blocks can reference
 // them symbolically.
 //
-// The section is pure dispatcher (LAW: no business logic in Slint):
+// The section is a pure dispatcher (LAW: no business logic in Slint):
 //   - callbacks fire upward; Rust wiring owns the mutation and Command dispatch.
-//   - the binding list is seeded by Rust via `io-binding-ids` / `io-binding-names`.
-//   - create-io-binding returns the generated id so the list can refresh.
-//   - delete-io-binding returns an error message (empty = success); if non-empty
-//     the section renders it inline so the user knows why the delete was rejected.
-//
-// Endpoint pickers are intentionally minimal: name text-input + device text-input
-// + mode ComboBox + channels text-input. The full audio-interface device picker
-// from section_system_audio.slint is NOT reused here to avoid coupling risks
-// (per the task brief: "keep picker reuse minimal"). A follow-up can wire a
-// shared picker once the audio picker is extracted into a standalone component.
+//   - the binding list is seeded by Rust via the `io-bindings` model
+//     ([IoBindingModel] with nested input/output endpoints).
+//   - the endpoint pickers carry STRUCTURED values (device id + selected
+//     channel indices + mode wire token) — no free text. Channel options for
+//     the active add-row come from the shared `channel-options` model that
+//     Rust rebuilds from the chosen device's reported channel count.
 //
 // LOC budget: ≤ 500 lines (slint-best-practices cap).
 
-import { ComboBox } from "std-widgets.slint";
+import { IoBindingModel, IoEndpointModel, ChannelOptionItem } from "../../models.slint";
+import { IoEndpointRow } from "io_endpoint_row.slint";
+import { IoEndpointAddRow } from "io_endpoint_add_row.slint";
 
 export component SectionSystemIoBindings inherits Rectangle {
     // ── Data surface ────────────────────────────────────────────────────────
-    in property <[string]> io-binding-ids;
-    in property <[string]> io-binding-names;
+    in property <[IoBindingModel]> io-bindings;
+    // Real enumerated devices (id + display name) for the pickers.
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    // Channel checkboxes for the currently-active add-row (Rust rebuilds it
+    // whenever the active device changes).
+    in property <[ChannelOptionItem]> channel-options;
     // Inline error (e.g. delete rejected because binding is referenced).
     in-out property <string> io-binding-error: "";
 
@@ -33,24 +38,26 @@ export component SectionSystemIoBindings inherits Rectangle {
     // Returns "" on success, error message on reject.
     callback delete-io-binding(string /* id */) -> string;
     callback rename-io-binding(string /* id */, string /* new_name */);
-    // Input endpoint: (binding_id, ep_name, device, mode, channels_label)
-    callback add-input-endpoint(string, string, string, string, string);
-    // Output endpoint: (binding_id, ep_name, device, mode, channels_label)
-    callback add-output-endpoint(string, string, string, string, string);
-    // Remove endpoint: (binding_id, ep_name, is_input)
+    // The active add-row's device picker changed: (binding_id, is_input, device_id).
+    callback endpoint-device-changed(string, bool, string);
+    // Toggle a channel checkbox for the active add-row: (index, selected).
+    callback toggle-endpoint-channel(int, bool);
+    // Commit a structured input endpoint: (binding_id, device_id, mode).
+    // Rust reads the selected channel indices from the shared channel-options.
+    callback add-input-endpoint(string, string, string);
+    // Commit a structured output endpoint: (binding_id, device_id, mode).
+    callback add-output-endpoint(string, string, string);
+    // Remove an existing endpoint: (binding_id, ep_name, is_input).
     callback remove-endpoint(string, string, bool);
 
     // ── Private state ─────────────────────────────────────────────────────────
     // Index of the binding row open in the inline editor (-1 = none).
     private property <int> editing-index: -1;
-    // Draft fields for renaming.
+    // Draft for renaming the open binding.
     private property <string> rename-draft: "";
-    // Draft fields for a new endpoint.
-    private property <string> ep-name-draft: "";
-    private property <string> ep-device-draft: "";
-    private property <int>    ep-mode-index: 0;   // 0=mono 1=stereo 2=dual_mono
-    private property <string> ep-channels-draft: "1";
-    private property <bool>   ep-is-input: true;
+    // Which add-row is active inside the open binding: id + side.
+    private property <string> active-binding-id: "";
+    private property <bool>   active-is-input: true;
     // Draft for a new binding name.
     private property <string> new-binding-name: "";
 
@@ -61,27 +68,27 @@ export component SectionSystemIoBindings inherits Rectangle {
 
         // ── Create new binding row ──────────────────────────────────────────
         Rectangle {
-            height: 48px;
+            height: 52px;
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
             border-color: #2a2f38;
 
             HorizontalLayout {
-                padding-left: 12px;
+                padding-left: 14px;
                 padding-right: 8px;
                 spacing: 8px;
                 alignment: center;
 
                 Rectangle {
                     horizontal-stretch: 1;
-                    height: 28px;
+                    height: 32px;
                     Text {
                         x: 0px;
                         width: 100%;
                         height: 100%;
                         vertical-alignment: center;
-                        text: "Nome da ligação…";
+                        text: @tr("placeholder-binding-name");
                         color: #5a6472;
                         font-size: 14px;
                         visible: root.new-binding-name == "";
@@ -94,22 +101,26 @@ export component SectionSystemIoBindings inherits Rectangle {
                         font-size: 14px;
                         single-line: true;
                         vertical-alignment: center;
+                        accepted => {
+                            root.create-io-binding(root.new-binding-name);
+                            root.new-binding-name = "";
+                        }
                     }
                 }
 
                 // Add button — always creates a binding (Rust assigns a
                 // default name when the field is empty), then it can be renamed.
                 Rectangle {
-                    width: 28px;
-                    height: 28px;
+                    width: 40px;
+                    height: 40px;
                     background: #188cff;
-                    border-radius: 6px;
+                    border-radius: 8px;
 
                     Image {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         source: @image-url("../../assets/plus.svg");
                         colorize: #ffffff;
                     }
@@ -147,12 +158,10 @@ export component SectionSystemIoBindings inherits Rectangle {
                     overflow: elide;
                 }
 
-                // Dismiss button
                 Rectangle {
-                    width: 20px;
-                    height: 20px;
+                    width: 24px;
+                    height: 24px;
                     background: transparent;
-
                     Image {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
@@ -161,7 +170,6 @@ export component SectionSystemIoBindings inherits Rectangle {
                         source: @image-url("../../assets/close.svg");
                         colorize: #e07070;
                     }
-
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.io-binding-error = ""; }
@@ -171,30 +179,26 @@ export component SectionSystemIoBindings inherits Rectangle {
         }
 
         // ── Binding list ────────────────────────────────────────────────────
-        for name[i] in root.io-binding-names : Rectangle {
-            height: root.editing-index == i ? 260px : 52px;
+        for binding[i] in root.io-bindings : Rectangle {
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
             border-color: root.editing-index == i ? #2f4a6a : #2a2f38;
-            animate height { duration: 150ms; easing: ease-in-out; }
             animate border-color { duration: 150ms; }
-            clip: true;
 
             VerticalLayout {
                 spacing: 0px;
 
-                // Row header: name + expand + delete
+                // Row header: chevron + name + delete.
                 Rectangle {
                     height: 52px;
 
                     HorizontalLayout {
                         padding-left: 14px;
                         padding-right: 8px;
-                        spacing: 8px;
+                        spacing: 10px;
                         alignment: center;
 
-                        // Expand/collapse chevron
                         Image {
                             width: 14px;
                             height: 14px;
@@ -206,7 +210,7 @@ export component SectionSystemIoBindings inherits Rectangle {
 
                         Text {
                             horizontal-stretch: 1;
-                            text: name;
+                            text: binding.name;
                             color: #dde3ec;
                             font-size: 15px;
                             font-weight: root.editing-index == i ? 600 : 400;
@@ -214,237 +218,187 @@ export component SectionSystemIoBindings inherits Rectangle {
                             vertical-alignment: center;
                         }
 
-                        // Delete button
                         Rectangle {
-                            width: 28px;
-                            height: 28px;
+                            width: 40px;
+                            height: 40px;
                             background: del-ta.has-hover ? #3a1a1a : transparent;
                             border-radius: 6px;
                             animate background { duration: 120ms; }
-
                             Image {
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
-                                width: 13px;
-                                height: 13px;
+                                width: 14px;
+                                height: 14px;
                                 source: @image-url("../../assets/trash.svg");
                                 colorize: del-ta.has-hover ? #e07070 : #6b7786;
                             }
-
                             del-ta := TouchArea {
                                 mouse-cursor: pointer;
                                 clicked => {
-                                    // Close editor if open for this row.
-                                    if root.editing-index == i {
-                                        root.editing-index = -1;
-                                    }
-                                    let err = root.delete-io-binding(root.io-binding-ids[i]);
-                                    if err != "" {
-                                        root.io-binding-error = err;
-                                    }
+                                    if root.editing-index == i { root.editing-index = -1; }
+                                    let err = root.delete-io-binding(binding.id);
+                                    if err != "" { root.io-binding-error = err; }
                                 }
                             }
                         }
                     }
 
-                    // Click the whole header area to toggle editor.
                     TouchArea {
+                        width: parent.width - 60px;
+                        height: parent.height;
+                        x: 0px;
                         mouse-cursor: pointer;
                         clicked => {
                             root.editing-index = (root.editing-index == i) ? -1 : i;
-                            root.rename-draft = name;
-                            root.ep-name-draft = "";
-                            root.ep-device-draft = "";
-                            root.ep-mode-index = 0;
-                            root.ep-channels-draft = "1";
-                            root.ep-is-input = true;
+                            root.rename-draft = binding.name;
+                            root.active-binding-id = "";
                         }
                     }
                 }
 
-                // Inline editor (only when expanded)
+                // ── Inline editor ────────────────────────────────────────────
                 if root.editing-index == i : VerticalLayout {
                     padding-left: 14px;
                     padding-right: 14px;
-                    padding-bottom: 12px;
-                    spacing: 10px;
+                    padding-bottom: 14px;
+                    spacing: 14px;
 
-                    // Thin separator
                     Rectangle { height: 1px; background: #25292f; }
 
-                    // Rename row
+                    // Rename row.
                     HorizontalLayout {
-                        spacing: 8px;
+                        spacing: 10px;
                         alignment: center;
                         Text {
                             text: @tr("label-binding-name");
                             color: #8a92a3;
                             font-size: 13px;
-                            width: 80px;
+                            width: 90px;
                             vertical-alignment: center;
                         }
-                        TextInput {
+                        Rectangle {
                             horizontal-stretch: 1;
-                            text <=> root.rename-draft;
-                            color: #f3f6fb;
-                            font-size: 14px;
-                            single-line: true;
-                            accepted => {
-                                root.rename-io-binding(root.io-binding-ids[i], root.rename-draft);
+                            height: 36px;
+                            background: #15181d;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: #2a2f38;
+                            TextInput {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                height: 100%;
+                                text <=> root.rename-draft;
+                                color: #f3f6fb;
+                                font-size: 14px;
+                                single-line: true;
+                                vertical-alignment: center;
+                                accepted => { root.rename-io-binding(binding.id, root.rename-draft); }
                             }
                         }
                         Rectangle {
-                            width: 28px;
-                            height: 28px;
+                            width: 40px;
+                            height: 40px;
                             background: #1e2229;
                             border-radius: 6px;
                             Image {
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
-                                width: 13px;
-                                height: 13px;
+                                width: 14px;
+                                height: 14px;
                                 source: @image-url("../../assets/check.svg");
                                 colorize: #8a92a3;
                             }
                             TouchArea {
                                 mouse-cursor: pointer;
-                                clicked => {
-                                    root.rename-io-binding(root.io-binding-ids[i], root.rename-draft);
-                                }
+                                clicked => { root.rename-io-binding(binding.id, root.rename-draft); }
                             }
                         }
                     }
 
-                    // Add endpoint: type selector + fields + confirm
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: center;
-
-                        // Input / Output toggle
-                        Rectangle {
-                            width: 64px;
-                            height: 28px;
-                            background: root.ep-is-input ? #1a3a5c : #1e2229;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: root.ep-is-input ? #2f5a8a : #2a2f38;
-                            Text {
-                                x: 0; y: 0;
-                                width: parent.width; height: parent.height;
-                                text: @tr("label-endpoint-input");
-                                color: root.ep-is-input ? #dde3ec : #6b7786;
-                                font-size: 12px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                    // ── Entradas group ──────────────────────────────────────
+                    Text {
+                        text: @tr("label-group-inputs");
+                        color: #c4ccd8;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    if binding.inputs.length == 0 : Text {
+                        text: @tr("empty-no-input-endpoints");
+                        color: #5a6472;
+                        font-size: 12px;
+                    }
+                    for ep[ei] in binding.inputs : IoEndpointRow {
+                        endpoint: ep;
+                        remove-requested => { root.remove-endpoint(binding.id, ep.name, true); }
+                    }
+                    Rectangle {
+                        height: add-input.preferred-height;
+                        background: #15181d;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #262b33;
+                        add-input := IoEndpointAddRow {
+                            x: 12px;
+                            y: 12px;
+                            width: parent.width - 24px;
+                            is-input: true;
+                            device-names: root.input-device-names;
+                            device-ids: root.input-device-ids;
+                            channel-options: (root.active-binding-id == binding.id && root.active-is-input)
+                                ? root.channel-options : [];
+                            device-changed(dev) => {
+                                root.active-binding-id = binding.id;
+                                root.active-is-input = true;
+                                root.endpoint-device-changed(binding.id, true, dev);
                             }
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.ep-is-input = true; }
-                            }
-                        }
-                        Rectangle {
-                            width: 64px;
-                            height: 28px;
-                            background: !root.ep-is-input ? #1a3a5c : #1e2229;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: !root.ep-is-input ? #2f5a8a : #2a2f38;
-                            Text {
-                                x: 0; y: 0;
-                                width: parent.width; height: parent.height;
-                                text: @tr("label-endpoint-output");
-                                color: !root.ep-is-input ? #dde3ec : #6b7786;
-                                font-size: 12px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.ep-is-input = false; }
+                            toggle-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
+                            add-endpoint(dev, mode) => {
+                                root.add-input-endpoint(binding.id, dev, mode);
+                                root.active-binding-id = "";
                             }
                         }
+                    }
 
-                        TextInput {
-                            horizontal-stretch: 1;
-                            text <=> root.ep-name-draft;
-                            color: #f3f6fb;
-                            font-size: 13px;
-                            single-line: true;
-                        }
-
-                        TextInput {
-                            width: 90px;
-                            text <=> root.ep-device-draft;
-                            color: #f3f6fb;
-                            font-size: 13px;
-                            single-line: true;
-                        }
-
-                        // Mode: only Stereo+Mono for outputs; Mono+DualMono+Stereo for inputs.
-                        ComboBox {
-                            width: 90px;
-                            model: root.ep-is-input
-                                ? [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]
-                                : [@tr("mode-mono"), @tr("mode-stereo")];
-                            current-index <=> root.ep-mode-index;
-                        }
-
-                        TextInput {
-                            width: 40px;
-                            text <=> root.ep-channels-draft;
-                            color: #f3f6fb;
-                            font-size: 13px;
-                            single-line: true;
-                        }
-
-                        // Add endpoint confirm
-                        Rectangle {
-                            width: 28px;
-                            height: 28px;
-                            background: root.ep-name-draft == "" ? #1e2229 : #188cff;
-                            border-radius: 6px;
-                            animate background { duration: 150ms; }
-                            Image {
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
-                                width: 13px;
-                                height: 13px;
-                                source: @image-url("../../assets/plus.svg");
-                                colorize: root.ep-name-draft == "" ? #3d4450 : #ffffff;
+                    // ── Saídas group ────────────────────────────────────────
+                    Text {
+                        text: @tr("label-group-outputs");
+                        color: #c4ccd8;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    if binding.outputs.length == 0 : Text {
+                        text: @tr("empty-no-output-endpoints");
+                        color: #5a6472;
+                        font-size: 12px;
+                    }
+                    for ep[eo] in binding.outputs : IoEndpointRow {
+                        endpoint: ep;
+                        remove-requested => { root.remove-endpoint(binding.id, ep.name, false); }
+                    }
+                    Rectangle {
+                        height: add-output.preferred-height;
+                        background: #15181d;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #262b33;
+                        add-output := IoEndpointAddRow {
+                            x: 12px;
+                            y: 12px;
+                            width: parent.width - 24px;
+                            is-input: false;
+                            device-names: root.output-device-names;
+                            device-ids: root.output-device-ids;
+                            channel-options: (root.active-binding-id == binding.id && !root.active-is-input)
+                                ? root.channel-options : [];
+                            device-changed(dev) => {
+                                root.active-binding-id = binding.id;
+                                root.active-is-input = false;
+                                root.endpoint-device-changed(binding.id, false, dev);
                             }
-                            TouchArea {
-                                mouse-cursor: root.ep-name-draft == "" ? default : pointer;
-                                clicked => {
-                                    if root.ep-name-draft != "" {
-                                        // Map mode index to wire token.
-                                        let mode-str = root.ep-is-input
-                                            ? (root.ep-mode-index == 0 ? "mono"
-                                               : root.ep-mode-index == 1 ? "stereo"
-                                               : "dual_mono")
-                                            : (root.ep-mode-index == 0 ? "mono" : "stereo");
-                                        if root.ep-is-input {
-                                            root.add-input-endpoint(
-                                                root.io-binding-ids[i],
-                                                root.ep-name-draft,
-                                                root.ep-device-draft,
-                                                mode-str,
-                                                root.ep-channels-draft,
-                                            );
-                                        } else {
-                                            root.add-output-endpoint(
-                                                root.io-binding-ids[i],
-                                                root.ep-name-draft,
-                                                root.ep-device-draft,
-                                                mode-str,
-                                                root.ep-channels-draft,
-                                            );
-                                        }
-                                        root.ep-name-draft = "";
-                                        root.ep-device-draft = "";
-                                        root.ep-mode-index = 0;
-                                        root.ep-channels-draft = "1";
-                                    }
-                                }
+                            toggle-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
+                            add-endpoint(dev, mode) => {
+                                root.add-output-endpoint(binding.id, dev, mode);
+                                root.active-binding-id = "";
                             }
                         }
                     }
@@ -452,7 +406,7 @@ export component SectionSystemIoBindings inherits Rectangle {
             }
         }
 
-        // Bottom padding to prevent last item from touching the scroll bottom.
+        // Bottom padding to keep the last item off the scroll edge.
         Rectangle { height: 8px; }
     }
 }

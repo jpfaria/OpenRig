@@ -226,7 +226,7 @@ pub fn chain_routing_summary(chain: &Chain) -> String {
     )
 }
 
-fn channels_label(channels: &[usize]) -> String {
+pub(crate) fn channels_label(channels: &[usize]) -> String {
     channels
         .iter()
         .map(|channel| (channel + 1).to_string())

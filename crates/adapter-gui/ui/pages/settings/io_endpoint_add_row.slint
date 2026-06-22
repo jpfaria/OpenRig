@@ -1,0 +1,199 @@
+// Add-endpoint editor for the I/O bindings section (#716): a real device
+// ComboBox, per-channel checkboxes derived from the chosen device, and a mode
+// ComboBox. No free text — every value is a structured pick.
+//
+// Selection state lives in the shared `channel-options` model owned by Rust;
+// this component only fires events. The add button is enabled once a device
+// and at least one channel are chosen.
+
+import { ChannelOptionItem } from "../../models.slint";
+import { ComboBox } from "std-widgets.slint";
+
+// One channel checkbox (mirrors the chain insert editor's ChannelRow).
+component ChannelCheck inherits Rectangle {
+    in property <ChannelOptionItem> channel;
+    callback toggled(bool);
+
+    height: 44px;
+    width: 96px;
+    background: transparent;
+
+    Rectangle {
+        x: 0px;
+        y: 12px;
+        width: 20px;
+        height: 20px;
+        background: root.channel.selected ? #188cff : #1e2229;
+        border-width: 1px;
+        border-color: root.channel.selected ? #45a7ff : #3d4450;
+        border-radius: 4px;
+
+        if root.channel.selected : Image {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 12px;
+            height: 12px;
+            source: @image-url("../../assets/check.svg");
+            colorize: #ffffff;
+        }
+    }
+
+    Text {
+        x: 28px;
+        y: 0px;
+        width: parent.width - 28px;
+        height: parent.height;
+        text: root.channel.label;
+        color: root.channel.selected ? #edf2f9 : #8a95a5;
+        font-size: 13px;
+        font-weight: root.channel.selected ? 600 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(!root.channel.selected); }
+    }
+}
+
+export component IoEndpointAddRow inherits VerticalLayout {
+    in property <bool> is-input;
+    in property <[string]> device-names;
+    in property <[string]> device-ids;
+    in property <[ChannelOptionItem]> channel-options;
+    in-out property <int> selected-device-index: -1;
+    in-out property <int> selected-mode-index: 0;
+
+    // Fired when the device picker changes so Rust rebuilds channel-options.
+    callback device-changed(string /* device_id */);
+    callback toggle-channel(int /* index */, bool /* selected */);
+    // Fired to commit the endpoint (device_id + mode wire token); Rust reads
+    // the selected channels from the shared channel-options model.
+    callback add-endpoint(string /* device_id */, string /* mode */);
+
+    private property <bool> has-channel-selected:
+        channel-options.length > 0
+        && (channel-options[0].selected
+            || (channel-options.length > 1 && channel-options[1].selected)
+            || (channel-options.length > 2 && channel-options[2].selected)
+            || (channel-options.length > 3 && channel-options[3].selected)
+            || (channel-options.length > 4 && channel-options[4].selected)
+            || (channel-options.length > 5 && channel-options[5].selected)
+            || (channel-options.length > 6 && channel-options[6].selected)
+            || (channel-options.length > 7 && channel-options[7].selected));
+    private property <bool> can-add: selected-device-index >= 0 && has-channel-selected;
+
+    spacing: 10px;
+
+    // Row 1: device picker + mode picker.
+    HorizontalLayout {
+        spacing: 10px;
+        alignment: start;
+
+        Text {
+            text: @tr("label-endpoint-device");
+            color: #8a92a3;
+            font-size: 13px;
+            width: 70px;
+            vertical-alignment: center;
+        }
+
+        ComboBox {
+            min-width: 220px;
+            height: 36px;
+            model: root.device-names;
+            current-index <=> root.selected-device-index;
+            selected(value) => {
+                if root.selected-device-index >= 0 {
+                    root.device-changed(root.device-ids[root.selected-device-index]);
+                }
+            }
+        }
+
+        Text {
+            text: @tr("label-endpoint-mode");
+            color: #8a92a3;
+            font-size: 13px;
+            width: 50px;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+
+        ComboBox {
+            width: 130px;
+            height: 36px;
+            model: root.is-input
+                ? [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]
+                : [@tr("mode-mono"), @tr("mode-stereo")];
+            current-index <=> root.selected-mode-index;
+        }
+    }
+
+    // Row 2: channel checkboxes (only once a device is chosen).
+    if root.channel-options.length > 0 : HorizontalLayout {
+        spacing: 4px;
+        alignment: start;
+        Text {
+            text: @tr("label-endpoint-channels");
+            color: #8a92a3;
+            font-size: 13px;
+            width: 70px;
+            vertical-alignment: center;
+        }
+        for channel[index] in root.channel-options : ChannelCheck {
+            channel: channel;
+            toggled(sel) => { root.toggle-channel(index, sel); }
+        }
+    }
+
+    // Row 3: add button (enabled when device + ≥1 channel chosen).
+    HorizontalLayout {
+        alignment: start;
+        Rectangle {
+            width: 150px;
+            height: 40px;
+            background: root.can-add ? #188cff : #1e2229;
+            border-radius: 8px;
+            animate background { duration: 150ms; }
+
+            HorizontalLayout {
+                alignment: center;
+                spacing: 8px;
+                padding: 0px;
+                Image {
+                    width: 13px;
+                    height: 13px;
+                    y: (parent.height - self.height) / 2;
+                    source: @image-url("../../assets/plus.svg");
+                    colorize: root.can-add ? #ffffff : #3d4450;
+                }
+                Text {
+                    text: @tr("btn-add-endpoint");
+                    color: root.can-add ? #ffffff : #3d4450;
+                    font-size: 13px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+
+            TouchArea {
+                mouse-cursor: root.can-add ? pointer : default;
+                clicked => {
+                    if root.can-add {
+                        root.add-endpoint(
+                            root.device-ids[root.selected-device-index],
+                            root.is-input
+                                ? (root.selected-mode-index == 0 ? "mono"
+                                   : root.selected-mode-index == 1 ? "stereo"
+                                   : "dual_mono")
+                                : (root.selected-mode-index == 0 ? "mono" : "stereo"),
+                        );
+                        root.selected-device-index = -1;
+                        root.selected-mode-index = 0;
+                    }
+                }
+            }
+        }
+    }
+}

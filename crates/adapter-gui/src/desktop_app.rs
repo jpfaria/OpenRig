@@ -359,6 +359,8 @@ pub fn run_desktop_app(
         &project_settings_window,
         project_session.clone(),
         app_config.clone(),
+        input_chain_devices.clone(),
+        output_chain_devices.clone(),
     );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
@@ -524,6 +526,8 @@ pub fn run_desktop_app(
             chain_output_device_options: chain_output_device_options.clone(),
             toast_timer: toast_timer.clone(),
             app_config: app_config.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
         },
     );
     // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---

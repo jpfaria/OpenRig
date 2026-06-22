@@ -618,3 +618,33 @@ msgstr "立体声"
 
 msgid "mode-dual-mono"
 msgstr "双单声道"
+
+msgid "placeholder-binding-name"
+msgstr "绑定名称…"
+
+msgid "label-channels-prefix"
+msgstr "通道"
+
+msgid "label-endpoint-device"
+msgstr "设备"
+
+msgid "label-endpoint-mode"
+msgstr "模式"
+
+msgid "label-endpoint-channels"
+msgstr "通道"
+
+msgid "btn-add-endpoint"
+msgstr "添加端点"
+
+msgid "label-group-inputs"
+msgstr "输入"
+
+msgid "label-group-outputs"
+msgstr "输出"
+
+msgid "empty-no-input-endpoints"
+msgstr "暂无输入端点"
+
+msgid "empty-no-output-endpoints"
+msgstr "暂无输出端点"

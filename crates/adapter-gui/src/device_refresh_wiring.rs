@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::invalidate_device_cache;
+use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
@@ -37,6 +37,10 @@ pub(crate) struct DeviceRefreshCtx {
     /// Shared in-memory app config — inspected (not mutated) to detect
     /// bindings that become unresolved after a hot-swap refresh.
     pub app_config: Rc<RefCell<AppConfig>>,
+    /// #716: shared descriptor caches updated on refresh so the I/O bindings
+    /// editor's device pickers and channel derivation see the live hardware.
+    pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
 }
 
 pub(crate) fn wire(
@@ -51,20 +55,36 @@ pub(crate) fn wire(
         chain_output_device_options,
         toast_timer,
         app_config,
+        input_chain_devices,
+        output_chain_devices,
     } = ctx;
 
     {
         let weak_window = window.as_weak();
+        let weak_psw = project_settings_window.as_weak();
         let project_session = project_session.clone();
         let project_devices = project_devices.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let toast_timer = toast_timer.clone();
         let app_config = app_config.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_refresh_devices(move || {
             invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
+            // #716: keep the shared descriptor caches + I/O binding pickers live.
+            *input_chain_devices.borrow_mut() = fresh_input.clone();
+            *output_chain_devices.borrow_mut() = fresh_output.clone();
+            if let (Some(w), Some(p)) = (weak_window.upgrade(), weak_psw.upgrade()) {
+                crate::settings::io_bindings::reseed_device_models(
+                    &w,
+                    &p,
+                    &fresh_input,
+                    &fresh_output,
+                );
+            }
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -106,6 +126,20 @@ pub(crate) fn wire(
             invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
+            // #716: keep the shared descriptor caches + I/O binding pickers live.
+            *input_chain_devices.borrow_mut() = fresh_input.clone();
+            *output_chain_devices.borrow_mut() = fresh_output.clone();
+            if let (Some(w), Some(p)) = (
+                main_window_weak.upgrade(),
+                project_settings_window_weak.upgrade(),
+            ) {
+                crate::settings::io_bindings::reseed_device_models(
+                    &w,
+                    &p,
+                    &fresh_input,
+                    &fresh_output,
+                );
+            }
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 return;

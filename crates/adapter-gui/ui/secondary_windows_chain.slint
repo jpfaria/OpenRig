@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
@@ -44,14 +44,20 @@ export component ProjectSettingsWindow inherits Window {
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
-    in property <[string]> io-binding-ids;
-    in property <[string]> io-binding-names;
+    in property <[IoBindingModel]> io-bindings;
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    in property <[ChannelOptionItem]> io-binding-channel-options;
     in-out property <string> io-binding-error: "";
     callback create-io-binding(string) -> string;
     callback delete-io-binding(string) -> string;
     callback rename-io-binding(string, string);
-    callback add-input-endpoint(string, string, string, string, string);
-    callback add-output-endpoint(string, string, string, string, string);
+    callback endpoint-device-changed(string, bool, string);
+    callback toggle-endpoint-channel(int, bool);
+    callback add-input-endpoint(string, string, string);
+    callback add-output-endpoint(string, string, string);
     callback remove-endpoint(string, string, bool);
     callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
@@ -105,14 +111,20 @@ export component ProjectSettingsWindow inherits Window {
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         set-midi-enabled(on) => { root.set-midi-enabled(on); }
         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
-        io-binding-ids: root.io-binding-ids;
-        io-binding-names: root.io-binding-names;
+        io-bindings: root.io-bindings;
+        input-device-ids: root.input-device-ids;
+        input-device-names: root.input-device-names;
+        output-device-ids: root.output-device-ids;
+        output-device-names: root.output-device-names;
+        io-binding-channel-options: root.io-binding-channel-options;
         io-binding-error <=> root.io-binding-error;
         create-io-binding(name) => { return root.create-io-binding(name); }
         delete-io-binding(id) => { return root.delete-io-binding(id); }
         rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
-        add-input-endpoint(id, en, dev, mode, ch) => { root.add-input-endpoint(id, en, dev, mode, ch); }
-        add-output-endpoint(id, en, dev, mode, ch) => { root.add-output-endpoint(id, en, dev, mode, ch); }
+        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+        toggle-endpoint-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
+        add-input-endpoint(id, dev, mode) => { root.add-input-endpoint(id, dev, mode); }
+        add-output-endpoint(id, dev, mode) => { root.add-output-endpoint(id, dev, mode); }
         remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;

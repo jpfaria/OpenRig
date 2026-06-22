@@ -699,3 +699,33 @@ msgstr "Estéreo"
 
 msgid "mode-dual-mono"
 msgstr "Mono dual"
+
+msgid "placeholder-binding-name"
+msgstr "Nombre del enlace…"
+
+msgid "label-channels-prefix"
+msgstr "Canales"
+
+msgid "label-endpoint-device"
+msgstr "Dispositivo"
+
+msgid "label-endpoint-mode"
+msgstr "Modo"
+
+msgid "label-endpoint-channels"
+msgstr "Canales"
+
+msgid "btn-add-endpoint"
+msgstr "Añadir endpoint"
+
+msgid "label-group-inputs"
+msgstr "Entradas"
+
+msgid "label-group-outputs"
+msgstr "Salidas"
+
+msgid "empty-no-input-endpoints"
+msgstr "Aún no hay entradas"
+
+msgid "empty-no-output-endpoints"
+msgstr "Aún no hay salidas"
