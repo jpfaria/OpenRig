@@ -707,3 +707,6 @@ msgstr "Estéreo"
 
 msgid "mode-dual-mono"
 msgstr "Mono duplo"
+
+msgid "placeholder-binding-name"
+msgstr "Nome da ligação…"

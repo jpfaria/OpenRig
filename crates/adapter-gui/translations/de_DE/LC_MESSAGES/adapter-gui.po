@@ -624,3 +624,6 @@ msgstr "Stereo"
 
 msgid "mode-dual-mono"
 msgstr "Dual mono"
+
+msgid "placeholder-binding-name"
+msgstr "Bindungsname…"

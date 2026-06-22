@@ -699,3 +699,6 @@ msgstr "Estéreo"
 
 msgid "mode-dual-mono"
 msgstr "Mono dual"
+
+msgid "placeholder-binding-name"
+msgstr "Nombre de la conexión…"

@@ -618,3 +618,6 @@ msgstr "स्टीरियो"
 
 msgid "mode-dual-mono"
 msgstr "दोहरा मोनो"
+
+msgid "placeholder-binding-name"
+msgstr "बाइंडिंग नाम…"

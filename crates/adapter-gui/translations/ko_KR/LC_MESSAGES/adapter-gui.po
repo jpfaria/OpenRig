@@ -618,3 +618,6 @@ msgstr "스테레오"
 
 msgid "mode-dual-mono"
 msgstr "듀얼 모노"
+
+msgid "placeholder-binding-name"
+msgstr "바인딩 이름…"

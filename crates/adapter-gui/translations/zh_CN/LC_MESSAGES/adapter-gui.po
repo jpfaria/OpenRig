@@ -618,3 +618,6 @@ msgstr "立体声"
 
 msgid "mode-dual-mono"
 msgstr "双单声道"
+
+msgid "placeholder-binding-name"
+msgstr "绑定名称…"
