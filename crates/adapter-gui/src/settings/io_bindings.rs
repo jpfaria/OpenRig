@@ -157,52 +157,71 @@ pub fn wire(
     project_session: Rc<RefCell<Option<ProjectSession>>>,
     app_config: Rc<RefCell<AppConfig>>,
 ) {
-    seed_both(window, project_settings_window, &app_config);
-    install_on_window(window, &project_session, &app_config);
-    install_on_psw(project_settings_window, &project_session, &app_config);
+    use slint::{ModelRc, SharedString, VecModel};
+
+    // ONE shared pair of models, set on BOTH windows. Every mutation
+    // closure re-projects into these handles so the list actually updates
+    // (issue #716: the list previously never refreshed after create).
+    let (ids, names) = binding_rows(&app_config.borrow());
+    let id_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(ids));
+    let name_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(names));
+
+    window.set_io_binding_ids(ModelRc::from(id_model.clone()));
+    window.set_io_binding_names(ModelRc::from(name_model.clone()));
+    project_settings_window.set_io_binding_ids(ModelRc::from(id_model.clone()));
+    project_settings_window.set_io_binding_names(ModelRc::from(name_model.clone()));
+
+    install_on_window(window, &project_session, &app_config, &id_model, &name_model);
+    install_on_psw(
+        project_settings_window,
+        &project_session,
+        &app_config,
+        &id_model,
+        &name_model,
+    );
 }
 
-/// Seed both surfaces from the in-memory `AppConfig` snapshot.
-fn seed_both(window: &AppWindow, psw: &ProjectSettingsWindow, app_config: &Rc<RefCell<AppConfig>>) {
+/// Flat (id, name) row vectors from the current config.
+fn binding_rows(cfg: &AppConfig) -> (Vec<slint::SharedString>, Vec<slint::SharedString>) {
     use crate::ui_state::ui_bindings;
-    use slint::{SharedString, VecModel};
-
-    let cfg = app_config.borrow();
-    let models = ui_bindings(&cfg);
-
-    // Build a flat list of (id, name) pairs for the section.
-    let rows: Vec<(SharedString, SharedString)> = models
+    use slint::SharedString;
+    let models = ui_bindings(cfg);
+    let ids = models
         .iter()
-        .map(|m| {
-            (
-                SharedString::from(m.id.as_str()),
-                SharedString::from(m.name.as_str()),
-            )
-        })
+        .map(|m| SharedString::from(m.id.as_str()))
         .collect();
+    let names = models
+        .iter()
+        .map(|m| SharedString::from(m.name.as_str()))
+        .collect();
+    (ids, names)
+}
 
-    let id_model = slint::ModelRc::new(VecModel::from(
-        rows.iter().map(|(id, _)| id.clone()).collect::<Vec<_>>(),
-    ));
-    let name_model = slint::ModelRc::new(VecModel::from(
-        rows.iter().map(|(_, n)| n.clone()).collect::<Vec<_>>(),
-    ));
-
-    window.set_io_binding_ids(id_model.clone());
-    window.set_io_binding_names(name_model.clone());
-    psw.set_io_binding_ids(id_model);
-    psw.set_io_binding_names(name_model);
+/// Re-project the binding list into the shared Slint models so the UI
+/// reflects the current config after any mutation.
+fn reproject(
+    id_model: &Rc<slint::VecModel<slint::SharedString>>,
+    name_model: &Rc<slint::VecModel<slint::SharedString>>,
+    cfg: &Rc<RefCell<AppConfig>>,
+) {
+    let (ids, names) = binding_rows(&cfg.borrow());
+    id_model.set_vec(ids);
+    name_model.set_vec(names);
 }
 
 fn install_on_window(
     window: &AppWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     app_config: &Rc<RefCell<AppConfig>>,
+    id_model: &Rc<slint::VecModel<slint::SharedString>>,
+    name_model: &Rc<slint::VecModel<slint::SharedString>>,
 ) {
     // create-io-binding(name) -> id
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_create_io_binding(move |name| {
             let id = make_id(name.as_str());
             let binding = IoBinding {
@@ -215,6 +234,7 @@ fn install_on_window(
             dispatch_if_session(&ps, cmd);
             cfg.borrow_mut().io_bindings.push(binding);
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
             slint::SharedString::from(id)
         });
     }
@@ -223,11 +243,14 @@ fn install_on_window(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_delete_io_binding(move |id| {
             let msg = delete_reject_message(&ps, id.as_str());
             if msg.is_empty() {
                 cfg.borrow_mut().io_bindings.retain(|b| b.id != id.as_str());
                 mirror_bindings_to_session(&ps, &cfg);
+                reproject(&idm, &nm, &cfg);
             }
             slint::SharedString::from(msg)
         });
@@ -237,6 +260,8 @@ fn install_on_window(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_rename_io_binding(move |id, new_name| {
             {
                 let mut config = cfg.borrow_mut();
@@ -247,6 +272,7 @@ fn install_on_window(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
 
@@ -254,6 +280,8 @@ fn install_on_window(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_add_input_endpoint(move |id, ep_name, device, mode, channels| {
             let ep = make_endpoint(
                 ep_name.as_str(),
@@ -269,6 +297,7 @@ fn install_on_window(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
 
@@ -276,6 +305,8 @@ fn install_on_window(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_add_output_endpoint(move |id, ep_name, device, mode, channels| {
             let ep = make_endpoint(
                 ep_name.as_str(),
@@ -291,6 +322,7 @@ fn install_on_window(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
 
@@ -298,6 +330,8 @@ fn install_on_window(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         window.on_remove_endpoint(move |id, ep_name, is_input| {
             {
                 let mut config = cfg.borrow_mut();
@@ -311,6 +345,7 @@ fn install_on_window(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
 }
@@ -319,10 +354,14 @@ fn install_on_psw(
     psw: &ProjectSettingsWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     app_config: &Rc<RefCell<AppConfig>>,
+    id_model: &Rc<slint::VecModel<slint::SharedString>>,
+    name_model: &Rc<slint::VecModel<slint::SharedString>>,
 ) {
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_create_io_binding(move |name| {
             let id = make_id(name.as_str());
             let binding = IoBinding {
@@ -335,17 +374,21 @@ fn install_on_psw(
             dispatch_if_session(&ps, cmd);
             cfg.borrow_mut().io_bindings.push(binding);
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
             slint::SharedString::from(id)
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_delete_io_binding(move |id| {
             let msg = delete_reject_message(&ps, id.as_str());
             if msg.is_empty() {
                 cfg.borrow_mut().io_bindings.retain(|b| b.id != id.as_str());
                 mirror_bindings_to_session(&ps, &cfg);
+                reproject(&idm, &nm, &cfg);
             }
             slint::SharedString::from(msg)
         });
@@ -353,6 +396,8 @@ fn install_on_psw(
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_rename_io_binding(move |id, new_name| {
             {
                 let mut config = cfg.borrow_mut();
@@ -363,11 +408,14 @@ fn install_on_psw(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_add_input_endpoint(move |id, ep_name, device, mode, channels| {
             let ep = make_endpoint(
                 ep_name.as_str(),
@@ -383,11 +431,14 @@ fn install_on_psw(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_add_output_endpoint(move |id, ep_name, device, mode, channels| {
             let ep = make_endpoint(
                 ep_name.as_str(),
@@ -403,11 +454,14 @@ fn install_on_psw(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
     {
         let ps = Rc::clone(project_session);
         let cfg = Rc::clone(app_config);
+        let idm = Rc::clone(id_model);
+        let nm = Rc::clone(name_model);
         psw.on_remove_endpoint(move |id, ep_name, is_input| {
             {
                 let mut config = cfg.borrow_mut();
@@ -421,6 +475,7 @@ fn install_on_psw(
                 }
             }
             mirror_bindings_to_session(&ps, &cfg);
+            reproject(&idm, &nm, &cfg);
         });
     }
 }

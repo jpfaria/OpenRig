@@ -1,7 +1,7 @@
 use super::*;
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry};
+use project::chain::{Chain, ChainInputMode};
 use project::device::DeviceSettings;
 
 fn input_entry(device: &str, channels: Vec<usize>, mode: ChainInputMode) -> InputEntry {
@@ -19,8 +19,6 @@ fn input_block(entries: Vec<InputEntry>) -> AudioBlock {
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
             entries,
-            io: String::new(),
-            endpoint: String::new(),
         }),
     }
 }
@@ -113,169 +111,4 @@ fn short_device_label_strips_backend_prefix() {
         "system:playback_1"
     );
     assert_eq!(short_device_label("plain-device"), "plain-device");
-}
-
-// ── output_endpoint_labels_for_project — per-binding enumeration (#716) ──
-
-fn binding_output_block(io: &str, endpoint: &str) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("chain:0:out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![],
-            io: io.to_string(),
-            endpoint: endpoint.to_string(),
-        }),
-    }
-}
-
-fn chain_with_binding_output(id: &str, io: &str, endpoint: &str) -> Chain {
-    Chain {
-        id: ChainId(id.into()),
-        description: None,
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![binding_output_block(io, endpoint)],
-    }
-}
-
-fn legacy_output_block(device: &str) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("chain:0:out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-            io: String::new(),
-            endpoint: String::new(),
-        }),
-    }
-}
-
-fn chain_with_legacy_output(id: &str, device: &str) -> Chain {
-    Chain {
-        id: ChainId(id.into()),
-        description: None,
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![legacy_output_block(device)],
-    }
-}
-
-/// A project with two chains each referencing a distinct binding output must
-/// yield two separate spectrum analyzer labels — one per (binding_id, endpoint).
-#[test]
-fn spectrum_enumerates_one_per_binding_output_endpoint() {
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![
-            chain_with_binding_output("chain:A", "binding-A", "Speaker"),
-            chain_with_binding_output("chain:B", "binding-B", "Speaker"),
-        ],
-        midi: None,
-    };
-
-    let labels = output_endpoint_labels_for_project(&project);
-
-    assert_eq!(
-        labels.len(),
-        2,
-        "two binding-output chains → 2 spectrum analyzers; got {:?}",
-        labels
-    );
-    assert!(
-        labels[0] != labels[1],
-        "distinct binding outputs must have distinct labels; both are {:?}",
-        labels[0]
-    );
-}
-
-/// Same output endpoint name across two different bindings must still appear
-/// as two separate spectrum rows — no cross-binding deduplication.
-#[test]
-fn spectrum_does_not_merge_same_endpoint_from_different_bindings() {
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![
-            chain_with_binding_output("chain:A", "binding-A", "Out1"),
-            chain_with_binding_output("chain:B", "binding-B", "Out1"),
-        ],
-        midi: None,
-    };
-
-    let labels = output_endpoint_labels_for_project(&project);
-
-    assert_eq!(
-        labels.len(),
-        2,
-        "same endpoint name, different bindings → 2 spectrum rows; got {:?}",
-        labels
-    );
-}
-
-/// Legacy chains (io == "") must still work — the spectrum shows one analyzer
-/// per legacy output entry (physical device reference), not zero.
-#[test]
-fn spectrum_legacy_entries_path_still_enumerates_per_entry() {
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![chain_with_legacy_output("chain:0", "coreaudio:Built-in Output")],
-        midi: None,
-    };
-
-    let labels = output_endpoint_labels_for_project(&project);
-
-    assert!(
-        !labels.is_empty(),
-        "legacy output entry must yield at least one spectrum row"
-    );
-}
-
-// ── tap-key mapping — binding output row resolves to the same key as legacy ──
-
-/// A binding output endpoint (non-empty `io`) must resolve to stream_index=0 on
-/// its chain — the same tap key the legacy path uses for the first output entry.
-///
-/// This pins the session-layer mapping: both paths call
-/// `subscribe_stream_tap(chain_id, 0, …)`.  Without this, a binding-output row
-/// has no ring and the spectrum shows flat bars.
-#[test]
-fn binding_output_endpoint_maps_to_physical_tap_key() {
-    let binding_chain = chain_with_binding_output("chain:guitar", "binding-A", "Speaker");
-
-    let key = tap_stream_index_for_output_chain(&binding_chain);
-
-    assert_eq!(
-        key,
-        Some(0),
-        "binding output chain must map to stream_index=0 (its only stream); got {:?}",
-        key
-    );
-}
-
-/// A single-entry legacy output chain also resolves to stream_index=0 — the
-/// same value the binding path returns, confirming both paths agree on the tap
-/// key.
-#[test]
-fn legacy_single_output_maps_to_same_tap_key_as_binding() {
-    let legacy_chain = chain_with_legacy_output("chain:guitar", "coreaudio:Built-in Output");
-
-    let key = tap_stream_index_for_output_chain(&legacy_chain);
-
-    assert_eq!(
-        key,
-        Some(0),
-        "legacy single-output chain must also resolve to stream_index=0; got {:?}",
-        key
-    );
 }
