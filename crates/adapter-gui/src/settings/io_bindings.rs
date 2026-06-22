@@ -85,6 +85,17 @@ fn dispatch_if_session(ps: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
     }
 }
 
+/// Name for a new binding: the typed name, or a sequential default ("I/O N")
+/// when the field is empty, so the "+" always produces a visible, renamable
+/// row instead of doing nothing.
+fn binding_display_name(name: &str, cfg: &Rc<RefCell<AppConfig>>) -> String {
+    let trimmed = name.trim();
+    if !trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+    format!("I/O {}", cfg.borrow().io_bindings.len() + 1)
+}
+
 /// Issue #716 — mirror the edited `AppConfig.io_bindings` into the open
 /// session so the live runtime resolves bound chains against the latest
 /// registry on its next sync (a new/edited binding takes effect without a
@@ -223,10 +234,11 @@ fn install_on_window(
         let idm = Rc::clone(id_model);
         let nm = Rc::clone(name_model);
         window.on_create_io_binding(move |name| {
-            let id = make_id(name.as_str());
+            let display = binding_display_name(name.as_str(), &cfg);
+            let id = make_id(&display);
             let binding = IoBinding {
                 id: id.clone(),
-                name: name.to_string(),
+                name: display,
                 inputs: vec![],
                 outputs: vec![],
             };
@@ -363,10 +375,11 @@ fn install_on_psw(
         let idm = Rc::clone(id_model);
         let nm = Rc::clone(name_model);
         psw.on_create_io_binding(move |name| {
-            let id = make_id(name.as_str());
+            let display = binding_display_name(name.as_str(), &cfg);
+            let id = make_id(&display);
             let binding = IoBinding {
                 id: id.clone(),
-                name: name.to_string(),
+                name: display,
                 inputs: vec![],
                 outputs: vec![],
             };
