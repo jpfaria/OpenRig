@@ -38,7 +38,9 @@ use crate::block_editor::{
 };
 use crate::block_editor_window_setup;
 use crate::chain_editor::{chain_draft_from_chain, insert_mode_to_index};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::{set_status_error, show_child_window, use_inline_block_editor};
 use crate::io_groups::build_io_group_items;
 use crate::project_view::{
@@ -304,7 +306,7 @@ pub(crate) fn wire(
         block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
         multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params);
+        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_runtime));
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
         window.set_eq_total_curve(eq_total.into());
         set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));

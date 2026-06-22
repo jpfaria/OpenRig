@@ -32,7 +32,7 @@ use crate::block_editor::{
     schedule_block_editor_persist_for_block_win, set_block_parameter_bool,
     set_block_parameter_number, set_block_parameter_option, set_block_parameter_text,
 };
-use crate::eq::compute_eq_curves;
+use crate::eq::{compute_eq_curves, eq_viz_sample_rate};
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
@@ -119,8 +119,12 @@ pub(crate) fn wire(
             // would reset the TouchArea pressed state and break drag interactions).
             if let Some(draft) = win_draft.borrow().as_ref() {
                 let params = build_params_from_items(&win_param_items);
-                let (eq_total, eq_bands) =
-                    compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
+                let (eq_total, eq_bands) = compute_eq_curves(
+                    &draft.effect_type,
+                    &draft.model_id,
+                    &params,
+                    eq_viz_sample_rate(&project_runtime),
+                );
                 win_eq_band_curves.set_vec(
                     eq_bands
                         .into_iter()

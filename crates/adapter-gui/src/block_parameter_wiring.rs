@@ -33,7 +33,7 @@ use crate::block_editor::{
     set_block_parameter_bool, set_block_parameter_number, set_block_parameter_option,
     set_block_parameter_text,
 };
-use crate::eq::compute_eq_curves;
+use crate::eq::{compute_eq_curves, eq_viz_sample_rate};
 use crate::helpers::log_gui_message;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
@@ -367,8 +367,12 @@ pub(crate) fn wire(
             }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 let params = build_params_from_items(&block_parameter_items);
-                let (eq_total, eq_bands) =
-                    compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
+                let (eq_total, eq_bands) = compute_eq_curves(
+                    &draft.effect_type,
+                    &draft.model_id,
+                    &params,
+                    eq_viz_sample_rate(&project_runtime),
+                );
                 eq_band_curves.set_vec(
                     eq_bands
                         .into_iter()
