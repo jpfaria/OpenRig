@@ -222,6 +222,13 @@ impl LocalDispatcher {
         rebuilt
     }
 
+    /// The sample rate the live engine is currently running at, as last
+    /// synced via [`Self::attach_engine_sr`]. Authoritative fallback for any
+    /// consumer that would otherwise assume a fixed rate (issue #723).
+    pub fn engine_sr(&self) -> u32 {
+        *self.engine_sr.borrow()
+    }
+
     /// #614: retrieve the pre-loaded DI loop arc for `chain`, if any.
     ///
     /// The adapter-gui wiring (Task 6) calls this from the
