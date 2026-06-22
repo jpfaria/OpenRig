@@ -389,9 +389,20 @@ pub struct ChainRuntimeState {
     /// [`crate::runtime_load`].
     pub(crate) xrun_count: AtomicU64,
     pub(crate) peak_load_ppm: AtomicU64,
+    /// The sample rate (Hz) this runtime was built at — the rate its streams
+    /// actually run at. Set once at construction, never mutated, so a plain
+    /// `f32` read is safe from the audio thread. Issue #723: the live probe
+    /// beep in `process_input_f32` reads this instead of assuming 48000, so
+    /// the 1 kHz tone is synthesized at the true device rate.
+    pub(crate) sample_rate: f32,
 }
 
 impl ChainRuntimeState {
+    /// The sample rate (Hz) this runtime runs at, captured at build time.
+    pub fn sample_rate(&self) -> f32 {
+        self.sample_rate
+    }
+
     /// Issue #703: the cpal input-stream index that feeds this runtime,
     /// when it is a per-entry isolated runtime. Two entries reading the
     /// same physical device are two runtimes with the SAME index — the

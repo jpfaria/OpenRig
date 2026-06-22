@@ -487,6 +487,9 @@ fn assemble_chain_runtime_state(
         // Issue #670 — audio-thread deadline accounting, zeroed at build.
         xrun_count: AtomicU64::new(0),
         peak_load_ppm: AtomicU64::new(0),
+        // Issue #723 — remember the real build rate so the live probe beep
+        // is synthesized at the device rate, never a hardcoded 48000.
+        sample_rate,
     })
 }
 

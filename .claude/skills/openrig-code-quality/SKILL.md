@@ -460,6 +460,37 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 
 ---
 
+## LEI — PROIBIDO marretar sample rate (ou qualquer valor dependente de device)
+
+**Nenhum caminho de áudio/análise pode assumir uma taxa de amostragem fixa.** Cada interface roda na taxa que for melhor pra ela (44.1k, 48k, 96k…). Todo cálculo que depende da taxa — pitch (tuner), bins de FFT→Hz (spectrum), latência, período, resample de loop (DI), timing — **tem que usar a taxa REAL que o stream negociou**, nunca um literal.
+
+**A fonte de verdade da taxa viva:**
+- `ProjectRuntimeController::sample_rate()` — a taxa que os streams realmente abriram (espelhada de `resolved.sample_rate`).
+- `LocalDispatcher::engine_sr()` — a mesma taxa, sincronizada via `attach_engine_sr` (caminho do #669).
+- `adapter_gui::sample_rate::resolve_input_sample_rate(project, device_id, live)` — helper único: setting salvo do device (autoritativo, o stream é forçado a ele ou falha) → senão a taxa viva. **Use este nos consumidores de análise (tuner/spectrum/latency).** NUNCA reimplemente a resolução com `unwrap_or(48_000)`.
+
+**A marreta quase nunca é um literal solto — é o FALLBACK.** O erro recorrente é `…device_settings…find(device)…map(|d| d.sample_rate).unwrap_or(48_000)`: quando o device não tem setting salvo, marreta 48000 enquanto o stream roda a 44.1k → tudo lê ~1.47 semitom acima (#723: E vira F; #669: loop de DI em câmera lenta). Variante igualmente errada: `.device_settings.iter().next()` (primeiro device) em vez do device DAQUELA chain/input.
+
+**Why:** taxa hardcoded é bug silencioso e dependente de hardware — passa na máquina do dev (48k), quebra na do usuário (44.1k). "Em macOS/Windows mudou o som" = regressão (red flag do CLAUDE.md). É a mesma doença que já mordeu tuner, spectrum, latency probe (#723) e o DI loop (#669).
+
+**How to apply:** precisa de uma taxa? Pergunte "de onde vem a taxa VIVA deste stream?" — `controller.sample_rate()` / `dispatcher.engine_sr()` / `resolve_input_sample_rate`. Uma vez que existe stream, a taxa viva SEMPRE existe; "preciso de algum valor de fallback" é falso pra caminho vivo. Exceções legítimas (não são marreta): default pré-device sobrescrito na ativação (estado inicial do controller, init de catálogo VST3), defaults de render/CLI que o usuário sobrescreve, fallback Linux/JACK de device não-configurado atrás de `cfg`, e compensação de design que USA a variável real (`scale = sample_rate / 44_100.0`).
+
+| Desculpa | Realidade |
+|---|---|
+| "Preciso de ALGUM valor pro detector rodar" | Caminho vivo sempre tem taxa viva: `controller.sample_rate()`/`engine_sr()`. O fallback marretado é o bug. |
+| "48000 é o default do projeto, é seguro" | Default pré-device ≠ taxa de um stream vivo. Num caminho de análise, 48000 fixo detona quem roda a 44.1k. |
+| "`unwrap_or(default_sample_rate())` resolve" | Continua marreta no caminho vivo. A taxa autoritativa é a do stream, não uma constante. |
+| "É só o primeiro device (`.next()`)" | Tem que ser o device DAQUELA chain/input. Primeiro device é outro stream/taxa. |
+| "É cosmético (beep/curva), não afeta som" | Mesmo assim é marreta: extraia helper que recebe a taxa real. Sem 48000 plantado. |
+
+**Red flags — PARAR:**
+- `unwrap_or(48_000)` / `unwrap_or(44_100)` em código que lê samples vivos ou calcula Hz/latência/período.
+- Um literal `48_000`/`44_100` num `.rs` de produção fora de: const default pré-device, `cfg(linux)` JACK, ou ratio de design com a variável real.
+- Re-derivar a taxa por conta própria em vez de chamar `resolve_input_sample_rate` / `controller.sample_rate()`.
+- `device_settings.iter().next()` pra achar "a taxa".
+
+---
+
 ## Audio runtime / DSP facts (hard-won — verify before touching these areas)
 
 - **`ChainRuntimeState` locks (#580):** the audio thread takes `processing.try_lock()` in `process_input_f32` and emits a SILENT buffer on failure. Any accessor the GUI calls repeatedly (meter timer at 30 Hz, spectrum, tuner) must NEVER take `processing.lock()` — mirror the value as an atomic (`AtomicUsize` etc.) updated at the rare write sites (`build_chain_runtime_state` + the rebuild path in `runtime_graph.rs`). Symptom of a violation is buffer-size dependent (32–64 glitches, 256+ absorbs); offline single-threaded tests pass while production clicks. Pinned by `crates/engine/src/stream_count_contention_tests.rs`.

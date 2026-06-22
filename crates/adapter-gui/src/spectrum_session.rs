@@ -141,6 +141,10 @@ impl SpectrumSession {
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
 
+        // The rate the live streams actually run at — authoritative fallback
+        // for inputs without a saved per-device setting (issue #723).
+        let live_sample_rate = controller.sample_rate();
+
         for chain in &project.chains {
             if !chain.enabled {
                 continue;
@@ -192,16 +196,16 @@ impl SpectrumSession {
                 .blocks
                 .iter()
                 .find_map(|b| match &b.kind {
-                    AudioBlockKind::Input(input) => input.entries.first().and_then(|entry| {
-                        project
-                            .device_settings
-                            .iter()
-                            .find(|d| d.device_id == entry.device_id)
-                            .map(|d| d.sample_rate as usize)
+                    AudioBlockKind::Input(input) => input.entries.first().map(|entry| {
+                        crate::sample_rate::resolve_input_sample_rate(
+                            project,
+                            &entry.device_id,
+                            live_sample_rate,
+                        )
                     }),
                     _ => None,
                 })
-                .unwrap_or(48_000);
+                .unwrap_or(live_sample_rate as usize);
 
             for stream_index in 0..stream_count {
                 let device_label = entry_labels

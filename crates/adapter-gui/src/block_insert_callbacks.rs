@@ -25,7 +25,9 @@ use project::param::ParameterSet;
 use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, schedule_block_editor_persist,
 };
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::{sync_block_editor_window, use_inline_block_editor};
 use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
@@ -216,6 +218,7 @@ pub(crate) fn wire(
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
+                eq_viz_sample_rate(&project_runtime),
             );
             eq_band_curves.set_vec(
                 eq_bands

@@ -28,7 +28,9 @@ use crate::audio_devices::{
     refresh_input_devices, refresh_output_devices, replace_channel_options,
 };
 use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::{show_child_window, sync_block_editor_window, use_inline_block_editor};
 use crate::io_groups::{apply_chain_input_window_state, apply_chain_output_window_state};
 use crate::project_ops::sync_project_dirty;
@@ -336,6 +338,7 @@ pub(crate) fn wire(
             &model.effect_type,
             &model.model_id,
             &ParameterSet::default(),
+            eq_viz_sample_rate(&project_runtime),
         );
         eq_band_curves.set_vec(
             eq_bands

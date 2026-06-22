@@ -3127,3 +3127,43 @@ fn processor_scratch_dual_mono_creates_dual_mono_scratch() {
     let scratch = processor_scratch(&proc);
     assert!(matches!(scratch, ProcessorScratch::DualMono { .. }));
 }
+
+// ── #723: no hardcoded sample rate in the latency-probe beep ──────────────
+
+#[test]
+fn chain_runtime_state_reports_its_build_sample_rate() {
+    // The live probe beep (process_input_f32) must synthesize at the real
+    // device rate, so the runtime has to remember the rate it was built at —
+    // never assume 48000 (issue #723).
+    let chain = tuner_track("chain:0", Vec::new());
+    let rt = build_chain_runtime_state(&chain, 44_100.0, &[DEFAULT_ELASTIC_TARGET])
+        .expect("runtime state should build");
+    assert_eq!(rt.sample_rate(), 44_100.0);
+}
+
+#[test]
+fn write_probe_beep_depends_on_the_passed_sample_rate() {
+    // The probe beep is a 1 kHz sine. Its sample at frame f is
+    // sin(2π·freq·f/sr)·0.95·envelope, so feeding 44100 vs 48000 must produce
+    // different audio — proving the rate is honored, not hardcoded.
+    use crate::runtime_probe::{write_probe_beep, PROBE_BEEP_FREQ};
+    let frames = 64usize;
+    let channels = 2usize;
+    let mut at_44100 = vec![0.0f32; frames * channels];
+    let mut at_48000 = vec![0.0f32; frames * channels];
+    write_probe_beep(&mut at_44100, channels, 44_100.0, frames);
+    write_probe_beep(&mut at_48000, channels, 48_000.0, frames);
+    assert_ne!(
+        at_44100, at_48000,
+        "beep must depend on the passed sample rate"
+    );
+
+    let f = 20usize;
+    let sr = 44_100.0f32;
+    let env = (std::f32::consts::PI * f as f32 / frames as f32).sin();
+    let expected =
+        (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * (f as f32 / sr)).sin() * 0.95 * env;
+    assert!((at_44100[f * channels] - expected).abs() < 1e-5);
+    // Both channels carry the same mono beep.
+    assert_eq!(at_44100[f * channels], at_44100[f * channels + 1]);
+}
