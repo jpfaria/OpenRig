@@ -114,23 +114,59 @@ fn io_bindings_ui_interactions() {
         );
     }
 
-    // ── 3. Opening the inline rename field must not crash ──
+    // ── 3. Rename FLOW: pencil → editor with a confirm button; pencil &
+    //       trash disappear; confirm commits. (Also: no focus-recursion crash.)
     {
         let w = new_window(vec![empty_binding()]);
+
+        // Resting state: pencil + trash are present.
+        assert!(exists(&w, "SectionSystemIoBindings::rename-btn"), "pencil missing at rest");
+        assert!(exists(&w, "SectionSystemIoBindings::delete-btn"), "trash missing at rest");
+
+        let fired = Rc::new(Cell::new(false));
+        let f = fired.clone();
+        w.on_rename_io_binding(move |_id, _name| f.set(true));
+
         assert!(
             click_element(&w, "SectionSystemIoBindings::rename-btn"),
-            "rename pencil element not found"
+            "rename pencil not clickable"
         );
-        // Materialise the inline editor (and its auto-focus). A focus() that
-        // runs while the conditional is still being laid out recurses on
-        // item_geometry and aborts the process; reaching this assertion proves
-        // it does not.
-        let found = i_slint_backend_testing::ElementHandle::find_by_element_id(
-            &w,
-            "SectionSystemIoBindings::name-input",
-        )
-        .next()
-        .is_some();
-        assert!(found, "inline rename TextInput did not appear after clicking the pencil");
+
+        // Editing state: the inline editor appears (no crash) and the
+        // pencil/trash give way to a confirm action.
+        assert!(
+            exists(&w, "SectionSystemIoBindings::name-input"),
+            "inline rename TextInput did not appear"
+        );
+        assert!(
+            !exists(&w, "SectionSystemIoBindings::rename-btn"),
+            "pencil still visible while editing — edit/delete must give way to confirm"
+        );
+        assert!(
+            !exists(&w, "SectionSystemIoBindings::delete-btn"),
+            "trash still visible while editing — edit/delete must give way to confirm"
+        );
+        assert!(
+            exists(&w, "SectionSystemIoBindings::confirm-rename-btn"),
+            "no confirm button while editing the name — nothing commits the edit"
+        );
+
+        // Confirm commits the rename and leaves edit mode.
+        assert!(
+            click_element(&w, "SectionSystemIoBindings::confirm-rename-btn"),
+            "confirm button not clickable"
+        );
+        assert!(fired.get(), "clicking confirm did not commit the rename");
+        assert!(
+            exists(&w, "SectionSystemIoBindings::rename-btn"),
+            "pencil did not come back after confirming"
+        );
     }
+}
+
+/// True if an element with `id` is currently materialised in `w`.
+fn exists(w: &ProjectSettingsWindow, id: &str) -> bool {
+    i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
+        .next()
+        .is_some()
 }

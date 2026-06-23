@@ -220,6 +220,9 @@ export component SectionSystemIoBindings inherits Rectangle {
     private property <string> editing-endpoint: "";
     // Id of the binding whose name is being renamed inline ("" = none).
     private property <string> renaming-binding-id: "";
+    // Live draft of the name being edited (so the confirm button, in a separate
+    // conditional branch, can read it — Slint can't reach an id across branches).
+    private property <string> rename-draft: "";
 
     background: transparent;
 
@@ -278,28 +281,39 @@ export component SectionSystemIoBindings inherits Rectangle {
                         }
                         HorizontalLayout { padding-left: 12px; padding-right: 12px;
                             name-input := TextInput {
-                                text: binding.name;
+                                text <=> root.rename-draft;
                                 color: #fafafa; font-size: 16px; font-weight: 600;
                                 vertical-alignment: center; single-line: true;
                                 // Commit on Enter and on losing focus (blur).
                                 accepted => {
-                                    root.rename-io-binding(binding.id, self.text);
+                                    root.rename-io-binding(binding.id, root.rename-draft);
                                     root.renaming-binding-id = "";
                                 }
                                 changed has-focus => {
                                     if !self.has-focus && root.renaming-binding-id == binding.id {
-                                        root.rename-io-binding(binding.id, self.text);
+                                        root.rename-io-binding(binding.id, root.rename-draft);
                                         root.renaming-binding-id = "";
                                     }
                                 }
                             }
                         }
                     }
-                    rename-btn := IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => {
+                    // Resting actions: edit + delete. Hidden while editing the
+                    // name so the only actions are confirm / cancel.
+                    if root.renaming-binding-id != binding.id : rename-btn := IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => {
+                        root.rename-draft = binding.name;
                         root.renaming-binding-id = binding.id;
                     } }
-                    IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
+                    if root.renaming-binding-id != binding.id : delete-btn := IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
                         let err = root.delete-io-binding(binding.id); if err != "" { root.io-binding-error = err; } } }
+                    // Editing actions: confirm commits the rename, cancel discards.
+                    if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: #14321f; clicked => {
+                        root.rename-io-binding(binding.id, root.rename-draft);
+                        root.renaming-binding-id = "";
+                    } }
+                    if root.renaming-binding-id == binding.id : IconBtn { icon: @image-url("../../assets/close.svg"); clicked => {
+                        root.renaming-binding-id = "";
+                    } }
                 }
 
                 // ── Entradas ──
