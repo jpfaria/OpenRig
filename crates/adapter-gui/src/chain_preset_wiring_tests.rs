@@ -34,6 +34,8 @@ fn input_block(id: &str) -> AudioBlock {
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -49,6 +51,8 @@ fn output_block(id: &str) -> AudioBlock {
                 mode: ChainOutputMode::Stereo,
                 channels: vec![0, 1],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -131,6 +135,8 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
             active_scene: 1,
             routing: Vec::new(),
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
         },
     );
     RigProject {

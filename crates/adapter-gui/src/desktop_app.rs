@@ -353,6 +353,15 @@ pub fn run_desktop_app(
         project_session.clone(),
         app_config.clone(),
     );
+    // #716: System / I/O bindings editor.
+    crate::settings::io_bindings::wire(
+        &window,
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+        input_chain_devices.clone(),
+        output_chain_devices.clone(),
+    );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
         &settings.input_devices,
@@ -516,6 +525,9 @@ pub fn run_desktop_app(
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
             toast_timer: toast_timer.clone(),
+            app_config: app_config.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
         },
     );
     // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---
@@ -660,6 +672,8 @@ pub fn run_desktop_app(
             project_devices: project_devices.clone(),
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
             audio_settings_mode: audio_settings_mode.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
@@ -751,6 +765,7 @@ pub fn run_desktop_app(
         open_compact_window: open_compact_window.clone(),
         vst3_editor_handles: vst3_editor_handles.clone(),
         toast_timer: toast_timer.clone(),
+        app_config: app_config.clone(),
         vst3_sample_rate,
         fullscreen,
         auto_save,
@@ -820,6 +835,7 @@ pub fn run_desktop_app(
             chain_output_device_options: chain_output_device_options.clone(),
             chain_input_channels: chain_input_channels.clone(),
             chain_output_channels: chain_output_channels.clone(),
+            app_config: app_config.clone(),
         },
     );
     // --- on_save_chain + on_cancel_chain (extracted to chain_save_cancel_callbacks) ---

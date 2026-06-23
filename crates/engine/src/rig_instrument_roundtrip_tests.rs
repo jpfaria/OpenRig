@@ -30,6 +30,8 @@ fn simple_rig() -> RigProject {
                 active_scene: 1,
                 routing: vec![],
                 instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+                io: String::new(),
+                endpoint: String::new(),
             },
         )]
         .into_iter()

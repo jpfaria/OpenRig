@@ -32,6 +32,8 @@ fn io_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![source("dev", vec![0])],
         }),
     }
@@ -46,6 +48,8 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         active_scene: 1,
         routing: vec![],
         instrument: "electric_guitar".to_string(),
+        io: String::new(),
+        endpoint: String::new(),
     }
 }
 

@@ -30,6 +30,8 @@ fn chain_with_only_input(id: &str) -> Chain {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![InputEntry {
                     device_id: DeviceId(DEVICE.into()),
                     mode: ChainInputMode::Mono,
@@ -79,6 +81,8 @@ fn ensure_chains_have_output_is_no_op_when_output_present() {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: Vec::new(),
         }),
     });

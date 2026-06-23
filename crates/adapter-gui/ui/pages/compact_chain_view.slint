@@ -116,7 +116,7 @@ export component CompactChainViewPage inherits Rectangle {
         ChainTitlePreset {
             x: 56px;
             y: (parent.height - 40px) / 2;
-            width: parent.width - 56px - 408px;
+            width: parent.width - 56px - 302px;
             height: 40px;
             title: root.chain-title;
             nav: root.rig-nav;
@@ -135,7 +135,7 @@ export component CompactChainViewPage inherits Rectangle {
         // The IN / OUT chips configure the endpoints; the dBFS bars at
         // the footer report the live signal level.
         ChainVolumeButton {
-            x: parent.width - 404px;
+            x: parent.width - 298px;
             y: (parent.height - 36px) / 2;
             volume: root.volume;
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
@@ -143,7 +143,7 @@ export component CompactChainViewPage inherits Rectangle {
 
         // #614: DI loop control — next to the volume button.
         ChainDiLoopButton {
-            x: parent.width - 372px;
+            x: parent.width - 266px;
             y: (parent.height - 36px) / 2;
             playing: root.di-loop-playing;
             sources: root.di-loop-sources;
@@ -154,7 +154,7 @@ export component CompactChainViewPage inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 308px;
+            x: parent.width - 202px;
             y: (parent.height - 30px) / 2;
             icon: @image-url("../assets/sonar.svg");
             tooltip: @tr("tooltip-measure-latency");
@@ -166,7 +166,7 @@ export component CompactChainViewPage inherits Rectangle {
         // compact view instead of only on the chains list. Same colours
         // and `label-lat` key as the main chain row's badge.
         if root.latency-ms > 0 : Rectangle {
-            x: parent.width - 268px;
+            x: parent.width - 162px;
             y: (parent.height - 22px) / 2;
             width: 64px;
             height: 22px;
@@ -210,55 +210,15 @@ export component CompactChainViewPage inherits Rectangle {
         }
 
         ChainActionIcon {
-            x: parent.width - 188px;
+            x: parent.width - 82px;
             y: (parent.height - 30px) / 2;
             icon: @image-url("../assets/gear.svg");
             tooltip: @tr("tooltip-configure");
             clicked => { root.configure-chain(root.chain-index); }
         }
 
-        Rectangle {
-            x: parent.width - 148px;
-            y: (parent.height - 30px) / 2;
-            width: 30px; height: 30px;
-            border-radius: 4px;
-            background: in-ta.has-hover ? #29df8520 : #29df8510;
-            border-width: 1px;
-            border-color: #29df8540;
-            Text {
-                width: 100%; height: 100%;
-                text: @tr("label-in");
-                color: #29df85;
-                font-size: 9px; font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            in-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.configure-input(root.chain-index); }
-            }
-        }
-        Rectangle {
-            x: parent.width - 108px;
-            y: (parent.height - 30px) / 2;
-            width: 30px; height: 30px;
-            border-radius: 4px;
-            background: out-ta.has-hover ? #e0704020 : #e0704010;
-            border-width: 1px;
-            border-color: #e0704040;
-            Text {
-                width: 100%; height: 100%;
-                text: @tr("label-out");
-                color: #e07040;
-                font-size: 9px; font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            out-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.configure-output(root.chain-index); }
-            }
-        }
+        // #716: no IN/OUT badges in compact — the chain's I/O is configured
+        // via the gear (configure-chain) menu, not from the compact row.
 
         ChainActionIcon {
             x: parent.width - 42px;

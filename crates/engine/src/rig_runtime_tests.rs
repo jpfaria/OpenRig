@@ -57,6 +57,8 @@ fn rig(
                     k.to_string(),
                     RigOutput {
                         label: None,
+                        io: String::new(),
+                        endpoint: String::new(),
                         entry: e,
                     },
                 )
@@ -85,6 +87,8 @@ fn input(
         active_scene: 1,
         routing: routing.into_iter().map(String::from).collect(),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+        io: String::new(),
+        endpoint: String::new(),
     }
 }
 

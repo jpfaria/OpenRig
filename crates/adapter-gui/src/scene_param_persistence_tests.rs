@@ -54,10 +54,14 @@ fn setup_one_chain_with_gate(s: &Sandbox) -> (ProjectSession, BlockId) {
         input: EndpointSpec {
             device_id: Some("dev"),
             channels: vec![0],
+            io: String::new(),
+            endpoint: String::new(),
         },
         output: EndpointSpec {
             device_id: Some("dev"),
             channels: vec![0, 1],
+            io: String::new(),
+            endpoint: String::new(),
         },
     });
     session

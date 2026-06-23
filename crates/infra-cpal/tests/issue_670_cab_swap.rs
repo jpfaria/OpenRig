@@ -178,6 +178,8 @@ fn preset_project(
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(input.id.clone()),
                 mode: ChainInputMode::Mono,
@@ -195,6 +197,8 @@ fn preset_project(
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(output.id.clone()),
                 mode: ChainOutputMode::Stereo,

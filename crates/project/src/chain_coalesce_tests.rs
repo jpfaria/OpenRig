@@ -19,6 +19,8 @@ fn make_input_block(
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(device.into()),
                 mode,
@@ -39,6 +41,8 @@ fn make_output_block(
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(device.into()),
                 mode,

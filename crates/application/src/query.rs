@@ -454,6 +454,8 @@ mod tests {
             enabled,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "default".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![],
             }),
         }

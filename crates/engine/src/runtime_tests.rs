@@ -242,6 +242,8 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("input-device".into()),
                         mode: ChainInputMode::Mono,
@@ -258,6 +260,8 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("output-device".into()),
                         mode: ChainOutputMode::Stereo,
@@ -307,6 +311,8 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("input-device".into()),
                         mode: ChainInputMode::Mono,
@@ -322,6 +328,8 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("output-device".into()),
                         mode: ChainOutputMode::Stereo,
@@ -645,6 +653,8 @@ fn io_passthrough_chain(id: &str) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainInputMode::Mono,
@@ -657,6 +667,8 @@ fn io_passthrough_chain(id: &str) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainOutputMode::Mono,
@@ -724,6 +736,8 @@ fn segments_split_by_output_position() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainInputMode::Mono,
@@ -763,6 +777,8 @@ fn segments_split_by_output_position() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("mixer".into()),
                         mode: ChainOutputMode::Stereo,
@@ -793,6 +809,8 @@ fn segments_split_by_output_position() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("scarlett".into()),
                         mode: ChainOutputMode::Stereo,
@@ -1712,6 +1730,8 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![InputEntry {
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainInputMode::Mono,
@@ -1724,6 +1744,8 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![InputEntry {
                             device_id: DeviceId("teyun".into()),
                             mode: ChainInputMode::Mono,
@@ -1736,6 +1758,8 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
+                        io: String::new(),
+                        endpoint: String::new(),
                         entries: vec![OutputEntry {
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainOutputMode::Stereo,
@@ -1898,6 +1922,8 @@ fn insert_chain() -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev_in".into()),
                         mode: ChainInputMode::Mono,
@@ -1945,6 +1971,8 @@ fn insert_chain() -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("dev_out".into()),
                         mode: ChainOutputMode::Stereo,
@@ -2049,6 +2077,8 @@ fn effective_inputs_splits_mono_multichannel_entry() {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![InputEntry {
                     device_id: DeviceId("dev".into()),
                     mode: ChainInputMode::Mono,
@@ -2149,6 +2179,8 @@ fn process_input_stereo_output_preserves_channels() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainInputMode::Stereo,
@@ -2161,6 +2193,8 @@ fn process_input_stereo_output_preserves_channels() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainOutputMode::Stereo,
@@ -2724,6 +2758,8 @@ fn effective_inputs_stereo_entry_not_split() {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![InputEntry {
                     device_id: DeviceId("dev".into()),
                     mode: ChainInputMode::Stereo,
@@ -2753,6 +2789,8 @@ fn effective_inputs_ignores_disabled_blocks() {
                 enabled: false,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainInputMode::Mono,
@@ -2765,6 +2803,8 @@ fn effective_inputs_ignores_disabled_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![OutputEntry {
                         device_id: DeviceId("dev".into()),
                         mode: ChainOutputMode::Mono,
@@ -2798,6 +2838,8 @@ fn effective_outputs_ignores_disabled_blocks() {
             enabled: false,
             kind: AudioBlockKind::Output(OutputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![OutputEntry {
                     device_id: DeviceId("dev".into()),
                     mode: ChainOutputMode::Mono,
@@ -2830,6 +2872,8 @@ fn effective_inputs_multiple_input_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev1".into()),
                         mode: ChainInputMode::Mono,
@@ -2842,6 +2886,8 @@ fn effective_inputs_multiple_input_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
+                    io: String::new(),
+                    endpoint: String::new(),
                     entries: vec![InputEntry {
                         device_id: DeviceId("dev2".into()),
                         mode: ChainInputMode::Mono,
@@ -2874,6 +2920,8 @@ fn effective_inputs_same_device_shares_cpal_index() {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![
                     InputEntry {
                         device_id: DeviceId("same_dev".into()),

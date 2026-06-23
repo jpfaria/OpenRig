@@ -4,7 +4,8 @@ use crate::block_editor::{
 };
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::state::SelectedBlock;
-use crate::ui_state::chain_routing_summary;
+use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
+use infra_filesystem::IoBinding;
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
@@ -416,6 +417,7 @@ pub(crate) fn replace_project_chains(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
+    io_bindings: &[IoBinding],
 ) {
     let items = project
         .chains
@@ -455,25 +457,37 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let input_chs: Vec<usize> = chain
-                        .input_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ib)| {
-                            ib.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("In", &input_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                    if binding_name.is_empty() {
+                        let input_chs: Vec<usize> = chain
+                            .input_blocks()
+                            .into_iter()
+                            .flat_map(|(_, ib)| {
+                                ib.entries.iter().flat_map(|e| e.channels.iter().copied())
+                            })
+                            .collect();
+                        chain_endpoint_label("In", &input_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
                 output_label: {
-                    let output_chs: Vec<usize> = chain
-                        .output_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ob)| {
-                            ob.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("Out", &output_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                    if binding_name.is_empty() {
+                        let output_chs: Vec<usize> = chain
+                            .output_blocks()
+                            .into_iter()
+                            .flat_map(|(_, ob)| {
+                                ob.entries.iter().flat_map(|e| e.channels.iter().copied())
+                            })
+                            .collect();
+                        chain_endpoint_label("Out", &output_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
                 latency_ms,

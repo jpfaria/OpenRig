@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use infra_cpal::invalidate_device_cache;
+use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -34,6 +34,11 @@ pub(crate) struct ProjectSettingsCtx {
     pub project_devices: Rc<VecModel<DeviceSelectionItem>>,
     pub chain_input_device_options: Rc<VecModel<SharedString>>,
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
+    /// #716: shared descriptor caches the I/O bindings editor reads from. Seeded
+    /// here on settings-open so the binding device dropdowns populate (the audio
+    /// section already enumerates on open; the bindings pickers must too).
+    pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub audio_settings_mode: Rc<RefCell<AudioSettingsMode>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
@@ -52,6 +57,8 @@ pub(crate) fn wire(
         project_devices,
         chain_input_device_options,
         chain_output_device_options,
+        input_chain_devices,
+        output_chain_devices,
         audio_settings_mode,
         saved_project_snapshot,
         project_dirty,
@@ -66,6 +73,8 @@ pub(crate) fn wire(
         let project_devices = project_devices.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_settings_window = project_settings_window.as_weak();
         let toast_timer = toast_timer.clone();
@@ -80,6 +89,22 @@ pub(crate) fn wire(
             invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
+            // #716: feed the freshly enumerated descriptors into the shared
+            // caches the I/O bindings editor reads, and reseed its device
+            // dropdown models — otherwise the bindings pickers stay empty even
+            // though the audio section enumerated the same hardware.
+            crate::settings::io_bindings::seed_device_caches(
+                &input_chain_devices,
+                &output_chain_devices,
+                &fresh_input,
+                &fresh_output,
+            );
+            crate::settings::io_bindings::reseed_device_models(
+                &window,
+                &settings_window,
+                &fresh_input,
+                &fresh_output,
+            );
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 set_status_error(

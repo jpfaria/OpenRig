@@ -40,6 +40,8 @@ pub fn ensure_chains_have_output(project: &mut Project, default_device: &DeviceI
             enabled: true,
             kind: AudioBlockKind::Output(OutputBlock {
                 model: "standard".into(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![OutputEntry {
                     device_id: default_device.clone(),
                     mode: ChainOutputMode::Stereo,

@@ -12,939 +12,728 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 #: crates/adapter-gui/ui/blocks/header.slint:13
-msgctxt "Header"
 msgid "OpenRig"
 msgstr "OpenRig"
 
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:274
-msgctxt "BlockPanelParameterItem"
 msgid "btn-load-file"
 msgstr "Load"
 
 #: crates/adapter-gui/ui/components/block_stream_mini_display.slint:23
-msgctxt "BlockStreamMiniDisplay"
 msgid "–"
 msgstr "–"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:128
-msgctxt "BlockValueStepper"
 msgid "−"
 msgstr "−"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:194
-msgctxt "BlockValueStepper"
 msgid "+"
 msgstr "+"
 
-#: crates/adapter-gui/ui/components/chain_di_loop_button.slint:61
-msgctxt "ChainDiLoopButton"
-msgid "di-loop-button-label"
-msgstr "DIループ"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:87
+msgid "Preset selector"
+msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_di_loop_button.slint:138
-msgctxt "ChainDiLoopButton"
-msgid "di-loop-stop-label"
-msgstr "DIループを停止"
-
-#: crates/adapter-gui/ui/components/chain_di_loop_button.slint:138
-msgctxt "ChainDiLoopButton"
-msgid "di-loop-play-label"
-msgstr "DIループを再生"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:77
-msgctxt "SceneBtn"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:170
 msgid "Scene {}"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:99
-msgctxt "SceneBar"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:192
 msgid "Add scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:108
-msgctxt "SceneBar"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:201
 msgid "Remove last scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:183
-msgctxt "ChainTitlePreset"
-msgid "tooltip-open-preset"
-msgstr "プリセットを開く"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:193
-msgctxt "ChainTitlePreset"
-msgid "tooltip-save-preset"
-msgstr "プリセットを保存"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:203
-msgctxt "ChainTitlePreset"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:258
 msgid "Add preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:213
-msgctxt "ChainTitlePreset"
-msgid "Rename preset"
-msgstr "プリセット名を変更"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:224
-msgctxt "ChainTitlePreset"
-msgid "Remove preset"
-msgstr "プリセットを削除"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:316
-msgctxt "ChainTitlePreset"
-msgid "Cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:337
-msgctxt "ChainTitlePreset"
-msgid "OK"
-msgstr "OK"
-
 #: crates/adapter-gui/ui/components/chain_volume_button.slint:37
-msgctxt "ChainVolumeButton"
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:29
-msgctxt "ConfirmDeleteChainDialog"
-msgid "title-dialog-delete-chain"
-msgstr "チェーンを削除"
-
-#. text directly.
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:39
-msgctxt "ConfirmDeleteChainDialog"
-msgid "Excluir a chain \"{}\"?"
-msgstr "チェーン \"{}\" を削除しますか?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-delete"
-msgstr "削除"
-
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "title-dialog-delete-block"
 msgstr "ブロックを削除"
 
 #. pt-BR source string with the placeholder.
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:36
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir \"{}\"?"
 msgstr "\"{}\" を削除しますか？"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "btn-cancel"
 msgstr "キャンセル"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "btn-delete"
 msgstr "削除"
 
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:30
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "title-dialog-delete-recent-project"
-msgstr "最近から削除"
-
-#. Literal pt-BR source string with `{}` placeholder.
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:38
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "Remover o projeto \"{}\" dos recentes?"
-msgstr "プロジェクト \"{}\" を最近から削除しますか?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:57
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:74
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-remove"
-msgstr "削除"
-
 #: crates/adapter-gui/ui/components/language_selector.slint:56
-msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
 msgstr "言語セレクター"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:96
-msgctxt "ModelSelectWithSearch"
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:93
 msgid "▼"
 msgstr "▼"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:178
-msgctxt "ModelSelectWithSearch"
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:175
 msgid "placeholder-search-models"
 msgstr "モデルを検索..."
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:212
-msgctxt "ModelSelectWithSearch"
-msgid "status-no-models-found"
-msgstr "モデルが見つかりません"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:34
-msgctxt "PresetPickerOverlay"
-msgid "btn-load-preset"
-msgstr "プリセットを読み込む"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
-msgctxt "PresetPickerOverlay"
-msgid "preset-search-placeholder"
-msgstr "プリセットを検索…"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:106
-msgctxt "PresetPickerOverlay"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
-msgctxt "PresetSaveOverlay"
-msgid "title-dialog-save-preset"
-msgstr "プリセットを保存"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:63
-msgctxt "PresetSaveOverlay"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
-msgctxt "PresetSaveOverlay"
-msgid "btn-save"
-msgstr "保存"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
-msgctxt "PresetOverwriteOverlay"
-msgid "title-dialog-overwrite-preset"
-msgstr "プリセットを上書きしますか?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
-msgctxt "PresetOverwriteOverlay"
-msgid "msg-overwrite-preset"
-msgstr "「{}」というプリセットがすでに存在します。上書きしますか?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:145
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-overwrite"
-msgstr "上書き"
-
-#: crates/adapter-gui/ui/components/preset_select.slint:72
-msgctxt "PresetSelect"
-msgid "Preset selector"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_select.slint:137
-msgctxt "PresetSelect"
-msgid "preset-search-placeholder"
-msgstr "プリセットを検索…"
-
 #: crates/adapter-gui/ui/components/preset_select.slint:170
-msgctxt "PresetSelect"
 msgid "status-no-presets-found"
 msgstr "プリセットが見つかりません"
 
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:209
+msgid "status-no-models-found"
+msgstr "モデルが見つかりません"
+
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:32
+msgid "btn-load-preset"
+msgstr "プリセットを読み込む"
+
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
-msgctxt "BlockEditorPanel"
 msgid "tooltip-delete"
 msgstr "削除"
 
-#: crates/adapter-gui/ui/pages/block_editor_panel.slint:243
-msgctxt "BlockEditorPanel"
-msgid "–"
-msgstr "–"
-
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:37
-msgctxt "BlockPanelEditor"
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:36
 msgid "btn-add"
 msgstr "追加"
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:323
-msgctxt "BlockPanelEditor"
-msgid "–"
-msgstr "–"
-
 #: crates/adapter-gui/ui/pages/chain_editor.slint:195
-msgctxt "ChainEditorPage"
 msgid "instrument-guitar"
 msgstr "ギター"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:196
-msgctxt "ChainEditorPage"
 msgid "instrument-acoustic-guitar"
 msgstr "アコースティックギター"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:197
-msgctxt "ChainEditorPage"
 msgid "instrument-bass"
 msgstr "ベース"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:198
-msgctxt "ChainEditorPage"
 msgid "instrument-voice"
 msgstr "ボーカル"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:199
-msgctxt "ChainEditorPage"
 msgid "instrument-keyboard"
 msgstr "キーボード"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:200
-msgctxt "ChainEditorPage"
 msgid "instrument-drums"
 msgstr "ドラム"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:201
-msgctxt "ChainEditorPage"
 msgid "instrument-other"
 msgstr "その他"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:221
-msgctxt "ChainEditorPage"
 msgid "title-new-chain"
 msgstr "新しいチェーン"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:221
-msgctxt "ChainEditorPage"
 msgid "title-configure-chain"
 msgstr "チェーンを構成"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:240
-msgctxt "ChainEditorPage"
 msgid "label-name"
 msgstr "名前"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:267
-msgctxt "ChainEditorPage"
 msgid "label-instrument"
 msgstr "楽器"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:345
-msgctxt "ChainEditorPage"
 msgid "title-section-inputs"
 msgstr "入力"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:371
-msgctxt "ChainEditorPage"
 msgid "btn-add-input"
 msgstr "+ 入力を追加"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:390
-msgctxt "ChainEditorPage"
 msgid "title-section-outputs"
 msgstr "出力"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:416
-msgctxt "ChainEditorPage"
 msgid "btn-add-output"
 msgstr "+ 出力を追加"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:443
-msgctxt "ChainEditorPage"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
 #: crates/adapter-gui/ui/pages/chain_editor.slint:450
-msgctxt "ChainEditorPage"
 msgid "btn-create-chain"
 msgstr "チェーンを作成"
 
 #: crates/adapter-gui/ui/pages/chain_editor.slint:450
-msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
 msgstr "チェーンを保存"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
-msgctxt "ChannelRow"
 msgid "✓"
 msgstr "✓"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
-msgctxt "ChainEndpointEditorPage"
 msgid "label-device"
 msgstr "デバイス"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
-msgctxt "ChainEndpointEditorPage"
 msgid "label-mode"
 msgstr "モード"
 
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
-msgctxt "ChainEndpointEditorPage"
 msgid "label-channels"
 msgstr "チャンネル"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:268
-msgctxt "ChainEndpointEditorPage"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
 #: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:275
-msgctxt "ChainEndpointEditorPage"
 msgid "btn-ok"
 msgstr "確認"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:99
-msgctxt "ChainInsertEditorPage"
 msgid "title-section-configure-insert"
 msgstr "Insertを構成"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
-msgctxt "ChainInsertEditorPage"
 msgid "label-send"
 msgstr "センド"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
-msgctxt "ChainInsertEditorPage"
-msgid "label-device"
-msgstr "デバイス"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
-msgctxt "ChainInsertEditorPage"
-msgid "label-mode"
-msgstr "モード"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
-msgctxt "ChainInsertEditorPage"
-msgid "label-channels"
-msgstr "チャンネル"
-
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
-msgctxt "ChainInsertEditorPage"
 msgid "label-return"
 msgstr "リターン"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:469
-msgctxt "ChainInsertEditorPage"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:476
-msgctxt "ChainInsertEditorPage"
-msgid "btn-ok"
-msgstr "確認"
-
-#: crates/adapter-gui/ui/pages/chain_io_groups.slint:304
-msgctxt "ChainIoGroupsPage"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
-#: crates/adapter-gui/ui/pages/chain_io_groups.slint:311
-msgctxt "ChainIoGroupsPage"
-msgid "btn-ok"
-msgstr "確認"
-
-#: crates/adapter-gui/ui/pages/chain_row.slint:246
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:140
 msgid "tooltip-expand-blocks"
 msgstr "ブロックを展開"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:254
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:148
 msgid "tooltip-measure-latency"
 msgstr "レイテンシ計測（ビープ音が鳴ります）"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:283
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:177
 msgid "tooltip-configure"
 msgstr "設定"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:291
-msgctxt "ChainRow"
-msgid "tooltip-delete"
-msgstr "削除"
+#: crates/adapter-gui/ui/pages/chain_row.slint:185
+msgid "tooltip-open-preset"
+msgstr "プリセットを開く"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:564
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:193
+msgid "tooltip-save-preset"
+msgstr "プリセットを保存"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:472
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:613
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:521
 msgid "label-input"
 msgstr "入力"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:659
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:567
 msgid "label-output"
 msgstr "出力"
 
-#: crates/adapter-gui/ui/pages/compact_block_row.slint:415
-msgctxt "CompactBlockRow"
-msgid "▼"
-msgstr "▼"
-
 #: crates/adapter-gui/ui/pages/compact_block_row.slint:493
-msgctxt "CompactBlockRow"
 msgid "btn-open-plugin"
 msgstr "プラグインを開く"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:160
-msgctxt "CompactChainViewPage"
-msgid "tooltip-measure-latency"
-msgstr "レイテンシ計測（ビープ音が鳴ります）"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:187
-msgctxt "CompactChainViewPage"
-msgid "label-lat"
-msgstr "LAT"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:216
-msgctxt "CompactChainViewPage"
-msgid "tooltip-configure"
-msgstr "設定"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:230
-msgctxt "CompactChainViewPage"
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
 msgid "label-in"
 msgstr "IN"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:251
-msgctxt "CompactChainViewPage"
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
 msgid "label-out"
 msgstr "OUT"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:267
-msgctxt "CompactChainViewPage"
-msgid "tooltip-delete"
-msgstr "削除"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:313
-msgctxt "CompactChainViewPage"
-msgid "+"
-msgstr "+"
-
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
-msgctxt "PluginInfoPanel"
 msgid "·"
 msgstr "·"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:125
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:123
 msgid "label-description"
 msgstr "Description"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:144
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:142
 msgid "label-license"
 msgstr "License:"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:171
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:169
 msgid "↗"
 msgstr "↗"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:177
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:175
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:145
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:136
 msgid "tooltip-back"
 msgstr "戻る"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:153
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:144
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:161
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:152
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:169
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:160
 msgid "tooltip-project-settings"
 msgstr "プロジェクト"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:178
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
 msgid "tooltip-save"
 msgstr "保存"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:186
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-new-chain"
 msgstr "新しい チェーン"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:184
-msgctxt "SearchField"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgid "placeholder-search-projects"
 msgstr "プロジェクトを検索"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:287
-msgctxt "ProjectLauncherPage"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:288
 msgid "tooltip-open-project"
 msgstr "プロジェクトを開く"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:294
-msgctxt "ProjectLauncherPage"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:295
 msgid "btn-new-project"
 msgstr "新規プロジェクト"
 
+#: crates/adapter-gui/ui/pages/project_settings.slint:147
+msgid "label-hz"
+msgstr "Hz"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:170
+msgid "label-buffer"
+msgstr "Buffer"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:193
+msgid "label-bits"
+msgstr "Bits"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:271
+msgid "title-section-audio-devices"
+msgstr "オーディオデバイス"
+
 #: crates/adapter-gui/ui/pages/project_setup.slint:55
-msgctxt "NameInput"
 msgid "placeholder-project-name-example"
 msgstr "例: ライブギター"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:151
-msgctxt "ProjectSetupPage"
 msgid "title-new-project"
 msgstr "新規プロジェクト"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:164
-msgctxt "ProjectSetupPage"
 msgid "label-project-name"
 msgstr "プロジェクト名"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:204
-msgctxt "ProjectSetupPage"
-msgid "btn-cancel"
-msgstr "キャンセル"
-
 #: crates/adapter-gui/ui/pages/project_setup.slint:211
-msgctxt "ProjectSetupPage"
 msgid "btn-create-project"
 msgstr "プロジェクトを作成"
 
-#: crates/adapter-gui/ui/pages/settings.slint:170
-msgctxt "SettingsPage"
-msgid "nav-group-system"
-msgstr "システム"
-
-#: crates/adapter-gui/ui/pages/settings.slint:181
-msgctxt "SettingsPage"
-msgid "title-section-audio-interface"
-msgstr "オーディオインターフェース"
-
-#: crates/adapter-gui/ui/pages/settings.slint:186
-msgctxt "SettingsPage"
-msgid "title-section-language"
-msgstr "言語"
-
-#: crates/adapter-gui/ui/pages/settings.slint:191
-msgctxt "SettingsPage"
-msgid "title-section-midi-devices"
-msgstr "MIDIデバイス"
-
-#: crates/adapter-gui/ui/pages/settings.slint:196
-msgctxt "SettingsPage"
-msgid "title-section-paths"
-msgstr "パス"
-
-#: crates/adapter-gui/ui/pages/settings.slint:201
-msgctxt "SettingsPage"
-msgid "title-section-integrations"
-msgstr "連携"
-
-#: crates/adapter-gui/ui/pages/settings.slint:216
-msgctxt "SettingsPage"
-msgid "nav-group-project"
-msgstr "プロジェクト"
-
-#: crates/adapter-gui/ui/pages/settings.slint:227
-msgctxt "SettingsPage"
-msgid "title-section-project-meta"
-msgstr "メタデータ"
-
-#: crates/adapter-gui/ui/pages/settings.slint:335
-msgctxt "SettingsPage"
-msgid "btn-save-audio-settings"
-msgstr "適用"
-
-#: crates/adapter-gui/ui/pages/settings.slint:339
-msgctxt "SettingsPage"
-msgid "btn-close"
-msgstr "閉じる"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:27
-msgctxt "SectionProjectMeta"
-msgid "label-name"
-msgstr "名前"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:58
-msgctxt "SectionProjectMeta"
-msgid "label-file"
-msgstr "ファイル"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:66
-msgctxt "SectionProjectMeta"
-msgid "placeholder-project-unsaved"
-msgstr "(未保存)"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:83
-msgctxt "SectionProjectMeta"
-msgid "btn-save-project"
-msgstr "プロジェクトを保存"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:95
-msgctxt "AudioDeviceRow"
-msgid "label-hz"
-msgstr "Hz"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:118
-msgctxt "AudioDeviceRow"
-msgid "label-buffer"
-msgstr "Buffer"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:141
-msgctxt "AudioDeviceRow"
-msgid "label-bits"
-msgstr "Bits"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:39
-msgctxt "SectionSystemIntegrations"
-msgid "label-midi-enabled"
-msgstr "MIDIコントロール"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
-msgctxt "SectionSystemIntegrations"
-msgid "desc-midi-enabled"
-msgstr "MIDI/BLE-MIDIアダプターを有効にしてフットスイッチでOpenRigを操作"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
-msgctxt "SectionSystemIntegrations"
-msgid "label-mcp-enabled"
-msgstr "MCPサーバー"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:99
-msgctxt "SectionSystemIntegrations"
-msgid "desc-mcp-enabled"
-msgstr "エージェント向けにMCPサーバーを127.0.0.1:4123で公開"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:134
-msgctxt "SectionSystemIntegrations"
-msgid "hint-restart-to-apply"
-msgstr "次回の起動時に有効になります。"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_language.slint:25
-msgctxt "SectionSystemLanguage"
-msgid "label-language"
-msgstr "言語"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:49
-msgctxt "SectionSystemPaths"
-msgid "label-presets-path"
-msgstr "プリセットフォルダ"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:57
-msgctxt "SectionSystemPaths"
-msgid "placeholder-default-path"
-msgstr "(デフォルト)"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:66
-msgctxt "SectionSystemPaths"
-msgid "btn-choose-path"
-msgstr "選択…"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:70
-msgctxt "SectionSystemPaths"
-msgid "btn-reset-path"
-msgstr "リセット"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:81
-msgctxt "SectionSystemPaths"
-msgid "label-plugins-path"
-msgstr "プラグインフォルダ"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:113
-msgctxt "SectionSystemPaths"
-msgid "label-evaluations-path"
-msgstr "評価フォルダ"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:145
-msgctxt "SectionSystemPaths"
-msgid "label-plugin-catalog"
-msgstr "プラグインカタログ"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:153
-msgctxt "SectionSystemPaths"
-msgid "status-plugin-catalog-idle"
-msgstr "まだ再読み込みされていません"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:162
-msgctxt "SectionSystemPaths"
-msgid "btn-reload-plugin-catalog"
-msgstr "再読み込み"
-
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:73
-msgctxt "SpectrumCard"
 msgid "—"
 msgstr "—"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:127
-msgctxt "SpectrumCard"
 msgid "20"
 msgstr "20"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:133
-msgctxt "SpectrumCard"
 msgid "100"
 msgstr "100"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:139
-msgctxt "SpectrumCard"
 msgid "1k"
 msgstr "1k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:145
-msgctxt "SpectrumCard"
 msgid "10k"
 msgstr "10k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:151
-msgctxt "SpectrumCard"
 msgid "20k"
 msgstr "20k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:199
-msgctxt "SpectrumPanel"
 msgid "label-spectrum"
 msgstr "SPECTRUM"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:241
-msgctxt "SpectrumPanel"
 msgid "status-no-active-outputs"
 msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
-msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr "スペクトラムをオンにして、出力が設定されたチェーンを有効にしてください。"
+msgstr "スペクトラムをオンにし、出力を設定したチェーンを有効にしてください。"
+"スペクトラムをオンにし、出力が構成されたチェーンを有効にしてください。スペク"
+"トラムを電源ONにし、出力が構成されたチェーンを有効にしてください。"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:279
-msgctxt "SpectrumWindow"
 msgid "title-window-spectrum"
 msgstr "OpenRig · Spectrum"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
-msgctxt "MuteSwitch"
 msgid "label-mute"
 msgstr "MUTE"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:316
-msgctxt "TunerPanel"
 msgid "label-tuner"
 msgstr "TUNER"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:368
-msgctxt "TunerPanel"
 msgid "status-no-active-inputs"
 msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
-msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr "入力が設定されたチェーンを有効にすると、ここにチューナーが表示されます。"
+msgstr "入力を設定したチェーンを有効にすると、ここにチューナーが表示されます。"
+"入力が構成されたチェーンを有効にすると、ここにチューナーが表示されます。入力"
+"が構成されたチェーンを有効にすると、ここにチューナーが表示されます。"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406
-msgctxt "TunerWindow"
 msgid "title-window-tuner"
 msgstr "OpenRig · Tuner"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:30
-msgctxt "BlockEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_block.slint:28
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:231
-msgctxt "CompactChainViewWindow"
+#: crates/adapter-gui/ui/secondary_windows_block.slint:195
 msgid "title-window-chain-view"
 msgstr "OpenRig · チェーン"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:60
-msgctxt "ProjectSettingsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:23
 msgid "title-window-project-settings"
 msgstr "OpenRig · プロジェクトを構成"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:159
-msgctxt "ChainEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:96
 msgid "title-window-chain-editor"
 msgstr "OpenRig · チェーンを構成"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:192
-msgctxt "ChainEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:129
 msgid "title-section-input"
 msgstr "入力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:210
-msgctxt "ChainEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:147
 msgid "title-section-output"
 msgstr "出力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:240
-msgctxt "ChainInputWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:177
 msgid "title-window-chain-input"
 msgstr "OpenRig · チェーン入力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:250
-msgctxt "ChainInputWindow"
-msgid "title-section-input"
-msgstr "入力"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:280
-msgctxt "ChainOutputWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:217
 msgid "title-window-chain-output"
 msgstr "OpenRig · チェーン出力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:290
-msgctxt "ChainOutputWindow"
-msgid "title-section-output"
-msgstr "出力"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:321
-msgctxt "ChainInputGroupsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:258
 msgid "title-window-chain-inputs"
 msgstr "OpenRig · チェーン入力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:331
-msgctxt "ChainInputGroupsWindow"
-msgid "title-section-inputs"
-msgstr "入力"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:332
-msgctxt "ChainInputGroupsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:269
 msgid "btn-add-input-row"
 msgstr "+ 入力を追加"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:362
-msgctxt "ChainOutputGroupsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:299
 msgid "title-window-chain-outputs"
 msgstr "OpenRig · チェーン出力"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:372
-msgctxt "ChainOutputGroupsWindow"
-msgid "title-section-outputs"
-msgstr "出力"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:373
-msgctxt "ChainOutputGroupsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:310
 msgid "btn-add-output-row"
 msgstr "+ 出力を追加"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:418
-msgctxt "ChainInsertWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:355
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Insertを構成"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:428
-msgctxt "ChainInsertWindow"
-msgid "title-section-configure-insert"
-msgstr "Insertを構成"
-
-#: crates/adapter-gui/ui/touch_main.slint:667
-msgctxt "TouchMain"
+#: crates/adapter-gui/ui/touch_main.slint:586
 msgid "⌨"
 msgstr "⌨"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgid "title-dialog-delete-chain"
+msgstr "チェーンを削除"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgid "Excluir a chain \"{}\"?"
+msgstr "チェーン \"{}\" を削除しますか?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
+msgid "title-dialog-delete-recent-project"
+msgstr "最近から削除"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
+msgid "Remover o projeto \"{}\" dos recentes?"
+msgstr "プロジェクト \"{}\" を最近から削除しますか?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
+msgid "btn-remove"
+msgstr "削除"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "tab-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "tab-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-close"
+msgstr "閉じる"
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgid "badge-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgid "badge-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgid "title-section-audio-interface"
+msgstr "オーディオインターフェース"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_language.slint
+msgid "title-section-language"
+msgstr "言語"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
+msgid "title-section-midi-devices"
+msgstr "MIDIデバイス"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgid "title-section-project-meta"
+msgstr "メタデータ"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgid "label-file"
+msgstr "ファイル"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "title-section-midi-mapping"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "btn-add-midi-binding"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "empty-midi-mapping-explain"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "placeholder-midi-listen"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "nav-group-system"
+msgstr "システム"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "nav-group-project"
+msgstr "プロジェクト"
+
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
+msgid "preset-search-placeholder"
+msgstr "プリセットを検索…"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
+msgid "title-dialog-save-preset"
+msgstr "プリセットを保存"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
+msgid "btn-save"
+msgstr "保存"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
+msgid "title-dialog-overwrite-preset"
+msgstr "プリセットを上書きしますか?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
+msgid "msg-overwrite-preset"
+msgstr "「{}」というプリセットがすでに存在します。上書きしますか?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
+msgid "btn-overwrite"
+msgstr "上書き"
+
+msgid "btn-save-audio-settings"
+msgstr "適用"
+
+msgid "title-section-integrations"
+msgstr "連携"
+
+msgid "label-midi-enabled"
+msgstr "MIDIコントロール"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDIアダプターを有効にしてフットスイッチでOpenRigを操作"
+
+msgid "label-mcp-enabled"
+msgstr "MCPサーバー"
+
+msgid "desc-mcp-enabled"
+msgstr "エージェント向けにMCPサーバーを127.0.0.1:4123で公開"
+
+msgid "hint-restart-to-apply"
+msgstr "次回の起動時に有効になります。"
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/Oバインディング"
+
+msgid "label-input-endpoint"
+msgstr "入力エンドポイント"
+
+msgid "label-output-endpoint"
+msgstr "出力エンドポイント"
+
+msgid "label-resolved-info"
+msgstr "解決済み情報"
+
+msgid "placeholder-select-endpoint"
+msgstr "エンドポイントを選択"
+
+msgid "title-section-io-bindings"
+msgstr "I/Oバインディング"
+
+msgid "label-binding-name"
+msgstr "バインディング名"
+
+msgid "label-endpoint-input"
+msgstr "入力エンドポイント"
+
+msgid "label-endpoint-output"
+msgstr "出力エンドポイント"
+
+msgid "mode-mono"
+msgstr "モノ"
+
+msgid "mode-stereo"
+msgstr "ステレオ"
+
+msgid "mode-dual-mono"
+msgstr "デュアルモノ"
+
+msgid "placeholder-binding-name"
+msgstr "バインディング名…"
+
+msgid "label-channels-prefix"
+msgstr "チャンネル"
+
+msgid "label-endpoint-device"
+msgstr "デバイス"
+
+msgid "label-endpoint-mode"
+msgstr "モード"
+
+msgid "label-endpoint-channels"
+msgstr "チャンネル"
+
+msgid "btn-add-endpoint"
+msgstr "エンドポイントを追加"
+
+msgid "label-group-inputs"
+msgstr "入力"
+
+msgid "label-group-outputs"
+msgstr "出力"
+
+msgid "empty-no-input-endpoints"
+msgstr "入力はまだありません"
+
+msgid "empty-no-output-endpoints"
+msgstr "出力はまだありません"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディングを使用します。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "新規バインディング"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "バインディングがまだありません"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "インターフェースの入力と出力をまとめるバインディングを作成してください。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "デバイスを選択"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "選択…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "再読み込み"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "リセット"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "プロジェクトを保存"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DIループ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "DIループを再生"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "DIループを停止"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "評価フォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "言語"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "プラグインカタログ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "プラグインフォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "プリセットフォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(デフォルト)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(未保存)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "まだ再読み込みしていません"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "パス"
+

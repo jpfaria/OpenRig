@@ -456,6 +456,25 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
                 self.handle_di_loop(cmd)
             }
+
+            // #716: per-machine I/O binding registry (persisted to config.yaml).
+            Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
+                self.handle_create_or_update_io_binding(binding)
+            }
+            Command::DeleteIoBinding { id } => self.handle_delete_io_binding(id),
+            Command::RenameIoBinding { id, name } => self.handle_rename_io_binding(id, name),
+            Command::AddIoEndpoint {
+                binding_id,
+                is_input,
+                device_id,
+                channels,
+                mode,
+            } => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
+            Command::RemoveIoEndpoint {
+                binding_id,
+                is_input,
+                endpoint_name,
+            } => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
         }
     }
 

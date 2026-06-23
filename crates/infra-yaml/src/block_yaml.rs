@@ -312,7 +312,7 @@ impl AudioBlockYaml {
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,
-                    kind: AudioBlockKind::Input(InputBlock { model, entries }),
+                    kind: AudioBlockKind::Input(InputBlock { model, io: String::new(), endpoint: String::new(), entries }),
                 })
             }
             AudioBlockYaml::Output {
@@ -345,7 +345,7 @@ impl AudioBlockYaml {
                 Ok(AudioBlock {
                     id: generated_id,
                     enabled,
-                    kind: AudioBlockKind::Output(OutputBlock { model, entries }),
+                    kind: AudioBlockKind::Output(OutputBlock { model, io: String::new(), endpoint: String::new(), entries }),
                 })
             }
             AudioBlockYaml::Insert {

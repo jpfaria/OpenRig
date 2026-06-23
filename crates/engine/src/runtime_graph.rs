@@ -90,7 +90,7 @@ pub struct RuntimeGraph {
 /// keeps Insert chains as a single runtime (byte-identical to pre-#350);
 /// the structural per-input isolation targets the no-Insert multi-input
 /// case (the user-visible "two guitars, one chain" scenario).
-fn chain_has_enabled_insert(chain: &Chain) -> bool {
+pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
     chain
         .blocks
         .iter()
@@ -172,7 +172,7 @@ pub fn build_runtime_graph(
 /// Returns `(group_id, state)` pairs. For single-input / Insert chains
 /// this is exactly one pair whose state equals the legacy
 /// `build_chain_runtime_state` output (byte-identical audio path).
-fn build_per_input_runtimes(
+pub(crate) fn build_per_input_runtimes(
     chain: &Chain,
     sample_rate: f32,
     elastic_targets: &[usize],
@@ -224,10 +224,12 @@ pub fn build_per_input_runtime_states(
     sample_rate: f32,
     elastic_targets: &[usize],
 ) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
-    Ok(build_per_input_runtimes(chain, sample_rate, elastic_targets)?
-        .into_iter()
-        .map(|(group, state)| (group, Arc::new(state)))
-        .collect())
+    Ok(
+        build_per_input_runtimes(chain, sample_rate, elastic_targets)?
+            .into_iter()
+            .map(|(group, state)| (group, Arc::new(state)))
+            .collect(),
+    )
 }
 
 /// The per-input group ids a chain would produce, WITHOUT instantiating any
@@ -357,7 +359,7 @@ pub fn build_chain_runtime_state(
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
-fn assemble_chain_runtime_state(
+pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     eff_outputs: &[OutputEntry],

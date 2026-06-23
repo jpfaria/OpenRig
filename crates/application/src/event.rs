@@ -337,6 +337,13 @@ pub enum Event {
         chain: ChainId,
         enabled: bool,
     },
+
+    // ── I/O binding registry (#716) ───────────────────────────────────────────
+
+    /// #716: the per-machine I/O binding registry in `config.yaml` was
+    /// mutated (create, update, or delete). MCP/gRPC adapters that cache
+    /// the registry invalidate their cache on receipt.
+    IoBindingRegistryChanged,
 }
 
 impl Event {
@@ -403,7 +410,9 @@ impl Event {
             | Event::PluginLoadFailed { .. }
             // #576: offline render does not touch any chain in the live project.
             | Event::RenderCompleted { .. }
-            | Event::Error { .. } => None,
+            | Event::Error { .. }
+            // #716: I/O binding registry is a system-level concern, not tied to any chain.
+            | Event::IoBindingRegistryChanged => None,
         }
     }
 }

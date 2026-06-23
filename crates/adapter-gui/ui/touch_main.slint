@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
@@ -194,6 +194,28 @@ export component TouchMain inherits Rectangle {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    // `io-binding-names` stays for the chain-level endpoint picker
+    // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
+    in property <[string]> io-binding-names;
+    in property <[IoBindingModel]> io-bindings;
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    in property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    in property <int> io-edit-prefill-device-index: -1;
+    in property <int> io-edit-prefill-mode-index: 0;
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback endpoint-device-changed(string, bool, string);
+    callback toggle-endpoint-channel(int, bool, string);
+    callback add-input-endpoint(string, string, string, string);
+    callback add-output-endpoint(string, string, string, string);
+    callback remove-endpoint(string, string, bool);
+    callback edit-endpoint(string, string, bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
     callback add-midi-binding();
     callback delete-midi-binding(int);
@@ -242,9 +264,15 @@ export component TouchMain inherits Rectangle {
     in property <bool> chain-io-show-mode-selector: false;
     in property <[string]> chain-io-mode-labels;
     in-out property <int> chain-io-selected-mode-index: 0;
+    // #716: endpoint picker — io-binding + endpoint selection for inline editor.
+    in-out property <int> chain-io-selected-io-index: -1;
+    in property <[string]> chain-io-endpoint-options;
+    in-out property <string> chain-io-selected-endpoint-name: "";
     callback chain-io-select-device(int);
     callback chain-io-toggle-channel(int, bool);
     callback chain-io-select-mode(int);
+    callback chain-io-select-io(int);
+    callback chain-io-select-endpoint(string);
     callback chain-io-save();
     callback chain-io-cancel();
     in property <bool> show-preset-picker: false;
@@ -441,6 +469,24 @@ export component TouchMain inherits Rectangle {
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         set-midi-enabled(on) => { root.set-midi-enabled(on); }
         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+        io-bindings: root.io-bindings;
+        input-device-ids: root.input-device-ids;
+        input-device-names: root.input-device-names;
+        output-device-ids: root.output-device-ids;
+        output-device-names: root.output-device-names;
+        io-binding-channel-options: root.io-binding-channel-options;
+        io-binding-error <=> root.io-binding-error;
+        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
+        create-io-binding(name) => { return root.create-io-binding(name); }
+        delete-io-binding(id) => { return root.delete-io-binding(id); }
+        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
+        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
         add-midi-binding => { root.add-midi-binding(); }
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
@@ -503,22 +549,20 @@ export component TouchMain inherits Rectangle {
         delete-block => { root.chain-io-groups-delete-block(); }
     }
 
-    // Inline I/O endpoint editor overlay (fullscreen mode)
+    // Inline I/O endpoint editor overlay (fullscreen mode).
+    // #716: forward io-binding-names from root so the endpoint picker is live.
     if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
         x: 0; y: 0;
         width: parent.width;
         height: parent.height;
         title: root.chain-io-editor-title;
-        device-options: root.chain-io-device-options;
-        selected-device-index <=> root.chain-io-selected-device-index;
-        channels: root.chain-io-channels;
+        io-binding-names: root.io-binding-names;
+        selected-io-index <=> root.chain-io-selected-io-index;
+        endpoint-options: root.chain-io-endpoint-options;
+        selected-endpoint-name <=> root.chain-io-selected-endpoint-name;
         status-message <=> root.chain-io-editor-status;
-        show-mode-selector: root.chain-io-show-mode-selector;
-        mode-labels: root.chain-io-mode-labels;
-        selected-mode-index <=> root.chain-io-selected-mode-index;
-        select-device(index) => { root.chain-io-select-device(index); }
-        toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
-        select-mode(index) => { root.chain-io-select-mode(index); }
+        select-io(index) => { root.chain-io-select-io(index); }
+        select-endpoint(name) => { root.chain-io-select-endpoint(name); }
         save => { root.chain-io-save(); }
         cancel => { root.chain-io-cancel(); }
     }

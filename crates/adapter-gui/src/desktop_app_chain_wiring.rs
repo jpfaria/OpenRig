@@ -13,6 +13,7 @@ use std::rc::Rc;
 use slint::{SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_filesystem::AppConfig;
 
 use crate::state::{BlockEditorDraft, ChainDraft, IoBlockInsertDraft, ProjectSession};
 use crate::{
@@ -52,6 +53,7 @@ pub(crate) struct ChainWiringDeps<'a> {
     pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
     pub toast_timer: Rc<Timer>,
 
+    pub app_config: Rc<RefCell<AppConfig>>,
     pub vst3_sample_rate: f64,
     pub fullscreen: bool,
     pub auto_save: bool,
@@ -79,6 +81,7 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             project_dirty: deps.project_dirty.clone(),
             io_block_insert_draft: deps.io_block_insert_draft.clone(),
             toast_timer: deps.toast_timer.clone(),
+            app_config: deps.app_config.clone(),
             auto_save: deps.auto_save,
             fullscreen: deps.fullscreen,
         },

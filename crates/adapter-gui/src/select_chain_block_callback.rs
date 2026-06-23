@@ -183,6 +183,8 @@ pub(crate) fn wire(
                     device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                     channels: e.channels.clone(),
                     mode: e.mode,
+                    io: ib.io.clone(),
+                    endpoint: ib.endpoint.clone(),
                 }).collect();
                 let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
                 draft.inputs = inputs;
@@ -206,6 +208,8 @@ pub(crate) fn wire(
                     device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                     channels: e.channels.clone(),
                     mode: e.mode,
+                    io: ob.io.clone(),
+                    endpoint: ob.endpoint.clone(),
                 }).collect();
                 let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
                 draft.outputs = outputs;

@@ -53,12 +53,16 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
                 },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
+                io: input.io.clone(),
+                endpoint: input.endpoint.clone(),
             })
             .collect(),
         None => vec![InputGroupDraft {
             device_id: None,
             channels: Vec::new(),
             mode: ChainInputMode::Mono,
+            io: String::new(),
+            endpoint: String::new(),
         }],
     };
     // Only show the last OutputBlock (fixed, last position) in the chain editor
@@ -75,12 +79,16 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
                 },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
+                io: output.io.clone(),
+                endpoint: output.endpoint.clone(),
             })
             .collect(),
         None => vec![OutputGroupDraft {
             device_id: None,
             channels: Vec::new(),
             mode: ChainOutputMode::Stereo,
+            io: String::new(),
+            endpoint: String::new(),
         }],
     };
     ChainDraft {
@@ -191,6 +199,8 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
                     entries: input_entries,
+                    io: String::new(),
+                    endpoint: String::new(),
                 }),
             });
         }
@@ -201,6 +211,8 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
                     entries: output_entries,
+                    io: String::new(),
+                    endpoint: String::new(),
                 }),
             });
         }

@@ -31,12 +31,15 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use infra_filesystem::AppConfig;
+
 use crate::audio_devices::{
     build_input_channel_items, build_output_channel_items, refresh_input_devices,
     refresh_output_devices, replace_channel_options, selected_device_index,
 };
 use crate::chain_editor::{input_mode_to_index, output_mode_to_index};
 use crate::state::{ChainDraft, ProjectSession};
+use crate::ui_state::{endpoint_names_for_input_binding, endpoint_names_for_output_binding, ui_bindings};
 use crate::{
     AppWindow, ChainEditorWindow, ChainInputGroupsWindow, ChainInputWindow,
     ChainOutputGroupsWindow, ChainOutputWindow, ChannelOptionItem,
@@ -51,6 +54,9 @@ pub(crate) struct ChainIoFullscreenCallbacksCtx {
     pub chain_output_device_options: Rc<VecModel<slint::SharedString>>,
     pub chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
     pub chain_output_channels: Rc<VecModel<ChannelOptionItem>>,
+    /// #716: needed to populate io-binding names and endpoint lists for the
+    /// inline fullscreen `ChainEndpointEditorPage` overlay.
+    pub app_config: Rc<RefCell<AppConfig>>,
 }
 
 pub(crate) fn wire(
@@ -70,6 +76,7 @@ pub(crate) fn wire(
         chain_output_device_options,
         chain_input_channels,
         chain_output_channels,
+        app_config,
     } = ctx;
 
     // on_chain_io_select_device
@@ -252,6 +259,44 @@ pub(crate) fn wire(
         });
     }
 
+    // on_chain_io_select_io (#716)
+    // Fullscreen endpoint picker: user picks an io-binding from the dropdown.
+    // Populate chain-io-endpoint-options with the endpoints for that binding.
+    {
+        let weak_window = window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let app_config = app_config.clone();
+        window.on_chain_io_select_io(move |index| {
+            let Some(w) = weak_window.upgrade() else { return; };
+            let config = app_config.borrow();
+            let bindings = ui_bindings(&config);
+            let idx = index as usize;
+            let is_input = inline_flag.get();
+            let (binding_id, ep_names) = bindings.get(idx).map(|b| {
+                let names = if is_input {
+                    endpoint_names_for_input_binding(b)
+                } else {
+                    endpoint_names_for_output_binding(b)
+                };
+                (b.id.clone(), names)
+            }).unwrap_or_default();
+            let ep_model: Rc<slint::VecModel<slint::SharedString>> =
+                Rc::new(slint::VecModel::from(
+                    ep_names.iter().map(|s| s.as_str().into()).collect::<Vec<_>>(),
+                ));
+            w.set_chain_io_endpoint_options(slint::ModelRc::from(ep_model));
+            // Reset endpoint selection when binding changes.
+            w.set_chain_io_selected_endpoint_name(binding_id.into());
+        });
+    }
+
+    // on_chain_io_select_endpoint (#716)
+    // The selected-endpoint-name is already stored via the property binding;
+    // this callback is a no-op but must be wired so Slint doesn't warn.
+    {
+        window.on_chain_io_select_endpoint(move |_name| {});
+    }
+
     // on_chain_io_groups_edit
     {
         let inline_flag = inline_io_groups_is_input.clone();
@@ -300,6 +345,10 @@ pub(crate) fn wire(
                             window.set_chain_io_show_mode_selector(true);
                             window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
                             window.set_chain_io_selected_mode_index(mode_idx);
+                            // #716: reset endpoint picker state when opening the inline editor.
+                            window.set_chain_io_selected_io_index(-1);
+                            window.set_chain_io_endpoint_options(ModelRc::from(Rc::new(VecModel::from(vec![]))));
+                            window.set_chain_io_selected_endpoint_name("".into());
                             window.set_show_chain_io_editor(true);
                         }
                     }
@@ -339,6 +388,10 @@ pub(crate) fn wire(
                         window.set_chain_io_show_mode_selector(true);
                         window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
                         window.set_chain_io_selected_mode_index(mode_idx);
+                        // #716: reset endpoint picker state when opening the inline editor.
+                        window.set_chain_io_selected_io_index(-1);
+                        window.set_chain_io_endpoint_options(ModelRc::from(Rc::new(VecModel::from(vec![]))));
+                        window.set_chain_io_selected_endpoint_name("".into());
                         window.set_show_chain_io_editor(true);
                     }
                 }

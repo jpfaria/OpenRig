@@ -45,6 +45,8 @@ fn rig_without_outputs() -> RigProject {
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
         },
     );
     RigProject {

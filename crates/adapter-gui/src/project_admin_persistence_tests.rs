@@ -74,10 +74,14 @@ fn default_chain(session: &ProjectSession, desc: &str) -> Chain {
         input: EndpointSpec {
             device_id: Some(&input_dev),
             channels: vec![0],
+            io: String::new(),
+            endpoint: String::new(),
         },
         output: EndpointSpec {
             device_id: Some("test-out"),
             channels: vec![0, 1],
+            io: String::new(),
+            endpoint: String::new(),
         },
     });
     chain

@@ -20,6 +20,8 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         active_scene: 1,
         routing: Vec::new(),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+        io: String::new(),
+        endpoint: String::new(),
     }
 }
 

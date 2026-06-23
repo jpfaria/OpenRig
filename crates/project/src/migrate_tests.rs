@@ -14,6 +14,8 @@ fn input_block(id: &str, entries: Vec<(&str, Vec<usize>)>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: entries
                 .into_iter()
                 .map(|(d, ch)| InputEntry {
@@ -32,6 +34,8 @@ fn output_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(device.into()),
                 mode: ChainOutputMode::Stereo,

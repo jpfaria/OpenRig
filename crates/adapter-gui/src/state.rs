@@ -36,6 +36,11 @@ pub(crate) struct ProjectSession {
     /// the legacy chains screen can switch preset/scene per input. `None`
     /// for sessions not loaded through the rig path (e.g. brand-new).
     pub(crate) rig: Option<Rc<RefCell<RigProject>>>,
+    /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`)
+    /// the runtime controller resolves bound chains against. Mirrored from
+    /// `AppConfig` when the session is created and refreshed on config edits;
+    /// the sync helpers push it into the controller before each (re)build.
+    pub(crate) io_bindings: Rc<RefCell<Vec<infra_filesystem::IoBinding>>>,
 }
 
 impl ProjectSession {
@@ -68,6 +73,7 @@ impl ProjectSession {
             config_path,
             presets_path,
             rig: None,
+            io_bindings: Rc::new(RefCell::new(Vec::new())),
         }
     }
 }
@@ -88,6 +94,12 @@ pub(crate) struct InputGroupDraft {
     pub(crate) device_id: Option<String>,
     pub(crate) channels: Vec<usize>,
     pub(crate) mode: ChainInputMode,
+    /// I/O binding id — populated from `InputBlock.io` when the draft is built
+    /// from an existing chain.  Used by the save path to dispatch
+    /// `SaveChainInputEndpoints` instead of the legacy `SaveChain` stopgap.
+    pub(crate) io: String,
+    /// Endpoint name within the binding — populated from `InputBlock.endpoint`.
+    pub(crate) endpoint: String,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +107,12 @@ pub(crate) struct OutputGroupDraft {
     pub(crate) device_id: Option<String>,
     pub(crate) channels: Vec<usize>,
     pub(crate) mode: ChainOutputMode,
+    /// I/O binding id — populated from `OutputBlock.io` when the draft is built
+    /// from an existing chain.  Used by the save path to dispatch
+    /// `SaveChainOutputEndpoints` instead of the legacy `SaveChain` stopgap.
+    pub(crate) io: String,
+    /// Endpoint name within the binding — populated from `OutputBlock.endpoint`.
+    pub(crate) endpoint: String,
 }
 
 #[derive(Debug, Clone)]

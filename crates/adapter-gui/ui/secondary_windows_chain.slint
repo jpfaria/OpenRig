@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
@@ -43,6 +43,25 @@ export component ProjectSettingsWindow inherits Window {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    in property <[IoBindingModel]> io-bindings;
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    in property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    in property <int> io-edit-prefill-device-index: -1;
+    in property <int> io-edit-prefill-mode-index: 0;
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback endpoint-device-changed(string, bool, string);
+    callback toggle-endpoint-channel(int, bool, string);
+    callback add-input-endpoint(string, string, string, string);
+    callback add-output-endpoint(string, string, string, string);
+    callback remove-endpoint(string, string, bool);
+    callback edit-endpoint(string, string, bool);
     callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
     in property <string> presets-path;
@@ -95,6 +114,24 @@ export component ProjectSettingsWindow inherits Window {
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         set-midi-enabled(on) => { root.set-midi-enabled(on); }
         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+        io-bindings: root.io-bindings;
+        input-device-ids: root.input-device-ids;
+        input-device-names: root.input-device-names;
+        output-device-ids: root.output-device-ids;
+        output-device-names: root.output-device-names;
+        io-binding-channel-options: root.io-binding-channel-options;
+        io-binding-error <=> root.io-binding-error;
+        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
+        create-io-binding(name) => { return root.create-io-binding(name); }
+        delete-io-binding(id) => { return root.delete-io-binding(id); }
+        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
+        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
         edit-project-name(t) => { root.edit-project-name(t); }
         presets-path: root.presets-path;
         plugins-path: root.plugins-path;
@@ -144,6 +181,13 @@ export component ChainEditorWindow inherits Window {
     callback input-select-mode(int);
     callback input-save();
     callback input-cancel();
+    in property <[string]> input-io-binding-names;
+    in-out property <int> input-selected-io-index: -1;
+    in property <[string]> input-endpoint-options;
+    in-out property <string> input-selected-io-name: "";
+    in-out property <string> input-selected-endpoint-name: "";
+    callback input-select-io(int);
+    callback input-select-endpoint(string);
     // Inline output endpoint editor
     in property <bool> show-output-editor: false;
     in property <[string]> output-device-options;
@@ -156,6 +200,13 @@ export component ChainEditorWindow inherits Window {
     callback output-select-mode(int);
     callback output-save();
     callback output-cancel();
+    in property <[string]> output-io-binding-names;
+    in-out property <int> output-selected-io-index: -1;
+    in property <[string]> output-endpoint-options;
+    in-out property <string> output-selected-io-name: "";
+    in-out property <string> output-selected-endpoint-name: "";
+    callback output-select-io(int);
+    callback output-select-endpoint(string);
     title: @tr("title-window-chain-editor");
     min-width: 860px;
     min-height: 540px;
@@ -190,16 +241,13 @@ export component ChainEditorWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-input");
-        device-options: root.input-device-options;
-        selected-device-index <=> root.input-selected-device-index;
-        channels: root.input-channels;
+        io-binding-names: root.input-io-binding-names;
+        selected-io-index <=> root.input-selected-io-index;
+        endpoint-options: root.input-endpoint-options;
+        selected-endpoint-name <=> root.input-selected-endpoint-name;
         status-message <=> root.input-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.input-mode-index;
-        select-device(index) => { root.input-select-device(index); }
-        toggle-channel(index, selected) => { root.input-toggle-channel(index, selected); }
-        select-mode(index) => { root.input-select-mode(index); }
+        select-io(index) => { root.input-select-io(index); }
+        select-endpoint(name) => { root.input-select-endpoint(name); }
         save => { root.input-save(); }
         cancel => { root.input-cancel(); }
     }
@@ -208,16 +256,13 @@ export component ChainEditorWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-output");
-        device-options: root.output-device-options;
-        selected-device-index <=> root.output-selected-device-index;
-        channels: root.output-channels;
+        io-binding-names: root.output-io-binding-names;
+        selected-io-index <=> root.output-selected-io-index;
+        endpoint-options: root.output-endpoint-options;
+        selected-endpoint-name <=> root.output-selected-endpoint-name;
         status-message <=> root.output-editor-status;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.output-mode-index;
-        select-device(index) => { root.output-select-device(index); }
-        toggle-channel(index, selected) => { root.output-toggle-channel(index, selected); }
-        select-mode(index) => { root.output-select-mode(index); }
+        select-io(index) => { root.output-select-io(index); }
+        select-endpoint(name) => { root.output-select-endpoint(name); }
         save => { root.output-save(); }
         cancel => { root.output-cancel(); }
     }
@@ -248,16 +293,9 @@ export component ChainInputWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-input");
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
+        io-binding-names: [];
+        endpoint-options: [];
         status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo", "Dual Mono"];
-        selected-mode-index <=> root.selected-input-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-input-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
@@ -288,16 +326,9 @@ export component ChainOutputWindow inherits Window {
         width: parent.width;
         height: parent.height;
         title: @tr("title-section-output");
-        device-options: root.device-options;
-        selected-device-index <=> root.selected-device-index;
-        channels: root.channels;
+        io-binding-names: [];
+        endpoint-options: [];
         status-message: root.status-message;
-        show-mode-selector: true;
-        mode-labels: ["Mono", "Stereo"];
-        selected-mode-index <=> root.selected-output-mode-index;
-        select-device(index) => { root.select-device(index); }
-        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-mode(index) => { root.select-output-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }

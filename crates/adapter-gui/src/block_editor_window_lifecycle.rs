@@ -356,6 +356,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &main,
@@ -526,6 +527,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &main,

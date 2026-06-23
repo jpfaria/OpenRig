@@ -230,6 +230,8 @@ pub(crate) fn wire(
                     device_id: fresh_input.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
+                    io: String::new(),
+                    endpoint: String::new(),
                 });
                 draft.editing_input_index = Some(idx);
                 draft.adding_new_input = true;
@@ -288,6 +290,8 @@ pub(crate) fn wire(
                     device_id: fresh_output.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
+                    io: String::new(),
+                    endpoint: String::new(),
                 });
                 draft.editing_output_index = Some(idx);
                 draft.adding_new_output = true;

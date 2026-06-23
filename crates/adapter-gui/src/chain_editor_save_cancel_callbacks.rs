@@ -160,6 +160,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             // The chains screen has its own model behind the preset and
             // scene comboboxes (chain_rig_nav). Without refreshing it

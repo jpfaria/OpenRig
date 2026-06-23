@@ -21,6 +21,7 @@ use std::rc::Rc;
 use slint::{SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_filesystem::AppConfig;
 
 use crate::state::{ChainDraft, IoBlockInsertDraft, ProjectSession};
 use crate::{
@@ -48,6 +49,7 @@ pub(crate) fn setup_chain_editor_callbacks(
     _weak_output_window: slint::Weak<ChainOutputWindow>,
     io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     toast_timer: Rc<Timer>,
+    app_config: Rc<RefCell<AppConfig>>,
     auto_save: bool,
 ) {
     crate::chain_editor_meta_io_callbacks::wire(
@@ -89,6 +91,7 @@ pub(crate) fn setup_chain_editor_callbacks(
         input_chain_devices.clone(),
         output_chain_devices.clone(),
         io_block_insert_draft.clone(),
+        app_config.clone(),
         auto_save,
     );
 
@@ -104,6 +107,7 @@ pub(crate) fn setup_chain_editor_callbacks(
         input_chain_devices,
         output_chain_devices,
         io_block_insert_draft,
+        app_config,
         auto_save,
     );
 }

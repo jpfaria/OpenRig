@@ -115,6 +115,7 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+mod default_io_binding;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
@@ -136,6 +137,7 @@ mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
+pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
 mod preset_search;
@@ -177,3 +179,9 @@ mod tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;
+
+#[cfg(test)]
+mod chain_io_chip_label_tests;
+
+#[cfg(test)]
+mod touch_window_io_parity_tests;

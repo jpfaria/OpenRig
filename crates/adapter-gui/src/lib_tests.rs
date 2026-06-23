@@ -127,6 +127,8 @@ fn input_kind() -> AudioBlockKind {
             mode: ChainInputMode::Mono,
             channels: vec![0],
         }],
+        io: String::new(),
+        endpoint: String::new(),
     })
 }
 
@@ -138,6 +140,8 @@ fn output_kind() -> AudioBlockKind {
             mode: ChainOutputMode::Stereo,
             channels: vec![0, 1],
         }],
+        io: String::new(),
+        endpoint: String::new(),
     })
 }
 
@@ -239,6 +243,8 @@ fn save_input_entries_does_not_move_middle_io_blocks() {
                 mode: ChainInputMode::Mono,
                 channels: vec![1],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
         effect_kind("delay"),
         output_kind(),
@@ -632,6 +638,8 @@ fn save_output_entries_finds_last_output_block() {
                 mode: ChainOutputMode::Stereo,
                 channels: vec![2, 3],
             }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
         effect_kind("delay"),
         output_kind(),

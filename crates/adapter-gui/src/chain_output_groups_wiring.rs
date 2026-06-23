@@ -18,7 +18,7 @@ use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::{refresh_input_devices, refresh_output_devices};
-use crate::chain_io_block_builders::build_output_block_from_draft;
+use crate::chain_io_block_builders::{build_output_block_from_draft, build_output_endpoint_cmd};
 use crate::helpers::show_child_window;
 use crate::io_groups::{apply_chain_output_window_state, build_io_group_items};
 use crate::project_ops::sync_project_dirty;
@@ -167,6 +167,8 @@ pub(crate) fn wire(
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
+                    io: String::new(),
+                    endpoint: String::new(),
                 });
                 draft.editing_output_index = Some(idx);
                 draft.adding_new_output = true;
@@ -252,8 +254,9 @@ pub(crate) fn wire(
             let editing_index = draft.editing_index;
 
             if let Some(chain_idx) = editing_index {
-                // Resolve chain positional index → chain_id and build new OutputBlock.
-                let (chain_id, new_output_block) =
+                // Resolve chain positional index → chain_id, build new OutputBlock,
+                // and capture the block_index of the last OutputBlock in the chain.
+                let (chain_id, new_output_block, output_block_index) =
                     {
                         let proj = session.project.borrow();
                         let Some(chain) = proj.chains.get(chain_idx) else {
@@ -265,24 +268,25 @@ pub(crate) fn wire(
                         };
                         // Pre-validate channel conflicts using a simulated chain state.
                         let mut simulated = chain.clone();
-                        if let Some(out_pos) = simulated.blocks.iter().rposition(|b| {
+                        let out_pos = simulated.blocks.iter().rposition(|b| {
                             matches!(&b.kind, project::block::AudioBlockKind::Output(_))
-                        }) {
-                            simulated.blocks[out_pos] = block.clone();
+                        });
+                        if let Some(pos) = out_pos {
+                            simulated.blocks[pos] = block.clone();
                         }
                         if let Err(msg) = simulated.validate_channel_conflicts() {
                             drop(proj);
                             groups_window.set_status_message(msg.into());
                             return;
                         }
-                        (chain.id.clone(), block)
+                        (chain.id.clone(), block, out_pos.unwrap_or(chain.blocks.len().saturating_sub(1)))
                     };
+                let _ = new_output_block; // retained for validation; binding ref drives the save
+                let io = draft.outputs.first().map(|g| g.io.as_str()).unwrap_or("");
+                let endpoint = draft.outputs.first().map(|g| g.endpoint.as_str()).unwrap_or("");
                 if let Err(error) = session
                     .dispatcher
-                    .dispatch(Command::SaveChainOutputEndpoints {
-                        chain: chain_id.clone(),
-                        output_blocks: vec![new_output_block],
-                    })
+                    .dispatch(build_output_endpoint_cmd(chain_id.clone(), output_block_index, io, endpoint))
                 {
                     groups_window.set_status_message(error.to_string().into());
                     return;
@@ -296,6 +300,7 @@ pub(crate) fn wire(
                     &*session.project.borrow(),
                     &input_chain_devices.borrow(),
                     &output_chain_devices.borrow(),
+            &[]
                 );
                 sync_project_dirty(
                     &window,
@@ -395,6 +400,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,
@@ -465,6 +471,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,

@@ -200,6 +200,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             let selected = SelectedBlock {
                 chain_index: chain_index as usize,
@@ -300,6 +301,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             // Close editor and clear all state — avoids stale index references
             block_editor_persist_timer.stop();

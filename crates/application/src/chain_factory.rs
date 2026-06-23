@@ -17,11 +17,20 @@ use project::project::Project;
 ///
 /// Groups the device id + channel list for one side (input or output) so the
 /// factory takes one cohesive value per side instead of two loose arguments.
+///
+/// `io` and `endpoint` carry the I/O binding reference (#716, Task 20). Both
+/// default to empty string (unbound). When set, the block's `io`/`endpoint`
+/// fields are stamped accordingly so the chain immediately references the
+/// binding instead of requiring a subsequent `SaveChainInputEndpoints` dispatch.
 pub struct EndpointSpec<'a> {
     /// Optional device id string. `None` => empty entries on this side.
     pub device_id: Option<&'a str>,
     /// Channel indices for this side. Empty => empty entries on this side.
     pub channels: Vec<usize>,
+    /// I/O binding id for this block (e.g. `"default"`). Empty = unbound.
+    pub io: String,
+    /// Endpoint name within the binding (e.g. `"In1"`, `"Out1"`). Empty = unbound.
+    pub endpoint: String,
 }
 
 /// Parameters for [`build_default_chain`], grouped to keep the call site and
@@ -63,8 +72,12 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
     } = params;
     let input_device_id = input.device_id;
     let input_channels = input.channels;
+    let input_io = input.io;
+    let input_endpoint = input.endpoint;
     let output_device_id = output.device_id;
     let output_channels = output.channels;
+    let output_io = output.io;
+    let output_endpoint = output.endpoint;
     let chain_idx = project.chains.len();
     let chain_id = ChainId::generate();
 
@@ -89,6 +102,8 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
+            io: input_io,
+            endpoint: input_endpoint,
             entries: input_entries,
         }),
     });
@@ -112,6 +127,8 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
+            io: output_io,
+            endpoint: output_endpoint,
             entries: output_entries,
         }),
     });

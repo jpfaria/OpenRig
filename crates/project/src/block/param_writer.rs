@@ -198,6 +198,8 @@ mod tests {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
+                io: String::new(),
+                endpoint: String::new(),
                 entries: vec![InputEntry {
                     device_id: DeviceId("mic".to_string()),
                     mode: ChainInputMode::default(),

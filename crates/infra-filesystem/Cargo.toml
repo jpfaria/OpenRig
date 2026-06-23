@@ -10,3 +10,4 @@ dirs.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
+domain = { path = "../domain" }

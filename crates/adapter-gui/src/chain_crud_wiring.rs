@@ -15,6 +15,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_filesystem::AppConfig;
 
 use crate::audio_devices::{
     build_input_channel_items, build_output_channel_items, ensure_devices_loaded,
@@ -49,6 +50,7 @@ pub(crate) struct ChainCrudCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     pub toast_timer: Rc<Timer>,
+    pub app_config: Rc<RefCell<AppConfig>>,
     pub auto_save: bool,
     pub fullscreen: bool,
 }
@@ -75,6 +77,7 @@ pub(crate) fn wire(
         project_dirty,
         io_block_insert_draft,
         toast_timer,
+        app_config,
         auto_save,
         fullscreen,
     } = ctx;
@@ -98,6 +101,7 @@ pub(crate) fn wire(
         let weak_output_window = chain_output_window.as_weak();
         let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
         window.on_add_chain(move || {
             log::info!("on_add_chain triggered");
             let Some(window) = weak_window.upgrade() else {
@@ -135,6 +139,7 @@ pub(crate) fn wire(
                 weak_output_window.clone(),
                 io_block_insert_draft.clone(),
                 toast_timer.clone(),
+                app_config.clone(),
                 auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);
@@ -216,6 +221,7 @@ pub(crate) fn wire(
         let weak_output_window = chain_output_window.as_weak();
         let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
         window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -252,6 +258,7 @@ pub(crate) fn wire(
                 weak_output_window.clone(),
                 io_block_insert_draft.clone(),
                 toast_timer.clone(),
+                app_config.clone(),
                 auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);

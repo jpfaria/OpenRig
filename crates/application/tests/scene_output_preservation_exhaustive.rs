@@ -37,6 +37,8 @@ fn user_input_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![InputEntry {
                 device_id: DeviceId(DEVICE.into()),
                 mode: ChainInputMode::Mono,
@@ -52,6 +54,8 @@ fn user_output_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
+            io: String::new(),
+            endpoint: String::new(),
             entries: vec![OutputEntry {
                 device_id: DeviceId(DEVICE.into()),
                 mode: ChainOutputMode::Stereo,
@@ -107,6 +111,8 @@ fn rig_with_presets_and_scenes() -> RigProject {
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
         },
     );
     RigProject {
@@ -359,25 +365,31 @@ fn configure_chain_without_output_in_payload_loses_output_today() {
 // ── Save endpoint commands are explicit replacements ──────────────────────
 
 #[test]
-fn save_chain_output_endpoints_with_empty_list_clears_output() {
+fn save_chain_output_endpoints_preserves_output_block() {
     let (d, p, _r) = dispatcher_with_user_io();
+    // The chain has [input, filter:1, amp:2, output] — output is at index 3.
     let _ = d.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
-        output_blocks: vec![],
+        block_index: 3,
+        io: String::new(),
+        endpoint: String::new(),
     });
     assert_eq!(
         outputs_count(&p, CHAIN_ID),
-        0,
-        "save_chain_output_endpoints([]) explicitly clears outputs"
+        1,
+        "save_chain_output_endpoints preserves the existing output block"
     );
 }
 
 #[test]
-fn save_chain_output_endpoints_with_block_keeps_one() {
+fn save_chain_output_endpoints_with_io_binding_keeps_one() {
     let (d, p, _r) = dispatcher_with_user_io();
+    // The chain has [input, filter:1, amp:2, output] — output is at index 3.
     let _ = d.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
-        output_blocks: vec![user_output_block()],
+        block_index: 3,
+        io: "main".to_string(),
+        endpoint: "Line Out".to_string(),
     });
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
 }

@@ -82,23 +82,38 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
+                // Propagate the binding reference stored on RigInput (#716).
+                io: input.io.clone(),
+                endpoint: input.endpoint.clone(),
                 entries: input.sources.clone(),
             }),
         });
         blocks.extend(preset.apply_scene(input.active_scene));
-        let routed: Vec<_> = input
+        let routed_outputs: Vec<_> = input
             .routing
             .iter()
-            .filter_map(|t| rig.outputs.get(t))
-            .map(|o| o.entry.clone())
+            .filter_map(|t| rig.outputs.get(t).map(|o| (t, o)))
             .collect();
-        if !routed.is_empty() {
+        if !routed_outputs.is_empty() {
+            // Propagate io/endpoint from the first routed output that carries
+            // a binding reference. Multiple routing entries all share the same
+            // binding reference in the current model (one binding per chain).
+            let (first_io, first_ep) = routed_outputs
+                .first()
+                .map(|(_, o)| (o.io.clone(), o.endpoint.clone()))
+                .unwrap_or_default();
+            let entries: Vec<_> = routed_outputs
+                .iter()
+                .map(|(_, o)| o.entry.clone())
+                .collect();
             blocks.push(AudioBlock {
                 id: BlockId(format!("rig:{name}:out")),
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
-                    entries: routed,
+                    io: first_io,
+                    endpoint: first_ep,
+                    entries,
                 }),
             });
         }

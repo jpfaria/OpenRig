@@ -310,6 +310,25 @@ export struct IoGroupItem {
     summary: string,
 }
 
+// I/O binding models for the binding editor UI (#716).
+// `device_label` is the human-readable DeviceId string; `channels_label` is
+// a comma-separated, 1-based channel list (e.g. "1, 2"). The raw `id` and
+// `name` fields are preserved so editor callbacks can round-trip identity
+// without re-querying the registry.
+export struct IoEndpointModel {
+    name: string,
+    device_label: string,
+    mode: string,
+    channels_label: string,
+}
+
+export struct IoBindingModel {
+    id: string,
+    name: string,
+    inputs: [IoEndpointModel],
+    outputs: [IoEndpointModel],
+}
+
 // Inline plugin info overlay payload (issue #307). Carried as a single struct so the
 // AppWindow → DesktopMain/TouchMain propagation is one binding instead of nine.
 export struct PluginInfoData {

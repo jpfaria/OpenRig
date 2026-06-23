@@ -178,6 +178,47 @@ Contract tests: `crates/engine/src/stream_isolation_tests.rs` +
 `stream_isolation_same_device_tests.rs`; cpal binding in
 `crates/infra-cpal/src/tests_regression.rs`.
 
+### Per-binding stream routing (issue #716)
+
+Chain Input/Output blocks are **ports**. An input port references an io
+binding (`io`) + an endpoint (`endpoint`); an output port likewise. The
+binding registry (`config.yaml` `io_bindings`, type
+`domain::io_binding::IoBinding`) resolves a port to its concrete device
+endpoint at build time — never on the audio thread.
+
+A **stream** is spawned for each `(input port, output port)` pair that
+belongs to the **same binding**, with input position ≤ output position in
+chain block order. The stream reads the input port's endpoint, runs ONLY
+the effect blocks strictly between the two ports, and writes the output
+port's endpoint. Because pairing is scoped to a binding, the input of
+binding A can **never** reach the output of binding B — structural
+isolation (CLAUDE.md invariant #4), not a runtime check.
+
+Worked examples (chain `A,B,C,D,E`):
+
+- io XYZ in {ch1@0, ch2@afterA}, out {ch3,4@end} → streams
+  `ch1: A B C D E → ch3,4` and `ch2: B C D E → ch3,4`.
+- io XYZ in {ch1@0}, out {ch3@end, ch4@afterC} → streams
+  `ch1: A B C D E → ch3` and `ch1: A B C → ch4`.
+
+Two streams that write the SAME output endpoint share one route (summed at
+the route); cross-binding sums never happen because the resolver forbids
+the pair. Each segment routes to ONLY its binding's output route — that
+single-output routing is what blocks the cross-binding bleed the
+chain-shared cartesian path produced.
+
+Resolution lives in `crates/engine/src/io_routing.rs`
+(`resolve_chain_streams`); the registry-aware graph build is
+`engine::runtime::build_io_runtime_graph` (in `runtime_io_graph.rs`).
+Routing is **binding-only**: an **unbound** chain (empty `io` on every
+Input/Output block) produces NO runtime and opens no device — it must be
+reconfigured against the registry. There is no fallback to the old
+`entries`-based path (clean break, #716).
+
+Contract tests: `crates/engine/src/io_binding_isolation_tests.rs`
+(cross-binding bleed) + `io_binding_routing_tests.rs` (pairing + block
+ranges).
+
 ### DSP worker per input stream (issue #670, macOS)
 
 The chain DSP does NOT run inside the CoreAudio input callback. The HAL
@@ -226,19 +267,63 @@ chain por vez. O runtime valida isso em memória ao habilitar.
 - Cada Input cria stream paralelo isolado; Output é tap não-destrutivo
 - Insert divide a chain em segmentos; desabilitado = bypass (sinal passa direto)
 
-Exemplo YAML mínimo:
+### I/O binding registry (#716)
+
+Input/Output blocks are **ports** that reference an I/O binding defined in
+`config.yaml`. The binding holds the concrete device endpoint (device id,
+mode, channels); the chain carries only the stable `id` reference. This keeps
+`.openrig` files portable — moving them to another machine re-resolves the id
+against that machine's local registry.
+
+`config.yaml` schema (system scope):
+
+```yaml
+io_bindings:
+  - id: main                # stable id referenced by chains
+    name: "Scarlett"
+    inputs:
+      - { name: In1, device_id: "coreaudio:...", mode: mono, channels: [0] }
+    outputs:
+      - { name: Out1, device_id: "coreaudio:...", mode: stereo, channels: [0,1] }
+  - id: cab_b
+    name: "Interface B"
+    inputs:
+      - { name: In1, device_id: "B", mode: mono, channels: [0] }
+    outputs:
+      - { name: Out1, device_id: "B", mode: stereo, channels: [0,1] }
+```
+
+Chain block YAML using ports:
 
 ```yaml
 chains:
   - description: guitar 1
     instrument: electric_guitar
     blocks:
-      - { type: input,  model: standard, enabled: true, entries: [{ name: In1, device_id: "...", mode: mono, channels: [0] }] }
+      - { type: input,  io: main, endpoint: In1, enabled: true }
       - { type: preamp, model: marshall_jcm_800_2203, enabled: true, params: { volume: 70, gain: 40 } }
       - { type: insert, model: external_loop, enabled: true, send: {...}, return_: {...} }
       - { type: delay,  model: digital_clean, enabled: true, params: { time_ms: 350, feedback: 40, mix: 30 } }
-      - { type: output, model: standard, enabled: true, entries: [{ name: Out1, device_id: "...", mode: stereo, channels: [0,1] }] }
+      - { type: output, io: main, endpoint: Out1, enabled: true }
 ```
+
+Insert blocks are **not** migrated to the registry — they keep raw send/return
+endpoints because an insert is a single-runtime send/return pipeline, not a
+binding-paired stream. See ADR 0004.
+
+### Legacy projects open UNBOUND (clean break, #716)
+
+There is **no migration**. Old chains that embedded device endpoints directly
+inside blocks (`entries: [{ name, device_id, mode, channels }]`) still
+**deserialize** — the project loads — but those `entries` are ignored for
+routing. A legacy chain has empty `io` on its Input/Output blocks, so it opens
+**unbound**: it produces no runtime and plays no audio until the user
+reconfigures its ports against an I/O binding in the Settings → I/O editor.
+New projects never persist `entries`; they serialize only `io`/`endpoint`.
+
+This is intentional: routing is binding-only, the registry (`config.yaml`)
+is the single source of truth for I/O, and a legacy file remains loadable
+without inventing device routing the user never confirmed on this machine.
 
 Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32. YAML antigo (`inputs:`/`outputs:` separados, `input_device_id`/`output_device_id` únicos) é migrado automaticamente.
 
