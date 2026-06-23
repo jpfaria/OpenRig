@@ -40,12 +40,8 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     let changed = sync_recent_projects(&mut config);
     if changed {
         // #693: boot-time migration write goes to the persist worker.
-        let snapshot = config.clone();
-        application::persist_worker::run(move || {
-            if let Err(e) = FilesystemStorage::save_app_config(&snapshot) {
-                log::error!("save_app_config (recents sync) failed: {e}");
-            }
-        });
+        // #731: bind the config path at dispatch time.
+        application::app_config_persist::persist_app_config_snapshot(config.clone());
     }
     Ok(config)
 }
