@@ -23,7 +23,7 @@ use application::dispatcher::CommandDispatcher;
 use domain::io_binding::{IoBinding, IoEndpoint};
 use infra_cpal::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
@@ -31,9 +31,10 @@ use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, Proje
 #[path = "io_bindings_endpoint.rs"]
 mod io_bindings_endpoint;
 pub(crate) use io_bindings_endpoint::{
-    build_input_endpoint, build_output_endpoint, build_update_removing_endpoint,
+    apply_channel_toggle, build_input_endpoint, build_output_endpoint,
+    build_update_removing_endpoint, build_update_replacing_endpoint,
     build_update_with_input_endpoint, build_update_with_output_endpoint, channel_items_for_device,
-    channel_mode_from_str, next_endpoint_name,
+    channel_mode_from_str, endpoint_prefill, next_endpoint_name,
 };
 
 #[cfg(test)]
@@ -266,6 +267,21 @@ pub fn wire(
     );
 }
 
+/// Push freshly enumerated descriptors into the shared caches the I/O bindings
+/// wiring reads from. Called from the project-settings open path so the device
+/// dropdowns and channel derivation see the same populated source the audio
+/// section already enumerated — without this the dropdowns stay empty because
+/// the shared caches are only filled lazily on the refresh-devices button.
+pub fn seed_device_caches(
+    input_cache: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    output_cache: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    fresh_input: &[AudioDeviceDescriptor],
+    fresh_output: &[AudioDeviceDescriptor],
+) {
+    *input_cache.borrow_mut() = fresh_input.to_vec();
+    *output_cache.borrow_mut() = fresh_output.to_vec();
+}
+
 /// Rebuild the device-list models on both windows from the latest descriptors.
 /// Called from the Settings refresh-devices path once the hardware is scanned
 /// (devices are enumerated lazily, so the initial seed at `wire` time is empty).
@@ -346,15 +362,29 @@ impl WireCtx {
         self.models.channels.set_vec(items);
     }
 
-    fn toggle_channel(&self, index: i32, selected: bool) {
+    fn toggle_channel(&self, index: i32, selected: bool, mode: &str) {
         let model = &self.models.channels;
-        if let Some(mut item) = model.row_data(index as usize) {
-            item.selected = selected;
-            model.set_row_data(index as usize, item);
-        }
+        let current: Vec<ChannelOptionItem> = model.iter().collect();
+        let updated = apply_channel_toggle(
+            &current,
+            index,
+            selected,
+            channel_mode_from_str(mode),
+        );
+        model.set_vec(updated);
     }
 
-    fn add_endpoint(&self, id: &str, device_id: &str, mode: &str, is_input: bool) {
+    /// Add (or, when `edit_name` is non-empty, replace) an endpoint on the
+    /// binding. The replace path keeps the endpoint's name and position so an
+    /// edit updates the row in place instead of appending a duplicate.
+    fn add_endpoint(
+        &self,
+        id: &str,
+        device_id: &str,
+        mode: &str,
+        is_input: bool,
+        edit_name: &str,
+    ) {
         let channels = selected_channels(&self.models.channels);
         if channels.is_empty() {
             return;
@@ -363,20 +393,30 @@ impl WireCtx {
         {
             let mut config = self.cfg.borrow_mut();
             if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                let name = next_endpoint_name(
-                    if is_input {
-                        b.inputs.len()
+                let cmd = if !edit_name.is_empty() {
+                    // Edit: replace the endpoint in place, keeping its name.
+                    let ep = if is_input {
+                        build_input_endpoint(edit_name, device_id, channels, parsed_mode)
                     } else {
-                        b.outputs.len()
-                    },
-                    is_input,
-                );
-                let cmd = if is_input {
-                    let ep = build_input_endpoint(&name, device_id, channels, parsed_mode);
-                    build_update_with_input_endpoint(b.clone(), ep)
+                        build_output_endpoint(edit_name, device_id, channels, parsed_mode)
+                    };
+                    build_update_replacing_endpoint(b.clone(), edit_name, ep, is_input)
                 } else {
-                    let ep = build_output_endpoint(&name, device_id, channels, parsed_mode);
-                    build_update_with_output_endpoint(b.clone(), ep)
+                    let name = next_endpoint_name(
+                        if is_input {
+                            b.inputs.len()
+                        } else {
+                            b.outputs.len()
+                        },
+                        is_input,
+                    );
+                    if is_input {
+                        let ep = build_input_endpoint(&name, device_id, channels, parsed_mode);
+                        build_update_with_input_endpoint(b.clone(), ep)
+                    } else {
+                        let ep = build_output_endpoint(&name, device_id, channels, parsed_mode);
+                        build_update_with_output_endpoint(b.clone(), ep)
+                    }
                 };
                 apply_binding_command(b, &self.ps, cmd);
             }
@@ -384,6 +424,30 @@ impl WireCtx {
         self.models.channels.set_vec(Vec::new());
         mirror_bindings_to_session(&self.ps, &self.cfg);
         reproject(&self.models, &self.cfg);
+    }
+
+    /// Seed the channel model + prefill props for editing an existing endpoint,
+    /// and return the (device_index, mode_index) the form should preselect.
+    fn edit_endpoint(&self, id: &str, ep_name: &str, is_input: bool) -> (i32, i32) {
+        let devices = if is_input {
+            self.input_devices.borrow()
+        } else {
+            self.output_devices.borrow()
+        };
+        let config = self.cfg.borrow();
+        let Some(binding) = config.io_bindings.iter().find(|b| b.id == id) else {
+            return (-1, 0);
+        };
+        let Some(prefill) = endpoint_prefill(binding, ep_name, is_input, &devices) else {
+            return (-1, 0);
+        };
+        self.models.channels.set_vec(prefill.channel_items);
+        let mode_index = match prefill.mode {
+            domain::io_binding::ChannelMode::Mono => 0,
+            domain::io_binding::ChannelMode::Stereo => 1,
+            domain::io_binding::ChannelMode::DualMono => 2,
+        };
+        (prefill.device_index, mode_index)
     }
 
     fn remove_endpoint(&self, id: &str, ep_name: &str, is_input: bool) {
@@ -436,17 +500,28 @@ fn install_window_callbacks(
         c.device_changed(is_input, dev.as_str())
     });
     let c = ctx.clone();
-    window.on_toggle_endpoint_channel(move |idx, sel| c.toggle_channel(idx, sel));
-    let c = ctx.clone();
-    window.on_add_input_endpoint(move |id, dev, mode| {
-        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true)
+    window.on_toggle_endpoint_channel(move |idx, sel, mode| {
+        c.toggle_channel(idx, sel, mode.as_str())
     });
     let c = ctx.clone();
-    window.on_add_output_endpoint(move |id, dev, mode| {
-        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false)
+    window.on_add_input_endpoint(move |id, dev, mode, en| {
+        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true, en.as_str())
+    });
+    let c = ctx.clone();
+    window.on_add_output_endpoint(move |id, dev, mode, en| {
+        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false, en.as_str())
     });
     let c = ctx.clone();
     window.on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
+    let c = ctx.clone();
+    let weak = window.as_weak();
+    window.on_edit_endpoint(move |id, en, inp| {
+        let (dev_idx, mode_idx) = c.edit_endpoint(id.as_str(), en.as_str(), inp);
+        if let Some(w) = weak.upgrade() {
+            w.set_io_edit_prefill_device_index(dev_idx);
+            w.set_io_edit_prefill_mode_index(mode_idx);
+        }
+    });
 }
 
 fn install_psw_callbacks(
@@ -470,15 +545,26 @@ fn install_psw_callbacks(
         c.device_changed(is_input, dev.as_str())
     });
     let c = ctx.clone();
-    psw.on_toggle_endpoint_channel(move |idx, sel| c.toggle_channel(idx, sel));
-    let c = ctx.clone();
-    psw.on_add_input_endpoint(move |id, dev, mode| {
-        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true)
+    psw.on_toggle_endpoint_channel(move |idx, sel, mode| {
+        c.toggle_channel(idx, sel, mode.as_str())
     });
     let c = ctx.clone();
-    psw.on_add_output_endpoint(move |id, dev, mode| {
-        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false)
+    psw.on_add_input_endpoint(move |id, dev, mode, en| {
+        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true, en.as_str())
+    });
+    let c = ctx.clone();
+    psw.on_add_output_endpoint(move |id, dev, mode, en| {
+        c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false, en.as_str())
     });
     let c = ctx.clone();
     psw.on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
+    let c = ctx.clone();
+    let weak = psw.as_weak();
+    psw.on_edit_endpoint(move |id, en, inp| {
+        let (dev_idx, mode_idx) = c.edit_endpoint(id.as_str(), en.as_str(), inp);
+        if let Some(w) = weak.upgrade() {
+            w.set_io_edit_prefill_device_index(dev_idx);
+            w.set_io_edit_prefill_mode_index(mode_idx);
+        }
+    });
 }

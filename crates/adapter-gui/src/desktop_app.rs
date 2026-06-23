@@ -672,6 +672,8 @@ pub fn run_desktop_app(
             project_devices: project_devices.clone(),
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
             audio_settings_mode: audio_settings_mode.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),

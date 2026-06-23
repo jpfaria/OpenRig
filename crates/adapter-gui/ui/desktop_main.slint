@@ -216,14 +216,17 @@ export component DesktopMain inherits Rectangle {
     in property <[string]> output-device-names;
     in property <[ChannelOptionItem]> io-binding-channel-options;
     in-out property <string> io-binding-error: "";
+    in property <int> io-edit-prefill-device-index: -1;
+    in property <int> io-edit-prefill-mode-index: 0;
     callback create-io-binding(string) -> string;
     callback delete-io-binding(string) -> string;
     callback rename-io-binding(string, string);
     callback endpoint-device-changed(string, bool, string);
-    callback toggle-endpoint-channel(int, bool);
-    callback add-input-endpoint(string, string, string);
-    callback add-output-endpoint(string, string, string);
+    callback toggle-endpoint-channel(int, bool, string);
+    callback add-input-endpoint(string, string, string, string);
+    callback add-output-endpoint(string, string, string, string);
     callback remove-endpoint(string, string, bool);
+    callback edit-endpoint(string, string, bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
     callback add-midi-binding();
     callback delete-midi-binding(int);
@@ -447,14 +450,17 @@ export component DesktopMain inherits Rectangle {
             output-device-names: root.output-device-names;
             io-binding-channel-options: root.io-binding-channel-options;
             io-binding-error <=> root.io-binding-error;
+            io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+            io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
             create-io-binding(name) => { return root.create-io-binding(name); }
             delete-io-binding(id) => { return root.delete-io-binding(id); }
             rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
             endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
-            toggle-endpoint-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
-            add-input-endpoint(id, dev, mode) => { root.add-input-endpoint(id, dev, mode); }
-            add-output-endpoint(id, dev, mode) => { root.add-output-endpoint(id, dev, mode); }
+            toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+            add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+            add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
             remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+            edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
             add-midi-binding => { root.add-midi-binding(); }
             delete-midi-binding(i) => { root.delete-midi-binding(i); }
             pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
@@ -641,14 +647,17 @@ export component DesktopMain inherits Rectangle {
         output-device-names: root.output-device-names;
         io-binding-channel-options: root.io-binding-channel-options;
         io-binding-error <=> root.io-binding-error;
+        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
         create-io-binding(name) => { return root.create-io-binding(name); }
         delete-io-binding(id) => { return root.delete-io-binding(id); }
         rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
         endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
-        toggle-endpoint-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
-        add-input-endpoint(id, dev, mode) => { root.add-input-endpoint(id, dev, mode); }
-        add-output-endpoint(id, dev, mode) => { root.add-output-endpoint(id, dev, mode); }
+        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
         remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
         add-midi-binding => { root.add-midi-binding(); }
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }

@@ -66,6 +66,106 @@ fn descriptor(id: &str, name: &str, channels: usize) -> AudioDeviceDescriptor {
     }
 }
 
+// ── device dropdown is fed from the POPULATED source (the empty-dropdown bug) ──
+
+/// Reproduces the on-screen bug: opening project settings enumerates devices
+/// (the audio section shows them) but the I/O bindings device dropdowns stay
+/// empty. The dropdown name model is built from the SHARED descriptor cache —
+/// so opening settings must push the freshly enumerated descriptors into that
+/// cache, and the name model built from it must be non-empty.
+///
+/// Before the fix `seed_device_caches` did not exist and the configure-project
+/// path left the shared cache empty, so `device_list_models` produced an empty
+/// name model even though enumeration had succeeded.
+#[test]
+fn opening_settings_seeds_device_dropdowns_from_enumerated_descriptors() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    // The shared caches the wiring reads from start empty (lazy enumeration).
+    let input_cache: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(Vec::new()));
+    let output_cache: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(Vec::new()));
+
+    // Before settings opens the dropdown name model is empty (the bug symptom).
+    let (_ids, names) = super::device_list_models(&input_cache.borrow());
+    assert_eq!(
+        slint::Model::row_count(names.as_ref()),
+        0,
+        "dropdown empty before enumeration"
+    );
+
+    // The configure-project path enumerated these descriptors.
+    let fresh_input = vec![descriptor("hw:0,0", "Scarlett 2i2 In", 2)];
+    let fresh_output = vec![descriptor("hw:0,1", "Scarlett 2i2 Out", 2)];
+
+    // Opening settings must push them into the shared caches the wiring uses.
+    super::seed_device_caches(&input_cache, &output_cache, &fresh_input, &fresh_output);
+
+    assert_eq!(
+        *input_cache.borrow(),
+        fresh_input,
+        "input cache must hold the enumerated descriptors"
+    );
+    assert_eq!(*output_cache.borrow(), fresh_output);
+
+    // The dropdown name model built from the now-populated cache is non-empty.
+    let (_ids, names) = super::device_list_models(&input_cache.borrow());
+    assert_eq!(
+        slint::Model::row_count(names.as_ref()),
+        1,
+        "dropdown must show the enumerated device after settings opens"
+    );
+    let name: slint::SharedString = slint::Model::row_data(names.as_ref(), 0).unwrap();
+    assert_eq!(name.as_str(), "Scarlett 2i2 In");
+}
+
+// ── channel mode rule: mono = single-select, stereo/dual = multi ──────────────
+
+/// In mono the channel picker is a radio group: selecting a second channel must
+/// deselect the first (exactly one channel allowed). In stereo/dual_mono it is a
+/// checkbox set: two channels can be selected at once. Reproduces the bug where
+/// `toggle_channel` blindly set the row regardless of mode, letting a mono
+/// endpoint accumulate multiple channels.
+#[test]
+fn mono_channel_toggle_is_single_select() {
+    use domain::io_binding::ChannelMode;
+
+    fn ch(index: i32, selected: bool) -> crate::ChannelOptionItem {
+        crate::ChannelOptionItem {
+            index,
+            label: format!("Ch {}", index + 1).into(),
+            selected,
+            available: true,
+        }
+    }
+    let items = vec![ch(0, false), ch(1, false)];
+
+    // Mono: select ch0, then ch1 → only ch1 stays selected.
+    let after0 = super::apply_channel_toggle(&items, 0, true, ChannelMode::Mono);
+    assert!(after0[0].selected && !after0[1].selected, "mono: ch0 selected");
+    let after1 = super::apply_channel_toggle(&after0, 1, true, ChannelMode::Mono);
+    assert!(
+        !after1[0].selected && after1[1].selected,
+        "mono: selecting ch1 must deselect ch0 (max 1)"
+    );
+
+    // Stereo: both can be selected at once.
+    let s0 = super::apply_channel_toggle(&items, 0, true, ChannelMode::Stereo);
+    let s1 = super::apply_channel_toggle(&s0, 1, true, ChannelMode::Stereo);
+    assert!(
+        s1[0].selected && s1[1].selected,
+        "stereo: both channels selectable"
+    );
+
+    // DualMono: both can be selected at once too.
+    let d0 = super::apply_channel_toggle(&items, 0, true, ChannelMode::DualMono);
+    let d1 = super::apply_channel_toggle(&d0, 1, true, ChannelMode::DualMono);
+    assert!(
+        d1[0].selected && d1[1].selected,
+        "dual_mono: both channels selectable"
+    );
+}
+
 // ── channel_items_for_device (device → channel checkboxes) ────────────────────
 
 /// Selecting a device must yield exactly one channel option per physical
@@ -147,6 +247,86 @@ fn add_input_endpoint_structured_appends_and_persists() {
         DeviceId("A".to_string())
     );
     assert_eq!(reloaded.io_bindings[0].inputs[1].channels, vec![0, 1]);
+}
+
+// ── edit endpoint: prefill the add-form, then replace on save (Bug 3) ─────────
+
+/// Clicking the pencil on an existing endpoint must prefill the add-form with
+/// that endpoint's device, mode and selected channels. `endpoint_prefill`
+/// resolves the device index in the side's device list and rebuilds the channel
+/// options with the endpoint's channels pre-selected.
+#[test]
+fn edit_endpoint_prefills_device_mode_and_channels() {
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+    let devices = vec![descriptor("A", "Iface A", 2), descriptor("B", "Iface B", 4)];
+    let binding = IoBinding {
+        id: "main".into(),
+        name: "Main".into(),
+        inputs: vec![IoEndpoint {
+            name: "In 1".into(),
+            device_id: DeviceId("B".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![2, 3],
+        }],
+        outputs: vec![],
+    };
+
+    let prefill = super::endpoint_prefill(&binding, "In 1", true, &devices)
+        .expect("endpoint exists → prefill");
+
+    assert_eq!(prefill.device_index, 1, "device B is index 1 in the list");
+    assert_eq!(prefill.mode, ChannelMode::Stereo);
+    // 4-channel device → 4 options, with 2 and 3 pre-selected.
+    assert_eq!(prefill.channel_items.len(), 4);
+    assert!(prefill.channel_items[2].selected, "ch2 was on the endpoint");
+    assert!(prefill.channel_items[3].selected, "ch3 was on the endpoint");
+    assert!(!prefill.channel_items[0].selected);
+}
+
+/// Saving an edit replaces the original endpoint in place (no duplicate, no
+/// reorder of the others): remove the old name + insert the new endpoint.
+#[test]
+fn editing_endpoint_replaces_in_place() {
+    use application::command::Command;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+    let binding = IoBinding {
+        id: "main".into(),
+        name: "Main".into(),
+        inputs: vec![
+            IoEndpoint {
+                name: "In 1".into(),
+                device_id: DeviceId("A".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            },
+            IoEndpoint {
+                name: "In 2".into(),
+                device_id: DeviceId("A".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![1],
+            },
+        ],
+        outputs: vec![],
+    };
+
+    // Edit "In 1" → switch it to device B, stereo, channels [0,1].
+    let new_ep = super::build_input_endpoint("In 1", "B", vec![0, 1], ChannelMode::Stereo);
+    let cmd = super::build_update_replacing_endpoint(binding, "In 1", new_ep, true);
+
+    match cmd {
+        Command::UpdateIoBinding { binding: b } => {
+            assert_eq!(b.inputs.len(), 2, "replace, not append");
+            // "In 1" is updated in place (still first), "In 2" untouched.
+            assert_eq!(b.inputs[0].name, "In 1");
+            assert_eq!(b.inputs[0].device_id, DeviceId("B".into()));
+            assert_eq!(b.inputs[0].mode, ChannelMode::Stereo);
+            assert_eq!(b.inputs[0].channels, vec![0, 1]);
+            assert_eq!(b.inputs[1].name, "In 2", "other endpoint unchanged");
+        }
+        other => panic!("expected UpdateIoBinding, got {other:?}"),
+    }
 }
 
 // ── add_output_endpoint structured (mono/stereo only) ─────────────────────────

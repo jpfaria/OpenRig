@@ -52,6 +52,32 @@ pub(crate) fn channel_items_for_device(
         .collect()
 }
 
+/// Apply a channel toggle honouring the mode's selection rule. Mono is a radio
+/// group (exactly one channel): selecting a channel deselects every other.
+/// Stereo and DualMono are checkbox sets where multiple channels may be
+/// selected at once. Returns the updated option list (pure — no model mutation).
+pub(crate) fn apply_channel_toggle(
+    items: &[ChannelOptionItem],
+    index: i32,
+    selected: bool,
+    mode: ChannelMode,
+) -> Vec<ChannelOptionItem> {
+    let single_select = mode == ChannelMode::Mono;
+    items
+        .iter()
+        .map(|item| {
+            let mut next = item.clone();
+            if item.index == index {
+                next.selected = selected;
+            } else if single_select && selected {
+                // Radio behaviour: choosing one clears the rest.
+                next.selected = false;
+            }
+            next
+        })
+        .collect()
+}
+
 /// Build an input `IoEndpoint` from the structured picker inputs.
 pub(crate) fn build_input_endpoint(
     name: &str,
@@ -99,6 +125,67 @@ pub(crate) fn build_update_with_output_endpoint(
     new_ep: IoEndpoint,
 ) -> Command {
     binding.outputs.push(new_ep);
+    Command::UpdateIoBinding { binding }
+}
+
+/// Prefill data for re-opening the add-form on an existing endpoint (edit).
+pub(crate) struct EndpointPrefill {
+    /// Index of the endpoint's device in the side's device list, or -1 if the
+    /// device is no longer enumerated.
+    pub device_index: i32,
+    /// The endpoint's channel layout, to preselect the mode segment.
+    pub mode: ChannelMode,
+    /// Channel options for the device with the endpoint's channels selected.
+    pub channel_items: Vec<ChannelOptionItem>,
+}
+
+/// Resolve the prefill for editing `ep_name` on `binding`: find the endpoint,
+/// locate its device in `devices`, and rebuild the channel options with the
+/// endpoint's channels pre-selected. Returns `None` if the endpoint is absent.
+pub(crate) fn endpoint_prefill(
+    binding: &IoBinding,
+    ep_name: &str,
+    is_input: bool,
+    devices: &[AudioDeviceDescriptor],
+) -> Option<EndpointPrefill> {
+    let list = if is_input {
+        &binding.inputs
+    } else {
+        &binding.outputs
+    };
+    let ep = list.iter().find(|e| e.name == ep_name)?;
+    let device_index = devices
+        .iter()
+        .position(|d| d.id == ep.device_id.0)
+        .map(|i| i as i32)
+        .unwrap_or(-1);
+    let channel_items = channel_items_for_device(&ep.device_id.0, devices, &ep.channels);
+    Some(EndpointPrefill {
+        device_index,
+        mode: ep.mode,
+        channel_items,
+    })
+}
+
+/// Replace the endpoint named `old_name` on the matching side with `new_ep`,
+/// preserving the position of every other endpoint, and wrap the result in
+/// `Command::UpdateIoBinding`. Used by the edit-endpoint save path (Bug 3).
+pub(crate) fn build_update_replacing_endpoint(
+    mut binding: IoBinding,
+    old_name: &str,
+    new_ep: IoEndpoint,
+    is_input: bool,
+) -> Command {
+    let list = if is_input {
+        &mut binding.inputs
+    } else {
+        &mut binding.outputs
+    };
+    if let Some(slot) = list.iter_mut().find(|e| e.name == old_name) {
+        *slot = new_ep;
+    } else {
+        list.push(new_ep);
+    }
     Command::UpdateIoBinding { binding }
 }
 
