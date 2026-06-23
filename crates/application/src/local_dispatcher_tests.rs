@@ -1317,6 +1317,67 @@ fn toggle_chain_enabled_enables_disabled_chain() {
     );
 }
 
+// ── SetChainIoBindings (#716) ──────────────────────────────────────────────────
+
+#[test]
+fn set_chain_io_bindings_updates_selection_and_emits_event() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![make_chain_with_input("chain_0", "dev_a", 0, false)],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SetChainIoBindings {
+        chain: ChainId("chain_0".to_string()),
+        binding_ids: vec!["xyz".to_string(), "abc".to_string()],
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    assert_eq!(
+        project.borrow().chains[0].io_binding_ids,
+        vec!["xyz".to_string(), "abc".to_string()],
+        "the chain's selected bindings must be stored"
+    );
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::ChainIoBindingsChanged { chain, binding_ids }
+            if chain.0 == "chain_0" && binding_ids == &vec!["xyz".to_string(), "abc".to_string()]
+        )),
+        "expected ChainIoBindingsChanged, got {:?}",
+        events
+    );
+}
+
+#[test]
+fn set_chain_io_bindings_replaces_previous_selection() {
+    let mut chain = make_chain_with_input("chain_0", "dev_a", 0, false);
+    chain.io_binding_ids = vec!["old".to_string()];
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::SetChainIoBindings {
+            chain: ChainId("chain_0".to_string()),
+            binding_ids: vec!["new".to_string()],
+        })
+        .expect("dispatch ok");
+
+    assert_eq!(
+        project.borrow().chains[0].io_binding_ids,
+        vec!["new".to_string()],
+        "selection is replaced wholesale (checklist sends the full set)"
+    );
+}
+
 #[test]
 fn toggle_chain_enabled_disables_enabled_chain() {
     let project = make_project_two_chains();
