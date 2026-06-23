@@ -42,8 +42,14 @@ fn click_element(w: &ProjectSettingsWindow, id: &str) -> bool {
 }
 
 fn new_window(bindings: Vec<IoBindingModel>) -> ProjectSettingsWindow {
+    new_window_sized(bindings, 1100.0, 1000.0)
+}
+
+/// Like `new_window` but with an explicit window size, so a short window can be
+/// used to force the section content to overflow (scroll test).
+fn new_window_sized(bindings: Vec<IoBindingModel>, w_px: f32, h_px: f32) -> ProjectSettingsWindow {
     let w = ProjectSettingsWindow::new().unwrap();
-    w.window().set_size(LogicalSize::new(1100.0, 1000.0));
+    w.window().set_size(LogicalSize::new(w_px, h_px));
     w.set_io_bindings(ModelRc::new(VecModel::from(bindings)));
     // Navigate to the I/O bindings section (index 6) so SectionSystemIoBindings
     // is materialised; otherwise the window shows the default (audio) section.
@@ -53,12 +59,23 @@ fn new_window(bindings: Vec<IoBindingModel>) -> ProjectSettingsWindow {
 }
 
 fn empty_binding() -> IoBindingModel {
+    binding_named("b1", "B1")
+}
+
+fn binding_named(id: &str, name: &str) -> IoBindingModel {
     IoBindingModel {
-        id: "b1".into(),
-        name: "B1".into(),
+        id: id.into(),
+        name: name.into(),
         inputs: ModelRc::new(VecModel::from(Vec::<IoEndpointModel>::new())),
         outputs: ModelRc::new(VecModel::from(Vec::<IoEndpointModel>::new())),
     }
+}
+
+/// Absolute Y of the Nth (0-based) materialised element with `id`, if present.
+fn nth_abs_y(w: &ProjectSettingsWindow, id: &str, n: usize) -> Option<f32> {
+    i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
+        .nth(n)
+        .map(|el| el.absolute_position().y as f32)
 }
 
 #[test]
@@ -160,6 +177,48 @@ fn io_bindings_ui_interactions() {
         assert!(
             exists(&w, "SectionSystemIoBindings::rename-btn"),
             "pencil did not come back after confirming"
+        );
+    }
+
+    // ── 4. SCROLL: with 2 bindings in a SHORT window the content overflows the
+    //       settings panel; a wheel scroll must move the lower card up. The
+    //       panel's ScrollView only scrolls when its conditional section
+    //       children are wrapped in a single layout — otherwise the viewport
+    //       never auto-sizes and the second card is unreachable.
+    {
+        let w = new_window_sized(
+            vec![binding_named("b1", "First"), binding_named("b2", "Second")],
+            1100.0,
+            420.0,
+        );
+
+        // First card is on-screen; the second overflows the short panel and is
+        // not materialised in the rendered tree (off-viewport cull) — proving
+        // the content is taller than the panel.
+        let y0 = nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 0)
+            .expect("first binding's pencil must be on-screen");
+        assert!(
+            nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 1).is_none(),
+            "second binding should start BELOW the viewport (content overflows)"
+        );
+
+        // Wheel down over the content area: the (overflowing) content must move
+        // up. Before the fix the ScrollView viewport was pinned to the panel
+        // height (no scrollable extent) so the content never moved.
+        let pos = LogicalPosition::new(550.0, 200.0);
+        let win = w.window();
+        win.dispatch_event(WindowEvent::PointerMoved { position: pos });
+        win.dispatch_event(WindowEvent::PointerScrolled {
+            position: pos,
+            delta_x: 0.0,
+            delta_y: -100.0,
+        });
+        let y1 = nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 0)
+            .expect("first binding's pencil still on-screen after a small scroll");
+        assert!(
+            y1 < y0 - 50.0,
+            "scrolling did not move the content up (y0={y0}, y1={y1}) — \
+             the settings ScrollView is not scrolling (no scrollbar)"
         );
     }
 }

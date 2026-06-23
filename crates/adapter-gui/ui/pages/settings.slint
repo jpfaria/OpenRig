@@ -300,6 +300,17 @@ export component SettingsPage inherits Rectangle {
                     horizontal-stretch: 1;
                     vertical-stretch: 1;
 
+                    // A ScrollView only auto-sizes its viewport (and thus
+                    // scrolls) when its DIRECT child is a single layout. The
+                    // section conditionals must live inside one VerticalLayout —
+                    // as bare children the viewport stayed pinned to the panel
+                    // height and overflowing content (e.g. 2+ I/O bindings) was
+                    // unreachable. `alignment: start` makes the layout report its
+                    // children's preferred height (so the viewport grows to the
+                    // full content) instead of stretching them to the visible
+                    // height — without it the content compresses and won't scroll.
+                    VerticalLayout {
+                        alignment: start;
                     if root.selected-section == 0 : SectionSystemAudio {
                         project-devices: root.project-devices;
                         sample-rate-options: root.sample-rate-options;
@@ -368,6 +379,7 @@ export component SettingsPage inherits Rectangle {
                         project-path-display: root.project-path-display;
                         edit-project-name(t) => { root.edit-project-name(t); }
                         save-project => { root.save-project(); }
+                    }
                     }
                 }
 
