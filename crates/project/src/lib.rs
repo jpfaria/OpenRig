@@ -8,6 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod binding_discovery;
 pub mod block;
 pub mod catalog;
 mod catalog_label;
