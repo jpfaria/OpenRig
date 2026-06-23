@@ -722,22 +722,22 @@ msgstr "Canales"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:220
 msgctxt "SectionSystemIoBindings"
 msgid "help-io-bindings"
-msgstr ""
+msgstr "Agrupa la entrada y la salida de la misma interfaz. Cada chain usa un enlace."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgctxt "SectionSystemIoBindings"
 msgid "btn-new-binding"
-msgstr ""
+msgstr "Nuevo enlace"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:237
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings"
-msgstr ""
+msgstr "Aún no hay enlaces"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:238
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings-hint"
-msgstr ""
+msgstr "Crea uno para agrupar la entrada y la salida de una interfaz."
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:255
@@ -763,7 +763,7 @@ msgstr "Dispositivo"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:270
 msgctxt "SectionSystemIoBindings"
 msgid "placeholder-pick-device"
-msgstr ""
+msgstr "Selecciona un dispositivo"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:272
 msgctxt "SectionSystemIoBindings"

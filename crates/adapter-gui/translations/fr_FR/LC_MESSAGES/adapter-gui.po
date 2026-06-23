@@ -722,22 +722,22 @@ msgstr "Canaux"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:220
 msgctxt "SectionSystemIoBindings"
 msgid "help-io-bindings"
-msgstr ""
+msgstr "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise une liaison."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgctxt "SectionSystemIoBindings"
 msgid "btn-new-binding"
-msgstr ""
+msgstr "Nouvelle liaison"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:237
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings"
-msgstr ""
+msgstr "Aucune liaison pour l'instant"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:238
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings-hint"
-msgstr ""
+msgstr "Créez-en une pour regrouper l'entrée et la sortie d'une interface."
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:255
@@ -763,7 +763,7 @@ msgstr "Périphérique"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:270
 msgctxt "SectionSystemIoBindings"
 msgid "placeholder-pick-device"
-msgstr ""
+msgstr "Sélectionnez un périphérique"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:272
 msgctxt "SectionSystemIoBindings"

@@ -722,22 +722,22 @@ msgstr "通道"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:220
 msgctxt "SectionSystemIoBindings"
 msgid "help-io-bindings"
-msgstr ""
+msgstr "将同一接口的输入和输出归为一组。每个链使用一个绑定。"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgctxt "SectionSystemIoBindings"
 msgid "btn-new-binding"
-msgstr ""
+msgstr "新建绑定"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:237
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings"
-msgstr ""
+msgstr "还没有绑定"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:238
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings-hint"
-msgstr ""
+msgstr "创建一个，将接口的输入和输出归为一组。"
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:255
@@ -763,7 +763,7 @@ msgstr "设备"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:270
 msgctxt "SectionSystemIoBindings"
 msgid "placeholder-pick-device"
-msgstr ""
+msgstr "选择设备"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:272
 msgctxt "SectionSystemIoBindings"

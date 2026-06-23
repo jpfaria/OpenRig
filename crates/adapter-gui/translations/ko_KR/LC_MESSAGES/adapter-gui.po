@@ -722,22 +722,22 @@ msgstr "채널"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:220
 msgctxt "SectionSystemIoBindings"
 msgid "help-io-bindings"
-msgstr ""
+msgstr "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니다."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgctxt "SectionSystemIoBindings"
 msgid "btn-new-binding"
-msgstr ""
+msgstr "새 바인딩"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:237
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings"
-msgstr ""
+msgstr "아직 바인딩이 없습니다"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:238
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings-hint"
-msgstr ""
+msgstr "인터페이스의 입력과 출력을 묶을 바인딩을 만드세요."
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:255
@@ -763,7 +763,7 @@ msgstr "장치"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:270
 msgctxt "SectionSystemIoBindings"
 msgid "placeholder-pick-device"
-msgstr ""
+msgstr "장치 선택"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:272
 msgctxt "SectionSystemIoBindings"

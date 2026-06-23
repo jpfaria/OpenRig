@@ -722,22 +722,22 @@ msgstr "चैनल"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:220
 msgctxt "SectionSystemIoBindings"
 msgid "help-io-bindings"
-msgstr ""
+msgstr "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgctxt "SectionSystemIoBindings"
 msgid "btn-new-binding"
-msgstr ""
+msgstr "नई बाइंडिंग"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:237
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings"
-msgstr ""
+msgstr "अभी तक कोई बाइंडिंग नहीं"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:238
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-bindings-hint"
-msgstr ""
+msgstr "किसी इंटरफ़ेस के इनपुट और आउटपुट को समूहित करने के लिए एक बनाएँ।"
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:255
@@ -763,7 +763,7 @@ msgstr "डिवाइस"
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:270
 msgctxt "SectionSystemIoBindings"
 msgid "placeholder-pick-device"
-msgstr ""
+msgstr "डिवाइस चुनें"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:272
 msgctxt "SectionSystemIoBindings"
