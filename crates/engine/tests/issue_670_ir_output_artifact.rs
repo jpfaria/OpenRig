@@ -56,6 +56,7 @@ fn io_wrap(block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in".into()),

@@ -83,6 +83,7 @@ fn dispatcher_with_chain_having_io() -> (LocalDispatcher, Rc<RefCell<Project>>) 
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![user_input(), core("eq:1"), core("amp:2"), user_output()],
     };
     let project = Rc::new(RefCell::new(Project {

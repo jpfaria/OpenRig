@@ -230,6 +230,7 @@ fn preset_project(
             enabled: true,
             // Volume 0: identical DSP (applied at output mixdown), silent monitors.
             volume: 0.0,
+            io_binding_ids: vec![],
             blocks,
         }],
         midi: None,

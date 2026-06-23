@@ -194,6 +194,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 instrument: String::new(),
                                 enabled: false,
                                 volume: 100.0,
+                                io_binding_ids: vec![],
                                 blocks: stripped,
                             };
                             assign_new_block_ids(&mut tmp_chain);

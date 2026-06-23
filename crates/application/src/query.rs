@@ -468,6 +468,7 @@ mod tests {
             instrument: "guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks,
         }
     }

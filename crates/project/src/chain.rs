@@ -103,6 +103,12 @@ pub struct Chain {
     /// que não têm o campo.
     #[serde(default = "default_chain_volume")]
     pub volume: f32,
+    /// #716: ids of the per-machine I/O bindings this chain uses. The chain's
+    /// input/output endpoints are discovered from these bindings (the engine
+    /// itself is unchanged — only where the I/O comes from). Empty for legacy
+    /// projects that predate the binding registry.
+    #[serde(default)]
+    pub io_binding_ids: Vec<String>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
 }

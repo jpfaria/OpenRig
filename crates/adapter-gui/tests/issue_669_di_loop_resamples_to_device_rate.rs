@@ -53,6 +53,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,
@@ -68,6 +69,7 @@ fn make_controller_at(chain_id: &ChainId, sr: u32) -> ProjectRuntimeController {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     };
     let runtime_arc = Arc::new(

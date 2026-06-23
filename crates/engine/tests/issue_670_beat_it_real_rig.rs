@@ -143,6 +143,7 @@ fn beat_it_chain_opt(with_ir: bool) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
+        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -154,6 +155,7 @@ fn isolated(label: &str, block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![input_mono(), block, output_stereo()],
     }
 }
@@ -575,6 +577,7 @@ fn nam_plus_ir_cold_cache_cost() {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks,
         }
     };
@@ -1337,6 +1340,7 @@ fn beat_it_plus_v30_cab_per_buffer_cost() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
+        io_binding_ids: vec![],
         blocks,
     };
     assert_no_faulted_blocks(&chain);
@@ -1397,6 +1401,7 @@ fn first_buffer_after_build_carries_no_lazy_init() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
+        io_binding_ids: vec![],
         blocks,
     };
 

@@ -164,6 +164,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             instrument: draft.instrument.clone(),
             enabled: existing.enabled,
             volume: existing.volume,
+            io_binding_ids: vec![],
             blocks,
         }
     } else {
@@ -223,6 +224,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             instrument: draft.instrument.clone(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks,
         }
     }

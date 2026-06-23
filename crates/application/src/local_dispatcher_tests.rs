@@ -93,6 +93,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![block],
         }],
         midi: None,
@@ -667,6 +668,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -758,6 +760,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -1046,6 +1049,7 @@ fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool)
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".to_string()),
             enabled: true,
@@ -1071,6 +1075,7 @@ fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     }
 }
@@ -1787,6 +1792,7 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_x", 0), make_core_block("blk_mid", true)],
         }],
         midi: None,
@@ -1833,6 +1839,7 @@ fn save_chain_input_endpoints_preserves_other_blocks() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_old", 0),
                 make_core_block("blk_a", true),
@@ -1881,6 +1888,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
         midi: None,
@@ -1983,6 +1991,7 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_in", 0),
                 make_core_block("blk_a", true),
@@ -2222,6 +2231,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
         midi: None,
@@ -2275,6 +2285,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![insert],
         }],
         midi: None,
@@ -3214,6 +3225,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume,
+            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,

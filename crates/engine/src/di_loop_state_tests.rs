@@ -15,6 +15,7 @@ fn empty_chain() -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
     }
 }

@@ -630,6 +630,7 @@ mod tests {
             instrument: "electric_guitar".into(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }
     }

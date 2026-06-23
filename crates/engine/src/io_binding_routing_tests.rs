@@ -99,6 +99,7 @@ fn input_offset_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             bound_input("ch1-in", "xyz", "ch1"),
             effect("A"),
@@ -158,6 +159,7 @@ fn output_offset_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             bound_input("ch1-in", "xyz", "ch1"),
             effect("A"),
@@ -220,6 +222,7 @@ fn streams_never_cross_binding_boundaries() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             bound_input("in:a", "io_a", "in_a"),
             bound_input("in:b", "io_b", "in_b"),

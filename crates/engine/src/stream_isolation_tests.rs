@@ -68,6 +68,7 @@ fn dual_input_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input_block("dual_input:input:0", "guitar_a", vec![0]),
             input_block("dual_input:input:1", "guitar_b", vec![0]),
@@ -246,6 +247,7 @@ fn every_effective_input_index_has_at_least_one_segment() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             // 1 InputBlock, 2 channels, mono mode — the user's "duas
             // guitarras na mesma chain" config.
@@ -326,6 +328,7 @@ fn no_segment_is_orphaned_from_input_dispatch() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -392,6 +395,7 @@ fn every_output_route_has_at_least_one_producer_segment() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input_block("input:0", "scarlett", vec![0]),
             output_block("output:0", "main_out", vec![0]),
@@ -465,6 +469,7 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -545,6 +550,7 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -634,6 +640,7 @@ fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             // 1 InputBlock, 2 channels, mono mode → 2 effective entries
             // (one per channel) — the user's "duas guitarras na mesma
@@ -706,6 +713,7 @@ fn dual_mono_segment_keeps_stereo_processing() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -766,6 +774,7 @@ fn mono_input_with_mono_output_stays_mono() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input_block("input:0", "scarlett", vec![0]),
             output_block("output:0", "monitor", vec![0]),

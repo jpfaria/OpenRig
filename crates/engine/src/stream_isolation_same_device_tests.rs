@@ -69,6 +69,7 @@ fn same_device_dual_entry_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input_block("same_dev:in:0", "shared_iface", vec![0]),
             input_block("same_dev:in:1", "shared_iface", vec![1]),
@@ -88,6 +89,7 @@ fn split_mono_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input_block("split_mono:in:0", "shared_iface", vec![0, 1]),
             output_block("split_mono:out:0", "main_out", vec![0]),

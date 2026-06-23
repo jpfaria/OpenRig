@@ -311,6 +311,7 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
         instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("chain:1:input:0".into()),

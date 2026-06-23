@@ -64,6 +64,7 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume,
+        io_binding_ids: vec![],
         blocks,
     }
 }
