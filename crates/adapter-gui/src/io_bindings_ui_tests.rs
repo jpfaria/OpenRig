@@ -12,10 +12,11 @@
 //! backend is per-thread, so a second `#[test]` on another thread would fall
 //! back to the real (winit) backend and fail.
 
-use crate::{ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
+use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, LogicalSize, ModelRc, VecModel};
+use slint::{ComponentHandle, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Dispatch a left press+release at the centre of the element with `id`.
@@ -219,6 +220,162 @@ fn io_bindings_ui_interactions() {
             y1 < y0 - 50.0,
             "scrolling did not move the content up (y0={y0}, y1={y1}) — \
              the settings ScrollView is not scrolling (no scrollbar)"
+        );
+    }
+
+    // ── 5. RENAME through the REAL wiring updates the DISPLAYED name ──────────
+    //    Not "callback fired" — the actual result: after the handler runs, the
+    //    binding-list model the screen renders shows the new name, and the
+    //    config is committed. Drives the production `wire()` (no stub).
+    {
+        use domain::io_binding::IoBinding;
+        use infra_filesystem::AppConfig;
+
+        let app = AppWindow::new().unwrap();
+        let psw = ProjectSettingsWindow::new().unwrap();
+        psw.window().set_size(LogicalSize::new(1100.0, 1000.0));
+        psw.set_settings_selected_section(6);
+
+        let cfg = Rc::new(RefCell::new(AppConfig::default()));
+        cfg.borrow_mut().io_bindings.push(IoBinding {
+            id: "b1".into(),
+            name: "Old Name".into(),
+            inputs: vec![],
+            outputs: vec![],
+        });
+        let ps = Rc::new(RefCell::new(None));
+        let in_dev = Rc::new(RefCell::new(Vec::new()));
+        let out_dev = Rc::new(RefCell::new(Vec::new()));
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        psw.show().unwrap();
+
+        // The confirm-rename button calls rename-io-binding(id, draft); simulate
+        // that exact call, then assert the RESULT propagated to the UI model.
+        psw.invoke_rename_io_binding("b1".into(), "Renamed".into());
+
+        let shown = psw.get_io_bindings();
+        let row: IoBindingModel = Model::row_data(&shown, 0).unwrap();
+        assert_eq!(
+            row.name.as_str(),
+            "Renamed",
+            "rename did not update the displayed binding name (model not reprojected)"
+        );
+        assert_eq!(
+            cfg.borrow().io_bindings[0].name, "Renamed",
+            "rename did not commit to the config"
+        );
+    }
+
+    // ── 6. The add-endpoint form CLOSES after a REAL add (reproject path) ─────
+    //    The user's exact scenario: open the form, pick a device + channel, press
+    //    Add. The real handler appends the endpoint and re-projects the binding
+    //    list (rebuilding the repeater) — and the form must still collapse (the
+    //    "+ add input" button returns). This exercises the reproject rebuild that
+    //    a stub-callback test would miss.
+    {
+        use domain::io_binding::IoBinding;
+        use infra_cpal::AudioDeviceDescriptor;
+        use infra_filesystem::AppConfig;
+
+        let app = AppWindow::new().unwrap();
+        let psw = ProjectSettingsWindow::new().unwrap();
+        psw.window().set_size(LogicalSize::new(1100.0, 1000.0));
+        psw.set_settings_selected_section(6);
+
+        let cfg = Rc::new(RefCell::new(AppConfig::default()));
+        cfg.borrow_mut().io_bindings.push(IoBinding {
+            id: "b1".into(),
+            name: "B1".into(),
+            inputs: vec![],
+            outputs: vec![],
+        });
+        let ps = Rc::new(RefCell::new(None));
+        let in_dev = Rc::new(RefCell::new(vec![AudioDeviceDescriptor {
+            id: "A".into(),
+            name: "Iface A".into(),
+            channels: 2,
+        }]));
+        let out_dev = Rc::new(RefCell::new(Vec::new()));
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        psw.show().unwrap();
+
+        // Open the add-input form.
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::add-input-btn"),
+            "add-input button not found"
+        );
+        assert!(
+            !exists(&psw, "SectionSystemIoBindings::add-input-btn"),
+            "add-input button should be hidden while the form is open"
+        );
+
+        // Pick device A (populates channels) and select channel 0 — exactly what
+        // the device dropdown + channel cell callbacks do.
+        psw.invoke_endpoint_device_changed("b1".into(), true, "A".into());
+        psw.invoke_toggle_endpoint_channel(0, true, "mono".into());
+
+        // Press Add: real handler appends the endpoint + reprojects.
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::add-input-submit-btn"),
+            "add-input form submit button not found"
+        );
+
+        assert_eq!(
+            cfg.borrow().io_bindings[0].inputs.len(),
+            1,
+            "the endpoint was not actually added"
+        );
+        assert!(
+            exists(&psw, "SectionSystemIoBindings::add-input-btn"),
+            "the add-input form did not close after pressing Add (reproject reset the state?)"
+        );
+    }
+
+    // ── 7. RENAME confirm EXITS edit mode under the real reproject path ───────
+    //    The user's "I press confirm and nothing happens" bug. Clicking the
+    //    confirm (check) button calls rename-io-binding, which re-projects the
+    //    list and rebuilds the repeater — tearing this button down mid-handler,
+    //    so the `renaming-binding-id = ""` after the call is lost and the field
+    //    stays in edit mode. With real wiring the pencil/confirm flow must leave
+    //    edit mode (the pencil returns).
+    {
+        use domain::io_binding::IoBinding;
+        use infra_filesystem::AppConfig;
+
+        let app = AppWindow::new().unwrap();
+        let psw = ProjectSettingsWindow::new().unwrap();
+        psw.window().set_size(LogicalSize::new(1100.0, 1000.0));
+        psw.set_settings_selected_section(6);
+
+        let cfg = Rc::new(RefCell::new(AppConfig::default()));
+        cfg.borrow_mut().io_bindings.push(IoBinding {
+            id: "b1".into(),
+            name: "B1".into(),
+            inputs: vec![],
+            outputs: vec![],
+        });
+        let ps = Rc::new(RefCell::new(None));
+        let in_dev = Rc::new(RefCell::new(Vec::new()));
+        let out_dev = Rc::new(RefCell::new(Vec::new()));
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        psw.show().unwrap();
+
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::rename-btn"),
+            "rename pencil not clickable"
+        );
+        assert!(
+            exists(&psw, "SectionSystemIoBindings::name-input"),
+            "inline rename field did not open"
+        );
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::confirm-rename-btn"),
+            "confirm button not clickable"
+        );
+        assert!(
+            exists(&psw, "SectionSystemIoBindings::rename-btn"),
+            "confirm did not leave edit mode (reproject lost the state reset) — \
+             the screen stays in the rename field as if nothing happened"
         );
     }
 }

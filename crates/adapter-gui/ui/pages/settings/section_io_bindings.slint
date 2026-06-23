@@ -285,14 +285,19 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 color: #fafafa; font-size: 16px; font-weight: 600;
                                 vertical-alignment: center; single-line: true;
                                 // Commit on Enter and on losing focus (blur).
+                                // Leave edit mode BEFORE dispatching: rename
+                                // re-projects the list and rebuilds this repeater
+                                // synchronously, tearing this field down — a reset
+                                // placed after the call is lost and the row stays
+                                // stuck in edit mode (looks like "nothing happened").
                                 accepted => {
-                                    root.rename-io-binding(binding.id, root.rename-draft);
                                     root.renaming-binding-id = "";
+                                    root.rename-io-binding(binding.id, root.rename-draft);
                                 }
                                 changed has-focus => {
                                     if !self.has-focus && root.renaming-binding-id == binding.id {
-                                        root.rename-io-binding(binding.id, root.rename-draft);
                                         root.renaming-binding-id = "";
+                                        root.rename-io-binding(binding.id, root.rename-draft);
                                     }
                                 }
                             }
@@ -308,8 +313,9 @@ export component SectionSystemIoBindings inherits Rectangle {
                         let err = root.delete-io-binding(binding.id); if err != "" { root.io-binding-error = err; } } }
                     // Editing actions: confirm commits the rename, cancel discards.
                     if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: #14321f; clicked => {
-                        root.rename-io-binding(binding.id, root.rename-draft);
+                        // Reset before dispatch — see the accepted/blur note above.
                         root.renaming-binding-id = "";
+                        root.rename-io-binding(binding.id, root.rename-draft);
                     } }
                     if root.renaming-binding-id == binding.id : IconBtn { icon: @image-url("../../assets/close.svg"); clicked => {
                         root.renaming-binding-id = "";
@@ -351,10 +357,19 @@ export component SectionSystemIoBindings inherits Rectangle {
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
                             GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                            PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                            add-input-submit-btn := PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                // Close the form BEFORE dispatching. The handler
+                                // re-projects the binding list, which rebuilds this
+                                // repeater synchronously and tears this button down
+                                // mid-handler — so a state reset placed AFTER the
+                                // call never runs and the form stays stuck open.
+                                // Resetting active-add first means the rebuild
+                                // already sees the closed state. (editing-endpoint
+                                // is still needed by the call below; it's reset on
+                                // the next form open by add-input-btn / the pencil.)
+                                root.active-add = "";
                                 root.add-input-endpoint(binding.id, root.add-device-index >= 0 ? root.input-device-ids[root.add-device-index] : "",
-                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono", root.editing-endpoint);
-                                root.active-add = ""; root.editing-endpoint = ""; } } }
+                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono", root.editing-endpoint); } } }
                     }
                 }
 
@@ -395,10 +410,13 @@ export component SectionSystemIoBindings inherits Rectangle {
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
                             GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                            PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                            add-output-submit-btn := PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                // Close the form BEFORE dispatching — see the
+                                // add-input submit note: reproject rebuilds this
+                                // repeater and a reset after the call is lost.
+                                root.active-add = "";
                                 root.add-output-endpoint(binding.id, root.add-device-index >= 0 ? root.output-device-ids[root.add-device-index] : "",
-                                    root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint);
-                                root.active-add = ""; root.editing-endpoint = ""; } } }
+                                    root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint); } } }
                     }
                 }
             }
