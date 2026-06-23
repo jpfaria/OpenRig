@@ -733,3 +733,12 @@ msgstr "尚未重新加载"
 msgid "title-section-paths"
 msgstr "路径"
 
+
+msgid "label-chain-io-bindings"
+msgstr "I/O 绑定"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "尚无 I/O 绑定 — 在设置 → I/O 绑定中创建"
+
+msgid "warn-select-binding"
+msgstr "请为此链选择至少一个 I/O 绑定"

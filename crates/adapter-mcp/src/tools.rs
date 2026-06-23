@@ -95,7 +95,9 @@ mod tests {
     /// #716 bumped to 71 with the intent commands `RenameIoBinding`,
     /// `AddIoEndpoint`, `RemoveIoEndpoint` — endpoint logic moved out of the
     /// GUI into handlers (GUI is a pure dispatcher, LAW 1).
-    const COMMAND_VARIANT_COUNT: usize = 71;
+    /// #716 bumped to 72 with `SetChainIoBindings` — a chain selects which I/O
+    /// bindings it uses; the tool auto-derives via `command_schema`.
+    const COMMAND_VARIANT_COUNT: usize = 72;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

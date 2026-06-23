@@ -170,6 +170,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
@@ -348,6 +349,7 @@ fn two_device_chain() -> project::chain::Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input("two_dev:in:0", "scarlett_2i2"),
             input("two_dev:in:1", "teyun_q26"),
@@ -470,6 +472,7 @@ fn same_device_chain() -> project::chain::Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![
             input("same_dev:in:0", 0),
             input("same_dev:in:1", 1),

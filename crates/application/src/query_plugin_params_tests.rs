@@ -81,6 +81,7 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![AudioBlock {
                 id: BlockId("block_572".into()),
                 enabled: true,

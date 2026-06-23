@@ -1,6 +1,6 @@
-import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ChainBindingChoice, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { Locale } from "locale_globals.slint";
-import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -158,59 +158,16 @@ export component ChainEditorWindow inherits Window {
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
-    in property <[IoGroupItem]> input-groups;
-    in property <[IoGroupItem]> output-groups;
+    // #716: I/O bindings the chain can select (checklist).
+    in property <[ChainBindingChoice]> bindings;
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
     callback update-chain-name(string);
-    callback edit-input(int);
-    callback remove-input(int);
-    callback add-input();
-    callback edit-output(int);
-    callback remove-output(int);
-    callback add-output();
+    callback toggle-binding(int, bool);
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
-    // Inline input endpoint editor
-    in property <bool> show-input-editor: false;
-    in property <[string]> input-device-options;
-    in-out property <int> input-selected-device-index: -1;
-    in property <[ChannelOptionItem]> input-channels;
-    in-out property <string> input-editor-status: "";
-    in-out property <int> input-mode-index: 0;
-    callback input-select-device(int);
-    callback input-toggle-channel(int, bool);
-    callback input-select-mode(int);
-    callback input-save();
-    callback input-cancel();
-    in property <[string]> input-io-binding-names;
-    in-out property <int> input-selected-io-index: -1;
-    in property <[string]> input-endpoint-options;
-    in-out property <string> input-selected-io-name: "";
-    in-out property <string> input-selected-endpoint-name: "";
-    callback input-select-io(int);
-    callback input-select-endpoint(string);
-    // Inline output endpoint editor
-    in property <bool> show-output-editor: false;
-    in property <[string]> output-device-options;
-    in-out property <int> output-selected-device-index: -1;
-    in property <[ChannelOptionItem]> output-channels;
-    in-out property <string> output-editor-status: "";
-    in-out property <int> output-mode-index: 0;
-    callback output-select-device(int);
-    callback output-toggle-channel(int, bool);
-    callback output-select-mode(int);
-    callback output-save();
-    callback output-cancel();
-    in property <[string]> output-io-binding-names;
-    in-out property <int> output-selected-io-index: -1;
-    in property <[string]> output-endpoint-options;
-    in-out property <string> output-selected-io-name: "";
-    in-out property <string> output-selected-endpoint-name: "";
-    callback output-select-io(int);
-    callback output-select-endpoint(string);
     title: @tr("title-window-chain-editor");
     min-width: 860px;
     min-height: 540px;
@@ -224,199 +181,15 @@ export component ChainEditorWindow inherits Window {
         title: root.editor-title;
         save-label: root.editor-save-label;
         chain-name: root.chain-name;
-        input-groups: root.input-groups;
-        output-groups: root.output-groups;
+        bindings: root.bindings;
         status-message: root.status-message;
         is-create-mode: root.is-create-mode;
         selected-instrument-index: root.selected-instrument-index;
         update-chain-name(value) => { root.update-chain-name(value); }
-        edit-input(index) => { root.edit-input(index); }
-        remove-input(index) => { root.remove-input(index); }
-        add-input => { root.add-input(); }
-        edit-output(index) => { root.edit-output(index); }
-        remove-output(index) => { root.remove-output(index); }
-        add-output => { root.add-output(); }
+        toggle-binding(index, on) => { root.toggle-binding(index, on); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
-    }
-
-    if root.show-input-editor : ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-input");
-        io-binding-names: root.input-io-binding-names;
-        selected-io-index <=> root.input-selected-io-index;
-        endpoint-options: root.input-endpoint-options;
-        selected-endpoint-name <=> root.input-selected-endpoint-name;
-        status-message <=> root.input-editor-status;
-        select-io(index) => { root.input-select-io(index); }
-        select-endpoint(name) => { root.input-select-endpoint(name); }
-        save => { root.input-save(); }
-        cancel => { root.input-cancel(); }
-    }
-
-    if root.show-output-editor : ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-output");
-        io-binding-names: root.output-io-binding-names;
-        selected-io-index <=> root.output-selected-io-index;
-        endpoint-options: root.output-endpoint-options;
-        selected-endpoint-name <=> root.output-selected-endpoint-name;
-        status-message <=> root.output-editor-status;
-        select-io(index) => { root.output-select-io(index); }
-        select-endpoint(name) => { root.output-select-endpoint(name); }
-        save => { root.output-save(); }
-        cancel => { root.output-cancel(); }
-    }
-}
-
-export component ChainInputWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: Locale.font-family;
-    default-font-size: 13px;
-    in property <[string]> device-options;
-    in-out property <int> selected-device-index;
-    in property <[ChannelOptionItem]> channels;
-    in-out property <string> status-message;
-    in-out property <int> selected-input-mode-index: 0;
-    callback select-device(int);
-    callback toggle-channel(int, bool);
-    callback select-input-mode(int);
-    callback save();
-    callback cancel();
-    title: @tr("title-window-chain-input");
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-input");
-        io-binding-names: [];
-        endpoint-options: [];
-        status-message: root.status-message;
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-    }
-}
-
-export component ChainOutputWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: Locale.font-family;
-    default-font-size: 13px;
-    in property <[string]> device-options;
-    in-out property <int> selected-device-index;
-    in property <[ChannelOptionItem]> channels;
-    in-out property <string> status-message;
-    in-out property <int> selected-output-mode-index: 0;
-    callback select-device(int);
-    callback toggle-channel(int, bool);
-    callback select-output-mode(int);
-    callback save();
-    callback cancel();
-    title: @tr("title-window-chain-output");
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainEndpointEditorPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-output");
-        io-binding-names: [];
-        endpoint-options: [];
-        status-message: root.status-message;
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-    }
-}
-
-export component ChainInputGroupsWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: Locale.font-family;
-    default-font-size: 13px;
-    in property <[IoGroupItem]> groups;
-    in-out property <string> status-message;
-    in property <bool> show-block-controls: false;
-    in property <bool> block-enabled: true;
-    callback edit-group(int);
-    callback remove-group(int);
-    callback add-group();
-    callback save();
-    callback cancel();
-    callback toggle-enabled();
-    callback delete-block();
-    title: @tr("title-window-chain-inputs");
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainIoGroupsPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-inputs");
-        add-label: @tr("btn-add-input-row");
-        groups: root.groups;
-        status-message <=> root.status-message;
-        show-block-controls: root.show-block-controls;
-        block-enabled: root.block-enabled;
-        edit-group(index) => { root.edit-group(index); }
-        remove-group(index) => { root.remove-group(index); }
-        add-group => { root.add-group(); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-        toggle-enabled => { root.toggle-enabled(); }
-        delete-block => { root.delete-block(); }
-    }
-}
-
-export component ChainOutputGroupsWindow inherits Window {
-    icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: Locale.font-family;
-    default-font-size: 13px;
-    in property <[IoGroupItem]> groups;
-    in-out property <string> status-message;
-    in property <bool> show-block-controls: false;
-    in property <bool> block-enabled: true;
-    callback edit-group(int);
-    callback remove-group(int);
-    callback add-group();
-    callback save();
-    callback cancel();
-    callback toggle-enabled();
-    callback delete-block();
-    title: @tr("title-window-chain-outputs");
-    min-width: 680px;
-    min-height: 500px;
-    preferred-width: 820px;
-    preferred-height: 620px;
-    background: #040708;
-
-    ChainIoGroupsPage {
-        width: parent.width;
-        height: parent.height;
-        title: @tr("title-section-outputs");
-        add-label: @tr("btn-add-output-row");
-        groups: root.groups;
-        status-message <=> root.status-message;
-        show-block-controls: root.show-block-controls;
-        block-enabled: root.block-enabled;
-        edit-group(index) => { root.edit-group(index); }
-        remove-group(index) => { root.remove-group(index); }
-        add-group => { root.add-group(); }
-        save => { root.save(); }
-        cancel => { root.cancel(); }
-        toggle-enabled => { root.toggle-enabled(); }
-        delete-block => { root.delete-block(); }
     }
 }
 

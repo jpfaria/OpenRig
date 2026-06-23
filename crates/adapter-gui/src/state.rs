@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::BlockEditorWindow;
 use application::local_dispatcher::LocalDispatcher;
-use project::chain::{ChainInputMode, ChainOutputMode};
+use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::RigProject;
@@ -90,50 +90,14 @@ impl std::fmt::Debug for ProjectSession {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct InputGroupDraft {
-    pub(crate) device_id: Option<String>,
-    pub(crate) channels: Vec<usize>,
-    pub(crate) mode: ChainInputMode,
-    /// I/O binding id — populated from `InputBlock.io` when the draft is built
-    /// from an existing chain.  Used by the save path to dispatch
-    /// `SaveChainInputEndpoints` instead of the legacy `SaveChain` stopgap.
-    pub(crate) io: String,
-    /// Endpoint name within the binding — populated from `InputBlock.endpoint`.
-    pub(crate) endpoint: String,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct OutputGroupDraft {
-    pub(crate) device_id: Option<String>,
-    pub(crate) channels: Vec<usize>,
-    pub(crate) mode: ChainOutputMode,
-    /// I/O binding id — populated from `OutputBlock.io` when the draft is built
-    /// from an existing chain.  Used by the save path to dispatch
-    /// `SaveChainOutputEndpoints` instead of the legacy `SaveChain` stopgap.
-    pub(crate) io: String,
-    /// Endpoint name within the binding — populated from `OutputBlock.endpoint`.
-    pub(crate) endpoint: String,
-}
-
-#[derive(Debug, Clone)]
 pub(crate) struct ChainDraft {
     pub(crate) editing_index: Option<usize>,
     pub(crate) name: String,
     pub(crate) instrument: String,
-    pub(crate) inputs: Vec<InputGroupDraft>,
-    pub(crate) outputs: Vec<OutputGroupDraft>,
-    pub(crate) editing_input_index: Option<usize>,
-    pub(crate) editing_output_index: Option<usize>,
-    /// Which block in chain.blocks is being edited by the I/O groups window.
-    /// None = editing the fixed chip (first input / last output).
-    /// Some(idx) = editing a specific I/O block at chain.blocks[idx].
-    pub(crate) editing_io_block_index: Option<usize>,
-    /// True when a new input entry was added as placeholder and the input config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    pub(crate) adding_new_input: bool,
-    /// True when a new output entry was added as placeholder and the output config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    pub(crate) adding_new_output: bool,
+    /// #716: the I/O bindings this chain selects (checklist). The chain's
+    /// input/output is discovered from these; the legacy per-endpoint I/O
+    /// editor was removed.
+    pub(crate) io_binding_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,14 +116,6 @@ pub(crate) struct BlockEditorDraft {
     pub(crate) model_id: String,
     pub(crate) enabled: bool,
     pub(crate) is_select: bool,
-}
-
-/// Transient state for inserting an I/O block via the block type picker.
-#[derive(Debug, Clone)]
-pub(crate) struct IoBlockInsertDraft {
-    pub(crate) chain_index: usize,
-    pub(crate) before_index: usize,
-    pub(crate) kind: String, // "input" or "output"
 }
 
 /// Transient state for editing an Insert block's send/return endpoints.

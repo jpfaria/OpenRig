@@ -140,6 +140,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             // override resolves to `preset.volume` ⇒ audibly unchanged
             // for every pre-#436 project (back-compat).
             volume: preset.scene_volume(input.active_scene),
+            io_binding_ids: Vec::new(),
             blocks,
         });
     }

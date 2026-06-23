@@ -78,6 +78,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -284,6 +285,7 @@ fn chain_with_id(id: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     }
 }

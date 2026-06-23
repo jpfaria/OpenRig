@@ -139,6 +139,7 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         instrument: instrument.to_string(),
         enabled: false,
         volume: 100.0,
+        io_binding_ids: Vec::new(),
         blocks,
     }
 }

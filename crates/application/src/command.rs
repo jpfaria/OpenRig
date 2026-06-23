@@ -269,6 +269,14 @@ pub enum Command {
     /// `value / 100` on every audio callback.
     SetChainVolume { chain: ChainId, value: f32 },
 
+    /// Set the I/O bindings a chain uses (issue #716). `binding_ids` is the full
+    /// selection (the checklist sends its entire set); the chain's input/output
+    /// is discovered from these bindings. Replaces any previous selection.
+    SetChainIoBindings {
+        chain: ChainId,
+        binding_ids: Vec<String>,
+    },
+
     // ── Project settings ──────────────────────────────────────────────────────
     /// Update the project's display name.
     UpdateProjectName { name: String },

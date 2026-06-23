@@ -310,6 +310,14 @@ export struct IoGroupItem {
     summary: string,
 }
 
+// #716: one selectable I/O binding in the chain editor's binding checklist.
+// `selected` mirrors whether the chain currently references this binding.
+export struct ChainBindingChoice {
+    id: string,
+    name: string,
+    selected: bool,
+}
+
 // I/O binding models for the binding editor UI (#716).
 // `device_label` is the human-readable DeviceId string; `channels_label` is
 // a comma-separated, 1-based channel list (e.g. "1, 2"). The raw `id` and

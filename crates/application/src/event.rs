@@ -130,6 +130,14 @@ pub enum Event {
         value: f32,
     },
 
+    // ── Chain I/O binding selection (issue #716) ──────────────────────────────
+    /// A chain's selected I/O bindings changed; its input/output is rediscovered
+    /// from the new selection and its runtime re-synced.
+    ChainIoBindingsChanged {
+        chain: ChainId,
+        binding_ids: Vec<String>,
+    },
+
     // ── Audio settings events ─────────────────────────────────────────────────
     /// Audio device settings were persisted into the project.
     AudioSettingsSaved,
@@ -371,6 +379,7 @@ impl Event {
             | Event::InsertBlockSaved { chain, .. }
             | Event::ChainPresetLoaded { chain }
             | Event::ChainVolumeChanged { chain, .. }
+            | Event::ChainIoBindingsChanged { chain, .. }
             | Event::BlockSelectionChanged { chain, .. }
             | Event::ChainDiLoopSourceChanged { chain }
             | Event::ChainDiLoopEnabledChanged { chain, .. } => Some(chain),

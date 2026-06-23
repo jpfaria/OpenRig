@@ -405,6 +405,7 @@ mod di_loop_doubling_tests {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 bound_in("in0", "in0"),
                 bound_in("in1", "in1"),

@@ -60,6 +60,7 @@ fn nam_chain(id: &str, volume: f32) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume,
+        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in".into()),

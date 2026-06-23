@@ -29,18 +29,9 @@ mod chain_block_crud_wiring;
 mod chain_crud_wiring;
 mod chain_editor_callbacks;
 mod chain_editor_forwarders_wiring;
-mod chain_editor_input_endpoint_callbacks;
 mod chain_editor_meta_io_callbacks;
-mod chain_editor_output_endpoint_callbacks;
 mod chain_editor_save_cancel_callbacks;
-mod chain_input_groups_wiring;
-mod chain_io_block_builders;
-mod chain_io_fullscreen_callbacks;
-mod chain_io_main_wiring;
-mod chain_io_picker_wiring;
-mod chain_io_save_wiring;
 mod chain_name_wiring;
-mod chain_output_groups_wiring;
 mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
@@ -50,6 +41,7 @@ mod cli;
 mod compact_chain_block_handlers;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
+pub mod chain_binding_choices;
 pub mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
@@ -125,7 +117,6 @@ mod chain_editor;
 mod eq;
 pub mod graph_view_model;
 mod helpers;
-mod io_groups;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
 /// #693: non-blocking logger init shared by binaries and tests.

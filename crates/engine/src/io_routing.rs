@@ -179,6 +179,13 @@ fn effect_blocks_between(chain: &Chain, after_pos: usize, before_pos: usize) -> 
 /// against `registry` are skipped (they produce no stream rather than a wrong
 /// one — an honest absence, not a silent mis-route).
 pub fn resolve_chain_streams(chain: &Chain, registry: &[IoBinding]) -> Vec<ResolvedStream> {
+    // #716 discovery: a chain that SELECTS bindings (`io_binding_ids`) has its
+    // bound Input/Output blocks synthesised from the registry before stream
+    // enumeration. Legacy chains carry bound blocks directly and select nothing
+    // → `resolve_bound_io_blocks` returns them unchanged. Idempotent, so a chain
+    // already expanded by the caller resolves to the same block indices.
+    let expanded = project::binding_discovery::resolve_bound_io_blocks(chain, registry);
+    let chain = &expanded;
     let inputs = resolve_input_ports(chain, registry);
     let outputs = resolve_output_ports(chain, registry);
 
