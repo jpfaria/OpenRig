@@ -97,7 +97,6 @@ fn two_binding_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             bound_input("in:a", "io_a", "in_a"),
             bound_input("in:b", "io_b", "in_b"),

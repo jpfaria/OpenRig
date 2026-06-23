@@ -750,12 +750,3 @@ msgstr "Crea uno para agrupar la entrada y la salida de una interfaz."
 msgid "placeholder-pick-device"
 msgstr "Selecciona un dispositivo"
 
-
-msgid "label-chain-io-bindings"
-msgstr "Enlaces de E/S"
-
-msgid "empty-no-bindings-for-chain"
-msgstr "Aún no hay enlaces de E/S — créalos en Ajustes → Enlaces de E/S"
-
-msgid "warn-select-binding"
-msgstr "Selecciona al menos un enlace de E/S para esta cadena"

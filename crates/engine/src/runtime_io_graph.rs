@@ -147,13 +147,6 @@ pub fn build_per_input_runtime_states_with_bindings(
     elastic_targets: &[usize],
     io_bindings: &[IoBinding],
 ) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
-    // #716 discovery: expand a chain that SELECTS bindings into its bound
-    // Input/Output blocks (head/tail) so the whole build — bound-port detection
-    // AND block execution — sees the synthesised I/O. Legacy bound chains
-    // (blocks carry `io`, select nothing) and unbound chains pass through.
-    let expanded = project::binding_discovery::resolve_bound_io_blocks(chain, io_bindings);
-    let chain = &expanded;
-
     // Clean break (#716): routing is binding-only. An unbound chain (`io`
     // empty on every port) produces NO runtime — no fallback to the legacy
     // `entries` all-to-all path. The user reconfigures it via the registry.

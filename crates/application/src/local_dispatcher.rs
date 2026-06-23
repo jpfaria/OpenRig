@@ -283,8 +283,7 @@ impl CommandDispatcher for LocalDispatcher {
             Command::AddChain { .. }
             | Command::ConfigureChain { .. }
             | Command::RemoveChain { .. }
-            | Command::SetChainVolume { .. }
-            | Command::SetChainIoBindings { .. } => self.handle_chain_crud(cmd),
+            | Command::SetChainVolume { .. } => self.handle_chain_crud(cmd),
 
             Command::MoveChainUp { .. }
             | Command::MoveChainDown { .. }

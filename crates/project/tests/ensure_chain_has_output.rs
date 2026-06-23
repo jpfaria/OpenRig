@@ -25,7 +25,6 @@ fn chain_with_only_input(id: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: false,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId(format!("{id}:in")),
             enabled: true,

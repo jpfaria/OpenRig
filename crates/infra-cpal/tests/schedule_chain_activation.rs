@@ -63,7 +63,6 @@ fn returns_false_for_a_multi_input_chain() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![input_on("devA"), input_on("devB"), output_stereo()],
     };
     let project = Project {

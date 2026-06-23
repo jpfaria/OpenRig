@@ -1,5 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { ChainBindingChoice } from "../models.slint";
+import { IoGroupItem } from "../models.slint";
 
 component FooterButton inherits Rectangle {
     in property <string> label;
@@ -56,13 +56,138 @@ component FieldBox inherits Rectangle {
     }
 }
 
+component IoGroupRow inherits Rectangle {
+    in property <string> group-summary;
+    callback edit-clicked();
+    callback remove-clicked();
+
+    height: 36px;
+    background: transparent;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            background: #1e2229;
+        }
+    ]
+
+    border-radius: 6px;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width - 60px;
+        height: parent.height;
+        text: root.group-summary;
+        color: #edf2f9;
+        font-size: 13px;
+        font-weight: 600;
+        overflow: elide;
+        vertical-alignment: center;
+    }
+
+    // Remove button — SVG trash icon (no font glyphs, renders cross-locale).
+    // Uses local assets/trash.svg for visual consistency with chain_io_groups.
+    Rectangle {
+        x: parent.width - 52px;
+        y: 10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        background: remove-hover.has-hover ? #2a1015 : transparent;
+
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("../assets/trash.svg");
+            colorize: remove-hover.has-hover ? #ff4455 : #5a6270;
+            image-fit: contain;
+        }
+
+        remove-hover := TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.remove-clicked(); }
+        }
+    }
+
+    // Edit chevron — SVG (no font glyphs, renders cross-locale)
+    Image {
+        x: parent.width - 18px;
+        y: (parent.height - 14px) / 2;
+        width: 14px;
+        height: 14px;
+        source: @image-url("../modules/surrealism-ui/icons/right.svg");
+        colorize: #4c5566;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width - 56px;
+        height: parent.height;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
+        clicked => { root.edit-clicked(); }
+    }
+}
+
+component AddGroupButton inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    height: 36px;
+    background: transparent;
+    border-width: 1px;
+    border-color: #2a2f38;
+    border-radius: 6px;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            border-color: #45a7ff;
+        }
+    ]
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #45a7ff;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
+        clicked => { root.clicked(); }
+    }
+}
+
 export component ChainEditorPage inherits Rectangle {
     in property <string> title;
     in property <string> save-label;
     in-out property <string> chain-name;
-    // #716: the I/O bindings this chain can select (checklist replaces the old
-    // per-endpoint add-input/add-output flow).
-    in property <[ChainBindingChoice]> bindings;
+    in property <[IoGroupItem]> input-groups;
+    in property <[IoGroupItem]> output-groups;
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
@@ -76,11 +201,15 @@ export component ChainEditorPage inherits Rectangle {
         @tr("instrument-other"),
     ];
     callback update-chain-name(string);
+    callback edit-input(int);
+    callback remove-input(int);
+    callback add-input();
+    callback edit-output(int);
+    callback remove-output(int);
+    callback add-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
-    // #716: toggle whether the chain uses binding at `index` (selected on/off).
-    callback toggle-binding(int, bool);
 
     background: #171a1f;
 
@@ -207,91 +336,91 @@ export component ChainEditorPage inherits Rectangle {
         background: #2a2f38;
     }
 
-    // --- I/O bindings checklist (#716) ---
-    // The chain SELECTS which I/O bindings it uses; input/output is discovered
-    // from those bindings. Replaces the old per-endpoint add-input/add-output.
+    // --- Inputs section ---
     Text {
         x: 32px;
         y: 248px;
-        width: parent.width - 64px;
+        width: 120px;
         height: 16px;
-        text: @tr("label-chain-io-bindings");
+        text: @tr("title-section-inputs");
         color: #7a8694;
         font-size: 11px;
     }
 
-    if root.bindings.length == 0 : Text {
+    Rectangle {
         x: 32px;
-        y: 278px;
+        y: 268px;
         width: parent.width - 64px;
-        height: 20px;
-        text: @tr("empty-no-bindings-for-chain");
-        color: #5a6270;
-        font-size: 12px;
-        wrap: word-wrap;
+        height: Math.max(0px, root.input-groups.length * 36px);
+        background: transparent;
+
+        for group[index] in root.input-groups : IoGroupRow {
+            x: 0px;
+            y: index * 36px;
+            width: parent.width;
+            group-summary: group.summary;
+            edit-clicked => { root.edit-input(index); }
+            remove-clicked => { root.remove-input(index); }
+        }
     }
 
-    ScrollView {
+    AddGroupButton {
         x: 32px;
-        y: 272px;
+        y: 268px + Math.max(0px, root.input-groups.length * 36px);
         width: parent.width - 64px;
-        height: parent.height - 272px - 72px;
+        label: @tr("btn-add-input");
+        clicked => { root.add-input(); }
+    }
 
-        VerticalLayout {
-            alignment: start;
-            spacing: 2px;
+    // --- Separator between inputs and outputs ---
+    Rectangle {
+        x: 32px;
+        y: 316px + Math.max(0px, root.input-groups.length * 36px);
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
 
-            for choice[index] in root.bindings : chain-binding-cell := Rectangle {
-                height: 40px;
-                border-radius: 6px;
-                background: cell-ta.has-hover ? #1e2229 : transparent;
+    // --- Outputs section ---
+    Text {
+        x: 32px;
+        y: 328px + Math.max(0px, root.input-groups.length * 36px);
+        width: 120px;
+        height: 16px;
+        text: @tr("title-section-outputs");
+        color: #7a8694;
+        font-size: 11px;
+    }
 
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    spacing: 12px;
+    Rectangle {
+        x: 32px;
+        y: 348px + Math.max(0px, root.input-groups.length * 36px);
+        width: parent.width - 64px;
+        height: Math.max(0px, root.output-groups.length * 36px);
+        background: transparent;
 
-                    Rectangle {
-                        width: 20px;
-                        height: 20px;
-                        y: (parent.height - self.height) / 2;
-                        border-radius: 5px;
-                        background: choice.selected ? #2f80ff : #1d2025;
-                        border-width: 1px;
-                        border-color: choice.selected ? #2f80ff : #41454e;
-                        if choice.selected : Image {
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                            width: 12px;
-                            height: 12px;
-                            source: @image-url("../assets/check.svg");
-                            colorize: #ffffff;
-                        }
-                    }
-
-                    Text {
-                        horizontal-stretch: 1;
-                        text: choice.name;
-                        color: choice.selected ? #f4f7fb : #c4ccd6;
-                        font-size: 14px;
-                        font-weight: choice.selected ? 600 : 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                }
-
-                cell-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.toggle-binding(index, !choice.selected); }
-                }
-            }
+        for group[index] in root.output-groups : IoGroupRow {
+            x: 0px;
+            y: index * 36px;
+            width: parent.width;
+            group-summary: group.summary;
+            edit-clicked => { root.edit-output(index); }
+            remove-clicked => { root.remove-output(index); }
         }
+    }
+
+    AddGroupButton {
+        x: 32px;
+        y: 348px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
+        width: parent.width - 64px;
+        label: @tr("btn-add-output");
+        clicked => { root.add-output(); }
     }
 
     // --- Separator before footer ---
     Rectangle {
         x: 32px;
-        y: parent.height - 72px;
+        y: 396px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;

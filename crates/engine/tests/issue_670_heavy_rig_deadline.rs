@@ -175,7 +175,6 @@ fn heavy_chain(suffix: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             input_mono(),
             comp_block(),
@@ -275,7 +274,6 @@ fn natives_only_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             input_mono(),
             comp_block(),
@@ -388,7 +386,6 @@ fn isolated_chain(label: &str, block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![input_mono(), block, output_stereo()],
     }
 }

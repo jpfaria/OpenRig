@@ -44,7 +44,6 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,

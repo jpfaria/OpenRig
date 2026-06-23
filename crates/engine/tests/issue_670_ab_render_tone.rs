@@ -79,7 +79,6 @@ fn render_beat_it_green_day_to_wav() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
-        io_binding_ids: vec![],
         blocks,
     };
 

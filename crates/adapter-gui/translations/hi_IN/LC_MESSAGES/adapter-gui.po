@@ -733,12 +733,3 @@ msgstr "अभी तक फिर लोड नहीं किया"
 msgid "title-section-paths"
 msgstr "पथ"
 
-
-msgid "label-chain-io-bindings"
-msgstr "I/O बाइंडिंग"
-
-msgid "empty-no-bindings-for-chain"
-msgstr "अभी तक कोई I/O बाइंडिंग नहीं — सेटिंग्स → I/O बाइंडिंग में बनाएँ"
-
-msgid "warn-select-binding"
-msgstr "इस chain के लिए कम से कम एक I/O बाइंडिंग चुनें"

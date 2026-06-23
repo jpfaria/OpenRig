@@ -107,7 +107,6 @@ fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: block_kinds
             .into_iter()
             .enumerate()
@@ -448,7 +447,6 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let project = Project {

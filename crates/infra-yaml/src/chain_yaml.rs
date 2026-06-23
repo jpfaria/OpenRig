@@ -97,10 +97,6 @@ pub(crate) struct ChainYaml {
     /// Legados sem campo deserializam como 100.0.
     #[serde(default = "default_chain_volume")]
     volume: f32,
-    // #716: ids of the I/O bindings this chain uses (input/output discovered
-    // from the binding registry). Empty for legacy projects.
-    #[serde(default)]
-    io_binding_ids: Vec<String>,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
     inputs: Vec<ChainInputYaml>,
@@ -159,7 +155,6 @@ impl ChainYaml {
                 instrument: self.instrument,
                 enabled: self.enabled,
                 volume: self.volume,
-                io_binding_ids: self.io_binding_ids.clone(),
                 blocks: parsed_blocks,
             };
             // Migrate projects saved while issue #377 was open: split-per-device
@@ -300,7 +295,6 @@ impl ChainYaml {
             instrument: self.instrument,
             enabled: self.enabled,
             volume: self.volume,
-            io_binding_ids: self.io_binding_ids.clone(),
             blocks: all_blocks,
         };
         chain.coalesce_endpoint_blocks();
@@ -324,7 +318,6 @@ impl ChainYaml {
             instrument: chain.instrument.clone(),
             enabled: false, // chains always start disabled on project load, regardless of saved state
             volume: chain.volume,
-            io_binding_ids: chain.io_binding_ids.clone(),
             inputs: Vec::new(),
             outputs: Vec::new(),
             input_device_id: None,

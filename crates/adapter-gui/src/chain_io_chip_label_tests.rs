@@ -41,7 +41,6 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("test:input".to_string()),
             enabled: true,
@@ -62,7 +61,6 @@ fn chain_empty() -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     }
 }

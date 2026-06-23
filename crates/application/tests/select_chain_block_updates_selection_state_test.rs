@@ -27,7 +27,6 @@ fn chain_with_block_ids(id: &str, _block_ids: &[&str]) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     }
 }

@@ -93,7 +93,6 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![block],
         }],
         midi: None,
@@ -668,7 +667,6 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -760,7 +758,6 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -1049,7 +1046,6 @@ fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool)
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".to_string()),
             enabled: true,
@@ -1075,7 +1071,6 @@ fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     }
 }
@@ -1314,67 +1309,6 @@ fn toggle_chain_enabled_enables_disabled_chain() {
     assert!(
         project_no_conflict.borrow().chains[1].enabled,
         "chain_1 must be enabled after toggle"
-    );
-}
-
-// ── SetChainIoBindings (#716) ──────────────────────────────────────────────────
-
-#[test]
-fn set_chain_io_bindings_updates_selection_and_emits_event() {
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![make_chain_with_input("chain_0", "dev_a", 0, false)],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let result = dispatcher.dispatch(Command::SetChainIoBindings {
-        chain: ChainId("chain_0".to_string()),
-        binding_ids: vec!["xyz".to_string(), "abc".to_string()],
-    });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    assert_eq!(
-        project.borrow().chains[0].io_binding_ids,
-        vec!["xyz".to_string(), "abc".to_string()],
-        "the chain's selected bindings must be stored"
-    );
-    let events = result.unwrap();
-    assert!(
-        events.iter().any(|e| matches!(
-            e,
-            Event::ChainIoBindingsChanged { chain, binding_ids }
-            if chain.0 == "chain_0" && binding_ids == &vec!["xyz".to_string(), "abc".to_string()]
-        )),
-        "expected ChainIoBindingsChanged, got {:?}",
-        events
-    );
-}
-
-#[test]
-fn set_chain_io_bindings_replaces_previous_selection() {
-    let mut chain = make_chain_with_input("chain_0", "dev_a", 0, false);
-    chain.io_binding_ids = vec!["old".to_string()];
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![chain],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    dispatcher
-        .dispatch(Command::SetChainIoBindings {
-            chain: ChainId("chain_0".to_string()),
-            binding_ids: vec!["new".to_string()],
-        })
-        .expect("dispatch ok");
-
-    assert_eq!(
-        project.borrow().chains[0].io_binding_ids,
-        vec!["new".to_string()],
-        "selection is replaced wholesale (checklist sends the full set)"
     );
 }
 
@@ -1853,7 +1787,6 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_x", 0), make_core_block("blk_mid", true)],
         }],
         midi: None,
@@ -1900,7 +1833,6 @@ fn save_chain_input_endpoints_preserves_other_blocks() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_old", 0),
                 make_core_block("blk_a", true),
@@ -1949,7 +1881,6 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
         midi: None,
@@ -2052,7 +1983,6 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_in", 0),
                 make_core_block("blk_a", true),
@@ -2292,7 +2222,6 @@ fn save_chain_io_missing_input_block_returns_err() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
         midi: None,
@@ -2346,7 +2275,6 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![insert],
         }],
         midi: None,
@@ -3286,7 +3214,6 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume,
-            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,

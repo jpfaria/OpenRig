@@ -23,7 +23,6 @@ fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks,
     }
 }

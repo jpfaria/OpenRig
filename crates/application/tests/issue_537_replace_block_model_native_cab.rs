@@ -32,7 +32,6 @@ fn make_project_with_native_cab(model_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![AudioBlock {
                 id: BlockId("blk_cab".to_string()),
                 enabled: true,

@@ -737,12 +737,3 @@ msgstr "Create one to group an interface's input and output."
 msgid "placeholder-pick-device"
 msgstr "Select a device"
 
-
-msgid "label-chain-io-bindings"
-msgstr "I/O bindings"
-
-msgid "empty-no-bindings-for-chain"
-msgstr "No I/O bindings yet — add them in Settings → I/O bindings"
-
-msgid "warn-select-binding"
-msgstr "Select at least one I/O binding for this chain"

@@ -69,7 +69,6 @@ fn grid_chain(drive: f32, pedal_enabled: bool) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in".into()),

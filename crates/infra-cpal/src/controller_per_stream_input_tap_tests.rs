@@ -60,7 +60,6 @@ fn two_stream_mono_chain(id: &str, input_device: &str, output_device: &str) -> C
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -104,7 +103,6 @@ fn single_stream_on_channel_one(id: &str, input_device: &str, output_device: &st
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),

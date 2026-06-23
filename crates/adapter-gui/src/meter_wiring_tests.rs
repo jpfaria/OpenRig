@@ -210,7 +210,6 @@ fn chain_signature_changes_when_enabled_flag_flips() {
         instrument: "electric_guitar".into(),
         enabled: false,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,
@@ -238,7 +237,6 @@ fn chain_signature_changes_when_block_enabled_bit_flips() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,
@@ -274,7 +272,6 @@ fn chain_signature_stable_when_only_param_value_changes() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,
@@ -319,7 +316,6 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,
@@ -374,7 +370,6 @@ fn controller_offline_then_back_invalidates_every_chain() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,
@@ -441,7 +436,6 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: domain::ids::BlockId("b1".into()),
             enabled: true,

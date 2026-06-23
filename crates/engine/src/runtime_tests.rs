@@ -47,7 +47,6 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![AudioBlock {
                 id: BlockId("chain:0:block:0".into()),
                 enabled: true,
@@ -84,7 +83,6 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![AudioBlock {
                 id: BlockId("chain:0:block:0".into()),
                 enabled: true,
@@ -238,7 +236,6 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("chain:stereo:input:0".into()),
@@ -308,7 +305,6 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("chain:asset-backed:input:0".into()),
@@ -415,7 +411,6 @@ fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -652,7 +647,6 @@ fn io_passthrough_chain(id: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId(format!("{id}:input:0")),
@@ -699,7 +693,6 @@ fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId(format!("{id}:block:0")),
             enabled: true,
@@ -737,7 +730,6 @@ fn segments_split_by_output_position() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -1579,7 +1571,6 @@ fn build_runtime_graph_skips_disabled_chains() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,
@@ -1604,7 +1595,6 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,
@@ -1734,7 +1724,6 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume,
-            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId(format!("{id}:input:0")),
@@ -1927,7 +1916,6 @@ fn insert_chain() -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -2084,7 +2072,6 @@ fn effective_inputs_splits_mono_multichannel_entry() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".into()),
             enabled: true,
@@ -2124,7 +2111,6 @@ fn effective_inputs_fallback_when_no_input_blocks() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) = effective_inputs(&chain);
@@ -2144,7 +2130,6 @@ fn effective_outputs_fallback_when_no_output_blocks() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let eff_outputs = effective_outputs(&chain);
@@ -2188,7 +2173,6 @@ fn process_input_stereo_output_preserves_channels() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -2489,7 +2473,6 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
                 instrument: "electric_guitar".to_string(),
                 enabled: false,
                 volume: 100.0,
-                io_binding_ids: vec![],
                 blocks: vec![],
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
@@ -2770,7 +2753,6 @@ fn effective_inputs_stereo_entry_not_split() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".into()),
             enabled: true,
@@ -2801,7 +2783,6 @@ fn effective_inputs_ignores_disabled_blocks() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -2852,7 +2833,6 @@ fn effective_outputs_ignores_disabled_blocks() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("output:0".into()),
             enabled: false,
@@ -2886,7 +2866,6 @@ fn effective_inputs_multiple_input_blocks() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("input:0".into()),
@@ -2936,7 +2915,6 @@ fn effective_inputs_same_device_shares_cpal_index() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".into()),
             enabled: true,
@@ -2977,7 +2955,6 @@ fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![tuner_block("b:0", 440.0)],
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);
@@ -3060,7 +3037,6 @@ fn build_chain_runtime_state_empty_chain_succeeds() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);

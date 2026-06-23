@@ -739,12 +739,3 @@ msgstr "Noch nicht neu geladen"
 msgid "title-section-paths"
 msgstr "Pfade"
 
-
-msgid "label-chain-io-bindings"
-msgstr "E/A-Bindungen"
-
-msgid "empty-no-bindings-for-chain"
-msgstr "Noch keine E/A-Bindungen — in Einstellungen → E/A-Bindungen anlegen"
-
-msgid "warn-select-binding"
-msgstr "Wähle mindestens eine E/A-Bindung für diese Chain"

@@ -24,7 +24,6 @@ fn make_chain(id: &str, description: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: false,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: Vec::new(),
     }
 }

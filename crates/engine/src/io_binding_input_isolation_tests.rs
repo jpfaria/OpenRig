@@ -106,7 +106,6 @@ fn one_binding_multi_io_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             bound_input("in:0", "io_x", "in0"),
             bound_input("in:1", "io_x", "in1"),

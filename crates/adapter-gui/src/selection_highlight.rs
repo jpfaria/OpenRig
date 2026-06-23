@@ -136,7 +136,6 @@ mod tests {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             // Input, b0, b1, Output — UI strip is [b0, b1] (IO stripped).
             blocks: vec![
                 io_block("in", true),

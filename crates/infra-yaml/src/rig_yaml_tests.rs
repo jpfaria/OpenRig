@@ -215,7 +215,6 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: vol,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in".into()),

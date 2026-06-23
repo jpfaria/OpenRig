@@ -90,7 +90,6 @@ fn two_binding_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             bound_input("in:a", "io_a", "in_a"),
             bound_input("in:b", "io_b", "in_b"),
@@ -174,7 +173,6 @@ fn live_path_unbound_chain_builds_no_runtime() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in:legacy".into()),

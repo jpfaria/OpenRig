@@ -81,17 +81,6 @@ impl LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
-            // ── Chain I/O binding selection (issue #716) ──────────────────────
-            Command::SetChainIoBindings { chain, binding_ids } => {
-                self.with_chain(&chain, |c| {
-                    c.io_binding_ids = binding_ids.clone();
-                    Ok(())
-                })?;
-                Ok(vec![
-                    Event::ChainIoBindingsChanged { chain, binding_ids },
-                    Event::ProjectMutated,
-                ])
-            }
             other => unreachable!("handle_chain_crud received non-crud command: {other:?}"),
         }
     }

@@ -34,7 +34,6 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -705,7 +704,6 @@ fn chain_with_only_io_blocks_roundtrips() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -1030,7 +1028,6 @@ fn serialize_project_produces_valid_yaml_string() {
             instrument: "generic".to_string(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
@@ -1454,7 +1451,6 @@ fn project_with_multiple_chains_roundtrips() {
                 instrument: "electric_guitar".to_string(),
                 enabled: false,
                 volume: 100.0,
-                io_binding_ids: vec![],
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:0:input:0".into()),
@@ -1484,7 +1480,6 @@ fn project_with_multiple_chains_roundtrips() {
                 instrument: "bass".to_string(),
                 enabled: false,
                 volume: 100.0,
-                io_binding_ids: vec![],
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:1:input:0".into()),
@@ -1694,7 +1689,6 @@ fn chain_volume_150_roundtrips_through_yaml() {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 150.0,
-            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -1704,55 +1698,6 @@ fn chain_volume_150_roundtrips_through_yaml() {
     assert_eq!(
         loaded.chains[0].volume, 150.0,
         "volume=150 must survive YAML save+load round-trip"
-    );
-}
-
-/// #716: a chain's selected I/O binding ids survive the YAML round-trip.
-#[test]
-fn chain_io_binding_ids_roundtrip_through_yaml() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("io_binding_ids_roundtrip.yaml");
-    let repo = YamlProjectRepository { path: path.clone() };
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: None,
-            instrument: "electric_guitar".into(),
-            enabled: true,
-            volume: 100.0,
-            io_binding_ids: vec!["main".into(), "fx".into()],
-            blocks: Vec::new(),
-        }],
-        midi: None,
-    };
-    repo.save_project(&project).expect("save should succeed");
-    let loaded = repo.load_current_project().expect("load should succeed");
-    assert_eq!(
-        loaded.chains[0].io_binding_ids,
-        vec!["main".to_string(), "fx".to_string()],
-        "io_binding_ids must survive YAML save+load round-trip"
-    );
-}
-
-/// #716: legacy YAML without `io_binding_ids` defaults to empty (back-compat).
-#[test]
-fn chain_io_binding_ids_missing_defaults_to_empty() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("legacy_no_io_bindings.yaml");
-    let yaml = "\
-chains:
-  - instrument: electric_guitar
-    enabled: true
-    blocks: []
-";
-    fs::write(&path, yaml).expect("write legacy yaml");
-    let repo = YamlProjectRepository { path };
-    let loaded = repo.load_current_project().expect("load legacy yaml");
-    assert!(
-        loaded.chains[0].io_binding_ids.is_empty(),
-        "missing io_binding_ids key in legacy YAML must default to empty"
     );
 }
 

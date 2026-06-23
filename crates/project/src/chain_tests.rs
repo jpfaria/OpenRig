@@ -96,7 +96,6 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -363,7 +362,6 @@ fn validate_channel_conflicts_input_conflict_detected() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in:0".into()),
@@ -409,7 +407,6 @@ fn validate_channel_conflicts_output_conflict_detected() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             make_input_block("in:0", "dev", vec![0], ChainInputMode::Mono),
             AudioBlock {
@@ -465,7 +462,6 @@ fn validate_channel_conflicts_different_devices_ok() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in:0".into()),
@@ -516,7 +512,6 @@ fn validate_channel_conflicts_within_single_input_multi_entry() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![
             AudioBlock {
                 id: BlockId("in:0".into()),

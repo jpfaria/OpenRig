@@ -108,7 +108,6 @@ fn build() -> Arc<ChainRuntimeState> {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![input_mono(), nam_amp(), output_stereo()],
     };
     Arc::new(build_chain_runtime_state(&chain, SR, &[BUFFER]).expect("build NAM chain"))

@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, Timer, VecModel};
+use slint::{ComponentHandle, Timer, VecModel};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -93,10 +93,49 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                     return;
                 }
             };
-            // #716: the chain's I/O comes from its selected bindings.
-            if draft.io_binding_ids.is_empty() {
-                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-select-binding"));
+            if draft.inputs.is_empty() {
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-add-input"));
                 return;
+            }
+            if draft.outputs.is_empty() {
+                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-add-output"));
+                return;
+            }
+            for (i, input) in draft.inputs.iter().enumerate() {
+                if input.device_id.is_none() {
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-input-no-device-numbered", n = i + 1).to_string(),
+                    );
+                    return;
+                }
+                if input.channels.is_empty() {
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-input-no-channels-numbered", n = i + 1).to_string(),
+                    );
+                    return;
+                }
+            }
+            for (i, output) in draft.outputs.iter().enumerate() {
+                if output.device_id.is_none() {
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-output-no-device-numbered", n = i + 1).to_string(),
+                    );
+                    return;
+                }
+                if output.channels.is_empty() {
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-output-no-channels-numbered", n = i + 1).to_string(),
+                    );
+                    return;
+                }
             }
             let editing_index = draft.editing_index;
             log::debug!(
@@ -164,29 +203,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             *chain_draft.borrow_mut() = None;
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
-        });
-    }
-
-    // on_toggle_binding (#716, fullscreen surface): mirror the secondary
-    // window's handler — flip a checklist row and sync the full selection
-    // into the draft so the AppWindow save persists `io_binding_ids`.
-    {
-        let weak_window = window.as_weak();
-        let chain_draft = chain_draft.clone();
-        window.on_toggle_binding(move |index, on| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let model = window.get_chain_editor_bindings();
-            if let Some(mut choice) = model.row_data(index as usize) {
-                choice.selected = on;
-                model.set_row_data(index as usize, choice);
-            }
-            let choices: Vec<crate::ChainBindingChoice> = model.iter().collect();
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.io_binding_ids =
-                    crate::chain_binding_choices::selected_binding_ids(&choices);
-            }
         });
     }
 }

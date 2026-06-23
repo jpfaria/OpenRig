@@ -133,7 +133,6 @@ pub fn rig_project_with(
             // Volume 0: the DSP path is identical (volume applies at the
             // output mixdown); the test just stops blasting the monitors.
             volume: 0.0,
-            io_binding_ids: vec![],
             blocks,
         }],
         midi: None,

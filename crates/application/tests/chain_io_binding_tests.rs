@@ -366,7 +366,6 @@ fn delete_referenced_binding_rejected() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let mut blk = input_block("my-chain:in");
@@ -438,7 +437,6 @@ fn delete_unreferenced_binding_ok() {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
         blocks: vec![],
     };
     let mut blk = input_block("my-chain:in");
