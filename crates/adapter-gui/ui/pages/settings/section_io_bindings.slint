@@ -1,412 +1,330 @@
-// System / I/O Bindings — create, edit and delete per-machine I/O binding
-// registry entries (issue #716). Each binding groups one or more input and
-// output audio endpoints under a shared name so chain blocks can reference
-// them symbolically.
+// System / I/O bindings editor (#716) — shadcn-style dark, flat, system font.
+// Pure dispatcher (LAW): callbacks fire upward; Rust owns mutation + Commands.
+// Design locked via tools/slint-render (see _mockup_io_bindings.slint).
 //
-// The section is a pure dispatcher (LAW: no business logic in Slint):
-//   - callbacks fire upward; Rust wiring owns the mutation and Command dispatch.
-//   - the binding list is seeded by Rust via the `io-bindings` model
-//     ([IoBindingModel] with nested input/output endpoints).
-//   - the endpoint pickers carry STRUCTURED values (device id + selected
-//     channel indices + mode wire token) — no free text. Channel options for
-//     the active add-row come from the shared `channel-options` model that
-//     Rust rebuilds from the chosen device's reported channel count.
-//
-// LOC budget: ≤ 500 lines (slint-best-practices cap).
+// Tokens (shadcn .dark / zinc): bg #09090b, card #18181b, border #27272a,
+// fg #fafafa, muted-fg #a1a1aa, secondary #27272a, radius 10px. Accent #2f80ff.
+// IN = green #4ade80, OUT = orange #fb923c. Body font = Locale.font-family
+// (inherited; NOT hardcoded — system fallback keeps CJK translations tofu-free).
 
 import { IoBindingModel, IoEndpointModel, ChannelOptionItem } from "../../models.slint";
-import { IoEndpointRow } from "io_endpoint_row.slint";
-import { IoEndpointAddRow } from "io_endpoint_add_row.slint";
+
+component Hairline inherits Rectangle { height: 1px; background: #27272a; }
+
+component Badge inherits Rectangle {
+    in property <string> text;
+    in property <color> fg: #d4d4d8;
+    in property <color> bg: #27272a;
+    height: 26px;
+    background: root.bg;
+    border-radius: 7px;
+    HorizontalLayout {
+        padding-left: 11px; padding-right: 11px;
+        Text { text: root.text; color: root.fg; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+    }
+}
+
+component IconBtn inherits Rectangle {
+    in property <image> icon;
+    in property <color> hover-bg: #27272a;
+    callback clicked();
+    width: 32px; height: 32px; border-radius: 7px;
+    background: ta.has-hover ? root.hover-bg : transparent;
+    animate background { duration: 120ms; }
+    Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+        width: 15px; height: 15px; source: root.icon; colorize: ta.has-hover ? #e4e4e7 : #a1a1aa; }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+component SectionHeader inherits HorizontalLayout {
+    in property <string> text;
+    in property <color> tint;
+    spacing: 9px;
+    Rectangle { width: 8px; height: 8px; y: (parent.height - self.height) / 2; border-radius: 4px; background: root.tint; }
+    Text { text: root.text; color: #fafafa; font-size: 15px; font-weight: 600; vertical-alignment: center; }
+}
+
+component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+    height: 38px;
+    background: ta.has-hover ? #4a93ff : #2f80ff;
+    border-radius: 8px;
+    animate background { duration: 120ms; }
+    HorizontalLayout { padding-left: 16px; padding-right: 16px;
+        Text { text: root.text; color: #ffffff; font-size: 14px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+component GhostButton inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+    height: 38px; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    background: ta.has-hover ? #1c1c20 : transparent;
+    animate background { duration: 120ms; }
+    HorizontalLayout { padding-left: 16px; padding-right: 16px;
+        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+component AddButton inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+    height: 42px; border-radius: 8px; border-width: 1px; border-color: #2f2f36;
+    background: ta.has-hover ? #1f1f24 : #1c1c20;
+    animate background { duration: 120ms; }
+    HorizontalLayout { alignment: center; spacing: 8px;
+        Image { width: 13px; height: 13px; y: (parent.height - self.height) / 2;
+            source: @image-url("../../assets/plus.svg"); colorize: #d4d4d8; }
+        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; vertical-alignment: center; } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+component DropDown inherits Rectangle {
+    in property <[string]> model;
+    in-out property <int> current: -1;
+    in property <string> placeholder;
+    callback picked(int);
+    height: 40px;
+    background: #18181b; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    property <string> label: root.current >= 0 && root.current < root.model.length ? root.model[root.current] : root.placeholder;
+    HorizontalLayout { padding-left: 12px; padding-right: 12px; spacing: 8px;
+        Text { horizontal-stretch: 1; text: root.label; color: root.current >= 0 ? #e4e4e7 : #71717a; font-size: 14px; vertical-alignment: center; overflow: elide; }
+        Image { width: 11px; height: 11px; y: (parent.height - self.height) / 2;
+            source: @image-url("../../assets/arrow-down.svg"); colorize: #71717a; } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { pop.show(); } }
+    pop := PopupWindow {
+        x: 0; y: parent.height + 4px; width: parent.width;
+        Rectangle {
+            background: #18181b; border-radius: 8px; border-width: 1px; border-color: #2f2f36;
+            VerticalLayout {
+                padding: 4px;
+                for opt[i] in root.model : Rectangle {
+                    height: 34px; border-radius: 6px;
+                    background: oi.has-hover ? #27272a : transparent;
+                    HorizontalLayout { padding-left: 10px; padding-right: 10px;
+                        Text { text: opt; color: #e4e4e7; font-size: 14px; vertical-alignment: center; overflow: elide; } }
+                    oi := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.picked(i); } }
+                }
+            }
+        }
+    }
+}
+
+// Segmented control for a small fixed option set (mode).
+component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in-out property <int> current: 0;
+    callback changed(int);
+    height: 40px;
+    background: #131316; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    HorizontalLayout { padding: 3px; spacing: 3px;
+        for opt[i] in root.options : Rectangle {
+            horizontal-stretch: 1;
+            background: i == root.current ? #2f80ff : (seg.has-hover ? #1f1f24 : transparent);
+            border-radius: 6px;
+            animate background { duration: 100ms; }
+            Text { text: opt; color: i == root.current ? #ffffff : #a1a1aa; font-size: 13px;
+                font-weight: i == root.current ? 600 : 500; horizontal-alignment: center; vertical-alignment: center; }
+            seg := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.changed(i); } }
+        }
+    }
+}
+
+// One channel selector cell. Radio (round) when single-select (mono),
+// checkbox (square) otherwise.
+component ChannelCell inherits HorizontalLayout {
+    in property <string> n;
+    in property <bool> on: false;
+    in property <bool> radio: false;
+    callback toggled();
+    spacing: 8px;
+    Rectangle {
+        width: 18px; height: 18px; y: (parent.height - self.height) / 2;
+        border-radius: root.radio ? 9px : 4px;
+        background: root.on && !root.radio ? #2f80ff : #18181b;
+        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
+        if root.on && root.radio : Rectangle { width: 8px; height: 8px;
+            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; border-radius: 4px; background: #2f80ff; }
+        if root.on && !root.radio : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+    }
+    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
+    TouchArea { mouse-cursor: pointer; clicked => { root.toggled(); } }
+}
+
+component FieldRow inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 16px;
+    Text { text: root.label; color: #a1a1aa; font-size: 14px; vertical-alignment: center; width: 92px; }
+    @children
+}
+
+// Existing endpoint row: device + colored badges + edit + delete.
+component EndpointRow inherits Rectangle {
+    in property <IoEndpointModel> endpoint;
+    callback edit-requested();
+    callback remove-requested();
+    property <color> mode-fg: root.endpoint.mode == "mono" ? #4ade80 : root.endpoint.mode == "stereo" ? #a78bfa : #fbbf24;
+    property <color> mode-bg: root.endpoint.mode == "mono" ? #0e2a1d : root.endpoint.mode == "stereo" ? #221b3c : #2c1f0c;
+    height: 46px;
+    HorizontalLayout {
+        spacing: 8px;
+        Text { horizontal-stretch: 1; text: root.endpoint.device_label; color: #fafafa; font-size: 14px; font-weight: 500; vertical-alignment: center; overflow: elide; }
+        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.channels_label; fg: #60a5fa; bg: #112540; } } }
+        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.mode; fg: root.mode-fg; bg: root.mode-bg; } } }
+        Rectangle { width: 4px; }
+        IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => { root.edit-requested(); } }
+        IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => { root.remove-requested(); } }
+    }
+}
 
 export component SectionSystemIoBindings inherits Rectangle {
-    // ── Data surface ────────────────────────────────────────────────────────
+    // ── Data surface ──────────────────────────────────────────────────────────
     in property <[IoBindingModel]> io-bindings;
-    // Real enumerated devices (id + display name) for the pickers.
     in property <[string]> input-device-ids;
     in property <[string]> input-device-names;
     in property <[string]> output-device-ids;
     in property <[string]> output-device-names;
-    // Channel checkboxes for the currently-active add-row (Rust rebuilds it
-    // whenever the active device changes).
     in property <[ChannelOptionItem]> channel-options;
-    // Inline error (e.g. delete rejected because binding is referenced).
     in-out property <string> io-binding-error: "";
 
-    // ── Callbacks ────────────────────────────────────────────────────────────
-    // Returns the generated id for the new binding.
+    // ── Callbacks ─────────────────────────────────────────────────────────────
     callback create-io-binding(string /* name */) -> string;
-    // Returns "" on success, error message on reject.
     callback delete-io-binding(string /* id */) -> string;
     callback rename-io-binding(string /* id */, string /* new_name */);
-    // The active add-row's device picker changed: (binding_id, is_input, device_id).
-    callback endpoint-device-changed(string, bool, string);
-    // Toggle a channel checkbox for the active add-row: (index, selected).
-    callback toggle-endpoint-channel(int, bool);
-    // Commit a structured input endpoint: (binding_id, device_id, mode).
-    // Rust reads the selected channel indices from the shared channel-options.
-    callback add-input-endpoint(string, string, string);
-    // Commit a structured output endpoint: (binding_id, device_id, mode).
-    callback add-output-endpoint(string, string, string);
-    // Remove an existing endpoint: (binding_id, ep_name, is_input).
-    callback remove-endpoint(string, string, bool);
+    callback endpoint-device-changed(string /* binding */, bool /* is_input */, string /* device_id */);
+    callback toggle-endpoint-channel(int /* index */, bool /* selected */);
+    callback add-input-endpoint(string /* binding */, string /* device_id */, string /* mode */);
+    callback add-output-endpoint(string /* binding */, string /* device_id */, string /* mode */);
+    callback remove-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
+    callback edit-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
 
     // ── Private state ─────────────────────────────────────────────────────────
-    // Index of the binding row open in the inline editor (-1 = none).
-    private property <int> editing-index: -1;
-    // Draft for renaming the open binding.
-    private property <string> rename-draft: "";
-    // Which add-row is active inside the open binding: id + side.
-    private property <string> active-binding-id: "";
-    private property <bool>   active-is-input: true;
-    // Draft for a new binding name.
-    private property <string> new-binding-name: "";
+    // Which add-row is open: "<binding>|in" / "<binding>|out" ("" = none).
+    private property <string> active-add: "";
+    private property <int> add-device-index: -1;
+    private property <int> add-mode-index: 0; // 0 mono, 1 stereo, 2 dual
 
     background: transparent;
 
     VerticalLayout {
-        spacing: 12px;
+        spacing: 22px;
 
-        // ── Create new binding row ──────────────────────────────────────────
-        Rectangle {
-            height: 52px;
-            background: #1d2025;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: #2a2f38;
-
-            HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 8px;
-                spacing: 8px;
-                alignment: center;
-
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 32px;
-                    Text {
-                        x: 0px;
-                        width: 100%;
-                        height: 100%;
-                        vertical-alignment: center;
-                        text: @tr("placeholder-binding-name");
-                        color: #5a6472;
-                        font-size: 14px;
-                        visible: root.new-binding-name == "";
-                    }
-                    TextInput {
-                        width: 100%;
-                        height: 100%;
-                        text <=> root.new-binding-name;
-                        color: #f3f6fb;
-                        font-size: 14px;
-                        single-line: true;
-                        vertical-alignment: center;
-                        accepted => {
-                            root.create-io-binding(root.new-binding-name);
-                            root.new-binding-name = "";
-                        }
-                    }
-                }
-
-                // Add button — always creates a binding (Rust assigns a
-                // default name when the field is empty), then it can be renamed.
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    background: #188cff;
-                    border-radius: 8px;
-
-                    Image {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        width: 15px;
-                        height: 15px;
-                        source: @image-url("../../assets/plus.svg");
-                        colorize: #ffffff;
-                    }
-
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.create-io-binding(root.new-binding-name);
-                            root.new-binding-name = "";
-                        }
-                    }
-                }
+        // Header row (the page title "Ligações de E/S" is rendered by the
+        // settings wrapper; here: helper + primary action).
+        HorizontalLayout {
+            spacing: 16px;
+            Text {
+                horizontal-stretch: 1;
+                text: @tr("help-io-bindings");
+                color: #a1a1aa; font-size: 14px; vertical-alignment: center; wrap: word-wrap;
             }
+            Rectangle { width: 138px; VerticalLayout { alignment: center;
+                PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.create-io-binding(""); } } } }
         }
 
-        // ── Inline error banner ─────────────────────────────────────────────
         if root.io-binding-error != "" : Rectangle {
-            height: 36px;
-            background: #3a1a1a;
-            border-radius: 6px;
-            border-width: 1px;
-            border-color: #8b2020;
-
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 8px;
-                spacing: 8px;
-                alignment: center;
-
-                Text {
-                    horizontal-stretch: 1;
-                    text: root.io-binding-error;
-                    color: #e07070;
-                    font-size: 13px;
-                    overflow: elide;
-                }
-
-                Rectangle {
-                    width: 24px;
-                    height: 24px;
-                    background: transparent;
-                    Image {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        width: 12px;
-                        height: 12px;
-                        source: @image-url("../../assets/close.svg");
-                        colorize: #e07070;
-                    }
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.io-binding-error = ""; }
-                    }
-                }
-            }
+            height: 40px; background: #3a1a1a; border-radius: 8px; border-width: 1px; border-color: #7f1d1d;
+            HorizontalLayout { padding-left: 14px; padding-right: 8px; spacing: 8px;
+                Text { horizontal-stretch: 1; text: root.io-binding-error; color: #fca5a5; font-size: 13px; vertical-alignment: center; overflow: elide; }
+                IconBtn { icon: @image-url("../../assets/close.svg"); clicked => { root.io-binding-error = ""; } } }
         }
 
-        // ── Binding list ────────────────────────────────────────────────────
-        for binding[i] in root.io-bindings : Rectangle {
-            background: #1d2025;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: root.editing-index == i ? #2f4a6a : #2a2f38;
-            animate border-color { duration: 150ms; }
+        if root.io-bindings.length == 0 : Rectangle {
+            height: 96px; background: #16161a; border-radius: 10px; border-width: 1px; border-color: #27272a;
+            VerticalLayout { alignment: center; spacing: 4px;
+                Text { text: @tr("empty-no-bindings"); color: #d4d4d8; font-size: 15px; font-weight: 600; horizontal-alignment: center; }
+                Text { text: @tr("empty-no-bindings-hint"); color: #71717a; font-size: 13px; horizontal-alignment: center; } }
+        }
 
+        for binding[bi] in root.io-bindings : Rectangle {
+            background: #18181b; border-radius: 10px; border-width: 1px; border-color: #27272a;
             VerticalLayout {
-                spacing: 0px;
+                padding: 24px; spacing: 18px;
 
-                // Row header: chevron + name + delete.
-                Rectangle {
-                    height: 52px;
+                // Binding header
+                HorizontalLayout { spacing: 8px;
+                    Text { horizontal-stretch: 1; text: binding.name; color: #fafafa; font-size: 16px; font-weight: 600; vertical-alignment: center; overflow: elide; }
+                    IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => { root.rename-io-binding(binding.id, binding.name); } }
+                    IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
+                        let err = root.delete-io-binding(binding.id); if err != "" { root.io-binding-error = err; } } }
+                }
 
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 8px;
-                        spacing: 10px;
-                        alignment: center;
-
-                        Image {
-                            width: 14px;
-                            height: 14px;
-                            source: root.editing-index == i
-                                ? @image-url("../../assets/arrow-down.svg")
-                                : @image-url("../../assets/arrow-right.svg");
-                            colorize: #8a92a3;
-                        }
-
-                        Text {
-                            horizontal-stretch: 1;
-                            text: binding.name;
-                            color: #dde3ec;
-                            font-size: 15px;
-                            font-weight: root.editing-index == i ? 600 : 400;
-                            overflow: elide;
-                            vertical-alignment: center;
-                        }
-
-                        Rectangle {
-                            width: 40px;
-                            height: 40px;
-                            background: del-ta.has-hover ? #3a1a1a : transparent;
-                            border-radius: 6px;
-                            animate background { duration: 120ms; }
-                            Image {
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
-                                width: 14px;
-                                height: 14px;
-                                source: @image-url("../../assets/trash.svg");
-                                colorize: del-ta.has-hover ? #e07070 : #6b7786;
-                            }
-                            del-ta := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    if root.editing-index == i { root.editing-index = -1; }
-                                    let err = root.delete-io-binding(binding.id);
-                                    if err != "" { root.io-binding-error = err; }
-                                }
-                            }
-                        }
-                    }
-
-                    TouchArea {
-                        width: parent.width - 60px;
-                        height: parent.height;
-                        x: 0px;
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.editing-index = (root.editing-index == i) ? -1 : i;
-                            root.rename-draft = binding.name;
-                            root.active-binding-id = "";
-                        }
+                // ── Entradas ──
+                SectionHeader { text: @tr("label-group-inputs"); tint: #4ade80; }
+                if binding.inputs.length == 0 : Text { text: @tr("empty-no-input-endpoints"); color: #71717a; font-size: 13px; }
+                for ep[ii] in binding.inputs : EndpointRow {
+                    endpoint: ep;
+                    edit-requested => { root.edit-endpoint(binding.id, ep.name, true); }
+                    remove-requested => { root.remove-endpoint(binding.id, ep.name, true); }
+                }
+                if root.active-add != (binding.id + "|in") : AddButton {
+                    text: @tr("btn-add-input");
+                    clicked => { root.active-add = binding.id + "|in"; root.add-device-index = -1; root.add-mode-index = 0; }
+                }
+                if root.active-add == (binding.id + "|in") : Rectangle {
+                    background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
+                    VerticalLayout { padding: 16px; spacing: 14px;
+                        FieldRow { label: @tr("label-endpoint-device");
+                            DropDown { model: root.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                picked(i) => { root.endpoint-device-changed(binding.id, true, root.input-device-ids[i]); } } }
+                        FieldRow { label: @tr("label-endpoint-mode");
+                            Segmented { options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current <=> root.add-mode-index; } }
+                        FieldRow { label: @tr("label-endpoint-channels");
+                            HorizontalLayout { alignment: start; spacing: 22px;
+                                for ch[ci] in root.channel-options : ChannelCell {
+                                    n: ch.label; on: ch.selected; radio: root.add-mode-index == 0;
+                                    toggled => { root.toggle-endpoint-channel(ci, !ch.selected); } } } }
+                        HorizontalLayout { spacing: 8px;
+                            Rectangle { horizontal-stretch: 1; }
+                            GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; } }
+                            PrimaryButton { text: @tr("btn-add"); clicked => {
+                                root.add-input-endpoint(binding.id, root.add-device-index >= 0 ? root.input-device-ids[root.add-device-index] : "",
+                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono");
+                                root.active-add = ""; } } }
                     }
                 }
 
-                // ── Inline editor ────────────────────────────────────────────
-                if root.editing-index == i : VerticalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    padding-bottom: 14px;
-                    spacing: 14px;
+                Hairline {}
 
-                    Rectangle { height: 1px; background: #25292f; }
-
-                    // Rename row.
-                    HorizontalLayout {
-                        spacing: 10px;
-                        alignment: center;
-                        Text {
-                            text: @tr("label-binding-name");
-                            color: #8a92a3;
-                            font-size: 13px;
-                            width: 90px;
-                            vertical-alignment: center;
-                        }
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 36px;
-                            background: #15181d;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: #2a2f38;
-                            TextInput {
-                                x: 10px;
-                                width: parent.width - 20px;
-                                height: 100%;
-                                text <=> root.rename-draft;
-                                color: #f3f6fb;
-                                font-size: 14px;
-                                single-line: true;
-                                vertical-alignment: center;
-                                accepted => { root.rename-io-binding(binding.id, root.rename-draft); }
-                            }
-                        }
-                        Rectangle {
-                            width: 40px;
-                            height: 40px;
-                            background: #1e2229;
-                            border-radius: 6px;
-                            Image {
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
-                                width: 14px;
-                                height: 14px;
-                                source: @image-url("../../assets/check.svg");
-                                colorize: #8a92a3;
-                            }
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.rename-io-binding(binding.id, root.rename-draft); }
-                            }
-                        }
-                    }
-
-                    // ── Entradas group ──────────────────────────────────────
-                    Text {
-                        text: @tr("label-group-inputs");
-                        color: #c4ccd8;
-                        font-size: 13px;
-                        font-weight: 600;
-                    }
-                    if binding.inputs.length == 0 : Text {
-                        text: @tr("empty-no-input-endpoints");
-                        color: #5a6472;
-                        font-size: 12px;
-                    }
-                    for ep[ei] in binding.inputs : IoEndpointRow {
-                        endpoint: ep;
-                        remove-requested => { root.remove-endpoint(binding.id, ep.name, true); }
-                    }
-                    Rectangle {
-                        height: add-input.preferred-height;
-                        background: #15181d;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: #262b33;
-                        add-input := IoEndpointAddRow {
-                            x: 12px;
-                            y: 12px;
-                            width: parent.width - 24px;
-                            is-input: true;
-                            device-names: root.input-device-names;
-                            device-ids: root.input-device-ids;
-                            channel-options: (root.active-binding-id == binding.id && root.active-is-input)
-                                ? root.channel-options : [];
-                            device-changed(dev) => {
-                                root.active-binding-id = binding.id;
-                                root.active-is-input = true;
-                                root.endpoint-device-changed(binding.id, true, dev);
-                            }
-                            toggle-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
-                            add-endpoint(dev, mode) => {
-                                root.add-input-endpoint(binding.id, dev, mode);
-                                root.active-binding-id = "";
-                            }
-                        }
-                    }
-
-                    // ── Saídas group ────────────────────────────────────────
-                    Text {
-                        text: @tr("label-group-outputs");
-                        color: #c4ccd8;
-                        font-size: 13px;
-                        font-weight: 600;
-                    }
-                    if binding.outputs.length == 0 : Text {
-                        text: @tr("empty-no-output-endpoints");
-                        color: #5a6472;
-                        font-size: 12px;
-                    }
-                    for ep[eo] in binding.outputs : IoEndpointRow {
-                        endpoint: ep;
-                        remove-requested => { root.remove-endpoint(binding.id, ep.name, false); }
-                    }
-                    Rectangle {
-                        height: add-output.preferred-height;
-                        background: #15181d;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: #262b33;
-                        add-output := IoEndpointAddRow {
-                            x: 12px;
-                            y: 12px;
-                            width: parent.width - 24px;
-                            is-input: false;
-                            device-names: root.output-device-names;
-                            device-ids: root.output-device-ids;
-                            channel-options: (root.active-binding-id == binding.id && !root.active-is-input)
-                                ? root.channel-options : [];
-                            device-changed(dev) => {
-                                root.active-binding-id = binding.id;
-                                root.active-is-input = false;
-                                root.endpoint-device-changed(binding.id, false, dev);
-                            }
-                            toggle-channel(idx, sel) => { root.toggle-endpoint-channel(idx, sel); }
-                            add-endpoint(dev, mode) => {
-                                root.add-output-endpoint(binding.id, dev, mode);
-                                root.active-binding-id = "";
-                            }
-                        }
+                // ── Saídas ──
+                SectionHeader { text: @tr("label-group-outputs"); tint: #fb923c; }
+                if binding.outputs.length == 0 : Text { text: @tr("empty-no-output-endpoints"); color: #71717a; font-size: 13px; }
+                for ep[oi] in binding.outputs : EndpointRow {
+                    endpoint: ep;
+                    edit-requested => { root.edit-endpoint(binding.id, ep.name, false); }
+                    remove-requested => { root.remove-endpoint(binding.id, ep.name, false); }
+                }
+                if root.active-add != (binding.id + "|out") : AddButton {
+                    text: @tr("btn-add-output");
+                    clicked => { root.active-add = binding.id + "|out"; root.add-device-index = -1; root.add-mode-index = 0; }
+                }
+                if root.active-add == (binding.id + "|out") : Rectangle {
+                    background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
+                    VerticalLayout { padding: 16px; spacing: 14px;
+                        FieldRow { label: @tr("label-endpoint-device");
+                            DropDown { model: root.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                picked(i) => { root.endpoint-device-changed(binding.id, false, root.output-device-ids[i]); } } }
+                        FieldRow { label: @tr("label-endpoint-mode");
+                            Segmented { options: [@tr("mode-mono"), @tr("mode-stereo")]; current <=> root.add-mode-index; } }
+                        FieldRow { label: @tr("label-endpoint-channels");
+                            HorizontalLayout { alignment: start; spacing: 22px;
+                                for ch[ci] in root.channel-options : ChannelCell {
+                                    n: ch.label; on: ch.selected; radio: root.add-mode-index == 0;
+                                    toggled => { root.toggle-endpoint-channel(ci, !ch.selected); } } } }
+                        HorizontalLayout { spacing: 8px;
+                            Rectangle { horizontal-stretch: 1; }
+                            GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; } }
+                            PrimaryButton { text: @tr("btn-add"); clicked => {
+                                root.add-output-endpoint(binding.id, root.add-device-index >= 0 ? root.output-device-ids[root.add-device-index] : "",
+                                    root.add-mode-index == 0 ? "mono" : "stereo");
+                                root.active-add = ""; } } }
                     }
                 }
             }
         }
 
-        // Bottom padding to keep the last item off the scroll edge.
-        Rectangle { height: 8px; }
+        Rectangle { height: 4px; }
     }
 }
