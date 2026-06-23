@@ -2,7 +2,7 @@ import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
 import { PresetPicker } from "preset_picker_globals.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
@@ -126,6 +126,7 @@ export component AppWindow inherits Window {
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <[ChainBindingChoice]> chain-editor-bindings;
     in property <bool> chain-editor-is-create-mode: true;
     in-out property <int> chain-editor-selected-instrument-index: 0;
     // Fullscreen inline I/O endpoint editor
@@ -297,6 +298,7 @@ export component AppWindow inherits Window {
     callback edit-chain-input(int);
     callback remove-chain-input(int);
     callback add-chain-input();
+    callback toggle-binding(int, bool);
     callback edit-chain-output(int);
     callback remove-chain-output(int);
     callback add-chain-output();
@@ -454,6 +456,8 @@ export component AppWindow inherits Window {
         available-commands: root.available-commands;
         chain-editor-input-groups: root.chain-editor-input-groups;
         chain-editor-output-groups: root.chain-editor-output-groups;
+        chain-editor-bindings: root.chain-editor-bindings;
+        toggle-binding(i, on) => { root.toggle-binding(i, on); }
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
         chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         show-chain-io-editor: root.show-chain-io-editor;
@@ -848,6 +852,8 @@ export component AppWindow inherits Window {
         // Inline chain editor
         chain-editor-input-groups: root.chain-editor-input-groups;
         chain-editor-output-groups: root.chain-editor-output-groups;
+        chain-editor-bindings: root.chain-editor-bindings;
+        toggle-binding(i, on) => { root.toggle-binding(i, on); }
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
         chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         edit-chain-input(index) => { root.edit-chain-input(index); }

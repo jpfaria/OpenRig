@@ -199,6 +199,7 @@ pub(crate) fn wire(
             window.set_show_chain_editor(true);
             if fullscreen {
                 window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_bindings(editor_window.get_bindings());
                 window.set_chain_editor_output_groups(editor_window.get_output_groups());
                 window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 window.set_chain_editor_selected_instrument_index(
@@ -335,6 +336,7 @@ pub(crate) fn wire(
             window.set_show_chain_editor(true);
             if fullscreen {
                 window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_bindings(editor_window.get_bindings());
                 window.set_chain_editor_output_groups(editor_window.get_output_groups());
                 window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 window.set_chain_editor_selected_instrument_index(
