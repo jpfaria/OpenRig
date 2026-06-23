@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings};
+use infra_filesystem::GuiAudioDeviceSettings;
 
 use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
@@ -120,15 +120,13 @@ impl LocalDispatcher {
                 // worker — the dispatching (GUI/MCP) thread never waits on
                 // disk. Single worker ⇒ ordered with every other config
                 // write. Errors surface via the non-blocking logger.
+                // #731: the destination path is bound HERE (dispatch time);
+                // the worker must not re-resolve `$HOME` at write time.
                 let gui_inputs = to_gui(&input_devices);
                 let gui_outputs = to_gui(&output_devices);
-                crate::persist_worker::run(move || {
-                    let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+                crate::app_config_persist::persist_app_config(move |config| {
                     config.input_devices = gui_inputs;
                     config.output_devices = gui_outputs;
-                    if let Err(e) = FilesystemStorage::save_app_config(&config) {
-                        log::error!("failed to persist audio settings: {e}");
-                    }
                 });
 
                 Ok(vec![Event::AudioSettingsSaved])

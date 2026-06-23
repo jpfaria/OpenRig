@@ -12,31 +12,20 @@
 //! restart hint.
 
 use anyhow::Result;
-use infra_filesystem::FilesystemStorage;
 
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
     pub(crate) fn handle_set_midi_enabled(&self, enabled: bool) -> Result<Vec<Event>> {
-        crate::persist_worker::run(move || {
-            let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
-            config.midi_enabled = enabled;
-            if let Err(e) = FilesystemStorage::save_app_config(&config) {
-                log::error!("failed to persist midi_enabled: {e}");
-            }
-        });
+        // #731: bind the config path at dispatch time (see app_config_persist).
+        crate::app_config_persist::persist_app_config(move |config| config.midi_enabled = enabled);
         Ok(vec![Event::MidiEnabledChanged { enabled }])
     }
 
     pub(crate) fn handle_set_mcp_enabled(&self, enabled: bool) -> Result<Vec<Event>> {
-        crate::persist_worker::run(move || {
-            let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
-            config.mcp_enabled = enabled;
-            if let Err(e) = FilesystemStorage::save_app_config(&config) {
-                log::error!("failed to persist mcp_enabled: {e}");
-            }
-        });
+        // #731: bind the config path at dispatch time (see app_config_persist).
+        crate::app_config_persist::persist_app_config(move |config| config.mcp_enabled = enabled);
         Ok(vec![Event::McpEnabledChanged { enabled }])
     }
 }

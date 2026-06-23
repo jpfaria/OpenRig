@@ -44,6 +44,10 @@ pub(super) fn with_tmp_home<F: FnOnce()>(label: &str, f: F) {
     let prev = std::env::var_os("HOME");
     std::env::set_var("HOME", &tmp);
     let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    // #731: drain the async persist worker BEFORE restoring `$HOME`, so a
+    // queued config write can't land on the real config after the swap
+    // unwinds. Defense-in-depth alongside dispatch-time path binding.
+    crate::persist_worker::flush();
     if let Some(prev) = prev {
         std::env::set_var("HOME", prev);
     } else {

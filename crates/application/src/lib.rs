@@ -8,6 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod app_config_persist;
 pub mod block_factory;
 pub mod di_loader;
 pub mod bridge;
