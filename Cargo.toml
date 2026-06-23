@@ -41,6 +41,9 @@ members = [
   "crates/adapter-render",
   "crates/vst3",
 ]
+# Dev-only headless Slint renderer (PNG screenshots for UI review). Excluded:
+# it pins slint-interpreter at its own version and must not enter the app build.
+exclude = ["tools/slint-render"]
 resolver = "2"
 
 [workspace.package]
@@ -65,8 +68,8 @@ prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
 crossbeam-queue = "0.3"
-slint = { version = "1.14", default-features = false, features = ["std", "compat-1-2"] }
-slint-build = "1.14"
+slint = { version = "1.16", default-features = false, features = ["std", "compat-1-2"] }
+slint-build = "1.16"
 log = "0.4"
 env_logger = "0.11"
 rustfft = "6"
