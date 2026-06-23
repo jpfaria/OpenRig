@@ -261,3 +261,37 @@ fn streams_never_cross_binding_boundaries() {
         );
     }
 }
+
+// ── selection-driven discovery (#716 redesign) ─────────────────────────────
+
+/// A chain that SELECTS a binding (`io_binding_ids`) but carries NO bound
+/// Input/Output blocks of its own must still route: discovery synthesises the
+/// bound blocks from the selected binding before stream enumeration. This is
+/// the new chain model — the user marks bindings, the engine discovers the I/O.
+#[test]
+fn selected_binding_without_bound_blocks_routes_via_discovery() {
+    let chain = Chain {
+        id: ChainId("sel".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["xyz".into()],
+        blocks: vec![effect("A")],
+    };
+
+    // xyz: inputs ch1,ch2 ; outputs ch3,ch4 → discovery places 2 inputs at the
+    // head and 2 outputs at the tail, so every input pairs with every output.
+    let streams = resolve_chain_streams(&chain, &xyz_binding());
+
+    assert_eq!(
+        streams.len(),
+        4,
+        "2 input × 2 output endpoints of the selected binding → 4 streams, got {}",
+        streams.len()
+    );
+    assert!(
+        streams.iter().any(|s| s.input_endpoint == "ch1" && s.output_endpoint == "ch3"),
+        "expected a ch1→ch3 stream discovered from the selected binding"
+    );
+}
