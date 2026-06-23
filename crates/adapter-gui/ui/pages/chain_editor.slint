@@ -1,5 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { IoGroupItem, ChainBindingChoice } from "../models.slint";
+import { ChainBindingChoice } from "../models.slint";
 
 component FooterButton inherits Rectangle {
     in property <string> label;
@@ -60,8 +60,6 @@ export component ChainEditorPage inherits Rectangle {
     in property <string> title;
     in property <string> save-label;
     in-out property <string> chain-name;
-    in property <[IoGroupItem]> input-groups;
-    in property <[IoGroupItem]> output-groups;
     // #716: the I/O bindings this chain can select (checklist replaces the old
     // per-endpoint add-input/add-output flow).
     in property <[ChainBindingChoice]> bindings;
@@ -78,12 +76,6 @@ export component ChainEditorPage inherits Rectangle {
         @tr("instrument-other"),
     ];
     callback update-chain-name(string);
-    callback edit-input(int);
-    callback remove-input(int);
-    callback add-input();
-    callback edit-output(int);
-    callback remove-output(int);
-    callback add-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);

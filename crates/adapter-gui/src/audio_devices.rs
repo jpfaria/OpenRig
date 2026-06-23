@@ -1,4 +1,4 @@
-use crate::state::{InputGroupDraft, InsertDraft, OutputGroupDraft};
+use crate::state::InsertDraft;
 use crate::{
     ChannelOptionItem, DeviceSelectionItem, DEFAULT_BIT_DEPTH, DEFAULT_BUFFER_SIZE_FRAMES,
     DEFAULT_SAMPLE_RATE, SUPPORTED_BIT_DEPTHS, SUPPORTED_BUFFER_SIZES, SUPPORTED_SAMPLE_RATES,
@@ -157,75 +157,6 @@ pub(crate) fn build_project_device_rows(
         });
     }
     rows
-}
-
-pub(crate) fn build_input_channel_items(
-    input_group: &InputGroupDraft,
-    input_devices: &[AudioDeviceDescriptor],
-) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = input_group.device_id.as_ref() else {
-        return Vec::new();
-    };
-    // Try exact match first, then fallback to single device
-    let device = input_devices
-        .iter()
-        .find(|d| &d.id == device_id)
-        .or_else(|| {
-            if input_devices.len() == 1 {
-                input_devices.first()
-            } else {
-                None
-            }
-        });
-    let Some(device) = device else {
-        return Vec::new();
-    };
-    // Input channels are freely shareable across chains — backend fan-out
-    // (cpal/JACK opens the device once and dispatches to N parallel
-    // runtimes). #317: do NOT mark a channel unavailable just because
-    // another chain consumes it.
-    (0..device.channels)
-        .map(|channel| ChannelOptionItem {
-            index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
-                .to_string()
-                .into(),
-            selected: input_group.channels.contains(&channel),
-            available: true,
-        })
-        .collect()
-}
-
-pub(crate) fn build_output_channel_items(
-    output_group: &OutputGroupDraft,
-    output_devices: &[AudioDeviceDescriptor],
-) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = output_group.device_id.as_ref() else {
-        return Vec::new();
-    };
-    let device = output_devices
-        .iter()
-        .find(|d| &d.id == device_id)
-        .or_else(|| {
-            if output_devices.len() == 1 {
-                output_devices.first()
-            } else {
-                None
-            }
-        });
-    let Some(device) = device else {
-        return Vec::new();
-    };
-    (0..device.channels)
-        .map(|channel| ChannelOptionItem {
-            index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
-                .to_string()
-                .into(),
-            selected: output_group.channels.contains(&channel),
-            available: true,
-        })
-        .collect()
 }
 
 pub(crate) fn replace_channel_options(

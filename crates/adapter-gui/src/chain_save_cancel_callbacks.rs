@@ -98,42 +98,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                 set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-select-binding"));
                 return;
             }
-            for (i, input) in draft.inputs.iter().enumerate() {
-                if input.device_id.is_none() {
-                    set_status_warning(
-                        &window,
-                        &toast_timer,
-                        &rust_i18n::t!("error-input-no-device-numbered", n = i + 1).to_string(),
-                    );
-                    return;
-                }
-                if input.channels.is_empty() {
-                    set_status_warning(
-                        &window,
-                        &toast_timer,
-                        &rust_i18n::t!("error-input-no-channels-numbered", n = i + 1).to_string(),
-                    );
-                    return;
-                }
-            }
-            for (i, output) in draft.outputs.iter().enumerate() {
-                if output.device_id.is_none() {
-                    set_status_warning(
-                        &window,
-                        &toast_timer,
-                        &rust_i18n::t!("error-output-no-device-numbered", n = i + 1).to_string(),
-                    );
-                    return;
-                }
-                if output.channels.is_empty() {
-                    set_status_warning(
-                        &window,
-                        &toast_timer,
-                        &rust_i18n::t!("error-output-no-channels-numbered", n = i + 1).to_string(),
-                    );
-                    return;
-                }
-            }
             let editing_index = draft.editing_index;
             log::debug!(
                 "[save_chain] editing_index={:?}, draft.instrument='{}'",

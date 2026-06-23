@@ -67,60 +67,10 @@ fn touch_main_exposes_io_binding_names_root_property() {
     );
 }
 
-// ── secondary ChainEditorWindow: inline editors must bind io-binding-names ────
-
-/// The inline `ChainEndpointEditorPage` overlays inside `ChainEditorWindow`
-/// in `secondary_windows_chain.slint` must forward the window's
-/// `input-io-binding-names` and `output-io-binding-names` root properties.
-///
-/// When this test is RED the file already declares those properties on
-/// `ChainEditorWindow` but the inner `if root.show-input-editor` block
-/// passes `io-binding-names: []` (hard-coded empty) instead of
-/// `root.input-io-binding-names`.
-#[test]
-fn chain_editor_window_inline_editors_forward_io_binding_names() {
-    let src = read_slint("secondary_windows_chain.slint");
-
-    // The ChainEditorWindow already declares these properties (Tasks 11-16).
-    // What we guard here is that the INNER ChainEndpointEditorPage instances
-    // actually USE them rather than the hard-coded empty literal.
-    let editor_block_start = src
-        .find("if root.show-input-editor")
-        .expect("secondary_windows_chain.slint: expected `if root.show-input-editor` block in ChainEditorWindow");
-
-    let after_input = &src[editor_block_start..];
-
-    // Find the end of the input-editor block heuristically: next top-level `if`
-    // or end of the component.  We just need to scan forward far enough.
-    let block_snippet = &after_input[..after_input.len().min(600)];
-
-    assert!(
-        !block_snippet.contains("io-binding-names: []"),
-        "secondary_windows_chain.slint: the `if root.show-input-editor` block \
-         must forward `io-binding-names: root.input-io-binding-names`, not \
-         pass the empty literal `[]`.  Found `io-binding-names: []` in the block."
-    );
-}
-
-/// Same guard for the output editor block.
-#[test]
-fn chain_editor_window_output_editor_forwards_io_binding_names() {
-    let src = read_slint("secondary_windows_chain.slint");
-
-    let editor_block_start = src
-        .find("if root.show-output-editor")
-        .expect("secondary_windows_chain.slint: expected `if root.show-output-editor` block");
-
-    let after_output = &src[editor_block_start..];
-    let block_snippet = &after_output[..after_output.len().min(600)];
-
-    assert!(
-        !block_snippet.contains("io-binding-names: []"),
-        "secondary_windows_chain.slint: the `if root.show-output-editor` block \
-         must forward `io-binding-names: root.output-io-binding-names`, not \
-         pass `[]`.  Found `io-binding-names: []` in the block."
-    );
-}
+// #716: the inline per-endpoint editor overlays (`show-input-editor` /
+// `show-output-editor` `ChainEndpointEditorPage`) were removed from
+// `ChainEditorWindow` — the chain now selects I/O via the binding checklist,
+// so the two parity guards for those overlays no longer apply.
 
 // ── desktop_app_init: io_bindings::wire is called for both AppWindow and ──────
 // ── ProjectSettingsWindow.  Since we cannot call AppWindow::new() in tests ─────
