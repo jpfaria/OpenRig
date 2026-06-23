@@ -97,6 +97,12 @@ pub(crate) fn wire(
             let existing_chain =
                 editing_index.and_then(|index| session.project.borrow().chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            // #716: materialize the bound Input/Output blocks from the chain's
+            // selected bindings NOW, so the saved chain actually has I/O blocks
+            // (project validation + the engine require them) and produces sound —
+            // discovery is otherwise runtime-only. No-op when no bindings.
+            let chain =
+                project::binding_discovery::resolve_bound_io_blocks(&chain, &session.io_bindings.borrow());
             if let Err(msg) = chain.validate_channel_conflicts() {
                 chain_window.set_status_message(msg.into());
                 return;

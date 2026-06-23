@@ -157,6 +157,13 @@ pub(crate) fn wire(
                 window.set_project_devices(settings_window.get_project_devices());
                 window.set_show_settings(true);
             } else {
+                // The settings window is a startup-created singleton reshown on
+                // each open; on macOS it can reopen collapsed to ~title-bar
+                // height. Force its intended size before showing so the content
+                // (sidebar + section + footer) is always visible.
+                settings_window
+                    .window()
+                    .set_size(slint::LogicalSize::new(1100.0, 640.0));
                 show_child_window(window.window(), settings_window.window());
             }
         });

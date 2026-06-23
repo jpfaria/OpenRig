@@ -35,6 +35,14 @@ pub fn validate_project(project: &Project) -> Result<()> {
             );
         }
 
+        // #716: a binding-bound chain resolves its input/output from the I/O
+        // binding registry at runtime — its blocks carry `io`/`endpoint`, not
+        // `entries`. The entries-based validation below does not apply (and
+        // would wrongly reject it with "input '…' has no entries").
+        if !chain.io_binding_ids.is_empty() {
+            continue;
+        }
+
         // Validate each input block's entries
         for (_, input) in &input_blocks {
             for (entry_idx, entry) in input.entries.iter().enumerate() {

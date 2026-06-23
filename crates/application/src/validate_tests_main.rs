@@ -22,6 +22,56 @@ fn validate_project_mono_input_mono_output_succeeds() {
     assert!(validate_project(&project).is_ok());
 }
 
+// #716: a binding-bound chain resolves its I/O from the registry at runtime —
+// its Input/Output blocks carry `io`/`endpoint` and have NO `entries`. The
+// entries-based validation must NOT reject it (that was the no-sound bug:
+// "input 'standard' has no entries").
+#[test]
+fn validate_project_binding_bound_chain_without_entries_succeeds() {
+    use domain::ids::{BlockId, ChainId};
+    use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
+    use project::chain::Chain;
+    use project::project::Project;
+
+    let bound_input = AudioBlock {
+        id: BlockId("in".into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            io: "scarlet".into(),
+            endpoint: "in1".into(),
+            entries: vec![],
+        }),
+    };
+    let bound_output = AudioBlock {
+        id: BlockId("out".into()),
+        enabled: true,
+        kind: AudioBlockKind::Output(OutputBlock {
+            model: "standard".into(),
+            io: "scarlet".into(),
+            endpoint: "out1".into(),
+            entries: vec![],
+        }),
+    };
+    let chain = Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["scarlet".into()],
+        blocks: vec![bound_input, bound_output],
+    };
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    };
+    validate_project(&project)
+        .expect("binding-bound chain must validate — its I/O comes from the registry");
+}
+
 #[test]
 fn validate_project_stereo_input_stereo_output_succeeds() {
     let project = test_project(vec![test_chain(
