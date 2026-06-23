@@ -22,7 +22,7 @@ use slint::{ComponentHandle, Timer, VecModel};
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use infra_filesystem::{AppConfig, FilesystemStorage};
+use infra_filesystem::AppConfig;
 
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
@@ -162,15 +162,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         });
                     }
                     {
-                    // #693: config write runs on the persist worker — the
-                    // GUI thread never waits on disk.
-                    let snapshot = app_config.borrow().clone();
-                    application::persist_worker::run(move || {
-                        if let Err(e) = FilesystemStorage::save_app_config(&snapshot) {
-                            log::error!("save_app_config failed: {e}");
-                        }
-                    });
-                }
+                        // #693: config write runs on the persist worker — the
+                        // GUI thread never waits on disk.
+                        let snapshot = app_config.borrow().clone();
+                        // #731: bind the config path at dispatch time.
+                        application::app_config_persist::persist_app_config_snapshot(snapshot);
+                    }
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
@@ -212,15 +209,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         });
                     }
                     {
-                    // #693: config write runs on the persist worker — the
-                    // GUI thread never waits on disk.
-                    let snapshot = app_config.borrow().clone();
-                    application::persist_worker::run(move || {
-                        if let Err(e) = FilesystemStorage::save_app_config(&snapshot) {
-                            log::error!("save_app_config failed: {e}");
-                        }
-                    });
-                }
+                        // #693: config write runs on the persist worker — the
+                        // GUI thread never waits on disk.
+                        let snapshot = app_config.borrow().clone();
+                        // #731: bind the config path at dispatch time.
+                        application::app_config_persist::persist_app_config_snapshot(snapshot);
+                    }
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
@@ -308,11 +302,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 {
                     // #693: write on the persist worker.
                     let snapshot = config.clone();
-                    application::persist_worker::run(move || {
-                        if let Err(e) = FilesystemStorage::save_app_config(&snapshot) {
-                            log::error!("save_app_config failed: {e}");
-                        }
-                    });
+                    // #731: bind the config path at dispatch time.
+                    application::app_config_persist::persist_app_config_snapshot(snapshot);
                 }
                 recent_projects.set_vec(recent_project_items(
                     &config.recent_projects,

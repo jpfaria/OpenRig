@@ -581,32 +581,27 @@ impl LocalDispatcher {
     /// survived only in memory and reset to default on the next launch
     /// (issue #540).
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
-        use infra_filesystem::FilesystemStorage;
         match cmd {
             // #693: path persistence runs on the persist worker — the
             // dispatching thread never waits on disk; errors go to the
             // non-blocking logger.
+            // #731: bind the config path at dispatch time (see app_config_persist);
+            // the worker must not re-resolve `$HOME` at write time.
             Command::SetPresetsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_presets_path(path) {
-                        log::error!("save_presets_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.presets_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetPluginsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_plugins_path(path) {
-                        log::error!("save_plugins_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.plugins_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetEvaluationsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_evaluations_path(path) {
-                        log::error!("save_evaluations_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.evaluations_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
