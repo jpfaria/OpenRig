@@ -736,3 +736,12 @@ msgstr "Pas encore rechargé"
 msgid "title-section-paths"
 msgstr "Chemins"
 
+
+msgid "label-chain-io-bindings"
+msgstr "Liaisons d'E/S"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "Aucune liaison d'E/S — créez-les dans Réglages → Liaisons d'E/S"
+
+msgid "warn-select-binding"
+msgstr "Sélectionnez au moins une liaison d'E/S pour cette chaîne"

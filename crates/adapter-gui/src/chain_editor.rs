@@ -30,6 +30,7 @@ pub(crate) fn create_chain_draft(
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         inputs: Vec::new(),
         outputs: Vec::new(),
+        io_binding_ids: Vec::new(),
         editing_io_block_index: None,
         editing_input_index: None,
         editing_output_index: None,
@@ -99,6 +100,7 @@ pub(crate) fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft 
             .unwrap_or_else(|| rust_i18n::t!("default-chain-name", n = index + 1).to_string()),
         instrument: chain.instrument.clone(),
         inputs,
+        io_binding_ids: chain.io_binding_ids.clone(),
         editing_io_block_index: None,
         outputs,
         editing_input_index: None,
@@ -164,7 +166,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             instrument: draft.instrument.clone(),
             enabled: existing.enabled,
             volume: existing.volume,
-            io_binding_ids: vec![],
+            io_binding_ids: draft.io_binding_ids.clone(),
             blocks,
         }
     } else {
@@ -224,7 +226,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             instrument: draft.instrument.clone(),
             enabled: false,
             volume: 100.0,
-            io_binding_ids: vec![],
+            io_binding_ids: draft.io_binding_ids.clone(),
             blocks,
         }
     }

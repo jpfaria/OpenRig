@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 /// Dispatch a left press+release at the centre of the element with `id`.
 /// Returns false if no such element is currently materialised.
-fn click_element(w: &ProjectSettingsWindow, id: &str) -> bool {
+fn click_element(w: &impl ComponentHandle, id: &str) -> bool {
     let Some(el) = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).next() else {
         return false;
     };
@@ -378,10 +378,39 @@ fn io_bindings_ui_interactions() {
              the screen stays in the rename field as if nothing happened"
         );
     }
+
+    // ── 8. Chain editor shows a BINDING CHECKLIST (the redesign) ─────────────
+    //    The chain create/configure page no longer adds input/output endpoints;
+    //    it lists the I/O bindings as checkable rows. Clicking a row toggles
+    //    that binding for the chain.
+    {
+        use crate::{ChainBindingChoice, ChainEditorWindow};
+
+        let w = ChainEditorWindow::new().unwrap();
+        w.window().set_size(LogicalSize::new(1100.0, 700.0));
+        w.set_bindings(ModelRc::new(VecModel::from(vec![
+            ChainBindingChoice { id: "xyz".into(), name: "XYZ".into(), selected: false },
+            ChainBindingChoice { id: "abc".into(), name: "ABC".into(), selected: true },
+        ])));
+        w.show().unwrap();
+
+        let fired = Rc::new(Cell::new((-1_i32, false)));
+        let f = fired.clone();
+        w.on_toggle_binding(move |i, on| f.set((i, on)));
+
+        assert!(
+            click_element(&w, "ChainEditorPage::chain-binding-cell"),
+            "binding checklist cell not found — the chain editor still uses the \
+             old add-input/add-output flow instead of a binding checklist"
+        );
+        let (idx, on) = fired.get();
+        assert_eq!(idx, 0, "clicking the first binding row must toggle binding 0");
+        assert!(on, "an unselected binding row must toggle ON when clicked");
+    }
 }
 
 /// True if an element with `id` is currently materialised in `w`.
-fn exists(w: &ProjectSettingsWindow, id: &str) -> bool {
+fn exists(w: &impl ComponentHandle, id: &str) -> bool {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
         .next()
         .is_some()

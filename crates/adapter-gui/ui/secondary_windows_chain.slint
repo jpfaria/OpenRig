@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, IoGroupItem, ChainBindingChoice, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
@@ -160,10 +160,13 @@ export component ChainEditorWindow inherits Window {
     in-out property <string> chain-name;
     in property <[IoGroupItem]> input-groups;
     in property <[IoGroupItem]> output-groups;
+    // #716: I/O bindings the chain can select (checklist).
+    in property <[ChainBindingChoice]> bindings;
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
     callback update-chain-name(string);
+    callback toggle-binding(int, bool);
     callback edit-input(int);
     callback remove-input(int);
     callback add-input();
@@ -226,10 +229,12 @@ export component ChainEditorWindow inherits Window {
         chain-name: root.chain-name;
         input-groups: root.input-groups;
         output-groups: root.output-groups;
+        bindings: root.bindings;
         status-message: root.status-message;
         is-create-mode: root.is-create-mode;
         selected-instrument-index: root.selected-instrument-index;
         update-chain-name(value) => { root.update-chain-name(value); }
+        toggle-binding(index, on) => { root.toggle-binding(index, on); }
         edit-input(index) => { root.edit-input(index); }
         remove-input(index) => { root.remove-input(index); }
         add-input => { root.add-input(); }

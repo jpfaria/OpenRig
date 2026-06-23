@@ -737,3 +737,12 @@ msgstr "まだ再読み込みしていません"
 msgid "title-section-paths"
 msgstr "パス"
 
+
+msgid "label-chain-io-bindings"
+msgstr "I/O バインディング"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "I/O バインディングがまだありません — 設定 → I/O バインディング で作成"
+
+msgid "warn-select-binding"
+msgstr "このチェーンに少なくとも1つの I/O バインディングを選択してください"

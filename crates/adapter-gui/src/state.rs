@@ -122,6 +122,10 @@ pub(crate) struct ChainDraft {
     pub(crate) instrument: String,
     pub(crate) inputs: Vec<InputGroupDraft>,
     pub(crate) outputs: Vec<OutputGroupDraft>,
+    /// #716: the I/O bindings this chain selects (checklist). The chain's
+    /// input/output is discovered from these; the legacy `inputs`/`outputs`
+    /// drafts are no longer edited in the redesigned chain editor.
+    pub(crate) io_binding_ids: Vec<String>,
     pub(crate) editing_input_index: Option<usize>,
     pub(crate) editing_output_index: Option<usize>,
     /// Which block in chain.blocks is being edited by the I/O groups window.

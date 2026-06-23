@@ -160,6 +160,13 @@ pub(crate) fn wire(
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
             apply_chain_io_groups(&window, editor_window, &draft, &devs_in, &devs_out);
+            // #716: feed the binding checklist (none selected for a new chain).
+            editor_window.set_bindings(slint::ModelRc::new(VecModel::from(
+                crate::chain_binding_choices::binding_choices(
+                    &app_config.borrow().io_bindings,
+                    &draft.io_binding_ids,
+                ),
+            )));
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,
@@ -309,6 +316,14 @@ pub(crate) fn wire(
             if let Some(draft) = chain_draft.borrow().as_ref() {
                 apply_chain_editor_labels(&window, draft);
                 apply_chain_io_groups(&window, editor_window, draft, &devs_in, &devs_out);
+                // #716: feed the binding checklist, pre-checking the chain's
+                // currently-selected bindings.
+                editor_window.set_bindings(slint::ModelRc::new(VecModel::from(
+                    crate::chain_binding_choices::binding_choices(
+                        &app_config.borrow().io_bindings,
+                        &draft.io_binding_ids,
+                    ),
+                )));
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
                 editor_window.set_is_create_mode(false);
