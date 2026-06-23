@@ -45,6 +45,9 @@ export component ProjectSettingsWindow inherits Window {
     callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
     in property <[IoBindingModel]> io-bindings;
+    // Exposed so navigation can be driven (e.g. interaction tests jumping
+    // straight to the I/O bindings section).
+    in-out property <int> settings-selected-section: 0;
     in property <[string]> input-device-ids;
     in property <[string]> input-device-names;
     in property <[string]> output-device-ids;
@@ -95,6 +98,7 @@ export component ProjectSettingsWindow inherits Window {
         language-options: root.language-options;
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
+        selected-section <=> root.settings-selected-section;
         midi-devices: root.midi-devices;
         midi-enabled: root.midi-enabled;
         mcp-enabled: root.mcp-enabled;

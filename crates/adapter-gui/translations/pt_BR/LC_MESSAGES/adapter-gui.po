@@ -706,7 +706,7 @@ msgid "mode-stereo"
 msgstr "Estéreo"
 
 msgid "mode-dual-mono"
-msgstr "Mono duplo"
+msgstr "Dual Mono"
 
 msgid "placeholder-binding-name"
 msgstr "Nome da ligação…"

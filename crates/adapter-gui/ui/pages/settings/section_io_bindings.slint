@@ -132,23 +132,28 @@ component Segmented inherits Rectangle {
 
 // One channel selector cell. Radio (round) when single-select (mono),
 // checkbox (square) otherwise.
-component ChannelCell inherits HorizontalLayout {
+// Rectangle (not a layout) so the TouchArea below the content overlays the
+// WHOLE cell — box + label. As a HorizontalLayout the TouchArea was a third
+// column and only a sliver was clickable, so the radio/checkbox never toggled.
+component ChannelCell inherits Rectangle {
     in property <string> n;
     in property <bool> on: false;
     in property <bool> radio: false;
     callback toggled();
-    spacing: 8px;
-    Rectangle {
-        width: 18px; height: 18px; y: (parent.height - self.height) / 2;
-        border-radius: root.radio ? 9px : 4px;
-        background: root.on && !root.radio ? #2f80ff : #18181b;
-        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
-        if root.on && root.radio : Rectangle { width: 8px; height: 8px;
-            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; border-radius: 4px; background: #2f80ff; }
-        if root.on && !root.radio : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-            width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+    HorizontalLayout {
+        spacing: 8px;
+        Rectangle {
+            width: 18px; height: 18px;
+            border-radius: root.radio ? 9px : 4px;
+            background: root.on && !root.radio ? #2f80ff : #18181b;
+            border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
+            if root.on && root.radio : Rectangle { width: 8px; height: 8px;
+                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; border-radius: 4px; background: #2f80ff; }
+            if root.on && !root.radio : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+        }
+        Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
     }
-    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
     TouchArea { mouse-cursor: pointer; clicked => { root.toggled(); } }
 }
 
@@ -231,7 +236,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                 color: #a1a1aa; font-size: 14px; vertical-alignment: center; wrap: word-wrap;
             }
             Rectangle { width: 138px; VerticalLayout { alignment: center;
-                PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.create-io-binding(""); } } } }
+                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.create-io-binding(""); } } } }
         }
 
         if root.io-binding-error != "" : Rectangle {
@@ -263,14 +268,19 @@ export component SectionSystemIoBindings inherits Rectangle {
                         horizontal-stretch: 1; height: 36px;
                         background: #111114; border-radius: 8px; border-width: 1px;
                         border-color: name-input.has-focus ? #2f80ff : #3f3f46;
+                        // Auto-focus AFTER first layout. Calling focus() from the
+                        // TextInput's init (while this conditional is still being
+                        // laid out, mid mouse-event) recurses on item_geometry and
+                        // aborts the process. A one-shot Timer defers it safely.
+                        focus-timer := Timer {
+                            interval: 1ms;
+                            triggered => { name-input.focus(); name-input.select-all(); focus-timer.running = false; }
+                        }
                         HorizontalLayout { padding-left: 12px; padding-right: 12px;
                             name-input := TextInput {
                                 text: binding.name;
                                 color: #fafafa; font-size: 16px; font-weight: 600;
                                 vertical-alignment: center; single-line: true;
-                                // Auto-focus + select the whole name when the
-                                // editor appears so the user can type over it.
-                                init => { self.focus(); self.select-all(); }
                                 // Commit on Enter and on losing focus (blur).
                                 accepted => {
                                     root.rename-io-binding(binding.id, self.text);
@@ -285,7 +295,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                             }
                         }
                     }
-                    IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => {
+                    rename-btn := IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => {
                         root.renaming-binding-id = binding.id;
                     } }
                     IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
@@ -306,7 +316,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                     }
                     remove-requested => { root.remove-endpoint(binding.id, ep.name, true); }
                 }
-                if root.active-add != (binding.id + "|in") : AddButton {
+                if root.active-add != (binding.id + "|in") : add-input-btn := AddButton {
                     text: @tr("btn-add-input");
                     clicked => { root.active-add = binding.id + "|in"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
                 }
@@ -320,7 +330,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                             Segmented { options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current <=> root.add-mode-index; } }
                         FieldRow { label: @tr("label-endpoint-channels");
                             HorizontalLayout { alignment: start; spacing: 22px;
-                                for ch[ci] in root.channel-options : ChannelCell {
+                                for ch[ci] in root.channel-options : chan-cell := ChannelCell {
                                     n: ch.label; on: ch.selected; radio: root.add-mode-index == 0;
                                     toggled => { root.toggle-endpoint-channel(ci, !ch.selected,
                                         root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } } }

@@ -26,8 +26,14 @@ fn main() {
     // ship, falling back to the raw key in the UI (e.g. "BTN-CLOSE"
     // showing up as Bebas Neue all-caps). See slint_build docs for
     // with_default_translation_context.
-    let base = slint_build::CompilerConfiguration::new()
+    let mut base = slint_build::CompilerConfiguration::new()
         .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    // #716: the ElementHandle interaction-test API requires element debug info
+    // in the generated code. Emit it in debug builds (where the tests run);
+    // release/embedded builds stay lean.
+    if std::env::var("PROFILE").as_deref() == Ok("debug") {
+        base = base.with_debug_info(true);
+    }
     let config = if translations.exists() {
         base.with_bundled_translations(translations)
     } else {

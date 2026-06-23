@@ -55,3 +55,8 @@ slint-build.workspace = true
 [dev-dependencies]
 tempfile = "3"
 hound = "3.5"
+# Slint interaction-test backend: instantiates real windows headlessly and
+# dispatches real pointer events, so tests catch .slint structural bugs
+# (TouchArea placement, focus recursion, callback wiring) that pure WireCtx
+# tests cannot see. This is why "green" unit tests still shipped broken UI.
+i-slint-backend-testing = "1.16"

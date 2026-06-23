@@ -185,3 +185,11 @@ mod chain_io_chip_label_tests;
 
 #[cfg(test)]
 mod touch_window_io_parity_tests;
+
+// #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
+// headlessly and dispatch real pointer events, catching .slint structural bugs
+// (TouchArea placement, focus recursion, callback wiring) that pure WireCtx
+// tests cannot see.
+#[cfg(test)]
+#[path = "io_bindings_ui_tests.rs"]
+mod io_bindings_ui_tests;
