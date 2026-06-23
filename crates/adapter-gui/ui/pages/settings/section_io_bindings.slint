@@ -73,9 +73,8 @@ component AddButton inherits Rectangle {
     height: 42px; border-radius: 8px; border-width: 1px; border-color: #2f2f36;
     background: ta.has-hover ? #1f1f24 : #1c1c20;
     animate background { duration: 120ms; }
-    HorizontalLayout { alignment: center; spacing: 8px;
-        Image { width: 13px; height: 13px; y: (parent.height - self.height) / 2;
-            source: @image-url("../../assets/plus.svg"); colorize: #d4d4d8; }
+    // No icon — the btn-add-* translations already include the "+" prefix.
+    HorizontalLayout { alignment: center;
         Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; vertical-alignment: center; } }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
