@@ -324,6 +324,21 @@ pub(crate) fn resolve_chain_inputs(
         })
         .collect();
     input_entries.extend(insert_return_entries);
+    // #716: a chain may also reference whole E/S bindings (io_binding_ids). Each
+    // selected binding's input endpoints generate their own streams, IN ADDITION
+    // to any explicit chain Input blocks — the I/O comes from the system binding,
+    // not the chain. Mirrors input_entries_for_block's binding resolution.
+    for binding_id in &chain.io_binding_ids {
+        if let Some(b) = io_bindings.iter().find(|b| &b.id == binding_id) {
+            for ep in &b.inputs {
+                input_entries.push(InputEntry {
+                    device_id: ep.device_id.clone(),
+                    mode: project::chain::ChainInputMode::from(ep.mode),
+                    channels: ep.channels.clone(),
+                });
+            }
+        }
+    }
     if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
@@ -362,6 +377,21 @@ pub(crate) fn resolve_chain_outputs(
         })
         .collect();
     output_entries.extend(insert_send_entries);
+    // #716: each selected E/S binding (io_binding_ids) also contributes its
+    // output endpoints as streams, IN ADDITION to any explicit chain Output
+    // blocks — the I/O comes from the system binding, not the chain.
+    for binding_id in &chain.io_binding_ids {
+        if let Some(b) = io_bindings.iter().find(|b| &b.id == binding_id) {
+            for ep in &b.outputs {
+                output_entries.push(OutputEntry {
+                    device_id: ep.device_id.clone(),
+                    mode: project::chain::ChainOutputMode::try_from(ep.mode)
+                        .unwrap_or(project::chain::ChainOutputMode::Stereo),
+                    channels: ep.channels.clone(),
+                });
+            }
+        }
+    }
     if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
     }

@@ -216,6 +216,12 @@ pub fn resolve_chain_streams(chain: &Chain, registry: &[IoBinding]) -> Vec<Resol
 /// chains take the per-binding routing path; legacy chains keep the existing
 /// `entries`-based segmentation untouched.
 pub fn chain_has_bound_ports(chain: &Chain) -> bool {
+    // #716: a chain bound via the system E/S registry references the binding by
+    // id (io_binding_ids) and carries NO I/O blocks — its I/O is resolved from
+    // the binding at build time. That is bound I/O too.
+    if !chain.io_binding_ids.is_empty() {
+        return true;
+    }
     chain.blocks.iter().any(|b| {
         b.enabled
             && match &b.kind {
