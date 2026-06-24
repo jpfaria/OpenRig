@@ -3,23 +3,11 @@
 //! test file under the 600-line Rust cap (one concern per file).
 
 use super::*;
-use crate::block::InputEntry;
-use crate::chain::ChainInputMode;
-use domain::ids::DeviceId;
 use std::collections::BTreeMap;
-
-fn source(device: &str, channels: Vec<usize>) -> InputEntry {
-    InputEntry {
-        device_id: DeviceId(device.into()),
-        mode: ChainInputMode::Mono,
-        channels,
-    }
-}
 
 fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
     RigInput {
         label: None,
-        sources: vec![source("scarlett", vec![0])],
         bank: bank.iter().map(|(i, n)| (*i, n.to_string())).collect(),
         active_preset: active,
         active_scene: 1,

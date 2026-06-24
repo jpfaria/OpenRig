@@ -10,28 +10,9 @@ use crate::param::BlockParameterDescriptor;
 
 use super::dispatch::{describe_block_audio, describe_block_params, normalize_block_params};
 use super::types::{
-    AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
-    SelectBlock, MAX_SELECT_OPTIONS,
+    AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, SelectBlock,
+    MAX_SELECT_OPTIONS,
 };
-
-impl InputBlock {
-    pub fn validate_channel_conflicts(&self) -> Result<(), String> {
-        let mut used: Vec<(String, usize)> = Vec::new();
-        for entry in &self.entries {
-            for &ch in &entry.channels {
-                let key = (entry.device_id.0.clone(), ch);
-                if used.contains(&key) {
-                    return Err(format!(
-                        "Channel {} on device '{}' is used by multiple entries",
-                        ch, entry.device_id.0
-                    ));
-                }
-                used.push(key);
-            }
-        }
-        Ok(())
-    }
-}
 
 impl AudioBlock {
     pub fn validate_params(&self) -> Result<(), String> {

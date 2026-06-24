@@ -20,7 +20,7 @@ pub mod types;
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
 pub use types::{
     AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
-    InputEntry, InsertBlock, InsertEndpoint, NamBlock, OutputBlock, OutputEntry, SelectBlock,
+    InsertBlock, InsertEndpoint, NamBlock, OutputBlock, SelectBlock,
 };
 
 #[cfg(test)]

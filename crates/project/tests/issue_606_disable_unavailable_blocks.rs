@@ -5,9 +5,9 @@
 //! pedal. Available blocks (native models or cataloged disk packages) are
 //! left untouched.
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry};
-use project::chain::{Chain, ChainInputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 use project::project_disable_unavailable::disable_unavailable_blocks;
@@ -32,11 +32,6 @@ fn input_block(id: &str) -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
         }),
     }
 }

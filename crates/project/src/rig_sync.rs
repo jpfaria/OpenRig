@@ -47,15 +47,6 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             rig_input.instrument = chain.instrument.clone();
             rig_input.io_binding_ids = chain.io_binding_ids.clone();
         }
-        // The synthetic Input block carries `RigInput.sources`; an edit
-        // there (added device/channel) was being dropped because the
-        // loop only wrote processing blocks back. Persist it too.
-        if let Some(entries) = chain.blocks.iter().find_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) if !ib.entries.is_empty() => Some(ib.entries.clone()),
-            _ => None,
-        }) {
-            rig.set_input_sources(input, entries);
-        }
     }
     sync_chain_order(rig, project);
 }
@@ -100,7 +91,6 @@ mod tests {
                 (*name).to_string(),
                 RigInput {
                     label: None,
-                    sources: Vec::new(),
                     bank: BTreeMap::from([(1, format!("{name}_preset"))]),
                     active_preset: 1,
                     active_scene: 1,

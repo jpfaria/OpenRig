@@ -1,13 +1,13 @@
 //! `project.openrig` — project-level I/O + per-input preset banks (#436).
 //!
-//! Wraps the existing `InputEntry`/`OutputEntry`/`AudioBlock` model 1:1 — single
-//! source of truth, zero duplication. The legacy chain-based
+//! References the per-machine I/O binding registry (model A, #716) instead
+//! of embedding device endpoints. The legacy chain-based
 //! [`crate::project::Project`] is untouched; migration is #450.
 //!
 //! Scope of #449: model + parser + validation only. No engine wiring, no
 //! migration, no UI, no scenes (those are #450/#451/#452/#453/#454).
 
-use crate::block::{AudioBlock, AudioBlockKind, InputEntry, OutputEntry};
+use crate::block::{AudioBlock, AudioBlockKind};
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -47,14 +47,13 @@ pub struct RigProject {
     pub chain_order: Vec<String>,
 }
 
-/// One project input: a list of capture sources + a numbered preset bank.
+/// One project input: a numbered preset bank + the I/O binding(s) it reads
+/// from. The input's device/channels are NEVER stored here — they come from
+/// the per-machine binding registry (`io_binding_ids` / `io`+`endpoint`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    /// `= Vec<InputEntry>` de hoje. NÃO achatar pra device/channel único —
-    /// `mode` é por fonte (invariante #4/multi-source de #436).
-    pub sources: Vec<InputEntry>,
     /// Banco numerado: índice → nome do preset. Gaps permitidos.
     #[serde(default)]
     pub bank: BTreeMap<usize, String>,
@@ -88,18 +87,15 @@ pub struct RigInput {
     pub io_binding_ids: Vec<String>,
 }
 
-/// One project output. Maps 1:1 onto the existing [`OutputEntry`].
+/// One project output: a pure reference to a binding endpoint. The device /
+/// channels live in the per-machine binding registry, never here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigOutput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    #[serde(flatten)]
-    pub entry: OutputEntry,
-    /// I/O binding id that this output block references (#716).
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    /// I/O binding id that this output references (#716).
     pub io: String,
     /// Endpoint name within the I/O binding (#716).
-    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub endpoint: String,
 }
 

@@ -1,82 +1,101 @@
-//! #716 discovery: resolve a chain's input/output from the I/O bindings it
-//! SELECTS (`chain.io_binding_ids`) instead of from per-block I/O the user
-//! edited by hand.
+//! #716 discovery: resolve a chain's audio I/O PORTS from the I/O bindings it
+//! selects (`chain.io_binding_ids`) plus its mid Input/Output blocks — never
+//! from per-block device endpoints.
 //!
-//! The engine is unchanged — it still consumes bound `Input`/`Output` blocks
-//! (`io` = binding id, `endpoint` = endpoint name) via
-//! `engine::resolve_chain_streams`. This is the bridge: for each selected
-//! binding it synthesises one bound `Input` block per input endpoint (at the
-//! chain head) and one bound `Output` block per output endpoint (at the tail),
-//! around the chain's existing effect blocks. The chain's own I/O blocks (if
-//! any) are dropped — selection is now the single source of truth.
-//!
-//! A chain with no `io_binding_ids` (legacy / unbound) is returned unchanged.
+//! The chain's MAIN start/end I/O is never persisted: the head inputs and tail
+//! outputs are materialized here from the selected bindings. Mid `Input` /
+//! `Output` blocks (manually inserted) reference a binding by `io`/`endpoint`.
+//! Each resolved port carries the device endpoint (device_id/channels/mode)
+//! taken from the per-machine binding registry — the single source of truth
+//! for the chain's I/O.
 
-use domain::ids::BlockId;
-use domain::io_binding::IoBinding;
+use domain::io_binding::{IoBinding, IoEndpoint};
 
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
+use crate::block::AudioBlockKind;
 use crate::chain::Chain;
 
-/// Default model for a synthesised bound I/O block (mirrors the YAML default).
-const BOUND_IO_MODEL: &str = "standard";
+/// Direction of a resolved chain I/O port.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortDirection {
+    Input,
+    Output,
+}
 
-/// Return a copy of `chain` whose head holds one `Input` block per input
-/// endpoint and whose tail holds one `Output` block per output endpoint of
-/// every binding the chain selects, around its existing effect blocks. When the
-/// chain selects no bindings it is returned unchanged.
-pub fn resolve_bound_io_blocks(chain: &Chain, registry: &[IoBinding]) -> Chain {
-    if chain.io_binding_ids.is_empty() {
-        return chain.clone();
-    }
+/// A resolved I/O port of a chain: where it sits in the chain, which binding
+/// (E/S) it belongs to, and the device endpoint (resolved from the registry)
+/// it reads from / writes to.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChainPort {
+    pub direction: PortDirection,
+    /// Position in the chain's block list. `0` = head (before all blocks),
+    /// `chain.blocks.len()` = tail (after all blocks); otherwise the index of
+    /// the mid `Input`/`Output` block that produced this port.
+    pub offset: usize,
+    /// Id of the binding (E/S) this port belongs to.
+    pub binding_id: String,
+    /// Device endpoint resolved from the binding.
+    pub endpoint: IoEndpoint,
+}
 
-    let mut inputs: Vec<AudioBlock> = Vec::new();
-    let mut outputs: Vec<AudioBlock> = Vec::new();
+/// Resolve every I/O port of `chain` against the binding `registry`.
+///
+/// - Head inputs / tail outputs come from the bindings the chain selects
+///   (`io_binding_ids`) — these are never persisted in the chain.
+/// - Mid `Input` / `Output` blocks resolve their `io`/`endpoint` reference.
+///
+/// Ports whose binding (or endpoint) is absent from the registry are skipped.
+pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPort> {
+    let find = |id: &str| registry.iter().find(|b| b.id == id);
+    let tail = chain.blocks.len();
+    let mut ports = Vec::new();
 
+    // Head inputs + tail outputs come from the bindings the chain selects.
     for binding_id in &chain.io_binding_ids {
-        let Some(binding) = registry.iter().find(|b| &b.id == binding_id) else {
+        let Some(binding) = find(binding_id) else {
             continue; // selection references a binding not in the registry → skip
         };
         for ep in &binding.inputs {
-            inputs.push(AudioBlock {
-                id: BlockId(format!("{}:in:{}:{}", chain.id.0, binding.id, ep.name)),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: BOUND_IO_MODEL.to_string(),
-                    io: binding.id.clone(),
-                    endpoint: ep.name.clone(),
-                    entries: Vec::new(),
-                }),
+            ports.push(ChainPort {
+                direction: PortDirection::Input,
+                offset: 0,
+                binding_id: binding.id.clone(),
+                endpoint: ep.clone(),
             });
         }
         for ep in &binding.outputs {
-            outputs.push(AudioBlock {
-                id: BlockId(format!("{}:out:{}:{}", chain.id.0, binding.id, ep.name)),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: BOUND_IO_MODEL.to_string(),
-                    io: binding.id.clone(),
-                    endpoint: ep.name.clone(),
-                    entries: Vec::new(),
-                }),
+            ports.push(ChainPort {
+                direction: PortDirection::Output,
+                offset: tail,
+                binding_id: binding.id.clone(),
+                endpoint: ep.clone(),
             });
         }
     }
 
-    // Keep only the chain's effect blocks; selection replaces any I/O blocks.
-    let effects = chain
-        .blocks
-        .iter()
-        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-        .cloned();
-
-    let mut blocks = Vec::with_capacity(inputs.len() + chain.blocks.len() + outputs.len());
-    blocks.extend(inputs);
-    blocks.extend(effects);
-    blocks.extend(outputs);
-
-    Chain {
-        blocks,
-        ..chain.clone()
+    // Mid Input/Output blocks reference one binding endpoint by io/endpoint.
+    for (i, block) in chain.blocks.iter().enumerate() {
+        let (direction, io, endpoint_name) = match &block.kind {
+            AudioBlockKind::Input(b) => (PortDirection::Input, &b.io, &b.endpoint),
+            AudioBlockKind::Output(b) => (PortDirection::Output, &b.io, &b.endpoint),
+            _ => continue,
+        };
+        let Some(binding) = find(io) else {
+            continue;
+        };
+        let pool = match direction {
+            PortDirection::Input => &binding.inputs,
+            PortDirection::Output => &binding.outputs,
+        };
+        let Some(ep) = pool.iter().find(|e| &e.name == endpoint_name) else {
+            continue;
+        };
+        ports.push(ChainPort {
+            direction,
+            offset: i,
+            binding_id: binding.id.clone(),
+            endpoint: ep.clone(),
+        });
     }
+
+    ports
 }

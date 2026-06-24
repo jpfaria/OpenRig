@@ -4,7 +4,7 @@
 //! Pure refactor: no behavior change. Tests live in `rig_tests.rs` and
 //! `rig_scene_tests.rs`.
 
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry};
+use crate::block::{AudioBlock, AudioBlockKind};
 use crate::rig::{RigPreset, RigProject, RigScene};
 use domain::value_objects::ParameterValue;
 use std::collections::BTreeMap;
@@ -244,15 +244,6 @@ impl RigProject {
         Some(new_active)
     }
 
-    /// Persist edited capture sources back into `input` (the synthetic
-    /// chain's Input block carries `RigInput.sources`; an edit there must
-    /// survive save/re-projection). No-op if the input is unknown.
-    pub fn set_input_sources(&mut self, input: &str, sources: Vec<InputEntry>) {
-        if let Some(ri) = self.inputs.get_mut(input) {
-            ri.sources = sources;
-        }
-    }
-
     /// Replace the active preset's base blocks when `blocks` is a
     /// **structural** change (different block ids/order/count vs the
     /// preset's base) — e.g. a preset was loaded over the slot, or
@@ -359,22 +350,19 @@ impl RigProject {
             .expect("infinite range always yields a free name")
     }
 
-    /// Validate cross-references and per-input source channel conflicts.
+    /// Validate cross-references in the rig model.
     ///
-    /// Rules (closed in #436 / scoped by #449):
+    /// Rules (closed in #436 / scoped by #449; device-channel conflicts
+    /// moved to runtime activation in #716):
     /// 1. every `bank` value must name a preset in `presets`;
     /// 2. each input's `active_preset` must be a key in its own `bank`;
     /// 3. each input's `active_scene` ∈ `1..=8`;
     /// 4. no preset may contain an `Input`/`Output` block;
-    /// 5. per-input source channel conflicts — reuses
-    ///    [`InputBlock::validate_channel_conflicts`];
-    /// 6. every `routing` target must name an `outputs` entry.
+    /// 5. every `routing` target must name an `outputs` entry.
     ///
-    /// Cross-input capture exclusivity is **not** validated here: a project
-    /// may freely hold many inputs that share a `(device, channel)` tap
-    /// (a library of alternative configs). The constraint that two inputs
-    /// sharing a tap cannot be *active simultaneously* is enforced by the
-    /// engine at runtime, not by the static model.
+    /// Device endpoints no longer live in the model (model A, #716), so any
+    /// capture/output exclusivity is enforced by the engine at runtime
+    /// against the per-machine binding registry, not by this static model.
     pub fn validate(&self) -> Result<(), String> {
         for (name, input) in &self.inputs {
             for (idx, preset_name) in &input.bank {
@@ -396,14 +384,6 @@ impl RigProject {
                     input.active_scene
                 ));
             }
-            InputBlock {
-                model: "standard".to_string(),
-                io: String::new(),
-                endpoint: String::new(),
-                entries: input.sources.clone(),
-            }
-            .validate_channel_conflicts()
-            .map_err(|e| format!("input '{name}': {e}"))?;
             for target in &input.routing {
                 if !self.outputs.contains_key(target) {
                     return Err(format!(
