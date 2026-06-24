@@ -89,6 +89,7 @@ fn input(
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         io: String::new(),
         endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     }
 }
 

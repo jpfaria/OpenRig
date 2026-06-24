@@ -96,13 +96,11 @@ pub(crate) fn wire(
             );
             let existing_chain =
                 editing_index.and_then(|index| session.project.borrow().chains.get(index).cloned());
+            // #716: the saved chain carries only its effect blocks + the
+            // selected `io_binding_ids` — the I/O is NEVER materialized into the
+            // chain's blocks (that put per-endpoint input tiles in the strip).
+            // The engine resolves I/O from the bindings transiently at runtime.
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            // #716: materialize the bound Input/Output blocks from the chain's
-            // selected bindings NOW, so the saved chain actually has I/O blocks
-            // (project validation + the engine require them) and produces sound —
-            // discovery is otherwise runtime-only. No-op when no bindings.
-            let chain =
-                project::binding_discovery::resolve_bound_io_blocks(&chain, &session.io_bindings.borrow());
             if let Err(msg) = chain.validate_channel_conflicts() {
                 chain_window.set_status_message(msg.into());
                 return;

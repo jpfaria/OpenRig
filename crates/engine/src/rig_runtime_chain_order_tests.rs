@@ -22,6 +22,7 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         io: String::new(),
         endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     }
 }
 

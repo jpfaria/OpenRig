@@ -101,6 +101,43 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
     }
 }
 
+// #716 domain rule: a chain has I/O only when it references a binding or carries
+// a real input block (bound `io` or device `entries`). `has_io` is the predicate
+// the dispatcher enforces to forbid enabling an I/O-less chain.
+#[test]
+fn has_io_false_when_no_binding_and_no_input() {
+    assert!(!make_chain(vec![]).has_io());
+}
+
+#[test]
+fn has_io_true_when_io_binding_selected() {
+    let mut chain = make_chain(vec![]);
+    chain.io_binding_ids = vec!["scarlet".to_string()];
+    assert!(chain.has_io());
+}
+
+#[test]
+fn has_io_true_when_input_block_has_entries() {
+    let chain = make_chain(vec![make_input_block(
+        "in",
+        "dev",
+        vec![0],
+        ChainInputMode::Mono,
+    )]);
+    assert!(chain.has_io());
+}
+
+#[test]
+fn has_io_true_when_input_block_is_binding_bound() {
+    let mut block = make_input_block("in", "", vec![], ChainInputMode::Mono);
+    if let AudioBlockKind::Input(ref mut ib) = block.kind {
+        ib.io = "scarlet".to_string();
+        ib.endpoint = "in1".to_string();
+        ib.entries = vec![];
+    }
+    assert!(make_chain(vec![block]).has_io());
+}
+
 // --- processing_layout tests ---
 
 #[test]

@@ -123,6 +123,7 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
                         instrument: chain.instrument.clone(),
                         io: String::new(),
                         endpoint: String::new(),
+                        io_binding_ids: Vec::new(),
                     },
                 );
             }

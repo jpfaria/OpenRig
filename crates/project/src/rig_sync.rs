@@ -41,8 +41,11 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
         }
         rig.write_back_chain_volume(input, chain.volume);
         // Capture the instrument type so it survives save+reload (#627).
+        // #716: capture the selected I/O bindings so the editor checklist
+        // selection survives reopen (the rig is the persistence model).
         if let Some(rig_input) = rig.inputs.get_mut(input) {
             rig_input.instrument = chain.instrument.clone();
+            rig_input.io_binding_ids = chain.io_binding_ids.clone();
         }
         // The synthetic Input block carries `RigInput.sources`; an edit
         // there (added device/channel) was being dropped because the
@@ -105,6 +108,7 @@ mod tests {
                     instrument: "electric_guitar".to_string(),
                     io: String::new(),
                     endpoint: String::new(),
+                    io_binding_ids: Vec::new(),
                 },
             );
             presets.insert(

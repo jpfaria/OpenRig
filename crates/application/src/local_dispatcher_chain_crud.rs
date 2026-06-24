@@ -87,6 +87,19 @@ impl LocalDispatcher {
                     c.io_binding_ids = binding_ids.clone();
                     Ok(())
                 })?;
+                // #716: propagate the selection into the rig so it survives
+                // reopen (the rig is the persistence model; rig→legacy
+                // reprojects from it). Without this the checklist reopens
+                // unchecked and the chain reopens unbound (no runtime).
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        if let Some(rig_input) =
+                            rig.borrow_mut().inputs.get_mut(input_name)
+                        {
+                            rig_input.io_binding_ids = binding_ids.clone();
+                        }
+                    }
+                }
                 Ok(vec![
                     Event::ChainIoBindingsChanged { chain, binding_ids },
                     Event::ProjectMutated,

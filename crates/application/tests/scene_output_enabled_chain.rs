@@ -105,6 +105,7 @@ fn rig_with_two_presets_two_scenes() -> RigProject {
             instrument: "electric_guitar".to_string(),
             io: String::new(),
             endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     RigProject {

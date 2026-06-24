@@ -408,6 +408,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
             instrument: "electric_guitar".to_string(),
             io: String::new(),
             endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     let rig = RigProject {

@@ -1281,6 +1281,42 @@ fn move_chain_down_non_existent_returns_err() {
 // ── ToggleChainEnabled tests ──────────────────────────────────────────────────
 
 #[test]
+fn toggle_chain_enabled_refuses_chain_without_io_binding() {
+    // #716: a chain with no I/O (no io_binding_ids and no bound input) routes
+    // nothing — enabling it produces no sound and invalidates the project. The
+    // dispatcher must refuse to enable it and leave it disabled.
+    use project::chain::Chain;
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("chain_noio".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            volume: 100.0,
+            io_binding_ids: vec![],
+            blocks: vec![],
+        }],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+        chain: ChainId("chain_noio".to_string()),
+    });
+
+    assert!(
+        result.is_err(),
+        "enabling a chain with no I/O binding must be rejected, got {result:?}"
+    );
+    assert!(
+        !project.borrow().chains[0].enabled,
+        "the chain must stay disabled"
+    );
+}
+
+#[test]
 fn toggle_chain_enabled_enables_disabled_chain() {
     // chain_1 uses dev_a ch 0, and chain_0 also uses dev_a ch 0 (and is enabled).
     // But chain_1 shares the channel — expect conflict.

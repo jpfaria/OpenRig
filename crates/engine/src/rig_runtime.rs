@@ -77,24 +77,32 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
         };
 
         let mut blocks = Vec::with_capacity(preset.blocks.len() + 2);
-        blocks.push(AudioBlock {
-            id: BlockId(format!("rig:{name}:in")),
-            enabled: true,
-            kind: AudioBlockKind::Input(InputBlock {
-                model: "standard".to_string(),
-                // Propagate the binding reference stored on RigInput (#716).
-                io: input.io.clone(),
-                endpoint: input.endpoint.clone(),
-                entries: input.sources.clone(),
-            }),
-        });
+        // #716: a binding-bound chain (io_binding_ids) discovers its I/O from
+        // the registry at runtime — do NOT synthesize device Input/Output
+        // blocks, or they show in the chain strip (the "monster") and double
+        // routing. Legacy per-block (io/endpoint/entries) chains still
+        // synthesize them.
+        let bound = !input.io_binding_ids.is_empty();
+        if !bound {
+            blocks.push(AudioBlock {
+                id: BlockId(format!("rig:{name}:in")),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".to_string(),
+                    // Propagate the binding reference stored on RigInput (#716).
+                    io: input.io.clone(),
+                    endpoint: input.endpoint.clone(),
+                    entries: input.sources.clone(),
+                }),
+            });
+        }
         blocks.extend(preset.apply_scene(input.active_scene));
         let routed_outputs: Vec<_> = input
             .routing
             .iter()
             .filter_map(|t| rig.outputs.get(t).map(|o| (t, o)))
             .collect();
-        if !routed_outputs.is_empty() {
+        if !bound && !routed_outputs.is_empty() {
             // Propagate io/endpoint from the first routed output that carries
             // a binding reference. Multiple routing entries all share the same
             // binding reference in the current model (one binding per chain).
@@ -140,7 +148,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             // override resolves to `preset.volume` ⇒ audibly unchanged
             // for every pre-#436 project (back-compat).
             volume: preset.scene_volume(input.active_scene),
-            io_binding_ids: Vec::new(),
+            io_binding_ids: input.io_binding_ids.clone(),
             blocks,
         });
     }

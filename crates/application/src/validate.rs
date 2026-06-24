@@ -19,6 +19,14 @@ pub fn validate_project(project: &Project) -> Result<()> {
     validate_device_settings(project, &device_settings_by_id)?;
 
     for chain in &project.chains {
+        // #716: a binding-bound chain carries only its effect blocks + the
+        // selected `io_binding_ids`; its input/output is resolved from the I/O
+        // binding registry at runtime, NOT stored as blocks/entries. The
+        // block/entries-based validation below does not apply to it.
+        if !chain.io_binding_ids.is_empty() {
+            continue;
+        }
+
         let input_blocks = chain.input_blocks();
         let output_blocks = chain.output_blocks();
 
@@ -33,14 +41,6 @@ pub fn validate_project(project: &Project) -> Result<()> {
                 "invalid project: chain '{}' has no output blocks",
                 chain.id.0
             );
-        }
-
-        // #716: a binding-bound chain resolves its input/output from the I/O
-        // binding registry at runtime — its blocks carry `io`/`endpoint`, not
-        // `entries`. The entries-based validation below does not apply (and
-        // would wrongly reject it with "input '…' has no entries").
-        if !chain.io_binding_ids.is_empty() {
-            continue;
         }
 
         // Validate each input block's entries

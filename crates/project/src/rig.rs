@@ -79,6 +79,13 @@ pub struct RigInput {
     /// Endpoint name within the I/O binding that this input block uses (#716).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub endpoint: String,
+    /// #716: ids of the I/O bindings this chain references (the editor
+    /// checklist selection). The chain's I/O is discovered from these at
+    /// runtime; a bound input is NOT synthesized as a device block. Empty for
+    /// legacy per-block (io/endpoint) chains. Persisted so the checklist
+    /// selection survives reopen.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub io_binding_ids: Vec<String>,
 }
 
 /// One project output. Maps 1:1 onto the existing [`OutputEntry`].

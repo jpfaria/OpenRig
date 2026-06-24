@@ -22,12 +22,24 @@ impl LocalDispatcher {
                     .any(|c| c.id == chain.id);
                 if is_create {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        if let Some(input_name) =
+                        // Capture into a separate statement so the scrutinee's
+                        // `borrow_mut()` is released before the body re-borrows.
+                        let created = {
+                            let mut rig_mut = rig.borrow_mut();
                             crate::local_dispatcher_chain_crud::add_chain_to_rig(
-                                &mut rig.borrow_mut(),
+                                &mut rig_mut,
                                 &chain,
                             )
-                        {
+                        };
+                        if let Some(input_name) = created {
+                            // #716: carry the editor's I/O binding selection
+                            // onto the freshly-created rig input so it survives
+                            // reopen.
+                            if let Some(input) =
+                                rig.borrow_mut().inputs.get_mut(&input_name)
+                            {
+                                input.io_binding_ids = chain.io_binding_ids.clone();
+                            }
                             // Re-tag the chain id so the chains-screen
                             // preset/scene combobox can find this chain
                             // in the rig — `rig_nav_rows` only recognises
@@ -46,6 +58,10 @@ impl LocalDispatcher {
                         let mut rig_mut = rig.borrow_mut();
                         if let Some(input) = rig_mut.inputs.get_mut(input_name) {
                             input.label = chain.description.clone();
+                            // #716: persist the editor's I/O binding selection
+                            // into the rig so it survives reopen (the GUI saves
+                            // via SaveChain, not SetChainIoBindings).
+                            input.io_binding_ids = chain.io_binding_ids.clone();
                         }
                     }
                 }

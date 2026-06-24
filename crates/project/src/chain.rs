@@ -166,6 +166,18 @@ impl Chain {
         })
     }
 
+    /// #716 domain rule: whether the chain has any audio I/O. True when it
+    /// references at least one I/O binding (`io_binding_ids`), or carries an
+    /// input block that is binding-bound (`io` set) or has device `entries`.
+    /// A chain with no I/O routes nothing — the dispatcher refuses to enable it.
+    pub fn has_io(&self) -> bool {
+        !self.io_binding_ids.is_empty()
+            || self
+                .input_blocks()
+                .iter()
+                .any(|(_, ib)| !ib.io.is_empty() || !ib.entries.is_empty())
+    }
+
     /// Validate that no two input entries share the same device+channel,
     /// and no two output entries share the same device+channel.
     pub fn validate_channel_conflicts(&self) -> Result<(), String> {

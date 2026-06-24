@@ -106,12 +106,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             );
             let existing_chain =
                 editing_index.and_then(|index| session.project.borrow().chains.get(index).cloned());
+            // #716: the chain carries only effects + io_binding_ids — I/O is
+            // never materialized into its blocks (the engine resolves it from
+            // the bindings transiently at runtime).
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            // #716: materialize bound I/O blocks from the selected bindings so
-            // the saved chain has input/output (valid project + audible). No-op
-            // when no bindings are selected.
-            let chain =
-                project::binding_discovery::resolve_bound_io_blocks(&chain, &session.io_bindings.borrow());
             if let Err(msg) = chain.validate_channel_conflicts() {
                 set_status_warning(&window, &toast_timer, &msg);
                 return;

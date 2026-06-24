@@ -59,9 +59,16 @@ impl LocalDispatcher {
                     };
                     (!target.enabled, target.clone())
                 };
-                // Phase 2: if enabling, validate no channel conflict
-                // (skip self so the chain doesn't conflict with its own current state).
+                // Phase 2: if enabling, enforce the domain rule + no conflict.
                 if will_enable {
+                    // #716 domain rule: a chain with no I/O (no binding, no input)
+                    // routes nothing — refuse to enable it.
+                    if !chain_clone.has_io() {
+                        return Err(anyhow::anyhow!(
+                            "chain '{}' has no I/O binding — relate an I/O binding before enabling it",
+                            chain.0
+                        ));
+                    }
                     let proj = self.project.borrow();
                     chain_validation::validate_no_channel_conflict(
                         &proj,
