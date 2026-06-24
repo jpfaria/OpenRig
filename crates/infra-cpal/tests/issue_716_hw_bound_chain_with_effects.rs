@@ -60,15 +60,27 @@ fn bound_chain_with_effects_runs_clean_and_toggles() {
         .expect("preset has at least one effect block");
 
     // System E/S binding — the chain references it; it carries NO I/O blocks.
+    // Two input endpoints on the same device — exactly like the user's binding
+    // io-1-50c4 (SCARLET: In 1 ch0, In 2 ch1). This is what triggers #4: the
+    // bound chain builds one per-input runtime PER endpoint, and the live block
+    // toggle must still find the effect block in them.
     let binding = IoBinding {
         id: "main".into(),
         name: "Default".into(),
-        inputs: vec![IoEndpoint {
-            name: "in".into(),
-            device_id: DeviceId(input.id.clone()),
-            mode: ChannelMode::Mono,
-            channels: vec![0],
-        }],
+        inputs: vec![
+            IoEndpoint {
+                name: "in1".into(),
+                device_id: DeviceId(input.id.clone()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            },
+            IoEndpoint {
+                name: "in2".into(),
+                device_id: DeviceId(input.id.clone()),
+                mode: ChannelMode::Mono,
+                channels: vec![1],
+            },
+        ],
         outputs: vec![IoEndpoint {
             name: "out".into(),
             device_id: DeviceId(output.id.clone()),

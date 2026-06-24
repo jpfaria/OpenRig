@@ -221,6 +221,14 @@ fn build_bound_chain_runtimes(
     let mut input_group_of: HashMap<(String, String), usize> = HashMap::new();
     let mut next_group = 0usize;
 
+    // #703 / docs/audio-config.md "Two entries on ONE device": Core Audio
+    // cannot open two streams on one device, so the cpal stream index is per
+    // physical DEVICE — two input ports on one device share ONE stream that
+    // fans out to both isolated runtimes. `entry_group` stays per-port (the
+    // isolated runtime, invariant #4); `cpal_input_index` is per-device.
+    let mut cpal_index_of: HashMap<String, usize> = HashMap::new();
+    let mut next_cpal = 0usize;
+
     // Per input-port group, the segments that port owns. `order` keeps the
     // first-seen group sequence stable across rebuilds.
     let mut order: Vec<usize> = Vec::new();
@@ -232,13 +240,20 @@ fn build_bound_chain_runtimes(
             next_group += 1;
             idx
         });
+        let cpal_idx = *cpal_index_of
+            .entry(s.input_entry.device_id.0.clone())
+            .or_insert_with(|| {
+                let i = next_cpal;
+                next_cpal += 1;
+                i
+            });
         if !groups.contains_key(&group) {
             order.push(group);
         }
         let route_idx = output_route_of[&(s.output_binding.clone(), s.output_endpoint.clone())];
         groups.entry(group).or_default().push(ChainSegment {
             input: s.input_entry.clone(),
-            cpal_input_index: group,
+            cpal_input_index: cpal_idx,
             block_indices: s.block_indices.clone(),
             output_route_indices: vec![route_idx],
             split_mono_sibling_count: None,
