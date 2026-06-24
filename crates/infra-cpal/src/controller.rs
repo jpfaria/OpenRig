@@ -767,12 +767,27 @@ impl ProjectRuntimeController {
         // entry and the one device stream feeds them all). Multi-device
         // chains need one stream per device wired through the synchronous
         // build, so defer them.
-        let input_devices: std::collections::HashSet<&str> = chain
-            .input_blocks()
-            .iter()
-            .flat_map(|(_, block)| block.entries.iter())
-            .map(|entry| entry.device_id.0.as_str())
-            .collect();
+        // #716: a binding-bound chain (io_binding_ids) carries no device Input
+        // blocks — its input devices come from the selected bindings' input
+        // endpoints. Counting only `input_blocks().entries` would see 0 devices
+        // and wrongly defer (→ never activates → "runtime not started" / no
+        // sound). Resolve the device set from whichever model the chain uses.
+        let input_devices: std::collections::HashSet<String> = if chain.io_binding_ids.is_empty() {
+            chain
+                .input_blocks()
+                .iter()
+                .flat_map(|(_, block)| block.entries.iter())
+                .map(|entry| entry.device_id.0.clone())
+                .collect()
+        } else {
+            chain
+                .io_binding_ids
+                .iter()
+                .filter_map(|id| self.io_bindings.iter().find(|b| &b.id == id))
+                .flat_map(|b| b.inputs.iter())
+                .map(|ep| ep.device_id.0.clone())
+                .collect()
+        };
         if input_devices.len() != 1 {
             return Ok(false);
         }
