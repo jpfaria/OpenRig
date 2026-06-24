@@ -10,6 +10,12 @@ Só estende a resposta quando o usuário pedir explicitamente ("explica em detal
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
 
+## LEI — PROIBIDO supor quando não está claro
+
+**EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
+
+Escopo, modelo de dados, comportamento esperado, camada certa, qual arquivo, A vs B — se QUALQUER coisa não está 100% clara, **PARO e pergunto** (uma pergunta curta de cada vez, até não restar dúvida). PROIBIDO "vou de cabeça e depois conserto", PROIBIDO inventar caminho, PROIBIDO escolher entre alternativas que o usuário não escolheu. Supor inverteu o pedido e queimou dias (I/O dentro da chain vs. fora; teste-depois vs. teste-antes) — na dúvida entre perguntar e supor, **perguntar**.
+
 ## Invariantes que NUNCA podem piorar
 
 OpenRig é áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança que toca audio thread, DSP, roteamento, I/O ou cadeia de blocos precisa provar que não regride NADA abaixo:

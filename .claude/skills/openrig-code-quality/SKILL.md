@@ -17,6 +17,18 @@ either here; cite them.
 
 ---
 
+## LEI ZERO — PROIBIDO supor quando não está claro; perguntar simples até clarear
+
+**EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
+
+Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o comportamento esperado, a camada certa ou QUALQUER detalhe não está 100% claro, **PARAR e perguntar** — uma pergunta curta e direta de cada vez, até não restar dúvida. PROIBIDO "vou de cabeça e depois conserto"; PROIBIDO inventar caminho; PROIBIDO escolher entre A/B por conta própria quando o usuário não escolheu.
+
+**Why:** supor inverteu o que o usuário pediu e queimou dias — ex.: I/O dentro da chain vs. fora (sistema/binding); "esconder bloco" quando o pedido era NÃO ter bloco; teste-depois quando o pedido era teste-antes. Cada suposição errada vira cascata de retrabalho e quebra a confiança.
+
+**How to apply:** dúvida → pergunta simples → espera a resposta → só então age. Não agrupar várias suposições numa tacada só. Não seguir "parece o passo lógico seguinte". Isto NÃO conflita com "não perguntar o óbvio" (escopo já acordado / default trivial segue direto): a regra vale quando há ambiguidade real — na dúvida entre perguntar e supor, **perguntar**.
+
+---
+
 ## LEI — PROIBIDO supor/inventar layout de UI; renderize e confira
 
 É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `ui-ux-pro-max` (design/UX) + `slint:slint` (plugin slint@slint) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
