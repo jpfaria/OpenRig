@@ -967,9 +967,12 @@ dependencies = [
  "anyhow",
  "block-core",
  "domain",
+ "hound",
+ "ir",
  "log",
  "lv2",
  "plugin-loader",
+ "serde_yaml",
  "vst3-host",
 ]
 
