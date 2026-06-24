@@ -1,35 +1,15 @@
 //! Issue #672 — `build_chain_runtime` is the worker-runnable, `Send` entry that
 //! produces fresh `Arc<ChainRuntimeState>`s off the frontend thread. It wraps
-//! the heavy per-binding runtime assembly (NAM loads, segment + route assembly)
+//! the heavy per-input runtime assembly (NAM loads, segment + route assembly)
 //! behind an owned `Send` `BuildRequest` so `ControlWorker` can run it.
 //!
-//! Clean break (#716): routing is binding-only. A BOUND chain builds one
-//! isolated runtime per input port; an UNBOUND chain (empty `io`) builds NONE.
+//! A chain with input entries builds one isolated runtime per input port; a
+//! chain with no I/O blocks builds NONE.
 
 use domain::ids::{BlockId, ChainId, DeviceId};
-use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_cpal::{build_chain_runtime, BuildRequest};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
-use project::chain::Chain;
-
-fn one_binding() -> Vec<IoBinding> {
-    vec![IoBinding {
-        id: "io".into(),
-        name: "Interface".into(),
-        inputs: vec![IoEndpoint {
-            name: "in".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChannelMode::Mono,
-            channels: vec![0],
-        }],
-        outputs: vec![IoEndpoint {
-            name: "out".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChannelMode::Mono,
-            channels: vec![0],
-        }],
-    }]
-}
+use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
 fn bound_chain(id: &str) -> Chain {
     Chain {
@@ -45,9 +25,13 @@ fn bound_chain(id: &str) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
-                    io: "io".into(),
-                    endpoint: "in".into(),
-                    entries: Vec::new(),
+                    io: String::new(),
+                    endpoint: String::new(),
+                    entries: vec![InputEntry {
+                        device_id: DeviceId("dev".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0],
+                    }],
                 }),
             },
             AudioBlock {
@@ -55,24 +39,16 @@ fn bound_chain(id: &str) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
-                    io: "io".into(),
-                    endpoint: "out".into(),
-                    entries: Vec::new(),
+                    io: String::new(),
+                    endpoint: String::new(),
+                    entries: vec![OutputEntry {
+                        device_id: DeviceId("dev".into()),
+                        mode: ChainOutputMode::Mono,
+                        channels: vec![0],
+                    }],
                 }),
             },
         ],
-    }
-}
-
-fn unbound_chain(id: &str) -> Chain {
-    Chain {
-        id: ChainId(id.into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![],
     }
 }
 
@@ -82,36 +58,16 @@ fn build_chain_runtime_produces_a_runnable_runtime() {
         chain: bound_chain("c"),
         sample_rate: 48_000.0,
         buffer_sizes: vec![1024],
-        io_bindings: one_binding(),
     };
-    let runtimes = build_chain_runtime(&req).expect("build must succeed for a bound chain");
+    let runtimes = build_chain_runtime(&req).expect("build must succeed for a chain with I/O");
     assert_eq!(
         runtimes.len(),
         1,
-        "a single-binding chain produces exactly one isolated input runtime"
+        "a single-input chain produces exactly one isolated input runtime"
     );
     assert!(
         !runtimes[0].1.is_draining(),
         "a freshly built runtime starts active (not draining)"
-    );
-}
-
-#[test]
-fn build_chain_runtime_unbound_chain_produces_no_runtime() {
-    // Clean break (#716): routing is binding-only — an unbound chain builds
-    // no runtime instead of a legacy all-to-all fallback. No error: the chain
-    // simply opens unbound and must be reconfigured via the registry.
-    let req = BuildRequest {
-        chain: unbound_chain("c"),
-        sample_rate: 48_000.0,
-        buffer_sizes: vec![1024],
-        io_bindings: Vec::new(),
-    };
-    let runtimes = build_chain_runtime(&req).expect("unbound chain must build cleanly (empty)");
-    assert!(
-        runtimes.is_empty(),
-        "unbound chain must produce NO runtime, got {}",
-        runtimes.len()
     );
 }
 

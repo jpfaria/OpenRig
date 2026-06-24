@@ -51,10 +51,6 @@ pub(crate) fn sync_project_runtime(
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
             validate_project(&*proj)?;
-            // #716: push the current io_bindings registry so bound chains
-            // resolve per binding on this sync (a binding edit reaches the
-            // next graph build).
-            runtime.set_io_bindings(session.io_bindings.borrow().clone());
             runtime.sync_project(&*proj)?;
         }
     }
@@ -77,13 +73,7 @@ pub(crate) fn sync_live_chain_runtime(
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
-            // #716: start the controller WITH the io_bindings registry so a
-            // bound (or freshly migrated) chain routes per binding from the
-            // first build — not the legacy entries path on empty bindings.
-            *borrow = Some(ProjectRuntimeController::start_with_bindings(
-                &*proj,
-                session.io_bindings.borrow().clone(),
-            )?);
+            *borrow = Some(ProjectRuntimeController::start(&*proj)?);
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
@@ -100,9 +90,6 @@ pub(crate) fn sync_live_chain_runtime(
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
             validate_project(&*proj)?;
-            // #716: refresh the registry so a bound-chain edit resolves per
-            // binding through this upsert/activation.
-            runtime.set_io_bindings(session.io_bindings.borrow().clone());
             if let Some(chain) = chain {
                 // Issue #672: cold activation of a single-input chain builds the
                 // runtime off the control worker and installs it on the poll tick

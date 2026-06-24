@@ -11,7 +11,6 @@
 pub mod di_loop;
 pub mod elastic_prime;
 pub mod input_tap;
-pub mod io_routing;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;
@@ -26,7 +25,6 @@ pub mod runtime_dsp;
 pub mod runtime_endpoints;
 pub mod runtime_graph;
 pub mod runtime_io;
-pub mod runtime_io_graph;
 pub mod runtime_layout;
 pub mod runtime_load;
 pub mod runtime_probe;

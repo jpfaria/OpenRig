@@ -66,11 +66,9 @@ fn main() -> Result<()> {
         println!("{line}");
     }
 
-    // Headless rig console: no io_bindings registry loaded (#716); legacy
-    // `entries` chains resolve unchanged with an empty registry.
-    let chain_sample_rates = resolve_project_chain_sample_rates(&legacy, &[])?;
+    let chain_sample_rates = resolve_project_chain_sample_rates(&legacy)?;
     let runtime_graph = build_runtime_graph(&legacy, &chain_sample_rates, &HashMap::new())?;
-    let streams = build_streams_for_project(&legacy, &runtime_graph, &[])?;
+    let streams = build_streams_for_project(&legacy, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;
     }

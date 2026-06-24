@@ -9,8 +9,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use domain::io_binding::IoBinding;
-use engine::runtime::{build_per_input_runtime_states_with_bindings, ChainRuntimeState};
+use engine::runtime::{build_per_input_runtime_states, ChainRuntimeState};
 use project::chain::Chain;
 
 /// Owned, `Send` description of a chain runtime to (re)build off the frontend
@@ -23,12 +22,6 @@ pub struct BuildRequest {
     pub sample_rate: f32,
     /// Per-input elastic buffer targets (device buffer sizes).
     pub buffer_sizes: Vec<usize>,
-    /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`),
-    /// owned so it can cross to the worker thread. A chain whose Input/Output
-    /// blocks carry a non-empty `io` is routed PER BINDING against this
-    /// registry; an unbound chain (empty `io`) produces NO runtime — routing is
-    /// binding-only (#716). Empty for callers with no registry.
-    pub io_bindings: Vec<IoBinding>,
 }
 
 /// Build the fresh per-entry chain runtimes from `req`. Worker-runnable: this
@@ -37,20 +30,9 @@ pub struct BuildRequest {
 /// the caller publishes each into its `(chain, group)` slot; single-entry
 /// chains get exactly one `(0, runtime)` pair (the legacy shape).
 ///
-/// Issue #716: a chain whose ports carry a non-empty `io` is routed PER BINDING
-/// against `req.io_bindings`; an unbound chain (empty `io`) produces NO runtime
-/// — routing is binding-only. The branch lives in the engine seam
-/// `build_per_input_runtime_states_with_bindings` so this stays a thin worker
-/// wrapper.
-///
 /// # Errors
 /// Propagates any failure from `engine`'s chain-runtime assembly (e.g. a model
 /// that fails to load).
 pub fn build_chain_runtime(req: &BuildRequest) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
-    build_per_input_runtime_states_with_bindings(
-        &req.chain,
-        req.sample_rate,
-        &req.buffer_sizes,
-        &req.io_bindings,
-    )
+    build_per_input_runtime_states(&req.chain, req.sample_rate, &req.buffer_sizes)
 }

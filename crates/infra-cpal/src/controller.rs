@@ -25,7 +25,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 
 use domain::ids::ChainId;
-use domain::io_binding::IoBinding;
 use engine::runtime::{ChainRuntimeState, RuntimeGraph};
 use project::chain::Chain;
 use project::project::Project;
@@ -87,12 +86,7 @@ pub struct ProjectRuntimeController {
     pub(crate) pending_activations: Vec<(
         ChainId,
         Chain,
-        Receiver<
-            Result<(
-                Vec<(usize, Arc<ChainRuntimeState>)>,
-                ResolvedChainAudioConfig,
-            )>,
-        >,
+        Receiver<Result<(Vec<(usize, Arc<ChainRuntimeState>)>, ResolvedChainAudioConfig)>>,
     )>,
     /// Sample rate (Hz) the live streams were built at, captured from the last
     /// resolved chain config. The DI-loop loader reads this (via the
@@ -100,12 +94,6 @@ pub struct ProjectRuntimeController {
     /// value plays them at the wrong speed (#669). Defaults to 48000 until the
     /// first chain is built.
     pub(crate) sample_rate: u32,
-    /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`).
-    /// Read OFF the audio thread at graph-build time so a chain whose ports
-    /// carry a non-empty `io` is routed per binding (`build_chain_runtime` /
-    /// `upsert_chain_with_resolved` consume it). Empty for callers that never
-    /// supply a registry — those chains take the legacy `entries` path.
-    pub(crate) io_bindings: Vec<IoBinding>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -139,7 +127,6 @@ impl ProjectRuntimeController {
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
             sample_rate,
-            io_bindings: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -147,18 +134,7 @@ impl ProjectRuntimeController {
         }
     }
 
-    /// Start a controller with no I/O binding registry (legacy `entries`
-    /// chains only). Issue #716: prefer [`Self::start_with_bindings`] from the
-    /// app so chains that reference io bindings route per binding.
     pub fn start(project: &Project) -> Result<Self> {
-        Self::start_with_bindings(project, Vec::new())
-    }
-
-    /// Issue #716 — start a controller with the per-machine I/O binding
-    /// registry (`AppConfig.io_bindings`). A chain whose Input/Output blocks
-    /// carry a non-empty `io` is routed per binding against `io_bindings`;
-    /// pure-legacy chains keep the `entries` path.
-    pub fn start_with_bindings(project: &Project, io_bindings: Vec<IoBinding>) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
@@ -172,7 +148,6 @@ impl ProjectRuntimeController {
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,
-            io_bindings,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -180,14 +155,6 @@ impl ProjectRuntimeController {
         };
         controller.sync_project(project)?;
         Ok(controller)
-    }
-
-    /// Issue #716 — replace the live I/O binding registry. The app calls this
-    /// before a sync so an edit to `AppConfig.io_bindings` (or opening a
-    /// freshly migrated project) reaches the next graph build. Off the audio
-    /// thread — the registry is read only at build time.
-    pub fn set_io_bindings(&mut self, io_bindings: Vec<IoBinding>) {
-        self.io_bindings = io_bindings;
     }
 
     /// Issue #672 — read a chain's current live runtime (group 0), reflecting
@@ -240,7 +207,6 @@ impl ProjectRuntimeController {
             chain: chain.clone(),
             sample_rate,
             buffer_sizes,
-            io_bindings: self.io_bindings.clone(),
         };
         let rx = self.worker.submit(move || build_chain_runtime(&request));
         self.pending_rebuilds.push((chain.id.clone(), rx));
@@ -532,7 +498,7 @@ impl ProjectRuntimeController {
                 HashMap::new()
             } else {
                 validate_channels_against_devices(project, host)?;
-                resolve_enabled_chain_audio_configs(host, project, &self.io_bindings)?
+                resolve_enabled_chain_audio_configs(host, project)?
             };
 
             let removed_chain_ids = self
@@ -555,10 +521,6 @@ impl ProjectRuntimeController {
                 if !chain.enabled {
                     continue;
                 }
-                // Binding-only routing (#716): an unbound chain opens nothing.
-                if !engine::io_routing::chain_has_bound_ports(chain) {
-                    continue;
-                }
 
                 // #693: a cold bring-up must not hold the caller (the GUI
                 // thread) — reuse the #672 off-thread activation: validate +
@@ -575,7 +537,7 @@ impl ProjectRuntimeController {
                         // Cold start skipped the upfront resolve; this is the
                         // rare synchronous fallback (multi-input chain).
                         validate_chain_channels_against_devices(host, chain)?;
-                        resolve_chain_audio_config(host, project, chain, &self.io_bindings)?
+                        resolve_chain_audio_config(host, project, chain)?
                     }
                 };
                 self.upsert_chain_with_resolved(chain, resolved, false)?;
@@ -611,10 +573,6 @@ impl ProjectRuntimeController {
 
         for chain in &project.chains {
             if !chain.enabled {
-                continue;
-            }
-            // Binding-only routing (#716): an unbound chain opens nothing.
-            if !engine::io_routing::chain_has_bound_ports(chain) {
                 continue;
             }
             let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
@@ -659,10 +617,6 @@ impl ProjectRuntimeController {
         // group 0, so chains with multiple physical input devices
         // stayed half-muted after toggle-on. Mirrors the fan-out in
         // `pause_chain`.
-        //
-        // This runs BEFORE the binding-only gate (#716): an already-streaming
-        // chain resumes its live runtimes in O(1) regardless — the gate below
-        // only governs whether a NOT-yet-active chain gets a fresh build.
         if self.active_chains.contains_key(&chain.id) {
             let runtimes = self.runtime_graph.runtimes_for(&chain.id);
             if let Some(first) = runtimes.first() {
@@ -679,15 +633,6 @@ impl ProjectRuntimeController {
                 }
             }
         }
-        // Binding-only routing (#716): an unbound chain opens no device. If it
-        // was bound before and the user cleared the binding, tear the stale
-        // runtime down so it goes silent.
-        if !engine::io_routing::chain_has_bound_ports(chain) {
-            if self.active_chains.contains_key(&chain.id) {
-                self.remove_chain(&chain.id);
-            }
-            return Ok(());
-        }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
@@ -703,7 +648,7 @@ impl ProjectRuntimeController {
         {
             let host = get_host();
             validate_chain_channels_against_devices(host, chain)?;
-            let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
+            let resolved = resolve_chain_audio_config(host, project, chain)?;
             self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
     }
@@ -725,7 +670,7 @@ impl ProjectRuntimeController {
             return Ok(false); // cold activation — caller does the synchronous build
         }
         let host = get_host();
-        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
+        let resolved = resolve_chain_audio_config(host, project, chain)?;
         let io_unchanged = self
             .active_chains
             .get(&chain.id)
@@ -767,27 +712,12 @@ impl ProjectRuntimeController {
         // entry and the one device stream feeds them all). Multi-device
         // chains need one stream per device wired through the synchronous
         // build, so defer them.
-        // #716: a binding-bound chain (io_binding_ids) carries no device Input
-        // blocks — its input devices come from the selected bindings' input
-        // endpoints. Counting only `input_blocks().entries` would see 0 devices
-        // and wrongly defer (→ never activates → "runtime not started" / no
-        // sound). Resolve the device set from whichever model the chain uses.
-        let input_devices: std::collections::HashSet<String> = if chain.io_binding_ids.is_empty() {
-            chain
-                .input_blocks()
-                .iter()
-                .flat_map(|(_, block)| block.entries.iter())
-                .map(|entry| entry.device_id.0.clone())
-                .collect()
-        } else {
-            chain
-                .io_binding_ids
-                .iter()
-                .filter_map(|id| self.io_bindings.iter().find(|b| &b.id == id))
-                .flat_map(|b| b.inputs.iter())
-                .map(|ep| ep.device_id.0.clone())
-                .collect()
-        };
+        let input_devices: std::collections::HashSet<&str> = chain
+            .input_blocks()
+            .iter()
+            .flat_map(|(_, block)| block.entries.iter())
+            .map(|entry| entry.device_id.0.as_str())
+            .collect();
         if input_devices.len() != 1 {
             return Ok(false);
         }
@@ -797,22 +727,15 @@ impl ProjectRuntimeController {
         // together with the heavy build, never on the calling thread.
         let project_for_build = project.clone();
         let chain_for_build = chain.clone();
-        let io_bindings_for_build = self.io_bindings.clone();
         let rx = self.worker.submit(move || {
             let host = get_host();
             validate_chain_channels_against_devices(host, &chain_for_build)?;
-            let resolved = resolve_chain_audio_config(
-                host,
-                &project_for_build,
-                &chain_for_build,
-                &io_bindings_for_build,
-            )?;
+            let resolved = resolve_chain_audio_config(host, &project_for_build, &chain_for_build)?;
             let elastic_targets = compute_elastic_targets_for_chain(&chain_for_build, &resolved);
             let request = BuildRequest {
                 chain: chain_for_build,
                 sample_rate: resolved.sample_rate,
                 buffer_sizes: elastic_targets,
-                io_bindings: io_bindings_for_build,
             };
             Ok((build_chain_runtime(&request)?, resolved))
         });
@@ -995,19 +918,7 @@ impl ProjectRuntimeController {
         // from the graph so the cpal layer can wire each physical input
         // device to its own runtime and mix them at the shared output
         // (issue #350 phase 3).
-        // Issue #716: a chain whose ports reference io bindings is routed per
-        // binding (full rebuild via the registry). The legacy in-place upsert
-        // is `entries`-based and cannot serve a bound chain whose entries are
-        // drained — it would build a silent fallback runtime. Pure-legacy
-        // chains keep the existing in-place upsert byte-identical.
-        if engine::io_routing::chain_has_bound_ports(chain) {
-            self.runtime_graph.upsert_bound_chain(
-                chain,
-                resolved.sample_rate,
-                &elastic_targets,
-                &self.io_bindings,
-            )?;
-        } else if spillover {
+        if spillover {
             self.runtime_graph.upsert_chain_spillover(
                 chain,
                 resolved.sample_rate,

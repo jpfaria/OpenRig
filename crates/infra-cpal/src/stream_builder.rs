@@ -66,7 +66,6 @@ use crate::jack_direct::build_jack_direct_chain;
 pub fn build_streams_for_project(
     project: &project::project::Project,
     runtime_graph: &engine::runtime::RuntimeGraph,
-    io_bindings: &[domain::io_binding::IoBinding],
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
 
@@ -78,7 +77,6 @@ pub fn build_streams_for_project(
     {
         let _ = project; // not needed on Linux/JACK
         let _ = runtime_graph; // not needed on Linux/JACK: all streaming handled by jack crate
-        let _ = io_bindings; // device resolution is libjack-driven on this path
         return Ok(Vec::new());
     }
 
@@ -87,7 +85,7 @@ pub fn build_streams_for_project(
         let host = crate::host::get_host();
         crate::validation::validate_channels_against_devices(project, host)?;
         let mut resolved_chains =
-            crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project, io_bindings)?;
+            crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project)?;
         let mut streams = Vec::new();
         for chain in &project.chains {
             if !chain.enabled {

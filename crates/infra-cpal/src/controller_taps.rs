@@ -347,57 +347,16 @@ mod di_loop_doubling_tests {
     use super::arm_di_loop_on_first;
     use crate::{build_chain_runtime, BuildRequest};
     use domain::ids::{BlockId, ChainId, DeviceId};
-    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
     use engine::DiLoop;
-    use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
-    use project::chain::Chain;
+    use project::block::{
+        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+    };
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
     use std::sync::Arc;
 
-    /// Clean break (#716): the "two inputs, one interface" shape is now a BOUND
-    /// chain — one binding with two input endpoints (ch0 + ch1) and one output.
-    /// Two distinct input ports ⇒ two isolated per-input runtimes, the same
-    /// doubling premise #703/#715 pinned (it just routes via the registry now,
-    /// not legacy `entries`).
-    fn two_port_binding() -> Vec<IoBinding> {
-        vec![IoBinding {
-            id: "io".into(),
-            name: "Interface".into(),
-            inputs: vec![
-                IoEndpoint {
-                    name: "in0".into(),
-                    device_id: DeviceId("dev".into()),
-                    mode: ChannelMode::Mono,
-                    channels: vec![0],
-                },
-                IoEndpoint {
-                    name: "in1".into(),
-                    device_id: DeviceId("dev".into()),
-                    mode: ChannelMode::Mono,
-                    channels: vec![1],
-                },
-            ],
-            outputs: vec![IoEndpoint {
-                name: "out".into(),
-                device_id: DeviceId("dev".into()),
-                mode: ChannelMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }]
-    }
-
-    fn bound_in(id: &str, endpoint: &str) -> AudioBlock {
-        AudioBlock {
-            id: BlockId(id.into()),
-            enabled: true,
-            kind: AudioBlockKind::Input(InputBlock {
-                model: "standard".into(),
-                io: "io".into(),
-                endpoint: endpoint.into(),
-                entries: Vec::new(),
-            }),
-        }
-    }
-
+    /// A chain whose input block has TWO entries on the same device (ch0 + ch1)
+    /// — the "two inputs, one interface" shape. #703 builds one runtime per
+    /// entry.
     fn two_entry_chain() -> Chain {
         Chain {
             id: ChainId("dbl".into()),
@@ -407,16 +366,39 @@ mod di_loop_doubling_tests {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![
-                bound_in("in0", "in0"),
-                bound_in("in1", "in1"),
+                AudioBlock {
+                    id: BlockId("in".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        io: String::new(),
+                        endpoint: String::new(),
+                        entries: vec![
+                            InputEntry {
+                                device_id: DeviceId("dev".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![0],
+                            },
+                            InputEntry {
+                                device_id: DeviceId("dev".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![1],
+                            },
+                        ],
+                    }),
+                },
                 AudioBlock {
                     id: BlockId("out".into()),
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
-                        io: "io".into(),
-                        endpoint: "out".into(),
-                        entries: Vec::new(),
+                        io: String::new(),
+                        endpoint: String::new(),
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
                     }),
                 },
             ],
@@ -425,15 +407,14 @@ mod di_loop_doubling_tests {
 
     #[test]
     fn two_entry_chain_builds_two_runtimes() {
-        // Pins the doubling PREMISE: a 2-input-port chain is two isolated runtimes.
+        // Pins the doubling PREMISE: a 2-entry chain is two isolated runtimes.
         let req = BuildRequest {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
-            io_bindings: two_port_binding(),
         };
-        let runtimes = build_chain_runtime(&req).expect("build 2-port chain");
-        assert_eq!(runtimes.len(), 2, "#703: one runtime per input port");
+        let runtimes = build_chain_runtime(&req).expect("build 2-entry chain");
+        assert_eq!(runtimes.len(), 2, "#703: one runtime per input entry");
     }
 
     #[test]
@@ -442,25 +423,15 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
-            io_bindings: two_port_binding(),
         };
-        let built = build_chain_runtime(&req).expect("build 2-port chain");
+        let built = build_chain_runtime(&req).expect("build 2-entry chain");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
         assert_eq!(runtimes.len(), 2);
 
-        let di = Arc::new(DiLoop::from_samples(
-            &[0.1, 0.2, 0.3, 0.4],
-            48_000,
-            1,
-            48_000,
-            0,
-        ));
+        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2, 0.3, 0.4], 48_000, 1, 48_000, 0));
         arm_di_loop_on_first(&runtimes, Some(di));
 
-        assert!(
-            runtimes[0].has_di_loop(),
-            "the loop plays on the first runtime"
-        );
+        assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
         assert!(
             !runtimes[1].has_di_loop(),
             "the loop must NOT also play on the second entry's runtime — that is \
@@ -474,7 +445,6 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
-            io_bindings: two_port_binding(),
         };
         let built = build_chain_runtime(&req).expect("build");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();

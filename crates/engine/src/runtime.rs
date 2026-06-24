@@ -53,7 +53,6 @@ pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_IDLE};
 // `engine::runtime::*` paths via these re-exports.
 // Slice 7: endpoint resolution + segmentation moved to runtime_endpoints
 // and runtime_segments respectively; re-exported here for tests.
-pub use crate::io_routing::resolve_chain_streams;
 #[cfg(test)]
 pub(crate) use crate::runtime_block_builders::{
     bypass_runtime_node, next_block_instance_serial, processor_scratch,
@@ -69,9 +68,6 @@ pub use crate::runtime_graph::{
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
-pub use crate::runtime_io_graph::{
-    build_io_runtime_graph, build_per_input_runtime_states_with_bindings,
-};
 #[cfg(test)]
 pub(crate) use crate::runtime_segments::split_chain_into_segments;
 
@@ -835,18 +831,6 @@ mod tests;
 #[cfg(test)]
 #[path = "stream_isolation_tests.rs"]
 mod stream_isolation;
-
-#[cfg(test)]
-#[path = "io_binding_isolation_tests.rs"]
-mod io_binding_isolation;
-
-#[cfg(test)]
-#[path = "io_binding_routing_tests.rs"]
-mod io_binding_routing;
-
-#[cfg(test)]
-#[path = "io_binding_input_isolation_tests.rs"]
-mod io_binding_input_isolation;
 
 #[cfg(test)]
 #[path = "stream_isolation_same_device_tests.rs"]

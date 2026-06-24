@@ -36,11 +36,9 @@ struct AppConfigYaml {
 
 /// Build the runtime graph + streams for the current project state.
 fn build_streams(project: &Project) -> Result<Vec<cpal::Stream>> {
-    // The headless console does not load the per-machine io_bindings registry
-    // (#716); legacy `entries` chains resolve unchanged with an empty registry.
-    let rates = resolve_project_chain_sample_rates(project, &[])?;
+    let rates = resolve_project_chain_sample_rates(project)?;
     let graph = build_runtime_graph(project, &rates, &HashMap::new())?;
-    let streams = build_streams_for_project(project, &graph, &[])?;
+    let streams = build_streams_for_project(project, &graph)?;
     for stream in &streams {
         stream.play()?;
     }
