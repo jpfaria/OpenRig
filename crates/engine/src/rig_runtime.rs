@@ -126,6 +126,17 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             });
         }
 
+        // #716: a binding-bound chain is the new format — its I/O is the
+        // system binding (io_binding_ids), never chain blocks. Drop any legacy
+        // Input/Output blocks left in the preset; keeping them duplicates the
+        // binding's I/O (e.g. a second output stream on the same device →
+        // absurd latency + underruns).
+        if bound {
+            blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+            });
+        }
+
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
             // The chain title is the *input* label (the chain's own

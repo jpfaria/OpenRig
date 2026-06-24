@@ -130,9 +130,15 @@ fn activating_a_binding_bound_chain_produces_sound() {
         "BUG #716: bound chain has no output stream taps — it is not streaming"
     );
 
-    // Drain the output taps for ~3 s, tracking the peak magnitude.
+    // Let the streams settle, then measure a sustained window for BOTH signal
+    // and stream stability — the activated bound chain must pass audio AND not
+    // starve the device (#2: "0 xruns, N underruns — rig is heavy").
+    std::thread::sleep(Duration::from_secs(2));
+    let xrun0 = controller.chain_xrun_count(&chain_id);
+    let under0 = controller.chain_underrun_count(&chain_id);
+
     let mut peak = 0.0_f32;
-    let deadline = Instant::now() + Duration::from_secs(3);
+    let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         for ring in &taps {
             while let Some(s) = ring.pop() {
@@ -142,10 +148,21 @@ fn activating_a_binding_bound_chain_produces_sound() {
         std::thread::sleep(Duration::from_millis(20));
     }
 
-    eprintln!("[#716 HW] output peak over 3 s of DI = {peak:.5}");
+    let xruns = controller.chain_xrun_count(&chain_id) - xrun0;
+    let underruns = controller.chain_underrun_count(&chain_id) - under0;
+    eprintln!(
+        "[#716 HW] 10 s of DI: peak={peak:.5} xruns={xruns} underruns={underruns}"
+    );
     assert!(
         peak > 1e-3,
         "BUG #716: the activated binding-bound chain produced SILENT output \
          (peak={peak:.6}) — the DI did not reach the device. No sound on activate."
+    );
+    assert_eq!(
+        (xruns, underruns),
+        (0, 0),
+        "BUG #716 (#2): the activated binding-bound chain starved the device — \
+         {xruns} xruns / {underruns} underruns in 10 s — the live 'audio overload \
+         (rig is heavy for this buffer size)'."
     );
 }
