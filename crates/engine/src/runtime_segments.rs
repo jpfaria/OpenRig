@@ -19,8 +19,10 @@
 //! descriptions into the runtime state structures and live with the rest
 //! of the graph assembly in `runtime_graph.rs`.
 
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use project::block::AudioBlockKind;
 use project::chain::Chain;
+
+use crate::runtime_endpoints::{InputEntry, OutputEntry};
 
 /// Describes a chain segment: an input source, its effect blocks, and its
 /// output targets.
@@ -60,25 +62,19 @@ pub(crate) fn split_chain_into_segments(
     entry_groups: &[usize],
     _effective_outs: &[OutputEntry],
 ) -> Vec<ChainSegment> {
-    // Count regular InputBlock entries and OutputBlock entries.
+    // Model A: each Input/Output block is ONE binding endpoint (no `entries`).
+    // Count the in-chain (mid) I/O blocks — head/tail endpoints come from the
+    // bindings (`effective_ins`/`effective_outs`), not from chain blocks.
     let regular_input_count: usize = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-            _ => None,
-        })
-        .sum();
+        .filter(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Input(_)))
+        .count();
     let regular_output_count: usize = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
-            _ => None,
-        })
-        .sum();
+        .filter(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Output(_)))
+        .count();
 
     // Find positions of enabled Insert blocks in chain.blocks.
     let insert_positions: Vec<usize> = chain
@@ -96,6 +92,7 @@ pub(crate) fn split_chain_into_segments(
             cpal_indices,
             split_positions,
             entry_groups,
+            _effective_outs,
         );
     }
 
@@ -111,48 +108,40 @@ pub(crate) fn split_chain_into_segments(
 }
 
 /// One segment per `(input × output)` pair when no enabled Insert blocks
-/// exist. Each output block defines a cut point — only effect blocks that
-/// appear BEFORE that output position are included in the segment.
+/// exist. Model A: the chain's outputs come from the bindings (`effective_outs`)
+/// and sit at the chain TAIL, so every effect block feeds every output — one
+/// segment per (input, output) covering all enabled effect blocks. (Mid output
+/// blocks at an offset — a partial cut — are a follow-up; for the head/tail
+/// case this is bit-exact to the legacy single-tail-output path.)
 fn segments_without_inserts(
     chain: &Chain,
     effective_ins: &[InputEntry],
     cpal_indices: &[usize],
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
+    effective_outs: &[OutputEntry],
 ) -> Vec<ChainSegment> {
-    let mut output_positions: Vec<(usize, usize)> = Vec::new();
-    let mut out_entry_idx = 0;
-    for (pos, block) in chain.blocks.iter().enumerate() {
-        if block.enabled {
-            if let AudioBlockKind::Output(ob) = &block.kind {
-                for _ in 0..ob.entries.len() {
-                    output_positions.push((pos, out_entry_idx));
-                    out_entry_idx += 1;
-                }
-            }
-        }
-    }
+    // All enabled effect blocks (everything that is not an I/O / Insert port).
+    let block_indices: Vec<usize> = chain
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| {
+            b.enabled
+                && !matches!(
+                    &b.kind,
+                    AudioBlockKind::Input(_)
+                        | AudioBlockKind::Output(_)
+                        | AudioBlockKind::Insert(_)
+                )
+        })
+        .map(|(i, _)| i)
+        .collect();
 
     let input_count = effective_ins.len();
     let mut segments = Vec::new();
 
-    for &(out_pos, out_entry_idx) in &output_positions {
-        let block_indices: Vec<usize> = chain
-            .blocks
-            .iter()
-            .enumerate()
-            .filter(|(i, b)| {
-                *i < out_pos
-                    && !matches!(
-                        &b.kind,
-                        AudioBlockKind::Input(_)
-                            | AudioBlockKind::Output(_)
-                            | AudioBlockKind::Insert(_)
-                    )
-            })
-            .map(|(i, _)| i)
-            .collect();
-
+    for out_entry_idx in 0..effective_outs.len() {
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
             segments.push(ChainSegment {
                 input: input.clone(),
@@ -206,11 +195,10 @@ fn segments_with_inserts(
         let mut regular_out_idx = 0;
         for b in &chain.blocks[..insert_pos] {
             if b.enabled {
-                if let AudioBlockKind::Output(ob) = &b.kind {
-                    for _ in 0..ob.entries.len() {
-                        output_indices.push(regular_out_idx);
-                        regular_out_idx += 1;
-                    }
+                if let AudioBlockKind::Output(_ob) = &b.kind {
+                    // Model A: one endpoint per output block.
+                    output_indices.push(regular_out_idx);
+                    regular_out_idx += 1;
                 }
             }
         }
@@ -271,14 +259,13 @@ fn segments_with_inserts(
     let mut regular_out_idx = 0;
     for (bi, b) in chain.blocks.iter().enumerate() {
         if b.enabled {
-            if let AudioBlockKind::Output(ob) = &b.kind {
+            if let AudioBlockKind::Output(_ob) = &b.kind {
+                // Model A: one endpoint per output block.
                 if bi > last_insert_pos {
-                    for _ in 0..ob.entries.len() {
-                        output_indices.push(regular_out_idx);
-                        regular_out_idx += 1;
-                    }
+                    output_indices.push(regular_out_idx);
+                    regular_out_idx += 1;
                 } else {
-                    regular_out_idx += ob.entries.len();
+                    regular_out_idx += 1;
                 }
             }
         }

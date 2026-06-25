@@ -92,7 +92,6 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                     // Propagate the binding reference stored on RigInput (#716).
                     io: input.io.clone(),
                     endpoint: input.endpoint.clone(),
-                    entries: input.sources.clone(),
                 }),
             });
         }
@@ -110,10 +109,6 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                 .first()
                 .map(|(_, o)| (o.io.clone(), o.endpoint.clone()))
                 .unwrap_or_default();
-            let entries: Vec<_> = routed_outputs
-                .iter()
-                .map(|(_, o)| o.entry.clone())
-                .collect();
             blocks.push(AudioBlock {
                 id: BlockId(format!("rig:{name}:out")),
                 enabled: true,
@@ -121,7 +116,6 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
                     model: "standard".to_string(),
                     io: first_io,
                     endpoint: first_ep,
-                    entries,
                 }),
             });
         }

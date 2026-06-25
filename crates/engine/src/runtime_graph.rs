@@ -43,7 +43,8 @@ use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
 use domain::ids::{BlockId, ChainId};
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use domain::io_binding::IoBinding;
+use project::block::AudioBlockKind;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 use project::project::Project;
 
@@ -51,7 +52,7 @@ use crate::runtime::{
     layout_label, ChainRuntimeState, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES, PROBE_IDLE,
 };
 use crate::runtime_audio_frame::ElasticBuffer;
-use crate::runtime_endpoints::{effective_inputs, effective_outputs};
+use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io, InputEntry, OutputEntry};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
@@ -147,6 +148,7 @@ pub fn build_runtime_graph(
     project: &Project,
     chain_sample_rates: &HashMap<ChainId, f32>,
     chain_elastic_targets: &HashMap<ChainId, Vec<usize>>,
+    registry: &[IoBinding],
 ) -> Result<RuntimeGraph> {
     let mut chains = HashMap::new();
     for chain in &project.chains {
@@ -160,7 +162,7 @@ pub fn build_runtime_graph(
         let elastic_targets = chain_elastic_targets
             .get(&chain.id)
             .unwrap_or(&default_targets);
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)? {
             state.set_volume_pct(chain.volume);
             chains.insert((chain.id.clone(), group), Arc::new(state));
         }
@@ -176,10 +178,12 @@ pub(crate) fn build_per_input_runtimes(
     chain: &Chain,
     sample_rate: f32,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+        effective_inputs(chain, &resolved_inputs);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
@@ -223,9 +227,10 @@ pub fn build_per_input_runtime_states(
     chain: &Chain,
     sample_rate: f32,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
     Ok(
-        build_per_input_runtimes(chain, sample_rate, elastic_targets)?
+        build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)?
             .into_iter()
             .map(|(group, state)| (group, Arc::new(state)))
             .collect(),
@@ -239,10 +244,11 @@ pub fn build_per_input_runtime_states(
 /// each edit, only to throw the runtime away. The grouping depends solely on
 /// the chain's input/output endpoints and segment split, never on the built
 /// processors, so it can be derived directly.
-fn input_group_ids(chain: &Chain) -> Vec<usize> {
+fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+        effective_inputs(chain, &resolved_inputs);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
@@ -270,10 +276,12 @@ pub fn build_chain_runtime_state(
     chain: &Chain,
     sample_rate: f32,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<ChainRuntimeState> {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+        effective_inputs(chain, &resolved_inputs);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
@@ -635,6 +643,7 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<()> {
     update_chain_runtime_state_impl(
         runtime,
@@ -643,6 +652,7 @@ pub fn update_chain_runtime_state(
         reset_output_queue,
         elastic_targets,
         false,
+        registry,
     )
 }
 
@@ -657,6 +667,7 @@ pub fn update_chain_runtime_state_spillover(
     sample_rate: f32,
     reset_output_queue: bool,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<()> {
     update_chain_runtime_state_impl(
         runtime,
@@ -665,9 +676,11 @@ pub fn update_chain_runtime_state_spillover(
         reset_output_queue,
         elastic_targets,
         true,
+        registry,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_chain_runtime_state_impl(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
@@ -675,10 +688,12 @@ fn update_chain_runtime_state_impl(
     reset_output_queue: bool,
     elastic_targets: &[usize],
     spillover: bool,
+    registry: &[IoBinding],
 ) -> Result<()> {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (effective_ins, eff_input_cpal_indices, effective_split_positions, eff_entry_groups) =
-        effective_inputs(chain);
-    let effective_outs = effective_outputs(chain);
+        effective_inputs(chain, &resolved_inputs);
+    let effective_outs = effective_outputs(chain, &resolved_outputs);
     let all_segments = split_chain_into_segments(
         chain,
         &effective_ins,
@@ -961,6 +976,7 @@ impl RuntimeGraph {
         sample_rate: f32,
         reset_output_queue: bool,
         elastic_targets: &[usize],
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         self.upsert_chain_impl(
             chain,
@@ -968,6 +984,7 @@ impl RuntimeGraph {
             reset_output_queue,
             elastic_targets,
             false,
+            registry,
         )
     }
 
@@ -979,6 +996,7 @@ impl RuntimeGraph {
         sample_rate: f32,
         reset_output_queue: bool,
         elastic_targets: &[usize],
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         self.upsert_chain_impl(
             chain,
@@ -986,9 +1004,11 @@ impl RuntimeGraph {
             reset_output_queue,
             elastic_targets,
             true,
+            registry,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn upsert_chain_impl(
         &mut self,
         chain: &Chain,
@@ -996,6 +1016,7 @@ impl RuntimeGraph {
         reset_output_queue: bool,
         elastic_targets: &[usize],
         spillover: bool,
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         let existing_groups: Vec<usize> = self
             .chains
@@ -1021,7 +1042,7 @@ impl RuntimeGraph {
             // building here reloaded every NAM/IR model in the chain from disk
             // on each edit (volume, knob, toggle), only to discard them and
             // update the existing runtime in place.
-            let mut new_groups: Vec<usize> = input_group_ids(chain);
+            let mut new_groups: Vec<usize> = input_group_ids(chain, registry);
             let mut existing_sorted = existing_groups.clone();
             new_groups.sort_unstable();
             existing_sorted.sort_unstable();
@@ -1037,6 +1058,7 @@ impl RuntimeGraph {
                                 sample_rate,
                                 reset_output_queue,
                                 elastic_targets,
+                                registry,
                             )?;
                         } else {
                             update_chain_runtime_state(
@@ -1045,6 +1067,7 @@ impl RuntimeGraph {
                                 sample_rate,
                                 reset_output_queue,
                                 elastic_targets,
+                                registry,
                             )?;
                         }
                     }
@@ -1066,7 +1089,7 @@ impl RuntimeGraph {
             self.chains.remove(&(chain.id.clone(), *g));
         }
         let mut first: Option<Arc<ChainRuntimeState>> = None;
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)? {
             state.set_volume_pct(chain.volume);
             let arc = Arc::new(state);
             if first.is_none() {

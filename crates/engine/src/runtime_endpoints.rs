@@ -1,68 +1,95 @@
-//! Effective endpoint resolution for a chain — converts the user-facing
-//! `InputBlock` / `OutputBlock` / `InsertBlock` entries into the flat lists
-//! the runtime actually needs (one effective input per processing stream,
-//! one effective output per route, plus Insert send/return shims).
+//! Effective endpoint resolution for a chain.
 //!
-//! Lifted out of `runtime_graph.rs` (slice 7 of the Phase 2 split) so the
-//! parent file gets back under the 600 LOC cap.
+//! Model A (#716): a chain no longer embeds device endpoints. The device /
+//! channels / mode of every input and output come from the per-machine I/O
+//! binding registry, resolved via [`project::binding_discovery::resolve_chain_ports`].
+//! This module owns the engine's *runtime* endpoint types ([`InputEntry`] /
+//! [`OutputEntry`]) — they are NOT persisted; they are the resolved view the
+//! runtime builds streams from. The pinned volume/golden math operates on
+//! these exactly as before; only the SOURCE changed (binding, not the chain).
 //!
 //! What lives here:
-//!   - `effective_inputs` — flattens enabled `InputBlock` entries, splits
-//!     mono entries with N>1 channels into N separate streams, appends
-//!     Insert-return shims so post-Insert segments have an "input".
-//!   - `effective_outputs` — flattens enabled `OutputBlock` entries and
-//!     appends Insert-send shims so pre-Insert segments have an "output".
-//!   - `insert_return_as_input_entry` / `insert_send_as_output_entry` —
-//!     the conversion helpers used by the two functions above.
-//!
-//! What's NOT here: the per-stream processing-state builder
-//! (`build_input_processing_state`) and the per-route routing-state builder
-//! (`build_output_routing_state`) — those construct runtime state from the
-//! resolved endpoints and live with the rest of the graph assembly in
-//! `runtime_graph.rs`.
+//!   - `InputEntry` / `OutputEntry` — the engine's resolved device endpoints.
+//!   - `resolve_chain_io` — chain + registry → `(Vec<InputEntry>, Vec<OutputEntry>)`.
+//!   - `effective_inputs` — split mono entries with N>1 channels into N
+//!     streams; append Insert-return shims.
+//!   - `effective_outputs` — flatten resolved outputs; append Insert-send shims.
 
 use std::collections::HashMap;
 
 use domain::ids::DeviceId;
-use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
+use domain::io_binding::IoBinding;
+use project::binding_discovery::{resolve_chain_ports, PortDirection};
+use project::block::{AudioBlockKind, InsertBlock};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
-/// Resolve effective inputs for a chain.
+/// A resolved input endpoint the runtime reads from. Not persisted — built
+/// from the chain's selected I/O binding(s). `mode`/`channels`/`device_id`
+/// come from the binding's `IoEndpoint`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InputEntry {
+    pub device_id: DeviceId,
+    pub mode: ChainInputMode,
+    pub channels: Vec<usize>,
+}
+
+/// A resolved output endpoint the runtime writes to. Not persisted.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OutputEntry {
+    pub device_id: DeviceId,
+    pub mode: ChainOutputMode,
+    pub channels: Vec<usize>,
+}
+
+/// Resolve a chain's input and output device endpoints from the binding
+/// `registry`. Head/tail come from `chain.io_binding_ids`; mid `Input`/`Output`
+/// blocks resolve their `io`/`endpoint`. The device data lives only in the
+/// registry — never in the chain (#716, model A).
+pub fn resolve_chain_io(chain: &Chain, registry: &[IoBinding]) -> (Vec<InputEntry>, Vec<OutputEntry>) {
+    let ports = resolve_chain_ports(chain, registry);
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for port in ports {
+        match port.direction {
+            PortDirection::Input => inputs.push(InputEntry {
+                device_id: port.endpoint.device_id,
+                mode: ChainInputMode::from(port.endpoint.mode),
+                channels: port.endpoint.channels,
+            }),
+            PortDirection::Output => outputs.push(OutputEntry {
+                device_id: port.endpoint.device_id,
+                mode: ChainOutputMode::try_from(port.endpoint.mode)
+                    .unwrap_or(ChainOutputMode::Stereo),
+                channels: port.endpoint.channels,
+            }),
+        }
+    }
+    (inputs, outputs)
+}
+
+/// Expand the resolved input endpoints into the flat per-stream list.
 ///
-/// Returns `(entries, cpal_indices, split_positions, entry_groups)` where:
-/// - `entries[i]` is the `i`-th effective input — one per processing stream.
-/// - `cpal_indices[i]` is the CPAL stream index for `entries[i]`. Multiple
-///   effective inputs sharing the same device get the same CPAL stream
-///   index (infra-cpal deduplicates streams by device).
-/// - `split_positions[i]` is `Some(N)` when `entries[i]` came from a
-///   split-mono original (one `InputBlock` with `mode: mono` and `N`
-///   channels) and owns one output channel position out of `N`. The runtime
-///   uses this to scale the segment's contribution by `1/N` at fan-out so
-///   N loud guitars do not saturate the output limiter. Mono→stereo upmix
-///   stays the historical broadcast — "mono in → stereo out is broadcast
-///   to both channels" is preserved. `None` for stereo / dual-mono /
-///   single-channel mono / Insert-return entries — they keep the historical
-///   broadcast/sum behaviour.
-/// - `entry_groups[i]` is the RAW input-entry index `entries[i]` came from
-///   (issue #703). Split-mono siblings share their originating entry's
-///   group — they must stay in ONE runtime so the pinned volume invariants
-///   (g02/g03: siblings sum before the per-runtime limiter) keep their
-///   exact math. Distinct raw entries get distinct groups even when they
-///   read the same physical device — each becomes its own isolated
-///   runtime. Insert-return entries get unique groups after the raw ones.
+/// Returns `(entries, cpal_indices, split_positions, entry_groups)` — see the
+/// per-field docs below. `resolved` are the chain's input endpoints (from the
+/// binding registry); Insert-return shims are appended from the chain's enabled
+/// Insert blocks. The split-mono / cpal-index / group math is byte-identical to
+/// the legacy entries-based path (pinned volume invariants depend on it).
+///
+/// - `entries[i]` — the `i`-th effective input, one per processing stream.
+/// - `cpal_indices[i]` — the CPAL stream index (inputs sharing a device share
+///   the index; infra-cpal dedupes by device).
+/// - `split_positions[i]` — `Some(N)` when this entry came from a split-mono
+///   original (one mono endpoint with N channels) owning one of N positions;
+///   the runtime scales its fan-out contribution by `1/N`. `None` otherwise.
+/// - `entry_groups[i]` — the RAW input index this entry came from (#703):
+///   split-mono siblings share a group (sum before the per-runtime limiter,
+///   g02/g03); distinct raw endpoints get distinct groups (own isolated
+///   runtime) even on the same device.
 pub(crate) fn effective_inputs(
     chain: &Chain,
+    resolved: &[InputEntry],
 ) -> (Vec<InputEntry>, Vec<usize>, Vec<Option<usize>>, Vec<usize>) {
-    let raw_entries: Vec<InputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib),
-            _ => None,
-        })
-        .flat_map(|ib| ib.entries.iter().cloned())
-        .collect();
+    let raw_entries: Vec<InputEntry> = resolved.to_vec();
 
     let mut entries: Vec<InputEntry> = Vec::new();
     let mut cpal_indices: Vec<usize> = Vec::new();
@@ -80,10 +107,6 @@ pub(crate) fn effective_inputs(
         });
 
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
-            // All split siblings get the SAME sibling count (total channels
-            // split from the original mono entry). The runtime divides each
-            // segment's contribution by this count at fan-out so N loud
-            // guitars do not saturate the output limiter.
             let n = entry.channels.len();
             for &ch in entry.channels.iter() {
                 entries.push(InputEntry {
@@ -124,7 +147,7 @@ pub(crate) fn effective_inputs(
     if !entries.is_empty() {
         return (entries, cpal_indices, split_positions, entry_groups);
     }
-    // Fallback — no InputBlocks defined.
+    // Fallback — chain has no resolved inputs.
     (
         vec![InputEntry {
             device_id: DeviceId("".to_string()),
@@ -137,21 +160,11 @@ pub(crate) fn effective_inputs(
     )
 }
 
-/// Build effective output entries from chain's `OutputBlock` entries, plus
-/// Insert send entries. Order: `OutputBlock` entries first, then Insert
-/// send entries (matches CPAL stream order). Falls back to a single mono
-/// output on channel 0 if no `OutputBlock`s exist and no Inserts.
-pub(crate) fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
-    let mut entries: Vec<OutputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob),
-            _ => None,
-        })
-        .flat_map(|ob| ob.entries.iter().cloned())
-        .collect();
+/// Build effective output entries from the resolved outputs, plus Insert send
+/// entries. Order: resolved outputs first, then Insert sends (matches CPAL
+/// stream order). Falls back to a single mono output on channel 0 if neither.
+pub(crate) fn effective_outputs(chain: &Chain, resolved: &[OutputEntry]) -> Vec<OutputEntry> {
+    let mut entries: Vec<OutputEntry> = resolved.to_vec();
 
     // Append Insert send entries (as outputs for segments before each Insert).
     let insert_sends: Vec<OutputEntry> = chain
@@ -168,7 +181,7 @@ pub(crate) fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
     if !entries.is_empty() {
         return entries;
     }
-    // Fallback — no OutputBlocks defined.
+    // Fallback — no resolved outputs and no Inserts.
     vec![OutputEntry {
         device_id: DeviceId("".to_string()),
         mode: ChainOutputMode::Mono,
