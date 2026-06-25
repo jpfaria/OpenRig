@@ -88,11 +88,9 @@ use super::{
 };
 use crate::runtime_state::ChainRuntimeState;
 use crate::spsc::SpscRing;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -121,67 +119,55 @@ const MAX_MEDIAN_FRACTION: f64 = 0.05;
 // each test file self-contained).
 // ─────────────────────────────────────────────────────────────────────────
 
-fn input_mono(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
+// Model A (#716): I/O comes from the binding registry, not in-chain blocks.
+// These helpers build registry endpoints; the chain itself is effect-only.
+
+fn input_mono(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels,
     }
 }
 
-fn input_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels,
-            }],
-        }),
+fn input_stereo(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
     }
 }
 
-fn output(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
+fn output(mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "out0".into(),
+        device_id: DeviceId("dev".into()),
+        mode,
+        channels,
     }
 }
 
-fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
-    Chain {
+/// Build an effect-only chain plus the single-binding registry that supplies
+/// its head input + tail output endpoints.
+fn chain_with_io(id: &str, input: IoEndpoint, output: IoEndpoint) -> (Chain, Vec<IoBinding>) {
+    let chain = Chain {
         id: ChainId(id.into()),
         description: Some("deadline test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks,
-    }
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+    };
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![input],
+        outputs: vec![output],
+    }];
+    (chain, registry)
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -265,6 +251,7 @@ impl DeadlineResult {
 fn run_deadline(
     label: &'static str,
     chain: &Chain,
+    registry: &[IoBinding],
     input_total_channels: usize,
     output_total_channels: usize,
     buffer_frames: usize,
@@ -272,7 +259,7 @@ fn run_deadline(
     iterations: usize,
 ) -> DeadlineResult {
     let runtime = Arc::new(
-        build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET], registry)
             .expect("runtime should build for deadline test"),
     );
     measure_deadline(
@@ -364,13 +351,15 @@ fn pipe_only_mono_64_at_44100_meets_deadline() {
     // Pipe-only: input→output, no DSP block. Catches the slice 1 class
     // of regression directly — every per-frame helper (push, pop,
     // mono_mix, frame_to_bits, read_input_frame) runs every iteration.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_io(
         "pipe-mono-64-44k",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        output(ChannelMode::Mono, vec![0]),
     );
     let result = run_deadline(
         "pipe_only_mono_64@44.1k",
         &chain,
+        &registry,
         1,
         1,
         64,
@@ -389,16 +378,15 @@ fn pipe_only_stereo_64_at_44100_meets_deadline() {
     // Stereo path stresses the bit-packed last_frame_bits in
     // ElasticBuffer plus the stereo branches in read_input_frame and
     // silent_frame.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_io(
         "pipe-stereo-64-44k",
-        vec![
-            input_stereo(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_stereo(vec![0, 1]),
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let result = run_deadline(
         "pipe_only_stereo_64@44.1k",
         &chain,
+        &registry,
         2,
         2,
         64,
@@ -416,13 +404,15 @@ fn pipe_only_stereo_64_at_44100_meets_deadline() {
 fn pipe_only_mono_128_at_48000_meets_deadline() {
     // Larger buffer + 48k. Period roughly 2.67 ms — gives more headroom,
     // a regression here means something quite expensive landed.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_io(
         "pipe-mono-128-48k",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        output(ChannelMode::Mono, vec![0]),
     );
     let result = run_deadline(
         "pipe_only_mono_128@48k",
         &chain,
+        &registry,
         1,
         1,
         128,
@@ -440,13 +430,15 @@ fn pipe_only_mono_128_at_48000_meets_deadline() {
 fn pipe_only_mono_64_at_48000_meets_deadline() {
     // 64 frames @ 48k — period 1.333 ms, the tightest realistic budget
     // openrig has to hit on Mac/Linux at default settings.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_io(
         "pipe-mono-64-48k",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        output(ChannelMode::Mono, vec![0]),
     );
     let result = run_deadline(
         "pipe_only_mono_64@48k",
         &chain,
+        &registry,
         1,
         1,
         64,
@@ -502,13 +494,11 @@ fn pipe_only_mono_64_at_48000_meets_deadline() {
 // `RING_CAPACITY` matches `meter_wiring::start_meter_polling::RING_CAPACITY`.
 const ISSUE_580_RING_CAPACITY: usize = 4096;
 
-fn stereo_pipe_chain(label: &'static str) -> Chain {
-    chain_with_blocks(
+fn stereo_pipe_chain(label: &'static str) -> (Chain, Vec<IoBinding>) {
+    chain_with_io(
         label,
-        vec![
-            input_stereo(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_stereo(vec![0, 1]),
+        output(ChannelMode::Stereo, vec![0, 1]),
     )
 }
 
@@ -526,10 +516,11 @@ fn pipe_stereo_32_at_48000_meets_deadline_control_no_taps() {
     // 32 frames @ 48k — period 666 µs, the buffer size the user
     // reported as clean before the visualization work landed. Control:
     // no taps registered, only the chain itself.
-    let chain = stereo_pipe_chain("issue580-control-32-48k");
+    let (chain, registry) = stereo_pipe_chain("issue580-control-32-48k");
     let result = run_deadline(
         "issue580_control_no_taps_32@48k",
         &chain,
+        &registry,
         2,
         2,
         32,
@@ -559,9 +550,9 @@ fn pipe_stereo_32_at_48000_with_meter_taps_meets_deadline() {
     // bound to a local so `Arc::strong_count > 1` and `prune_dead_*`
     // (not called here, but mirrored against the live behaviour) would
     // keep them.
-    let chain = stereo_pipe_chain("issue580-with-meter-taps-32-48k");
+    let (chain, registry) = stereo_pipe_chain("issue580-with-meter-taps-32-48k");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &registry)
             .expect("runtime should build for issue #580 regression test"),
     );
 

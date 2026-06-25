@@ -26,48 +26,33 @@
 use std::sync::Arc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 
 use crate::runtime_graph::{build_chain_runtime_state, update_chain_runtime_state};
 
 const SR: f32 = 48_000.0;
 
-fn input() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+/// Registry mirroring the legacy mono-in / stereo-out endpoints. The chain's
+/// head input and tail output are now resolved from this binding (#716).
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 /// A convolution (cab/IR) block. The model need not resolve to a real
@@ -92,13 +77,14 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks,
     }
 }
 
 fn first_output_buffer_len(chain: &Chain, buffer: usize) -> usize {
-    let rt = build_chain_runtime_state(chain, SR, &[buffer]).expect("chain runtime builds");
+    let rt = build_chain_runtime_state(chain, SR, &[buffer], &registry())
+        .expect("chain runtime builds");
     rt.output_routes.load()[0].buffer.len()
 }
 
@@ -107,7 +93,7 @@ fn ir_chain_primes_output_elastic_buffer_on_initial_build() {
     // buffer 64 → without priming the output elastic buffer is empty (len
     // 0) and the IR convolver's per-partition FFT spike underruns it on a
     // cold start. With the fix it is primed to a real cushion (>= 256).
-    let conv_chain = chain("issue-592-ir", vec![input(), cab("cab"), output()]);
+    let conv_chain = chain("issue-592-ir", vec![cab("cab")]);
     let primed = first_output_buffer_len(&conv_chain, 64);
     assert!(
         primed >= 256,
@@ -123,7 +109,7 @@ fn ir_chain_primes_output_elastic_buffer_on_initial_build() {
 fn non_convolution_chain_is_not_primed() {
     // A plain input→output chain has no FFT spike; it must keep the lean
     // (unprimed) start — no added latency for non-IR chains.
-    let plain = chain("issue-592-plain", vec![input(), output()]);
+    let plain = chain("issue-592-plain", vec![]);
     let primed = first_output_buffer_len(&plain, 64);
     assert_eq!(
         primed, 0,
@@ -142,8 +128,10 @@ fn ir_chain_rebuild_preserves_cushion_without_repriming() {
     // chain permanently fragile (the cushion never refills in lockstep).
     // The rebuild now REUSES the route, so the fill must be exactly what it
     // was before the edit: not reset to 0, not re-primed upward.
-    let conv_chain = chain("issue-592-ir-edit", vec![input(), cab("cab"), output()]);
-    let rt = Arc::new(build_chain_runtime_state(&conv_chain, SR, &[64]).expect("initial build"));
+    let conv_chain = chain("issue-592-ir-edit", vec![cab("cab")]);
+    let rt = Arc::new(
+        build_chain_runtime_state(&conv_chain, SR, &[64], &registry()).expect("initial build"),
+    );
     // Drain part of the initial prime so "preserved" and "re-primed" differ.
     let before_route = &rt.output_routes.load()[0];
     for _ in 0..100 {
@@ -154,7 +142,7 @@ fn ir_chain_rebuild_preserves_cushion_without_repriming() {
         before_edit > 0,
         "test setup: drained prime should remain > 0"
     );
-    update_chain_runtime_state(&rt, &conv_chain, SR, false, &[64]).expect("rebuild");
+    update_chain_runtime_state(&rt, &conv_chain, SR, false, &[64], &registry()).expect("rebuild");
     let after_edit = rt.output_routes.load()[0].buffer.len();
     assert_eq!(
         after_edit, before_edit,

@@ -36,10 +36,8 @@ use domain::value_objects::ParameterValue;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_block_toggle::set_block_enabled;
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, NamBlock};
+use project::chain::Chain;
 use project::project::Project;
 
 const SR: f32 = 48_000.0;
@@ -58,6 +56,25 @@ fn init_test_registry() {
     });
 }
 
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+    }]
+}
+
 /// Input(mono) → NAM grid pedal(`drive`) → Output(mono). Single isolated
 /// runtime. The only resource is the grid pedal's model.
 fn grid_chain(drive: f32, pedal_enabled: bool) -> Chain {
@@ -69,45 +86,15 @@ fn grid_chain(drive: f32, pedal_enabled: bool) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("pedal".into()),
-                enabled: pedal_enabled,
-                kind: AudioBlockKind::Nam(NamBlock {
-                    model: "nam_grid_drive".into(),
-                    params,
-                }),
-            },
-            AudioBlock {
-                id: BlockId("out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("pedal".into()),
+            enabled: pedal_enabled,
+            kind: AudioBlockKind::Nam(NamBlock {
+                model: "nam_grid_drive".into(),
+                params,
+            }),
+        }],
     }
 }
 
@@ -180,7 +167,7 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // (a) Build LIVE at the HIGH capture (drive=5). Model loads once.
     let hi = grid_chain(5.0, true);
     let (project, rates) = project_with(hi.clone());
-    let mut graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new())
+    let mut graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
         .expect("graph with a NAM grid pedal must build");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -203,7 +190,7 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // bug.
     let lo = grid_chain(0.0, true);
     graph
-        .upsert_chain(&lo, SR, false, &[BUFFER_FRAMES])
+        .upsert_chain(&lo, SR, false, &[BUFFER_FRAMES], &registry())
         .expect("live drive->0 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -229,7 +216,7 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // energy is restored.
     let hi_again = grid_chain(5.0, true);
     graph
-        .upsert_chain(&hi_again, SR, false, &[BUFFER_FRAMES])
+        .upsert_chain(&hi_again, SR, false, &[BUFFER_FRAMES], &registry())
         .expect("live drive->5 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -259,7 +246,7 @@ fn grid_pedal_on_off_is_the_enable_toggle_even_at_knob_zero() {
     // Build LIVE at the axis minimum. NEW contract: model loaded.
     let lo = grid_chain(0.0, true);
     let (project, rates) = project_with(lo.clone());
-    let graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new())
+    let graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
         .expect("graph with a NAM grid pedal must build");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))

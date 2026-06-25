@@ -14,7 +14,6 @@ use super::rig_to_chains;
 fn input_with_preset(preset_key: &str) -> RigInput {
     RigInput {
         label: None,
-        sources: Vec::new(),
         bank: BTreeMap::from([(1, preset_key.to_string())]),
         active_preset: 1,
         active_scene: 1,

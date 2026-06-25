@@ -29,12 +29,10 @@ use super::{
     DEFAULT_ELASTIC_TARGET,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use std::sync::Arc;
 
@@ -45,71 +43,47 @@ const TOLERANCE: f32 = 1e-3;
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────
 
-fn input_mono(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
+/// Registry id every chain in this file references via `io_binding_ids`.
+const IO_BINDING_ID: &str = "io";
+
+// The chain's physical I/O lives in the per-machine registry now (model A).
+// These helpers return the registry endpoint describing one input / output;
+// device / mode / channels are preserved exactly from the old Input/Output
+// blocks — only the SET-UP form changed.
+
+fn input_mono(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels,
     }
 }
 
-fn input_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels,
-            }],
-        }),
+fn input_stereo(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
     }
 }
 
-fn input_dual_mono(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::DualMono,
-                channels,
-            }],
-        }),
+fn input_dual_mono(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::DualMono,
+        channels,
     }
 }
 
-fn output(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
+fn output(mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "out0".into(),
+        device_id: DeviceId("dev".into()),
+        mode,
+        channels,
     }
 }
 
@@ -133,21 +107,33 @@ fn core_block(id: &str, effect_type: &str, model: &str, params: ParameterSet) ->
     }
 }
 
-fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
-    Chain {
+fn chain_with_blocks(
+    id: &str,
+    input_ep: IoEndpoint,
+    fx: Vec<AudioBlock>,
+    output_ep: IoEndpoint,
+) -> (Chain, Vec<IoBinding>) {
+    let registry = vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![input_ep],
+        outputs: vec![output_ep],
+    }];
+    let chain = Chain {
         id: ChainId(id.into()),
         description: Some("test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks,
-    }
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: fx,
+    };
+    (chain, registry)
 }
 
-fn build_runtime(chain: &Chain) -> Arc<super::ChainRuntimeState> {
+fn build_runtime(chain: &Chain, registry: &[IoBinding]) -> Arc<super::ChainRuntimeState> {
     Arc::new(
-        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], registry)
             .expect("runtime state should build"),
     )
 }
@@ -187,12 +173,13 @@ fn const_interleaved(per_channel: &[f32], frames: usize) -> Vec<f32> {
 /// (skip the first two callbacks to drop the FADE_IN ramp).
 fn measure_steady_peak(
     chain: &Chain,
+    registry: &[IoBinding],
     input_channels: usize,
     per_channel: &[f32],
     output_channels: usize,
     callbacks: usize,
 ) -> f32 {
-    let runtime = build_runtime(chain);
+    let runtime = build_runtime(chain, registry);
     let mut peaks: Vec<f32> = Vec::with_capacity(callbacks);
     for _ in 0..callbacks {
         let data = const_interleaved(per_channel, 256);
@@ -206,12 +193,13 @@ fn measure_steady_peak(
 /// Run several callbacks; return per-output-channel peak.
 fn measure_steady_per_channel_peak(
     chain: &Chain,
+    registry: &[IoBinding],
     input_channels: usize,
     per_channel: &[f32],
     output_channels: usize,
     callbacks: usize,
 ) -> Vec<f32> {
-    let runtime = build_runtime(chain);
+    let runtime = build_runtime(chain, registry);
     let mut last_out: Vec<f32> = Vec::new();
     for _ in 0..callbacks {
         let data = const_interleaved(per_channel, 256);
@@ -231,14 +219,13 @@ fn measure_steady_per_channel_peak(
 
 #[test]
 fn a01_mono_in_stereo_out_broadcasts_at_unity() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "a01",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peaks = measure_steady_per_channel_peak(&chain, 1, &[0.5], 2, 4);
+    let peaks = measure_steady_per_channel_peak(&chain, &registry, 1, &[0.5], 2, 4);
     assert!(
         (peaks[0] - 0.5).abs() < TOLERANCE,
         "L peak expected ≈ 0.5, got {}",
@@ -253,11 +240,13 @@ fn a01_mono_in_stereo_out_broadcasts_at_unity() {
 
 #[test]
 fn a02_mono_in_mono_out_passes_through_at_unity() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "a02",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.4], 1, 4);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.4], 1, 4);
     assert!(
         (peak - 0.4).abs() < TOLERANCE,
         "mono in → mono out must be unity; got {peak}"
@@ -266,14 +255,13 @@ fn a02_mono_in_mono_out_passes_through_at_unity() {
 
 #[test]
 fn a03_stereo_in_stereo_out_preserves_l_and_r() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "a03",
-        vec![
-            input_stereo(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_stereo(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peaks = measure_steady_per_channel_peak(&chain, 2, &[0.3, 0.6], 2, 4);
+    let peaks = measure_steady_per_channel_peak(&chain, &registry, 2, &[0.3, 0.6], 2, 4);
     assert!(
         (peaks[0] - 0.3).abs() < TOLERANCE,
         "L expected ≈ 0.3, got {}",
@@ -288,14 +276,13 @@ fn a03_stereo_in_stereo_out_preserves_l_and_r() {
 
 #[test]
 fn a04_dual_mono_in_stereo_out_preserves_independent_l_r() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "a04",
-        vec![
-            input_dual_mono(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_dual_mono(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peaks = measure_steady_per_channel_peak(&chain, 2, &[0.25, 0.75], 2, 4);
+    let peaks = measure_steady_per_channel_peak(&chain, &registry, 2, &[0.25, 0.75], 2, 4);
     assert!(
         (peaks[0] - 0.25).abs() < TOLERANCE,
         "L expected ≈ 0.25, got {}",
@@ -314,14 +301,13 @@ fn a04_dual_mono_in_stereo_out_preserves_independent_l_r() {
 
 #[test]
 fn b01_output_below_limiter_knee_is_transparent() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "b01",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.9], 2, 4);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.9], 2, 4);
     assert!(
         (peak - 0.9).abs() < TOLERANCE,
         "limiter must be transparent below 0.95; got {peak}"
@@ -335,14 +321,13 @@ fn b02_output_above_limiter_knee_is_softly_saturated() {
     // non-monotonic 0.95..1.83 — proven RED in runtime_dsp::tests. The
     // invariant being protected is "above the knee saturates", not the
     // specific math; pin the PROPERTIES instead of the function shape.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "b02",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[1.5], 2, 4);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[1.5], 2, 4);
     assert!(
         peak <= 1.0,
         "above-knee must be bounded ≤ full scale; got {peak}"
@@ -385,15 +370,13 @@ fn c01_volume_block_at_80_percent_is_minus_1_94_db() {
     let mut params = neutral_params("gain", "volume");
     params.insert("volume", ParameterValue::Float(80.0));
     params.insert("mute", ParameterValue::Bool(false));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "c01",
-        vec![
-            input_mono(vec![0]),
-            core_block("vol", "gain", "volume", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("vol", "gain", "volume", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     // 20 * log10(0.8) = -1.938 dB → gain ≈ 0.8 → 0.5 * 0.8 = 0.4
     let gain = 10.0_f32.powf(-1.938 / 20.0);
     let expected = 0.5 * gain;
@@ -412,15 +395,13 @@ fn c02_volume_block_at_100_percent_is_unity() {
     let mut params = neutral_params("gain", "volume");
     params.insert("volume", ParameterValue::Float(100.0));
     params.insert("mute", ParameterValue::Bool(false));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "c02",
-        vec![
-            input_mono(vec![0]),
-            core_block("vol", "gain", "volume", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("vol", "gain", "volume", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < 0.01,
         "volume at 100% is unity passthrough; expected 0.5, got {peak}"
@@ -435,15 +416,13 @@ fn c04_volume_block_at_50_percent_is_minus_6_db() {
     let mut params = neutral_params("gain", "volume");
     params.insert("volume", ParameterValue::Float(50.0));
     params.insert("mute", ParameterValue::Bool(false));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "c04",
-        vec![
-            input_mono(vec![0]),
-            core_block("vol", "gain", "volume", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("vol", "gain", "volume", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     // 20 * log10(0.5) = -6.02 dB → gain ≈ 0.5012 → 0.5 * 0.5012 = 0.2506
     let expected = 0.5 * 10.0_f32.powf(-6.02 / 20.0);
     assert!(
@@ -458,15 +437,13 @@ fn c03_volume_block_muted_emits_silence() {
     let mut params = neutral_params("gain", "volume");
     params.insert("volume", ParameterValue::Float(80.0));
     params.insert("mute", ParameterValue::Bool(true));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "c03",
-        vec![
-            input_mono(vec![0]),
-            core_block("vol", "gain", "volume", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("vol", "gain", "volume", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     assert!(
         peak < 0.01,
         "muted volume block must emit silence; got {peak}"
@@ -485,15 +462,13 @@ fn d01_tremolo_at_zero_depth_is_transparent() {
     let mut params = neutral_params("modulation", "tremolo_sine");
     params.insert("rate_hz", ParameterValue::Float(4.0));
     params.insert("depth", ParameterValue::Float(0.0));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "d01",
-        vec![
-            input_mono(vec![0]),
-            core_block("trem", "modulation", "tremolo_sine", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("trem", "modulation", "tremolo_sine", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < TOLERANCE,
         "tremolo depth=0 must be transparent; got {peak}"
@@ -507,16 +482,14 @@ fn d02_tremolo_at_50_depth_peaks_at_unity() {
     let mut params = neutral_params("modulation", "tremolo_sine");
     params.insert("rate_hz", ParameterValue::Float(4.0));
     params.insert("depth", ParameterValue::Float(50.0));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "d02",
-        vec![
-            input_mono(vec![0]),
-            core_block("trem", "modulation", "tremolo_sine", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("trem", "modulation", "tremolo_sine", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     // Run many callbacks so the tremolo LFO traverses a full cycle.
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut all_samples: Vec<f32> = Vec::new();
     for _ in 0..32 {
         let data = const_interleaved(&[0.5], 256);
@@ -551,15 +524,13 @@ fn d03_user_clean_chain_tremolo_signature() {
     let mut params = neutral_params("modulation", "tremolo_sine");
     params.insert("rate_hz", ParameterValue::Float(4.0));
     params.insert("depth", ParameterValue::Float(50.0));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "d03",
-        vec![
-            input_mono(vec![0]),
-            core_block("trem", "modulation", "tremolo_sine", params),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("trem", "modulation", "tremolo_sine", params)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut all_samples: Vec<f32> = Vec::new();
     for _ in 0..40 {
         let data = const_interleaved(&[0.5], 256);
@@ -597,16 +568,13 @@ fn e01_two_unity_volume_blocks_preserve_unity() {
     let mut p2 = neutral_params("gain", "volume");
     p2.insert("volume", ParameterValue::Float(100.0));
     p2.insert("mute", ParameterValue::Bool(false));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "e01",
-        vec![
-            input_mono(vec![0]),
-            core_block("v1", "gain", "volume", p1),
-            core_block("v2", "gain", "volume", p2),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("v1", "gain", "volume", p1), core_block("v2", "gain", "volume", p2)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < 0.01,
         "two unity-volume (100%) blocks must preserve unity; got {peak}"
@@ -620,15 +588,13 @@ fn e02_volume_block_disabled_acts_as_bypass() {
     p.insert("mute", ParameterValue::Bool(true));
     let mut block = core_block("v", "gain", "volume", p);
     block.enabled = false;
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "e02",
-        vec![
-            input_mono(vec![0]),
-            block,
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![block],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 2, 6);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
     assert!(
         (peak - 0.5).abs() < TOLERANCE,
         "disabled volume block (mute=true) must bypass; got {peak}"
@@ -643,14 +609,13 @@ fn e02_volume_block_disabled_acts_as_bypass() {
 /// signal must reach unity gain steady. No perpetual ducking.
 #[test]
 fn f01_fade_in_completes_within_first_callback_at_buffer_256() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "f01",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     // First callback (256 frames) covers the 128-frame fade-in. Tail of
     // the buffer (frames 128..256) must already be at unity.
     let data = const_interleaved(&[0.5], 256);
@@ -666,14 +631,13 @@ fn f01_fade_in_completes_within_first_callback_at_buffer_256() {
 
 #[test]
 fn f02_fade_in_starts_at_zero_no_full_amplitude_burst() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "f02",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let data = const_interleaved(&[0.5], 32);
     let out = drive_and_capture(&runtime, 1, &data, 2);
     // First 4 samples should still be ramping (gain near 0).
@@ -690,14 +654,14 @@ fn f02_fade_in_starts_at_zero_no_full_amplitude_burst() {
 
 #[test]
 fn g01_split_mono_solo_emits_at_unity_gain() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "g01",
-        vec![
-            input_mono(vec![0, 1]), // split-mono: 2 channels in mono mode
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0, 1]),
+        vec![],
+        // split-mono: 2 channels in mono mode
+            output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 2, &[0.5, 0.0], 2, 4);
+    let peak = measure_steady_peak(&chain, &registry, 2, &[0.5, 0.0], 2, 4);
     assert!(
         (peak - 0.5).abs() < TOLERANCE,
         "split-mono solo must emit at unity; got {peak}"
@@ -706,14 +670,13 @@ fn g01_split_mono_solo_emits_at_unity_gain() {
 
 #[test]
 fn g02_split_mono_dual_below_limiter_knee_sums() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "g02",
-        vec![
-            input_mono(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 2, &[0.3, 0.3], 2, 4);
+    let peak = measure_steady_peak(&chain, &registry, 2, &[0.3, 0.3], 2, 4);
     assert!(
         (peak - 0.6).abs() < TOLERANCE,
         "split-mono dual below knee must sum at unity per stream; got {peak}"
@@ -727,14 +690,13 @@ fn g03_split_mono_dual_above_knee_is_softly_saturated() {
     // runtime_dsp::tests). What this invariant really guards is "when
     // dual mono sums above the knee, the output stays bounded and
     // loud — no DAC clip, no quiet collapse".
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "g03",
-        vec![
-            input_mono(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 2, &[0.8, 0.8], 2, 4);
+    let peak = measure_steady_peak(&chain, &registry, 2, &[0.8, 0.8], 2, 4);
     assert!(
         peak <= 1.0,
         "split-mono dual sum must be bounded ≤ 1.0; got {peak}"
@@ -745,14 +707,13 @@ fn g03_split_mono_dual_above_knee_is_softly_saturated() {
 
 #[test]
 fn g04_mono_input_broadcasts_to_both_output_channels() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "g04",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peaks = measure_steady_per_channel_peak(&chain, 1, &[0.4], 2, 4);
+    let peaks = measure_steady_per_channel_peak(&chain, &registry, 1, &[0.4], 2, 4);
     assert!(
         (peaks[0] - peaks[1]).abs() < TOLERANCE,
         "L peak {} must equal R peak {}",
@@ -781,22 +742,20 @@ fn g04_mono_input_broadcasts_to_both_output_channels() {
 /// runtime.rs and remove the attenuation.
 #[test]
 fn h01_split_mono_solo_equals_single_mono_solo() {
-    let split = chain_with_blocks(
+    let (split, split_registry) = chain_with_blocks(
         "h01_split",
-        vec![
-            input_mono(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let single = chain_with_blocks(
+    let (single, single_registry) = chain_with_blocks(
         "h01_single",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let split_peak = measure_steady_peak(&split, 2, &[0.5, 0.0], 2, 4);
-    let single_peak = measure_steady_peak(&single, 1, &[0.5], 2, 4);
+    let split_peak = measure_steady_peak(&split, &split_registry, 2, &[0.5, 0.0], 2, 4);
+    let single_peak = measure_steady_peak(&single, &single_registry, 1, &[0.5], 2, 4);
     assert!(
         (split_peak - single_peak).abs() < TOLERANCE,
         "split solo {split_peak} must equal single solo {single_peak} — \
@@ -809,26 +768,23 @@ fn h01_split_mono_solo_equals_single_mono_solo() {
 /// Catches "block introduces hidden attenuation" silently.
 #[test]
 fn h02_neutral_block_addition_is_volume_preserving() {
-    let bare = chain_with_blocks(
+    let (bare, bare_registry) = chain_with_blocks(
         "h02_bare",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let mut p = neutral_params("gain", "volume");
     p.insert("volume", ParameterValue::Float(100.0)); // unity point (issue #400 #3)
     p.insert("mute", ParameterValue::Bool(false));
-    let with_block = chain_with_blocks(
+    let (with_block, with_registry) = chain_with_blocks(
         "h02_with",
-        vec![
-            input_mono(vec![0]),
-            core_block("v", "gain", "volume", p),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("v", "gain", "volume", p)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let bare_peak = measure_steady_peak(&bare, 1, &[0.5], 2, 6);
-    let with_peak = measure_steady_peak(&with_block, 1, &[0.5], 2, 6);
+    let bare_peak = measure_steady_peak(&bare, &bare_registry, 1, &[0.5], 2, 6);
+    let with_peak = measure_steady_peak(&with_block, &with_registry, 1, &[0.5], 2, 6);
     assert!(
         (bare_peak - with_peak).abs() < 0.01,
         "neutral volume block must not change level; bare={bare_peak} with={with_peak}"
@@ -839,14 +795,13 @@ fn h02_neutral_block_addition_is_volume_preserving() {
 /// auto-pan regression of the original f38953a4 attempt at #350.
 #[test]
 fn h03_mono_to_stereo_bus_broadcast_is_symmetric() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "h03",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peaks = measure_steady_per_channel_peak(&chain, 1, &[0.6], 2, 4);
+    let peaks = measure_steady_per_channel_peak(&chain, &registry, 1, &[0.6], 2, 4);
     assert!(
         (peaks[0] - peaks[1]).abs() < 1e-5,
         "L {} and R {} must be EXACTLY equal — broadcast is symmetric, no auto-pan",
@@ -861,14 +816,13 @@ fn h03_mono_to_stereo_bus_broadcast_is_symmetric() {
 
 #[test]
 fn j01_user_reported_mac_volume_drop_does_not_recur() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "j01",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.3], 2, 8);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.3], 2, 8);
     assert!(
         (peak - 0.3).abs() < TOLERANCE,
         "Mac single-mono setup must hold steady at unity; got {peak}"
@@ -900,15 +854,13 @@ fn j02_user_clean_chain_blackface_only_signature() {
     p.insert("sag", ParameterValue::Float(14.0));
     p.insert("room_mix", ParameterValue::Float(14.0));
     p.insert("input", ParameterValue::Float(50.0));
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "j02",
-        vec![
-            input_mono(vec![0]),
-            core_block("amp", "amp", "blackface_clean", p),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("amp", "amp", "blackface_clean", p)],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let sr = SR;
     let mut all_samples: Vec<f32> = Vec::new();
     let mut phase = 0.0_f32;
@@ -962,26 +914,28 @@ fn _suppress_audio_frame_dead_code(f: AudioFrame) -> AudioFrame {
 
 const VOLUME_TOLERANCE: f32 = 0.01;
 
-fn unity_passthrough_chain(id: &str, volume: f32) -> Chain {
-    let mut chain = chain_with_blocks(
+fn unity_passthrough_chain(id: &str, volume: f32) -> (Chain, Vec<IoBinding>) {
+    let (mut chain, registry) = chain_with_blocks(
         id,
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
     chain.volume = volume;
-    chain
+    (chain, registry)
 }
 
 #[test]
 fn k01_chain_volume_100_is_unity() {
-    let chain = unity_passthrough_chain("k01", 100.0);
-    let runtime = build_runtime(&chain);
+    let (chain, registry) = unity_passthrough_chain("k01", 100.0);
+    let runtime = build_runtime(&chain, &registry);
     assert!(
         (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
         "build_chain_runtime_state should propagate chain.volume=100 \
          to runtime.volume_pct(); got {}",
         runtime.volume_pct()
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 1, 5);
     assert!(
         (peak - 0.5).abs() < VOLUME_TOLERANCE,
         "volume=100 should be unity; expected peak≈0.5, got {peak}"
@@ -990,14 +944,14 @@ fn k01_chain_volume_100_is_unity() {
 
 #[test]
 fn k02_chain_volume_50_halves_output() {
-    let chain = unity_passthrough_chain("k02", 50.0);
-    let runtime = build_runtime(&chain);
+    let (chain, registry) = unity_passthrough_chain("k02", 50.0);
+    let runtime = build_runtime(&chain, &registry);
     assert!(
         (runtime.volume_pct() - 50.0).abs() < VOLUME_TOLERANCE,
         "chain.volume=50 should land on runtime.volume_pct(); got {}",
         runtime.volume_pct()
     );
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 1, 5);
     assert!(
         (peak - 0.25).abs() < VOLUME_TOLERANCE,
         "volume=50 attenuates by half; expected peak≈0.25, got {peak}"
@@ -1006,8 +960,8 @@ fn k02_chain_volume_50_halves_output() {
 
 #[test]
 fn k03_chain_volume_200_doubles_output() {
-    let chain = unity_passthrough_chain("k03", 200.0);
-    let peak = measure_steady_peak(&chain, 1, &[0.3], 1, 5);
+    let (chain, registry) = unity_passthrough_chain("k03", 200.0);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.3], 1, 5);
     // input 0.3 × 2.0 = 0.6
     assert!(
         (peak - 0.6).abs() < VOLUME_TOLERANCE,
@@ -1028,8 +982,8 @@ fn k07_volume_boost_on_hot_signal_is_limited_not_clipped() {
     //   0.9 × 2.0 = 1.8 → tanh(1.8) ≈ 0.947  (clip-free)
     // The k01–k04 invariants use sub-0.95 signals so they are unaffected
     // either way (tanh transparent below the knee).
-    let chain = unity_passthrough_chain("k07", 200.0);
-    let peak = measure_steady_peak(&chain, 1, &[0.9], 1, 5);
+    let (chain, registry) = unity_passthrough_chain("k07", 200.0);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.9], 1, 5);
     assert!(
         peak <= 1.0 + VOLUME_TOLERANCE,
         "hot signal × volume boost must be limited ≤ full scale, not hard \
@@ -1039,8 +993,8 @@ fn k07_volume_boost_on_hot_signal_is_limited_not_clipped() {
 
 #[test]
 fn k04_chain_volume_zero_silences_output() {
-    let chain = unity_passthrough_chain("k04", 0.0);
-    let peak = measure_steady_peak(&chain, 1, &[0.5], 1, 5);
+    let (chain, registry) = unity_passthrough_chain("k04", 0.0);
+    let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 1, 5);
     assert!(
         peak < VOLUME_TOLERANCE,
         "volume=0 should silence output; got peak {peak}"
@@ -1054,13 +1008,13 @@ fn k05_update_chain_runtime_state_propagates_volume() {
     // teardown. update_chain_runtime_state é o path que o handler
     // chain_volume_changed dispara via sync_live_chain_runtime → upsert
     // → update_chain_runtime_state.
-    let chain100 = unity_passthrough_chain("k05", 100.0);
-    let runtime = build_runtime(&chain100);
+    let (chain100, registry) = unity_passthrough_chain("k05", 100.0);
+    let runtime = build_runtime(&chain100, &registry);
     assert!((runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE);
 
     let mut chain150 = chain100.clone();
     chain150.volume = 150.0;
-    super::update_chain_runtime_state(&runtime, &chain150, SR, false, &[DEFAULT_ELASTIC_TARGET])
+    super::update_chain_runtime_state(&runtime, &chain150, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
         .expect("update_chain_runtime_state should propagate volume");
     assert!(
         (runtime.volume_pct() - 150.0).abs() < VOLUME_TOLERANCE,
@@ -1093,13 +1047,13 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     //
     // Se este test passar mas o app não responder ao slider, o bug está
     // FORA do engine (Slint callback, Rust handler, ou outra camada).
-    let chain_v100 = unity_passthrough_chain("k06", 100.0);
+    let (chain_v100, registry) = unity_passthrough_chain("k06", 100.0);
     let mut graph = crate::runtime_graph::RuntimeGraph {
         chains: std::collections::HashMap::new(),
     };
 
     let runtime = graph
-        .upsert_chain(&chain_v100, SR, false, &[DEFAULT_ELASTIC_TARGET])
+        .upsert_chain(&chain_v100, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
         .expect("first upsert builds chain runtime");
     assert!(
         (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
@@ -1113,7 +1067,7 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     let mut chain_v175 = chain_v100.clone();
     chain_v175.volume = 175.0;
     let runtime_after = graph
-        .upsert_chain(&chain_v175, SR, false, &[DEFAULT_ELASTIC_TARGET])
+        .upsert_chain(&chain_v175, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
         .expect("re-upsert updates volume in place");
     assert!(
         Arc::ptr_eq(&runtime, &runtime_after),
@@ -1195,8 +1149,8 @@ fn fft_octave_db(samples: &[f32], sr: f32) -> Vec<(f32, f32)> {
 
 /// Drive `samples` through the real engine, return the captured output
 /// as a single mono-equivalent stream (sum of stereo channels if any).
-fn run_pink_through_chain(chain: &Chain, mono_samples: &[f32]) -> Vec<f32> {
-    let runtime = build_runtime(chain);
+fn run_pink_through_chain(chain: &Chain, registry: &[IoBinding], mono_samples: &[f32]) -> Vec<f32> {
+    let runtime = build_runtime(chain, registry);
     let buffer = 512usize;
     let n_callbacks = mono_samples.len().div_ceil(buffer);
     let mut out_collected: Vec<f32> = Vec::with_capacity(mono_samples.len());
@@ -1219,15 +1173,14 @@ fn l01_real_engine_bare_chain_preserves_spectrum_per_octave() {
     // The simplest possible REAL chain: mono input → stereo output,
     // no blocks. If even THIS colours the spectrum, every chain is
     // mangled at the I/O layer — that's the structural bug.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l01",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let pink = pink_noise(SR as usize * 2, 0xC0FFEE);
-    let out = run_pink_through_chain(&chain, &pink);
+    let out = run_pink_through_chain(&chain, &registry, &pink);
     // Skip the fade-in tail (first ~50 ms of warmup callbacks).
     let skip = (SR as usize) / 20;
     let in_bands = fft_octave_db(&pink[skip..], SR);
@@ -1254,18 +1207,17 @@ fn l01_real_engine_bare_chain_preserves_spectrum_per_octave() {
 #[test]
 fn l02_real_engine_bare_chain_thd_n_low_for_pure_sine() {
     use rustfft::{num_complex::Complex, FftPlanner};
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l02",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let n: usize = SR as usize;
     let sig: Vec<f32> = (0..n)
         .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
         .collect();
-    let out = run_pink_through_chain(&chain, &sig);
+    let out = run_pink_through_chain(&chain, &registry, &sig);
     let skip = (SR as usize) / 20;
     // Issue #496 measurement fix: integer cycles, no zero-pad.
     let cycle_samples = (SR / 1_000.0).round() as usize;
@@ -1290,15 +1242,14 @@ fn l02_real_engine_bare_chain_thd_n_low_for_pure_sine() {
 #[test]
 fn l03_real_engine_bare_chain_lufs_transparent_at_unity() {
     use ebur128::{EbuR128, Mode};
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l03",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let pink = pink_noise(SR as usize * 3, 0xBADA55);
-    let out = run_pink_through_chain(&chain, &pink);
+    let out = run_pink_through_chain(&chain, &registry, &pink);
     let skip = (SR as usize) / 20;
     let mut m_in = EbuR128::new(1, SR as u32, Mode::I).unwrap();
     m_in.add_frames_f32(&pink[skip..]).unwrap();
@@ -1323,18 +1274,17 @@ fn l03_real_engine_bare_chain_lufs_transparent_at_unity() {
 #[test]
 fn l04_real_engine_thd_after_one_second_skip_isolates_fade_in() {
     use rustfft::{num_complex::Complex, FftPlanner};
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l04",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let n: usize = (SR as usize) * 3; // 3 seconds
     let sig: Vec<f32> = (0..n)
         .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
         .collect();
-    let out = run_pink_through_chain(&chain, &sig);
+    let out = run_pink_through_chain(&chain, &registry, &sig);
     let skip = SR as usize; // skip first 1 s
                             // Issue #496 measurement fix: integer cycles, no zero-pad.
     let cycle_samples = (SR / 1_000.0).round() as usize;
@@ -1364,15 +1314,14 @@ fn l04_real_engine_thd_after_one_second_skip_isolates_fade_in() {
 /// underrun, buffer state, anything).
 #[test]
 fn l05_real_engine_silent_input_must_produce_silent_output() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l05",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let sig = vec![0.0_f32; (SR as usize) * 2];
-    let out = run_pink_through_chain(&chain, &sig);
+    let out = run_pink_through_chain(&chain, &registry, &sig);
     let skip = SR as usize; // 1 s skip
     let tail = &out[skip..];
     let peak = tail.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
@@ -1388,15 +1337,14 @@ fn l05_real_engine_silent_input_must_produce_silent_output() {
 /// AC content in the output is path-injected noise. Pure isolator.
 #[test]
 fn l06_real_engine_dc_input_steady_output_has_no_ac_noise() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l06",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let sig = vec![0.3_f32; (SR as usize) * 2];
-    let out = run_pink_through_chain(&chain, &sig);
+    let out = run_pink_through_chain(&chain, &registry, &sig);
     let skip = SR as usize;
     let tail = &out[skip..];
     let mean = tail.iter().sum::<f32>() / tail.len() as f32;
@@ -1414,14 +1362,13 @@ fn l06_real_engine_dc_input_steady_output_has_no_ac_noise() {
 /// be byte-identical. If they drift, the broadcast itself has a bug.
 #[test]
 fn l07_real_engine_mono_broadcast_writes_identical_l_and_r() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l07",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let n_frames = 512;
     let sig: Vec<f32> = (0..n_frames)
         .map(|i| 0.4 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / SR).sin())
@@ -1453,12 +1400,11 @@ fn l07_real_engine_mono_broadcast_writes_identical_l_and_r() {
 #[test]
 fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
     use rustfft::{num_complex::Complex, FftPlanner};
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "l08",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let n: usize = (SR as usize) * 2;
     let sig: Vec<f32> = (0..n)
@@ -1467,7 +1413,7 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
 
     let drive = |buffer: usize| -> f32 {
         let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-        let runtime = Arc::new(build_chain_runtime_state(&chain, SR, &[target]).expect("runtime"));
+        let runtime = Arc::new(build_chain_runtime_state(&chain, SR, &[target], &registry).expect("runtime"));
         let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
         for chunk in sig.chunks(buffer) {
             process_input_f32(&runtime, 0, chunk, 1);
@@ -1516,14 +1462,14 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
 //    isolates one independent property of a clean signal path.
 // ─────────────────────────────────────────────────────────────────────────
 
-fn thd_n_db_through_chain(chain: &Chain, sig: &[f32], buffer: usize) -> f32 {
-    thd_n_db_at_freq_through_chain(chain, sig, buffer, 1_000.0)
+fn thd_n_db_through_chain(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize) -> f32 {
+    thd_n_db_at_freq_through_chain(chain, registry, sig, buffer, 1_000.0)
 }
 
-fn thd_n_db_at_freq_through_chain(chain: &Chain, sig: &[f32], buffer: usize, freq: f32) -> f32 {
+fn thd_n_db_at_freq_through_chain(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize, freq: f32) -> f32 {
     use rustfft::{num_complex::Complex, FftPlanner};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
     for chunk in sig.chunks(buffer) {
         process_input_f32(&runtime, 0, chunk, 1);
@@ -1558,8 +1504,8 @@ fn thd_n_db_at_freq_through_chain(chain: &Chain, sig: &[f32], buffer: usize, fre
     10.0 * ((total - fundamental).max(1e-12) / fundamental).log10()
 }
 
-fn ac_rms_for_dc(chain: &Chain, dc: f32, buffer: usize) -> f32 {
-    let runtime = build_runtime(chain);
+fn ac_rms_for_dc(chain: &Chain, registry: &[IoBinding], dc: f32, buffer: usize) -> f32 {
+    let runtime = build_runtime(chain, registry);
     let sig = vec![dc; (SR as usize) * 2];
     let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
     for chunk in sig.chunks(buffer) {
@@ -1576,8 +1522,8 @@ fn ac_rms_for_dc(chain: &Chain, dc: f32, buffer: usize) -> f32 {
     (tail.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / tail.len() as f32).sqrt()
 }
 
-fn silent_residue(chain: &Chain, buffer: usize) -> f32 {
-    let runtime = build_runtime(chain);
+fn silent_residue(chain: &Chain, registry: &[IoBinding], buffer: usize) -> f32 {
+    let runtime = build_runtime(chain, registry);
     let sig = vec![0.0_f32; (SR as usize) * 2];
     let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
     for chunk in sig.chunks(buffer) {
@@ -1593,10 +1539,10 @@ fn silent_residue(chain: &Chain, buffer: usize) -> f32 {
     tail.iter().fold(0.0_f32, |a, &b| a.max(b.abs()))
 }
 
-fn lufs_delta_through_chain(chain: &Chain, buffer: usize) -> f64 {
+fn lufs_delta_through_chain(chain: &Chain, registry: &[IoBinding], buffer: usize) -> f64 {
     use ebur128::{EbuR128, Mode};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let pink = pink_noise(SR as usize * 3, 0xDEAD_BEEF);
     let mut out_collected: Vec<f32> = Vec::with_capacity(pink.len());
     for chunk in pink.chunks(buffer) {
@@ -1615,13 +1561,12 @@ fn lufs_delta_through_chain(chain: &Chain, buffer: usize) -> f64 {
     m_out.loudness_global().unwrap() - m_in.loudness_global().unwrap()
 }
 
-fn bare_chain_for(id: &str) -> Chain {
+fn bare_chain_for(id: &str) -> (Chain, Vec<IoBinding>) {
     chain_with_blocks(
         id,
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     )
 }
 
@@ -1636,9 +1581,9 @@ macro_rules! buf_thd_test {
     ($name:ident, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let sig = sine_2s(1_000.0, 0.5);
-            let thd = thd_n_db_through_chain(&chain, &sig, $buf);
+            let thd = thd_n_db_through_chain(&chain, &registry, &sig, $buf);
             eprintln!("[buffer={}] THD+N = {thd:.2} dB", $buf);
             assert!(thd < -60.0, "buffer={} THD+N {thd:.2} dB ≥ -60", $buf);
         }
@@ -1660,9 +1605,9 @@ macro_rules! lvl_thd_test {
     ($name:ident, $lvl:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let sig = sine_2s(1_000.0, $lvl);
-            let thd = thd_n_db_through_chain(&chain, &sig, 512);
+            let thd = thd_n_db_through_chain(&chain, &registry, &sig, 512);
             eprintln!("[level={}] THD+N = {thd:.2} dB", $lvl);
             assert!(thd < -60.0, "level={} THD+N {thd:.2} dB ≥ -60", $lvl);
         }
@@ -1679,9 +1624,9 @@ macro_rules! freq_thd_test {
     ($name:ident, $f:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let sig = sine_2s($f, 0.5);
-            let thd = thd_n_db_at_freq_through_chain(&chain, &sig, 512, $f);
+            let thd = thd_n_db_at_freq_through_chain(&chain, &registry, &sig, 512, $f);
             eprintln!("[freq={} Hz] THD+N = {thd:.2} dB", $f);
             assert!(thd < -60.0, "freq={} Hz THD+N {thd:.2} dB ≥ -60", $f);
         }
@@ -1700,8 +1645,8 @@ macro_rules! dc_ac_test {
     ($name:ident, $dc:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
-            let ac = ac_rms_for_dc(&chain, $dc, 512);
+            let (chain, registry) = bare_chain_for(stringify!($name));
+            let ac = ac_rms_for_dc(&chain, &registry, $dc, 512);
             eprintln!("[DC={}] AC rms out = {ac:.6e}", $dc);
             assert!(
                 ac < 5e-4,
@@ -1722,8 +1667,8 @@ macro_rules! silent_test {
     ($name:ident, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
-            let peak = silent_residue(&chain, $buf);
+            let (chain, registry) = bare_chain_for(stringify!($name));
+            let peak = silent_residue(&chain, &registry, $buf);
             eprintln!("[silent buf={}] peak = {peak:.6}", $buf);
             assert!(peak < 1e-6, "silent buf={} produced peak {peak:.6}", $buf);
         }
@@ -1740,8 +1685,8 @@ macro_rules! lufs_test {
     ($name:ident, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
-            let d = lufs_delta_through_chain(&chain, $buf);
+            let (chain, registry) = bare_chain_for(stringify!($name));
+            let d = lufs_delta_through_chain(&chain, &registry, $buf);
             eprintln!("[lufs buf={}] delta = {d:+.2} dB", $buf);
             assert!(d.abs() < 1.0, "lufs buf={} delta {d:+.2} dB", $buf);
         }
@@ -1758,8 +1703,8 @@ lufs_test!(m35_lufs_buf_2048, 2048);
 //    levels, frequencies, signal shapes, and buffer sizes.
 // ─────────────────────────────────────────────────────────────────────────
 
-fn max_lr_drift(chain: &Chain, sig: &[f32], buffer: usize) -> f32 {
-    let runtime = build_runtime(chain);
+fn max_lr_drift(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize) -> f32 {
+    let runtime = build_runtime(chain, registry);
     let mut max_drift = 0.0_f32;
     let mut callback_idx = 0;
     for chunk in sig.chunks(buffer) {
@@ -1784,11 +1729,11 @@ macro_rules! bcast_sine_test {
     ($name:ident, $f:expr, $amp:expr, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let sig: Vec<f32> = (0..(SR as usize))
                 .map(|i| $amp * (2.0 * std::f32::consts::PI * $f * i as f32 / SR).sin())
                 .collect();
-            let d = max_lr_drift(&chain, &sig, $buf);
+            let d = max_lr_drift(&chain, &registry, &sig, $buf);
             eprintln!(
                 "[bcast f={} amp={} buf={}] max drift = {d:.6}",
                 $f, $amp, $buf
@@ -1816,9 +1761,9 @@ macro_rules! bcast_signal_test {
     ($name:ident, $sig_expr:expr, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let sig: Vec<f32> = $sig_expr;
-            let d = max_lr_drift(&chain, &sig, $buf);
+            let d = max_lr_drift(&chain, &registry, &sig, $buf);
             eprintln!("[{} buf={}] max drift = {d:.6}", stringify!($name), $buf);
             assert!(d < 1e-5, "L vs R drift {d:.6} ≥ 1e-5");
         }
@@ -1906,10 +1851,10 @@ bcast_sine_test!(n30_b_60hz_0_5_buf_512, 60.0, 0.5, 512);
 /// THD+N computed using a specified skip duration (samples). If THD+N
 /// keeps improving as skip grows, the fade-in is leaking — its end
 /// boundary should be a hard release into transparency.
-fn thd_with_skip(chain: &Chain, freq: f32, amp: f32, buffer: usize, skip: usize) -> f32 {
+fn thd_with_skip(chain: &Chain, registry: &[IoBinding], freq: f32, amp: f32, buffer: usize, skip: usize) -> f32 {
     use rustfft::{num_complex::Complex, FftPlanner};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target]).expect("runtime"));
+    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let n: usize = (SR as usize) * 3;
     let sig: Vec<f32> = (0..n)
         .map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / SR).sin())
@@ -1946,9 +1891,9 @@ macro_rules! fade_skip_test {
     ($name:ident, $skip_ms:expr, $buf:expr) => {
         #[test]
         fn $name() {
-            let chain = bare_chain_for(stringify!($name));
+            let (chain, registry) = bare_chain_for(stringify!($name));
             let skip = (SR as usize) * $skip_ms / 1000;
-            let thd = thd_with_skip(&chain, 1_000.0, 0.5, $buf, skip);
+            let thd = thd_with_skip(&chain, &registry, 1_000.0, 0.5, $buf, skip);
             eprintln!("[skip {} ms, buf {}] THD+N = {thd:.2} dB", $skip_ms, $buf);
             assert!(
                 thd < -60.0,
@@ -2172,12 +2117,12 @@ fn p30_i32_subnormal_safe() {
 #[test]
 fn diag_thd_with_single_callback_push_pop() {
     use rustfft::{num_complex::Complex, FftPlanner};
-    let chain = bare_chain_for("diag_single");
+    let (chain, registry) = bare_chain_for("diag_single");
     let n: usize = 16_384;
     let sig: Vec<f32> = (0..n)
         .map(|i| 0.5_f32 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
         .collect();
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     // Single big push + single big pop.
     process_input_f32(&runtime, 0, &sig, 1);
     let mut out_st = vec![0.0_f32; n * 2];
@@ -2211,12 +2156,12 @@ fn diag_thd_with_single_callback_push_pop() {
 
 #[test]
 fn diag_multi_callback_bit_exact_chunks_of_64() {
-    let chain = bare_chain_for("diag_multi");
+    let (chain, registry) = bare_chain_for("diag_multi");
     let n: usize = 4096;
     let sig: Vec<f32> = (0..n)
         .map(|i| 0.5_f32 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
         .collect();
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let buffer = 64;
     let mut out_collected: Vec<f32> = Vec::with_capacity(n);
     for chunk in sig.chunks(buffer) {
@@ -2264,12 +2209,12 @@ fn diag_multi_callback_bit_exact_chunks_of_64() {
 
 #[test]
 fn diag_print_first_chunk_of_bare_chain_output() {
-    let chain = bare_chain_for("diag");
+    let (chain, registry) = bare_chain_for("diag");
     let n: usize = 256;
     let sig: Vec<f32> = (0..n)
         .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin())
         .collect();
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     // Push and pop a few callbacks to get past fade-in.
     for _ in 0..4 {
         process_input_f32(&runtime, 0, &sig, 1);

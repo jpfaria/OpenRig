@@ -5,9 +5,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use domain::ids::DeviceId;
-use project::block::InputEntry;
-use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
 
 use crate::rig_runtime::rig_to_legacy_project;
@@ -20,11 +17,6 @@ fn simple_rig() -> RigProject {
             "input-1".to_string(),
             RigInput {
                 label: None,
-                sources: vec![InputEntry {
-                    device_id: DeviceId("sc".into()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![0],
-                }],
                 bank: BTreeMap::from([(1usize, "p".to_string())]),
                 active_preset: 1,
                 active_scene: 1,

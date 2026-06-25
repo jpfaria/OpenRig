@@ -10,12 +10,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use domain::ids::{BlockId, DeviceId};
+use domain::ids::BlockId;
 use engine::rig_runtime::rig_to_legacy_project;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
 use project::rig::{RigInput, RigPreset, RigProject};
 
 fn legacy_output_block() -> AudioBlock {
@@ -24,13 +21,8 @@ fn legacy_output_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("scarlett".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
+            io: "main".into(),
+            endpoint: "out0".into(),
         }),
     }
 }
@@ -50,11 +42,6 @@ fn bound_chain_drops_legacy_io_blocks_on_load() {
         "in".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("scarlett".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank,
             active_preset: 1,
             active_scene: 1,

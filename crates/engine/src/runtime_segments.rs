@@ -121,19 +121,18 @@ fn segments_without_inserts(
     entry_groups: &[usize],
     effective_outs: &[OutputEntry],
 ) -> Vec<ChainSegment> {
-    // All enabled effect blocks (everything that is not an I/O / Insert port).
+    // Every effect block (NOT an I/O / Insert port). Disabled effect blocks
+    // are KEPT — they become Bypass nodes so a live enable/disable is a
+    // lock-free toggle, never a rebuild (#580/#706). Do not filter on enabled.
     let block_indices: Vec<usize> = chain
         .blocks
         .iter()
         .enumerate()
         .filter(|(_, b)| {
-            b.enabled
-                && !matches!(
-                    &b.kind,
-                    AudioBlockKind::Input(_)
-                        | AudioBlockKind::Output(_)
-                        | AudioBlockKind::Insert(_)
-                )
+            !matches!(
+                &b.kind,
+                AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+            )
         })
         .map(|(i, _)| i)
         .collect();

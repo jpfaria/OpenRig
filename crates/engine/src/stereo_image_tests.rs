@@ -12,49 +12,33 @@ use super::{
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use std::sync::Arc;
 
 const SR: f32 = 48_000.0;
 const BUFFER_FRAMES: usize = 64;
 
-fn input_mono(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
-    }
-}
-
-fn output(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
-    }
+/// Registry mirroring the legacy mono-in (ch0) / stereo-out (ch0,1) endpoints.
+/// The chain resolves head input and tail output from this binding (#716).
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
@@ -64,7 +48,7 @@ fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks,
     }
 }
@@ -95,7 +79,7 @@ fn core_block(id: &str, effect_type: &str, model: &str, params: ParameterSet) ->
 
 fn build(chain: &Chain) -> Arc<super::ChainRuntimeState> {
     Arc::new(
-        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
             .expect("runtime state should build"),
     )
 }
@@ -142,16 +126,12 @@ fn mono_in_stereo_block_stereo_out_is_true_stereo() {
     // (L != R). If this fails, the pipeline is collapsing stereo to mono.
     let chain = chain_with_blocks(
         "mono-reverb-stereo",
-        vec![
-            input_mono(vec![0]),
-            core_block(
-                "rv",
-                "reverb",
-                "room",
-                params_with("reverb", "room", &[("mix", 60.0), ("room_size", 70.0)]),
-            ),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        vec![core_block(
+            "rv",
+            "reverb",
+            "room",
+            params_with("reverb", "room", &[("mix", 60.0), ("room_size", 70.0)]),
+        )],
     );
     let runtime = build(&chain);
     // Reverb needs tail build-up; warm up generously.
@@ -173,16 +153,12 @@ fn mono_in_stereo_block_stereo_out_is_true_stereo() {
 fn mono_in_stereo_block_via_modulation_is_true_stereo() {
     let chain = chain_with_blocks(
         "mono-chorus-stereo",
-        vec![
-            input_mono(vec![0]),
-            core_block(
-                "ch",
-                "modulation",
-                "stereo_chorus",
-                params_with("modulation", "stereo_chorus", &[("mix", 60.0)]),
-            ),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        vec![core_block(
+            "ch",
+            "modulation",
+            "stereo_chorus",
+            params_with("modulation", "stereo_chorus", &[("mix", 60.0)]),
+        )],
     );
     let runtime = build(&chain);
     let out = drive_stereo(&runtime, 96, 32);
@@ -202,16 +178,12 @@ fn mono_in_no_stereo_block_is_dual_mono_not_silent() {
     // both channels non-silent and identical (not "one channel only").
     let chain = chain_with_blocks(
         "mono-pipe-stereo-out",
-        vec![
-            input_mono(vec![0]),
-            core_block(
-                "vol",
-                "gain",
-                "volume",
-                params_with("gain", "volume", &[("volume", 80.0)]),
-            ),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        vec![core_block(
+            "vol",
+            "gain",
+            "volume",
+            params_with("gain", "volume", &[("volume", 80.0)]),
+        )],
     );
     let runtime = build(&chain);
     let out = drive_stereo(&runtime, 48, 16);

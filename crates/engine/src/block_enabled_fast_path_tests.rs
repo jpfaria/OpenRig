@@ -15,11 +15,9 @@
 use std::sync::Arc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::io_binding::{IoBinding, IoEndpoint};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 
 use super::{
@@ -50,6 +48,25 @@ fn core_block(id: &str, effect_type: &str, model: &str) -> AudioBlock {
     }
 }
 
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
 fn test_chain() -> Chain {
     Chain {
         id: ChainId("issue-522-chain".into()),
@@ -57,45 +74,15 @@ fn test_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("test:in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            core_block(BLOCK_ID, "reverb", "room"),
-            AudioBlock {
-                id: BlockId("test:out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![core_block(BLOCK_ID, "reverb", "room")],
     }
 }
 
 fn build_runtime() -> Arc<ChainRuntimeState> {
     let chain = test_chain();
     Arc::new(
-        build_chain_runtime_state(&chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
             .expect("runtime must build for test chain"),
     )
 }
@@ -185,7 +172,7 @@ fn re_enabling_a_born_disabled_block_declines_fast_path_for_rebuild() {
         }
     }
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
             .expect("runtime must build for test chain"),
     );
     let block = BlockId(BLOCK_ID.into());

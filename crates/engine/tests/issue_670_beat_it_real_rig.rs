@@ -33,14 +33,13 @@ use std::sync::Once;
 use std::time::Instant;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::offline::render_chain;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_graph::build_chain_runtime_state;
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind};
+use project::chain::Chain;
 
 const SR: f32 = 48_000.0;
 const BUFFER: usize = 64;
@@ -71,34 +70,26 @@ fn init_registry() {
     });
 }
 
-fn input_mono() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_stereo() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+/// The system binding the bound chains resolve their I/O from: a mono input
+/// (dev "dev", ch [0]) and a stereo output (dev "dev", ch [0,1]) — the same
+/// device/mode/channels the old head Input / tail Output blocks carried.
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 // ── Load the user's REAL "Beat It (rhythm)" preset through the PRODUCTION
@@ -129,21 +120,20 @@ fn beat_it_chain() -> Chain {
 }
 
 fn beat_it_chain_opt(with_ir: bool) -> Chain {
-    let mut blocks = vec![input_mono()];
+    let mut blocks = Vec::new();
     for b in beat_it_blocks() {
         if !with_ir && block_model(&b).starts_with("ir_") {
             continue; // drop the IR/CAB only to isolate its effect
         }
         blocks.push(b);
     }
-    blocks.push(output_stereo());
     Chain {
         id: ChainId("issue-670-beat-it".into()),
         description: Some("Beat It (rhythm) — loaded from the user's real preset".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks,
     }
 }
@@ -155,8 +145,8 @@ fn isolated(label: &str, block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![input_mono(), block, output_stereo()],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![block],
     }
 }
 
@@ -179,7 +169,9 @@ fn assert_no_faulted_blocks(chain: &Chain) {
 }
 
 fn build(chain: &Chain) -> Arc<ChainRuntimeState> {
-    Arc::new(build_chain_runtime_state(chain, SR, &[BUFFER]).expect("runtime must build"))
+    Arc::new(
+        build_chain_runtime_state(chain, SR, &[BUFFER], &registry()).expect("runtime must build"),
+    )
 }
 
 /// Median + p95 per-buffer wall time (ns) over N steady-state callbacks.
@@ -568,17 +560,14 @@ fn nam_plus_ir_cold_cache_cost() {
         .clone();
 
     let chain = |bs: Vec<AudioBlock>| -> Chain {
-        let mut blocks = vec![input_mono()];
-        blocks.extend(bs);
-        blocks.push(output_stereo());
         Chain {
             id: ChainId("nam-ir".into()),
             description: None,
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
-            io_binding_ids: vec![],
-            blocks,
+            io_binding_ids: vec!["io".into()],
+            blocks: bs,
         }
     };
 
@@ -1215,7 +1204,8 @@ fn live_param_update_applies_slim() {
     }
     let chain_slim = isolated("live-slim", block);
     // …then the GUI syncs the EXISTING runtime (sync_live_chain_runtime).
-    update_chain_runtime_state(&rt, &chain_slim, SR, false, &[BUFFER]).expect("live update");
+    update_chain_runtime_state(&rt, &chain_slim, SR, false, &[BUFFER], &registry())
+        .expect("live update");
 
     let slim0 = cost(&rt);
     eprintln!(
@@ -1318,8 +1308,7 @@ fn beat_it_plus_v30_cab_per_buffer_cost() {
     init_registry();
     use domain::value_objects::ParameterValue;
 
-    let mut blocks = vec![input_mono()];
-    blocks.extend(beat_it_blocks());
+    let mut blocks = beat_it_blocks();
     // The added cab, as the GUI picker creates it (first capture preset).
     let mut params = block_core::param::ParameterSet::default();
     params.insert("preset", ParameterValue::String("sm57_balanced".into()));
@@ -1333,14 +1322,13 @@ fn beat_it_plus_v30_cab_per_buffer_cost() {
             params,
         }),
     });
-    blocks.push(output_stereo());
     let chain = Chain {
         id: ChainId("beat-it-plus-v30".into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks,
     };
     assert_no_faulted_blocks(&chain);
@@ -1381,8 +1369,7 @@ fn first_buffer_after_build_carries_no_lazy_init() {
     init_registry();
     use domain::value_objects::ParameterValue;
 
-    let mut blocks = vec![input_mono()];
-    blocks.extend(beat_it_blocks());
+    let mut blocks = beat_it_blocks();
     let mut params = block_core::param::ParameterSet::default();
     params.insert("output_db", ParameterValue::Float(-20.0));
     blocks.push(AudioBlock {
@@ -1394,14 +1381,13 @@ fn first_buffer_after_build_carries_no_lazy_init() {
             params,
         }),
     });
-    blocks.push(output_stereo());
     let chain = Chain {
         id: ChainId("first-buffer-init".into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 139.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks,
     };
 

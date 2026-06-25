@@ -56,10 +56,9 @@ use crate::runtime::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::{AudioBlock, AudioBlockKind};
+use project::chain::Chain;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -121,6 +120,48 @@ fn measure_allocs<F: FnOnce()>(f: F) -> usize {
 
 // ── Fixture ──────────────────────────────────────────────────────────
 
+// Model A (#716): I/O lives in the binding registry, not in-chain blocks.
+
+/// Registry: stereo input + stereo output on one device.
+fn registry_stereo() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
+/// Registry: mono input + stereo output on one device.
+fn registry_mono_in_stereo_out() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
 fn chain() -> Chain {
     Chain {
         id: ChainId("issue580-alloc".into()),
@@ -128,37 +169,8 @@ fn chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
 }
 
@@ -169,8 +181,13 @@ fn chain() -> Chain {
  --release --lib audio_alloc_invariant -- --ignored --test-threads=1`."]
 fn audio_callback_does_not_allocate_at_buffer_32() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_stereo(),
+        )
+        .expect("runtime should build"),
     );
 
     let buffer_frames = 32_usize;
@@ -280,22 +297,8 @@ fn p670_real_rig_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
+        io_binding_ids: vec!["io".into()],
         blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
             p670_core(
                 "eq",
                 "filter",
@@ -320,20 +323,6 @@ fn p670_real_rig_chain() -> Chain {
                     ("threshold", -1.0),
                 ]),
             ),
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
         ],
     }
 }
@@ -349,6 +338,7 @@ fn audio_callback_does_not_allocate_with_real_blocks() {
             &p670_real_rig_chain(),
             48_000.0_f32,
             &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
         )
         .expect("real-rig runtime should build"),
     );
@@ -395,38 +385,8 @@ fn p670_isolated(block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            block,
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![block],
     }
 }
 
@@ -439,6 +399,7 @@ fn audio_callback_does_not_allocate_with_eq8() {
             &p670_isolated(p670_eq8()),
             48_000.0_f32,
             &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
         )
         .expect("eq8 runtime should build"),
     );
@@ -484,6 +445,7 @@ fn audio_callback_does_not_allocate_with_ir_cab() {
             &p670_isolated(p670_ir_cab()),
             48_000.0_f32,
             &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
         )
         .expect("ir cab runtime should build"),
     );

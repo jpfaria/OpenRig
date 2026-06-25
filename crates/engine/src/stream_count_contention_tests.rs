@@ -75,47 +75,35 @@
 //! is fine; do not delete the existing one to "save lines").
 
 use crate::runtime::{build_chain_runtime_state, DEFAULT_ELASTIC_TARGET};
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 
-fn input_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels,
-            }],
-        }),
-    }
-}
+/// Registry id the contention chain references via `io_binding_ids`.
+const IO_BINDING_ID: &str = "io";
 
-fn output_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels,
-            }],
-        }),
-    }
+/// One stereo input endpoint + one stereo output endpoint, both on device
+/// `dev` (channels [0, 1]) — mirrors the old stereo Input/Output blocks.
+fn io_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn chain() -> Chain {
@@ -125,15 +113,15 @@ fn chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![input_stereo(vec![0, 1]), output_stereo(vec![0, 1])],
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: vec![],
     }
 }
 
 #[test]
 fn stream_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
             .expect("runtime should build"),
     );
 
@@ -232,7 +220,7 @@ where
 #[test]
 fn xrun_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
             .expect("runtime should build"),
     );
     let _guard = runtime
@@ -249,7 +237,7 @@ fn xrun_count_does_not_block_on_processing_lock() {
 #[test]
 fn peak_callback_load_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
             .expect("runtime should build"),
     );
     let _guard = runtime
@@ -266,7 +254,7 @@ fn peak_callback_load_does_not_block_on_processing_lock() {
 #[test]
 fn underrun_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
             .expect("runtime should build"),
     );
     let _guard = runtime

@@ -28,10 +28,8 @@ use std::sync::Once;
 use block_core::param::ParameterSet;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, NamBlock};
+use project::chain::Chain;
 use project::project::Project;
 
 const SR: f32 = 48_000.0;
@@ -49,6 +47,25 @@ fn init_test_registry() {
     });
 }
 
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
 /// Input → NAM amp → Output. A buildable single-input chain whose only
 /// heavy resource is the NAM model of `nam_marshall_plexi`.
 fn nam_chain(id: &str, volume: f32) -> Chain {
@@ -60,45 +77,15 @@ fn nam_chain(id: &str, volume: f32) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("amp".into()),
-                enabled: true,
-                kind: AudioBlockKind::Nam(NamBlock {
-                    model: "nam_marshall_plexi".into(),
-                    params: amp_params,
-                }),
-            },
-            AudioBlock {
-                id: BlockId("out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("amp".into()),
+            enabled: true,
+            kind: AudioBlockKind::Nam(NamBlock {
+                model: "nam_marshall_plexi".into(),
+                params: amp_params,
+            }),
+        }],
     }
 }
 
@@ -123,8 +110,9 @@ fn editing_a_live_chain_does_not_reload_the_reused_nam_model() {
     };
 
     // Build the live graph: the NAM model is loaded exactly once here.
-    let mut graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new())
-        .expect("graph with a NAM amp must build");
+    let mut graph =
+        engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
+            .expect("graph with a NAM amp must build");
 
     // Baseline after build. The absolute value depends on the stereo
     // channel fan-out of a mono amp and is not the subject of this test;
@@ -142,7 +130,7 @@ fn editing_a_live_chain_does_not_reload_the_reused_nam_model() {
     // be reused, never reloaded.
     let edited = nam_chain("issue-588", 150.0);
     graph
-        .upsert_chain(&edited, SR, false, &[2048])
+        .upsert_chain(&edited, SR, false, &[2048], &registry())
         .expect("in-place volume edit must succeed");
 
     let created_after_edit = nam::models_created();
