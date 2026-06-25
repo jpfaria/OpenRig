@@ -8,13 +8,8 @@ project:
   inputs:
     input-1:
       label: Eu + filho
-      sources:
-        - device_id: scarlett
-          mode: mono
-          channels: [0]
-        - device_id: scarlett
-          mode: mono
-          channels: [1]
+      io: main
+      endpoint: Guitar In
       bank:
         1: clean
         2: drive
@@ -24,9 +19,8 @@ project:
   outputs:
     out-1:
       label: PA L
-      device_id: scarlett
-      mode: stereo
-      channels: [0, 1]
+      io: main
+      endpoint: Monitor Out
   presets:
     clean:
       blocks: []
@@ -39,7 +33,8 @@ fn parse_minimal_ok() {
     let p = parse_rig_project(MINIMAL).expect("should parse");
     assert_eq!(p.name.as_deref(), Some("Studio"));
     let input = p.inputs.get("input-1").expect("input-1");
-    assert_eq!(input.sources.len(), 2, "multi-source preserved");
+    assert_eq!(input.io, "main", "binding id preserved");
+    assert_eq!(input.endpoint, "Guitar In", "endpoint preserved");
     assert_eq!(input.bank.get(&2).map(String::as_str), Some("drive"));
     assert_eq!(input.active_preset, 1);
     assert!(p.outputs.contains_key("out-1"));
@@ -143,10 +138,8 @@ const WITH_SCENES: &str = r#"
 project:
   inputs:
     input-1:
-      sources:
-        - device_id: sc
-          mode: mono
-          channels: [0]
+      io: main
+      endpoint: Guitar In
       bank:
         1: drive
       active-preset: 1
@@ -200,11 +193,9 @@ fn preset_without_scenes_loads_as_default_scene() {
 
 // ── #450 legacy file migration orchestrator ───────────────────────────────
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -222,13 +213,8 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("sc".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
+                    io: "main".into(),
+                    endpoint: "In 1".into(),
                 }),
             },
             AudioBlock {
@@ -245,13 +231,8 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("sc".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
+                    io: "main".into(),
+                    endpoint: "Out 1".into(),
                 }),
             },
         ],
@@ -400,7 +381,6 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
         "input-1".into(),
         RigInput {
             label: None,
-            sources: Vec::new(),
             bank: BTreeMap::from([(1, "a".into()), (2, "b".into())]),
             active_preset: 1,
             active_scene: 1,
