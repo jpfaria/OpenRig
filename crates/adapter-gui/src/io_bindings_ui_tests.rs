@@ -246,7 +246,15 @@ fn io_bindings_ui_interactions() {
         let ps = Rc::new(RefCell::new(None));
         let in_dev = Rc::new(RefCell::new(Vec::new()));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        crate::settings::io_bindings::wire(
+            &app,
+            &psw,
+            ps,
+            cfg.clone(),
+            in_dev,
+            out_dev,
+            Rc::new(RefCell::new(None)),
+        );
         psw.show().unwrap();
 
         // The confirm-rename button calls rename-io-binding(id, draft); simulate
@@ -296,7 +304,15 @@ fn io_bindings_ui_interactions() {
             channels: 2,
         }]));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        crate::settings::io_bindings::wire(
+            &app,
+            &psw,
+            ps,
+            cfg.clone(),
+            in_dev,
+            out_dev,
+            Rc::new(RefCell::new(None)),
+        );
         psw.show().unwrap();
 
         // Open the add-input form.
@@ -357,7 +373,15 @@ fn io_bindings_ui_interactions() {
         let ps = Rc::new(RefCell::new(None));
         let in_dev = Rc::new(RefCell::new(Vec::new()));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
+        crate::settings::io_bindings::wire(
+            &app,
+            &psw,
+            ps,
+            cfg.clone(),
+            in_dev,
+            out_dev,
+            Rc::new(RefCell::new(None)),
+        );
         psw.show().unwrap();
 
         assert!(

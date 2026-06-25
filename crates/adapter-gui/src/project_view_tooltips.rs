@@ -1,6 +1,7 @@
 //! Chain input/output tooltip helpers — lifted out of project_view.rs
 //! so the parent module stays under the size cap.
 
+use domain::io_binding::IoBinding;
 use infra_cpal::AudioDeviceDescriptor;
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::project::Project;
@@ -11,14 +12,15 @@ pub(crate) fn chain_inputs_tooltip(
     chain: &Chain,
     _project: &Project,
     devices: &[AudioDeviceDescriptor],
+    io_bindings: &[IoBinding],
 ) -> String {
-    // Show only entries from the FIRST InputBlock (chip In)
-    let first_input = chain.first_input();
-    let Some(input) = first_input else {
+    // #716: the device endpoints resolve from the binding registry, not from
+    // block `entries` (which no longer exist on the model).
+    let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+    if resolved_inputs.is_empty() {
         return "No input configured".to_string();
-    };
-    input
-        .entries
+    }
+    resolved_inputs
         .iter()
         .enumerate()
         .map(|(ei, entry)| {
@@ -49,14 +51,15 @@ pub(crate) fn chain_outputs_tooltip(
     chain: &Chain,
     _project: &Project,
     devices: &[AudioDeviceDescriptor],
+    io_bindings: &[IoBinding],
 ) -> String {
-    // Show only entries from the LAST OutputBlock (chip Out)
-    let last_output = chain.last_output();
-    let Some(output) = last_output else {
+    // #716: device endpoints resolve from the binding registry, not from
+    // block `entries`.
+    let (_, resolved_outputs) = engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+    if resolved_outputs.is_empty() {
         return "No output configured".to_string();
-    };
-    output
-        .entries
+    }
+    resolved_outputs
         .iter()
         .enumerate()
         .map(|(ei, entry)| {

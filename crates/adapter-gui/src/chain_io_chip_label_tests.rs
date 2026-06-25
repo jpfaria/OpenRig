@@ -49,7 +49,6 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
                 model: "standard".to_string(),
                 io: binding_id.to_string(),
                 endpoint: endpoint.to_string(),
-                entries: vec![],
             }),
         }],
     }

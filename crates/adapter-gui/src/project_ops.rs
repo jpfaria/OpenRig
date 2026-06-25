@@ -341,15 +341,8 @@ pub(crate) fn load_project_session(
     // writing into `rig.outputs` reopens with no Output blocks on its
     // chains. `validate_project` would then refuse to start the runtime
     // and the user would have no sound AND no way to enable the chain.
-    // Synthesize a default Output routed to the first configured output
-    // device so old projects self-heal forward; the user can later
-    // customise via the I/O editor.
-    let default_output_device = gui_settings
-        .output_devices
-        .first()
-        .map(|d| domain::ids::DeviceId(d.device_id.clone()))
-        .unwrap_or_else(|| domain::ids::DeviceId(String::new()));
-    project::project_ensure_io::ensure_chains_have_output(&mut project, &default_output_device);
+    // Model A (#716): a chain's output comes from the per-machine I/O binding
+    // registry, not a synthesized device block — nothing to "ensure" here.
 
     // #606: the plugin catalog is loaded at startup, so by now we can tell
     // which block models resolve. Disable any whose pack is not installed

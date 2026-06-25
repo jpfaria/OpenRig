@@ -73,7 +73,7 @@ fn make_controller_at(chain_id: &ChainId, sr: u32) -> ProjectRuntimeController {
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
-        build_chain_runtime_state(&chain, sr as f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, sr as f32, &[DEFAULT_ELASTIC_TARGET], &[])
             .expect("build_chain_runtime_state"),
     );
     let mut chains = HashMap::new();

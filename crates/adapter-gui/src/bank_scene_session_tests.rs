@@ -11,7 +11,6 @@ fn rig() -> RigProject {
         "input-1".to_string(),
         RigInput {
             label: Some("Eu".into()),
-            sources: vec![],
             bank: BTreeMap::from([
                 (1, "clean".to_string()),
                 (3, "drive".to_string()),
@@ -30,7 +29,6 @@ fn rig() -> RigProject {
         "input-2".to_string(),
         RigInput {
             label: None,
-            sources: vec![],
             bank: BTreeMap::from([(1, "clean".to_string())]),
             active_preset: 1,
             active_scene: 1,

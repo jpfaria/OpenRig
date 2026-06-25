@@ -97,8 +97,9 @@ fn delay_model_ids() -> Vec<String> {
 
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
 use domain::ids::{ChainId, DeviceId};
-use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::{InputBlock, OutputBlock};
+use project::chain::{Chain, ChainInputMode};
 
 fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
     Chain {
@@ -123,11 +124,6 @@ fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
 fn input_kind() -> AudioBlockKind {
     AudioBlockKind::Input(InputBlock {
         model: "standard".into(),
-        entries: vec![InputEntry {
-            device_id: DeviceId("dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        }],
         io: String::new(),
         endpoint: String::new(),
     })
@@ -136,11 +132,6 @@ fn input_kind() -> AudioBlockKind {
 fn output_kind() -> AudioBlockKind {
     AudioBlockKind::Output(OutputBlock {
         model: "standard".into(),
-        entries: vec![OutputEntry {
-            device_id: DeviceId("dev".into()),
-            mode: ChainOutputMode::Stereo,
-            channels: vec![0, 1],
-        }],
         io: String::new(),
         endpoint: String::new(),
     })
@@ -227,79 +218,6 @@ fn ui_index_with_only_io_blocks() {
     let chain = test_chain(vec![input_kind(), output_kind()]);
     // UI sees nothing, asking for 0 → before Output = real 1
     assert_eq!(ui_index_to_real_block_index(&chain, 0), 1);
-}
-
-#[test]
-fn save_input_entries_does_not_move_middle_io_blocks() {
-    // Chain: [Input0, Gain, Input1, Delay, Output]
-    // Simulates what on_save does: update ONLY first InputBlock entries,
-    // verify middle InputBlock at position 2 is untouched.
-    let mut chain = test_chain(vec![
-        input_kind(),
-        effect_kind("gain"),
-        AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev2".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![1],
-            }],
-            io: String::new(),
-            endpoint: String::new(),
-        }),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-
-    // The save path with editing_io_block_index = None finds FIRST InputBlock
-    let target_idx = chain
-        .blocks
-        .iter()
-        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-        .unwrap();
-    assert_eq!(target_idx, 0);
-
-    // Update first InputBlock entries (simulating save)
-    let new_entries = vec![InputEntry {
-        device_id: DeviceId("dev_new".into()),
-        mode: ChainInputMode::Stereo,
-        channels: vec![2, 3],
-    }];
-    if let AudioBlockKind::Input(ref mut ib) = chain.blocks[target_idx].kind {
-        ib.entries = new_entries;
-    }
-
-    // Verify chain structure is unchanged
-    assert_eq!(chain.blocks.len(), 5);
-    assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
-    assert!(matches!(&chain.blocks[1].kind, AudioBlockKind::Core(_)));
-    assert!(matches!(&chain.blocks[2].kind, AudioBlockKind::Input(_)));
-    assert!(matches!(&chain.blocks[3].kind, AudioBlockKind::Core(_)));
-    assert!(matches!(&chain.blocks[4].kind, AudioBlockKind::Output(_)));
-
-    // Verify first InputBlock was updated
-    if let AudioBlockKind::Input(ref ib) = chain.blocks[0].kind {
-        assert_eq!(ib.entries.len(), 1);
-        assert_eq!(ib.entries[0].device_id.0, "dev_new");
-    } else {
-        panic!("block 0 should be Input");
-    }
-
-    // Verify middle InputBlock at position 2 is UNTOUCHED
-    if let AudioBlockKind::Input(ref ib) = chain.blocks[2].kind {
-        assert_eq!(ib.entries.len(), 1);
-        assert_eq!(ib.entries[0].device_id.0, "dev2");
-        assert_eq!(ib.entries[0].channels, vec![1]);
-    } else {
-        panic!("block 2 should be Input");
-    }
-
-    // Verify block IDs haven't changed (no reconstruction)
-    assert_eq!(chain.blocks[0].id.0, "block:0");
-    assert_eq!(chain.blocks[1].id.0, "block:1");
-    assert_eq!(chain.blocks[2].id.0, "block:2");
-    assert_eq!(chain.blocks[3].id.0, "block:3");
-    assert_eq!(chain.blocks[4].id.0, "block:4");
 }
 
 // --- format_channel_list ---
@@ -627,60 +545,6 @@ fn chain_endpoint_label_returns_prefix() {
 }
 
 #[test]
-fn save_output_entries_finds_last_output_block() {
-    // Chain: [Input, Gain, Output_mid, Delay, Output_last]
-    // With editing_io_block_index = None, should find LAST OutputBlock
-    let mut chain = test_chain(vec![
-        input_kind(),
-        effect_kind("gain"),
-        AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev_mid".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![2, 3],
-            }],
-            io: String::new(),
-            endpoint: String::new(),
-        }),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-
-    // The save path with editing_io_block_index = None finds LAST OutputBlock
-    let target_idx = chain
-        .blocks
-        .iter()
-        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-        .unwrap();
-    assert_eq!(target_idx, 4);
-
-    // Update last OutputBlock entries
-    let new_entries = vec![OutputEntry {
-        device_id: DeviceId("dev_updated".into()),
-        mode: ChainOutputMode::Mono,
-        channels: vec![0],
-    }];
-    if let AudioBlockKind::Output(ref mut ob) = chain.blocks[target_idx].kind {
-        ob.entries = new_entries;
-    }
-
-    // Verify middle OutputBlock at position 2 is UNTOUCHED
-    if let AudioBlockKind::Output(ref ob) = chain.blocks[2].kind {
-        assert_eq!(ob.entries[0].device_id.0, "dev_mid");
-    } else {
-        panic!("block 2 should be Output");
-    }
-
-    // Verify last OutputBlock was updated
-    if let AudioBlockKind::Output(ref ob) = chain.blocks[4].kind {
-        assert_eq!(ob.entries[0].device_id.0, "dev_updated");
-    } else {
-        panic!("block 4 should be Output");
-    }
-}
-
-#[test]
 fn open_cli_project_errors_on_nonexistent_path() {
     let result = open_cli_project(&std::path::PathBuf::from("/nonexistent/project.yaml"));
     assert!(result.is_err());
@@ -909,25 +773,63 @@ fn mark_recent_project_invalid_nonexistent_path_does_nothing() {
     assert!(config.recent_projects[0].invalid_reason.is_none());
 }
 
-// --- chain_inputs_tooltip ---
+// --- chain_inputs_tooltip / chain_outputs_tooltip ---
+//
+// #716: device endpoints resolve from the per-machine I/O binding registry,
+// not from block `entries`. A chain references its I/O via `io_binding_ids`;
+// the tooltip helpers take that registry and resolve through
+// `engine::runtime_endpoints::resolve_chain_io`.
 
-use super::project_view::chain_inputs_tooltip;
+use super::project_view::{chain_inputs_tooltip, chain_outputs_tooltip};
+
+/// A chain that selects binding `"io"` (head input + tail output resolved from
+/// the registry) and carries only structural head/tail device blocks.
+fn tooltip_chain() -> Chain {
+    let mut chain = test_chain(vec![input_kind(), output_kind()]);
+    chain.io_binding_ids = vec!["io".into()];
+    chain
+}
+
+/// Registry binding mirroring the legacy `input_kind()` (mono, dev "dev",
+/// ch [0]) + `output_kind()` (stereo, dev "dev", ch [0, 1]).
+fn tooltip_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
+fn empty_project() -> Project {
+    Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![],
+        midi: None,
+    }
+}
 
 #[test]
 fn chain_inputs_tooltip_shows_device_name_and_channels() {
-    let chain = test_chain(vec![input_kind(), output_kind()]);
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![chain.clone()],
-        midi: None,
-    };
+    let chain = tooltip_chain();
+    let project = empty_project();
     let devices = vec![AudioDeviceDescriptor {
         id: "dev".into(),
         name: "USB Audio".into(),
         channels: 2,
     }];
-    let tooltip = chain_inputs_tooltip(&chain, &project, &devices);
+    let tooltip = chain_inputs_tooltip(&chain, &project, &devices, &tooltip_registry());
     assert!(
         tooltip.contains("USB Audio"),
         "tooltip should contain device name: {}",
@@ -947,28 +849,19 @@ fn chain_inputs_tooltip_shows_device_name_and_channels() {
 
 #[test]
 fn chain_inputs_tooltip_no_input_block() {
+    // No binding selected ⇒ no resolved inputs.
     let chain = test_chain(vec![effect_kind("delay")]);
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-        midi: None,
-    };
-    let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+    let project = empty_project();
+    let tooltip = chain_inputs_tooltip(&chain, &project, &[], &[]);
     assert_eq!(tooltip, "No input configured");
 }
 
 #[test]
 fn chain_inputs_tooltip_unknown_device_shows_id() {
-    let chain = test_chain(vec![input_kind(), output_kind()]);
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-        midi: None,
-    };
-    // No devices → falls back to device_id
-    let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+    let chain = tooltip_chain();
+    let project = empty_project();
+    // No devices → falls back to device_id from the resolved binding endpoint.
+    let tooltip = chain_inputs_tooltip(&chain, &project, &[], &tooltip_registry());
     assert!(
         tooltip.contains("dev"),
         "should fall back to device id: {}",
@@ -976,25 +869,16 @@ fn chain_inputs_tooltip_unknown_device_shows_id() {
     );
 }
 
-// --- chain_outputs_tooltip ---
-
-use super::project_view::chain_outputs_tooltip;
-
 #[test]
 fn chain_outputs_tooltip_shows_device_and_channels() {
-    let chain = test_chain(vec![input_kind(), output_kind()]);
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![chain.clone()],
-        midi: None,
-    };
+    let chain = tooltip_chain();
+    let project = empty_project();
     let devices = vec![AudioDeviceDescriptor {
         id: "dev".into(),
         name: "Headphones".into(),
         channels: 2,
     }];
-    let tooltip = chain_outputs_tooltip(&chain, &project, &devices);
+    let tooltip = chain_outputs_tooltip(&chain, &project, &devices, &tooltip_registry());
     assert!(
         tooltip.contains("Headphones"),
         "should contain device name: {}",
@@ -1009,14 +893,10 @@ fn chain_outputs_tooltip_shows_device_and_channels() {
 
 #[test]
 fn chain_outputs_tooltip_no_output_block() {
+    // No binding selected ⇒ no resolved outputs.
     let chain = test_chain(vec![effect_kind("delay")]);
-    let project = Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![],
-        midi: None,
-    };
-    let tooltip = chain_outputs_tooltip(&chain, &project, &[]);
+    let project = empty_project();
+    let tooltip = chain_outputs_tooltip(&chain, &project, &[], &[]);
     assert_eq!(tooltip, "No output configured");
 }
 

@@ -15,25 +15,19 @@ use super::{
 
 use std::collections::BTreeMap;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
 use project::param::ParameterSet;
 use project::rig::{RigInput, RigPreset, RigProject};
 
 fn input_block(id: &str) -> AudioBlock {
+    // #716: I/O blocks no longer embed device endpoints (they live in the
+    // binding registry). `strip_io_blocks` keys off the block KIND only.
     AudioBlock {
         id: BlockId(id.to_string()),
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             io: String::new(),
             endpoint: String::new(),
         }),
@@ -46,11 +40,6 @@ fn output_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(String::new()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
             io: String::new(),
             endpoint: String::new(),
         }),
@@ -125,11 +114,9 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
         "input-1".to_string(),
         RigInput {
             label: input_label.map(|s| s.to_string()),
-            sources: vec![InputEntry {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            // #716: input device discovered from the binding registry, not
+            // embedded as `sources`. These tests assert preset-filename logic
+            // only, so the binding contents are irrelevant.
             bank,
             active_preset: 1,
             active_scene: 1,

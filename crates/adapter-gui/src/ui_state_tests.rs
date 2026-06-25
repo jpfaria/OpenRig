@@ -4,10 +4,7 @@ use super::{
 };
 use domain::ids::{ChainId, DeviceId};
 use infra_filesystem::{AppConfig, ChannelMode, IoBinding, IoEndpoint};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 
 // ── ui_bindings projector tests (#716) ───────────────────────────────────────
 
@@ -304,48 +301,37 @@ fn block_drawer_state_edit_mode_preserves_model_id() {
 
 #[test]
 fn routing_summary_uses_human_friendly_channel_numbers() {
-    use domain::ids::BlockId;
+    // #716: the chain's I/O channels resolve from the binding registry, not
+    // from block `entries`. The chain references `io1`; the registry binding
+    // carries a mono input on ch 0 and a stereo output on ch 0,1.
     let chain = Chain {
         id: ChainId("chain:1".to_string()),
         description: Some("Guitarra".to_string()),
         instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("chain:1:input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".to_string(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("in".to_string()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                    io: String::new(),
-                    endpoint: String::new(),
-                }),
-            },
-            AudioBlock {
-                id: BlockId("chain:1:output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".to_string(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("out".to_string()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                    io: String::new(),
-                    endpoint: String::new(),
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io1".to_string()],
+        blocks: vec![],
     };
+    let registry = vec![IoBinding {
+        id: "io1".into(),
+        name: "IO1".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("in".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
 
     assert_eq!(
-        chain_routing_summary(&chain),
+        chain_routing_summary(&chain, &registry),
         "Entrada 1 -> Saida 1, 2".to_string()
     );
 }

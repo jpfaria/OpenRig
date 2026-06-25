@@ -16,8 +16,6 @@ use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use project::block::InputEntry;
-use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
 
 fn rig_with_chain() -> RigProject {
@@ -30,11 +28,9 @@ fn rig_with_chain() -> RigProject {
         "in".into(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("hw:0,0".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            // #716: the input starts unbound; the test binds it via
+            // SetChainIoBindings below and asserts the checklist reflects it
+            // after reopen. Device data lives in the registry, not in the input.
             bank,
             active_preset: 1,
             active_scene: 1,

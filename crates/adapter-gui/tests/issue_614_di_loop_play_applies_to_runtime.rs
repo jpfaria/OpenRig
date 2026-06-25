@@ -74,7 +74,7 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
             .expect("build_chain_runtime_state"),
     );
 

@@ -208,16 +208,18 @@ pub fn insertion_slot_indices(block_count: usize) -> Vec<usize> {
     (0..=block_count).collect()
 }
 
-pub fn chain_routing_summary(chain: &Chain) -> String {
-    let input_channels: Vec<usize> = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
+pub fn chain_routing_summary(chain: &Chain, io_bindings: &[IoBinding]) -> String {
+    // #716: device endpoints resolve from the binding registry, not from
+    // block `entries`.
+    let (resolved_inputs, resolved_outputs) =
+        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+    let input_channels: Vec<usize> = resolved_inputs
+        .iter()
+        .flat_map(|e| e.channels.iter().copied())
         .collect();
-    let output_channels: Vec<usize> = chain
-        .output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
+    let output_channels: Vec<usize> = resolved_outputs
+        .iter()
+        .flat_map(|e| e.channels.iter().copied())
         .collect();
     format!(
         "Entrada {} -> Saida {}",

@@ -521,24 +521,12 @@ fn enabling_the_preset_chain_live_is_clean() {
     // 4x more time per block than the owner's real 64). Inject the owner's
     // real settings — Scarlett @ 48 kHz / 64 frames (period 1333 us in every
     // log they sent) — for every device the chains reference.
+    // Model A (#716): the chains no longer embed device endpoints — the owner's
+    // devices live in their per-machine `config.io_bindings`, which this
+    // fixture-only test cannot load. Without that registry there is nothing to
+    // inject here; the (HW-gated) test still loads the project and exercises the
+    // cab swap. Timing-injection from the owner's real settings is a no-op now.
     let mut device_ids: Vec<DeviceId> = Vec::new();
-    for chain in &project.chains {
-        for block in &chain.blocks {
-            match &block.kind {
-                AudioBlockKind::Input(b) => {
-                    for e in &b.entries {
-                        device_ids.push(e.device_id.clone());
-                    }
-                }
-                AudioBlockKind::Output(b) => {
-                    for e in &b.entries {
-                        device_ids.push(e.device_id.clone());
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
     device_ids.sort_by(|a, b| a.0.cmp(&b.0));
     device_ids.dedup_by(|a, b| a.0 == b.0);
     project.device_settings = device_ids

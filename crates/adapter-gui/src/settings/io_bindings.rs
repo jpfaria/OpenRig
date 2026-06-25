@@ -21,7 +21,7 @@ use std::rc::Rc;
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use domain::io_binding::{IoBinding, IoEndpoint};
-use infra_cpal::AudioDeviceDescriptor;
+use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
@@ -92,6 +92,20 @@ fn mirror_bindings_to_session(
 ) {
     if let Some(session) = ps.borrow().as_ref() {
         *session.io_bindings.borrow_mut() = cfg.borrow().io_bindings.clone();
+    }
+}
+
+/// #716 (AUDIO-CRITICAL): push the edited registry straight into the live
+/// runtime controller so a chain that is ALREADY running re-resolves its
+/// device endpoints against the user's latest binding edit on the next sync.
+/// Without this, a binding change only reaches the controller on the next
+/// cold start; a running rig keeps the stale registry.
+fn push_bindings_to_runtime(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    cfg: &Rc<RefCell<AppConfig>>,
+) {
+    if let Some(controller) = runtime.borrow_mut().as_mut() {
+        controller.set_io_bindings(cfg.borrow().io_bindings.clone());
     }
 }
 
@@ -225,6 +239,7 @@ pub fn wire(
     app_config: Rc<RefCell<AppConfig>>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
     let models = Rc::new(BindingModels {
         bindings: Rc::new(VecModel::from(project_bindings(&app_config.borrow()))),
@@ -256,6 +271,7 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
+        &project_runtime,
     );
     install_psw_callbacks(
         project_settings_window,
@@ -264,6 +280,7 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
+        &project_runtime,
     );
 }
 
@@ -310,9 +327,19 @@ struct WireCtx {
     models: Rc<BindingModels>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    /// #716: the live runtime controller (if any). Edited bindings are pushed
+    /// here so a running rig picks them up immediately.
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 }
 
 impl WireCtx {
+    /// Mirror the edited registry into the open session AND the live runtime
+    /// controller (#716). Called after every binding/endpoint mutation.
+    fn propagate_bindings(&self) {
+        mirror_bindings_to_session(&self.ps, &self.cfg);
+        push_bindings_to_runtime(&self.runtime, &self.cfg);
+    }
+
     fn create_binding(&self, name: &str) -> SharedString {
         let display = binding_display_name(name, &self.cfg);
         let id = make_id(&display);
@@ -324,7 +351,7 @@ impl WireCtx {
         };
         dispatch_if_session(&self.ps, build_create_command(binding.clone()));
         self.cfg.borrow_mut().io_bindings.push(binding);
-        mirror_bindings_to_session(&self.ps, &self.cfg);
+        self.propagate_bindings();
         reproject(&self.models, &self.cfg);
         SharedString::from(id)
     }
@@ -333,7 +360,7 @@ impl WireCtx {
         let msg = delete_reject_message(&self.ps, id);
         if msg.is_empty() {
             self.cfg.borrow_mut().io_bindings.retain(|b| b.id != id);
-            mirror_bindings_to_session(&self.ps, &self.cfg);
+            self.propagate_bindings();
             reproject(&self.models, &self.cfg);
         }
         SharedString::from(msg)
@@ -347,7 +374,7 @@ impl WireCtx {
                 dispatch_if_session(&self.ps, Command::UpdateIoBinding { binding: b.clone() });
             }
         }
-        mirror_bindings_to_session(&self.ps, &self.cfg);
+        self.propagate_bindings();
         reproject(&self.models, &self.cfg);
     }
 
@@ -422,7 +449,7 @@ impl WireCtx {
             }
         }
         self.models.channels.set_vec(Vec::new());
-        mirror_bindings_to_session(&self.ps, &self.cfg);
+        self.propagate_bindings();
         reproject(&self.models, &self.cfg);
     }
 
@@ -458,7 +485,7 @@ impl WireCtx {
                 apply_binding_command(b, &self.ps, cmd);
             }
         }
-        mirror_bindings_to_session(&self.ps, &self.cfg);
+        self.propagate_bindings();
         reproject(&self.models, &self.cfg);
     }
 }
@@ -469,6 +496,7 @@ fn make_ctx(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) -> Rc<WireCtx> {
     Rc::new(WireCtx {
         ps: Rc::clone(ps),
@@ -476,6 +504,7 @@ fn make_ctx(
         models: Rc::clone(models),
         input_devices: Rc::clone(input_devices),
         output_devices: Rc::clone(output_devices),
+        runtime: Rc::clone(runtime),
     })
 }
 
@@ -486,8 +515,9 @@ fn install_window_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
 
     let c = ctx.clone();
     window.on_create_io_binding(move |name| c.create_binding(name.as_str()));
@@ -531,8 +561,9 @@ fn install_psw_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
 
     let c = ctx.clone();
     psw.on_create_io_binding(move |name| c.create_binding(name.as_str()));

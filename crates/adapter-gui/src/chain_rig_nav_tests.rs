@@ -1,7 +1,5 @@
 use super::{preset_slot_at, rig_nav_rows, RigNavRow};
 use engine::rig_runtime::{rig_to_legacy_project, switch_and_project_input};
-use project::block::InputEntry;
-use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -25,11 +23,10 @@ fn rig() -> RigProject {
         "input-1".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: domain::ids::DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            // #716: the input's device is discovered from the binding registry
+            // (`io_binding_ids`), not embedded as `sources`. These nav tests
+            // assert bank/preset/scene projection only, so a bare binding id
+            // is enough.
             bank: BTreeMap::from([
                 (1, "clean".to_string()),
                 (2, "drive".to_string()),
@@ -41,7 +38,7 @@ fn rig() -> RigProject {
             instrument: "electric_guitar".to_string(),
             io: String::new(),
             endpoint: String::new(),
-            io_binding_ids: Vec::new(),
+            io_binding_ids: vec!["io1".to_string()],
         },
     );
     RigProject {
@@ -183,56 +180,6 @@ fn removing_a_rig_input_drops_its_chain_from_the_projection() {
         "deleted chain must not re-appear on re-projection"
     );
     assert_eq!(after.chains.len(), 0, "no chains left");
-}
-
-// User repro (#436): open the guitar input, ADD a 2nd capture source
-// (device + ch1), SAVE, reopen → the input must now have BOTH sources.
-// Mirrors the rig save path (the Input block carries input.sources;
-// edit it on the synthetic chain, run sync_synthetic_into_rig, reopen).
-#[test]
-fn adding_a_capture_source_to_a_rig_input_persists_on_save() {
-    use project::block::{AudioBlockKind, InputEntry};
-    use project::chain::ChainInputMode;
-
-    let mut r = rig(); // input-1 has one source (scarlett? no: see rig())
-                       // The rig() helper builds input-1 with a single mono source on "d".
-    let before = r.inputs["input-1"].sources.len();
-    assert_eq!(before, 1, "starts with one capture source");
-
-    // Step: project, then the user adds device "scarlett" ch1 to the
-    // input — on the synthetic chain that is a 2nd entry in the Input
-    // block (entries == input.sources).
-    let mut proj = rig_to_legacy_project(&r, &BTreeSet::new());
-    for c in proj.chains.iter_mut().filter(|c| c.id.0 == "rig:input-1") {
-        for b in c.blocks.iter_mut() {
-            if let AudioBlockKind::Input(ib) = &mut b.kind {
-                ib.entries.push(InputEntry {
-                    device_id: domain::ids::DeviceId("scarlett".into()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![1],
-                });
-            }
-        }
-    }
-
-    // Save → the rig persistence path the GUI runs.
-    super::sync_synthetic_into_rig(&mut r, &proj);
-
-    // Reopen → the input must carry BOTH sources.
-    let reopened = rig_to_legacy_project(&r, &BTreeSet::new());
-    let entries = reopened.chains[0]
-        .blocks
-        .iter()
-        .find_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-            _ => None,
-        })
-        .expect("input block");
-    assert_eq!(
-        (r.inputs["input-1"].sources.len(), entries),
-        (2, 2),
-        "added capture source must persist into RigInput.sources"
-    );
 }
 
 // User repro (#436), steps 3–7: select "New Preset 2" (clone of the

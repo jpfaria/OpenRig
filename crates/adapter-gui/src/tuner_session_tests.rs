@@ -1,39 +1,40 @@
 use super::*;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry};
-use project::chain::{Chain, ChainInputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 use project::device::DeviceSettings;
 
-fn input_entry(device: &str, channels: Vec<usize>, mode: ChainInputMode) -> InputEntry {
-    InputEntry {
+/// #716: a tuner input's device/channels/mode come from the binding registry,
+/// not from block `entries`. Each test input is one binding endpoint.
+fn in_ep(device: &str, channels: Vec<usize>, mode: ChannelMode) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
         device_id: DeviceId(device.into()),
         mode,
         channels,
     }
 }
 
-fn input_block(entries: Vec<InputEntry>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("chain:0:in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries,
-        }),
+/// One registry binding (`id`) carrying the given input endpoint(s).
+fn binding(id: &str, inputs: Vec<IoEndpoint>) -> IoBinding {
+    IoBinding {
+        id: id.into(),
+        name: id.to_uppercase(),
+        inputs,
+        outputs: vec![],
     }
 }
 
-fn chain_with_input(id: &str, enabled: bool, entries: Vec<InputEntry>) -> Chain {
+/// A binding-bound chain: it references `io1`; the registry holds the device.
+fn chain_bound(id: &str, enabled: bool) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: Some("Guitar".into()),
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![input_block(entries)],
+        io_binding_ids: vec!["io1".into()],
+        blocks: vec![],
     }
 }
 
@@ -93,15 +94,11 @@ fn placeholder_row_has_label_and_inactive_defaults() {
 
 #[test]
 fn fingerprint_skips_disabled_chains() {
-    let entries = vec![input_entry("dev:1", vec![0], ChainInputMode::Mono)];
-    let fp_enabled = project_input_fingerprint(&project_from_chain(chain_with_input(
-        "chain:0",
-        true,
-        entries.clone(),
-    )));
-    let fp_disabled = project_input_fingerprint(&project_from_chain(chain_with_input(
-        "chain:0", false, entries,
-    )));
+    let registry = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let fp_enabled =
+        project_input_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &registry);
+    let fp_disabled =
+        project_input_fingerprint(&project_from_chain(chain_bound("chain:0", false)), &registry);
 
     assert_ne!(fp_enabled, fp_disabled);
     assert!(
@@ -113,46 +110,42 @@ fn fingerprint_skips_disabled_chains() {
 
 #[test]
 fn fingerprint_changes_when_channels_change() {
-    let mono = vec![input_entry("dev:1", vec![0], ChainInputMode::Mono)];
-    let stereo = vec![input_entry("dev:1", vec![0, 1], ChainInputMode::Stereo)];
+    let mono = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let stereo = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0, 1], ChannelMode::Stereo)],
+    )];
 
     let fp_mono =
-        project_input_fingerprint(&project_from_chain(chain_with_input("chain:0", true, mono)));
-    let fp_stereo = project_input_fingerprint(&project_from_chain(chain_with_input(
-        "chain:0", true, stereo,
-    )));
+        project_input_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &mono);
+    let fp_stereo =
+        project_input_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &stereo);
 
     assert_ne!(fp_mono, fp_stereo);
 }
 
 #[test]
 fn fingerprint_changes_when_device_id_changes() {
-    let dev_a = vec![input_entry("dev:1", vec![0], ChainInputMode::Mono)];
-    let dev_b = vec![input_entry("dev:2", vec![0], ChainInputMode::Mono)];
+    let dev_a = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let dev_b = vec![binding("io1", vec![in_ep("dev:2", vec![0], ChannelMode::Mono)])];
 
-    let fp_a = project_input_fingerprint(&project_from_chain(chain_with_input(
-        "chain:0", true, dev_a,
-    )));
-    let fp_b = project_input_fingerprint(&project_from_chain(chain_with_input(
-        "chain:0", true, dev_b,
-    )));
+    let fp_a = project_input_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_a);
+    let fp_b = project_input_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_b);
 
     assert_ne!(fp_a, fp_b);
 }
 
 #[test]
 fn fingerprint_stable_for_identical_projects() {
-    let mk = || {
-        project_from_chain(chain_with_input(
-            "chain:0",
-            true,
-            vec![input_entry("dev:1", vec![0, 1], ChainInputMode::Stereo)],
-        ))
-    };
+    let registry = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0, 1], ChannelMode::Stereo)],
+    )];
+    let mk = || project_from_chain(chain_bound("chain:0", true));
 
     assert_eq!(
-        project_input_fingerprint(&mk()),
-        project_input_fingerprint(&mk())
+        project_input_fingerprint(&mk(), &registry),
+        project_input_fingerprint(&mk(), &registry)
     );
 }
 

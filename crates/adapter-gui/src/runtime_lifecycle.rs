@@ -73,7 +73,17 @@ pub(crate) fn sync_live_chain_runtime(
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
-            *borrow = Some(ProjectRuntimeController::start(&*proj)?);
+            let mut controller = ProjectRuntimeController::start(&*proj)?;
+            // #716 (AUDIO-CRITICAL): hand the per-machine I/O binding registry
+            // to the freshly started controller BEFORE its deferred cold-start
+            // activations resolve on the poll tick. `start()` only schedules
+            // pending activations (cold start); they resolve their device
+            // endpoints from the controller's stored registry — so a
+            // binding-bound chain produces no sound unless we install the
+            // registry here. Sourced from the session's mirror of
+            // `AppConfig.io_bindings`.
+            controller.set_io_bindings(session.io_bindings.borrow().clone());
+            *borrow = Some(controller);
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).

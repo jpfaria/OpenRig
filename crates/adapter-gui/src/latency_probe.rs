@@ -52,16 +52,15 @@ pub fn install_handler(
         // the latency estimate. Prefer the chain input's saved device setting;
         // otherwise fall back to the live engine rate the dispatcher synced
         // from the running stream, not a hardcoded constant.
-        let chain_device = chain.blocks.iter().find_map(|b| match &b.kind {
-            project::block::AudioBlockKind::Input(input) => input
-                .entries
-                .first()
-                .and_then(|entry| {
-                    proj.device_settings
-                        .iter()
-                        .find(|d| d.device_id == entry.device_id)
-                }),
-            _ => None,
+        // #716: the chain's input device resolves from the binding registry,
+        // not from block `entries`. Take the first resolved input endpoint and
+        // match its saved per-device setting.
+        let (resolved_inputs, _) =
+            engine::runtime_endpoints::resolve_chain_io(chain, &session.io_bindings.borrow());
+        let chain_device = resolved_inputs.first().and_then(|entry| {
+            proj.device_settings
+                .iter()
+                .find(|d| d.device_id == entry.device_id)
         });
         let live_sr = session.dispatcher.engine_sr();
         let sample_rate = chain_device

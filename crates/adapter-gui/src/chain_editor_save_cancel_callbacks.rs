@@ -101,10 +101,10 @@ pub(crate) fn wire(
             // chain's blocks (that put per-endpoint input tiles in the strip).
             // The engine resolves I/O from the bindings transiently at runtime.
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                chain_window.set_status_message(msg.into());
-                return;
-            }
+            // #716: the per-block channel-conflict check moved to runtime
+            // activation (the chain no longer embeds device endpoints — the
+            // binding registry is resolved transiently when the runtime builds
+            // streams). Saving a chain is purely data; no I/O validation here.
             log::info!(
                 "=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0,

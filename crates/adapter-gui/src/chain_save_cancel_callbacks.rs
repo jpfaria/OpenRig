@@ -110,10 +110,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             // never materialized into its blocks (the engine resolves it from
             // the bindings transiently at runtime).
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                set_status_warning(&window, &toast_timer, &msg);
-                return;
-            }
+            // #716: per-block channel-conflict validation moved to runtime
+            // activation; the chain no longer embeds device endpoints, so
+            // there is nothing device-level to validate at save time.
             log::info!(
                 "=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0,

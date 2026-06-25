@@ -80,36 +80,27 @@ pub(crate) fn sync_selection_markers(window: &AppWindow, project: &Project, sel:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::ids::{BlockId, ChainId, DeviceId};
-    use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-    };
-    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+    use domain::ids::{BlockId, ChainId};
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+    use project::chain::Chain;
     use project::param::ParameterSet;
 
     fn io_block(id: &str, input: bool) -> AudioBlock {
+        // #716: I/O blocks no longer embed device endpoints; their device data
+        // lives in the binding registry. These tests only exercise selection
+        // index math, so the io/endpoint fields stay empty.
         AudioBlock {
             id: BlockId(id.to_string()),
             enabled: true,
             kind: if input {
                 AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("d".to_string()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
                     io: String::new(),
                     endpoint: String::new(),
                 })
             } else {
                 AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("d".to_string()),
-                        mode: ChainOutputMode::default(),
-                        channels: vec![0],
-                    }],
                     io: String::new(),
                     endpoint: String::new(),
                 })
