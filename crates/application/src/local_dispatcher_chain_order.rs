@@ -3,7 +3,6 @@
 
 use anyhow::Result;
 
-use crate::chain_validation;
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -69,13 +68,10 @@ impl LocalDispatcher {
                             chain.0
                         ));
                     }
-                    let proj = self.project.borrow();
-                    chain_validation::validate_no_channel_conflict(
-                        &proj,
-                        &chain_clone,
-                        Some(&chain),
-                    )
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                    // #716 (model A): the per-block cross-chain channel-conflict
+                    // check is gone — device endpoints are resolved from the
+                    // per-machine binding registry at activation, where the
+                    // conflict check now belongs.
                 }
                 // Phase 3: mutate.
                 {

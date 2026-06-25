@@ -15,10 +15,8 @@ use std::rc::Rc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::{Chain, ChainInputMode};
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -1042,7 +1040,7 @@ fn replace_block_model_unknown_model_returns_err() {
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
-fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool) -> Chain {
+fn make_chain_with_input(chain_id: &str, _dev_id: &str, _ch: usize, enabled: bool) -> Chain {
     Chain {
         id: ChainId(chain_id.to_string()),
         description: Some(chain_id.to_string()),
@@ -1057,11 +1055,6 @@ fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool)
                 model: "standard".to_string(),
                 io: String::new(),
                 endpoint: String::new(),
-                entries: vec![InputEntry {
-                    device_id: DeviceId(dev_id.to_string()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![ch],
-                }],
             }),
         }],
     }
@@ -1318,16 +1311,14 @@ fn toggle_chain_enabled_refuses_chain_without_io_binding() {
 
 #[test]
 fn toggle_chain_enabled_enables_disabled_chain() {
-    // chain_1 uses dev_a ch 0, and chain_0 also uses dev_a ch 0 (and is enabled).
-    // But chain_1 shares the channel — expect conflict.
-    // First test a clean enable: use a project with no conflict.
+    // A clean enable: chain_1 carries an I/O binding (model A: `has_io()` is
+    // true when `io_binding_ids` is non-empty), so the dispatcher enables it.
+    let mut chain_1 = make_chain_with_input("chain_1", "dev_b", 0, false);
+    chain_1.io_binding_ids = vec!["io".to_string()];
     let project_no_conflict = Rc::new(RefCell::new(Project {
         name: None,
         device_settings: vec![],
-        chains: vec![
-            make_chain_with_input("chain_0", "dev_a", 0, true),
-            make_chain_with_input("chain_1", "dev_b", 0, false), // different device
-        ],
+        chains: vec![make_chain_with_input("chain_0", "dev_a", 0, true), chain_1],
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_no_conflict));
@@ -1441,24 +1432,11 @@ fn toggle_chain_enabled_disables_enabled_chain() {
     );
 }
 
-#[test]
-fn toggle_chain_enabled_conflict_returns_err() {
-    // chain_0 (enabled, dev_a ch 0), chain_1 (disabled, dev_a ch 0).
-    // Enabling chain_1 should fail because chain_0 already uses dev_a ch 0.
-    let project = make_project_two_chains();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
-        chain: ChainId("chain_1".to_string()),
-    });
-
-    assert!(result.is_err(), "expected Err for channel conflict, got Ok");
-    // chain_1 must remain disabled.
-    assert!(
-        !project.borrow().chains[1].enabled,
-        "chain_1 must remain disabled after conflict error"
-    );
-}
+// #716 (model A): `toggle_chain_enabled_conflict_returns_err` was removed.
+// It asserted the per-block cross-chain channel-conflict check (two chains on
+// the same device/channel) — device endpoints no longer live on the chain, so
+// that check moved to the per-machine binding registry at the activation layer
+// (a separate task). There is no model-A equivalent at this dispatcher layer.
 
 #[test]
 fn toggle_chain_enabled_non_existent_returns_err() {
@@ -1585,26 +1563,12 @@ fn add_chain_appends_chain_and_emits_event() {
     );
 }
 
-#[test]
-fn add_chain_enabled_true_with_conflict_returns_err() {
-    // chain_0 is enabled on dev_a ch 0. Add a new chain (enabled=true) on dev_a ch 0 → conflict.
-    let project = make_project_two_chains();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let mut conflicting_chain = make_chain_with_input("chain_new", "dev_a", 0, true); // enabled=true!
-    conflicting_chain.enabled = true;
-
-    let result = dispatcher.dispatch(Command::AddChain {
-        chain: conflicting_chain,
-    });
-
-    assert!(result.is_err(), "expected Err for channel conflict, got Ok");
-    assert_eq!(
-        project.borrow().chains.len(),
-        2,
-        "project must still have 2 chains after error"
-    );
-}
+// #716 (model A): `add_chain_enabled_true_with_conflict_returns_err` was
+// removed. It asserted the per-block cross-chain channel-conflict check on
+// `AddChain` (a new enabled chain on the same device/channel as an existing
+// enabled chain). Device endpoints no longer live on the chain, so that check
+// moved to the per-machine binding registry at the activation layer (a separate
+// task). There is no model-A equivalent at this dispatcher layer.
 
 #[test]
 fn add_chain_enabled_false_no_conflict_check() {
@@ -1792,7 +1756,7 @@ fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
     (project, chain_id)
 }
 
-fn make_input_block(dev_id: &str, ch: usize) -> AudioBlock {
+fn make_input_block(_dev_id: &str, _ch: usize) -> AudioBlock {
     AudioBlock {
         id: BlockId("input:0".to_string()),
         enabled: true,
@@ -1800,16 +1764,11 @@ fn make_input_block(dev_id: &str, ch: usize) -> AudioBlock {
             model: "standard".to_string(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![ch],
-            }],
         }),
     }
 }
 
-fn make_output_block(dev_id: &str, ch: usize) -> AudioBlock {
+fn make_output_block(_dev_id: &str, _ch: usize) -> AudioBlock {
     AudioBlock {
         id: BlockId("output:0".to_string()),
         enabled: true,
@@ -1817,11 +1776,6 @@ fn make_output_block(dev_id: &str, ch: usize) -> AudioBlock {
             model: "standard".to_string(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![ch],
-            }],
         }),
     }
 }

@@ -1,64 +1,16 @@
 //! Unit tests for helper functions of `application::validate`.
 //!
-//! Targets: `layout_from_channel_count`, `validate_unique_channels`,
-//! `layout_label`, `validate_active_chain_input_channel_conflicts`,
-//! `validate_device_settings`. Shared fixtures from sibling `helpers`.
+//! Targets: `layout_label`, `validate_device_settings`. Shared fixtures from
+//! sibling `helpers`.
+//!
+//! #716 (model A): the `layout_from_channel_count`, `validate_unique_channels`
+//! and `validate_active_chain_input_channel_conflicts` helpers were removed —
+//! they derived device endpoints from per-block `entries`, which no longer
+//! exist on the chain (endpoints are resolved from the I/O binding registry at
+//! the activation layer). Their unit tests were removed with them.
 
 use super::helpers::*;
 use std::collections::HashMap;
-
-// -----------------------------------------------------------------------
-// layout_from_channel_count — unit tests
-// -----------------------------------------------------------------------
-
-#[test]
-fn layout_from_channel_count_mono_returns_mono() {
-    let layout = layout_from_channel_count("test", "id", 1).unwrap();
-    assert_eq!(layout, AudioChannelLayout::Mono);
-}
-
-#[test]
-fn layout_from_channel_count_stereo_returns_stereo() {
-    let layout = layout_from_channel_count("test", "id", 2).unwrap();
-    assert_eq!(layout, AudioChannelLayout::Stereo);
-}
-
-#[test]
-fn layout_from_channel_count_zero_channels_fails() {
-    let err = layout_from_channel_count("test", "id", 0).unwrap_err();
-    assert!(err.to_string().contains("0 channels"));
-}
-
-#[test]
-fn layout_from_channel_count_four_channels_fails() {
-    let err = layout_from_channel_count("test", "id", 4).unwrap_err();
-    assert!(err.to_string().contains("4 channels"));
-}
-
-// -----------------------------------------------------------------------
-// validate_unique_channels — unit tests
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_unique_channels_no_duplicates_succeeds() {
-    assert!(validate_unique_channels(&[0, 1, 2]).is_ok());
-}
-
-#[test]
-fn validate_unique_channels_empty_succeeds() {
-    assert!(validate_unique_channels(&[]).is_ok());
-}
-
-#[test]
-fn validate_unique_channels_single_succeeds() {
-    assert!(validate_unique_channels(&[5]).is_ok());
-}
-
-#[test]
-fn validate_unique_channels_duplicate_fails() {
-    let err = validate_unique_channels(&[0, 1, 0]).unwrap_err();
-    assert!(err.to_string().contains("duplicated channel '0'"));
-}
 
 // -----------------------------------------------------------------------
 // layout_label — unit tests
@@ -72,74 +24,6 @@ fn layout_label_mono_returns_mono() {
 #[test]
 fn layout_label_stereo_returns_stereo() {
     assert_eq!(layout_label(AudioChannelLayout::Stereo), "stereo");
-}
-
-// -----------------------------------------------------------------------
-// validate_active_chain_input_channel_conflicts — unit tests
-// -----------------------------------------------------------------------
-
-#[test]
-fn channel_conflicts_no_chains_succeeds() {
-    assert!(validate_active_chain_input_channel_conflicts(&[]).is_ok());
-}
-
-#[test]
-fn channel_conflicts_single_chain_succeeds() {
-    let chain = valid_chain("chain:0");
-    assert!(validate_active_chain_input_channel_conflicts(&[chain]).is_ok());
-}
-
-#[test]
-fn channel_conflicts_different_devices_succeeds() {
-    let chain0 = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-a", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-b", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    assert!(validate_active_chain_input_channel_conflicts(&[chain0, chain1]).is_ok());
-}
-
-#[test]
-fn channel_conflicts_same_device_same_channel_fails() {
-    let chain0 = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let err = validate_active_chain_input_channel_conflicts(&[chain0, chain1]).unwrap_err();
-    assert!(err.to_string().contains("both use input device"));
-}
-
-#[test]
-fn channel_conflicts_disabled_chains_ignored() {
-    let chain0 = valid_chain("chain:0");
-    let mut chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    chain1.enabled = false;
-    assert!(validate_active_chain_input_channel_conflicts(&[chain0, chain1]).is_ok());
 }
 
 // -----------------------------------------------------------------------

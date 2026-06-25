@@ -12,7 +12,6 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
     let mut presets = BTreeMap::new();
     let mut input = RigInput {
         label: None,
-        sources: Vec::new(),
         bank: BTreeMap::new(),
         active_preset,
         active_scene: 1,

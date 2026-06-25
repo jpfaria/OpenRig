@@ -456,7 +456,6 @@ mod tests {
                 model: "default".to_string(),
                 io: String::new(),
                 endpoint: String::new(),
-                entries: vec![],
             }),
         }
     }

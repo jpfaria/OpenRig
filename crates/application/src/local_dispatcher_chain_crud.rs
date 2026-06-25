@@ -3,7 +3,6 @@
 
 use anyhow::Result;
 
-use crate::chain_validation;
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -14,11 +13,10 @@ impl LocalDispatcher {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
             Command::AddChain { mut chain } => {
-                if chain.enabled {
-                    let proj = self.project.borrow();
-                    chain_validation::validate_no_channel_conflict(&proj, &chain, None)
-                        .map_err(|e| anyhow::anyhow!("{}", e))?;
-                }
+                // #716 (model A): the per-block cross-chain channel-conflict
+                // check is gone — device endpoints no longer live on the chain,
+                // they are resolved from the per-machine binding registry at
+                // activation time, where the conflict check now belongs.
                 // Mirror the new chain into the attached rig (if any),
                 // and re-tag the chain's id to `rig:<input>` so the
                 // chains-screen rig nav can locate it. Without the

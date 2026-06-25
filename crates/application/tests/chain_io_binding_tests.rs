@@ -25,8 +25,7 @@ use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{BlockId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject};
 
@@ -70,11 +69,6 @@ fn rig_with_chain() -> RigProject {
         "in".into(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("hw:0,0".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank,
             active_preset: 1,
             active_scene: 1,
@@ -103,11 +97,6 @@ fn input_block(id: &str) -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("hw:0,0".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
         }),
     }
 }
@@ -120,11 +109,6 @@ fn output_block(id: &str) -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("hw:0,0".to_string()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
         }),
     }
 }

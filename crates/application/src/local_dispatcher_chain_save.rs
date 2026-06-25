@@ -214,11 +214,6 @@ pub(crate) fn propagate_output_ref_to_rig(
         label: None,
         io: String::new(),
         endpoint: String::new(),
-        entry: project::block::OutputEntry {
-            device_id: domain::ids::DeviceId(String::new()),
-            mode: project::chain::ChainOutputMode::Stereo,
-            channels: vec![],
-        },
     });
     entry.io = io.to_string();
     entry.endpoint = endpoint.to_string();

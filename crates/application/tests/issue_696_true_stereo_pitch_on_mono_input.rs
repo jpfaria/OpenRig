@@ -12,18 +12,15 @@
 //! therefore always receives a stereo bus, no matter how many physical
 //! channels feed the chain. `validate_project` must not reject it.
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
 use application::validate::validate_project;
 
 const CHAIN_ID: &str = "rig:input-3";
-const DEVICE: &str = "test:device";
 
 fn mono_input() -> AudioBlock {
     AudioBlock {
@@ -33,11 +30,6 @@ fn mono_input() -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
         }),
     }
 }
@@ -64,11 +56,6 @@ fn stereo_output() -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
         }),
     }
 }

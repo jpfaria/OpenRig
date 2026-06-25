@@ -13,7 +13,6 @@ pub mod block_factory;
 pub mod di_loader;
 pub mod bridge;
 pub mod chain_factory;
-pub mod chain_validation;
 pub mod command;
 pub mod command_schema;
 pub mod dispatcher;

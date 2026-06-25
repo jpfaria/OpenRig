@@ -7,10 +7,9 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 
-use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputEntry};
-use project::chain::ChainInputMode;
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
 use project::param::ParameterSet;
 use project::rig::{RigInput, RigPreset, RigProject};
 
@@ -45,11 +44,6 @@ fn rig() -> RigProject {
         "in".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank: BTreeMap::from([(1, "p1".to_string()), (2, "p2".to_string())]),
             active_preset: 1,
             active_scene: 1,
@@ -194,11 +188,6 @@ fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
         "in-b".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("e".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![1],
-            }],
             bank: BTreeMap::from([(1, "p1".to_string())]),
             active_preset: 1,
             active_scene: 1,
@@ -345,11 +334,6 @@ fn two_input_rig() -> RigProject {
             (*name).to_string(),
             RigInput {
                 label: None,
-                sources: vec![InputEntry {
-                    device_id: DeviceId("d".into()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![0],
-                }],
                 bank: BTreeMap::from([(1, (*preset).to_string())]),
                 active_preset: 1,
                 active_scene: 1,

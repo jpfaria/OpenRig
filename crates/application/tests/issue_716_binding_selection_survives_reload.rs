@@ -17,9 +17,7 @@ use std::rc::Rc;
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
-use domain::ids::{ChainId, DeviceId};
-use project::block::InputEntry;
-use project::chain::ChainInputMode;
+use domain::ids::ChainId;
 use project::rig::{RigInput, RigPreset, RigProject};
 
 /// A rig with one input chain ("rig:in"), mirroring chain_io_binding_tests.
@@ -33,11 +31,6 @@ fn rig_with_chain() -> RigProject {
         "in".into(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("hw:0,0".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank,
             active_preset: 1,
             active_scene: 1,

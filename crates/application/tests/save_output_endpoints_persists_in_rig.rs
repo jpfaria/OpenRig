@@ -23,11 +23,8 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
 use project::rig::{RigInput, RigPreset, RigProject};
 
 use application::command::Command;
@@ -36,7 +33,6 @@ use application::local_dispatcher::LocalDispatcher;
 
 const INPUT_NAME: &str = "in";
 const CHAIN_ID: &str = "rig:in";
-const DEVICE: &str = "test:device";
 
 fn user_output() -> AudioBlock {
     AudioBlock {
@@ -46,11 +42,6 @@ fn user_output() -> AudioBlock {
             model: "standard".into(),
             io: String::new(),
             endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
         }),
     }
 }
@@ -68,11 +59,6 @@ fn rig_with_input() -> RigProject {
         INPUT_NAME.into(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank,
             active_preset: 1,
             active_scene: 1,
