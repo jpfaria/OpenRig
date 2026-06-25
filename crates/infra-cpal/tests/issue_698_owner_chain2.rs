@@ -65,7 +65,7 @@ fn owner_chain2_live_pitch_insert_does_not_saturate() {
 
     // Owner shape: 44.1 kHz / 128 frames (the captured 2902 us period) and
     // the multi-chain project (3 chains → 3 workers + GUI competing).
-    let (mut project, chain_id) =
+    let (mut project, chain_id, registry) =
         rig_project_with("issue_698_owner_chain2.yaml", input, output, 44_100, 128);
     for i in 1..3 {
         let mut extra = project.chains[0].clone();
@@ -73,6 +73,8 @@ fn owner_chain2_live_pitch_insert_does_not_saturate() {
         project.chains.push(extra);
     }
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 

@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use domain::io_binding::IoBinding;
 use engine::runtime::{build_per_input_runtime_states, ChainRuntimeState};
 use project::chain::Chain;
 
@@ -22,6 +23,10 @@ pub struct BuildRequest {
     pub sample_rate: f32,
     /// Per-input elastic buffer targets (device buffer sizes).
     pub buffer_sizes: Vec<usize>,
+    /// Model A (#716): the per-machine I/O binding registry, owned so it can
+    /// move to the worker thread. Device endpoints resolve from this, not from
+    /// the chain — see [`engine::runtime_endpoints::resolve_chain_io`].
+    pub io_bindings: Vec<IoBinding>,
 }
 
 /// Build the fresh per-entry chain runtimes from `req`. Worker-runnable: this
@@ -34,5 +39,10 @@ pub struct BuildRequest {
 /// Propagates any failure from `engine`'s chain-runtime assembly (e.g. a model
 /// that fails to load).
 pub fn build_chain_runtime(req: &BuildRequest) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
-    build_per_input_runtime_states(&req.chain, req.sample_rate, &req.buffer_sizes)
+    build_per_input_runtime_states(
+        &req.chain,
+        req.sample_rate,
+        &req.buffer_sizes,
+        &req.io_bindings,
+    )
 }

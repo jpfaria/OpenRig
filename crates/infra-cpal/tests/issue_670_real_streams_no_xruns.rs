@@ -39,8 +39,13 @@ fn real_streams_beat_it_di_loop_no_xruns() {
         input.name, output.name
     );
 
-    let (project, chain_id) = rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
-    let controller = ProjectRuntimeController::start(&project).expect("start real streams");
+    let (project, chain_id, registry) =
+        rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
+    let mut controller = ProjectRuntimeController::start(&project).expect("start real streams");
+    // Model A (#716): install the per-machine binding registry, then re-sync so
+    // the streams resolve to the real devices.
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di));
 
@@ -89,8 +94,11 @@ fn rebuild_while_playing_keeps_the_cushion() {
 
     // Owner-requested scenario: the Barao Vermelho - Bete Balanco preset with
     // the matching Phil DI take.
-    let (project, chain_id) = rig_project("barao_vermelho_bete_balanco.yaml", input, output);
+    let (project, chain_id, registry) =
+        rig_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di(
         "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
         controller.sample_rate(),
@@ -191,13 +199,16 @@ fn adding_a_cab_live_does_not_spiral() {
     // 3+ DSP workers (each with its idle spin) plus the GUI all compete on
     // the same machine. One isolated chain never reproduced the spiral; the
     // multi-chain shape is the live condition.
-    let (mut project, chain_id) = rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
+    let (mut project, chain_id, registry) =
+        rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
     for i in 1..3 {
         let mut extra = project.chains[0].clone();
         extra.id = ChainId(format!("issue-670-extra-{i}"));
         project.chains.push(extra);
     }
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 

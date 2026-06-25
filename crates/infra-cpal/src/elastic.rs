@@ -17,8 +17,9 @@
 //! (`upsert_chain_with_resolved`) feeds them straight into
 //! `RuntimeGraph::upsert_chain`.
 
+use domain::io_binding::IoBinding;
 use engine::runtime::elastic_target_for_buffer;
-use project::block::AudioBlockKind;
+use engine::runtime_endpoints::resolve_chain_io;
 use project::chain::Chain;
 
 use crate::resolved::ResolvedChainAudioConfig;
@@ -53,16 +54,13 @@ const ELASTIC_MULTIPLIER_INSERT_SEND: u8 = 1;
 pub(crate) fn compute_elastic_targets_for_chain(
     chain: &Chain,
     resolved: &ResolvedChainAudioConfig,
+    registry: &[IoBinding],
 ) -> Vec<usize> {
-    let regular_output_count: usize = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
-            _ => None,
-        })
-        .sum();
+    // Model A (#716): the regular (non-Insert) outputs come from the resolved
+    // binding endpoints, not from block `entries`. Insert sends are appended
+    // after them in `resolved.outputs`, so the count still splits the two.
+    let (_resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let regular_output_count: usize = resolved_outputs.len();
     resolved
         .outputs
         .iter()

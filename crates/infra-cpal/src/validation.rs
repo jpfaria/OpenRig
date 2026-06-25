@@ -28,6 +28,10 @@ use cpal::SupportedBufferSize;
 use cpal::traits::{DeviceTrait, HostTrait};
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+use domain::io_binding::IoBinding;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use engine::runtime_endpoints::resolve_chain_io;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::project::Project;
@@ -61,12 +65,13 @@ pub(crate) fn validate_buffer_size(
 pub(crate) fn validate_channels_against_devices(
     project: &Project,
     host: &cpal::Host,
+    registry: &[IoBinding],
 ) -> Result<()> {
     for chain in &project.chains {
         if !chain.enabled {
             continue;
         }
-        validate_chain_channels_against_devices(host, chain)?;
+        validate_chain_channels_against_devices(host, chain, registry)?;
     }
     Ok(())
 }
@@ -75,27 +80,27 @@ pub(crate) fn validate_channels_against_devices(
 pub(crate) fn validate_chain_channels_against_devices(
     host: &cpal::Host,
     chain: &Chain,
+    registry: &[IoBinding],
 ) -> Result<()> {
-    for (_, input) in chain.input_blocks() {
-        for entry in &input.entries {
-            validate_input_channels_against_device(
-                host,
-                &chain.id.0,
-                &entry.device_id.0,
-                &entry.channels,
-            )?;
-        }
+    // Model A (#716): the chain's input/output device endpoints come from the
+    // binding registry, not from block `entries`.
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    for entry in &resolved_inputs {
+        validate_input_channels_against_device(
+            host,
+            &chain.id.0,
+            &entry.device_id.0,
+            &entry.channels,
+        )?;
     }
 
-    for (_, output) in chain.output_blocks() {
-        for entry in &output.entries {
-            validate_output_channels_against_device(
-                host,
-                &chain.id.0,
-                &entry.device_id.0,
-                &entry.channels,
-            )?;
-        }
+    for entry in &resolved_outputs {
+        validate_output_channels_against_device(
+            host,
+            &chain.id.0,
+            &entry.device_id.0,
+            &entry.channels,
+        )?;
     }
 
     // Validate Insert block endpoints

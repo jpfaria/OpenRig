@@ -6,11 +6,13 @@
 //! A chain with input entries builds one isolated runtime per input port; a
 //! chain with no I/O blocks builds NONE.
 
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_cpal::{build_chain_runtime, BuildRequest};
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 
+/// Model A (#716): a single mono-in/mono-out chain that selects the "io"
+/// binding; the device endpoints live in `io_registry`, not block `entries`.
 fn bound_chain(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
@@ -18,38 +20,28 @@ fn bound_chain(id: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    io: String::new(),
-                    endpoint: String::new(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
+}
+
+fn io_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+    }]
 }
 
 #[test]
@@ -58,6 +50,7 @@ fn build_chain_runtime_produces_a_runnable_runtime() {
         chain: bound_chain("c"),
         sample_rate: 48_000.0,
         buffer_sizes: vec![1024],
+        io_bindings: io_registry(),
     };
     let runtimes = build_chain_runtime(&req).expect("build must succeed for a chain with I/O");
     assert_eq!(

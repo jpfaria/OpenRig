@@ -10,46 +10,19 @@
 
 use std::collections::HashMap;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::RuntimeGraph;
 use infra_cpal::ProjectRuntimeController;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 use project::project::Project;
 
-fn input_on(device: &str) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(format!("input:{device}")),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_stereo() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("out".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
+fn input_endpoint(name: &str, device: &str) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(device.into()),
+        mode: ChannelMode::Mono,
+        channels: vec![0],
     }
 }
 
@@ -57,15 +30,31 @@ fn output_stereo() -> AudioBlock {
 fn returns_false_for_a_multi_input_chain() {
     // Two distinct input devices => two per-device runtimes; the single-runtime
     // off-thread path does not apply, so it must defer to the synchronous build.
+    // Model A (#716): the two devices come from the binding registry, not block
+    // `entries`.
     let chain = Chain {
         id: ChainId("multi".into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![input_on("devA"), input_on("devB"), output_stereo()],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     };
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![
+            input_endpoint("inA", "devA"),
+            input_endpoint("inB", "devB"),
+        ],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
     let project = Project {
         name: None,
         device_settings: vec![],
@@ -75,6 +64,7 @@ fn returns_false_for_a_multi_input_chain() {
     let mut controller = ProjectRuntimeController::for_testing(RuntimeGraph {
         chains: HashMap::new(),
     });
+    controller.set_io_bindings(registry);
 
     let scheduled = controller
         .schedule_chain_activation(&project, &chain)

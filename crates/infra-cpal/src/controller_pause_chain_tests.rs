@@ -53,7 +53,7 @@ fn controller_with_active_chain(
 ) {
     let chain = empty_chain(&chain_id.0, true);
     let runtime_arc = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("empty chain runtime should build"),
     );
 
@@ -88,7 +88,9 @@ fn controller_with_active_chain(
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
-        sample_rate: 48_000,        #[cfg(all(target_os = "linux", feature = "jack"))]
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
+        #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
         ),
@@ -188,7 +190,7 @@ fn pause_chain_drains_every_input_group_runtime() {
     // has two `InputBlock` entries.
     let chain = empty_chain(&chain_id.0, true);
     let group1 = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("group-1 runtime should build"),
     );
     controller
@@ -228,7 +230,7 @@ fn upsert_chain_enabled_resumes_every_input_group_runtime() {
 
     let chain = empty_chain(&chain_id.0, true);
     let group1 = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("group-1 runtime should build"),
     );
     controller

@@ -15,11 +15,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Once;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::AudioBlock;
+use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
 
@@ -58,56 +57,47 @@ pub fn rig_project(
     preset_file: &str,
     input: &infra_cpal::AudioDeviceDescriptor,
     output: &infra_cpal::AudioDeviceDescriptor,
-) -> (Project, ChainId) {
+) -> (Project, ChainId, Vec<IoBinding>) {
     rig_project_with(preset_file, input, output, 48_000, BUFFER)
 }
 
 /// `rig_project` with explicit device rate/buffer — the owner runs the
 /// Scarlett at 44.1 kHz / 128 frames (2.9 ms period), the battery default
 /// is 48 kHz / 64.
+///
+/// Model A (#716): the chain selects the "io" binding for its head input /
+/// tail output; the device endpoints live in the returned registry, not in
+/// block `entries`. Callers must `controller.set_io_bindings(registry)` (and
+/// re-sync) so the streams resolve to the real devices.
 pub fn rig_project_with(
     preset_file: &str,
     input: &infra_cpal::AudioDeviceDescriptor,
     output: &infra_cpal::AudioDeviceDescriptor,
     sample_rate: u32,
     buffer_frames: u32,
-) -> (Project, ChainId) {
+) -> (Project, ChainId, Vec<IoBinding>) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
         .join(preset_file);
-    let mut blocks = vec![AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(input.id.clone()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
+    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset)
+        .expect("preset")
+        .blocks;
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId(input.id.clone()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId(output.id.clone()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
     }];
-    blocks.extend(
-        infra_yaml::load_chain_preset_file(&preset)
-            .expect("preset")
-            .blocks,
-    );
-    blocks.push(AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(output.id.clone()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    });
     let chain_id = ChainId("issue-670-real".into());
     let project = Project {
         name: Some("issue-670-real-streams".into()),
@@ -133,12 +123,12 @@ pub fn rig_project_with(
             // Volume 0: the DSP path is identical (volume applies at the
             // output mixdown); the test just stops blasting the monitors.
             volume: 0.0,
-            io_binding_ids: vec![],
+            io_binding_ids: vec!["io".into()],
             blocks,
         }],
         midi: None,
     };
-    (project, chain_id)
+    (project, chain_id, registry)
 }
 
 pub fn load_di(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {

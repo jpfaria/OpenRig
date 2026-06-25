@@ -16,13 +16,12 @@ use std::sync::Arc;
 use std::sync::Once;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind};
+use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
 
@@ -169,43 +168,32 @@ fn preset_project(
     preset_file: &str,
     input: &infra_cpal::AudioDeviceDescriptor,
     output: &infra_cpal::AudioDeviceDescriptor,
-) -> (Project, ChainId) {
+) -> (Project, ChainId, Vec<IoBinding>) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
         .join(preset_file);
-    let mut blocks = vec![AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(input.id.clone()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
+    // Model A (#716): the chain selects the "io" binding for head input / tail
+    // output; the device endpoints live in the returned registry, not in block
+    // `entries`. The caller installs it via `set_io_bindings` + re-sync.
+    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset)
+        .expect("preset")
+        .blocks;
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId(input.id.clone()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId(output.id.clone()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
     }];
-    blocks.extend(
-        infra_yaml::load_chain_preset_file(&preset)
-            .expect("preset")
-            .blocks,
-    );
-    blocks.push(AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            io: String::new(),
-            endpoint: String::new(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(output.id.clone()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    });
     let chain_id = ChainId("issue-670".into());
     let project = Project {
         name: Some("issue-670".into()),
@@ -230,12 +218,12 @@ fn preset_project(
             enabled: true,
             // Volume 0: identical DSP (applied at output mixdown), silent monitors.
             volume: 0.0,
-            io_binding_ids: vec![],
+            io_binding_ids: vec!["io".into()],
             blocks,
         }],
         midi: None,
     };
-    (project, chain_id)
+    (project, chain_id, registry)
 }
 
 /// Swap the chain's cab block to `model` with that model's factory defaults
@@ -277,8 +265,11 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
         input.name, output.name
     );
 
-    let (project, chain_id) = preset_project("barao_vermelho_bete_balanco.yaml", input, output);
+    let (project, chain_id, registry) =
+        preset_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
 
     let di = load_di_arc(
         "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
@@ -394,8 +385,11 @@ fn owner_saved_broken_preset_plays_clean() {
     let (input, output) = scarlett();
     let (input, output) = (&input, &output);
 
-    let (project, chain_id) = preset_project("beat_it_rhythm_as_saved_broken.yaml", input, output);
-    let controller = ProjectRuntimeController::start(&project).expect("start streams");
+    let (project, chain_id, registry) =
+        preset_project("beat_it_rhythm_as_saved_broken.yaml", input, output);
+    let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di));
 

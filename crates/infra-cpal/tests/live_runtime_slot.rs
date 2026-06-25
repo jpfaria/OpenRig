@@ -23,7 +23,8 @@ fn empty_chain(id: &str) -> Chain {
 
 #[test]
 fn publish_swaps_runtime_and_returns_old_for_drop() {
-    let first = Arc::new(build_chain_runtime_state(&empty_chain("c"), 48_000.0, &[1024]).unwrap());
+    let first =
+        Arc::new(build_chain_runtime_state(&empty_chain("c"), 48_000.0, &[1024], &[]).unwrap());
     let slot = LiveRuntimeSlot::new(Arc::clone(&first));
 
     // Audio-side load returns the current runtime (wait-free).
@@ -34,7 +35,8 @@ fn publish_swaps_runtime_and_returns_old_for_drop() {
     );
     drop(loaded);
 
-    let second = Arc::new(build_chain_runtime_state(&empty_chain("c"), 48_000.0, &[1024]).unwrap());
+    let second =
+        Arc::new(build_chain_runtime_state(&empty_chain("c"), 48_000.0, &[1024], &[]).unwrap());
     let second_addr = Arc::as_ptr(&second) as usize;
     let old = slot.publish(second);
 

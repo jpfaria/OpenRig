@@ -25,8 +25,8 @@ fn empty_chain(id: &str) -> Chain {
 #[test]
 fn build_chain_slots_makes_one_slot_per_group_runtime() {
     let chain = empty_chain("c");
-    let rt0 = Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256]).unwrap());
-    let rt1 = Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256]).unwrap());
+    let rt0 = Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &[]).unwrap());
+    let rt1 = Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &[]).unwrap());
 
     let runtimes = vec![(0_usize, Arc::clone(&rt0)), (1_usize, Arc::clone(&rt1))];
     let slots: Vec<(usize, LiveRuntimeSlot)> = build_chain_slots(&runtimes);
