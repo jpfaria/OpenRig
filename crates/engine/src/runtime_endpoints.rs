@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 
-use domain::ids::DeviceId;
+use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::IoBinding;
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
 use project::block::{AudioBlockKind, InsertBlock};
@@ -65,6 +65,55 @@ pub fn resolve_chain_io(chain: &Chain, registry: &[IoBinding]) -> (Vec<InputEntr
         }
     }
     (inputs, outputs)
+}
+
+/// #716: the first `(device_id, channel)` claimed by two different input
+/// endpoints in `inputs`, or `None` when every input tap is unique.
+///
+/// Two or more ACTIVE inputs may not read the same physical capture point at
+/// once (invariant #4). The activation path feeds this the resolved input
+/// endpoints of all enabled chains (head/tail + mid) — within a chain AND
+/// across chains — and refuses to bring up a chain that would collide. Same
+/// device on DIFFERENT channels is fine (the "two E/S on one device" case);
+/// outputs are never checked (many inputs may feed one output).
+pub fn input_port_conflict(inputs: &[InputEntry]) -> Option<(String, usize)> {
+    let mut claimed: std::collections::HashSet<(String, usize)> = std::collections::HashSet::new();
+    for entry in inputs {
+        for &ch in &entry.channels {
+            let tap = (entry.device_id.0.clone(), ch);
+            if !claimed.insert(tap.clone()) {
+                return Some(tap);
+            }
+        }
+    }
+    None
+}
+
+/// The chains that must NOT be activated because an earlier (higher-priority,
+/// i.e. earlier in iteration) enabled chain already claimed one of their input
+/// taps `(device, channel)`. First chain wins; the conflicting ones are
+/// returned (skip them at activation). Disabled chains are ignored. Output taps
+/// are never considered (many inputs may feed one output). #716, invariant #4.
+pub fn input_conflicting_chains<'a>(
+    chains: impl IntoIterator<Item = &'a Chain>,
+    registry: &[IoBinding],
+) -> Vec<ChainId> {
+    let mut claimed: Vec<InputEntry> = Vec::new();
+    let mut skipped = Vec::new();
+    for chain in chains {
+        if !chain.enabled {
+            continue;
+        }
+        let (inputs, _) = resolve_chain_io(chain, registry);
+        let mut combined = claimed.clone();
+        combined.extend(inputs.iter().cloned());
+        if input_port_conflict(&combined).is_some() {
+            skipped.push(chain.id.clone());
+        } else {
+            claimed.extend(inputs);
+        }
+    }
+    skipped
 }
 
 /// Expand the resolved input endpoints into the flat per-stream list.
