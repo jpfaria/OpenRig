@@ -31,7 +31,6 @@ use tempfile::TempDir;
 struct Sandbox {
     _tmp: TempDir,
     path: PathBuf,
-    openrig: PathBuf,
     cfg: PathBuf,
 }
 
@@ -39,12 +38,10 @@ impl Sandbox {
     fn new() -> Self {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("project.yaml");
-        let openrig = path.with_extension("openrig");
         let cfg = tmp.path().join("config.yaml");
         Self {
             _tmp: tmp,
             path,
-            openrig,
             cfg,
         }
     }
@@ -61,7 +58,8 @@ impl Sandbox {
     }
 
     fn read_openrig(&self) -> project::rig::RigProject {
-        infra_yaml::load_rig_project_file(&self.openrig).expect("load .openrig")
+        // #716: the project persists as the `.yaml` itself now (no `.openrig`).
+        infra_yaml::load_rig_project_file(&self.path).expect("load saved rig (.yaml)")
     }
 }
 

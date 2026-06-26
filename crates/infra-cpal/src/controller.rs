@@ -749,6 +749,27 @@ impl ProjectRuntimeController {
         Ok(false)
     }
 
+    /// #716: `true` when `chain` is already streaming AND its resolved I/O
+    /// topology (the devices/channels its bindings point at) differs from what
+    /// is live — i.e. the user re-bound its E/S. A param/block `upsert` keeps the
+    /// existing streams, so an E/S swap would NOT take effect until a project
+    /// reopen; the caller must REBUILD the chain's streams when this is true.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn chain_io_changed(&self, project: &Project, chain: &Chain) -> Result<bool> {
+        let Some(active) = self.active_chains.get(&chain.id) else {
+            return Ok(false); // not streaming — nothing to compare
+        };
+        let host = get_host();
+        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
+        Ok(active.stream_signature != resolved.stream_signature)
+    }
+
+    /// JACK build: stream-topology live-swap is not wired yet (cpal path first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn chain_io_changed(&self, _project: &Project, _chain: &Chain) -> Result<bool> {
+        Ok(false)
+    }
+
     /// Issue #672 — cold activation. If `chain` is a single-input-group chain
     /// that is not yet streaming, build its runtime (the heavy NAM/IR load) on
     /// the control worker and return `true`; the next poll creates the cpal

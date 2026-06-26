@@ -1069,9 +1069,10 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
         "preset volume preserved through the rig path (invariant #10)"
     );
     assert!(
-        path.with_extension("openrig").exists(),
-        "legacy .yaml transparently migrated to .openrig"
+        !path.with_extension("openrig").exists(),
+        "#716: legacy .yaml migrates IN MEMORY — no .openrig sibling is written"
     );
+    assert!(path.exists(), "the .yaml project file stays in place");
 }
 
 #[test]

@@ -115,6 +115,15 @@ pub(crate) fn sync_live_chain_runtime(
                 // runtime discards the SPSC ring continuity and runtime-only
                 // state (DI loop, #614) — it stops the sound. Live edits keep the
                 // engine's in-place lock-free update via upsert_chain.
+                // #716: re-binding a chain's E/S changes its stream topology
+                // (different devices/channels). An in-place `upsert` keeps the
+                // old streams, so the swap wouldn't apply until a project reopen.
+                // Detect the I/O change and REBUILD (drop the chain's streams so
+                // it re-activates fresh on the new devices); a param/block edit
+                // (I/O unchanged) keeps the lock-free in-place upsert.
+                if runtime.chain_io_changed(&*proj, chain)? {
+                    runtime.remove_chain(&chain.id);
+                }
                 if !runtime.schedule_chain_activation(&*proj, chain)? {
                     runtime.upsert_chain(&*proj, chain)?;
                 }
