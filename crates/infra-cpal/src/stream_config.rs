@@ -12,14 +12,15 @@
 //!   override out of `Option<DeviceSettings>` and fall back to the
 //!   device default if the user hasn't picked one.
 //! - `required_channel_count`, `select_supported_stream_config`,
-//!   `resolve_multi_io_sample_rate`, `max_supported_input/output_channels`,
+//!   `resolve_binding_sample_rates`, `max_supported_input/output_channels`,
 //!   `max_supported_channels` — selectors that pick a config from the
 //!   ranges cpal returns.
 //!
 //! `resolve_chain_runtime_sample_rate` lives behind `#[cfg(test)]` —
 //! older test cases used to compare a per-input vs per-output rate; the
-//! production path went through `resolve_multi_io_sample_rate` long
-//! before this split.
+//! production path resolves per binding-group via
+//! `resolve_binding_sample_rates` (#736), which superseded the earlier
+//! whole-chain `resolve_multi_io_sample_rate`.
 //!
 //! Public surface: nothing. All `pub(crate)`.
 
@@ -157,20 +158,6 @@ pub(crate) fn resolve_chain_runtime_sample_rate(
     }
 
     Ok(input.sample_rate() as f32)
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn resolve_multi_io_sample_rate(
-    chain_id: &str,
-    inputs: &[ResolvedInputDevice],
-    outputs: &[ResolvedOutputDevice],
-) -> Result<f32> {
-    // Collect the per-device resolved rates (settings override or device
-    // default), then unify. The unification is pure (operates on the rate
-    // numbers only) so it can be unit-tested without real `cpal::Device`s.
-    let input_rates: Vec<u32> = inputs.iter().map(resolved_input_sample_rate).collect();
-    let output_rates: Vec<u32> = outputs.iter().map(resolved_output_sample_rate).collect();
-    unify_io_sample_rates(chain_id, &input_rates, &output_rates)
 }
 
 /// Pure unification of the resolved per-device rates: every input and every
