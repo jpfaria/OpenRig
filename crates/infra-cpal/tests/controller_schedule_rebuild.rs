@@ -69,7 +69,7 @@ fn schedule_then_poll_publishes_a_new_runtime_offthread() {
     assert!(Arc::ptr_eq(&before, &initial));
 
     // Enqueue the rebuild — must return immediately (no build on this thread).
-    controller.schedule_chain_rebuild(&chain, 48_000.0, vec![1024]);
+    controller.schedule_chain_rebuild(&chain, 48_000.0, std::collections::HashMap::new(), vec![1024]);
 
     // The frontend tick drains finished builds; spin the poll until applied.
     let mut applied = 0;

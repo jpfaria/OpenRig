@@ -211,6 +211,7 @@ impl ProjectRuntimeController {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32>,
         buffer_sizes: Vec<usize>,
     ) {
         // Seed the slots from the current graph runtimes if they have not
@@ -235,7 +236,7 @@ impl ProjectRuntimeController {
         let request = BuildRequest {
             chain: chain.clone(),
             sample_rate,
-            device_sample_rates: std::collections::HashMap::new(),
+            device_sample_rates,
             buffer_sizes,
             io_bindings: self.io_bindings.clone(),
         };
@@ -734,7 +735,7 @@ impl ProjectRuntimeController {
         }
         let elastic_targets =
             compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
-        self.schedule_chain_rebuild(chain, resolved.sample_rate, elastic_targets);
+        self.schedule_chain_rebuild(chain, resolved.sample_rate, resolved.by_device.clone(), elastic_targets);
         Ok(true)
     }
 
