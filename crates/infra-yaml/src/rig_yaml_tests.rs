@@ -325,11 +325,15 @@ fn load_project_any_migrates_legacy_transparently_and_is_idempotent() {
     let rig = load_project_any(&legacy).expect("legacy migrates on load");
     assert_eq!(rig.presets.get("clean").unwrap().volume, 133.0);
 
-    let sibling = dir.path().join("project.openrig");
-    assert!(sibling.exists(), "sibling project.openrig written");
+    // #716: migration is IN MEMORY only — loading writes nothing to disk:
+    // no `.openrig` sibling and no `.yaml.bak`. The project stays `.yaml`.
     assert!(
-        dir.path().join("project.yaml.bak").exists(),
-        "legacy backed up"
+        !dir.path().join("project.openrig").exists(),
+        "no sibling project.openrig is written on load"
+    );
+    assert!(
+        !dir.path().join("project.yaml.bak").exists(),
+        "no .yaml.bak is written on load"
     );
 
     let again = load_project_any(&legacy).expect("idempotent");

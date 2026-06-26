@@ -191,28 +191,15 @@ impl LocalDispatcher {
         drop(current_rig);
         drop(rig_borrow);
 
-        let openrig_path = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
-            project_path.clone()
-        } else {
-            project_path.with_extension("openrig")
-        };
-        let openrig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
-            .map_err(|e| anyhow!("failed to serialize {openrig_path:?}: {e}"))?;
+        // #716: persist the rig to the project path itself (always `.yaml`).
+        // Never generate a separate `.openrig` sibling, and no legacy `.yaml`
+        // sidecar — the project file IS the rig, serialized as YAML.
+        let rig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
+            .map_err(|e| anyhow!("failed to serialize {project_path:?}: {e}"))?;
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
-            openrig_path.clone(),
-            openrig_yaml.into_bytes(),
+            project_path.clone(),
+            rig_yaml.into_bytes(),
         ));
-
-        // Legacy `.yaml` sidecar — only when the user-visible path
-        // isn't already the `.openrig` itself.
-        if openrig_path != *project_path {
-            let legacy = infra_yaml::serialize_project(&project_snapshot)
-                .map_err(|e| anyhow!("failed to serialize legacy snapshot: {e}"))?;
-            crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
-                project_path.clone(),
-                legacy.into_bytes(),
-            ));
-        }
 
         // Sidecar config.yaml (the in-project pointer to the preset
         // library). Uses the GUI-attached override when present;
