@@ -6,9 +6,11 @@
 //! returns the fresh runtime as an `Arc`, ready to be published into a
 //! [`LiveRuntimeSlot`](crate::LiveRuntimeSlot).
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
+use domain::ids::DeviceId;
 use domain::io_binding::IoBinding;
 use engine::runtime::{build_per_input_runtime_states, ChainRuntimeState};
 use project::chain::Chain;
@@ -19,8 +21,11 @@ use project::chain::Chain;
 pub struct BuildRequest {
     /// The chain definition to build a runtime for.
     pub chain: Chain,
-    /// Target sample rate (Hz).
+    /// Representative / fallback rate (Hz) — first binding's rate (#736).
     pub sample_rate: f32,
+    /// Per-input-device rates (#736). Each isolated runtime is clocked at its
+    /// own device's rate; missing device falls back to `sample_rate`.
+    pub device_sample_rates: HashMap<DeviceId, f32>,
     /// Per-input elastic buffer targets (device buffer sizes).
     pub buffer_sizes: Vec<usize>,
     /// Model A (#716): the per-machine I/O binding registry, owned so it can
@@ -42,6 +47,7 @@ pub fn build_chain_runtime(req: &BuildRequest) -> Result<Vec<(usize, Arc<ChainRu
     build_per_input_runtime_states(
         &req.chain,
         req.sample_rate,
+        &req.device_sample_rates,
         &req.buffer_sizes,
         &req.io_bindings,
     )

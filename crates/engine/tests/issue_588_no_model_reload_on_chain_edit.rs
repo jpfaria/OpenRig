@@ -130,7 +130,7 @@ fn editing_a_live_chain_does_not_reload_the_reused_nam_model() {
     // be reused, never reloaded.
     let edited = nam_chain("issue-588", 150.0);
     graph
-        .upsert_chain(&edited, SR, false, &[2048], &registry())
+        .upsert_chain(&edited, SR, &HashMap::new(), false, &[2048], &registry())
         .expect("in-place volume edit must succeed");
 
     let created_after_edit = nam::models_created();

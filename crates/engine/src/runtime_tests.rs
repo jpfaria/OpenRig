@@ -1537,7 +1537,7 @@ fn runtime_graph_upsert_chain_creates_new_entry() {
         chains: HashMap::new(),
     };
     let chain = tuner_track("chain:new", Vec::new());
-    let result = graph.upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[]);
+    let result = graph.upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(result.is_ok());
     assert_eq!(graph.chains.len(), 1);
 }
@@ -1550,11 +1550,11 @@ fn runtime_graph_upsert_chain_updates_existing() {
     };
     let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
     graph
-        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
+        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[])
         .unwrap();
     // Update — should reuse existing entry
     let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
-    let result = graph.upsert_chain(&chain2, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[]);
+    let result = graph.upsert_chain(&chain2, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(result.is_ok());
     assert_eq!(graph.chains.len(), 1);
 }
@@ -1576,7 +1576,7 @@ fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     let mut chain = io_passthrough_chain("chain:vol");
     chain.volume = 100.0;
     graph
-        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
+        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
         .unwrap();
     let rt = graph.runtime_for_chain(&chain.id).expect("runtime exists");
     assert_eq!(rt.volume_pct(), 100.0, "initial volume must be 100");
@@ -1585,7 +1585,7 @@ fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     // live chain (needs_stream_rebuild = false → fast in-place path).
     chain.volume = 150.0;
     graph
-        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
+        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
         .unwrap();
     let rt2 = graph.runtime_for_chain(&chain.id).expect("runtime exists");
     assert_eq!(
@@ -1629,7 +1629,7 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
     };
     let mut chain = two_device_chain("chain:2dev", 100.0);
     graph
-        .upsert_chain(&chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
+        .upsert_chain(&chain, 48_000.0, &HashMap::new(), true, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
         .unwrap();
 
     // The cpal callbacks capture these Arcs at stream-build time and keep
@@ -1641,7 +1641,7 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
     // chain whose stream signature is unchanged: needs_stream_rebuild=false.
     chain.volume = 150.0;
     graph
-        .upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
+        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
         .unwrap();
 
     for (i, rt) in held.iter().enumerate() {

@@ -1053,7 +1053,7 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     };
 
     let runtime = graph
-        .upsert_chain(&chain_v100, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
+        .upsert_chain(&chain_v100, SR, &std::collections::HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)
         .expect("first upsert builds chain runtime");
     assert!(
         (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
@@ -1067,7 +1067,7 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     let mut chain_v175 = chain_v100.clone();
     chain_v175.volume = 175.0;
     let runtime_after = graph
-        .upsert_chain(&chain_v175, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
+        .upsert_chain(&chain_v175, SR, &std::collections::HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)
         .expect("re-upsert updates volume in place");
     assert!(
         Arc::ptr_eq(&runtime, &runtime_after),

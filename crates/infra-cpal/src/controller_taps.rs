@@ -402,6 +402,7 @@ mod di_loop_doubling_tests {
         let req = BuildRequest {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
             buffer_sizes: vec![64],
             io_bindings: two_entry_registry(),
         };
@@ -414,6 +415,7 @@ mod di_loop_doubling_tests {
         let req = BuildRequest {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
             buffer_sizes: vec![64],
             io_bindings: two_entry_registry(),
         };
@@ -437,6 +439,7 @@ mod di_loop_doubling_tests {
         let req = BuildRequest {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
             buffer_sizes: vec![64],
             io_bindings: two_entry_registry(),
         };

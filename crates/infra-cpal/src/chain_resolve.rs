@@ -28,11 +28,13 @@ use anyhow::{bail, Context};
 use std::collections::HashMap;
 
 use domain::ids::ChainId;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use domain::ids::DeviceId;
 use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime_endpoints::{resolve_chain_io, InputEntry, OutputEntry};
+use engine::runtime_endpoints::{resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry};
 use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
@@ -98,7 +100,26 @@ pub fn resolve_project_chain_sample_rates(
             }
             let inputs = resolve_chain_inputs(&host, project, chain, registry)?;
             let outputs = resolve_chain_outputs(&host, project, chain, registry)?;
-            let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
+            let (logical_inputs, logical_outputs) =
+                engine::runtime_endpoints::resolve_chain_io(chain, registry);
+            let mut by_device: std::collections::HashMap<domain::ids::DeviceId, u32> =
+                std::collections::HashMap::new();
+            for (logical, resolved) in logical_inputs.iter().zip(inputs.iter()) {
+                by_device.insert(logical.device_id.clone(), crate::resolved_input_sample_rate(resolved));
+            }
+            for (logical, resolved) in logical_outputs.iter().zip(outputs.iter()) {
+                by_device.insert(logical.device_id.clone(), crate::resolved_output_sample_rate(resolved));
+            }
+            let binding_rates: Vec<(Vec<u32>, Vec<u32>)> =
+                engine::runtime_endpoints::resolve_chain_io_by_binding(chain, registry)
+                    .iter()
+                    .map(|g| {
+                        let in_r = g.inputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
+                        let out_r = g.outputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
+                        (in_r, out_r)
+                    })
+                    .collect();
+            let sample_rate = crate::resolve_binding_sample_rates(&chain.id.0, &binding_rates)?;
             sample_rates.insert(chain.id.clone(), sample_rate);
         }
 
@@ -368,8 +389,43 @@ pub(crate) fn resolve_chain_audio_config(
     let inputs = resolve_chain_inputs(host, project, chain, registry)?;
     let outputs = resolve_chain_outputs(host, project, chain, registry)?;
 
-    // Validate sample rates: all inputs and outputs must agree
-    let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
+    // #736: map each resolved device to its own rate. The resolved input /
+    // output lists are in the same order as the logical endpoints from
+    // `resolve_chain_io`, so we zip to recover each device id.
+    let (logical_inputs, logical_outputs) = resolve_chain_io(chain, registry);
+    let mut by_device: HashMap<DeviceId, f32> = HashMap::new();
+    for (logical, resolved) in logical_inputs.iter().zip(inputs.iter()) {
+        by_device.insert(
+            logical.device_id.clone(),
+            crate::resolved_input_sample_rate(resolved) as f32,
+        );
+    }
+    for (logical, resolved) in logical_outputs.iter().zip(outputs.iter()) {
+        by_device.insert(
+            logical.device_id.clone(),
+            crate::resolved_output_sample_rate(resolved) as f32,
+        );
+    }
+
+    // #736: validate per binding (input==output within a binding) and allow
+    // different rates across bindings, instead of one whole-chain unify.
+    let binding_rates: Vec<(Vec<u32>, Vec<u32>)> = resolve_chain_io_by_binding(chain, registry)
+        .iter()
+        .map(|g| {
+            let in_r = g
+                .inputs
+                .iter()
+                .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0.0) as u32)
+                .collect();
+            let out_r = g
+                .outputs
+                .iter()
+                .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0.0) as u32)
+                .collect();
+            (in_r, out_r)
+        })
+        .collect();
+    let sample_rate = crate::resolve_binding_sample_rates(&chain.id.0, &binding_rates)?;
 
     let stream_signature: ChainStreamSignature =
         crate::build_chain_stream_signature_multi(chain, &inputs, &outputs, registry);
@@ -378,6 +434,7 @@ pub(crate) fn resolve_chain_audio_config(
         inputs,
         outputs,
         sample_rate,
+        by_device,
         stream_signature,
     })
 }

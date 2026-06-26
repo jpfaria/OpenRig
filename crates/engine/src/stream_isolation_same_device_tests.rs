@@ -230,7 +230,7 @@ fn in_place_upsert_keeps_same_device_runtimes_entry_local() {
     let mut edited = chain.clone();
     edited.volume = 80.0;
     graph
-        .upsert_chain(&edited, 48_000.0, false, &[], &registry)
+        .upsert_chain(&edited, 48_000.0, &HashMap::new(), false, &[], &registry)
         .expect("in-place upsert must succeed");
 
     let runtimes = graph.runtimes_with_groups_for(&chain.id);

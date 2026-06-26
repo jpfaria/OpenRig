@@ -12,14 +12,15 @@
 //!   override out of `Option<DeviceSettings>` and fall back to the
 //!   device default if the user hasn't picked one.
 //! - `required_channel_count`, `select_supported_stream_config`,
-//!   `resolve_multi_io_sample_rate`, `max_supported_input/output_channels`,
+//!   `resolve_binding_sample_rates`, `max_supported_input/output_channels`,
 //!   `max_supported_channels` — selectors that pick a config from the
 //!   ranges cpal returns.
 //!
 //! `resolve_chain_runtime_sample_rate` lives behind `#[cfg(test)]` —
 //! older test cases used to compare a per-input vs per-output rate; the
-//! production path went through `resolve_multi_io_sample_rate` long
-//! before this split.
+//! production path resolves per binding-group via
+//! `resolve_binding_sample_rates` (#736), which superseded the earlier
+//! whole-chain `resolve_multi_io_sample_rate`.
 //!
 //! Public surface: nothing. All `pub(crate)`.
 
@@ -159,20 +160,6 @@ pub(crate) fn resolve_chain_runtime_sample_rate(
     Ok(input.sample_rate() as f32)
 }
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn resolve_multi_io_sample_rate(
-    chain_id: &str,
-    inputs: &[ResolvedInputDevice],
-    outputs: &[ResolvedOutputDevice],
-) -> Result<f32> {
-    // Collect the per-device resolved rates (settings override or device
-    // default), then unify. The unification is pure (operates on the rate
-    // numbers only) so it can be unit-tested without real `cpal::Device`s.
-    let input_rates: Vec<u32> = inputs.iter().map(resolved_input_sample_rate).collect();
-    let output_rates: Vec<u32> = outputs.iter().map(resolved_output_sample_rate).collect();
-    unify_io_sample_rates(chain_id, &input_rates, &output_rates)
-}
-
 /// Pure unification of the resolved per-device rates: every input and every
 /// output of one chain must agree (one engine clock). Returns the agreed rate
 /// or a precise error naming whether the disagreement is input↔input or
@@ -212,6 +199,35 @@ pub(crate) fn unify_io_sample_rates(
     }
     rate.map(|r| r as f32)
         .ok_or_else(|| anyhow!("chain '{}' has no inputs or outputs", chain_id))
+}
+
+/// Resolve the sample rate **per binding-group** instead of once for the whole
+/// chain (#736). Each `(input_rates, output_rates)` tuple is one I/O binding's
+/// device rates. Within a binding, every input and output must agree (one
+/// isolated stream needs no internal resample) — reuses `unify_io_sample_rates`,
+/// so the within-binding error wording is unchanged ("across inputs" / "across
+/// I/O"). Across bindings, rates may DIFFER freely — that is the whole point of
+/// invariant #4 (stream isolation): two isolated streams share no clock.
+///
+/// Returns the FIRST binding's rate as the chain's representative scalar (used
+/// for legacy single-rate consumers: stream-signature back-compat, DI-loop
+/// resample target). The authoritative per-device rates flow separately through
+/// `ResolvedChainAudioConfig::by_device`. With a single binding this equals the
+/// legacy whole-chain `unify_io_sample_rates` result — single-binding chains are
+/// bit-identical.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+pub(crate) fn resolve_binding_sample_rates(
+    chain_id: &str,
+    bindings: &[(Vec<u32>, Vec<u32>)],
+) -> Result<f32> {
+    let mut representative: Option<f32> = None;
+    for (input_rates, output_rates) in bindings {
+        let rate = unify_io_sample_rates(chain_id, input_rates, output_rates)?;
+        if representative.is_none() {
+            representative = Some(rate);
+        }
+    }
+    representative.ok_or_else(|| anyhow!("chain '{}' has no inputs or outputs", chain_id))
 }
 
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
@@ -256,6 +272,46 @@ mod unify_rate_tests {
             unify_io_sample_rates("c", &[], &[48_000]).unwrap(),
             48_000.0
         );
+    }
+
+    use super::resolve_binding_sample_rates;
+
+    #[test]
+    fn two_bindings_at_different_rates_resolve_without_error() {
+        // Scarlett binding @44.1k, TEYUN binding @48k — the #736 case.
+        // Cross-binding difference is allowed; representative = first binding.
+        let rate = resolve_binding_sample_rates(
+            "c",
+            &[(vec![44_100], vec![44_100]), (vec![48_000], vec![48_000])],
+        )
+        .expect("cross-binding rate difference must be allowed");
+        assert_eq!(rate, 44_100.0);
+    }
+
+    #[test]
+    fn within_binding_input_output_mismatch_still_errors() {
+        // 44.1k input + 48k output INSIDE one binding — one isolated stream
+        // cannot internally resample, so this stays a loud error (#669 shape).
+        let e = resolve_binding_sample_rates("c", &[(vec![44_100], vec![48_000])])
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("across I/O"), "got: {e}");
+    }
+
+    #[test]
+    fn single_binding_matches_legacy_unify() {
+        // One binding with all the chain's I/O → identical to whole-chain unify.
+        let rate = resolve_binding_sample_rates(
+            "c",
+            &[(vec![44_100, 44_100], vec![44_100])],
+        )
+        .unwrap();
+        assert_eq!(rate, 44_100.0);
+    }
+
+    #[test]
+    fn no_bindings_is_an_error() {
+        assert!(resolve_binding_sample_rates("c", &[]).is_err());
     }
 }
 

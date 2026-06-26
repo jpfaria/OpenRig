@@ -6,6 +6,7 @@
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::build_per_input_runtime_states;
+use std::collections::HashMap;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
 use project::chain::Chain;
 use project::param::ParameterSet;
@@ -53,7 +54,7 @@ fn bound_chain() -> Chain {
 
 #[test]
 fn bound_chain_builds_a_runnable_runtime_from_the_binding() {
-    let runtimes = build_per_input_runtime_states(&bound_chain(), 48_000.0, &[1024], &registry())
+    let runtimes = build_per_input_runtime_states(&bound_chain(), 48_000.0, &HashMap::new(), &[1024], &registry())
         .expect("a binding-bound chain must build (head input from the binding)");
     assert_eq!(
         runtimes.len(),

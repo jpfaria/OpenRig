@@ -211,6 +211,7 @@ impl ProjectRuntimeController {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32>,
         buffer_sizes: Vec<usize>,
     ) {
         // Seed the slots from the current graph runtimes if they have not
@@ -235,6 +236,7 @@ impl ProjectRuntimeController {
         let request = BuildRequest {
             chain: chain.clone(),
             sample_rate,
+            device_sample_rates,
             buffer_sizes,
             io_bindings: self.io_bindings.clone(),
         };
@@ -733,7 +735,7 @@ impl ProjectRuntimeController {
         }
         let elastic_targets =
             compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
-        self.schedule_chain_rebuild(chain, resolved.sample_rate, elastic_targets);
+        self.schedule_chain_rebuild(chain, resolved.sample_rate, resolved.by_device.clone(), elastic_targets);
         Ok(true)
     }
 
@@ -821,6 +823,7 @@ impl ProjectRuntimeController {
             let request = BuildRequest {
                 chain: chain_for_build,
                 sample_rate: resolved.sample_rate,
+                device_sample_rates: resolved.by_device.clone(),
                 buffer_sizes: elastic_targets,
                 io_bindings: registry_for_build,
             };
@@ -1010,6 +1013,7 @@ impl ProjectRuntimeController {
             self.runtime_graph.upsert_chain_spillover(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
                 &self.io_bindings,
@@ -1018,6 +1022,7 @@ impl ProjectRuntimeController {
             self.runtime_graph.upsert_chain(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
                 &self.io_bindings,
